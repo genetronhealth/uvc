@@ -225,9 +225,9 @@ process_batch(BatchArg & arg) {
     auto end2end = std::get<3>(tid_beg_end_e2e_tuple);
     auto nreads = std::get<4>(tid_beg_end_e2e_tuple);
     
-    std::map<uint64_t, std::array<std::map<uint64_t, std::vector<bam1_t *>>, 2>> umi_to_strand_to_reads;
+    std::map<uint64_t, std::pair<std::array<std::map<uint64_t, std::vector<bam1_t *>>, 2>, int>> umi_to_strand_to_reads;
     unsigned int extended_inclu_beg_pos, extended_exclu_end_pos; 
-    std::vector<std::array<std::vector<std::vector<bam1_t *>>, 2>> umi_strand_readset;
+    std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, int>> umi_strand_readset;
 
     LOG(logINFO) << "Thread " << thread_id << " starts bamfname_to_strand_to_familyuid_to_reads";
     int num_pass_reads = bamfname_to_strand_to_familyuid_to_reads(umi_to_strand_to_reads, 
@@ -343,7 +343,7 @@ process_batch(BatchArg & arg) {
     LOG(logINFO) << "Thread " << thread_id  << " starts destroying bam records"; 
     for (auto strand_readset : umi_strand_readset) {
         for (unsigned int strand = 0; strand < 2; strand++) {
-            auto readset = strand_readset[strand]; 
+            auto readset = strand_readset.first[strand]; 
             for (auto read : readset) {
                 for (bam1_t *b : read) {
                     bam_destroy1(b);

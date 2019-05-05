@@ -1132,15 +1132,16 @@ if (curr_depth_symbsum * 4 <= curr_depth_typesum * 3 && curr_depth_symbsum > 0 &
 
     int updateByAlns3UsingBQ(
             std::map<std::basic_string<std::pair<unsigned int, AlignmentSymbol>>, std::array<unsigned int, 2>> & mutform2count4map,
-            const std::vector<std::array<std::vector<std::vector<bam1_t *>>, 2>> & alns3, 
+            const std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, int>> & alns3, 
             const std::basic_string<AlignmentSymbol> & region_symbolvec,
             const std::array<unsigned int, NUM_SYMBOL_TYPES> & symbolType2addPhred,
             bool should_add_note,
             unsigned int phred_max) {
-        for (auto & alns2pair : alns3) {
+        for (const auto & alns2pair2dflag : alns3) {
+            const auto & alns2pair = alns2pair2dflag.first;
             for (unsigned int strand = 0; strand < 2; strand++) {
-                auto & alns2 = alns2pair[strand];
-                for (auto & alns1 : alns2) {
+                const auto & alns2 = alns2pair[strand];
+                for (const auto & alns1 : alns2) {
                     uint32_t tid2, beg2, end2;
                     fillTidBegEndFromAlns1(tid2, beg2, end2, alns1);
                     Symbol2CountCoverage read_ampBQerr_fragWithR1R2(tid, beg2, end2);
@@ -1213,7 +1214,8 @@ if (curr_depth_symbsum * 4 <= curr_depth_typesum * 3 && curr_depth_symbsum > 0 &
             const std::array<unsigned int, NUM_SYMBOL_TYPES> & symbolType2addPhred, 
             bool should_add_note, unsigned int phred_max) {
         unsigned int niters = 0;
-        for (auto & alns2pair : alns3) {
+        for (const auto & alns2pair2dflag : alns3) {
+            const auto & alns2pair = alns2pair2dflag.first;
             niters++;
             bool log_alns2 = niters > 1000 && ispowerof2(niters);
             if (log_alns2) {
@@ -1221,12 +1223,12 @@ if (curr_depth_symbsum * 4 <= curr_depth_typesum * 3 && curr_depth_symbsum > 0 &
             }
             assert (alns2pair[0].size() != 0 || alns2pair[1].size() != 0);
             for (unsigned int strand = 0; strand < 2; strand++) {
-                auto & alns2 = alns2pair[strand];
+                const auto & alns2 = alns2pair[strand];
                 if (alns2.size() == 0) { continue; }
                 uint32_t tid2, beg2, end2;
                 fillTidBegEndFromAlns2(tid2, beg2, end2, alns2);
                 Symbol2CountCoverage read_family_amplicon(tid2, beg2, end2); 
-                for (auto alns1 : alns2) {
+                for (const auto & alns1 : alns2) {
                     uint32_t tid1, beg1, end1;
                     fillTidBegEndFromAlns1(tid1, beg1, end1, alns1);
                     Symbol2CountCoverage read_ampBQerr_fragWithR1R2(tid1, beg1, end1);
@@ -1259,7 +1261,8 @@ if (curr_depth_symbsum * 4 <= curr_depth_typesum * 3 && curr_depth_symbsum > 0 &
             }
         }
         niters = 0;
-        for (const auto alns2pair : alns3) {
+        for (const auto & alns2pair2dflag : alns3) {
+            const auto & alns2pair = alns2pair2dflag.first;
             niters++;
             bool log_alns2 = niters > 1000 && ispowerof2(niters);
             uint32_t tid2, beg2, end2;
@@ -1269,12 +1272,12 @@ if (curr_depth_symbsum * 4 <= curr_depth_typesum * 3 && curr_depth_symbsum > 0 &
             if (alns2pair[1].size() > 0) { fillTidBegEndFromAlns2(tid2, beg2, end2, alns2pair[1], initialized); initialized = true; }
             Symbol2CountCoverage read_duplex_amplicon(tid2, beg2, end2);
             for (unsigned int strand = 0; strand < 2; strand++) {
-                auto & alns2 = alns2pair[strand];
+                const auto & alns2 = alns2pair[strand];
                 if (alns2.size() == 0) { continue; }
                 uint32_t tid2, beg2, end2;
                 fillTidBegEndFromAlns2(tid2, beg2, end2, alns2);
                 Symbol2CountCoverage read_family_amplicon(tid2, beg2, end2);
-                for (const auto aln_vec : alns2) {
+                for (const auto & aln_vec : alns2) {
                     uint32_t tid1, beg1, end1;
                     fillTidBegEndFromAlns1(tid1, beg1, end1, aln_vec);
                     Symbol2CountCoverage read_ampBQerr_fragWithR1R2(tid1, beg1, end1);
@@ -1285,7 +1288,7 @@ if (curr_depth_symbsum * 4 <= curr_depth_typesum * 3 && curr_depth_symbsum > 0 &
                         LOG(logDEBUG) << "num-updates = " << updateresult << " (second time)";
                     }
                 }
-                if (alns2pair[0].size() > 0 && alns2pair[1].size() > 0) { // is duplex
+                if ((2 == alns2pair2dflag.second) && alns2pair[0].size() > 0 && alns2pair[1].size() > 0) { // is duplex
                     read_duplex_amplicon.updateByConsensus<SYMBOL_COUNT_SUM>(read_family_amplicon);
                 }
                 std::basic_string<std::pair<unsigned int, AlignmentSymbol>> pos_symbol_string; // this->dedup_ampDistr
@@ -1341,7 +1344,7 @@ if (curr_depth_symbsum * 4 <= curr_depth_typesum * 3 && curr_depth_symbsum > 0 &
                     mutform2count4map[pos_symbol_string][strand]++;
                 }
             }
-            if (alns2pair[0].size() > 0 && alns2pair[1].size() > 0) {
+            if ((2 == alns2pair2dflag.second) && alns2pair[0].size() > 0 && alns2pair[1].size() > 0) { // is duplex
                 for (size_t epos = read_duplex_amplicon.getIncluBegPosition(); epos < read_duplex_amplicon.getExcluEndPosition(); epos++) {
                     for (SymbolType symbolType = SymbolType(0); symbolType < NUM_SYMBOL_TYPES; symbolType = SymbolType(1+(unsigned int)symbolType)) {
                         AlignmentSymbol con_symbol;
@@ -1401,7 +1404,7 @@ if (curr_depth_symbsum * 4 <= curr_depth_typesum * 3 && curr_depth_symbsum > 0 &
     int updateByRegion3Aln(
             std::map<std::basic_string<std::pair<unsigned int, AlignmentSymbol>>, std::array<unsigned int, 2>> & mutform2count4map_bq,
             std::map<std::basic_string<std::pair<unsigned int, AlignmentSymbol>>, std::array<unsigned int, 2>> & mutform2count4map_fq,
-            const std::vector<std::array<std::vector<std::vector<bam1_t *>>, 2>> & alns3, 
+            const std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, int>> & alns3, 
             const std::string & refstring,
             unsigned int bq_phred_added_misma, unsigned int bq_phred_added_indel, bool should_add_note, unsigned int phred_max_sscs, unsigned int phred_max_dscs) {
         const std::array<unsigned int, NUM_SYMBOL_TYPES> symbolType2addPhred = {bq_phred_added_misma, bq_phred_added_indel};
@@ -1587,8 +1590,8 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
     }
     double minVAQ = MIN(maxVAQs[0], maxVAQs[1]);
     double maxVAQ = MAX(maxVAQs[0], maxVAQs[1]);
-    double doubleVAQ = maxVAQ + (minVAQ * (phred_max_dscs - phred_max_sscs) / phred_max_sscs);
-    double duplexVAQ = fmt.T3AD3 * (phred_max_dscs - phred_max_sscs) - (fmt.T3AD1 - fmt.T3AD3); // h01_to
+    double doubleVAQ = maxVAQ + (minVAQ * (phred_max_dscs - phred_max_sscs) / (double)phred_max_sscs);
+    double duplexVAQ = (double)fmt.T3AD3 * (double)(phred_max_dscs - phred_max_sscs) - (double)(fmt.T3AD1 - fmt.T3AD3); // h01_to
     fmt.VAQ = MAX(lowestVAQ, doubleVAQ + duplexVAQ);
     return (int)(fmt.T1AD1[0] + fmt.T1AD1[1]);
 };

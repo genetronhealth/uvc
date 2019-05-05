@@ -339,23 +339,24 @@ clean_fill_strand_umi_readset(
 
 int 
 fill_strand_umi_readset_with_strand_to_umi_to_reads(
-        std::vector<std::array<std::vector<std::vector<bam1_t *>>, 2>> &umi_strand_readset,
+        std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, int>> &umi_strand_readset,
         // std::array<std::vector<std::vector<std::vector<bam1_t *>>>, 2> &strand_umi_readset,
-        std::map<uint64_t, std::array<std::map<uint64_t, std::vector<bam1_t *>>, 2>> &umi_to_strand_to_reads
+        std::map<uint64_t, std::pair<std::array<std::map<uint64_t, std::vector<bam1_t *>>, 2>, int>> &umi_to_strand_to_reads
         // std::array<std::map<uint64_t, std::map<uint64_t, std::vector<bam1_t *>>>, 2> &strand_to_umi_to_reads
         ) {
 #if 1
     for (auto & umi_to_strand_to_reads_element : umi_to_strand_to_reads) {
         const auto umi = umi_to_strand_to_reads_element.first;
-        const auto strand_to_reads = umi_to_strand_to_reads_element.second;
-        umi_strand_readset.push_back(std::array<std::vector<std::vector<bam1_t *>>, 2>());
+        const auto strand_to_reads = umi_to_strand_to_reads_element.second.first;
+        const auto dflag = umi_to_strand_to_reads_element.second.second;
+        umi_strand_readset.push_back(std::make_pair(std::array<std::vector<std::vector<bam1_t *>>, 2>(), dflag));
         for (unsigned int strand = 0; strand < 2; strand++) {
             // umi_strand_readset.back()[strand] = std::vector<std::vector<bam1_t *>>();
             for (auto read : strand_to_reads[strand]) {
                 const std::vector<bam1_t *> alns = read.second;
-                umi_strand_readset.back()[strand].push_back(std::vector<bam1_t *>());
+                umi_strand_readset.back().first[strand].push_back(std::vector<bam1_t *>());
                 for (auto aln : alns) {
-                    umi_strand_readset.back()[strand].back().push_back(aln);
+                    umi_strand_readset.back().first[strand].back().push_back(aln);
                 }
             }
         }
@@ -418,7 +419,7 @@ bam2umihash(int & is_umi_found, const bam1_t *aln, const std::vector<uint8_t> & 
 
 int
 bamfname_to_strand_to_familyuid_to_reads(
-        std::map<uint64_t, std::array<std::map<uint64_t, std::vector<bam1_t *>>, 2>> &umi_to_strand_to_reads,
+        std::map<uint64_t, std::pair<std::array<std::map<uint64_t, std::vector<bam1_t *>>, 2>, int>> &umi_to_strand_to_reads,
         unsigned int & extended_inclu_beg_pos, unsigned int & extended_exclu_end_pos,
         const std::string input_bam_fname, ErrorCorrectionType input_mode, 
         unsigned int tid, unsigned int fetch_tbeg, unsigned int fetch_tend, 
@@ -521,6 +522,7 @@ bamfname_to_strand_to_familyuid_to_reads(
         const char *umi_end = ((NULL != umi_end1) ? (umi_end1    ) : (qname + aln->core.l_qname)); 
        
         int is_umi_found = (umi_beg + 1 < umi_end); // UMI has at least one letter
+        int is_duplex_found = 0;
         uint64_t umihash = 0;
         if (is_umi_found) {
             size_t umi_len = umi_end - umi_beg;
@@ -529,6 +531,7 @@ bamfname_to_strand_to_familyuid_to_reads(
                 uint64_t umihash_part1 = strnhash(umi_beg               , umi_half); // alpha
                 uint64_t umihash_part2 = strnhash(umi_beg + umi_half + 1, umi_half); // beta
                 umihash = ((isrc ^ isr2) ? hash2hash(umihash_part1, umihash_part2) : hash2hash(umihash_part2, umihash_part1));
+                is_duplex_found++;
             } else {
                 umihash = strnhash(umi_beg, umi_end-umi_beg); // + strnhash_rc(umi_beg, umi_end-umi_beg);
             }
@@ -617,9 +620,10 @@ bamfname_to_strand_to_familyuid_to_reads(
         
         //LOG(logINFO) << "Iteration 3.6 begins!";
         unsigned int strand = isrc ^ isr2;
-        umi_to_strand_to_reads.insert(std::make_pair(umi3hash, std::array<std::map<uint64_t, std::vector<bam1_t *>>, 2>()));
-        umi_to_strand_to_reads[umi3hash][strand].insert(std::make_pair(qhash, std::vector<bam1_t *>()));
-        umi_to_strand_to_reads[umi3hash][strand][qhash].push_back(bam_dup1(aln));
+        int dflag = (is_duplex_found ? 2 : (is_umi_found ? 1 : 0));
+        umi_to_strand_to_reads.insert(std::make_pair(umi3hash, std::make_pair(std::array<std::map<uint64_t, std::vector<bam1_t *>>, 2>(), dflag)));
+        umi_to_strand_to_reads[umi3hash].first[strand].insert(std::make_pair(qhash, std::vector<bam1_t *>()));
+        umi_to_strand_to_reads[umi3hash].first[strand][qhash].push_back(bam_dup1(aln));
         
         if ((ispowof2(alnidx+1) || ispowof2(num_pass_alns - alnidx)) && (beg_peak_max > 1000 || ispowof2(contig_ordinal+1))) {
             LOG(logINFO) << "  readname = " << qname << " ; "
