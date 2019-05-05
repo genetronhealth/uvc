@@ -73,7 +73,7 @@ CommandLineArgs::initFromArgCV(int argc, const char *const* argv) {
         correction_msg += std::to_string(i) + " : " + CORRECTION_TYPE_TO_MSG[i] + ". ";
     }
     bool is_version = false;
-    CLI::App app{(std::string("Universal Variant Caller (UVC) version ") + VERSION)};
+    CLI::App app{(std::string("Universal Variant Caller (UVC) version ") + VERSION_DETAIL)};
     app.add_flag("-v,--version",     is_version,        "Show the version of this program (打印此软件版本号).");
     
     app.add_option("inputBam",       bam_input_fname,   "Input coordinate-sorted BAM file that is supposed to contain raw reads (按照位置排序的有原始reads的BAM文件).")->check(CLI::ExistingFile);
@@ -106,7 +106,7 @@ CommandLineArgs::initFromArgCV(int argc, const char *const* argv) {
     
     CLI11_PARSE(app, argc, argv);
     if (is_version) {
-        std::cout << "v" << VERSION << std::endl;
+        std::cout << "uvc-" << VERSION << std::endl;
         exit(0);
     } else if (bam_input_fname.size() == 0) {
         exit(-3);

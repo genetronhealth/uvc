@@ -1609,7 +1609,7 @@ generateVcfHeader(const char *ref_fasta_fname,
     std::string ret = "";
     ret += std::string("") + "##fileformat=VCFv4.2" + "\n" ;
     ret += std::string("") + "##fileDate=" + timestring + "\n" ;
-    ret += std::string("") + "##variantCallerVersion=" + VERSION + "\n";
+    ret += std::string("") + "##variantCallerVersion=" + VERSION_DETAIL + "\n";
     ret += std::string("") + "##variantCallerCommand=";
     for (unsigned int i = 0; i < argc; i++) {
         ret += std::string("") + std::string(argv[i]) + "\t";

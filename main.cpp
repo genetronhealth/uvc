@@ -374,9 +374,9 @@ int main(int argc, char **argv) {
     const std::string UMI_STRUCT_STRING = (UMI_STRUCT != NULL ? std::string(UMI_STRUCT) : std::string(""));
     CommandLineArgs paramset;
     int parseresult = paramset.initFromArgCV(argc, argv);
+    LOG(logINFO) << "Program " << argv[0] << " version " << VERSION_DETAIL;
     if (parseresult) { return parseresult; }
     if (paramset.bam_input_fname.size() == 0) { return 0; }
-    LOG(logINFO) << "Program " << argv[0] << " version " << VERSION;
     std::vector<std::tuple<unsigned int, unsigned int, unsigned int, bool, unsigned int>> tid_beg_end_e2e_tuple_vec;
     std::vector<std::tuple<std::string, unsigned int>> tid_to_tname_tseqlen_tuple_vec;
     LOG(logINFO) << "step1: sam_fname_to_contigs"; 
