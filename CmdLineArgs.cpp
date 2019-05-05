@@ -106,8 +106,8 @@ CommandLineArgs::initFromArgCV(int argc, const char *const* argv) {
     
     CLI11_PARSE(app, argc, argv);
     if (is_version) {
-        std::cerr << "Version " << VERSION << std::endl;
-        exit(-2);
+        std::cout << "v" << VERSION << std::endl;
+        exit(0);
     } else if (bam_input_fname.size() == 0) {
         exit(-3);
     } else {
