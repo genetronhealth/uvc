@@ -1,0 +1,316 @@
+#include <cassert>
+#include <iostream>
+#include <string>
+#include <vector>
+
+#define BCF_NUM_A (-1)
+#define BCF_NUM_R (-2)
+#define BCF_NUM_G (-3)
+#define BCF_NUM_D (-4)
+
+enum BCF_DATA_TYPE {
+    BCF_STRING,
+    BCF_INTEGER,
+    BCF_FLOAT,
+    BCF_SEP,
+    NUM_BCF_DATA_TYPES
+};
+
+const char * CPP_DATA_STRING[] = {
+    "std::string",
+    "uint32_t",
+    "float",
+    "bool",
+    NULL
+};
+
+const char * CPP_DATA_VALUES[] = {
+    "\"\"",
+    "0",
+    "0",
+    "false",
+    NULL,
+};
+
+const char * BCF_DATA_STRING[] = {
+    "String",
+    "Integer",
+    "Float",
+    "String",
+    NULL
+};
+
+const std::string vcf_number_to_header_str(int num) {
+    if (0 < num) { return std::to_string(num); }
+    else if (BCF_NUM_A == num) { return "A"; }
+    else if (BCF_NUM_R == num) { return "R"; }
+    else if (BCF_NUM_G == num) { return "G"; }
+    else if (BCF_NUM_D == num) { return "."; } 
+}
+
+const std::vector<std::pair<std::string, std::string>> FILTER_VEC = {
+    std::make_pair("noVar",         "Not a variant (for example, when REF and ALT are the same), but still included to get all statistics."),
+    std::make_pair("upstreamDel",   "Deletion extended from another upstream deletion"),
+    std::make_pair("q50",           "Quality below 50"),
+    std::make_pair("cad3",          "Less than 3 clean deduppd reads"),
+    std::make_pair("caf3",          "Less than 3/10000 allele fraction base on clean dedupped reads"),
+    std::make_pair("s50",           "Less than 50\% of samples have data"),
+    std::make_pair("Q90",           "Quality below 90 and no other filters"),
+};
+
+struct BcfFormatStruct {
+    const char *id;
+    int number;
+    BCF_DATA_TYPE type;
+    const char * description;
+    BcfFormatStruct(const char *i, unsigned int n, BCF_DATA_TYPE t, const char *desc) {
+        id = i;
+        number = n;
+        type = t;
+        description = desc;
+    }
+};
+
+const std::vector<BcfFormatStruct> FORMAT_VEC = {
+    BcfFormatStruct("GT"       , 1, BCF_STRING,  "Genotype"),
+    BcfFormatStruct("GQ"       , 1, BCF_INTEGER, "Genotype Quality"),
+    BcfFormatStruct("HQ"       , 2, BCF_INTEGER, "Haplotype Quality"),
+    BcfFormatStruct("DP"       , 1, BCF_INTEGER, "Dedupped fragment depth supporting any allele"),
+    BcfFormatStruct("AD"       , 1, BCF_INTEGER, "Dedupped fragment depth supporting this variant allele"),
+    BcfFormatStruct("FA"       , 1, BCF_FLOAT,   "Frequency of the Allele (either FA2 or FA2M3, the most likely one observed in the data is used)"),
+    BcfFormatStruct("aa_"      , 1, BCF_SEP,     "Consensus/variant allele type/quality"),  
+    BcfFormatStruct("ConType"  , 1, BCF_STRING,  "Type of consensus allele"),
+    BcfFormatStruct("CAQ"      , 1, BCF_FLOAT,   "Consensus Allele Quality"),
+    BcfFormatStruct("VarType"  , 1, BCF_STRING,  "Type of variant allele"),
+    BcfFormatStruct("VAQ"      , 1, BCF_FLOAT,   "Variant Allele Quality"),
+    BcfFormatStruct("ab_"      , 1, BCF_SEP,     "Average base quality for ALL/ALT (T0allBQ/T0altBQ) and duplication bias (T0DB). All biases are percentages where 100% means no bias."), // global 
+    BcfFormatStruct("T0allBQ"  , 2, BCF_INTEGER, "see above"),
+    BcfFormatStruct("T0altBQ"  , 2, BCF_INTEGER, "see above"),
+    BcfFormatStruct("T0DB"     , 2, BCF_INTEGER, "see above"),
+    BcfFormatStruct("ba_"      , 1, BCF_SEP,     "Forward&reverse max-bias base distances to left/right end positions (T1PTL/T1PTR) and position bias (T1PBL/T1PBR) [read base, duped]"), 
+    BcfFormatStruct("T1PTL"    , 2, BCF_INTEGER, "see above"),
+    BcfFormatStruct("T1PTR"    , 2, BCF_INTEGER, "see above"),
+    BcfFormatStruct("T1PBL"    , 2, BCF_INTEGER, "see above"),
+    BcfFormatStruct("T1PBR"    , 2, BCF_INTEGER, "see above"),
+    BcfFormatStruct("bb_"      , 1, BCF_SEP,     "Forward&reverse sum of : base distances to left/right end positions (T1SDL/T1SDR) and non-normalized/normalized strand bias (T1SB1/T1SBR) [read base, duped]"),
+    BcfFormatStruct("T1SDL"    , 2, BCF_INTEGER, "see above"),
+    BcfFormatStruct("T1SDR"    , 2, BCF_INTEGER, "see above"),
+    BcfFormatStruct("T1SB1"    , 2, BCF_INTEGER, "see above"),
+    BcfFormatStruct("T1SBR"    , 2, BCF_INTEGER, "see above"),
+    BcfFormatStruct("bc_"      , 1, BCF_SEP,     "Forward&reverse depth (DP1), allele depth (AD1), allele depth after weak filter (AD2), quality threshold for weak filter (QT2) [read count, duped]"),
+    BcfFormatStruct("T1DP1"    , 2, BCF_INTEGER, "see above"),
+    BcfFormatStruct("T1AD1"    , 2, BCF_INTEGER, "see above"),
+    BcfFormatStruct("T1AD2"    , 2, BCF_INTEGER, "see above"),
+    BcfFormatStruct("T1QT2"    , 2, BCF_INTEGER, "see above"),
+    BcfFormatStruct("bd_"      , 1, BCF_SEP,     "Forward&reverse allele depth after strong filter (AD3), quality threshold for strong filter (QT3), and variant quality after strong filter (VQ3) [duped]"),
+    BcfFormatStruct("T1AD3"    , 2, BCF_INTEGER, "see above"),
+    BcfFormatStruct("T1ADB"    , 2, BCF_INTEGER, "see above"),
+    BcfFormatStruct("T1QT3"    , 2, BCF_INTEGER, "see above"),
+    BcfFormatStruct("T1VQ3"    , 2, BCF_FLOAT,   "see above"),
+    BcfFormatStruct("ca_"      , 1, BCF_SEP,     "Same as T1A but for single-strand families instead of reads [deduped]"),
+    BcfFormatStruct("T2PTL"    , 2, BCF_INTEGER, "see above"),
+    BcfFormatStruct("T2PTR"    , 2, BCF_INTEGER, "see above"),
+    BcfFormatStruct("T2PBL"    , 2, BCF_INTEGER, "see above"),
+    BcfFormatStruct("T2PBR"    , 2, BCF_INTEGER, "see above"),
+    BcfFormatStruct("cb_"      , 1, BCF_SEP,     "Same as T1B but for single-strand families instead of reads [deduped]"), 
+    BcfFormatStruct("T2SDL"    , 2, BCF_INTEGER, "see above"),
+    BcfFormatStruct("T2SDR"    , 2, BCF_INTEGER, "see above"),
+    BcfFormatStruct("T2SB1"    , 2, BCF_INTEGER, "see above"),
+    BcfFormatStruct("T2SBR"    , 2, BCF_INTEGER, "see above"),
+    BcfFormatStruct("cc_"      , 1, BCF_SEP,     "Same as T1C but for single-strand families instead of reads [deduped]"), 
+    BcfFormatStruct("T2DP1"    , 2, BCF_INTEGER, "see above"),
+    BcfFormatStruct("T2AD1"    , 2, BCF_INTEGER, "see above"),
+    BcfFormatStruct("T2AD2"    , 2, BCF_INTEGER, "see above"),
+    BcfFormatStruct("T2QT2"    , 2, BCF_INTEGER, "see above"),
+    BcfFormatStruct("cd_"      , 1, BCF_SEP,     "Same as T1D but for single-strand families instead of reads [deduped]"),
+    BcfFormatStruct("T2AD3"    , 2, BCF_INTEGER, "see above"),
+    BcfFormatStruct("T2ADB"    , 2, BCF_INTEGER, "see above"),
+    BcfFormatStruct("T2QT3"    , 2, BCF_INTEGER, "see above"),
+    BcfFormatStruct("T2VQ3"    , 2, BCF_FLOAT,   "see above"),
+    BcfFormatStruct("ce_"      , 1, BCF_SEP,     "Number of read supports generated by signal (T2major) and noise (T2minor) inferred from heterogeneity of families"),
+    BcfFormatStruct("T2major"  , 2, BCF_INTEGER, "see above"),
+    BcfFormatStruct("T2minor"  , 2, BCF_INTEGER, "see above"),
+    BcfFormatStruct("da_"      , 1, BCF_SEP,     "Same as T1 and T2 but for duplex families [duplex deduped]"),
+    BcfFormatStruct("T3DP1"    , 1, BCF_INTEGER, "see above"),
+    BcfFormatStruct("T3AD1"    , 1, BCF_INTEGER, "see above"),
+    BcfFormatStruct("T3VQ3"    , 1, BCF_INTEGER, "see above"), // AD2=QT2=NotApplicable QT3=60 (all passed)
+    BcfFormatStruct("T3AD3"    , 1, BCF_INTEGER, "see above"),
+    BcfFormatStruct("gap_"     , 1, BCF_SEP,     "Numbe of indels in forward&reverse strand (gapNum), indel sequences (gapSeq), duped read count of each gapSeq, dedup family count of each gapSeq"), 
+    BcfFormatStruct("gapNum"   , 2, BCF_INTEGER, "see above"), // 2 * number-of-alts
+    BcfFormatStruct("gapSeq"   , BCF_NUM_D, BCF_STRING,  "see above"),
+    BcfFormatStruct("gapT1AD1" , BCF_NUM_D, BCF_INTEGER, "see above"),
+    BcfFormatStruct("gapT2AD1" , BCF_NUM_D, BCF_INTEGER, "see above"),
+    BcfFormatStruct("T1hap"    , 1, BCF_STRING,  "Duped forward&reverse linkage in the format of ((position&variantType)...depth)... "
+                                                 "where ()... means more elements following the format in the preceding parenthesis. "),
+    BcfFormatStruct("T2hap"    , 1, BCF_STRING,  "Dedup forward&reverse linkage in the format of ((position&variantType)...depth)... "
+                                                 "where ()... means more elements following the format in the preceding parenthesis. "),    
+    BcfFormatStruct("note"     , 1, BCF_STRING,  "Additional note as comment for the given variant")
+};
+
+/*
+ * for FORMAT, we have to keep in sync : 
+ * C++ class variables per program, 
+ * C++ class variable to stream methods per program, 
+ * header lines per vcf file, 
+ * tag-names (can be multiple sets of) per vcf line record
+ **/
+int main(int argc, char **argv) {
+    unsigned int itnum = 0;
+    std::cout << "// This file is automatically generated by " << argv[0] << ". All changes to this file will be lost after recompilation!!!\n"; 
+    // std::cout << "namespace bcfhrec {\n";
+    
+    std::cout << "#ifndef bcf_formats_step1_INCLUDED\n";
+    std::cout << "#define bcf_formats_step1_INCLUDED\n"; 
+    std::cout << "#include<array>\n";
+    std::cout << "#include<ostream>\n";
+    std::cout << "#include<string>\n";
+    std::cout << "#include<vector>\n";
+    std::cout << "namespace bcfrec {\n";
+
+    std::cout << "static const unsigned int FILTER_NUM = " << FILTER_VEC.size() << ";\n";
+    
+    std::cout << "enum FILTER_ENUM {\n";
+    for (auto filter : FILTER_VEC) {
+        std::string format_key = filter.first;
+        std::cout << "    " << format_key << ",\n";
+    }
+    std::cout << "};\n";
+    
+    std::cout << "const char *const FILTER_IDS[] = {\n";
+    for (auto filter : FILTER_VEC) {
+        std::string filter_key = filter.first;
+        std::cout << "    " << "\"" << filter_key << "\"" << ",\n";
+    }
+    std::cout << "};\n";
+    
+    std::cout << "const char *const FILTER_LINES[] = {\n";
+    for (auto filter : FILTER_VEC) {
+        std::string filter_key = filter.first;
+        std::cout << "    "
+                  << "\"" << "##FILTER=" 
+                          << "<" << "ID=" << filter.first 
+                                 << ",Description=" << "\\\"" << filter.second << "\\\"" 
+                          << ">" 
+                  << "\"" << ",\n";
+    }
+    std::cout << "};\n";
+    
+#ifdef OUTPUT_EXTRA_VCF_INFO 
+    std::cout << "const char *const FILTER_DESCS[] = {\n";
+    for (auto filter : FILTER_VEC) {
+        std::string filter_desc = filter.second;
+        std::cout << "    " << "\"" << filter_desc << "\"" << ",\n";
+    }
+    std::cout << "};\n";
+#endif
+    
+    std::cout << "static const unsigned int FORMAT_NUM = " << FORMAT_VEC.size() << ";\n";
+    
+    std::cout << "enum FORMAT_ENUM {\n";
+    for (auto fmt : FORMAT_VEC) {
+        std::cout << "    " << fmt.id << ",\n";
+    }
+    std::cout << "};\n";
+   
+    std::cout << "const char *const FORMAT_STR_PER_REC = \"";  
+    itnum = 0;
+    for (auto fmt : FORMAT_VEC) {
+        if (itnum) {
+            std::cout << ":";
+        }
+        std::cout << fmt.id;
+        itnum++;
+    }
+    std::cout << "\";\n";
+     
+    std::cout << "const char *const FORMAT_IDS[] = {\n";
+    for (auto fmt : FORMAT_VEC) {
+        std::cout << "    " << "\"" << fmt.id << "\"" << ",\n";
+    }
+    std::cout << "};\n";
+
+    std::cout << "struct BcfFormat {\n";
+    for (auto fmt : FORMAT_VEC) {
+        if (0 == fmt.number || 1 == fmt.number) {
+            if (0 == fmt.number) { assert (CPP_DATA_STRING[fmt.type] == std::string("bool")); }
+            std::cout << "    " << CPP_DATA_STRING[fmt.type] << " " << fmt.id << " = " << CPP_DATA_VALUES[fmt.type] << ";" << "\n";
+        } else if (1 < fmt.number) {
+            std::cout << "    std::array <" << CPP_DATA_STRING[fmt.type] << ", " << fmt.number << ">" << fmt.id << ";" << "\n";
+        } else {
+            std::cout << "    std::vector<" << CPP_DATA_STRING[fmt.type] << ">" << fmt.id << ";" << "\n";
+        }
+    }
+    std::cout << "};\n";
+    
+    std::cout << "static int streamAppendBcfFormat(std::string & outstring, const BcfFormat & fmt) {\n";
+    itnum = 0;
+    for (auto fmt : FORMAT_VEC) {
+        if (itnum) { 
+            std::cout << "    outstring += \":\";" << ";\n";
+        }
+        if (BCF_SEP == fmt.type) {
+            std::cout << "    outstring += std::string(FORMAT_IDS[" << itnum << "]) + \"_\";\n";
+        } else if (0 == fmt.number || 1 == fmt.number) {
+            std::cout << "    outstring += " << (fmt.type == BCF_STRING ? "" : "std::to_string") << "(fmt." << fmt.id << ");\n";
+        } else {
+            std::cout << "    for (unsigned int i = 0; i < fmt." << fmt.id << ".size(); i++) {\n";
+            
+            //std::string customcode = ((BCF_STRING == fmt.type) ? 
+            //        (std::string(" fmt.") + fmt.id + "[i].size() == 0 ? \".\" : fmt." + fmt.id + "[i]") 
+            //        : (std::string("fmt.") + std::string(fmt.id) + "[i]"));
+            std::cout << "        if (0 != i) { outstring += \",\"; }; outstring += " << (fmt.type == BCF_STRING ? "" : "std::to_string") << "(" << 
+                    // customcode 
+                    "fmt." << fmt.id << "[i]"
+                    << ");\n";
+            std::cout << "    };\n";
+            if (BCF_STRING == fmt.type) {
+                std::cout << "        if (fmt. " << fmt.id << ".size() == 1 && fmt." << fmt.id << "[0].size() == 0) { outstring += \",\"; };";
+            }
+            if (BCF_NUM_D == fmt.type) {
+                std::cout << "        if (fmt. " << fmt.id << "[0].size() == 0) { outstring += \"0\"; };";
+            }
+        }
+        itnum++;
+    }
+    std::cout << "};\n";
+    
+    std::cout << "const char *const FORMAT_LINES[] = {\n";
+    for (auto fmt : FORMAT_VEC) {
+        std::cout << "    " 
+                  << "\"" << "##FORMAT=" 
+                          << "<" << "ID=" << fmt.id
+                                 << ",Number=" << vcf_number_to_header_str(fmt.number)
+                                 << ",Type=" << BCF_DATA_STRING[fmt.type]
+                                 << ",Description=" << "\\\"" << fmt.description << "\\\"" 
+                          << ">" 
+                  << "\"" << ",\n";
+    }
+    std::cout << "};\n";
+    
+#ifdef OUTPUT_EXTRA_VCF_FORMAT
+    std::cout << "const int FORMAT_NUMBERS[] = {\n";
+    for (auto filter : FORMAT_KEY_TO_CONTENT_MAP) {
+        auto format_content = filter.second;
+        std::cout << "    " << format_content.number << ",\n";
+    }
+    std::cout << "};\n";
+    
+    std::cout << "const char *const FORMAT_DATA_TYPES[] = {\n";
+    for (auto filter : FORMAT_KEY_TO_CONTENT_MAP) {
+        auto format_content = filter.second;
+        std::cout << "    " << "\"" << BCF_DATA_STRING[format_content.type] << "\"" << ",\n";
+    }
+    std::cout << "};\n";
+    
+    std::cout << "  const char *const FORMAT_DESCRIPTIONS[] = {\n";
+    for (auto filter : FORMAT_KEY_TO_CONTENT_MAP) {
+        auto format_content = filter.second;
+        std::cout << "    " << "\"" << format_content.description << "\"" << ",\n";
+    }
+    std::cout << "  };\n";
+#endif
+    
+    std::cout << "};\n";
+    std::cout << "#endif\n";
+}
+
