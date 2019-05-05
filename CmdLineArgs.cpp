@@ -68,15 +68,17 @@ void check_file_exist(const std::string & fname, const std::string ftype) {
 
 int
 CommandLineArgs::initFromArgCV(int argc, const char *const* argv) {
+    auto version_cb = [](int count){
+        std::cout << "uvc-" << VERSION << std::endl;
+        exit(0);
+    };
     std::string correction_msg;
     for (unsigned int i = 0; i < END_ERROR_CORRECTION_TYPES; i++) {
         correction_msg += std::to_string(i) + " : " + CORRECTION_TYPE_TO_MSG[i] + ". ";
     }
-    bool is_version = false;
     CLI::App app{(std::string("Universal Variant Caller (UVC) version ") + VERSION_DETAIL)};
-    app.add_flag("-v,--version",     is_version,        "Show the version of this program (打印此软件版本号).");
-    
-    app.add_option("inputBam",       bam_input_fname,   "Input coordinate-sorted BAM file that is supposed to contain raw reads (按照位置排序的有原始reads的BAM文件).")->check(CLI::ExistingFile);
+    app.add_flag_function("-v,--version", version_cb,   "Show the version of this program (打印此软件版本号).");    
+    app.add_option("inputBam",       bam_input_fname,   "Input coordinate-sorted BAM file that is supposed to contain raw reads (按照位置排序的有原始reads的BAM文件).")->required()->check(CLI::ExistingFile);
     app.add_option("-o,--output",    vcf_output_fname,  "Output vcf.gz filename (后缀是vcf.gz的VCF文件).");
     app.add_option("-p,--out-pass",  vcf_out_pass_fname,"Output vcf.gz filename containing only variants of filter PASS (只含有过滤后剩下的变异形的VCF压缩文件).", true);
     
@@ -104,13 +106,7 @@ CommandLineArgs::initFromArgCV(int argc, const char *const* argv) {
     app.add_option("--bq-phred-added-indel", bq_phred_added_indel, "Additional base-quality phred score added to indel and no-indel, recommend 6 for IonTorrent.");
     app.add_option("--should-add-note",      should_add_note,      "Boolean indicating if the program generates more detail in the vcf result file.");
     
-    CLI11_PARSE(app, argc, argv);
-    if (is_version) {
-        std::cout << "uvc-" << VERSION << std::endl;
-        exit(0);
-    } else if (bam_input_fname.size() == 0) {
-        exit(-3);
-    } else {
+    app.callback([&]() {
         check_file_exist(bam_input_fname, "BAM");
         check_file_exist(bam_input_fname + ".bai", "BAM index");
         if (fasta_ref_fname.compare(std::string("NA")) != 0) {
@@ -120,8 +116,10 @@ CommandLineArgs::initFromArgCV(int argc, const char *const* argv) {
             fasta_ref_fname = "";
         }
         this->selfUpdateByPlatform();
-        return 0;
-    }
+    });
+    
+    CLI11_PARSE(app, argc, argv);
+    return 0;
 }
 
 #endif

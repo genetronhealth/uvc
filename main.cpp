@@ -377,11 +377,6 @@ int main(int argc, char **argv) {
     if (parseresult) { 
         return parseresult; 
     }
-    if (paramset.bam_input_fname.size() == 0) {
-        std::cerr << "Expect one BAM file as input.\n";
-        std::cerr << "Please use the command '" << argv[0] << " -h' or '" << argv[0] <<" --help' for help on usage.\n";
-        return 0; 
-    }
     LOG(logINFO) << "Program " << argv[0] << " version " << VERSION_DETAIL;
     std::vector<std::tuple<unsigned int, unsigned int, unsigned int, bool, unsigned int>> tid_beg_end_e2e_tuple_vec;
     std::vector<std::tuple<std::string, unsigned int>> tid_to_tname_tseqlen_tuple_vec;
