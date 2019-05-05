@@ -67,7 +67,8 @@ void check_file_exist(const std::string & fname, const std::string ftype) {
 }
 
 int
-CommandLineArgs::initFromArgCV(int argc, const char *const* argv) {
+CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *const* argv) {
+    parsing_result_flag = -1;
     auto version_cb = [](int count){
         std::cout << "uvc-" << VERSION << std::endl;
         exit(0);
@@ -116,6 +117,7 @@ CommandLineArgs::initFromArgCV(int argc, const char *const* argv) {
             fasta_ref_fname = "";
         }
         this->selfUpdateByPlatform();
+        parsing_result_flag = 0;
     });
     
     CLI11_PARSE(app, argc, argv);

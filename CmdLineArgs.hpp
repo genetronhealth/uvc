@@ -28,7 +28,7 @@ struct CommandLineArgs {
     uint32_t    bq_phred_added_indel = 0;
     uint32_t    bq_phred_added_misma = 0;
     bool        should_add_note = false;
-    int initFromArgCV(int argc, const char *const* argv);
+    int initFromArgCV(int & parsing_result_flag, int argc, const char *const* argv);
     std::string selfUpdateByPlatform(void); 
 };
 #endif

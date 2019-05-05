@@ -373,9 +373,10 @@ int main(int argc, char **argv) {
     const char *UMI_STRUCT = getenv("ONE_STEP_UMI_STRUCT");
     const std::string UMI_STRUCT_STRING = (UMI_STRUCT != NULL ? std::string(UMI_STRUCT) : std::string(""));
     CommandLineArgs paramset;
-    int parseresult = paramset.initFromArgCV(argc, argv);
-    if (parseresult) { 
-        return parseresult; 
+    int parsing_result_flag = -1;
+    int parsing_result_ret = paramset.initFromArgCV(parsing_result_flag, argc, argv);
+    if (parsing_result_ret || parsing_result_flag) {
+        return parsing_result_ret; 
     }
     LOG(logINFO) << "Program " << argv[0] << " version " << VERSION_DETAIL;
     std::vector<std::tuple<unsigned int, unsigned int, unsigned int, bool, unsigned int>> tid_beg_end_e2e_tuple_vec;
