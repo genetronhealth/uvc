@@ -1444,6 +1444,7 @@ BcfFormat_init(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbolDi
         fmt.aAllBQ[strand] = symbolDistrSets12.bq_qual_phsum.at(strand).getByPos(refpos).sumBySymbolType(symbolType); 
         fmt.bDP1[strand] = symbolDistrSets12.bq_tsum_depth.at(strand).getByPos(refpos).sumBySymbolType(symbolType);
         fmt.cDP1[strand] = symbolDistrSets12.fq_tsum_depth.at(strand).getByPos(refpos).sumBySymbolType(symbolType);
+        fmt.cDPTT[strand] = symbolDistrSets12.fam_total_dep.at(strand).getByPos(refpos).sumBySymbolType(symbolType);
     }
     fmt.gapSeq.clear();
     fmt.gapT1AD1.clear();
@@ -1565,9 +1566,9 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
         
         fmt.cMajor[strand] = symbol2CountCoverageSet12.major_amplicon.at(strand).getByPos(refpos).getSymbolCount(symbol);
         fmt.cMinor[strand] = symbol2CountCoverageSet12.minor_amplicon.at(strand).getByPos(refpos).getSymbolCount(symbol);
-        fmt.cDPTT[strand] = symbol2CountCoverageSet12.fam_total_dep.at(strand).getByPos(refpos).getSymbolCount(symbol);
-        fmt.cDPT1[strand] = symbol2CountCoverageSet12.fam_size1_dep.at(strand).getByPos(refpos).getSymbolCount(symbol);
-        fmt.cDPTN[strand] = symbol2CountCoverageSet12.fam_nocon_dep.at(strand).getByPos(refpos).getSymbolCount(symbol); 
+        fmt.cADTT[strand] = symbol2CountCoverageSet12.fam_total_dep.at(strand).getByPos(refpos).getSymbolCount(symbol);
+        fmt.cADT1[strand] = symbol2CountCoverageSet12.fam_size1_dep.at(strand).getByPos(refpos).getSymbolCount(symbol);
+        fmt.cADTN[strand] = symbol2CountCoverageSet12.fam_nocon_dep.at(strand).getByPos(refpos).getSymbolCount(symbol); 
         
         fmt.gapNum[strand] = 0;
         if ((0 < fmt.bAD1[strand]) && (isSymbolIns(symbol) || isSymbolDel(symbol))) {
@@ -1594,9 +1595,15 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
     }
     fmt.GQ = 0;
     fmt.HQ[0] = 0; fmt.HQ[1] = 0;
-    fmt.DP = fmt.cDP1[0] + fmt.cDP1[1];
-    auto fmtAD = fmt.cAD1[0] + fmt.cAD1[1];
+    
+    fmt.DP = fmt.cDPTT[0] + fmt.cDPTT[1];
+    auto fmtAD = fmt.cADTT[0] + fmt.cADTT[1];
     fmt.FA = (double)(fmtAD) / (double)(fmt.DP);
+   
+    fmt.bDP = fmt.bDP1[0] + fmt.bDP1[1];
+    auto fmtbAD = fmt.cADTT[0] + fmt.cADTT[1];
+    fmt.bFA = (double)(fmtbAD) / (double)(fmt.bDP);
+    
     fmt.VType = SYMBOL_TO_DESC_ARR[symbol];
     double lowestVAQ = prob2phred(1 / (double)(fmt.bAD1[0] + fmt.bAD1[1] + 1)) * ((fmt.bAD1[0] + fmt.bAD1[1]) / (fmt.bDP1[0] + fmt.bDP1[1] + DBL_MIN)) / (double)2;
     double maxVAQs[2] = {0, 0};
