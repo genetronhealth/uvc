@@ -340,10 +340,10 @@ process_batch(BatchArg & arg) {
             }
             for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; symbol = AlignmentSymbol(1+(unsigned int)symbol)) {
                 auto & fmt = fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]];
-                if ((fmt.T1AD1[0] + fmt.T1AD1[1]) < paramset.min_altdp_thres) {
+                if ((fmt.bAD1[0] + fmt.bAD1[1]) < paramset.min_altdp_thres) {
                     continue;
                 }
-                fmt.ConType = SYMBOL_TO_DESC_ARR[most_confident_symbol];
+                fmt.CType = SYMBOL_TO_DESC_ARR[most_confident_symbol];
                 fmt.CAQ = most_confident_qual;
                 appendVcfRecord(raw_out_string, raw_out_string_pass, symbolToCountCoverageSet12,
                         std::get<0>(tname_tseqlen_tuple).c_str(), refpos, symbol, fmt,
