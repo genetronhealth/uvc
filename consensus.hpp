@@ -1227,18 +1227,35 @@ if (curr_depth_symbsum * 4 <= curr_depth_typesum * 3 && curr_depth_symbsum > 0 &
                 if (alns2.size() == 0) { continue; }
                 uint32_t tid2, beg2, end2;
                 fillTidBegEndFromAlns2(tid2, beg2, end2, alns2);
+                Symbol2CountCoverage read_family_con_ampl(tid2, beg2, end2); 
                 Symbol2CountCoverage read_family_amplicon(tid2, beg2, end2); 
                 for (const auto & alns1 : alns2) {
                     uint32_t tid1, beg1, end1;
                     fillTidBegEndFromAlns1(tid1, beg1, end1, alns1);
                     Symbol2CountCoverage read_ampBQerr_fragWithR1R2(tid1, beg1, end1);
                     read_ampBQerr_fragWithR1R2.updateByRead1Aln<BASE_QUALITY_MAX>(alns1, symbolType2addPhred);
+                    read_family_con_ampl.updateByConsensus<SYMBOL_COUNT_SUM>(read_ampBQerr_fragWithR1R2);
                     int updateresult = read_family_amplicon.updateByFiltering(read_ampBQerr_fragWithR1R2, this->bq_pass_thres[strand], 1, true, strand);
                     if (log_alns2) {
                         LOG(logDEBUG) << "num-updates = " << updateresult;
                     }
                 }
                 for (size_t epos = read_family_amplicon.getIncluBegPosition(); epos < read_family_amplicon.getExcluEndPosition(); epos++) {
+                    const auto & con_ampl_symbol2count = read_family_amplicon.getByPos(epos);
+                    for (SymbolType symbolType = SymbolType(0); symbolType < NUM_SYMBOL_TYPES; symbolType = SymbolType(1+(unsigned int)symbolType)) {
+                        AlignmentSymbol con_symbol; // = END_ALIGNMENT_SYMBOLS;
+                        unsigned int con_count, tot_count;
+                        con_ampl_symbol2count.fillConsensusCounts(con_symbol, con_count, tot_count, symbolType);
+                        if (0 == tot_count) { continue ; }
+                        /*
+                        this->fq_dedu_total_count++; // for genomic region, so add DP (every type of  DP is unfiltered)
+                        if (1 == tot_count) {
+                            this->fq_dedu_size1_count++;
+                        } else if ((con_count * 5 < tot_count * 4)) { 
+                            this->fq_dedu_nocon_count++;
+                        }
+                        */
+                    }
                     const auto & amplicon_symbol2count = read_family_amplicon.getByPos(epos);
                     for (SymbolType symbolType = SymbolType(0); symbolType < NUM_SYMBOL_TYPES; symbolType = SymbolType(1+(unsigned int)symbolType)) {
                         AlignmentSymbol con_symbol; // = END_ALIGNMENT_SYMBOLS;

@@ -11,6 +11,8 @@
 #include "omp.h"
 #endif
 
+const unsigned int G_BLOCK_SIZE = 50;
+
 /*
 int _old_clearstring(BGZF * bgzip_file, const std::string & outstring_allp, bool is_output_to_stdout = false, bool flush = true) {
     if (is_output_to_stdout) {
@@ -295,16 +297,16 @@ process_batch(BatchArg & arg) {
     const unsigned int rpos_inclu_beg = MAX(incluBegPosition, extended_inclu_beg_pos);
     const unsigned int rpos_exclu_end = MIN(excluEndPosition, extended_exclu_end_pos);
     for (unsigned int refpos = rpos_inclu_beg; refpos < rpos_exclu_end; refpos++) {
-        if ((refpos % 100) == 0) {
-            if (refpos < rpos_inclu_beg + 100) {
+        if ((refpos % G_BLOCK_SIZE) == 0) {
+            if (refpos < rpos_inclu_beg + G_BLOCK_SIZE) {
                 std::vector<unsigned int> bg1dp100prev = gen_dp100(symbolToCountCoverageSet12.bq_tsum_depth, rpos_inclu_beg, refpos);
                 std::vector<unsigned int> bg2dp100prev = gen_dp100(symbolToCountCoverageSet12.fq_tsum_depth, rpos_inclu_beg, refpos);
                 std::string dp100string = dp100_to_string(bg1dp100prev, bg2dp100prev, std::get<0>(tname_tseqlen_tuple), refpos, true);
                 raw_out_string += dp100string;
                 raw_out_string_pass += dp100string;
             }
-            std::vector<unsigned int> bg1dp100next = gen_dp100(symbolToCountCoverageSet12.bq_tsum_depth, refpos, MIN(refpos+100, rpos_exclu_end));
-            std::vector<unsigned int> bg2dp100next = gen_dp100(symbolToCountCoverageSet12.fq_tsum_depth, refpos, MIN(refpos+100, rpos_exclu_end));
+            std::vector<unsigned int> bg1dp100next = gen_dp100(symbolToCountCoverageSet12.bq_tsum_depth, refpos, MIN(refpos + G_BLOCK_SIZE, rpos_exclu_end));
+            std::vector<unsigned int> bg2dp100next = gen_dp100(symbolToCountCoverageSet12.fq_tsum_depth, refpos, MIN(refpos + G_BLOCK_SIZE, rpos_exclu_end));
             std::string dp100string = dp100_to_string(bg1dp100next, bg2dp100next, std::get<0>(tname_tseqlen_tuple), refpos, false);
             raw_out_string += dp100string;
             raw_out_string_pass += dp100string;
