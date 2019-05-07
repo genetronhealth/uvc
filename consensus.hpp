@@ -812,7 +812,10 @@ struct Symbol2CountCoverageSet {
         
     std::array<Symbol2CountCoverage, 2> major_amplicon; // duped, is needed by distr
     std::array<Symbol2CountCoverage, 2> minor_amplicon; // duped, is needed by distr
-   
+    std::array<Symbol2CountCoverage, 2> fam_total_dep; // deduped
+    std::array<Symbol2CountCoverage, 2> fam_size1_dep; // deduped 
+    std::array<Symbol2CountCoverage, 2> fam_nocon_dep; // deduped 
+
     std::array<Symbol2CountCoverage, 2> fq_qual_phsum;
     std::array<Symbol2CountCoverage, 2> fq_amax_ldist; // edge distance to end
     std::array<Symbol2CountCoverage, 2> fq_amax_rdist; // edge distance to end
@@ -846,7 +849,7 @@ struct Symbol2CountCoverageSet {
         //, bq_imba_depth({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
         , bq_qual_phsum({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
         , du_bias_dedup({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
-
+        
         , bq_amax_ldist({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
         , bq_amax_rdist({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
         , bq_bias_ldist({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
@@ -887,6 +890,10 @@ struct Symbol2CountCoverageSet {
         
         , major_amplicon({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
         , minor_amplicon({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
+        , fam_total_dep({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
+        , fam_size1_dep({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
+        , fam_nocon_dep({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
+
         , duplex_pass_depth(Symbol2CountCoverage(t, beg, end))
         , duplex_tsum_depth(Symbol2CountCoverage(t, beg, end))
         , dedup_ampDistr({Symbol2Bucket2CountCoverage(t, beg, end), Symbol2Bucket2CountCoverage(t, beg, end)})
@@ -1247,14 +1254,12 @@ if (curr_depth_symbsum * 4 <= curr_depth_typesum * 3 && curr_depth_symbsum > 0 &
                         unsigned int con_count, tot_count;
                         con_ampl_symbol2count.fillConsensusCounts(con_symbol, con_count, tot_count, symbolType);
                         if (0 == tot_count) { continue ; }
-                        /*
-                        this->fq_dedu_total_count++; // for genomic region, so add DP (every type of  DP is unfiltered)
+                        this->fam_total_dep[strand].getRefByPos(epos).incSymbolCount(con_symbol, 1); // for genomic region, so add DP (every type of  DP is unfiltered)
                         if (1 == tot_count) {
-                            this->fq_dedu_size1_count++;
+                            this->fam_size1_dep[strand].getRefByPos(epos).incSymbolCount(con_symbol, 1);
                         } else if ((con_count * 5 < tot_count * 4)) { 
-                            this->fq_dedu_nocon_count++;
+                            this->fam_nocon_dep[strand].getRefByPos(epos).incSymbolCount(con_symbol, 1);
                         }
-                        */
                     }
                     const auto & amplicon_symbol2count = read_family_amplicon.getByPos(epos);
                     for (SymbolType symbolType = SymbolType(0); symbolType < NUM_SYMBOL_TYPES; symbolType = SymbolType(1+(unsigned int)symbolType)) {
@@ -1560,6 +1565,10 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
         
         fmt.T2major[strand] = symbol2CountCoverageSet12.major_amplicon.at(strand).getByPos(refpos).getSymbolCount(symbol);
         fmt.T2minor[strand] = symbol2CountCoverageSet12.minor_amplicon.at(strand).getByPos(refpos).getSymbolCount(symbol);
+        fmt.cDPTT[strand] = symbol2CountCoverageSet12.fam_total_dep.at(strand).getByPos(refpos).getSymbolCount(symbol);
+        fmt.cDPT1[strand] = symbol2CountCoverageSet12.fam_size1_dep.at(strand).getByPos(refpos).getSymbolCount(symbol);
+        fmt.cDPTN[strand] = symbol2CountCoverageSet12.fam_nocon_dep.at(strand).getByPos(refpos).getSymbolCount(symbol); 
+        
         fmt.gapNum[strand] = 0;
         if ((0 < fmt.T1AD1[strand]) && (isSymbolIns(symbol) || isSymbolDel(symbol))) {
             fillByIndelInfo(fmt, symbol2CountCoverageSet12, strand, refpos, symbol, refstring);
