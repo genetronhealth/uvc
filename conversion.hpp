@@ -23,6 +23,22 @@ auto MAX(auto a, auto b) {
     return (a > b ? a :b);
 }
 
+void UPDATE_MIN(auto & a, const auto & b) {
+    a = MIN(a, b);
+}
+
+void UPDATE_MAX(auto & a, const auto & b) {
+    a = MAX(a, b);
+}
+
+void UPDATE_MIN2(auto & a, const auto & b) {
+    for (int i = 0; i < 2; i++) { UPDATE_MIN(a[i], b[i]); }
+}
+
+void UPDATE_MAX2(auto & a, const auto & b) {
+    for (int i = 0; i < 2; i++) { UPDATE_MAX(a[i], b[i]); }
+}
+
 auto safediv0(auto a, auto b) {
     return (b != 0 ? a / b : 0);
 }
