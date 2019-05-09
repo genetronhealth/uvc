@@ -403,7 +403,7 @@ public:
         for (SymbolType symbolType = SymbolType(0); symbolType < NUM_SYMBOL_TYPES; symbolType = SymbolType(1 + (unsigned int)symbolType)) {
             // consalpha = END_ALIGNMENT_SYMBOLS;
             other.fillConsensusCounts(consalpha, countalpha, totalalpha, symbolType);
-            if (countalpha >= (thres.getSymbolCount(consalpha))) {
+            if (countalpha >= (thres.getSymbolCount(consalpha)) && countalpha > 0) {
                 this->symbol2data[consalpha] += incvalue;
                 ret++;
                 //LOG(logINFO) << " The value " << countalpha << " can indeed pass the base quality threshold " << thres.getSymbolCount(consalpha) << " for symbol " << SYMBOL_TO_DESC_ARR[consalpha];
@@ -1438,7 +1438,7 @@ if (curr_depth_symbsum * 4 <= curr_depth_typesum * 3 && curr_depth_symbsum > 0 &
     };
 };
 
-int
+std::array<unsigned int, 2>
 BcfFormat_init(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbolDistrSets12, unsigned int refpos, SymbolType symbolType) {
     for (unsigned int strand = 0; strand < 2; strand++) {
         fmt.aAllBQ[strand] = symbolDistrSets12.bq_qual_phsum.at(strand).getByPos(refpos).sumBySymbolType(symbolType); 
@@ -1453,7 +1453,7 @@ BcfFormat_init(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbolDi
     fmt.gapNum[1] = 0;
 
     fmt.dDP1 = symbolDistrSets12.duplex_tsum_depth.getByPos(refpos).sumBySymbolType(symbolType);
-    return (int)(fmt.bDP1[0] + fmt.bDP1[1]);
+    return {fmt.bDP1[0] + fmt.bDP1[1], fmt.cDP1[0] + fmt.cDP1[1]};
 };
 
 #define INDEL_ID 1
@@ -1653,7 +1653,8 @@ generateVcfHeader(const char *ref_fasta_fname,
     for (size_t i = 0; i < n_targets; i++) {
         ret += std::string("") + "##contig=<ID=" + target_name[i] + ",length=" + std::to_string(target_len[i]) + ">\n";
     }
-    ret += std::string("") + "##phasing=partial" + "\n";
+    ret += std::string("") + "##ALT=<ID=NON_REF,Description=\"Represents any possible alternative allele at this location, where POS is one-based exclusive for SNV and one-based inclusive for InDel\">\n";
+    
     for (unsigned int i = 0; i < bcfrec::FILTER_NUM; i++) {
         ret += std::string("") + bcfrec::FILTER_LINES[i] + "\n";
     }
@@ -1661,9 +1662,11 @@ generateVcfHeader(const char *ref_fasta_fname,
     for (unsigned int i = 0; i < bcfrec::FORMAT_NUM; i++) {
         ret += std::string("") + bcfrec::FORMAT_LINES[i] + "\n";
     }
-    ret += std::string("") + "##FORMAT=<ID=bgNPOS,Number=1,Type=Integer,Description=\"Number of positions covered by this block of genomic positions\">\n";
-    ret += std::string("") + "##FORMAT=<ID=bg1DPS,Number=.,Type=Integer,Description=\"Duped   fragment depths within this block of genomic positions\">\n";
-    ret += std::string("") + "##FORMAT=<ID=bg2DPS,Number=.,Type=Integer,Description=\"Deduped fragment depths within this block of genomic positions\">\n";
+    ret += std::string("") + "##FORMAT=<ID=gEND,Number=1,Type=Float,Description=\"End position of the genomic block (one-based inclusive for SNV and one-based exclusive for InDel)\">\n";
+    ret += std::string("") + "##FORMAT=<ID=gCAQ,Number=2,Type=Float,Description=\"Minimum consensus allele quality in the genomic block for SNV and InDel\">\n";
+    ret += std::string("") + "##FORMAT=<ID=gbDP,Number=2,Type=Integer,Description=\"Minimum duped   fragment depths in the genomic block for SNV and InDel\">\n";
+    ret += std::string("") + "##FORMAT=<ID=gcDP,Number=2,Type=Integer,Description=\"Minimum deduped fragment depths in the genomic block for SNV and InDel\">\n";
+    ret += std::string("") + "##phasing=partial" + "\n";
     ret += std::string("") + "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t" + sampleName + "\n";
     return ret;
 }
