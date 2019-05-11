@@ -1581,20 +1581,10 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
     
     fmt.dAD1 = symbol2CountCoverageSet12.duplex_tsum_depth.getByPos(refpos).getSymbolCount(symbol);
     fmt.dAD3 = symbol2CountCoverageSet12.duplex_pass_depth.getByPos(refpos).getSymbolCount(symbol);
-
-    if (fmt.cDP1[0] + fmt.cDP1[1] > 0) {
-        double altfrac = (double)(fmt.cAD1[0] + fmt.cAD1[1]) / (double)(fmt.cDP1[0] + fmt.cDP1[1]);
-        assert(altfrac >= 0);
-        if (altfrac > 0.5) {
-            fmt.GT = "1|1";
-        } else {
-            fmt.GT = "0|1";
-        }
-    } else {
-        fmt.GT = ".";
-    }
-    fmt.GQ = 0;
-    fmt.HQ[0] = 0; fmt.HQ[1] = 0;
+    
+    //const std::string vcfref = (refpos > 0 ? refstring.substr(refpos-1, 1) : "n");
+    //const std::string vcfalt = std::string(SYMBOL_TO_DESC_ARR[symbol]);
+    // bool is_novar = (symbol == LINK_M || vcfref == vcfalt);
     
     fmt.DP = fmt.cDPTT[0] + fmt.cDPTT[1];
     auto fmtAD = fmt.cADTT[0] + fmt.cADTT[1];
@@ -1603,6 +1593,26 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
     fmt.bDP = fmt.bDP1[0] + fmt.bDP1[1];
     auto fmtbAD = fmt.cADTT[0] + fmt.cADTT[1];
     fmt.bFA = (double)(fmtbAD) / (double)(fmt.bDP);
+    
+    if (fmtAD > 0) {
+        assert(fmt.FA >= 0);
+        if (fmt.FA > (0.8 - DBL_EPSILON)) {
+            fmt.GT = "1|1"; // (is_novar ? "0|0" : "1|1");
+            fmt.GQ = calc_phred10_likeratio(0.5,  fmtAD, fmt.DP - fmtAD); // homo, so assume hetero is the alternative
+        } else if (fmt.FA < (0.2 + DBL_EPSILON)) {
+            fmt.GT = "0|0";
+            fmt.GQ = calc_phred10_likeratio(0.5,  fmtAD, fmt.DP - fmtAD); // homo, so assume hetero is the alternative
+        } else {
+            fmt.GT = "0|1";
+            fmt.GQ = calc_phred10_likeratio(0.1,  fmtAD, fmt.DP - fmtAD); // hetero, so assume homo is the alternative
+        }
+    } else {
+        fmt.GT = ".|.";
+        fmt.GQ = 0;
+    }
+    // fmt.GQ = (); // 0;
+    fmt.HQ[0] = 0; 
+    fmt.HQ[1] = 0;
     
     fmt.VType = SYMBOL_TO_DESC_ARR[symbol];
     double lowestVAQ = prob2phred(1 / (double)(fmt.bAD1[0] + fmt.bAD1[1] + 1)) * ((fmt.bAD1[0] + fmt.bAD1[1]) / (fmt.bDP1[0] + fmt.bDP1[1] + DBL_MIN)) / (double)2;
