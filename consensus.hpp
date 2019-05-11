@@ -1589,7 +1589,7 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
     fmt.DP = fmt.cDPTT[0] + fmt.cDPTT[1];
     auto fmtAD = fmt.cADTT[0] + fmt.cADTT[1];
     fmt.FA = (double)(fmtAD) / (double)(fmt.DP);
-   
+    
     fmt.bDP = fmt.bDP1[0] + fmt.bDP1[1];
     auto fmtbAD = fmt.cADTT[0] + fmt.cADTT[1];
     fmt.bFA = (double)(fmtbAD) / (double)(fmt.bDP);
@@ -1598,13 +1598,13 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
         assert(fmt.FA >= 0);
         if (fmt.FA > (0.8 - DBL_EPSILON)) {
             fmt.GT = "1|1"; // (is_novar ? "0|0" : "1|1");
-            fmt.GQ = calc_phred10_likeratio(0.5,  fmtAD, fmt.DP - fmtAD); // homo, so assume hetero is the alternative
+            fmt.GQ = (unsigned int)calc_phred10_likeratio(0.5,  fmtAD, fmt.DP - fmtAD); // homo, so assume hetero is the alternative
         } else if (fmt.FA < (0.2 + DBL_EPSILON)) {
             fmt.GT = "0|0";
-            fmt.GQ = calc_phred10_likeratio(0.5,  fmtAD, fmt.DP - fmtAD); // homo, so assume hetero is the alternative
+            fmt.GQ = (unsigned int)calc_phred10_likeratio(0.5,  fmtAD, fmt.DP - fmtAD); // homo, so assume hetero is the alternative
         } else {
             fmt.GT = "0|1";
-            fmt.GQ = calc_phred10_likeratio(0.1,  fmtAD, fmt.DP - fmtAD); // hetero, so assume homo is the alternative
+            fmt.GQ = (unsigned int)calc_phred10_likeratio(0.1,  fmtAD, fmt.DP - fmtAD); // hetero, so assume homo is the alternative
         }
     } else {
         fmt.GT = ".|.";
