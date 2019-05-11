@@ -45,6 +45,16 @@ auto safediv0(auto a, auto b) {
 
 auto mathsquare(auto x) { return x * x; }
 
+auto calc_directional_likeratio(auto prob, auto a, auto b) {
+    return a * (log(a / (a+b)) - log(prob))  + b * (log(b / (a+b)) - log(1.0-prob));
+}
+
+auto calc_phred10_likeratio(auto prob, auto a, auto b) {
+    auto a2 = MIN(a, b);
+    auto b2 = MAX(a, b);
+    return (10.0 / log(10.0)) * calc_directional_likeratio(prob, a2, b2);
+}
+
 /*
 double calc_sdev (double sum_of_sqr, double sqr_of_sum, unsigned int size) {
     return (mathsquare(sum_of_sqr) / size  - sqr_of_sum / mathsquare(size));
