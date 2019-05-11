@@ -1673,6 +1673,10 @@ generateVcfHeader(const char *ref_fasta_fname,
         ret += std::string("") + bcfrec::FORMAT_LINES[i] + "\n";
     }
     ret += std::string("") + "##FORMAT=<ID=gEND,Number=1,Type=Float,Description=\"End position of the genomic block (one-based inclusive for SNV and one-based exclusive for InDel)\">\n";
+    
+    ret += std::string("") + "##FORMAT=<ID=gGT,Number=2,Type=Float,Description=\"Genotypes in the genomic block\">\n";
+    ret += std::string("") + "##FORMAT=<ID=gGQ,Number=2,Type=Float,Description=\"Minimum genotype qualities in the genomic block for SNV and InDel\">\n";
+    
     ret += std::string("") + "##FORMAT=<ID=gCAQ,Number=2,Type=Float,Description=\"Minimum consensus allele quality in the genomic block for SNV and InDel\">\n";
     ret += std::string("") + "##FORMAT=<ID=gbDP,Number=2,Type=Integer,Description=\"Minimum duped   fragment depths in the genomic block for SNV and InDel\">\n";
     ret += std::string("") + "##FORMAT=<ID=gcDP,Number=2,Type=Integer,Description=\"Minimum deduped fragment depths in the genomic block for SNV and InDel\">\n";

@@ -15,7 +15,7 @@ COMMIT_DIFF_SH=$(shell git diff HEAD --shortstat)
 VERFLAGS=-DCOMMIT_VERSION="\"$(COMMIT_VERSION)\"" -DCOMMIT_DIFF_SH="\"$(COMMIT_DIFF_SH)\"" 
 
 uvc        : $(HDR) $(SRC) instcode.hpp Makefile
-	g++ -Ofast -DNDEBUG -o uvc        $(CXXFLAGS) $(SRC) $(VERFLAGS) -L/biocluster/data/bioexec/software/htslib-1.6/ -lhts -fopenmp # -l htslib
+	g++ -O3 -DNDEBUG -o uvc        $(CXXFLAGS) $(SRC) $(VERFLAGS) -L/biocluster/data/bioexec/software/htslib-1.6/ -lhts -fopenmp # -l htslib
 
 uvc.st.out : $(HDR) $(SRC) instcode.hpp Makefile
 	g++ -O2 -pg         -o uvc.st.out $(CXXFLAGS) $(SRC) $(VERFLAGS) -L/biocluster/data/bioexec/software/htslib-1.6/ -lhts	
