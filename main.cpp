@@ -378,10 +378,8 @@ if (rpos_exclu_end != refpos) {
                     if (vaq >= most_confident_qual) {
                         most_confident_symbol = symbol;
                         most_confident_qual = vaq;
-                    }
-                    auto GTval = fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]].GT;
-                    auto GQval = fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]].GQ;
-                    if (GQval > most_confident_GQ) {
+                        auto GTval = fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]].GT;
+                        auto GQval = fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]].GQ;
                         most_confident_GT = GTval;
                         most_confident_GQ = GQval;
                     }
@@ -409,8 +407,8 @@ if (rpos_exclu_end != refpos) {
         bool gbDPhasWideRange1 = (is_sig_out(bDPval[1], gbDPmin[1], gbDPmax[1], 130, 3) || 0 == gbDPmin[1]);
         bool gcDPhasWideRange0 = (is_sig_out(cDPval[0], gcDPmin[0], gcDPmax[0], 130, 3) || 0 == gcDPmin[0]);
         bool gcDPhasWideRange1 = (is_sig_out(cDPval[1], gcDPmin[1], gcDPmax[1], 130, 3) || 0 == gcDPmin[1]);
-        bool gfGQhasWideRange0 = (is_sig_out(fGQval[0], gfGQmin[0], gfGQmax[0], 130, 3) || std::string(fGTmm2[0]) != gfGTmm2[0]);
-        bool gfGQhasWideRange1 = (is_sig_out(fGQval[1], gfGQmin[1], gfGQmax[1], 130, 3) || std::string(fGTmm2[0]) != gfGTmm2[1]);
+        bool gfGQhasWideRange0 = (is_sig_out(fGQval[0], gfGQmin[0], gfGQmax[0], 130, 10) || std::string(fGTmm2[0]) != gfGTmm2[0]);
+        bool gfGQhasWideRange1 = (is_sig_out(fGQval[1], gfGQmin[1], gfGQmax[1], 130, 10) || std::string(fGTmm2[1]) != gfGTmm2[1]);
         //bool gCAQhasWideRange0 = (is_sig_out(CAQval[0], gCAQmin[0], gCAQmax[1], 130, 10));
         //bool gCAQhasWideRange1 = (is_sig_out(CAQval[0], gCAQmin[0], gCAQmax[1], 130, 10));
         if ((   gbDPhasWideRange0 || gbDPhasWideRange1 ||
@@ -421,7 +419,7 @@ if (rpos_exclu_end != refpos) {
                 (refpos == rpos_exclu_end)) 
                 // && refpos != rpos_inclu_beg
                 ) {
-            std::string genomicInfoString = ((0 == gbDPmin[0] || 0 == gbDPmin[1]) ? "" : genomicRegionInfoToString(
+            std::string genomicInfoString = ((0 == gbDPmax[0] || 0 == gbDPmax[1]) ? "" : genomicRegionInfoToString(
                     std::get<0>(tname_tseqlen_tuple),
                     prevPosition,
                     refpos,
