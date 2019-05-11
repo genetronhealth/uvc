@@ -11,7 +11,7 @@
 #include "omp.h"
 #endif
 
-const unsigned int G_BLOCK_SIZE = 50;
+const unsigned int G_BLOCK_SIZE = 1000;
 
 /*
 int _old_clearstring(BGZF * bgzip_file, const std::string & outstring_allp, bool is_output_to_stdout = false, bool flush = true) {
@@ -209,6 +209,28 @@ dp100_to_string(const std::vector<unsigned int> & bg1dp100, const std::vector<un
     return ret;
 }
 
+std::string
+genomicRegionInfoToString(const std::string & chromosome, unsigned int incluBeg, unsigned int excluEnd,
+        const std::array<unsigned int, 2> gbDPamin, const std::array<unsigned int, 2> gcDPamin, const std::array<float, 2> gCAQamin) {
+    std::string ret = chromosome + "\t" + std::to_string(incluBeg) 
+            + "\t.\tN\t<NON_REF" + ">\t.\t.\t.\tGT:gbDP:gcDP:gCAQ:gEND\t.:" 
+            + std::to_string(gbDPamin[0]) + "," + std::to_string(gbDPamin[1]) + ":" 
+            + std::to_string(gcDPamin[0]) + "," + std::to_string(gcDPamin[1]) + ":" 
+            + std::to_string(gCAQamin[0]) + "," + std::to_string(gCAQamin[1]) + ":" 
+            + std::to_string(excluEnd) + "\n";
+    return ret;
+}
+
+const bool
+is_sig_higher_than(auto a, auto b, unsigned int mfact = 30, unsigned int afact = 3) {
+    return (a * 100 > b * (100 + mfact)) && (a > b + afact);
+}
+
+const bool
+is_sig_out(auto a, auto minval, auto maxval, unsigned int mfact = 30, unsigned int afact = 3) {
+    return is_sig_higher_than(a, minval, mfact, afact) || is_sig_higher_than(maxval, a, mfact, afact);
+}
+
 int 
 process_batch(BatchArg & arg) {
     
@@ -276,7 +298,7 @@ process_batch(BatchArg & arg) {
     auto simplemut2indices_bq = mutform2count4vec_to_simplemut2indices(mutform2count4vec_bq);
     auto mutform2count4vec_fq = map2vector(mutform2count4map_fq);
     auto simplemut2indices_fq = mutform2count4vec_to_simplemut2indices(mutform2count4vec_fq);
-
+    
     /*
     std::map<unsigned int, std::set<size_t>> simplemut2indices;
     for (size_t i = 0; i < mutform2count4vec_bq.size(); i++) {
@@ -293,62 +315,111 @@ process_batch(BatchArg & arg) {
     */
     LOG(logINFO) << "Thread " << thread_id  << " starts generating block gzipped vcf";
     
+    std::string buf_out_string;
+    std::string buf_out_string_pass;
     const std::set<size_t> empty_size_t_set;
     const unsigned int rpos_inclu_beg = MAX(incluBegPosition, extended_inclu_beg_pos);
     const unsigned int rpos_exclu_end = MIN(excluEndPosition, extended_exclu_end_pos);
-    for (unsigned int refpos = rpos_inclu_beg; refpos < rpos_exclu_end; refpos++) {
-        if ((refpos % G_BLOCK_SIZE) == 0) {
-            if (refpos < rpos_inclu_beg + G_BLOCK_SIZE) {
-                std::vector<unsigned int> bg1dp100prev = gen_dp100(symbolToCountCoverageSet12.bq_tsum_depth, rpos_inclu_beg, refpos);
-                std::vector<unsigned int> bg2dp100prev = gen_dp100(symbolToCountCoverageSet12.fq_tsum_depth, rpos_inclu_beg, refpos);
-                std::string dp100string = dp100_to_string(bg1dp100prev, bg2dp100prev, std::get<0>(tname_tseqlen_tuple), refpos, true);
-                raw_out_string += dp100string;
-                raw_out_string_pass += dp100string;
-            }
-            std::vector<unsigned int> bg1dp100next = gen_dp100(symbolToCountCoverageSet12.bq_tsum_depth, refpos, MIN(refpos + G_BLOCK_SIZE, rpos_exclu_end));
-            std::vector<unsigned int> bg2dp100next = gen_dp100(symbolToCountCoverageSet12.fq_tsum_depth, refpos, MIN(refpos + G_BLOCK_SIZE, rpos_exclu_end));
-            std::string dp100string = dp100_to_string(bg1dp100next, bg2dp100next, std::get<0>(tname_tseqlen_tuple), refpos, false);
-            raw_out_string += dp100string;
-            raw_out_string_pass += dp100string;
-        }
-        
-        const SymbolType allSymbolTypes[2] = {LINK_SYMBOL, BASE_SYMBOL};
-        for (SymbolType symbolType : allSymbolTypes) {
+    
+    const unsigned int capDP = 10*1000*1000;
+    const float capCAQ = 1e6;
+    
+    std::array<unsigned int, 2> gbDPmin = {capDP, capDP};
+    std::array<unsigned int, 2> gbDPmax = {0, 0};
+    std::array<unsigned int, 2> gcDPmin = {capDP, capDP};
+    std::array<unsigned int, 2> gcDPmax = {0, 0};
+    std::array<float, 2> gCAQmin = {capCAQ, capCAQ};
+    std::array<float, 2> gCAQmax = {0, 0};
+    
+    std::array<unsigned int, 2> bDPval = {capDP, capDP};
+    std::array<unsigned int, 2> cDPval = {capDP, capDP};
+    std::array<float, 2> CAQval = {capCAQ, capCAQ};
+
+    unsigned int prevPosition = rpos_inclu_beg;
+    for (unsigned int refpos = rpos_inclu_beg; refpos <= rpos_exclu_end; refpos++) {
+
+if (rpos_exclu_end != refpos) {
+        const std::array<SymbolType, 2> allSymbolTypes = {LINK_SYMBOL, BASE_SYMBOL};
+        for (unsigned int stidx = 0; stidx < 2; stidx++) {
+            const SymbolType symbolType = allSymbolTypes[stidx];
             bcfrec::BcfFormat init_fmt;
-            int alldepth = BcfFormat_init(init_fmt, symbolToCountCoverageSet12, refpos, symbolType);
-            if (alldepth < paramset.min_depth_thres) { 
-                continue; 
-            }
-            std::vector<bcfrec::BcfFormat> fmts(SYMBOL_TYPE_TO_INCLU_END[symbolType] - SYMBOL_TYPE_TO_INCLU_BEG[symbolType] + 1, init_fmt);
-            for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; symbol = AlignmentSymbol(1+(unsigned int)symbol)) {
-                const auto simplemut = std::make_pair(refpos, symbol);
-                auto indices_bq = (simplemut2indices_bq.find(simplemut) != simplemut2indices_bq.end() ? simplemut2indices_bq[simplemut] : empty_size_t_set); 
-                auto indices_fq = (simplemut2indices_fq.find(simplemut) != simplemut2indices_fq.end() ? simplemut2indices_fq[simplemut] : empty_size_t_set);
-                
-                int altdepth = fillBySymbol(fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]], symbolToCountCoverageSet12, 
-                        refpos, symbol, refstring, mutform2count4vec_bq, indices_bq, mutform2count4vec_fq, indices_fq, 
-                        paramset.minABQ, paramset.phred_max_sscs, paramset.phred_max_dscs);
-            }
+            std::array<unsigned int, 2> bDPcDP = BcfFormat_init(init_fmt, symbolToCountCoverageSet12, refpos, symbolType);
             AlignmentSymbol most_confident_symbol = END_ALIGNMENT_SYMBOLS;
             float most_confident_qual = 0;
-            for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; symbol = AlignmentSymbol(1+(unsigned int)symbol)) {
-                float vaq = fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]].VAQ;
-                if (vaq >= most_confident_qual) {
-                    most_confident_symbol = symbol;
-                    most_confident_qual = vaq;
+            if (bDPcDP[0] >= paramset.min_depth_thres) {
+                std::vector<bcfrec::BcfFormat> fmts(SYMBOL_TYPE_TO_INCLU_END[symbolType] - SYMBOL_TYPE_TO_INCLU_BEG[symbolType] + 1, init_fmt);
+                for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; symbol = AlignmentSymbol(1+(unsigned int)symbol)) {
+                    const auto simplemut = std::make_pair(refpos, symbol);
+                    auto indices_bq = (simplemut2indices_bq.find(simplemut) != simplemut2indices_bq.end() ? simplemut2indices_bq[simplemut] : empty_size_t_set); 
+                    auto indices_fq = (simplemut2indices_fq.find(simplemut) != simplemut2indices_fq.end() ? simplemut2indices_fq[simplemut] : empty_size_t_set);
+                    
+                    int altdepth = fillBySymbol(fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]], symbolToCountCoverageSet12, 
+                            refpos, symbol, refstring, mutform2count4vec_bq, indices_bq, mutform2count4vec_fq, indices_fq, 
+                            paramset.minABQ, paramset.phred_max_sscs, paramset.phred_max_dscs);
+                }
+                for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; symbol = AlignmentSymbol(1+(unsigned int)symbol)) {
+                    float vaq = fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]].VAQ;
+                    if (vaq >= most_confident_qual) {
+                        most_confident_symbol = symbol;
+                        most_confident_qual = vaq;
+                    }
+                }
+                for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; symbol = AlignmentSymbol(1+(unsigned int)symbol)) {
+                    auto & fmt = fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]];
+                    if ((fmt.bAD1[0] + fmt.bAD1[1]) < paramset.min_altdp_thres) {
+                        continue;
+                    }
+                    fmt.CType = SYMBOL_TO_DESC_ARR[most_confident_symbol];
+                    fmt.CAQ = most_confident_qual;
+                    appendVcfRecord(buf_out_string, buf_out_string_pass, symbolToCountCoverageSet12,
+                            std::get<0>(tname_tseqlen_tuple).c_str(), refpos, symbol, fmt,
+                            refstring, extended_inclu_beg_pos, paramset.vqual, should_output_all);
                 }
             }
-            for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; symbol = AlignmentSymbol(1+(unsigned int)symbol)) {
-                auto & fmt = fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]];
-                if ((fmt.bAD1[0] + fmt.bAD1[1]) < paramset.min_altdp_thres) {
-                    continue;
-                }
-                fmt.CType = SYMBOL_TO_DESC_ARR[most_confident_symbol];
-                fmt.CAQ = most_confident_qual;
-                appendVcfRecord(raw_out_string, raw_out_string_pass, symbolToCountCoverageSet12,
-                        std::get<0>(tname_tseqlen_tuple).c_str(), refpos, symbol, fmt,
-                        refstring, extended_inclu_beg_pos, paramset.vqual, should_output_all);
-            }
+            bDPval[symbolType] = bDPcDP[0];
+            cDPval[symbolType] = bDPcDP[1];
+            CAQval[symbolType] = most_confident_qual;
+        }
+}
+        bool gbDPhasWideRange0 = (is_sig_out(bDPval[0], gbDPmin[0], gbDPmax[0], 130, 3) || 0 == gbDPmin[0]);
+        bool gbDPhasWideRange1 = (is_sig_out(bDPval[1], gbDPmin[1], gbDPmax[1], 130, 3) || 0 == gbDPmin[1]); 
+        bool gcDPhasWideRange0 = (is_sig_out(cDPval[0], gcDPmin[0], gcDPmax[1], 130, 3) || 0 == gcDPmin[0]);
+        bool gcDPhasWideRange1 = (is_sig_out(cDPval[1], gcDPmin[1], gcDPmax[1], 130, 3) || 0 == gcDPmin[1]);
+        bool gCAQhasWideRange0 = (is_sig_out(CAQval[0], gCAQmin[0], gCAQmax[1], 130, 20));
+        bool gCAQhasWideRange1 = (is_sig_out(CAQval[0], gCAQmin[0], gCAQmax[1], 130, 20));
+        if ((   gbDPhasWideRange0 || gbDPhasWideRange1 ||
+                gcDPhasWideRange0 || gcDPhasWideRange1 ||
+                gCAQhasWideRange0 || gCAQhasWideRange1 ||
+                (refpos - prevPosition >= G_BLOCK_SIZE) ||
+                (refpos == rpos_exclu_end)) 
+                // && refpos != rpos_inclu_beg
+                ) {
+            std::string genomicInfoString = ((0 == gbDPmin[0] || 0 == gbDPmin[1]) ? "" : genomicRegionInfoToString(
+                    std::get<0>(tname_tseqlen_tuple),
+                    prevPosition,
+                    refpos,
+                    gbDPmin,
+                    gcDPmin,
+                    gCAQmin
+                    ));
+            raw_out_string += buf_out_string;
+            raw_out_string_pass += genomicInfoString + buf_out_string_pass;
+            buf_out_string.clear();
+            buf_out_string_pass.clear();
+            prevPosition = refpos;
+            gbDPmin = bDPval;
+            gbDPmax = bDPval;
+            gcDPmin = cDPval;
+            gcDPmax = cDPval;
+            gCAQmin = CAQval;
+            gCAQmax = CAQval;
+        } else {
+            UPDATE_MIN2(gbDPmin, bDPval);
+            UPDATE_MAX2(gbDPmax, bDPval);
+            UPDATE_MIN2(gcDPmin, cDPval);
+            UPDATE_MAX2(gcDPmax, cDPval);
+            UPDATE_MIN2(gCAQmin, CAQval);
+            UPDATE_MAX2(gCAQmax, CAQval);
         }
     }
     LOG(logINFO) << "Thread " << thread_id  << " starts destroying bam records"; 
