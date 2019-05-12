@@ -42,6 +42,8 @@ for record in vcf_reader:
     #print('The following record passed NLOD threshold: {}'.format(record)) 
     record.QUAL = min((tlod, nlod))
     if record.REF != record.ALT[0]:
+        normalBGrecord.POS = record.POS
+        normalBGrecord.REF = record.REF[0:1]
         vcf_writer.write_record(normalBGrecord)
         vcf_writer.write_record(record)
         
