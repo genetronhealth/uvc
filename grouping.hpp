@@ -614,7 +614,9 @@ bamfname_to_strand_to_familyuid_to_reads(
         } else if (endIsVariable) {
             umi3hash = hash2hash(umilabel, hash2hash(beg2+1, 0)); 
         } else {
-            umi3hash = hash2hash(umilabel, hash2hash(beg2+1, end2+1));
+            auto min2 = min(beg2, end2);
+            auto max2 = max(beg2, end2);
+            umi3hash = hash2hash(umilabel, hash2hash(min2+1, max2+1));
         }
         // umi3hash = umilabel;
         
@@ -636,7 +638,10 @@ bamfname_to_strand_to_familyuid_to_reads(
                     << "adjusted-surrounding-counts = " << beg2surrcount << " to " << end2surrcount << " ; " 
                     << "molecular-barcode = " << (is_umi_found ? umihash : 0) << " ; "
                     << "begIsVariable = " << begIsVariable << " ; " 
-                    << "endIsVariable = " << endIsVariable << " ; ";
+                    << "endIsVariable = " << endIsVariable << " ; "
+                    << "umi3hash = " << umi3hash << " ; "
+                    << "strand = " << strand << " ; "
+                    << "qhash = " << qhash;
         }
         alnidx += 1;
         //LOG(logINFO) << "Iteration 3.7 begins!";
