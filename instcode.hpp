@@ -57,7 +57,7 @@ fillByIndelInfo2_2
         //}
 #endif
         //const uint32_t rawdu_amplicon_data = indel2data4.second;
-        assert (indelstring.size() > 0);
+        // assert (indelstring.size() > 0);
         //assert (rawdu_amplicon_data > 0);
         //assert (rawdu_ampBQerr_pos2indel2data.at(refpos).find(indel) != rawdu_ampBQerr_pos2indel2data.at(refpos).end());
         
