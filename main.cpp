@@ -398,7 +398,7 @@ if (rpos_exclu_end != refpos) {
             }
             bDPval[symbolType] = bDPcDP[0];
             cDPval[symbolType] = bDPcDP[1];
-            fGTmm2[symbolType] = most_confident_GT;
+            fGTmm2[symbolType] = (most_confident_GQ >= 10 ? most_confident_GT : ".|.");
             fGQval[symbolType] = most_confident_GQ;
             // CAQval[symbolType] = most_confident_qual;
         }
