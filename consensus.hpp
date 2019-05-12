@@ -149,6 +149,10 @@ const AlignmentSymbol SYMBOL_TYPE_TO_AMBIG[NUM_SYMBOL_TYPES] = {
     [LINK_SYMBOL] = LINK_NN,
 };
 
+bool isSymbolSubstitution(AlignmentSymbol symbol) {
+    return (SYMBOL_TYPE_TO_INCLU_BEG[BASE_SYMBOL] <= symbol && symbol <= SYMBOL_TYPE_TO_INCLU_END[BASE_SYMBOL]);
+}
+
 template <class T>
 class TDistribution {
 protected:
@@ -1513,7 +1517,7 @@ mutform2count4map_to_phase(const auto & mutform2count4vec, const auto & indices,
 
 int
 fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2CountCoverageSet12, 
-        unsigned int refpos, const AlignmentSymbol symbol, const std::string & refstring, 
+        unsigned int refpos, const AlignmentSymbol symbol, const std::string & refstring, unsigned int refstring_offset, 
         const std::vector<std::pair<std::basic_string<std::pair<unsigned int, AlignmentSymbol>>, std::array<unsigned int, 2>>> & mutform2count4vec_bq,
         std::set<size_t> indices_bq,
         const std::vector<std::pair<std::basic_string<std::pair<unsigned int, AlignmentSymbol>>, std::array<unsigned int, 2>>> & mutform2count4vec_fq,
@@ -1582,10 +1586,11 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
     fmt.dAD1 = symbol2CountCoverageSet12.duplex_tsum_depth.getByPos(refpos).getSymbolCount(symbol);
     fmt.dAD3 = symbol2CountCoverageSet12.duplex_pass_depth.getByPos(refpos).getSymbolCount(symbol);
     
-    //const std::string vcfref = (refpos > 0 ? refstring.substr(refpos-1, 1) : "n");
-    //const std::string vcfalt = std::string(SYMBOL_TO_DESC_ARR[symbol]);
-    // bool is_novar = (symbol == LINK_M || vcfref == vcfalt);
-    
+    unsigned int regionpos = refpos - refstring_offset;
+    const std::string vcfref = refstring.substr(regionpos, 1);
+    const std::string vcfalt = std::string(SYMBOL_TO_DESC_ARR[symbol]);
+    bool is_novar = (symbol == LINK_M || (isSymbolSubstitution(symbol) && vcfref == vcfalt));
+ 
     fmt.DP = fmt.cDPTT[0] + fmt.cDPTT[1];
     auto fmtAD = fmt.cADTT[0] + fmt.cADTT[1];
     fmt.FA = (double)(fmtAD) / (double)(fmt.DP);
@@ -1597,10 +1602,10 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
     if (fmtAD > 0) {
         assert(fmt.FA >= 0);
         if (fmt.FA > (0.8 - DBL_EPSILON)) {
-            fmt.GT = "1|1"; // (is_novar ? "0|0" : "1|1");
+            fmt.GT = (is_novar ? "0|0" : "1|1");
             fmt.GQ = (unsigned int)calc_phred10_likeratio(0.5,  fmtAD, fmt.DP - fmtAD); // homo, so assume hetero is the alternative
         } else if (fmt.FA < (0.2 + DBL_EPSILON)) {
-            fmt.GT = "0|0";
+            fmt.GT = (is_novar ? "1|1" : "0|0");
             fmt.GQ = (unsigned int)calc_phred10_likeratio(0.5,  fmtAD, fmt.DP - fmtAD); // homo, so assume hetero is the alternative
         } else {
             fmt.GT = "0|1";
@@ -1663,7 +1668,7 @@ generateVcfHeader(const char *ref_fasta_fname,
     for (size_t i = 0; i < n_targets; i++) {
         ret += std::string("") + "##contig=<ID=" + target_name[i] + ",length=" + std::to_string(target_len[i]) + ">\n";
     }
-    ret += std::string("") + "##ALT=<ID=NON_REF,Description=\"Represents any possible alternative allele at this location, where POS is one-based exclusive for SNV and one-based inclusive for InDel\">\n";
+    ret += std::string("") + "##ALT=<ID=NON_REF,Description=\"Represents any possible alternative allele at this location, where POS (start position) is one-based inclusive.\">\n";
     
     for (unsigned int i = 0; i < bcfrec::FILTER_NUM; i++) {
         ret += std::string("") + bcfrec::FILTER_LINES[i] + "\n";
@@ -1672,15 +1677,11 @@ generateVcfHeader(const char *ref_fasta_fname,
     for (unsigned int i = 0; i < bcfrec::FORMAT_NUM; i++) {
         ret += std::string("") + bcfrec::FORMAT_LINES[i] + "\n";
     }
-    ret += std::string("") + "##FORMAT=<ID=gEND,Number=1,Type=Integer,Description=\"End position of the genomic block (one-based inclusive for SNV and one-based exclusive for InDel)\">\n";
-    
-    ret += std::string("") + "##FORMAT=<ID=gGT,Number=2,Type=String,Description=\"Genotypes in the genomic block for SNV and InDel\">\n";
-    ret += std::string("") + "##FORMAT=<ID=gGQ,Number=2,Type=Integer,Description=\"Minimum genotype qualities in the genomic block for SNV and InDel\">\n";
-    
-    ret += std::string("") + "##FORMAT=<ID=gCAQ,Number=2,Type=Float,Description=\"Minimum consensus allele quality in the genomic block for SNV and InDel\">\n";
-    ret += std::string("") + "##FORMAT=<ID=gbDP,Number=2,Type=Integer,Description=\"Minimum duped   fragment depths in the genomic block for SNV and InDel\">\n";
-    ret += std::string("") + "##FORMAT=<ID=gcDP,Number=2,Type=Integer,Description=\"Minimum deduped fragment depths in the genomic block for SNV and InDel\">\n";
-    ret += std::string("") + "##phasing=partial" + "\n";
+    ret += std::string("") + "##FORMAT=<ID=gbDP,Number=1,Type=Integer,Description=\"Minimum duped   fragment depths in the genomic block for SNV and InDel\">\n";
+    ret += std::string("") + "##FORMAT=<ID=gcDP,Number=1,Type=Integer,Description=\"Minimum deduped fragment depths in the genomic block for SNV and InDel\">\n";
+    ret += std::string("") + "##FORMAT=<ID=gSTS,Number=2,Type=Integer,Description=\"Variant types for start and end positions, where 0 means SNV and 1 means InDel.\">\n";
+    ret += std::string("") + "##FORMAT=<ID=gEND,Number=1,Type=Integer,Description=\"End position of the genomic block (one-based inclusive)\">\n";
+    ret += std::string("") + "##phasing=partial\n";
     ret += std::string("") + "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t" + sampleName + "\n";
     return ret;
 }
@@ -1730,7 +1731,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
             vcfref += indelstring;
         }
     } else {
-        if (SYMBOL_TYPE_TO_INCLU_BEG[BASE_SYMBOL] <= symbol && symbol <= SYMBOL_TYPE_TO_INCLU_END[BASE_SYMBOL]) {
+        if (isSymbolSubstitution(symbol)) {
             vcfpos = refpos+1;
             vcfref = refstring.substr(regionpos, 1);
         } else {
@@ -1742,7 +1743,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
     
     const float vcfqual = fmt.VAQ;
     
-    bool is_novar = (symbol == LINK_M || vcfref == vcfalt);
+    bool is_novar = (symbol == LINK_M || (isSymbolSubstitution(symbol) && vcfref == vcfalt));
     std::string vcffilter;
     if (is_novar) {
         vcffilter += (std::string(bcfrec::FILTER_IDS[bcfrec::noVar]) + ";");
