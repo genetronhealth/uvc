@@ -227,12 +227,12 @@ genomicRegionInfoToString(const std::string & chromosome, unsigned int incluBeg,
 }
 
 const bool
-is_sig_higher_than(auto a, auto b, unsigned int mfact = 30, unsigned int afact = 3) {
+is_sig_higher_than(auto a, auto b, unsigned int mfact, unsigned int afact) {
     return (a * 100 > b * (100 + mfact)) && (a > b + afact);
 }
 
 const bool
-is_sig_out(auto a, auto minval, auto maxval, unsigned int mfact = 30, unsigned int afact = 3) {
+is_sig_out(auto a, auto minval, auto maxval, unsigned int mfact, unsigned int afact) {
     return is_sig_higher_than(a, minval, mfact, afact) || is_sig_higher_than(maxval, a, mfact, afact);
 }
 
