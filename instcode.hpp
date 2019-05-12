@@ -32,7 +32,7 @@ fillByIndelInfo2_2
     AlignmentSymbol link3p = (isSymbolIns(symbol) ? LINK_I3P : LINK_D3P);
     
     assert (link1 == symbol || link2 == symbol || link3p == symbol || 
-            !fprintf(stderr, "Symbol %d does not match any of {%s, %s, %s}", 
+            !fprintf(stderr, "Symbol %s does not match any of {%s, %s, %s}", 
             SYMBOL_TO_DESC_ARR[symbol], SYMBOL_TO_DESC_ARR[link1], SYMBOL_TO_DESC_ARR[link2], SYMBOL_TO_DESC_ARR[link3p]));
     // std::vector<std::tuple<uint32_t, uint32_t, std::string>> rawdu2_dedup_size1_mutform_tuples; 
     
@@ -58,6 +58,9 @@ fillByIndelInfo2_2
 #endif
         //const uint32_t rawdu_amplicon_data = indel2data4.second;
         // assert (indelstring.size() > 0);
+        if (indelstring.size() == 0) {
+            continue;
+        }
         //assert (rawdu_amplicon_data > 0);
         //assert (rawdu_ampBQerr_pos2indel2data.at(refpos).find(indel) != rawdu_ampBQerr_pos2indel2data.at(refpos).end());
         
@@ -100,11 +103,13 @@ fillByIndelInfo2_2
         gapT2AD1sum += fmt.gapT2AD1.back();
         // ituple++; if (2 == ituple) { break; }
     }
+    /*
     if (fmt.gapT1AD1[strand] != gapT1AD1sum) {
         std::string msg = std::to_string(strand) + "\t" + std::to_string(refpos) + "\t" + std::to_string(symbol);
         bcfrec::streamAppendBcfFormat(msg, fmt);
         std::cerr << msg << "\n";
     }
+    */
     // "/4+16" is a probabilistic check
     /*
     assert(fmt.AD2[strand] >= gapAD2sum && (fmt.AD2[strand] <= gapAD2sum * 5 / 4 + 16) ||
