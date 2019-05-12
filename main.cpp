@@ -220,12 +220,13 @@ genomicRegionInfoToString(const std::string & chromosome,
     unsigned int refstring_idx = begpos - refstring_offset;
     const std::string begchar = (refstring_idx > 0 ? refstring.substr(refstring_idx - 1, 1) : "n");
     std::string ret = chromosome + "\t" + std::to_string(begpos)
-            + "\t.\t" + begchar + "\t<NON_REF" + ">\t.\t.\t.\tGT:GQ:gbDP:gcDP:gSTS:gEND\t"
+            + "\t.\t" + begchar + "\t<NON_REF" + ">\t.\t.\t.\tGT:GQ:gbDP:gcDP:gSTS:gBEG:gEND\t"
             +               (gfGTmm2) + ":"
             + std::to_string(gfGQmin) + ":"
             + std::to_string(gbDPmin) + ":"
             + std::to_string(gcDPmin) + ":"
             + std::to_string(stypeBeg) + "," + std::to_string(stypeEnd) + ":"
+            + std::to_string(begpos) + ":"
             + std::to_string(stypeBeg == BASE_SYMBOL ? (excluEnd) : (excluEnd-1)) + "\n";
     return ret;
 }
