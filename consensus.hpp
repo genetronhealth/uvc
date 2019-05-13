@@ -1622,23 +1622,31 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
     fmt.VType = SYMBOL_TO_DESC_ARR[symbol];
     double lowestVAQ = prob2phred(1 / (double)(fmt.bAD1[0] + fmt.bAD1[1] + 1)) * ((fmt.bAD1[0] + fmt.bAD1[1]) / (fmt.bDP1[0] + fmt.bDP1[1] + DBL_MIN)) / (double)2;
     double maxVAQs[2] = {0, 0};
+    std::array<unsigned int, 2> weightedQT3s = {0, 0};
     for (size_t i = 0; i < 2; i++) {
-        auto minAD1 = MIN(fmt.bAD1[i], fmt.cAD1[i]);
+        auto minAD1 = MIN(fmt.bAD1[i], fmt.cAD1[i]); // prevent symbol with suffix = _N
         auto maxAD1 = MAX(fmt.bAD1[i], fmt.cAD1[i]);
         auto gapAD1 = maxAD1 - minAD1;
         if (fmt.bVQ3[i] < fmt.cVQ3[i]) {
             gapAD1 *= 2;
         }
         double currVAQ = (fmt.bVQ3[i] * minAD1 + fmt.cVQ3[i] * gapAD1) / (double)(minAD1 + gapAD1 + DBL_MIN); // prevent div by zero
+        weightedQT3s[i] = (fmt.bQT3[i] * minAD1 + fmt.cQT3[i] * gapAD1) / (double)(minAD1 + gapAD1 + DBL_MIN);
         if (fmt.bQT2[i] >= minABQ) {
             maxVAQs[i] = MAX(maxVAQs[i], currVAQ);
         } else {
             maxVAQs[i] = MAX(maxVAQs[i], MIN(currVAQ, minABQ));
         }
     }
-    double minVAQ = MIN(maxVAQs[0], maxVAQs[1]);
-    double maxVAQ = MAX(maxVAQs[0], maxVAQs[1]);
-    double doubleVAQ = maxVAQ + (minVAQ * (phred_max_dscs - phred_max_sscs) / (double)phred_max_sscs);
+    //double minVAQ = MIN(maxVAQs[0], maxVAQs[1]);
+    //double maxVAQ = MAX(maxVAQs[0], maxVAQs[1]);
+    
+    double weightsum = MIN((double)(weightedQT3s[0] + weightedQT3s[1]), phred_max_dscs);
+    double doubleVAQfw = maxVAQs[0] + maxVAQs[1] * MIN(1.0, (weightsum - weightedQT3s[0]) / (weightedQT3s[0] + DBL_EPSILON));
+    double doubleVAQrv = maxVAQs[1] + maxVAQs[0] * MIN(1.0, (weightsum - weightedQT3s[1]) / (weightedQT3s[1] + DBL_EPSILON));
+    
+    double doubleVAQ = MAX(doubleVAQfw, doubleVAQrv);
+    // double doubleVAQ = maxVAQ + (minVAQ * (phred_max_dscs - phred_max_sscs) / (double)phred_max_sscs);
     double duplexVAQ = (double)fmt.dAD3 * (double)(phred_max_dscs - phred_max_sscs) - (double)(fmt.dAD1 - fmt.dAD3); // h01_to
     fmt.VAQ = MAX(lowestVAQ, doubleVAQ + duplexVAQ);
     return (int)(fmt.bAD1[0] + fmt.bAD1[1]);
