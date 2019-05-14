@@ -14,44 +14,77 @@ std::string CommandLineArgs::selfUpdateByPlatform() {
     if ("auto" == this->platform) {
         // unsigned int bqsum = 0;
         unsigned int bqcnt = 0;
-        unsigned int bq30cnt = 0;
 
         samFile *sam_infile = sam_open(this->bam_input_fname.c_str(), "r"); // AlignmentFile(samfname, "rb")
         if (NULL == sam_infile) {
             fprintf(stderr, "Failed to open the file %s", this->bam_input_fname.c_str());
             exit(-32);
         }
+        std::array<unsigned int, 96> phred2countArr = {0};
         bam_hdr_t * samheader = sam_hdr_read(sam_infile);
         bam1_t *b = bam_init1();
-        while (sam_read1(sam_infile, samheader, b) >= 0 && bqcnt <= 100*100) {
+        unsigned int indel_len = 0;
+        unsigned int countPE = 0;
+        unsigned int countSE = 0;
+        while (sam_read1(sam_infile, samheader, b) >= 0 && bqcnt <= 100*1000) {
+            if (b->core.flag & 0x1) {
+                countPE++;
+            } else {
+                countSE++;
+            }
             for (int i = 0; i < b->core.l_qseq; i++) {
                 unsigned int bq = bam_get_qual(b)[i];
-                // bqsum += bq;
-                if (bq >= 30) {
-                    bq30cnt++;
-                }
+                phred2countArr[bq]++;
             }
             bqcnt += b->core.l_qseq;
+            const uint32_t n_cigar = b->core.n_cigar;
+            const uint32_t *cigar =  bam_get_cigar(b);
+            for (unsigned int i = 0; i < n_cigar; i++) {
+                uint32_t c = cigar[i];
+                unsigned int cigar_op = bam_cigar_op(c);
+                if (BAM_CINS == cigar_op || BAM_CDEL ==  cigar_op) {
+                    unsigned int cigar_oplen = bam_cigar_oplen(c);
+                    indel_len += cigar_oplen;
+                }
+            }
         }
         bam_destroy1(b);
         bam_hdr_destroy(samheader);
         sam_close(sam_infile);
         
-        if (bq30cnt * 2 >= bqcnt) {
+        unsigned int phredmax = 0;
+        for (int i = 0; i < 96; i++) { 
+            if (0 < phred2countArr[i]) { 
+                phredmax = i; 
+            }
+        }
+        unsigned int phredcut = phredmax * 2 / 3;
+        unsigned int phredpass = 0;
+        unsigned int phredfail = 0;
+        for (int i = 0; i < 96; i++) { 
+            if (i >= phredcut) { 
+                phredpass += phred2countArr[i]; 
+            } else {
+                phredfail += phred2countArr[i];
+            }
+        }
+        bool has_enough_pass = phredpass >= phredfail * 3;
+        if (countSE < countPE) {
+            //if (indel_len * 500 <= bqcnt) {
             plat = "illumina";
+            minABQ = phredcut;
         } else {
             plat = "iontorrent";
+            minABQ = 0;
         }
     } else {
         plat = this->platform;
     }
     if ("iontorrent" == plat) {
-        minABQ = 0;
         bq_phred_added_indel = 0;
         bq_phred_added_misma = 6;
     }
     if ("illumina" == plat) {
-        minABQ = 25+1;
         bq_phred_added_indel = 6;
         bq_phred_added_misma = 0;
     }
