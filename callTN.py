@@ -9,12 +9,13 @@ def get0(d, k, v=0):
     else: 
         return v
 
-LOD_THRES = 50
+LOD_THRES = 30
 
 normalGT = ''
 normalGQ = 0
 normalGE = 0
 normalBGrecord = None
+prevNormalBGrecord = None
 
 p=subprocess.Popen(['bcftools', 'merge', '--force-samples', '-m', 'none', sys.argv[1], sys.argv[2]], stdout=subprocess.PIPE)
 vcf_reader = vcf.Reader(p.stdout, 'r')
@@ -29,6 +30,7 @@ for record in vcf_reader:
         normalGT = normal['GT']
         normalGQ = normal['GQ']
         normalGE = normal['gEND']
+        prevNormalBGrecord = normalBGrecord
         normalBGrecord = record
         #print('ALT is {}'.format(record.ALT[0]))
     
@@ -44,6 +46,6 @@ for record in vcf_reader:
     if record.REF != record.ALT[0]:
         normalBGrecord.POS = record.POS
         normalBGrecord.REF = record.REF[0:1]
-        vcf_writer.write_record(normalBGrecord)
+        if prevNormalBGrecord != normalBGrecord: vcf_writer.write_record(normalBGrecord)
         vcf_writer.write_record(record)
         
