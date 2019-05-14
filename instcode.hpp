@@ -77,8 +77,8 @@ fillByIndelInfo2_2
             bqfq_depth_mutform_tuples.push_back(std::make_tuple(bqdata, fqdata, indelstring));
         }
     }
-    unsigned int gapT1AD1sum = 0;
-    unsigned int gapT2AD1sum = 0;
+    unsigned int gapbAD1sum = 0;
+    unsigned int gapcAD1sum = 0;
     // std::sort(rawdu2_dedup_size1_mutform_tuples.rbegin(), rawdu2_dedup_size1_mutform_tuples.rend());
     // bq_tsum_depth.push_back(std::make_tuple(bq_tsum_depth, fq_tsum_depth, indelstring));
     std::sort(bqfq_depth_mutform_tuples.rbegin(), bqfq_depth_mutform_tuples.rend());
@@ -90,8 +90,8 @@ fillByIndelInfo2_2
     for (auto bqfq_depth_mutform : bqfq_depth_mutform_tuples) {
         assert(std::get<2>(bqfq_depth_mutform).size() > 0);
         fmt.gapSeq.push_back(std::get<2>(bqfq_depth_mutform));
-        fmt.gapT1AD1.push_back(std::get<0>(bqfq_depth_mutform));
-        fmt.gapT2AD1.push_back(std::get<1>(bqfq_depth_mutform));
+        fmt.gapbAD1.push_back(std::get<0>(bqfq_depth_mutform));
+        fmt.gapcAD1.push_back(std::get<1>(bqfq_depth_mutform));
         //fmt.gapSeq.push_back(std::get<4>(rawdu_dedup_size1_mutform_tuple)); // this is a std::string
         //fmt.gapAD2.push_back(std::get<2>(rawdu_dedup_size1_mutform_tuple));
         //fmt.gapAD4.push_back(std::get<3>(rawdu_dedup_size1_mutform_tuple));
@@ -99,12 +99,12 @@ fillByIndelInfo2_2
         //fmt.gapADr.push_back(std::get<0>(rawdu_dedup_size1_mutform_tuple));
         //gapAD2sum += fmt.gapAD2.back();
         //gapADrsum += fmt.gapADr.back();
-        gapT1AD1sum += fmt.gapT1AD1.back();
-        gapT2AD1sum += fmt.gapT2AD1.back();
+        gapbAD1sum += fmt.gapbAD1.back();
+        gapcAD1sum += fmt.gapcAD1.back();
         // ituple++; if (2 == ituple) { break; }
     }
     /*
-    if (fmt.gapT1AD1[strand] != gapT1AD1sum) {
+    if (fmt.gapbAD1[strand] != gapbAD1sum) {
         std::string msg = std::to_string(strand) + "\t" + std::to_string(refpos) + "\t" + std::to_string(symbol);
         bcfrec::streamAppendBcfFormat(msg, fmt);
         std::cerr << msg << "\n";
