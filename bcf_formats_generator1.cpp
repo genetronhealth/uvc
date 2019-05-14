@@ -143,8 +143,8 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("e_gap"    , 1, BCF_SEP,     "Numbe of indels in forward&reverse strand (gapNum), indel sequences (gapSeq), duped read count of each gapSeq, dedup family count of each gapSeq"), 
     BcfFormatStruct("gapNum"   , 2, BCF_INTEGER, "see above"), // 2 * number-of-alts
     BcfFormatStruct("gapSeq"   , BCF_NUM_D, BCF_STRING,  "see above"),
-    BcfFormatStruct("gapT1AD1" , BCF_NUM_D, BCF_INTEGER, "see above"),
-    BcfFormatStruct("gapT2AD1" , BCF_NUM_D, BCF_INTEGER, "see above"),
+    BcfFormatStruct("gapbAD1"  , BCF_NUM_D, BCF_INTEGER, "see above"),
+    BcfFormatStruct("gapcAD1"  , BCF_NUM_D, BCF_INTEGER, "see above"),
     BcfFormatStruct("bHap"     , 1, BCF_STRING,  "Duped forward&reverse linkage in the format of ((position&variantType)...depth)... "
                                                  "where ()... means more elements following the format in the preceding parenthesis. "),
     BcfFormatStruct("cHap"     , 1, BCF_STRING,  "Dedup forward&reverse linkage in the format of ((position&variantType)...depth)... "

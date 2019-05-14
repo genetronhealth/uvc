@@ -1451,8 +1451,8 @@ BcfFormat_init(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbolDi
         fmt.cDPTT[strand] = symbolDistrSets12.fam_total_dep.at(strand).getByPos(refpos).sumBySymbolType(symbolType);
     }
     fmt.gapSeq.clear();
-    fmt.gapT1AD1.clear();
-    fmt.gapT2AD1.clear();
+    fmt.gapbAD1.clear();
+    fmt.gapcAD1.clear();
     fmt.gapNum[0] = 0;
     fmt.gapNum[1] = 0;
 
@@ -1654,7 +1654,7 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
 
 #include "version.h"
 std::string 
-generateVcfHeader(const char *ref_fasta_fname, 
+generateVcfHeader(const char *ref_fasta_fname, const char *platform, const unsigned int minABQ, 
         unsigned int argc,      const char *const *argv,  
         unsigned int n_targets, const char *const *target_name, const uint32_t *target_len,
         const char *const sampleName) {
@@ -1671,7 +1671,7 @@ generateVcfHeader(const char *ref_fasta_fname,
         ret += std::string("") + std::string(argv[i]) + "\t";
     }
     ret += "\n";
-    
+    ret += std::string("") + "##variantCallerInferredParameters=<" + "platform=" + platform + ",minABQ=" + std::to_string(minABQ) + ">\n";
     ret += std::string("") + "##reference=" + ref_fasta_fname + "\n";
     for (size_t i = 0; i < n_targets; i++) {
         ret += std::string("") + "##contig=<ID=" + target_name[i] + ",length=" + std::to_string(target_len[i]) + ">\n";
@@ -1729,7 +1729,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         } else if (fmt.gapNum[0] <= 0 || fmt.gapNum[1] <= 0) {
             indelstring = fmt.gapSeq[0];
         } else {
-            indelstring = (fmt.gapT1AD1[0] > fmt.gapT1AD1[fmt.gapNum[0]] ? fmt.gapSeq[0] : fmt.gapSeq.at(fmt.gapNum[0]));
+            indelstring = (fmt.gapbAD1[0] > fmt.gapbAD1[fmt.gapNum[0]] ? fmt.gapSeq[0] : fmt.gapSeq.at(fmt.gapNum[0]));
         }
         editdist = MAX(1, indelstring.size());
         if (indelstring.size() == 0) {

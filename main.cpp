@@ -526,7 +526,7 @@ int main(int argc, char **argv) {
     }
     
     bam_hdr_t * samheader = sam_hdr_read(samfiles[0]);
-    std::string header_outstring = generateVcfHeader(paramset.fasta_ref_fname.c_str(), argc, argv, 
+    std::string header_outstring = generateVcfHeader(paramset.fasta_ref_fname.c_str(), paramset.platform.c_str(), paramset.minABQ, argc, argv, 
             samheader->n_targets, samheader->target_name, samheader->target_len, 
             paramset.sample_name.c_str());
     clearstring<false>(fp_allp, header_outstring);
