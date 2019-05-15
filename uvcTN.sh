@@ -13,7 +13,6 @@ tvcfgz="${outdir}/${samplename}_T_uvc1.vcf.gz"
 nvcfgz="${outdir}/${samplename}_N_uvc1.vcf.gz"
 avcfgz="${outdir}/${samplename}_TandN_uvc1.vcf.gz"
 
-
 tlog="${outdir}/${samplename}_T_uvc1.stderr"
 nlog="${outdir}/${samplename}_N_uvc1.stderr"
 
@@ -25,6 +24,6 @@ date && time -p "${scriptdir}/uvc1" -t 16 -f "${ref}" -s "${samplename}_N" "${nb
 date && time -p bcftools index -t "${tvcfgz}"
 date && time -p bcftools index -t "${nvcfgz}"
 
-date && time -p bcftools merge -m none "${tvcfgz}" "${nvcfgz}" | "${scriptdir}/callTN1" - "${avcfgz}"
+date && time -p bcftools merge -m none -Ou "${tvcfgz}" "${nvcfgz}" | "${scriptdir}/callTN1" - "${avcfgz}"
 date && time -p bcftools index -t "${avcfgz}"
 
