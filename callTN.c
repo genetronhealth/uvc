@@ -87,7 +87,7 @@ int main(int argc, char **argv) {
             assert (normal_VAQ >= 0);
             //fprintf(stderr, "Processing LOD rid %d pos %d\n", bcfrec->rid, bcfrec->pos);
             float tlod = (tumor_VAQ - normal_VAQ) * MAX(tumor_FA - normal_FA, 0) / (tumor_FA + normal_FA + DBL_EPSILON);
-            float nlod = ((curr_normal_has_germline_var && bcfrec->pos <= curr_normal_gEND && bcfrec->rid == curr_normal_rid) ? 0 : curr_normal_GQ) + 30;
+            float nlod = (((!curr_normal_has_germline_var) && bcfrec->pos <= curr_normal_gEND && bcfrec->rid == curr_normal_rid) ? curr_normal_GQ : 0) + 30;
             
             bcfrec->qual = MIN(tlod, nlod);
             if (bcfrec->qual >= LOD_THRES) {
