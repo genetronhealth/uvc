@@ -113,8 +113,8 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
     CLI::App app{(std::string("Universal Variant Caller (UVC) version ") + VERSION_DETAIL)};
     app.add_flag_function("-v,--version", version_cb,   "Show the version of this program (打印此软件版本号).");    
     app.add_option("inputBam",       bam_input_fname,   "Input coordinate-sorted BAM file that is supposed to contain raw reads (按照位置排序的有原始reads的BAM文件).")->required()->check(CLI::ExistingFile);
-    app.add_option("-o,--output",    vcf_output_fname,  "Output vcf.gz filename (后缀是vcf.gz的VCF文件).");
-    app.add_option("-p,--out-pass",  vcf_out_pass_fname,"Output vcf.gz filename containing only variants of filter PASS (只含有过滤后剩下的变异形的VCF压缩文件).", true);
+    app.add_option("--output-bpRES", vcf_output_fname,  "Output bgzipped file in the format of base-pair resolution (每个位置都输出检测信息的VCF输出文件，文件有可能非常大).");
+    app.add_option("-o,--output",    vcf_out_pass_fname,"Output bgzipped file in the format of blocked gVCF. (区块gVCF输出文件).", true);
     
     app.add_option("-f,--fasta",     fasta_ref_fname,   "Input reference fasta file, where the special value NA means not available (FASTA参考基因组).");
     app.add_option("-R,--region",    bed_region_fname,  "Input BED region file which is optional and delimits the genomic regions to call variants from, "

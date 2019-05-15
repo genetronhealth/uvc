@@ -25,6 +25,6 @@ date && time -p "${scriptdir}/uvc1" -t 16 -f "${ref}" -s "${samplename}_N" "${nb
 date && time -p bcftools index -t "${tvcfgz}"
 date && time -p bcftools index -t "${nvcfgz}"
 
-date && time -p bftools merge -m none "${tvcfgz}" "${nvcfgz}" | "${scriptdir}/callTN1" - "${avcfgz}"
+date && time -p bcftools merge -m none "${tvcfgz}" "${nvcfgz}" | "${scriptdir}/callTN1" - "${avcfgz}"
 date && time -p bcftools index -t "${avcfgz}"
 
