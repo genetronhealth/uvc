@@ -68,7 +68,7 @@ template <class T> void autoswap ( T& a, T& b ) {
 double invmax(double x) { return MAX(x, 1/x); }
 
 template <bool TRefExcludeAlt=false, class T>
-unsigned int
+double
 _any4_to_biasfact(T dp0, T dp1, T ad0, T ad1, const bool is_inv, double pseudocount) {
     if (TRefExcludeAlt) {
         return _any4_to_biasfact<false>(dp0 + ad0, dp1 + ad1, ad0, ad1, is_inv, pseudocount);
@@ -115,7 +115,7 @@ _any4_to_biasfact(T dp0, T dp1, T ad0, T ad1, const bool is_inv, double pseudoco
 template <bool TRefExcludeAlt=false, class T>
 unsigned int
 any4_to_biasfact100(T dp0, T dp1, T ad0, T ad1, const bool is_inv = false, double pseudocount = 1) {
-    return _any4_to_biasfact(dp0, dp1, ad0, ad1, is_inv, pseudocount) * (100 * (1 + DBL_EPSILON));
+    return floor(_any4_to_biasfact(dp0, dp1, ad0, ad1, is_inv, pseudocount) * (100 * (1 + DBL_EPSILON)));
 }
 
 double
