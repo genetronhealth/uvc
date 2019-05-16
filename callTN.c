@@ -86,7 +86,7 @@ int main(int argc, char **argv) {
             assert ( tumor_VAQ >= 0);
             assert (normal_VAQ >= 0);
             //fprintf(stderr, "Processing LOD rid %d pos %d\n", bcfrec->rid, bcfrec->pos);
-            float tlod = (tumor_VAQ - normal_VAQ) * MAX(tumor_FA - normal_FA, 0) / (tumor_FA + normal_FA + DBL_EPSILON);
+            float tlod = (tumor_VAQ - normal_VAQ) * MAX(tumor_FA - normal_FA, 0) / (tumor_FA + normal_FA + DBL_EPSILON) * 2.0;
             float nlod = (((!curr_normal_has_germline_var) && bcfrec->pos <= curr_normal_gEND && bcfrec->rid == curr_normal_rid) ? curr_normal_GQ : 0) + 30;
             
             bcfrec->qual = MIN(tlod, nlod);
@@ -108,11 +108,5 @@ int main(int argc, char **argv) {
     bcf_close(infile);
 }
 
+// how to set up input stream with python: 
 // p=subprocess.Popen(['bcftools', 'merge', '--force-samples', '-m', 'none', sys.argv[1], sys.argv[2]], stdout=subprocess.PIPE)
-   /* 
-    if record.REF != record.ALT[0]:
-        normalBGrecord.POS = record.POS
-        normalBGrecord.REF = record.REF[0:1]
-        if prevNormalBGrecord != normalBGrecord: vcf_writer.write_record(normalBGrecord)
-        vcf_writer.write_record(record)
-     */   
