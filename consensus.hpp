@@ -1021,11 +1021,12 @@ struct Symbol2CountCoverageSet {
                         auto curr_depth_symbsum = curr_tsum_depth[strand].getByPos(pos).getSymbolCount(symbol);
                         unsigned int max_imba_depth = curr_depth_symbsum + 1; // magic number meaning no limit on imba depth
 if (curr_depth_symbsum * 5 <= curr_depth_typesum * 4 && curr_depth_symbsum > 0 && SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol) {
-                        double pseudocount = (double)(2 * curr_depth_symbsum) / (double)(curr_depth_symbsum + prev_depth_symbsum) + ((double)1);
+                        double pseudocount = ((double)1) + ((double)1);
                         // compute duplication bias
                         double dup_imba = 1;
                         if (TUsePrev) {
                             auto prev_depth_symbsum = prev_tsum_depth[strand].getByPos(pos).getSymbolCount(symbol);
+                            pseudocount = (double)(2 * curr_depth_symbsum) / (double)(curr_depth_symbsum + prev_depth_symbsum) + ((double)1);
                             auto db100 = any4_to_biasfact100(curr_depth_symbsum, curr_depth_typesum, prev_depth_symbsum, prev_depth_typesum, true, pseudocount);
                             du_bias_dedup[strand].getRefByPos(pos).incSymbolCount(symbol, db100);
                             dup_imba = biasfact100_to_imba(db100);
