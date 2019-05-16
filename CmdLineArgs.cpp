@@ -123,7 +123,7 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
     app.add_option("-s,--sample",    sample_name,       "Sample name which is optional (样本名称，可有可无).");
     // app.add_option("--primers",      tsv_primer_fname,  "primer files")->check(CLI::ExistingFile);
     
-    app.add_option("-q,vqual",       vqual,             "Minimum variant quality to be present in --out-pass (如果变异质量低于此值，则不输出到--out-pass文件).", true);
+    app.add_option("-q,--vqual",     vqual,             "Minimum variant quality to be present in --out-pass (如果变异质量低于此值，则不输出到--out-pass文件).", true);
     app.add_option("-d,--min-depth", min_depth_thres,   "Minimum depth below which results are fitlered out and therefore not in the output vcf (如果低于此原始深度则在VCF不输入任何结果).", true);
     app.add_option("-D,--min-altdp", min_altdp_thres,   "Minimum depth of ALT below which results are filtered out (如果ALT深度低于此数则不输出结果).", true);
     app.add_option("-m,--mode",      seq_data_type,     "Mode of error correction (排除错误的方法). " + correction_msg, true);
