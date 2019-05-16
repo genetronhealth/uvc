@@ -946,7 +946,7 @@ struct Symbol2CountCoverageSet {
     };
     
     std::pair<unsigned int, unsigned int>
-    adabias(const auto & t0v, const auto & t1v) {
+    adabias(const auto & t0v, const auto & t1v, double pseudocount) {
         static_assert(t0v.size() == t1v.size());
         static_assert(t0v.size() >= 2);
         unsigned int argmax = 0; 
@@ -965,7 +965,7 @@ struct Symbol2CountCoverageSet {
         for (size_t i = 0; i < usize - 1; i++) {
             cur0 += (double)t0v[i];
             cur1 += (double)t1v[i];
-            unsigned int curr_biasfact100 = any4_to_biasfact100(sum0 - cur0, cur0, sum1 - cur1, cur1);
+            unsigned int curr_biasfact100 = any4_to_biasfact100(sum0 - cur0, cur0, sum1 - cur1, cur1, false, pseudocount);
             // LOG(logINFO) << "At " << i << " : " << cur0 << " , " << sum0 - cur0 << " , " << cur1 << " , " << sum1 - cur1;
             unsigned int norm_biasfact100 = MIN(curr_biasfact100, MIN(prev_biasfact100, pre2_biasfact100));
             if (norm_biasfact100 > max_biasfact100) {
@@ -1020,22 +1020,23 @@ struct Symbol2CountCoverageSet {
                             symbol = AlignmentSymbol(1+((unsigned int)symbol))) {
                         auto curr_depth_symbsum = curr_tsum_depth[strand].getByPos(pos).getSymbolCount(symbol);
                         unsigned int max_imba_depth = curr_depth_symbsum + 1; // magic number meaning no limit on imba depth
-if (curr_depth_symbsum * 4 <= curr_depth_typesum * 3 && curr_depth_symbsum > 0 && SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol) {
+if (curr_depth_symbsum * 5 <= curr_depth_typesum * 4 && curr_depth_symbsum > 0 && SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol) {
+                        double pseudocount = (double)(2 * curr_depth_symbsum) / (double)(curr_depth_symbsum + prev_depth_symbsum) + ((double)1);
                         // compute duplication bias
                         double dup_imba = 1;
                         if (TUsePrev) {
                             auto prev_depth_symbsum = prev_tsum_depth[strand].getByPos(pos).getSymbolCount(symbol);
-                            auto db100 = any4_to_biasfact100(curr_depth_symbsum, curr_depth_typesum, prev_depth_symbsum, prev_depth_typesum, true);
+                            auto db100 = any4_to_biasfact100(curr_depth_symbsum, curr_depth_typesum, prev_depth_symbsum, prev_depth_typesum, true, pseudocount);
                             du_bias_dedup[strand].getRefByPos(pos).incSymbolCount(symbol, db100);
                             dup_imba = biasfact100_to_imba(db100);
                         }
                         
                         // compute positional bias
-                        auto pb_ldist_pair = adabias(vsum_pb_dist_lpart, pb_dist_lpart[strand].getByPos(pos).getSymbolCounts(symbol));
+                        auto pb_ldist_pair = adabias(vsum_pb_dist_lpart, pb_dist_lpart[strand].getByPos(pos).getSymbolCounts(symbol), pseudocount);
                         amax_ldist[strand].getRefByPos(pos).incSymbolCount(symbol, pb_ldist_pair.first);
                         bias_ldist[strand].getRefByPos(pos).incSymbolCount(symbol, pb_ldist_pair.second);
                         
-                        auto pb_rdist_pair = adabias(vsum_pb_dist_rpart, pb_dist_rpart[strand].getByPos(pos).getSymbolCounts(symbol));
+                        auto pb_rdist_pair = adabias(vsum_pb_dist_rpart, pb_dist_rpart[strand].getByPos(pos).getSymbolCounts(symbol), pseudocount);
                         amax_rdist[strand].getRefByPos(pos).incSymbolCount(symbol, pb_rdist_pair.first);
                         bias_rdist[strand].getRefByPos(pos).incSymbolCount(symbol, pb_rdist_pair.second);
                         
@@ -1087,7 +1088,7 @@ if (curr_depth_symbsum * 4 <= curr_depth_typesum * 3 && curr_depth_symbsum > 0 &
                         auto bsum_dist_imba0 = ((bsum_ldist_v1 + 1) / (double)(ad1 + 1)) / ((typebsum_rdist_v0 + 1) / (double)(dp0 + 1));
                         auto bsum_dist_imba1 = ((bsum_rdist_v1 + 1) / (double)(ad1 + 1)) / ((typebsum_ldist_v0 + 1) / (double)(dp0 + 1));
                         
-                        auto sb100raw = any4_to_biasfact100((double)dp0, (double)dp1, (double)ad0, (double)ad1, false , 2);
+                        auto sb100raw = any4_to_biasfact100((double)dp0, (double)dp1, (double)ad0, (double)ad1, false , pseudocount);
                         bias_1stra[strand].getRefByPos(pos).incSymbolCount(symbol, sb100raw);
                         assert(bsum_dist_imba0 + bsum_dist_imba1 > 0 || !fprintf(stderr, "%g + %g > 0 failed! (will encounter division by zero)\n", bsum_dist_imba0, bsum_dist_imba1));
                         
