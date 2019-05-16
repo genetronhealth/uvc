@@ -305,7 +305,9 @@ process_batch(BatchArg & arg) {
             mutform2count4map_bq, mutform2count4map_fq,
             // adjcount_x_rpos_x_misma_vec, // maxvalue, 
             umi_strand_readset, refstring, 
-            paramset.bq_phred_added_misma, paramset.bq_phred_added_indel, paramset.should_add_note, paramset.phred_max_sscs, paramset.phred_max_dscs);
+            paramset.bq_phred_added_misma, paramset.bq_phred_added_indel, paramset.should_add_note, 
+            paramset.phred_max_sscs, paramset.phred_max_dscs,
+            ErrorCorrectionType(paramset.seq_data_type));
     LOG(logINFO) << "Thread " << thread_id << " starts analyzing phasing info";
     auto mutform2count4vec_bq = map2vector(mutform2count4map_bq);
     auto simplemut2indices_bq = mutform2count4vec_to_simplemut2indices(mutform2count4vec_bq);
@@ -365,7 +367,7 @@ process_batch(BatchArg & arg) {
                     
                     int altdepth = fillBySymbol(fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]], symbolToCountCoverageSet12, 
                             refpos, symbol, refstring, extended_inclu_beg_pos, mutform2count4vec_bq, indices_bq, mutform2count4vec_fq, indices_fq, 
-                            paramset.minABQ, paramset.phred_max_sscs, paramset.phred_max_dscs);
+                            paramset.minABQ, paramset.phred_max_sscs, paramset.phred_max_dscs, ErrorCorrectionType(paramset.seq_data_type));
                 }
                 for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; symbol = AlignmentSymbol(1+(unsigned int)symbol)) {
                     float vaq = fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]].VAQ;

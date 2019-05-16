@@ -1434,13 +1434,16 @@ if (curr_depth_symbsum * 5 <= curr_depth_typesum * 4 && curr_depth_symbsum > 0 &
             std::map<std::basic_string<std::pair<unsigned int, AlignmentSymbol>>, std::array<unsigned int, 2>> & mutform2count4map_fq,
             const std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, int>> & alns3, 
             const std::string & refstring,
-            unsigned int bq_phred_added_misma, unsigned int bq_phred_added_indel, bool should_add_note, unsigned int phred_max_sscs, unsigned int phred_max_dscs) {
+            unsigned int bq_phred_added_misma, unsigned int bq_phred_added_indel, bool should_add_note, unsigned int phred_max_sscs, unsigned int phred_max_dscs,
+            const ErrorCorrectionType errorCorrectionType) {
         const std::array<unsigned int, NUM_SYMBOL_TYPES> symbolType2addPhred = {bq_phred_added_misma, bq_phred_added_indel};
         std::basic_string<AlignmentSymbol> ref_symbol_string = string2symbolseq(refstring);
         updateByAlns3UsingBQ(mutform2count4map_bq, alns3, ref_symbol_string, symbolType2addPhred, should_add_note, phred_max_sscs); // base qualities
         updateHapMap(mutform2count4map_bq, this->bq_tsum_depth);
-        updateByAlns3UsingFQ(mutform2count4map_fq, alns3, ref_symbol_string, symbolType2addPhred, should_add_note, phred_max_sscs); // family qualities
-        updateHapMap(mutform2count4map_fq, this->fq_tsum_depth);
+        if (CORRECTION_BASEQUAL != errorCorrectionType) {
+            updateByAlns3UsingFQ(mutform2count4map_fq, alns3, ref_symbol_string, symbolType2addPhred, should_add_note, phred_max_sscs); // family qualities
+            updateHapMap(mutform2count4map_fq, this->fq_tsum_depth);
+        }
     };
 };
 
@@ -1526,7 +1529,8 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
         std::set<size_t> indices_fq,
         unsigned int minABQ, // = 25
         unsigned int phred_max_sscs,
-        unsigned int phred_max_dscs) {
+        unsigned int phred_max_dscs,
+        const ErrorCorrectionType errorCorrectionType) {
     fmt.note = symbol2CountCoverageSet12.additional_note.getByPos(refpos).at(symbol);
     for (unsigned int strand = 0; strand < 2; strand++) {
         
@@ -1626,11 +1630,16 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
     double maxVAQs[2] = {0, 0};
     std::array<unsigned int, 2> weightedQT3s = {0, 0};
     for (size_t i = 0; i < 2; i++) {
-        auto minAD1 = MIN(fmt.bAD1[i], fmt.cAD1[i]); // prevent symbol with suffix = _N
-        auto maxAD1 = MAX(fmt.bAD1[i], fmt.cAD1[i]);
-        auto gapAD1 = maxAD1 - minAD1;
-        if (fmt.bVQ3[i] < fmt.cVQ3[i]) {
-            gapAD1 *= 2;
+        auto minAD1 = 1; 
+        auto maxAD1 = 1;
+        auto gapAD1 = 0;
+        if (CORRECTION_BASEQUAL != errorCorrectionType) {
+            minAD1 = MIN(fmt.bAD1[i], fmt.cAD1[i]); // prevent symbol with suffix = _N
+            maxAD1 = MAX(fmt.bAD1[i], fmt.cAD1[i]);
+            gapAD1 = maxAD1 - minAD1;
+            if (fmt.bVQ3[i] < fmt.cVQ3[i]) {
+                gapAD1 *= 3;
+            }
         }
         double currVAQ = (fmt.bVQ3[i] * minAD1 + fmt.cVQ3[i] * gapAD1) / (double)(minAD1 + gapAD1 + DBL_MIN); // prevent div by zero
         weightedQT3s[i] = (fmt.bQT3[i] * minAD1 + fmt.cQT3[i] * gapAD1) / (double)(minAD1 + gapAD1 + DBL_MIN);
