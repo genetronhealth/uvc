@@ -1019,7 +1019,7 @@ struct Symbol2CountCoverageSet {
                             symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType];
                             symbol = AlignmentSymbol(1+((unsigned int)symbol))) {
                         auto curr_depth_symbsum = curr_tsum_depth[strand].getByPos(pos).getSymbolCount(symbol);
-                        unsigned int max_imba_depth = curr_depth_symbsum + 1; // magic number meaning no limit on imba depth
+                        unsigned int max_imba_depth = curr_depth_symbsum + 100; // magic number meaning no limit on imba depth
 if (curr_depth_symbsum * 5 <= curr_depth_typesum * 4 && curr_depth_symbsum > 0 && SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol) {
                         double pseudocount = ((double)1) + ((double)1);
                         // compute duplication bias
@@ -1097,7 +1097,7 @@ if (curr_depth_symbsum * 5 <= curr_depth_typesum * 4 && curr_depth_symbsum > 0 &
                         bias_2stra[strand].getRefByPos(pos).incSymbolCount(symbol, sb100fin);
                         auto str_imba = biasfact100_to_imba(sb100fin);
                         
-                        max_imba_depth = (unsigned int)(curr_depth_symbsum / MAX(dup_imba, MAX(MAX(pb_ldist_imba, pb_rdist_imba), str_imba)) + 0.5);
+                        max_imba_depth = (unsigned int)ceil(curr_depth_symbsum / MAX(dup_imba, MAX(MAX(pb_ldist_imba, pb_rdist_imba), str_imba)) + (1.0 - DBL_EPSILON));
                         if (should_add_note) {
                             this->additional_note.getRefByPos(pos).at(symbol) += "//(" +
                                     std::to_string(uqual_avg_imba) + "/" + 
