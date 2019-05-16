@@ -66,6 +66,9 @@ std::string load_refstring(const faidx_t *ref_faidx, unsigned int tid, unsigned 
     char *fetchedseq = faidx_fetch_seq(ref_faidx, tname, incbeg, excend - 1, &regionlen);
     assert (regionlen == (excend - incbeg) || !fprintf(stderr, "%d == %d - %d failed", regionlen, excend, incbeg));
     std::string ret(fetchedseq);
+    for (size_t i = 0; i < ret.size(); i++) {
+        ret[i] = toupper(ret[i]);
+    }
     free(fetchedseq);
     return ret;
 };
