@@ -1599,7 +1599,7 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
     bool is_novar = (symbol == LINK_M || (isSymbolSubstitution(symbol) && vcfref == vcfalt));
     
     fmt.bDP = fmt.bDP1[0] + fmt.bDP1[1];
-    auto fmtbAD = fmt.cADTT[0] + fmt.cADTT[1];
+    auto fmtbAD = fmt.bAD1[0] + fmt.bAD1[1];
     fmt.bFA = (double)(fmtbAD) / (double)(fmt.bDP);
     
     auto fmtAD = 0;
