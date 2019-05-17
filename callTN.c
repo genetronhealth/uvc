@@ -5,7 +5,7 @@
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
-const unsigned int LOD_THRES = 30;
+const unsigned int LOD_THRES = 10; // 30;
 
 void xfree(void *ptr) {
     if (ptr != NULL) { free(ptr); }
@@ -64,7 +64,11 @@ int main(int argc, char **argv) {
                 curr_normal_has_germline_var = 0;
                 for (int j = 0; j < max_ploidy; j++) {
                     int allele = bcf_gt_allele(gt_arr[max_ploidy+j]);
-                    curr_normal_has_germline_var += allele;
+                    /*
+                    if (!bcf_gt_is_missing(allele)) {
+                        curr_normal_has_germline_var += allele;
+                    }
+                    */
                 }
                 // assert (0);
             }
@@ -72,9 +76,15 @@ int main(int argc, char **argv) {
             //fprintf(stderr, "Processing FA rid %d pos %d\n", bcfrec->rid, bcfrec->pos);
             int mem_FA = 0;
             int num_FA = bcf_get_format_float(inhdr, bcfrec, "FA", &FA, &mem_FA);
+            /*
+            if ((bcf_float_missing == FA[0] || isnan(FA[0])) && (bcf_float_missing == FA[1] || isnan(FA[1]))) {
+                mem_FA = 0;
+                num_FA = bcf_get_format_float(inhdr, bcfrec, "bFA", &FA, &mem_FA);
+            }
+            */
             assert (num_FA == nsmpl || !fprintf(stderr, "%d != %d", num_FA, nsmpl));
-            float  tumor_FA = ((bcf_float_missing == FA[0] || isnan(FA[0])) ? 0 : FA[0]) + DBL_EPSILON; // FA[0];
-            float normal_FA = ((bcf_float_missing == FA[1] || isnan(FA[1])) ? 0 : FA[1]) + DBL_EPSILON;
+            float  tumor_FA = ((bcf_float_missing == FA[0] || isnan(FA[0])) ? 0.75 : FA[0]) + DBL_EPSILON; // FA[0];
+            float normal_FA = ((bcf_float_missing == FA[1] || isnan(FA[1])) ? 0.25 : FA[1]) + DBL_EPSILON;
             assert( tumor_FA >= 0 || !fprintf(stderr, " tumor_FA %f >= 0 failed at rid %d and position %d!\n",  tumor_FA, bcfrec->rid, bcfrec->pos));
             assert(normal_FA >= 0 || !fprintf(stderr, "normal_FA %f >= 0 failed at rid %d and position %d!\n", normal_FA, bcfrec->rid, bcfrec->pos));
             //fprintf(stderr, "Processing VAQ rid %d pos %d\n", bcfrec->rid, bcfrec->pos);
@@ -85,10 +95,10 @@ int main(int argc, char **argv) {
             float normal_VAQ = ((bcf_float_missing == VAQ[1] || isnan(VAQ[1])) ? 0 : VAQ[1]) + DBL_EPSILON;
             assert ( tumor_VAQ >= 0);
             assert (normal_VAQ >= 0);
-            //fprintf(stderr, "Processing LOD rid %d pos %d\n", bcfrec->rid, bcfrec->pos);
-            float tlod = (tumor_VAQ - normal_VAQ) * MAX(tumor_FA - normal_FA, 0) / (tumor_FA + normal_FA + DBL_EPSILON) * 2.0;
-            float nlod = (((!curr_normal_has_germline_var) && bcfrec->pos <= curr_normal_gEND && bcfrec->rid == curr_normal_rid) ? curr_normal_GQ : 0) + 30;
-            
+            // fprintf(stderr, "Processing LOD rid %d pos %d\n", bcfrec->rid, bcfrec->pos);
+            float tlod = (tumor_VAQ jwduichkhc-cdwvl_VAQ) * MAX(tumor_FA - normal_FA, 0) / (tumor_FA + normal_FA + DBL_EPSILON) * 2.0;
+            float nlod = ((!curr_normal_has_germline_var) && bcfrec->pos <= curr_normal_gEND && bcfrec->rid == curr_normal_rid) ? curr_normal_GQ : 0) + 30;
+            fprintf(stderr, "Generating LOD rid %d pos %d, value = %f and %f, tumor-normal VAQs = %f and %f\n", bcfrec->rid, bcfrec->pos, tlod, nlod, tumor_VAQ, normal_VAQ); 
             bcfrec->qual = MIN(tlod, nlod);
             if (bcfrec->qual >= LOD_THRES) {
                 bcf_write(outfile, inhdr, bcfrec);
