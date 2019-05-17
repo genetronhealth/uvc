@@ -1225,12 +1225,12 @@ if (curr_depth_symbsum * 5 <= curr_depth_typesum * 4 && curr_depth_symbsum > 0 &
             std::array<unsigned int, 2>> & mutform2count4map,
             const auto & alns3, const std::basic_string<AlignmentSymbol> & region_symbolvec,
             const std::array<unsigned int, NUM_SYMBOL_TYPES> & symbolType2addPhred, 
-            bool should_add_note, unsigned int phred_max) {
+            bool should_add_note, unsigned int phred_max, bool is_loginfo_enabled) {
         unsigned int niters = 0;
         for (const auto & alns2pair2dflag : alns3) {
             const auto & alns2pair = alns2pair2dflag.first;
             niters++;
-            bool log_alns2 = niters > 1000 && ispowerof2(niters);
+            bool log_alns2 = (is_loginfo_enabled && ispowerof2(niters));
             if (log_alns2) {
                 LOG(logINFO) << "Processing the " << niters << "/" << alns3.size() << " th duplex-aware families which has " << alns2pair[0].size() << " and " << alns2pair[1].size() << " members.\n" ;
             }
@@ -1292,7 +1292,7 @@ if (curr_depth_symbsum * 5 <= curr_depth_typesum * 4 && curr_depth_symbsum > 0 &
         for (const auto & alns2pair2dflag : alns3) {
             const auto & alns2pair = alns2pair2dflag.first;
             niters++;
-            bool log_alns2 = niters > 1000 && ispowerof2(niters);
+            bool log_alns2 = (is_loginfo_enabled && ispowerof2(niters));
             uint32_t tid2, beg2, end2;
             tid2 = 0; beg2 = UINT32_MAX; end2 = 0; bool initialized = false;
             assert (alns2pair[0].size() != 0 || alns2pair[1].size() != 0);
@@ -1435,13 +1435,13 @@ if (curr_depth_symbsum * 5 <= curr_depth_typesum * 4 && curr_depth_symbsum > 0 &
             const std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, int>> & alns3, 
             const std::string & refstring,
             unsigned int bq_phred_added_misma, unsigned int bq_phred_added_indel, bool should_add_note, unsigned int phred_max_sscs, unsigned int phred_max_dscs,
-            const ErrorCorrectionType errorCorrectionType) {
+            const ErrorCorrectionType errorCorrectionType, bool is_loginfo_enabled) {
         const std::array<unsigned int, NUM_SYMBOL_TYPES> symbolType2addPhred = {bq_phred_added_misma, bq_phred_added_indel};
         std::basic_string<AlignmentSymbol> ref_symbol_string = string2symbolseq(refstring);
         updateByAlns3UsingBQ(mutform2count4map_bq, alns3, ref_symbol_string, symbolType2addPhred, should_add_note, phred_max_sscs); // base qualities
         updateHapMap(mutform2count4map_bq, this->bq_tsum_depth);
         if (CORRECTION_BASEQUAL != errorCorrectionType) {
-            updateByAlns3UsingFQ(mutform2count4map_fq, alns3, ref_symbol_string, symbolType2addPhred, should_add_note, phred_max_sscs); // family qualities
+            updateByAlns3UsingFQ(mutform2count4map_fq, alns3, ref_symbol_string, symbolType2addPhred, should_add_note, phred_max_sscs, is_loginfo_enabled); // family qualities
             updateHapMap(mutform2count4map_fq, this->fq_tsum_depth);
         }
     };

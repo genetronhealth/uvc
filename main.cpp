@@ -261,6 +261,7 @@ process_batch(BatchArg & arg) {
     const bool should_output_all = !arg.is_vcf_out_empty_string;
     const bool is_vcf_out_pass_to_stdout = arg.is_vcf_out_pass_to_stdout;
     
+    bool is_loginfo_enabled = ispowerof2(regionbatch_ordinal);
     std::string raw_out_string;
     std::string raw_out_string_pass;
     // faidx_t *ref_faidx = (fasta_ref_fname.size() > 0 ? fai_load(fasta_ref_fname.c_str()) : NULL);
@@ -275,7 +276,7 @@ process_batch(BatchArg & arg) {
     unsigned int extended_inclu_beg_pos, extended_exclu_end_pos; 
     std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, int>> umi_strand_readset;
 
-    LOG(logINFO) << "Thread " << thread_id << " starts bamfname_to_strand_to_familyuid_to_reads";
+    if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts bamfname_to_strand_to_familyuid_to_reads"; }
     int num_pass_reads = bamfname_to_strand_to_familyuid_to_reads(umi_to_strand_to_reads, 
             extended_inclu_beg_pos, extended_exclu_end_pos,
             paramset.bam_input_fname, ErrorCorrectionType(paramset.seq_data_type),
@@ -285,17 +286,17 @@ process_batch(BatchArg & arg) {
     
     if (0 == num_pass_reads) { return -1; };
     
-    LOG(logINFO) << "Thread " << thread_id << " starts converting umi_to_strand_to_reads";
+    if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts converting umi_to_strand_to_reads"; }
     fill_strand_umi_readset_with_strand_to_umi_to_reads(umi_strand_readset, umi_to_strand_to_reads);
     
-    LOG(logINFO) << "Thread " << thread_id << " starts constructing symbolToCountCoverageSet12 with " << extended_inclu_beg_pos << (" , ") << extended_exclu_end_pos;
+    if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts constructing symbolToCountCoverageSet12 with " << extended_inclu_beg_pos << (" , ") << extended_exclu_end_pos; }
     //std::array<Symbol2CountCoverageSet, 2> symbolToCountCoverageSet12 = {
     //    Symbol2CountCoverageSet(tid, extended_inclu_beg_pos, extended_exclu_end_pos),
     //    Symbol2CountCoverageSet(tid, extended_inclu_beg_pos, extended_exclu_end_pos)
     //};
     // + 1 accounts for insertion at the end of the region, this should happen RARELY (like 1e-20 chance)
     Symbol2CountCoverageSet symbolToCountCoverageSet12(tid, extended_inclu_beg_pos, extended_exclu_end_pos + 1); 
-    LOG(logINFO)<< "Thread " << thread_id << " starts updateByRegion3Aln with " << umi_strand_readset.size() << " families";
+    if (is_loginfo_enabled) { LOG(logINFO)<< "Thread " << thread_id << " starts updateByRegion3Aln with " << umi_strand_readset.size() << " families"; }
     std::string refstring = load_refstring(ref_faidx, tid, extended_inclu_beg_pos, extended_exclu_end_pos);
     std::vector<std::tuple<unsigned int, unsigned int, unsigned int>> adjcount_x_rpos_x_misma_vec;
     // unsigned int maxvalue;
@@ -307,8 +308,8 @@ process_batch(BatchArg & arg) {
             umi_strand_readset, refstring, 
             paramset.bq_phred_added_misma, paramset.bq_phred_added_indel, paramset.should_add_note, 
             paramset.phred_max_sscs, paramset.phred_max_dscs,
-            ErrorCorrectionType(paramset.seq_data_type));
-    LOG(logINFO) << "Thread " << thread_id << " starts analyzing phasing info";
+            ErrorCorrectionType(paramset.seq_data_type), (regionbatch_ordinal < 2));
+    if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts analyzing phasing info"; }
     auto mutform2count4vec_bq = map2vector(mutform2count4map_bq);
     auto simplemut2indices_bq = mutform2count4vec_to_simplemut2indices(mutform2count4vec_bq);
     auto mutform2count4vec_fq = map2vector(mutform2count4map_fq);
@@ -328,7 +329,7 @@ process_batch(BatchArg & arg) {
         }
     }
     */
-    LOG(logINFO) << "Thread " << thread_id  << " starts generating block gzipped vcf";
+    if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id  << " starts generating block gzipped vcf"; }
     
     std::string buf_out_string;
     std::string buf_out_string_pass;
@@ -431,7 +432,7 @@ process_batch(BatchArg & arg) {
             }
         }    
     }
-    LOG(logINFO) << "Thread " << thread_id  << " starts destroying bam records"; 
+    if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id  << " starts destroying bam records"; }
     for (auto strand_readset : umi_strand_readset) {
         for (unsigned int strand = 0; strand < 2; strand++) {
             auto readset = strand_readset.first[strand]; 
@@ -448,7 +449,7 @@ process_batch(BatchArg & arg) {
     } else {
         outstring_pass += raw_out_string_pass;
     }
-    LOG(logINFO) << "Thread " << thread_id  << " is done with current task";
+    if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id  << " is done with current task"; }
 };
 
 int main(int argc, char **argv) {
