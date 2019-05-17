@@ -396,8 +396,8 @@ process_batch(BatchArg & arg) {
             auto cDPval = bDPcDP[1];
             auto fGTmm2 = (most_confident_GQ >= 10 ? most_confident_GT : ".|.");
             auto fGQval = most_confident_GQ;
-            bool gbDPhasWideRange = (is_sig_out(bDPval, gbDPmin, gbDPmax, 130,  3) || (0 == gbDPmax));
-            bool gcDPhasWideRange = (is_sig_out(cDPval, gcDPmin, gcDPmax, 130,  3) || (0 == gcDPmax));
+            bool gbDPhasWideRange = (is_sig_out(bDPval, gbDPmin, gbDPmax, 130,  3) || (0 == gbDPmax && bDPval > gbDPmax));
+            bool gcDPhasWideRange = (is_sig_out(cDPval, gcDPmin, gcDPmax, 130,  3) || (0 == gcDPmax && cDPval > gcDPmax));
             bool gfGQhasWideRange = (is_sig_out(fGQval, gfGQmin, gfGQmax, 130, 10) || (std::string(fGTmm2) != gfGTmm2));
             if ((gbDPhasWideRange || gcDPhasWideRange || gfGQhasWideRange ||
                     (refpos - prevPosition >= G_BLOCK_SIZE) || (refpos == rpos_exclu_end))) {
