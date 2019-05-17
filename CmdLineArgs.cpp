@@ -81,12 +81,12 @@ std::string CommandLineArgs::selfUpdateByPlatform() {
         plat = this->platform;
     }
     if ("iontorrent" == plat) {
-        bq_phred_added_indel = 0;
-        bq_phred_added_misma = 6;
+        bq_phred_added_indel += 0;
+        bq_phred_added_misma += 6;
     }
     if ("illumina" == plat) {
-        bq_phred_added_indel = 6;
-        bq_phred_added_misma = 0;
+        bq_phred_added_indel += 6;
+        bq_phred_added_misma += 0;
     }
     return plat;
 }
