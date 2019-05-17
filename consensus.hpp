@@ -1597,14 +1597,21 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
     const std::string vcfref = refstring.substr(regionpos, 1);
     const std::string vcfalt = std::string(SYMBOL_TO_DESC_ARR[symbol]);
     bool is_novar = (symbol == LINK_M || (isSymbolSubstitution(symbol) && vcfref == vcfalt));
- 
-    fmt.DP = fmt.cDPTT[0] + fmt.cDPTT[1];
-    auto fmtAD = fmt.cADTT[0] + fmt.cADTT[1];
-    fmt.FA = (double)(fmtAD) / (double)(fmt.DP);
     
     fmt.bDP = fmt.bDP1[0] + fmt.bDP1[1];
     auto fmtbAD = fmt.cADTT[0] + fmt.cADTT[1];
     fmt.bFA = (double)(fmtbAD) / (double)(fmt.bDP);
+    
+    auto fmtAD = 0;
+    if (CORRECTION_BASEQUAL != errorCorrectionType) {
+        fmt.DP = fmt.cDPTT[0] + fmt.cDPTT[1];
+        fmtAD = fmt.cADTT[0] + fmt.cADTT[1];
+        fmt.FA = (double)(fmtAD) / (double)(fmt.DP);
+    } else {
+        fmt.DP = fmt.bDP;
+        fmtAD = fmtbAD;
+        fmt.FA = fmt.bFA;
+    }
     
     if (fmtAD > 0) {
         assert(fmt.FA >= 0);
