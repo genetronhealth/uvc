@@ -96,9 +96,9 @@ int main(int argc, char **argv) {
             assert ( tumor_VAQ >= 0);
             assert (normal_VAQ >= 0);
             // fprintf(stderr, "Processing LOD rid %d pos %d\n", bcfrec->rid, bcfrec->pos);
-            float tlod = (tumor_VAQ jwduichkhc-cdwvl_VAQ) * MAX(tumor_FA - normal_FA, 0) / (tumor_FA + normal_FA + DBL_EPSILON) * 2.0;
-            float nlod = ((!curr_normal_has_germline_var) && bcfrec->pos <= curr_normal_gEND && bcfrec->rid == curr_normal_rid) ? curr_normal_GQ : 0) + 30;
-            fprintf(stderr, "Generating LOD rid %d pos %d, value = %f and %f, tumor-normal VAQs = %f and %f\n", bcfrec->rid, bcfrec->pos, tlod, nlod, tumor_VAQ, normal_VAQ); 
+            float tlod = (tumor_VAQ - normal_VAQ) * MAX(tumor_FA - normal_FA, 0) / (tumor_FA + normal_FA + DBL_EPSILON) * 2.0;
+            float nlod = (((!curr_normal_has_germline_var) && bcfrec->pos <= curr_normal_gEND && bcfrec->rid == curr_normal_rid) ? curr_normal_GQ : 0) + 30;
+            // fprintf(stderr, "Generating LOD rid %d pos %d, value = %f and %f, tumor-normal VAQs = %f and %f\n", bcfrec->rid, bcfrec->pos, tlod, nlod, tumor_VAQ, normal_VAQ); 
             bcfrec->qual = MIN(tlod, nlod);
             if (bcfrec->qual >= LOD_THRES) {
                 bcf_write(outfile, inhdr, bcfrec);
