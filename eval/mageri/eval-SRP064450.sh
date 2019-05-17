@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-# need GNU parallel, java8, fastq-dump (with aspera), bwa, samtools, bcftools, and vcfeval (from RTG)
+# need java8, fastq-dump (with aspera for faster download), bwa, samtools, bcftools, and vcfeval (from RTG)
+# need GNU parallel but can be substituted
 
 set -evx
 shopt -s expand_aliases
 alias fastq-dump=$SOFT/sratoolkit.2.8.2-1-centos_linux64/bin/fastq-dump
 NCPUS=20
 
-MER_VAR_OPT=all
+MER_VAR_OPT="-m- all" #all
 
 function nop() {
     echo no-operation-for "${@}"
@@ -65,7 +66,7 @@ TRUTHVCFGZ="${ROOTDIR}/eval/datafiles/hd734.hg19.vcf.gz"
 TRUTH_MA_VCFGZ="${ROOTDIR}/eval/datafiles/hd734.hg19.ma-p-all.vcf.gz"
 bcftools view -Oz -o "${TRUTHVCFGZ}" "${TRUTHVCF}"
 bcftools index -ft "${TRUTHVCFGZ}"
-sortvcf "${TRUTHVCF}" | bcftools norm - -m+ ${MER_VAR_OPT} -Oz -o "${TRUTH_MA_VCFGZ}" 
+sortvcf "${TRUTHVCF}" | bcftools norm - ${MER_VAR_OPT} -Oz -o "${TRUTH_MA_VCFGZ}" 
 bcftools index -ft "${TRUTH_MA_VCFGZ}"
 
 MAGERI="${ROOTDIR}/eval/mageri/mageri.jar"
@@ -75,6 +76,12 @@ cat "${PRESET1}" | sed 's/1.1.1-SNAPSHOT/1.1.1/g' > "${PRESET2}"
 META="${ROOTDIR}/eval/mageri/mageri-paper/processing/hd734_and_donors/meta/"
 BASELINEDIR="${ROOTDIR}/eval/mageri/data/SRP064450/baseline/"
 mkdir -p "${BASELINEDIR}"
+
+VCFDIR="${ROOTDIR}/eval/mageri/data/SRP064450/vcf/"
+mkdir -p $"{VCFDIR}"
+
+if [ $(echo "${PAT}" | grep "run-" | wc) -gt 0 ]; then
+
 for fq1 in $(ls "${FQDIR}" | grep "_1_barcoded.fastq.gz$" | grep -P "${PAT}") ; do
     fq2=${fq1/%_1_barcoded.fastq.gz/_2_barcoded.fastq.gz}
     resultdir=${fq1/%_1_barcoded.fastq.gz/.resultdir}
@@ -93,13 +100,14 @@ for fq1 in $(ls "${FQDIR}" | grep "_1_barcoded.fastq.gz$" | grep -P "${PAT}") ; 
     fi
     vcf="${BASELINEDIR}/${resultdir}/my_project.my_sample.vcf"
     vcfgz="${BASELINEDIR}/${resultdir}/my_project.my_sample.vcf.gz"
-    sortvcf "${vcf}" | bcftools view -Oz -o "${vcfgz}"
+    bam="${fq1/%_1_barcoded.fastq.gz/.bam}"
+    sortvcf "${vcf}" | sed "s/my_project.my_sample/${bam}/g" | bcftools view -Oz -o "${vcfgz}"
     date && time -p bcftools index -ft "${vcfgz}"
     isecdir="${VCFDIR}/${vcf/%.vcf/_baseline2call_isec.dir}"
     date && time -p bcftools isec -Oz -p "${isecdir}" "${TRUTHVCFGZ}" "${vcfgz}"
+    date && time -p bcftools index "${isecdir}/0003.vcf.gz"
 done
 
-VCFDIR="${ROOTDIR}/eval/mageri/data/SRP064450/vcf/"
 for bam in $(ls ${BAMDIR} | grep ".bam$" | grep -P "${PAT}"); do
     vcf=${bam/%.bam/_uvc1.vcf.gz}
     if [ $(echo "${PAT}" | grep run-uvc1 | wc -l) -gt 0 -o $(echo "${PAT}" | grep run-bwa | wc -l) -gt 0 ]; then
@@ -109,7 +117,10 @@ for bam in $(ls ${BAMDIR} | grep ".bam$" | grep -P "${PAT}"); do
     isecdir="${VCFDIR}/${vcf/%_uvc1.vcf.gz/_uvc1_baseline2call_isec.dir}"
     date && time -p bcftools isec -Oz -p "${isecdir}" "${TRUTHVCFGZ}" "${VCFDIR}/${vcf}"
     date && time -p bcftools view -i "FORMAT/DP>=1000" -Oz -o "${VCFDIR}/${vcf/%_uvc1.vcf.gz/_uvc1_hd734_atleast1000dp.vcf.gz}" "${isecdir}/0003.vcf.gz"
+    date && time -p bcftools index -ft "${VCFDIR}/${vcf/%_uvc1.vcf.gz/_uvc1_hd734_atleast1000dp.vcf.gz}"
 done
+
+fi # end of run- grep
 
 function bcfmerge() {
     if [ $# -gt 2 -a "$2" != "-" -a "$3" != "-" ]; then
@@ -130,18 +141,18 @@ bcfmerge "${VCFDIR}/SRP064450_uvc1_healthy_8.vcf.gz" $(ls "${VCFDIR}/"*"_uvc1_hd
 bcfmerge "${VCFDIR}/SRP064450_uvc1_hd734_8.vcf.gz" $(ls "${VCFDIR}/"*"_uvc1_hd734_atleast1000dp.vcf.gz" | grep -P "${hd734SRAregex}")
 bcftools view "${VCFDIR}/SRP064450_uvc1_healthy_8.vcf.gz" | sed 's/chr/healthychr/g' | bcftools view -Oz -o  "${VCFDIR}/SRP064450_uvc1_healthy_8_healthychr.vcf.gz" -
 bcftools index -ft "${VCFDIR}/SRP064450_uvc1_healthy_8_healthychr.vcf.gz"
-bcfmerge "${VCFDIR}/SRP064450_uvc1_hd734_healthychr_8x2.vcf.gz" "${VCFDIR}/SRP064450_uvc1_hd734_8.vcf.gz" "${VCFDIR}/SRP064450_uvc1_healthy_8_healthychr.vcf.gz" 
+bcftools merge -Oz -o "${VCFDIR}/SRP064450_uvc1_hd734_healthychr_8x2.vcf.gz" "${VCFDIR}/SRP064450_uvc1_hd734_8.vcf.gz" "${VCFDIR}/SRP064450_uvc1_healthy_8_healthychr.vcf.gz" 
 firstSample=$(bcftools view -h "${VCFDIR}/SRP064450_uvc1_hd734_healthychr_8x2.vcf.gz" | tail -n1 | awk '{print $(10)}')
-sortvcf "${VCFDIR}/SRP064450_uvc1_hd734_healthychr_8x2.vcf.gz" | sed 's/\t0|0:/\t0|1:/g' |  bcftools norm - -m+ ${MER_VAR_OPT} -Ou -o - | bcftools view -s ${firstSample} -Oz -o "${VCFDIR}/SRP064450_uvc1_hd734_healthychr_8x2_oneSample.vcf.gz" -
+sortvcf "${VCFDIR}/SRP064450_uvc1_hd734_healthychr_8x2.vcf.gz" | sed 's;\t[0-4.][|/][0-4.]:;\t0/1:;g' | bcftools norm - ${MER_VAR_OPT} -Ou -o - | bcftools view -s ${firstSample} -Oz -o "${VCFDIR}/SRP064450_uvc1_hd734_healthychr_8x2_oneSample.vcf.gz" -
 bcftools index -ft "${VCFDIR}/SRP064450_uvc1_hd734_healthychr_8x2_oneSample.vcf.gz"
 
 bcfmerge "${BASELINEDIR}/SRP064450_mageri_healthy_8.vcf.gz" $(ls "${BASELINEDIR}/"*"/my_project.my_sample_baseline2call_isec.dir/0003.vcf.gz" | grep -P "${healthySRAregex}")
-bcfmerge "${BASELINEDIR}/SRP064450_mageri_hd734_8.vcf.gz" $(ls "${BASELINEDIR}/"*"/my_project.my_sample.vcf.gz" | grep -P "${healthySRAregex}")
+bcfmerge "${BASELINEDIR}/SRP064450_mageri_hd734_8.vcf.gz" $(ls "${BASELINEDIR}/"*"/my_project.my_sample_baseline2call_isec.dir/0003.vcf.gz" | grep -P "${hd734SRAregex}")
 bcftools view "${BASELINEDIR}/SRP064450_mageri_healthy_8.vcf.gz" | sed 's/chr/healthychr/g' | bcftools view -Oz -o  "${BASELINEDIR}/SRP064450_mageri_healthy_8_healthychr.vcf.gz" -
 bcftools index -ft "${BASELINEDIR}/SRP064450_mageri_healthy_8_healthychr.vcf.gz"
-bcfmerge "${BASELINEDIR}/SRP064450_mageri_hd734_healthychr_8x2.vcf.gz" "${BASELINEDIR}/SRP064450_mageri_hd734_8.vcf.gz" "${BASELINEDIR}/SRP064450_mageri_healthy_8_healthychr.vcf.gz" 
+bcftools concat -Oz -o "${BASELINEDIR}/SRP064450_mageri_hd734_healthychr_8x2.vcf.gz" "${BASELINEDIR}/SRP064450_mageri_hd734_8.vcf.gz" "${BASELINEDIR}/SRP064450_mageri_healthy_8_healthychr.vcf.gz" 
 firstSample=$(bcftools view -h "${BASELINEDIR}/SRP064450_mageri_hd734_healthychr_8x2.vcf.gz" | tail -n1 | awk '{print $(10)}')
-sortvcf "${BASELINEDIR}/SRP064450_mageri_hd734_healthychr_8x2.vcf.gz" | sed 's/\t0|0:/\t0|1:/g' | bcftools norm - -m+ ${MER_VAR_OPT} -Ou -o - | bcftools view -s ${firstSample} -Oz -o "${BASELINEDIR}/SRP064450_mageri_hd734_healthychr_8x2_oneSample.vcf.gz" - 
+sortvcf "${BASELINEDIR}/SRP064450_mageri_hd734_healthychr_8x2.vcf.gz" | sed 's;\t[0-4.][|/][0-4.]:;\t0/1:;g' | bcftools norm - ${MER_VAR_OPT} -Ou -o - | bcftools view -s ${firstSample} -Oz -o "${BASELINEDIR}/SRP064450_mageri_hd734_healthychr_8x2_oneSample.vcf.gz" - 
 bcftools index -ft "${BASELINEDIR}/SRP064450_mageri_hd734_healthychr_8x2_oneSample.vcf.gz"
 
 rm -r "${VCFDIR}/SRP064450_uvc1_hd734_healthychr_8x2.vcfeval.outdir" || true
