@@ -156,7 +156,7 @@ rm -r "${VCFDIR}/SRP064450_mageri_hd734_healthychr_8x2.vcfeval.outdir" || true
 date && time -p "${java8}" -jar "${ROOTDIR}/eval/tools/rtg-tools-3.10.1/RTG.jar" vcfeval --threads=16 \
     -f QUAL --squash-ploidy --all-records --ref-overlap --decompose \
     -b "${TRUTH_MA_VCFGZ}" \
-    -c "${VCFDIR}/SRP064450_mageri_hd734_healthychr_8x2_oneSample.vcf.gz" \
+    -c "${BASELINEDIR}/SRP064450_mageri_hd734_healthychr_8x2_oneSample.vcf.gz" \
     -t "${ROOTDIR}/eval/datafiles/hg19_UCSC.sdf" \
     -o "${VCFDIR}/SRP064450_mageri_hd734_healthychr_8x2.vcfeval.outdir"
 
