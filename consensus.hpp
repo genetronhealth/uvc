@@ -1609,17 +1609,17 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
     if (fmtAD > 0) {
         assert(fmt.FA >= 0);
         if (fmt.FA > (0.8 - DBL_EPSILON)) {
-            fmt.GT = (is_novar ? "0|0" : "1|1");
+            fmt.GT = (is_novar ? "./." : "1/1");
             fmt.GQ = (unsigned int)calc_phred10_likeratio(0.5,  fmtAD, fmt.DP - fmtAD); // homo, so assume hetero is the alternative
         } else if (fmt.FA < (0.2 + DBL_EPSILON)) {
-            fmt.GT = (is_novar ? "1|1" : "0|0");
+            fmt.GT = (is_novar ? "./." : "./1");
             fmt.GQ = (unsigned int)calc_phred10_likeratio(0.5,  fmtAD, fmt.DP - fmtAD); // homo, so assume hetero is the alternative
         } else {
-            fmt.GT = "0|1";
+            fmt.GT = (is_novar ? "./." : "0/1");
             fmt.GQ = (unsigned int)calc_phred10_likeratio(0.1,  fmtAD, fmt.DP - fmtAD); // hetero, so assume homo is the alternative
         }
     } else {
-        fmt.GT = ".|.";
+        fmt.GT = "./.";
         fmt.GQ = 0;
     }
     // fmt.GQ = (); // 0;

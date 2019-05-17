@@ -343,7 +343,7 @@ process_batch(BatchArg & arg) {
     unsigned int gbDPmax = 0;
     unsigned int gcDPmin = capDP;
     unsigned int gcDPmax = 0;
-    std::string gfGTmm2 = ".|.";
+    std::string gfGTmm2 = "./.";
     unsigned int gfGQmin = capDP;
     unsigned int gfGQmax = 0;
     
@@ -357,7 +357,7 @@ process_batch(BatchArg & arg) {
             std::array<unsigned int, 2> bDPcDP = BcfFormat_init(init_fmt, symbolToCountCoverageSet12, refpos, symbolType);
             AlignmentSymbol most_confident_symbol = END_ALIGNMENT_SYMBOLS;
             float most_confident_qual = 0;
-            std::string most_confident_GT = "";
+            std::string most_confident_GT = "./.";
             float most_confident_GQ = 0;
             if (rpos_exclu_end != refpos && bDPcDP[0] >= paramset.min_depth_thres) {
                 std::vector<bcfrec::BcfFormat> fmts(SYMBOL_TYPE_TO_INCLU_END[symbolType] - SYMBOL_TYPE_TO_INCLU_BEG[symbolType] + 1, init_fmt);
@@ -395,7 +395,7 @@ process_batch(BatchArg & arg) {
             }
             auto bDPval = bDPcDP[0];
             auto cDPval = bDPcDP[1];
-            auto fGTmm2 = (most_confident_GQ >= 10 ? most_confident_GT : ".|.");
+            auto fGTmm2 = (most_confident_GQ >= 10 ? most_confident_GT : "./.");
             auto fGQval = most_confident_GQ;
             bool gbDPhasWideRange = (is_sig_out(bDPval, gbDPmin, gbDPmax, 130,  3) || (0 == gbDPmax && bDPval > gbDPmax));
             bool gcDPhasWideRange = (is_sig_out(cDPval, gcDPmin, gcDPmax, 130,  3) || (0 == gcDPmax && cDPval > gcDPmax));
