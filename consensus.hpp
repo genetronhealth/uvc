@@ -279,7 +279,7 @@ public:
     };
     
     template <ValueType TUpdateType = SYMBOL_COUNT_SUM>
-    int // update_max_inc : high GC:3, even distribution of nucleotides: 6
+    int // update_max_inc : high GC : 3, even distribution of nucleotides : 6
     incSymbolCount(const AlignmentSymbol symbol, const TInteger increment, const unsigned int update_max_inc = 4) {
         static_assert(BASE_QUALITY_MAX == TUpdateType || SYMBOL_COUNT_SUM == TUpdateType);
         if (SYMBOL_COUNT_SUM == TUpdateType) {
@@ -1179,9 +1179,7 @@ if (curr_depth_symbsum * 5 <= curr_depth_typesum * 4 && curr_depth_symbsum > 0 &
                             unsigned int edge_baq = MIN(ldist, rdist) * 4;
                             unsigned int overallq = MIN(edge_baq, phredlike);
                             this->bq_qual_phsum [strand].getRefByPos(epos).incSymbolCount(con_symbol, overallq);
-                            
-                            unsigned int pbucket = phred2bucket(MIN(edge_baq, phredlike + symbolType2addPhred[symbolType])); // special
-                            
+                            unsigned int pbucket = phred2bucket(overallq); // phred2bucket(MIN(edge_baq, phredlike + symbolType2addPhred[symbolType])); // special
                             assert (pbucket < NUM_BUCKETS || !fprintf(stderr, "%d < %d failed at position %d and con_symbol %d symboltype %d plusbucket %d\n", 
                                     pbucket,  NUM_BUCKETS, epos, con_symbol, symbolType, symbolType2addPhred[symbolType]));
                             if (isSymbolIns(con_symbol)) {
