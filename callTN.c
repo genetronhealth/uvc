@@ -83,8 +83,8 @@ int main(int argc, char **argv) {
             }
             */
             assert (num_FA == nsmpl || !fprintf(stderr, "%d != %d", num_FA, nsmpl));
-            float  tumor_FA = ((bcf_float_missing == FA[0] || isnan(FA[0])) ? 0.75 : FA[0]) + DBL_EPSILON; // FA[0];
-            float normal_FA = ((bcf_float_missing == FA[1] || isnan(FA[1])) ? 0.25 : FA[1]) + DBL_EPSILON;
+            float  tumor_FA = ((bcf_float_missing == FA[0]) ? 0.1 : (isnan(FA[0]) ? 0 : FA[0])) + DBL_EPSILON; // FA[0];
+            float normal_FA = ((bcf_float_missing == FA[1]) ? 0.0 : (isnan(FA[1]) ? 0 : FA[1])) + DBL_EPSILON;
             assert( tumor_FA >= 0 || !fprintf(stderr, " tumor_FA %f >= 0 failed at rid %d and position %d!\n",  tumor_FA, bcfrec->rid, bcfrec->pos));
             assert(normal_FA >= 0 || !fprintf(stderr, "normal_FA %f >= 0 failed at rid %d and position %d!\n", normal_FA, bcfrec->rid, bcfrec->pos));
             //fprintf(stderr, "Processing VAQ rid %d pos %d\n", bcfrec->rid, bcfrec->pos);
