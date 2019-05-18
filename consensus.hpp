@@ -687,11 +687,12 @@ public:
     
     template<ValueType TUpdateType>
     int // GenericSymbol2CountCoverage<TSymbol2Count>::
-    updateByAln(const bam1_t *const b, const std::array<unsigned int, NUM_SYMBOL_TYPES> & symbolType2addPhred, uint32_t primerlen = 0) {
+    updateByAln(const bam1_t *const b, const std::array<unsigned int, NUM_SYMBOL_TYPES> & symbolType2addPhredArg, uint32_t primerlen = 0) {
         static_assert(BASE_QUALITY_MAX == TUpdateType || SYMBOL_COUNT_SUM == TUpdateType);
         assert(this->tid == b->core.tid);
         assert(this->getIncluBegPosition() <= b->core.pos   || !fprintf(stderr, "%d <= %d failed", this->getIncluBegPosition(), b->core.pos));
         assert(this->getExcluEndPosition() >= bam_endpos(b) || !fprintf(stderr, "%d >= %d failed", this->getExcluEndPosition(), bam_endpos(b)));
+        const auto symbolType2addPhred = symbolType2addPhredArg; // std::array({0, 0});
         
         unsigned int qpos = 0;
         unsigned int rpos = b->core.pos;
@@ -709,14 +710,14 @@ public:
                             || !fprintf(stderr, "Bam line with QNAME %s has rpos that is not within the range (%d - %d)", bam_get_qname(b), b->core.pos, bam_endpos(b)));
                     if (i2 > 0) {
                         if (TUpdateType == BASE_QUALITY_MAX) {
-                            incvalue = MIN(bam_phredi(b, qpos-1), bam_phredi(b, qpos)); // + symbolType2addPhred[LINK_SYMBOL];
+                            incvalue = MIN(bam_phredi(b, qpos-1), bam_phredi(b, qpos)); + symbolType2addPhred[LINK_SYMBOL];
                         }
                         this->inc<TUpdateType>(rpos, LINK_M, incvalue, b);
                     }
                     unsigned int base4bit = bam_seqi(bseq, qpos);
                     unsigned int base3bit = seq_nt16_int[base4bit];
                     if (TUpdateType == BASE_QUALITY_MAX) {
-                        incvalue = bam_phredi(b, qpos); // + symbolType2addPhred[BASE_SYMBOL];
+                        incvalue = bam_phredi(b, qpos); + symbolType2addPhred[BASE_SYMBOL];
                     }
                     this->inc<TUpdateType>(rpos, AlignmentSymbol(base3bit), incvalue, b);
                     rpos += 1;
@@ -728,9 +729,9 @@ public:
                         LOG(logWARNING) << "Query " << bam_get_qname(b) << " has insertion of legnth " << cigar_oplen << " at " << qpos
                                 << " which is not exclusively between 0 and " << b->core.l_qseq << " aligned to tid " << b->core.tid << " and position " << rpos;
                         incvalue = (0 != qpos ? bam_phredi(b, qpos-1) : ((qpos + cigar_oplen < b->core.l_qseq) ? bam_phredi(b, qpos + cigar_oplen) : 1)) 
-                                ; // + symbolType2addPhred[LINK_SYMBOL];
+                                + symbolType2addPhred[LINK_SYMBOL];
                     } else {
-                        incvalue = MIN(bam_phredi(b, qpos-1), bam_phredi(b, qpos + cigar_oplen)); // + symbolType2addPhred[LINK_SYMBOL];
+                        incvalue = MIN(bam_phredi(b, qpos-1), bam_phredi(b, qpos + cigar_oplen)) + symbolType2addPhred[LINK_SYMBOL];
                     }
                 }
                 this->inc<TUpdateType>(rpos, insLenToSymbol(cigar_oplen), incvalue, b);
@@ -746,13 +747,13 @@ public:
                     }
                 }
                 if (TUpdateType == BASE_QUALITY_MAX) {
-                    incvalue = incvalue2; // + symbolType2addPhred[LINK_SYMBOL];
+                    incvalue = incvalue2 + symbolType2addPhred[LINK_SYMBOL];
                 }
                 this->incIns(rpos, iseq, incvalue);
                 qpos += cigar_oplen;
             } else if (cigar_op == BAM_CDEL) {
                 if (TUpdateType == BASE_QUALITY_MAX) {
-                    incvalue = MIN(bam_phredi(b, qpos), bam_phredi(b, qpos+1)); // + symbolType2addPhred[LINK_SYMBOL];
+                    incvalue = MIN(bam_phredi(b, qpos), bam_phredi(b, qpos+1)) + symbolType2addPhred[LINK_SYMBOL];
                 }
                 this->inc<TUpdateType>(rpos, delLenToSymbol(cigar_oplen), incvalue, b);
                 this->incDel(rpos, cigar_oplen, incvalue);
