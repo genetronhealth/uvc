@@ -280,12 +280,12 @@ public:
     
     template <ValueType TUpdateType = SYMBOL_COUNT_SUM>
     int 
-    incSymbolCount(const AlignmentSymbol symbol, const TInteger increment) {
+    incSymbolCount(const AlignmentSymbol symbol, const TInteger increment, const unsigned int update_max_inc = 3) {
         static_assert(BASE_QUALITY_MAX == TUpdateType || SYMBOL_COUNT_SUM == TUpdateType);
         if (SYMBOL_COUNT_SUM == TUpdateType) {
             this->symbol2data[symbol] += increment;
         } else {
-            this->symbol2data[symbol] = MAX(this->symbol2data[symbol], increment);
+            this->symbol2data[symbol] = MAX(this->symbol2data[symbol], increment) + (this->symbol2data[symbol] ? update_max_inc : 0);
         }
     };
     
@@ -709,14 +709,14 @@ public:
                             || !fprintf(stderr, "Bam line with QNAME %s has rpos that is not within the range (%d - %d)", bam_get_qname(b), b->core.pos, bam_endpos(b)));
                     if (i2 > 0) {
                         if (TUpdateType == BASE_QUALITY_MAX) {
-                            incvalue = MIN(bam_phredi(b, qpos-1), bam_phredi(b, qpos)) + symbolType2addPhred[LINK_SYMBOL];
+                            incvalue = MIN(bam_phredi(b, qpos-1), bam_phredi(b, qpos)); // + symbolType2addPhred[LINK_SYMBOL];
                         }
                         this->inc<TUpdateType>(rpos, LINK_M, incvalue, b);
                     }
                     unsigned int base4bit = bam_seqi(bseq, qpos);
                     unsigned int base3bit = seq_nt16_int[base4bit];
                     if (TUpdateType == BASE_QUALITY_MAX) {
-                        incvalue = bam_phredi(b, qpos) + symbolType2addPhred[BASE_SYMBOL];
+                        incvalue = bam_phredi(b, qpos); // + symbolType2addPhred[BASE_SYMBOL];
                     }
                     this->inc<TUpdateType>(rpos, AlignmentSymbol(base3bit), incvalue, b);
                     rpos += 1;
@@ -728,9 +728,9 @@ public:
                         LOG(logWARNING) << "Query " << bam_get_qname(b) << " has insertion of legnth " << cigar_oplen << " at " << qpos
                                 << " which is not exclusively between 0 and " << b->core.l_qseq << " aligned to tid " << b->core.tid << " and position " << rpos;
                         incvalue = (0 != qpos ? bam_phredi(b, qpos-1) : ((qpos + cigar_oplen < b->core.l_qseq) ? bam_phredi(b, qpos + cigar_oplen) : 1)) 
-                                + symbolType2addPhred[LINK_SYMBOL];
+                                ; // + symbolType2addPhred[LINK_SYMBOL];
                     } else {
-                        incvalue = MIN(bam_phredi(b, qpos-1), bam_phredi(b, qpos + cigar_oplen)) + symbolType2addPhred[LINK_SYMBOL];
+                        incvalue = MIN(bam_phredi(b, qpos-1), bam_phredi(b, qpos + cigar_oplen)); // + symbolType2addPhred[LINK_SYMBOL];
                     }
                 }
                 this->inc<TUpdateType>(rpos, insLenToSymbol(cigar_oplen), incvalue, b);
@@ -746,13 +746,13 @@ public:
                     }
                 }
                 if (TUpdateType == BASE_QUALITY_MAX) {
-                    incvalue = incvalue2 + symbolType2addPhred[LINK_SYMBOL];
+                    incvalue = incvalue2; // + symbolType2addPhred[LINK_SYMBOL];
                 }
                 this->incIns(rpos, iseq, incvalue);
                 qpos += cigar_oplen;
             } else if (cigar_op == BAM_CDEL) {
                 if (TUpdateType == BASE_QUALITY_MAX) {
-                    incvalue = MIN(bam_phredi(b, qpos), bam_phredi(b, qpos+1)) + symbolType2addPhred[LINK_SYMBOL];
+                    incvalue = MIN(bam_phredi(b, qpos), bam_phredi(b, qpos+1)); // + symbolType2addPhred[LINK_SYMBOL];
                 }
                 this->inc<TUpdateType>(rpos, delLenToSymbol(cigar_oplen), incvalue, b);
                 this->incDel(rpos, cigar_oplen, incvalue);
@@ -1179,7 +1179,9 @@ if (curr_depth_symbsum * 5 <= curr_depth_typesum * 4 && curr_depth_symbsum > 0 &
                             unsigned int edge_baq = MIN(ldist, rdist) * 4;
                             unsigned int overallq = MIN(edge_baq, phredlike);
                             this->bq_qual_phsum [strand].getRefByPos(epos).incSymbolCount(con_symbol, overallq);
-                            unsigned int pbucket = phred2bucket(overallq);
+                            
+                            unsigned int pbucket = phred2bucket(MIN(edge_baq, phredlike + symbolType2addPhred[symbolType])); // special
+                            
                             assert (pbucket < NUM_BUCKETS || !fprintf(stderr, "%d < %d failed at position %d and con_symbol %d symboltype %d plusbucket %d\n", 
                                     pbucket,  NUM_BUCKETS, epos, con_symbol, symbolType, symbolType2addPhred[symbolType]));
                             if (isSymbolIns(con_symbol)) {
