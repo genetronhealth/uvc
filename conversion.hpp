@@ -273,101 +273,6 @@ qthres_ad_dp_to_qtotal(unsigned int QP, unsigned int ADP, unsigned int DPT,
 };
 */
 
-/*
-rpos_to_base_to_dedup_pdist_to_background_errcount_totcount(
-        nn
-        ) {
-         
-}
-*/
-
-/*
-// The most proMINent group of outliers of a truncated exponential distribution.
-struct PeakOutlierGroup {
-    const double best_phred_thres;
-    const double best_phred_varqual;
-    const unsigned int best_phred_count;
-    const double cMAX_phred_thres; // with background error cap
-    const double cMAX_phred_datamax; // without the cap
-    const unsigned int cMAX_phred_count; // number of errors that are over the background error cap
-    PeakOutlierGroup(
-            double best_phred_thres1, double best_phred_varqual1, unsigned int best_phred_count1, 
-            double cMAX_phred_thres1, double cmax_phred_datamax1, unsigned int cmax_phred_count1) {
-        best_phred_thres = best_phred_thres1;
-        best_phred_varqual = best_phred_varqual1;
-        best_phred_count = best_phred_count1;
-        cMAX_phred_thres = cmax_phred_thres1;
-        cMAX_phred_datamax = cmax_phred_datamax1;
-        cMAX_phred_count = cmax_phred_count1;
-    }
-};
-
-int 
-compute_base_to_xdist_MAXkv(
-        std::vector<PeakOutlierGroup> & base_to_xdist_MAXkv,
-        unsigned int base_beg, unsigned int base_end,
-        const uint16_t **base_to_pdist, // phred-error distribution
-        const uint32_t *base_to_dedup_depth, const uint32_t *base_to_duped_depth,
-        const uint32_t *base_to_size1_depth,
-        unsigned int background_errcount,
-        unsigned int background_totcount) {
-    
-    unsigned int tot_duped_depth = consensus_sum(base_to_duped_depth, base_beg, base_end);
-    unsigned int tot_dedup_depth = consensus_sum(base_to_dedup_depth, base_beg, base_end);
-    unsigned int tot_size1_depth = consensus_sum(base_to_size1_depth, base_beg, base_end);
-    assert (tot_dedup_depth <= tot_duped_depth);
-    assert (tot_size1_depth <= tot_dedup_depth);
-    
-    double phredvalue_MAX = prob2phred(((double)background_totcount) / (double)background_errcount);
-    for (unsigned int base_idx = base_beg; base_idx < base_end; base_idx += 1) {
-        const unsigned int *dedup_pdist = base_to_dedup_pdist[base_idx];
-        unsigned int dedup_depth = base_to_dedup_depth[base_idx];
-        unsigned int duped_depth = base_to_duped_depth[base_idx];
-        double dedup_prop = ((double)dedup_depth) / ((double)(tot_dedup_depth));
-        double duped_prop = ((double)duped_depth) / ((double)(tot_duped_depth));
-        double imbal_ratio = std::MAX(dedup_prop / duped_prop, duped_prop / dedup_prop);
-        int best_phred_thres = -1;
-        double best_phred_varqual = prob2phred(1.0 / (double)(duped_depth)) * ((double)(duped_depth) / (double)(tot_duped_depth))
-        unsigned best_phred_familycount = 0;
-        unsigned curr_phred_familycount = 0;
-        unsigned this_background_err_count = 0;
-        unsigned int pbucket_dataMAX = 0;
-
-        for (unsigned int i = 0; i < NUM_BUCKETS; i++) {
-            unsigned int pbucket = NUM_BUCKETS - i;
-            unsigned int pcount = dedup_pdist[pbucket];
-            if (0 == pcount) {
-                continue;
-            } else if (pbucket_dataMAX < pbucket) {
-                pbucket_dataMAX = pbucekt;
-            }
-            
-            assert (pcount <= tot_dedup_depth);
-            curr_phred_familycount += pcount;
-            
-            double phredvalue_raw = bucket2phred(pbucket);
-            double phredvalue = MIN(phredvalue_raw, phredvalue_MAX);
-            double exp10log10freq = -phredvalue;
-            double act10log10freq = prob2phred((double)(curr_phred_familycount) / (double)(tot_dedup_depth) / (double)imbal_ratio);
-            double diff10log10like = (act10log10freq - exp10log10freq) * float(curr_phred_familycount);
-            if (best_phred_varqual < diff10log10like) {
-                best_phred_thres = phredvalue;
-                best_phred_varqual = diff10log10like;
-                best_phred_familycount = curr_phred_familycount;
-            }
-            if (phredvalue_MAX < phredvalue_raw) {
-                this_background_err_count += 1;
-            }
-        }
-        assert (curr_phred_familycount == dedup_depth);
-        PeakOutlierGroup peak_outlier_group(
-                best_phred_thres, best_phred_varqual, best_phred_familycount, 
-                phred_value_MAX, bucket2phred(pbucket_datamax), this_background_err_count); 
-        base_to_xdist_MAXkv[base] = peak_outlier_group;
-    }
-    return 0;
-}
-*/
 
 double 
 dp4_to_sratio(double all_fw0, double all_rv0, double alt_fw0, double alt_rv0, double pseudocount = 1) {
@@ -408,7 +313,9 @@ const unsigned int prob2phred(const double probvalue) {
 }
 
 const unsigned int phred2bucket(const unsigned int phredvalue) {
-    return MIN(32-1, phredvalue / 2);
+    assert(phredvalue < 64);
+    return phredvalue / (64/NUM_BUCKETS);
+    // return MIN(32-1, phredvalue / 2);
     // 0 - 8 -> 1, 8 - 40 -> 2, 40 - .. -> 4 ; 
     //  0 - 10 : 1 -> 10
     // 10 - 20 : 2 -> 5
@@ -419,7 +326,8 @@ const unsigned int phred2bucket(const unsigned int phredvalue) {
 }
 
 const unsigned int bucket2phred(const unsigned int bucketvalue) {
-    return bucketvalue * 2;
+    return bucketvalue * (64/NUM_BUCKETS);
+    //return bucketvalue * 2;
     // return floor(pow(10, ((float)(bucketvalue)) / 20) - 1);
 }
 

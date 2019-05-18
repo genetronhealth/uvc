@@ -1,6 +1,6 @@
 #ifndef common_INCLUDED
 #define common_INCLUDED
-#define NUM_BUCKETS (32)
+#define NUM_BUCKETS (64)
 
 const char *const NOT_PROVIDED = "";
 
