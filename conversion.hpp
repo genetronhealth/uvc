@@ -10,7 +10,7 @@
 
 #include <iostream>
 
-// #include "common.h"
+#include "common.h"
 
 //#define MIN(a, b) ((a) < (b) ? (a) : (b))
 //#define MAX(a, b) ((a) > (b) ? (a) : (b))
