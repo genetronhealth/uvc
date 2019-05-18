@@ -215,11 +215,12 @@ dp100_to_string(const std::vector<unsigned int> & bg1dp100, const std::vector<un
 std::string
 genomicRegionInfoToString(const std::string & chromosome, 
         unsigned int incluBeg, SymbolType stypeBeg,
-        unsigned int excluEnd, SymbolType stypeEnd,
+        unsigned int incluEnd, SymbolType stypeEnd,
         const unsigned int gbDPmin, const unsigned int gcDPmin,
         const std::string &gfGTmm2, const unsigned int gfGQmin,
         const std::string & refstring, unsigned int refstring_offset) {
-    unsigned int begpos = (stypeBeg == BASE_SYMBOL ? (incluBeg+1) : incluBeg);
+    unsigned int begpos = incluBeg; // = (stypeBeg == BASE_SYMBOL ? (incluBeg+1) : incluBeg);
+    unsigned int endpos = incluEnd; // = (stypeEnd == BASE_SYMBOL ? (excluEnd+1) : (excluEnd));
     unsigned int refstring_idx = begpos - refstring_offset;
     const std::string begchar = (refstring_idx > 0 ? refstring.substr(refstring_idx - 1, 1) : "n");
     std::string ret = chromosome + "\t" + std::to_string(begpos)
@@ -230,7 +231,7 @@ genomicRegionInfoToString(const std::string & chromosome,
             + std::to_string(gcDPmin) + ":"
             + std::to_string(stypeBeg) + "," + std::to_string(stypeEnd) + ":"
             + std::to_string(begpos) + ":"
-            + std::to_string(stypeBeg == BASE_SYMBOL ? (excluEnd) : (excluEnd-1)) + "\n";
+            + std::to_string(endpos) + "\n";
     return ret;
 }
 
@@ -351,6 +352,7 @@ process_batch(BatchArg & arg) {
     SymbolType prevSymbolType = NUM_SYMBOL_TYPES;
     for (unsigned int refpos = rpos_inclu_beg; refpos <= rpos_exclu_end; refpos++) {        
         const std::array<SymbolType, 2> allSymbolTypes = {LINK_SYMBOL, BASE_SYMBOL};
+        const std::array<SymbolType, 2> stype_to_immediate_prev = {LINK_SYMBOL, BASE_SYMBOL};
         for (unsigned int stidx = 0; stidx < 2; stidx++) {
             const SymbolType symbolType = allSymbolTypes[stidx];
             bcfrec::BcfFormat init_fmt;
@@ -359,8 +361,8 @@ process_batch(BatchArg & arg) {
             float most_confident_qual = 0;
             std::string most_confident_GT = "./.";
             float most_confident_GQ = 0;
+            std::vector<bcfrec::BcfFormat> fmts(SYMBOL_TYPE_TO_INCLU_END[symbolType] - SYMBOL_TYPE_TO_INCLU_BEG[symbolType] + 1, init_fmt);
             if (rpos_exclu_end != refpos && bDPcDP[0] >= paramset.min_depth_thres) {
-                std::vector<bcfrec::BcfFormat> fmts(SYMBOL_TYPE_TO_INCLU_END[symbolType] - SYMBOL_TYPE_TO_INCLU_BEG[symbolType] + 1, init_fmt);
                 for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; symbol = AlignmentSymbol(1+(unsigned int)symbol)) {
                     const auto simplemut = std::make_pair(refpos, symbol);
                     auto indices_bq = (simplemut2indices_bq.find(simplemut) != simplemut2indices_bq.end() ? simplemut2indices_bq[simplemut] : empty_size_t_set); 
@@ -381,6 +383,53 @@ process_batch(BatchArg & arg) {
                         most_confident_GQ = GQval;
                     }
                 }
+            }
+            if (rpos_exclu_end != refpos || allSymbolTypes[0] == symbolType) {
+                auto bDPval = bDPcDP[0];
+                auto cDPval = bDPcDP[1];
+                auto fGTmm2 = (most_confident_GQ >= 10 ? most_confident_GT : "./.");
+                auto fGQval = most_confident_GQ;
+                bool gbDPhasWideRange = (is_sig_out(bDPval, gbDPmin, gbDPmax, 130,  3) || (0 == gbDPmax && bDPval > gbDPmax) || (0 == bDPval && gbDPmin > bDPval));
+                bool gcDPhasWideRange = (is_sig_out(cDPval, gcDPmin, gcDPmax, 130,  3));
+                bool gfGQhasWideRange = (is_sig_out(fGQval, gfGQmin, gfGQmax, 130, 10) || (std::string(fGTmm2) != gfGTmm2));
+                if ((gbDPhasWideRange || gcDPhasWideRange || gfGQhasWideRange ||
+                        (refpos - prevPosition >= G_BLOCK_SIZE) || (refpos == rpos_exclu_end))) {
+                    auto iendPosition = (LINK_SYMBOL == symbolType ? (refpos - 1) : refpos);
+                    auto iendSymbolType = stype_to_immediate_prev[symbolType];
+                    
+                    unsigned int begpos = (BASE_SYMBOL == prevSymbolType ? (prevPosition+1) : prevPosition);
+                    unsigned int endpos = (BASE_SYMBOL == iendSymbolType ? (iendPosition+1) : iendPosition);
+                    
+                    std::string genomicInfoString = ((0 == gbDPmax) ? "" : genomicRegionInfoToString(
+                            std::get<0>(tname_tseqlen_tuple),
+                            begpos, prevSymbolType,
+                            endpos, iendSymbolType,
+                            gbDPmin, gcDPmin,
+                            gfGTmm2, gfGQmin,
+                            refstring, extended_inclu_beg_pos));
+                    raw_out_string += genomicInfoString + buf_out_string;
+                    raw_out_string_pass += genomicInfoString + buf_out_string_pass;
+                    buf_out_string.clear();
+                    buf_out_string_pass.clear();
+                    prevPosition = refpos;
+                    prevSymbolType = symbolType;
+                    gbDPmin = bDPval;
+                    gbDPmax = bDPval;
+                    gcDPmin = cDPval;
+                    gcDPmax = cDPval;
+                    gfGTmm2 = fGTmm2;
+                    gfGQmin = fGQval;
+                    gfGQmax = fGQval;
+                } else {
+                    UPDATE_MIN(gbDPmin, bDPval);
+                    UPDATE_MAX(gbDPmax, bDPval);
+                    UPDATE_MIN(gcDPmin, cDPval);
+                    UPDATE_MAX(gcDPmax, cDPval);
+                    UPDATE_MIN(gfGQmin, fGQval);
+                    UPDATE_MAX(gfGQmax, fGQval);
+                }
+            }
+            if (rpos_exclu_end != refpos && bDPcDP[0] >= paramset.min_depth_thres) {
                 for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; symbol = AlignmentSymbol(1+(unsigned int)symbol)) {
                     auto & fmt = fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]];
                     if ((fmt.bAD1[0] + fmt.bAD1[1]) < paramset.min_altdp_thres) {
@@ -392,43 +441,6 @@ process_batch(BatchArg & arg) {
                             std::get<0>(tname_tseqlen_tuple).c_str(), refpos, symbol, fmt,
                             refstring, extended_inclu_beg_pos, paramset.vqual, should_output_all);
                 }
-            }
-            auto bDPval = bDPcDP[0];
-            auto cDPval = bDPcDP[1];
-            auto fGTmm2 = (most_confident_GQ >= 10 ? most_confident_GT : "./.");
-            auto fGQval = most_confident_GQ;
-            bool gbDPhasWideRange = (is_sig_out(bDPval, gbDPmin, gbDPmax, 130,  3) || (0 == gbDPmax && bDPval > gbDPmax));
-            bool gcDPhasWideRange = (is_sig_out(cDPval, gcDPmin, gcDPmax, 130,  3) || (0 == gcDPmax && cDPval > gcDPmax));
-            bool gfGQhasWideRange = (is_sig_out(fGQval, gfGQmin, gfGQmax, 130, 10) || (std::string(fGTmm2) != gfGTmm2));
-            if ((gbDPhasWideRange || gcDPhasWideRange || gfGQhasWideRange ||
-                    (refpos - prevPosition >= G_BLOCK_SIZE) || (refpos == rpos_exclu_end))) {
-                std::string genomicInfoString = ((0 == gbDPmax) ? "" : genomicRegionInfoToString(
-                        std::get<0>(tname_tseqlen_tuple),
-                        prevPosition, prevSymbolType,
-                        refpos, symbolType,
-                        gbDPmin, gcDPmin,
-                        gfGTmm2, gfGQmin,
-                        refstring, extended_inclu_beg_pos));
-                raw_out_string += genomicInfoString + buf_out_string;
-                raw_out_string_pass += genomicInfoString + buf_out_string_pass;
-                buf_out_string.clear();
-                buf_out_string_pass.clear();
-                prevPosition = refpos;
-                prevSymbolType = symbolType;
-                gbDPmin = bDPval;
-                gbDPmax = bDPval;
-                gcDPmin = cDPval;
-                gcDPmax = cDPval;
-                gfGTmm2 = fGTmm2;
-                gfGQmin = fGQval;
-                gfGQmax = fGQval;
-            } else {
-                UPDATE_MIN(gbDPmin, bDPval);
-                UPDATE_MAX(gbDPmax, bDPval);
-                UPDATE_MIN(gcDPmin, cDPval);
-                UPDATE_MAX(gcDPmax, cDPval);
-                UPDATE_MIN(gfGQmin, fGQval);
-                UPDATE_MAX(gfGQmax, fGQval);
             }
         }    
     }
