@@ -41,7 +41,7 @@ bcf_formats.step1.c : bcf_formats_generator1.out
 .PHONY: clean dup
 
 clean:
-	rm bcf_formats_generator1.out bcf_formats.step1.c *.o *.out *.gch uvc callTN
+	rm bcf_formats_generator1.out bcf_formats.step1.c *.o *.out *.gch uvc callTN || true
 
 dup:
 	cp uvc uvc1
