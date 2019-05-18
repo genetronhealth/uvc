@@ -279,8 +279,8 @@ public:
     };
     
     template <ValueType TUpdateType = SYMBOL_COUNT_SUM>
-    int 
-    incSymbolCount(const AlignmentSymbol symbol, const TInteger increment, const unsigned int update_max_inc = 3) {
+    int // update_max_inc : high GC:3, even distribution of nucleotides: 6
+    incSymbolCount(const AlignmentSymbol symbol, const TInteger increment, const unsigned int update_max_inc = 4) {
         static_assert(BASE_QUALITY_MAX == TUpdateType || SYMBOL_COUNT_SUM == TUpdateType);
         if (SYMBOL_COUNT_SUM == TUpdateType) {
             this->symbol2data[symbol] += increment;
