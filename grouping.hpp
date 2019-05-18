@@ -572,9 +572,9 @@ bamfname_to_strand_to_familyuid_to_reads(
         double peakimba;
         double peakfrac;
         uint64_t umilabel;
-        if ((CORRECTION_NONE == input_mode) || (CORRECTION_BASEQUAL == input_mode) || (CORRECTION_SINGLETON == input_mode)) {
-            peakimba = 0;
-            peakfrac = 0;
+        if ((CORRECTION_NONE == input_mode) || (CORRECTION_BASEQUAL == input_mode)) {
+            peakimba = 1e9;
+            peakfrac = 1e9;
             umilabel = qhash;
         } else if (!is_umi_found) { // no UMI
             peakimba = 8;
@@ -594,7 +594,9 @@ bamfname_to_strand_to_familyuid_to_reads(
         //LOG(logINFO) << "Iteration 3.4 begins!";
         int begIsVariable = 0;
         int endIsVariable = 0;
-        if (end2count  * peakimba < beg2count) {
+        if (CORRECTION_NONE == input_mode) {
+            endIsVariable = 4; // special flag indicating do not use pair-end info
+        } else if (end2count * peakimba < beg2count) {
             endIsVariable = 1; // special flag indicating no end as lots of reads begin at the same position but end at different positions
         } else if (beg2count * peakimba < end2count) {
             begIsVariable = 1;
