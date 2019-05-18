@@ -69,10 +69,10 @@ std::string CommandLineArgs::selfUpdateByPlatform() {
             }
         }
         bool has_enough_pass = phredpass >= phredfail * 3;
-        if (countSE < countPE) {
+        if (0 < countPE) {
             //if (indel_len * 500 <= bqcnt) {
             plat = "illumina";
-            minABQ = phredcut;
+            minABQ += phredcut;
         } else {
             plat = "iontorrent";
             minABQ = 0;
