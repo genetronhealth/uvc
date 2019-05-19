@@ -1340,7 +1340,8 @@ if (curr_depth_symbsum * 5 <= curr_depth_typesum * 4 && curr_depth_symbsum > 0 &
                         double con_bq_pass_prob = phred2prob(con_bq_pass_thres) * (1 - DBL_EPSILON); // < 1
                         assert (con_bq_pass_prob >= pow(10, ((double)-51)/10) 
                                 || !fprintf(stderr, "%f >= phred51 failed at position %d and symbol %d!\n", con_bq_pass_prob, epos, con_symbol));
-                        double phredlike = h01_to_phredlike<true>(minorcount + 1, majorcount + minorcount + (1.0 / con_bq_pass_prob), con_count, tot_count);
+                        unsigned int phredlike = (int)h01_to_phredlike<true>(minorcount + 1, majorcount + minorcount + (1.0 / con_bq_pass_prob), con_count, tot_count);
+                        phredlike = MIN(phredlike, phred_max);
                         // no base quality stuff
                         
                         this->fq_tsum_depth [strand].getRefByPos(epos).incSymbolCount(con_symbol, 1);
