@@ -18,8 +18,8 @@ nlog="${outdir}/${samplename}_N_uvc1.stderr"
 
 mkdir -p "${outdir}"
 
-date && time -p "${scriptdir}/uvc1" -t 16 -f "${ref}" -s "${samplename}_T" "${tbam}" -o "${tvcfgz}" "${@:6}" 2> "${tlog}"
-date && time -p "${scriptdir}/uvc1" -t 16 -f "${ref}" -s "${samplename}_N" "${nbam}" -o "${nvcfgz}" "${@:6}" 2> "${nlog}"
+date && time -p "${scriptdir}/uvc1" -f "${ref}" -s "${samplename}_T" "${tbam}" -o "${tvcfgz}" "${@:6}" 2> "${tlog}"
+date && time -p "${scriptdir}/uvc1" -f "${ref}" -s "${samplename}_N" "${nbam}" -o "${nvcfgz}" "${@:6}" 2> "${nlog}"
 
 date && time -p bcftools index -t "${tvcfgz}"
 date && time -p bcftools index -t "${nvcfgz}"
