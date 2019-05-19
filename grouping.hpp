@@ -93,10 +93,12 @@ sam_fname_to_contigs(
         ret = bed_fname_to_contigs(tid_beg_end_e2e_vec, bed_fname, samheader);    
     } else {
         ret = 0;
+        unsigned int endingpos = UINT_MAX;
         unsigned int tid = UINT_MAX;
         unsigned int tbeg = -1;
         unsigned int tend = -1;
         uint64_t nreads = 0;
+        uint64_t next_nreads = 0;
         bam1_t *alnrecord = bam_init1();
         while (sam_read1(sam_infile, samheader, alnrecord) >= 0) {
             ret++;
@@ -104,13 +106,22 @@ sam_fname_to_contigs(
                 continue;
             }
             bool is_uncov = (alnrecord->core.tid != tid || alnrecord->core.pos > tend);
-            uint64_t n_overlap_positions = (1 + tend - min(tend, alnrecord->core.pos));
-            uint64_t npositions = (tend - min(tbeg, tend));
-            bool has_many_positions = (npositions * npositions > n_overlap_positions * (1024UL*1024UL*16UL));
-            bool has_many_reads = (nreads * nreads > n_overlap_positions * (1024UL*1024UL*1024UL*1024UL));
-            if (is_uncov || has_many_positions || has_many_reads) {
+            if (UINT_MAX == endingpos) {
+                uint64_t n_overlap_positions = min(64, (16 + tend - min(tend, alnrecord->core.pos)));
+                uint64_t npositions = (tend - min(tbeg, tend));
+                bool has_many_positions = npositions > n_overlap_positions * (1024); // (npositions * npositions > n_overlap_positions * (1024UL*1024UL*1UL));
+                bool has_many_reads = nreads > n_overlap_positions * (1024 * 2); // ; (nreads * nreads > n_overlap_positions * (1024UL*1024UL*2UL));
+                if (has_many_positions || has_many_reads) {
+                    endingpos = max(bam_endpos(alnrecord), min(alnrecord->core.pos, alnrecord->core.mpos) + min(alnrecord->core.isize, 500)) + 20;
+                }
+            }
+            next_nreads += (bam_endpos(alnrecord) > endingpos ? 1 : 0);
+            if (is_uncov || endingpos < alnrecord->core.pos) {
+                auto prev_nreads = next_nreads;
                 if (tid != UINT_MAX) {
                     tid_beg_end_e2e_vec.push_back(std::make_tuple(tid, tbeg, tend, false, nreads));
+                    endingpos = UINT_MAX;
+                    next_nreads = 0;
                 }
                 tid = alnrecord->core.tid;
                 if (is_uncov) {
@@ -120,7 +131,7 @@ sam_fname_to_contigs(
                     tbeg = tend;
                     tend = max(tbeg, bam_endpos(alnrecord)) + 1;
                 }
-                nreads = 0;
+                nreads = prev_nreads;
             }
             tend = max(tend, bam_endpos(alnrecord));
             nreads += 1;
