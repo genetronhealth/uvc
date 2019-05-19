@@ -64,14 +64,139 @@ bed_fname_to_contigs(
                 << "The reference template name " << tname << " from the bedfile " << bed_fname << " is not in the input sam file");
         bool end2end = false;
         std::string token;
+        unsigned int nreads = 2 * (tend - tbeg);
         while (linestream.good()) {
             linestream >> token;
             if (token.find("end-to-end") != std::string::npos) {
                 end2end = true;
             }
+            if (token.find("NumberOfReadsInThisInterval") != std::string::npos) {
+                linestream >> nreads;
+            }
         }
-        tid_beg_end_e2e_vec.push_back(std::make_tuple(tname_to_tid[tname], tbeg, tend, end2end, 100*1000)); // assume 100*1000 reads fall into this region
+        tid_beg_end_e2e_vec.push_back(std::make_tuple(tname_to_tid[tname], tbeg, tend, end2end, nreads)); // assume 100*1000 reads fall into this region
     }
+}
+
+struct SamIter {
+    const std::string input_bam_fname;
+    const std::string region_bed_fname;
+    const unsigned int nthreads;
+    samFile *sam_infile = NULL;
+    bam_hdr_t * samheader = NULL;
+    
+    unsigned int endingpos = UINT_MAX;
+    unsigned int tid = UINT_MAX;
+    unsigned int tbeg = -1;
+    unsigned int tend = -1;
+    uint64_t nreads = 0;
+    uint64_t next_nreads = 0;
+    bam1_t *alnrecord = bam_init1();
+    
+    std::vector<std::tuple<unsigned int, unsigned int, unsigned int, bool, unsigned int>> _tid_beg_end_e2e_vec;
+    unsigned int _bedregion_idx = 0;
+
+    SamIter(const std::string & in_bam_fname, const std::string & reg_bed_fname, const unsigned int nt): input_bam_fname(in_bam_fname), region_bed_fname(reg_bed_fname), nthreads(nt) {
+        this->sam_infile = sam_open(input_bam_fname.c_str(), "r");
+        this->samheader = sam_hdr_read(sam_infile);
+        //this->region_bed_fname = reg_bed_fname;
+        if (NOT_PROVIDED != this->region_bed_fname) {
+            bed_fname_to_contigs(this->_tid_beg_end_e2e_vec, this->region_bed_fname, this->samheader); 
+        }
+    }
+    ~SamIter() {
+        bam_destroy1(alnrecord);
+        bam_hdr_destroy(samheader);
+        sam_close(sam_infile);
+    }
+    
+    int iternext(std::vector<std::tuple<unsigned int, unsigned int, unsigned int, bool, unsigned int>> & tid_beg_end_e2e_vec) {
+        int ret = 0;
+        unsigned int nreads_tot = 0;
+        unsigned int region_tot = 0;
+        unsigned int nreads_max = 0;
+        unsigned int region_max = 0;
+        
+        if (NOT_PROVIDED != region_bed_fname) {
+            for (; this->_bedregion_idx < this->_tid_beg_end_e2e_vec.size(); this->_bedregion_idx++) {
+                ret++;
+                const auto & bedreg = (this->_tid_beg_end_e2e_vec[this->_bedregion_idx]);
+                tid_beg_end_e2e_vec.push_back(bedreg);
+                nreads_tot += std::get<4>(bedreg); // tid, tbeg, tend, false, nreads));
+                region_tot += std::get<2>(bedreg) - std::get<1>(bedreg);
+                if (nreads_tot > (2000*1000 * nthreads) || region_tot > (1000*1000 * nthreads)) {
+                    return ret; 
+                }
+            }
+            return ret;
+        }
+        while (sam_read1(sam_infile, samheader, alnrecord) >= 0) {
+            ret++;
+            if (BAM_FUNMAP & alnrecord->core.flag) {
+                continue;
+            }
+            bool is_uncov = (alnrecord->core.tid != tid || alnrecord->core.pos > tend);
+            if (UINT_MAX == endingpos) {
+                uint64_t n_overlap_positions = min(64, (16 + tend - min(tend, alnrecord->core.pos)));
+                uint64_t npositions = (tend - min(tbeg, tend));
+                bool has_many_positions = npositions > n_overlap_positions * (1024); // (npositions * npositions > n_overlap_positions * (1024UL*1024UL*1UL));
+                bool has_many_reads = nreads > n_overlap_positions * (1024 * 2); // ; (nreads * nreads > n_overlap_positions * (1024UL*1024UL*2UL));
+                if (has_many_positions || has_many_reads) {
+                    endingpos = max(bam_endpos(alnrecord), min(alnrecord->core.pos, alnrecord->core.mpos) + min(alnrecord->core.isize, 500)) + 20;
+                }
+            }
+            next_nreads += (bam_endpos(alnrecord) > endingpos ? 1 : 0);
+            if (is_uncov || endingpos < alnrecord->core.pos) {
+                region_max = max(region_max, tend - tbeg);
+                nreads_max = max(nreads_max, nreads);
+                region_tot += tend - tbeg;
+                nreads_tot += nreads;
+                auto prev_nreads = next_nreads;
+                if (tid != UINT_MAX) {
+                    tid_beg_end_e2e_vec.push_back(std::make_tuple(tid, tbeg, tend, false, nreads));
+                    endingpos = UINT_MAX;
+                    next_nreads = 0;
+                }
+                tid = alnrecord->core.tid;
+                if (is_uncov) {
+                    tbeg = alnrecord->core.pos;
+                    tend = bam_endpos(alnrecord);
+                } else {
+                    tbeg = tend;
+                    tend = max(tbeg, bam_endpos(alnrecord)) + 1;
+                }
+                nreads = prev_nreads;
+                //tend = max(tend, bam_endpos(alnrecord));
+                nreads += 1;
+                if (nreads_tot > (2000*1000 * nthreads) || region_tot > (1000*1000 * nthreads)
+                        // || (region_tot > region_max * (nthreads * 8)) && (nreads_tot > nreads_max * (nthreads * 8))  
+                        ) {
+                    return ret;
+                }
+            } else {
+                tend = max(tend, bam_endpos(alnrecord));
+                nreads += 1;
+
+            }
+        }
+        if (tid != UINT_MAX) {
+            tid_beg_end_e2e_vec.push_back(std::make_tuple(tid, tbeg, tend, false, nreads));
+        }
+        return ret;
+    }
+};
+
+int
+samfname_to_tid_to_tname_tseq_tup_vec(auto & tid_to_tname_tseqlen_tuple_vec, const std::string & bam_input_fname) {
+    tid_to_tname_tseqlen_tuple_vec.clear();
+    samFile *sam_infile = sam_open(bam_input_fname.c_str(), "r"); // AlignmentFile(samfname, "rb")
+    bam_hdr_t * samheader = sam_hdr_read(sam_infile);
+    tid_to_tname_tseqlen_tuple_vec.reserve(samheader->n_targets);
+    for (unsigned int tid = 0; tid < samheader->n_targets; tid++) {
+        tid_to_tname_tseqlen_tuple_vec.push_back(std::make_tuple(std::string(samheader->target_name[tid]), samheader->target_len[tid]));
+    }
+    bam_hdr_destroy(samheader);
+    sam_close(sam_infile);
 }
 
 int 
