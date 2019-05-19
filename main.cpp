@@ -5,8 +5,8 @@
 #include "grouping.hpp"
 #include "version.h"
 
-#if defined(USE_STDLIB_THREAD)
 #include <thread>
+#if defined(USE_STDLIB_THREAD)
 #else
 #include "omp.h"
 #endif
@@ -474,8 +474,9 @@ int main(int argc, char **argv) {
         return parsing_result_ret; 
     }
     LOG(logINFO) << "Program " << argv[0] << " version " << VERSION_DETAIL;
-    std::vector<std::tuple<unsigned int, unsigned int, unsigned int, bool, unsigned int>> tid_beg_end_e2e_tuple_vec;
     std::vector<std::tuple<std::string, unsigned int>> tid_to_tname_tseqlen_tuple_vec;
+    /*
+    std::vector<std::tuple<unsigned int, unsigned int, unsigned int, bool, unsigned int>> tid_beg_end_e2e_tuple_vec;
     LOG(logINFO) << "step1: sam_fname_to_contigs"; 
     sam_fname_to_contigs(tid_beg_end_e2e_tuple_vec, tid_to_tname_tseqlen_tuple_vec, paramset.bam_input_fname, paramset.bed_region_fname);
     LOG(logINFO) << "The BED region is as follows (" << tid_beg_end_e2e_tuple_vec.size() << " chunks):";
@@ -486,6 +487,8 @@ int main(int argc, char **argv) {
                   << std::get<3>(tid_beg_end_e2e_tuple) << "\t"
                   << std::get<4>(tid_beg_end_e2e_tuple) << "\n";
     }
+    */
+    samfname_to_tid_to_tname_tseq_tup_vec(tid_to_tname_tseqlen_tuple_vec, paramset.bam_input_fname);
 
     const unsigned int nthreads = paramset.max_cpu_num;
     bool is_vcf_out_empty_string = (std::string("") == paramset.vcf_output_fname);
@@ -549,6 +552,43 @@ int main(int argc, char **argv) {
             paramset.sample_name.c_str());
     clearstring<false>(fp_allp, header_outstring);
     clearstring<false>(fp_pass, header_outstring, is_vcf_out_pass_to_stdout);
+
+    std::vector<std::tuple<unsigned int, unsigned int, unsigned int, bool, unsigned int>> tid_beg_end_e2e_tuple_vec1;
+    std::vector<std::tuple<unsigned int, unsigned int, unsigned int, bool, unsigned int>> tid_beg_end_e2e_tuple_vec2;
+    SamIter samIter(paramset.bam_input_fname, paramset.bed_region_fname, nthreads); 
+    int iter_nreads = samIter.iternext(tid_beg_end_e2e_tuple_vec1);
+    LOG(logINFO) << "PreProcessed " << iter_nreads << " reads!";  
+    while (iter_nreads > 0) {
+        std::thread read_bam_thread([&tid_beg_end_e2e_tuple_vec2, &samIter, &iter_nreads]() {
+            tid_beg_end_e2e_tuple_vec2.clear();
+            iter_nreads = samIter.iternext(tid_beg_end_e2e_tuple_vec2);
+            LOG(logINFO) << "PreProcessed " << iter_nreads << " reads!";  
+        });
+        const auto & tid_beg_end_e2e_tuple_vec = tid_beg_end_e2e_tuple_vec1; 
+        std::string bedstring = std::string("The BED-genomic-region is as follows (") + std::to_string(tid_beg_end_e2e_tuple_vec.size()) + " chunks):\n";
+        for (const auto & tid_beg_end_e2e_tuple : tid_beg_end_e2e_tuple_vec) {
+            bedstring += (std::get<0>(tid_to_tname_tseqlen_tuple_vec[std::get<0>(tid_beg_end_e2e_tuple)]) + "\t"
+                  + std::to_string(std::get<1>(tid_beg_end_e2e_tuple)) + "\t"
+                  + std::to_string(std::get<2>(tid_beg_end_e2e_tuple)) + "\t"
+                  + std::to_string(std::get<3>(tid_beg_end_e2e_tuple)) + "\t"
+                  + "NumberOfReadsInThisInterval\t"
+                  + std::to_string(std::get<4>(tid_beg_end_e2e_tuple)) + "\t" 
+                  + "\n");
+        }
+        LOG(logINFO) << bedstring;
+        
+        const unsigned int allridx = 0;  
+        const unsigned int incvalue = tid_beg_end_e2e_tuple_vec.size();
+        
+        unsigned int nreads = 0;
+        unsigned int npositions = 0;
+        for (unsigned int j = 0; j < incvalue; j++) {
+            auto region_idx = allridx + j;
+            nreads += std::get<4>(tid_beg_end_e2e_tuple_vec[region_idx]);
+            npositions += std::get<2>(tid_beg_end_e2e_tuple_vec[region_idx]) - std::get<1>(tid_beg_end_e2e_tuple_vec[region_idx]); 
+        }
+
+        /*
     unsigned int incvalue = 0;
     for (unsigned int allridx = 0; allridx < tid_beg_end_e2e_tuple_vec.size(); allridx += incvalue) {
         incvalue = 0;
@@ -559,6 +599,7 @@ int main(int argc, char **argv) {
             npositions += std::get<2>(tid_beg_end_e2e_tuple_vec[allridx + incvalue]) - std::get<1>(tid_beg_end_e2e_tuple_vec[allridx + incvalue]); 
             incvalue++;
         }
+        */
         assert(incvalue > 0);
         
         // distribute inputs as evenly as possible
@@ -677,6 +718,8 @@ int main(int argc, char **argv) {
                 clearstring<true>(fp_pass, batchargs[beg_end_pair_idx].outstring_pass); // empty string means end of file
             }
         }
+        read_bam_thread.join(); // end this iter
+        autoswap(tid_beg_end_e2e_tuple_vec1, tid_beg_end_e2e_tuple_vec2);
     }
     clearstring<true>(fp_allp, std::string("")); // write end of file
     clearstring<true>(fp_pass, std::string(""), is_vcf_out_pass_to_stdout);
