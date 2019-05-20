@@ -22,6 +22,10 @@
 
 #define logDEBUGx1 logDEBUG // logINFO
 
+const unsigned int ARRPOS_MARGIN = 600;
+const int8_t ARRPOS_OUTER_RANGE = 10;
+const int8_t ARRPOS_INNER_RANGE = 3;
+
 // position of 5' is the starting position, but position of 3' is unreliable without mate info.
 
 bool ispowof2(auto num) {
@@ -142,7 +146,7 @@ struct SamIter {
                 bool has_many_positions = npositions > n_overlap_positions * (1024); // (npositions * npositions > n_overlap_positions * (1024UL*1024UL*1UL));
                 bool has_many_reads = nreads > n_overlap_positions * (1024 * 2); // ; (nreads * nreads > n_overlap_positions * (1024UL*1024UL*2UL));
                 if (has_many_positions || has_many_reads) {
-                    endingpos = max(bam_endpos(alnrecord), min(alnrecord->core.pos, alnrecord->core.mpos) + min(alnrecord->core.isize, 500)) + 20;
+                    endingpos = max(bam_endpos(alnrecord), min(alnrecord->core.pos, alnrecord->core.mpos) + min(alnrecord->core.isize, ARRPOS_MARGIN)) + (ARRPOS_OUTER_RANGE * 2);
                 }
             }
             next_nreads += (bam_endpos(alnrecord) > endingpos ? 1 : 0);
@@ -237,7 +241,7 @@ sam_fname_to_contigs(
                 bool has_many_positions = npositions > n_overlap_positions * (1024); // (npositions * npositions > n_overlap_positions * (1024UL*1024UL*1UL));
                 bool has_many_reads = nreads > n_overlap_positions * (1024 * 2); // ; (nreads * nreads > n_overlap_positions * (1024UL*1024UL*2UL));
                 if (has_many_positions || has_many_reads) {
-                    endingpos = max(bam_endpos(alnrecord), min(alnrecord->core.pos, alnrecord->core.mpos) + min(alnrecord->core.isize, 500)) + 20;
+                    endingpos = max(bam_endpos(alnrecord), min(alnrecord->core.pos, alnrecord->core.mpos) + min(alnrecord->core.isize, ARRPOS_MARGIN)) + (ARRPOS_OUTER_RANGE * 2);
                 }
             }
             next_nreads += (bam_endpos(alnrecord) > endingpos ? 1 : 0);
@@ -283,11 +287,6 @@ enum {
     POS_OTHER_5P_DOMINATES_EACH_5P = 16; // the other end of the paired read is very high in frequency overall
 } PositionType;
 */
-
-const unsigned int ARRPOS_MARGIN = 500;
-const int8_t ARRPOS_OUTER_RANGE = 10;
-const int8_t ARRPOS_INNER_RANGE = 3;
-
 /**
  * Schematics of coverage
  *        -
@@ -337,7 +336,7 @@ fill_isrc_isr2_beg_end_with_aln(bool & isrc, bool & isr2, uint32_t & tBeg, uint3
     const uint32_t begpos = aln->core.pos;
     const uint32_t endpos = bam_endpos(aln) - 1;
     int ret = 0;
-    if (((aln->core.flag & 0x1) == 0) || ((aln->core.flag & 0x2) == 0) || (aln->core.flag & 0x8) ||  aln->core.isize == 0) {
+    if (((aln->core.flag & 0x1) == 0) || ((aln->core.flag & 0x2) == 0) || (aln->core.flag & 0x8) ||  aln->core.isize == 0 || aln->core.isize >= (ARRPOS_MARGIN - ARRPOS_OUTER_RANGE)) {
         tBeg = (isrc ? endpos : begpos);
         tEnd = (isrc ? begpos : endpos);
         num_seqs = 1;
