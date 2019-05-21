@@ -278,16 +278,20 @@ process_batch(BatchArg & arg) {
     std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, int>> umi_strand_readset;
 
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts bamfname_to_strand_to_familyuid_to_reads"; }
-    int num_pass_reads = bamfname_to_strand_to_familyuid_to_reads(umi_to_strand_to_reads, 
+    std::array<unsigned int, 3> passed_pcrpassed_umipcrpassed = bamfname_to_strand_to_familyuid_to_reads(umi_to_strand_to_reads, 
             extended_inclu_beg_pos, extended_exclu_end_pos,
             paramset.bam_input_fname, ErrorCorrectionType(paramset.seq_data_type),
             tid, incluBegPosition, excluEndPosition,
             end2end, paramset.min_mapqual, paramset.min_aln_len,
             region_ordinal, UMI_STRUCT_STRING, hts_idx);
     
-    if (0 == num_pass_reads) { return -1; };
+    unsigned int num_passed_reads = passed_pcrpassed_umipcrpassed[0];
+    unsigned int num_pcrpassed_reads = passed_pcrpassed_umipcrpassed[1];
+    unsigned int num_umi_pcrpassed_reads = passed_pcrpassed_umipcrpassed[2];
+    bool is_by_capture = ((num_pcrpassed_reads + num_umi_pcrpassed_reads) * 2 <= num_passed_reads);
+    if (0 == num_passed_reads) { return -1; };
     
-    if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts converting umi_to_strand_to_reads"; }
+    if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts converting umi_to_strand_to_reads with is_by_capture = " << is_by_capture; }
     fill_strand_umi_readset_with_strand_to_umi_to_reads(umi_strand_readset, umi_to_strand_to_reads);
     
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts constructing symbolToCountCoverageSet12 with " << extended_inclu_beg_pos << (" , ") << extended_exclu_end_pos; }
@@ -370,7 +374,7 @@ process_batch(BatchArg & arg) {
                     
                     int altdepth = fillBySymbol(fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]], symbolToCountCoverageSet12, 
                             refpos, symbol, refstring, extended_inclu_beg_pos, mutform2count4vec_bq, indices_bq, mutform2count4vec_fq, indices_fq, 
-                            paramset.minABQ, paramset.phred_max_sscs, paramset.phred_max_dscs, ErrorCorrectionType(paramset.seq_data_type));
+                            paramset.minABQ, paramset.phred_max_sscs, paramset.phred_max_dscs, ErrorCorrectionType(paramset.seq_data_type), is_by_capture);
                 }
                 for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; symbol = AlignmentSymbol(1+(unsigned int)symbol)) {
                     float vaq = fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]].VAQ;

@@ -552,7 +552,7 @@ bam2umihash(int & is_umi_found, const bam1_t *aln, const std::vector<uint8_t> & 
     return 0;
 };
 
-int
+std::array<unsigned int, 3>
 bamfname_to_strand_to_familyuid_to_reads(
         std::map<uint64_t, std::pair<std::array<std::map<uint64_t, std::vector<bam1_t *>>, 2>, int>> &umi_to_strand_to_reads,
         unsigned int & extended_inclu_beg_pos, unsigned int & extended_exclu_end_pos,
@@ -575,8 +575,8 @@ bamfname_to_strand_to_familyuid_to_reads(
     extended_inclu_beg_pos = INT32_MAX;
     extended_exclu_end_pos = 0;
     
-    unsigned int alignmentpassed, lenpassed, cigarpassed, umipassed, pcrpassed;
-    alignmentpassed = lenpassed = cigarpassed = umipassed = pcrpassed = 0;
+    unsigned int alignmentpassed, lenpassed, cigarpassed, umipassed, pcrpassed, umi_pcrpassed;
+    alignmentpassed = lenpassed = cigarpassed = umipassed = pcrpassed = umi_pcrpassed = 0;
    
     samFile *sam_infile = sam_open(input_bam_fname.c_str(), "r"); // AlignmentFile(input_bam_fname, "rb");
     LOG(logINFO) << "Start processing the chunk " << tid << ":" << fetch_tbeg << "-" << fetch_tend << " (contig no " << contig_ordinal << ")";
@@ -723,6 +723,9 @@ bamfname_to_strand_to_familyuid_to_reads(
         } else {
             peakimba = 4;
             peakfrac = 4;
+            if (begfrac > 16 || endfrac > 16) {
+                umi_pcrpassed += 1;
+            }
             umilabel = umihash; 
         }
         
@@ -793,6 +796,6 @@ bamfname_to_strand_to_familyuid_to_reads(
     // hts_idx_destroy(hts_idx);
     sam_close(sam_infile);
     LOG(logINFO) << "Final step of dedupping!" << std::endl;
-    return (int)num_pass_alns;
+    return std::array<unsigned int, 3>({num_pass_alns, pcrpassed, umi_pcrpassed});
 }
 #endif

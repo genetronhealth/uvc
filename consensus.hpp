@@ -1533,7 +1533,8 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
         unsigned int minABQ, // = 25
         unsigned int phred_max_sscs,
         unsigned int phred_max_dscs,
-        const ErrorCorrectionType errorCorrectionType) {
+        const ErrorCorrectionType errorCorrectionType,
+        bool is_by_capture) {
     fmt.note = symbol2CountCoverageSet12.additional_note.getByPos(refpos).at(symbol);
     for (unsigned int strand = 0; strand < 2; strand++) {
         
@@ -1653,7 +1654,7 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
         }
         double currVAQ = (fmt.bVQ3[i] * minAD1 + fmt.cVQ3[i] * gapAD1) / (double)(minAD1 + gapAD1 + DBL_MIN); // prevent div by zero
         weightedQT3s[i] = (fmt.bQT3[i] * minAD1 + fmt.cQT3[i] * gapAD1) / (double)(minAD1 + gapAD1 + DBL_MIN);
-        if (fmt.bQT2[i] >= minABQ) {
+        if ((fmt.bQT2[i] >= minABQ) || (is_by_capture)) {
             maxVAQs[i] = MAX(maxVAQs[i], currVAQ);
         } else {
             maxVAQs[i] = MAX(maxVAQs[i], MIN(currVAQ, minABQ));
