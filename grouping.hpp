@@ -561,7 +561,7 @@ std::array<unsigned int, 3>
 bamfname_to_strand_to_familyuid_to_reads(
         std::map<uint64_t, std::pair<std::array<std::map<uint64_t, std::vector<bam1_t *>>, 2>, int>> &umi_to_strand_to_reads,
         unsigned int & extended_inclu_beg_pos, unsigned int & extended_exclu_end_pos,
-        const std::string input_bam_fname, ErrorCorrectionType input_mode, 
+        const std::string input_bam_fname, 
         unsigned int tid, unsigned int fetch_tbeg, unsigned int fetch_tend, 
         bool end2end, unsigned int min_mapq, unsigned int min_alnlen, 
         unsigned int contig_ordinal,

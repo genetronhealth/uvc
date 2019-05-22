@@ -22,7 +22,6 @@ struct CommandLineArgs {
     // https://www.biostars.org/p/110670/
     uint32_t    min_depth_thres = 4;
     uint32_t    min_altdp_thres = 2;
-    uint32_t    seq_data_type = 0;
     uint32_t    min_aln_len = 0;
     uint32_t    min_mapqual = 40; // from GATK
     uint32_t    max_cpu_num = 8;

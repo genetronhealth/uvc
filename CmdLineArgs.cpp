@@ -114,10 +114,6 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
         std::cout << "uvc-" << VERSION << std::endl;
         exit(0);
     };
-    std::string correction_msg;
-    for (unsigned int i = 0; i < END_ERROR_CORRECTION_TYPES; i++) {
-        correction_msg += std::to_string(i) + " : " + CORRECTION_TYPE_TO_MSG[i] + ". ";
-    }
     CLI::App app{(std::string("Universal Variant Caller (UVC) version ") + VERSION_DETAIL)};
     app.add_flag_function("-v,--version", version_cb,   "Show the version of this program (打印此软件版本号).");    
     app.add_option("inputBam",       bam_input_fname,   "Input coordinate-sorted BAM file that is supposed to contain raw reads (按照位置排序的有原始reads的BAM文件).")->required()->check(CLI::ExistingFile);
@@ -134,7 +130,6 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
     app.add_option("-q,--vqual",     vqual,             "Minimum variant quality to be present in --out-pass (如果变异质量低于此值，则不输出到--out-pass文件).", true);
     app.add_option("-d,--min-depth", min_depth_thres,   "Minimum depth below which results are fitlered out and therefore not in the output vcf (如果低于此原始深度则在VCF不输入任何结果).", true);
     app.add_option("-D,--min-altdp", min_altdp_thres,   "Minimum depth of ALT below which results are filtered out (如果ALT深度低于此数则不输出结果).", true);
-    app.add_option("-m,--mode",      seq_data_type,     "Mode of error correction (排除错误的方法). " + correction_msg, true);
     app.add_option("-t,--threads",   max_cpu_num,       "Number of cpu cores or equivalently threads to use (使用CPU线程的数量).", true);
     app.add_option("--alnlen",       min_aln_len,       "Minimum alignment length below which the alignment is filtered out (如果比对长度低于比值则过滤掉一行的比对结果).", true);
     app.add_option("--mapqual",      min_mapqual,       "Minimum mapping  quality below which the alignment is filtered out (如果比对质量低于此值则过滤掉一行的比对结果).", true);

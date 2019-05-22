@@ -55,6 +55,7 @@ const std::vector<std::string> PAIR_END_MERGE_TO_MSG = {
     [PAIR_END_MERGE_NO]  = "paired-end sequenced segments are not merged (不合并R1和R2)",
 };
 
+/*
 enum ErrorCorrectionType {
     CORRECTION_AUTO,
     CORRECTION_NONE,
@@ -76,6 +77,7 @@ const char *const CORRECTION_TYPE_TO_MSG[] = {
             "(用分子签和起始终止位置的分布去重找错)",
     [CORRECTION_DUPLEX] = "Find and/or correct errors by dedupping with duplex barcode and the denstiy distribution of start/end coordinates of mapped reads (用duplex标签和起始终止位置的分布去重找错)",
 };
+*/
 
 bool ispowerof2(auto num) {
     return (num & (num-1)) == 0;

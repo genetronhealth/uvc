@@ -263,7 +263,7 @@ process_batch(BatchArg & arg) {
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts bamfname_to_strand_to_familyuid_to_reads"; }
     std::array<unsigned int, 3> passed_pcrpassed_umipassed = bamfname_to_strand_to_familyuid_to_reads(umi_to_strand_to_reads, 
             extended_inclu_beg_pos, extended_exclu_end_pos,
-            paramset.bam_input_fname, ErrorCorrectionType(paramset.seq_data_type),
+            paramset.bam_input_fname,
             tid, incluBegPosition, excluEndPosition,
             end2end, paramset.min_mapqual, paramset.min_aln_len,
             region_ordinal, UMI_STRUCT_STRING, hts_idx, 
