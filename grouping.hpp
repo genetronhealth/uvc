@@ -314,8 +314,8 @@ enum FilterReason {
 
 enum FilterReason
 fill_isrc_isr2_beg_end_with_aln(bool & isrc, bool & isr2, uint32_t & tBeg, uint32_t & tEnd, unsigned int &num_seqs,
-        const bam1_t *aln, uint32_t fetch_tbeg, uint32_t fetch_tend,
-        unsigned int min_mapq, unsigned int min_alnlen, bool end2end) {
+        const bam1_t *aln, const uint32_t fetch_tbeg, const uint32_t fetch_tend,
+        const unsigned int min_mapq, const unsigned int min_alnlen, const bool end2end, const bool is_pair_end_merge_enabled) {
     num_seqs = 0;
     if (aln->core.flag & 0x4) {
         return NOT_MAPPED; // unmapped
@@ -336,7 +336,12 @@ fill_isrc_isr2_beg_end_with_aln(bool & isrc, bool & isr2, uint32_t & tBeg, uint3
     const uint32_t begpos = aln->core.pos;
     const uint32_t endpos = bam_endpos(aln) - 1;
     int ret = 0;
-    if (((aln->core.flag & 0x1) == 0) || ((aln->core.flag & 0x2) == 0) || (aln->core.flag & 0x8) ||  aln->core.isize == 0 || aln->core.isize >= (ARRPOS_MARGIN - ARRPOS_OUTER_RANGE)) {
+    if ((!is_pair_end_merge_enabled) 
+            || ((aln->core.flag & 0x1) == 0) 
+            || ((aln->core.flag & 0x2) == 0) 
+            || (aln->core.flag & 0x8) 
+            ||  0 == aln->core.isize 
+            || aln->core.isize >= (ARRPOS_MARGIN - ARRPOS_OUTER_RANGE)) {
         tBeg = (isrc ? endpos : begpos);
         tEnd = (isrc ? begpos : endpos);
         num_seqs = 1;
@@ -561,8 +566,9 @@ bamfname_to_strand_to_familyuid_to_reads(
         bool end2end, unsigned int min_mapq, unsigned int min_alnlen, 
         unsigned int contig_ordinal,
         const std::string UMI_STRUCT_STRING, 
-        const hts_idx_t * hts_idx
-        ) {
+        const hts_idx_t * hts_idx,
+        const bool is_molecule_tag_enabled,
+        const bool is_pair_end_merge_enabled) {
     assert (fetch_tend > fetch_tbeg);
     
     std::vector<uint8_t> umi_struct_string16;
@@ -602,7 +608,7 @@ bamfname_to_strand_to_familyuid_to_reads(
         unsigned int tEnd = 0;
         unsigned int num_seqs = 0;
         FilterReason filterReason = fill_isrc_isr2_beg_end_with_aln(isrc, isr2, tBeg, tEnd, num_seqs, 
-                aln, fetch_tbeg, fetch_tend, min_alnlen, min_mapq, end2end);
+                aln, fetch_tbeg, fetch_tend, min_alnlen, min_mapq, end2end, is_pair_end_merge_enabled);
         if (NOT_FILTERED == filterReason) {
             isrc_isr2_to_beg_count[isrc * 2 + isr2][tBeg + ARRPOS_MARGIN - fetch_tbeg] += 1;
             isrc_isr2_to_end_count[isrc * 2 + isr2][tEnd + ARRPOS_MARGIN - fetch_tbeg] += 1;
@@ -644,7 +650,7 @@ bamfname_to_strand_to_familyuid_to_reads(
         unsigned int tEnd = 0;
         unsigned int num_seqs = 0;
         FilterReason filterReason = fill_isrc_isr2_beg_end_with_aln(isrc, isr2, tBeg, tEnd, num_seqs, 
-                aln, fetch_tbeg, fetch_tend, min_alnlen, min_mapq, end2end);
+                aln, fetch_tbeg, fetch_tend, min_alnlen, min_mapq, end2end, is_pair_end_merge_enabled);
         if (NOT_FILTERED != filterReason) {
             continue;
         }
@@ -704,39 +710,18 @@ bamfname_to_strand_to_familyuid_to_reads(
         //LOG(logINFO) << "Iteration 3.3 begins!";
         double begfrac = (double)(beg2count) / (double)(beg2surrcount + 1);
         double endfrac = (double)(end2count) / (double)(end2surrcount + 1);
-        double peakimba;
-        double peakfrac;
-        uint64_t umilabel;
-        if ((CORRECTION_NONE == input_mode) || (CORRECTION_BASEQUAL == input_mode)) {
-            peakimba = 1e9;
-            peakfrac = 1e9;
-            umilabel = qhash;
-        } else if (!is_umi_found) { // no UMI
-            peakimba = 8;
-            peakfrac = 8;
-            if (begfrac > 16 || endfrac > 16) { // evidence for PCR
-                pcrpassed += 1;
-                umilabel = qhash;
-            } else {
-                umilabel = 0;
-            }
-        } else {
-            peakimba = 4;
-            peakfrac = 4;
-            if (begfrac > 16 || endfrac > 16) {
-                umi_pcrpassed += 1;
-            }
-            umilabel = umihash; 
-        }
+        
+        const bool is_assay_amplicon = (begfrac > 16 || endfrac > 16);
+        const bool is_tag_umi = (is_molecule_tag_enabled && is_umi_found);
+        const uint64_t umilabel = (is_tag_umi ? umihash : (is_assay_amplicon ? qhash : 0));
+        pcrpassed += is_assay_amplicon;
+        const double peakimba = (is_tag_umi ? 4 : 8);
+        const double peakfrac = peakimba;
         
         //LOG(logINFO) << "Iteration 3.4 begins!";
         int begIsVariable = 0;
         int endIsVariable = 0;
-        if (CORRECTION_BASEQUAL == input_mode) {
-            // pass
-        } else if (CORRECTION_NONE == input_mode) {
-            endIsVariable = 4; // special flag indicating do not use pair-end info
-        } else if (end2count * peakimba < beg2count) {
+        if (end2count * peakimba < beg2count) {
             endIsVariable = 1; // special flag indicating no end as lots of reads begin at the same position but end at different positions
         } else if (beg2count * peakimba < end2count) {
             begIsVariable = 1;
@@ -744,8 +729,6 @@ bamfname_to_strand_to_familyuid_to_reads(
             endIsVariable = 2; // special flag indicating no end as the begin position attracts lots of reads
         } else if (beg2count < end2count && endfrac > peakfrac) {
             begIsVariable = 2; 
-        } else {
-            // do nothing
         }
         //LOG(logINFO) << "Iteration 3.5 begins!";
         

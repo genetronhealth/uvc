@@ -1438,12 +1438,12 @@ if (curr_depth_symbsum * 5 <= curr_depth_typesum * 4 && curr_depth_symbsum > 0 &
             const std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, int>> & alns3, 
             const std::string & refstring,
             unsigned int bq_phred_added_misma, unsigned int bq_phred_added_indel, bool should_add_note, unsigned int phred_max_sscs, unsigned int phred_max_dscs,
-            const ErrorCorrectionType errorCorrectionType, bool is_loginfo_enabled) {
+            bool use_deduplicated_reads, bool is_loginfo_enabled) {
         const std::array<unsigned int, NUM_SYMBOL_TYPES> symbolType2addPhred = {bq_phred_added_misma, bq_phred_added_indel};
         std::basic_string<AlignmentSymbol> ref_symbol_string = string2symbolseq(refstring);
         updateByAlns3UsingBQ(mutform2count4map_bq, alns3, ref_symbol_string, symbolType2addPhred, should_add_note, phred_max_sscs); // base qualities
         updateHapMap(mutform2count4map_bq, this->bq_tsum_depth);
-        if (CORRECTION_BASEQUAL != errorCorrectionType) {
+        if (use_deduplicated_reads) {
             updateByAlns3UsingFQ(mutform2count4map_fq, alns3, ref_symbol_string, symbolType2addPhred, should_add_note, phred_max_sscs, is_loginfo_enabled); // family qualities
             updateHapMap(mutform2count4map_fq, this->fq_tsum_depth);
         }
@@ -1533,8 +1533,8 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
         unsigned int minABQ, // = 25
         unsigned int phred_max_sscs,
         unsigned int phred_max_dscs,
-        const ErrorCorrectionType errorCorrectionType,
-        bool is_by_capture) {
+        bool use_deduplicated_reads,
+        bool use_BQcapped_VAQ) {
     fmt.note = symbol2CountCoverageSet12.additional_note.getByPos(refpos).at(symbol);
     for (unsigned int strand = 0; strand < 2; strand++) {
         
@@ -1606,7 +1606,7 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
     fmt.bFA = (double)(fmtbAD) / (double)(fmt.bDP);
     
     auto fmtAD = 0;
-    if (CORRECTION_BASEQUAL != errorCorrectionType) {
+    if (use_deduplicated_reads) {
         fmt.DP = fmt.cDPTT[0] + fmt.cDPTT[1];
         fmtAD = fmt.cADTT[0] + fmt.cADTT[1];
         fmt.FA = (double)(fmtAD) / (double)(fmt.DP);
@@ -1638,13 +1638,13 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
     
     fmt.VType = SYMBOL_TO_DESC_ARR[symbol];
     double lowestVAQ = prob2phred(1 / (double)(fmt.bAD1[0] + fmt.bAD1[1] + 1)) * ((fmt.bAD1[0] + fmt.bAD1[1]) / (fmt.bDP1[0] + fmt.bDP1[1] + DBL_MIN)) / (double)2;
-    double maxVAQs[2] = {0, 0};
+    double stdVAQs[2] = {0, 0};
     std::array<unsigned int, 2> weightedQT3s = {0, 0};
     for (size_t i = 0; i < 2; i++) {
         auto minAD1 = 1; 
         auto maxAD1 = 1;
         auto gapAD1 = 0;
-        if (CORRECTION_BASEQUAL != errorCorrectionType) {
+        if (use_deduplicated_reads) {
             minAD1 = MIN(fmt.bAD1[i], fmt.cAD1[i]); // prevent symbol with suffix = _N
             maxAD1 = MAX(fmt.bAD1[i], fmt.cAD1[i]);
             gapAD1 = maxAD1 - minAD1;
@@ -1654,21 +1654,21 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
         }
         double currVAQ = (fmt.bVQ3[i] * minAD1 + fmt.cVQ3[i] * gapAD1) / (double)(minAD1 + gapAD1 + DBL_MIN); // prevent div by zero
         weightedQT3s[i] = (fmt.bQT3[i] * minAD1 + fmt.cQT3[i] * gapAD1) / (double)(minAD1 + gapAD1 + DBL_MIN);
-        if ((fmt.bQT2[i] >= minABQ) || (is_by_capture)) {
-            maxVAQs[i] = MAX(maxVAQs[i], currVAQ);
+        if ((fmt.bQT2[i] >= minABQ) || (!use_BQcapped_VAQ)) {
+            stdVAQs[i] = currVAQ;
         } else {
-            maxVAQs[i] = MAX(maxVAQs[i], MIN(currVAQ, minABQ));
+            stdVAQs[i] = MIN(currVAQ, minABQ);
         }
     }
-    //double minVAQ = MIN(maxVAQs[0], maxVAQs[1]);
-    //double maxVAQ = MAX(maxVAQs[0], maxVAQs[1]);
+    //double minVAQ = MIN(stdVAQs[0], stdVAQs[1]);
+    //double stdVAQ = MAX(stdVAQs[0], stdVAQs[1]);
     
     double weightsum = MIN((double)(weightedQT3s[0] + weightedQT3s[1]), phred_max_dscs);
-    double doubleVAQfw = maxVAQs[0] + maxVAQs[1] * MIN(1.0, (weightsum - weightedQT3s[0]) / (weightedQT3s[0] + DBL_EPSILON));
-    double doubleVAQrv = maxVAQs[1] + maxVAQs[0] * MIN(1.0, (weightsum - weightedQT3s[1]) / (weightedQT3s[1] + DBL_EPSILON));
+    double doubleVAQfw = stdVAQs[0] + stdVAQs[1] * MIN(1.0, (weightsum - weightedQT3s[0]) / (weightedQT3s[0] + DBL_EPSILON));
+    double doubleVAQrv = stdVAQs[1] + stdVAQs[0] * MIN(1.0, (weightsum - weightedQT3s[1]) / (weightedQT3s[1] + DBL_EPSILON));
     
     double doubleVAQ = MAX(doubleVAQfw, doubleVAQrv);
-    // double doubleVAQ = maxVAQ + (minVAQ * (phred_max_dscs - phred_max_sscs) / (double)phred_max_sscs);
+    // double doubleVAQ = stdVAQ + (minVAQ * (phred_max_dscs - phred_max_sscs) / (double)phred_max_sscs);
     double duplexVAQ = (double)fmt.dAD3 * (double)(phred_max_dscs - phred_max_sscs) - (double)(fmt.dAD1 - fmt.dAD3); // h01_to
     fmt.VAQ = MAX(lowestVAQ, doubleVAQ + duplexVAQ);
     return (int)(fmt.bAD1[0] + fmt.bAD1[1]);
