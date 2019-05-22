@@ -1779,15 +1779,24 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
     if (is_novar) {
         vcffilter += (std::string(bcfrec::FILTER_IDS[bcfrec::noVar]) + ";");
     }
-    if (vcfqual < 50) {
-        vcffilter += (std::string(bcfrec::FILTER_IDS[bcfrec::q50]) + ";");
-    }
     if (0 < vcffilter.size()) {
         vcffilter.pop_back();
     }
     
     if (0 == vcffilter.size()) {
-        vcffilter += ("PASS");
+        if (vcfqual < 10) {
+            vcffilter += (std::string(bcfrec::FILTER_IDS[bcfrec::Q10]) + ";");
+        } else if (vcfqual < 20) {
+            vcffilter += (std::string(bcfrec::FILTER_IDS[bcfrec::Q20]) + ";");
+        } else if (vcfqual < 30) {
+            vcffilter += (std::string(bcfrec::FILTER_IDS[bcfrec::Q30]) + ";");
+        } else if (vcfqual < 40) {
+            vcffilter += (std::string(bcfrec::FILTER_IDS[bcfrec::Q40]) + ";");
+        } else if (vcfqual < 50) {
+            vcffilter += (std::string(bcfrec::FILTER_IDS[bcfrec::Q50]) + ";");
+        } else {
+            vcffilter += ("PASS");
+        }
     }
 
     if (!is_novar && vcfqual >= vcfqual_thres) {

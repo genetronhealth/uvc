@@ -51,11 +51,14 @@ const std::string vcf_number_to_header_str(int num) {
 const std::vector<std::pair<std::string, std::string>> FILTER_VEC = {
     std::make_pair("noVar",         "Not a variant (for example, when REF and ALT are the same), but still included to get all statistics."),
     std::make_pair("upstreamDel",   "Deletion extended from another upstream deletion"),
-    std::make_pair("q50",           "Quality below 50"),
     std::make_pair("cad3",          "Less than 3 clean deduppd reads"),
     std::make_pair("caf3",          "Less than 3/10000 allele fraction base on clean deduped reads"),
     std::make_pair("s50",           "Less than 50\% of samples have data"),
-    std::make_pair("Q90",           "Quality below 90 and no other filters"),
+    std::make_pair("Q10",           "Quality below 10 and no other filters"),
+    std::make_pair("Q20",           "Quality below 20 and no other filters"),
+    std::make_pair("Q30",           "Quality below 30 and no other filters"),
+    std::make_pair("Q40",           "Quality below 40 and no other filters"),
+    std::make_pair("Q50",           "Quality below 50 and no other filters"),
 };
 
 struct BcfFormatStruct {
