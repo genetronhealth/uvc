@@ -2,31 +2,57 @@
 #define common_INCLUDED
 #define NUM_BUCKETS (64)
 
+#include <string>
+#include <vector>
+
 const char *const NOT_PROVIDED = "";
 
-enum LibPrepType {
-    LIB_PREP_AUTO,
-    LIB_PREP_CAPTURE,
-    LIB_PREP_PCR,
+enum AssayType {
+    ASSAY_TYPE_AUTO,
+    ASSAY_TYPE_CAPTURE,
+    ASSAY_TYPE_AMPLICON,
 };
 
-enum SequencingType {
-    SEQ_TYPE_AUTO,
-    SEQ_TYPE_NORMAL,
-    SEQ_TYPE_BARCODE,
-    SEQ_TYPE_DUPLEX,
+const std::vector<std::string> ASSAY_TYPE_TO_MSG = {
+    [ASSAY_TYPE_AUTO] = "Automatically infer assay type from the data (根据数据自动判断试验类型)",
+    [ASSAY_TYPE_CAPTURE] = "Data is generatd from a capture-based assay (捕获试验)",
+    [ASSAY_TYPE_AMPLICON] = "Data is generated from an amplicon-based assay  (扩增子试验)" 
+};
+
+enum MoleculeTag {
+    MOLECULE_TAG_AUTO,
+    MOLECULE_TAG_NONE,
+    MOLECULE_TAG_BARCODING,
+    MOLECULE_TAG_DUPLEX,
+};
+
+const std::vector<std::string> MOLECULE_TAG_TO_MSG = {
+    [MOLECULE_TAG_AUTO] = "Automatically infer assay type from the data (根据数据自动判断试验类型)",
+    [MOLECULE_TAG_NONE] = "Molecule is not tagged (没有分子标签)",
+    [MOLECULE_TAG_BARCODING] = "Molecule is tagged with an unique molecular identifer on one strand as in SAFE-SEQ (有单链分子标签)", 
+    [MOLECULE_TAG_DUPLEX] = "Molecule is tagged with a duplex tag (有双链分子标签)",
 };
 
 enum SequencingPlatform {
-    SEQ_PLAT_AUTO,
-    SEQ_PLAT_ILLUMINA,
-    SEQ_PLAT_IONTORRENT,
+    SEQUENCING_PLATFORM_AUTO,
+    SEQUENCING_PLATFORM_ILLUMINA,
+    SEQUENCING_PLATFORM_IONTORRENT,
 };
 
-enum ReadEnd {
-    READ_END_AUTO,
-    READ_END_SINGLE,
-    READ_END_PAIR,
+const std::vector<std::string> SEQUENCING_PLATFORM_TO_MSG = {
+    [SEQUENCING_PLATFORM_AUTO] = "Automatically infer assay type from the data (根据数据自动判断试验类型)",
+    [SEQUENCING_PLATFORM_ILLUMINA] = "Illumina sequencing platform",
+    [SEQUENCING_PLATFORM_IONTORRENT] = "IonTorrent sequencing platform by Life Technologies",
+};
+
+enum PairEndMerge {
+    PAIR_END_MERGE_YES,
+    PAIR_END_MERGE_NO,
+};
+
+const std::vector<std::string> PAIR_END_MERGE_TO_MSG = {
+    [PAIR_END_MERGE_YES] = "paired-end sequenced segments are merged (合并R1和R2)",
+    [PAIR_END_MERGE_NO]  = "paired-end sequenced segments are not merged (不合并R1和R2)",
 };
 
 enum ErrorCorrectionType {
