@@ -99,6 +99,14 @@ void check_file_exist(const std::string & fname, const std::string ftype) {
     }
 }
 
+const std::string stringvec_to_descstring(const std::vector<std::string> & v) {
+    std::string ret;
+    for (unsigned int i = 0; i < v.size(); i++) {
+        ret += std::to_string(i) + " : " + v[i] + ". ";
+    }
+    return ret;
+};
+
 int
 CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *const* argv) {
     parsing_result_flag = -1;
@@ -139,8 +147,23 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
     app.add_option("--bq-phred-added-misma", bq_phred_added_misma, "Additional base-quality phred score added to match and mismatch, recommend 6 for Illumina and BGI.");
     app.add_option("--bq-phred-added-indel", bq_phred_added_indel, "Additional base-quality phred score added to indel and no-indel, recommend 6 for IonTorrent.");
     app.add_option("--should-add-note",      should_add_note,      "Boolean indicating if the program generates more detail in the vcf result file.");
+
+    app.add_option("--is-dup-aware",         is_dup_aware,             "Is aware of the duplicated reads in BAM data. " + stringvec_to_descstring(ASSAY_TYPE_TO_MSG), true);
+    unsigned int assay_type_uint = (unsigned int)assay_type;
+    unsigned int molecule_tag_uint = (unsigned int)molecule_tag;
+    unsigned int sequencing_platform_uint = (unsigned int)sequencing_platform;
+    unsigned int pair_end_merge_uint = (unsigned int)pair_end_merge;
+    app.add_option("--assy-type",            assay_type_uint,           "Assay type. " + stringvec_to_descstring(ASSAY_TYPE_TO_MSG), true);
+    app.add_option("--molecule-tag",         molecule_tag_uint,         "Molecule tag. " + stringvec_to_descstring(MOLECULE_TAG_TO_MSG), true);
+    app.add_option("--sequencing-platform",  sequencing_platform_uint,  "Sequencing platform. " + stringvec_to_descstring(SEQUENCING_PLATFORM_TO_MSG), true);
+    app.add_option("--pair-end-merge",       pair_end_merge_uint,       "Merge stat. " + stringvec_to_descstring(ASSAY_TYPE_TO_MSG), true);
     
     app.callback([&]() {
+        assay_type = (AssayType)assay_type_uint;
+        molecule_tag_uint = (MoleculeTag)molecule_tag_uint;
+        sequencing_platform = (SequencingPlatform)sequencing_platform_uint;
+        pair_end_merge = (PairEndMerge)pair_end_merge_uint;
+        
         check_file_exist(bam_input_fname, "BAM");
         check_file_exist(bam_input_fname + ".bai", "BAM index");
         if (fasta_ref_fname.compare(std::string("NA")) != 0) {
