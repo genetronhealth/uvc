@@ -1670,7 +1670,7 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
     double doubleVAQ = MAX(doubleVAQfw, doubleVAQrv);
     // double doubleVAQ = stdVAQ + (minVAQ * (phred_max_dscs - phred_max_sscs) / (double)phred_max_sscs);
     double duplexVAQ = (double)fmt.dAD3 * (double)(phred_max_dscs - phred_max_sscs) - (double)(fmt.dAD1 - fmt.dAD3); // h01_to
-    fmt.VAQ = MAX(lowestVAQ, doubleVAQ + duplexVAQ);
+    fmt.VAQ = MAX(lowestVAQ, doubleVAQ + duplexVAQ) / 2.0;
     return (int)(fmt.bAD1[0] + fmt.bAD1[1]);
 };
 
