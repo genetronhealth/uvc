@@ -9,9 +9,9 @@
 
 #include "CmdLineArgs.hpp"
 
-std::string CommandLineArgs::selfUpdateByPlatform() {
-    std::string plat;
-    if ("auto" == this->platform) {
+SequencingPlatform CommandLineArgs::selfUpdateByPlatform() {
+    SequencingPlatform inferred_sequencing_platform = this->sequencing_platform;
+    if (SEQUENCING_PLATFORM_AUTO == this->sequencing_platform || SEQUENCING_PLATFORM_OTHER == this->sequencing_platform) {
         // unsigned int bqsum = 0;
         unsigned int bqcnt = 0;
 
@@ -52,6 +52,8 @@ std::string CommandLineArgs::selfUpdateByPlatform() {
         bam_hdr_destroy(samheader);
         sam_close(sam_infile);
         
+        // The 2/3 of max base quality (BQ) as threshold has no theoretical foundation, so commented out
+        /*
         unsigned int phredmax = 0;
         for (int i = 0; i < 96; i++) { 
             if (0 < phred2countArr[i]) { 
@@ -69,26 +71,24 @@ std::string CommandLineArgs::selfUpdateByPlatform() {
             }
         }
         bool has_enough_pass = phredpass >= phredfail * 3;
+        */
         if (0 < countPE) {
-            //if (indel_len * 500 <= bqcnt) {
-            plat = "illumina";
-            minABQ += phredcut;
+            inferred_sequencing_platform = SEQUENCING_PLATFORM_ILLUMINA;
         } else {
-            plat = "iontorrent";
-            minABQ = 0;
+            inferred_sequencing_platform = SEQUENCING_PLATFORM_IONTORRENT;
         }
-    } else {
-        plat = this->platform;
     }
-    if ("iontorrent" == plat) {
+    if (SEQUENCING_PLATFORM_IONTORRENT == inferred_sequencing_platform && SEQUENCING_PLATFORM_OTHER != this->sequencing_platform) {
         bq_phred_added_indel += 0;
         bq_phred_added_misma += 6;
+        minABQ += 25;
     }
-    if ("illumina" == plat) {
+    if (SEQUENCING_PLATFORM_ILLUMINA == inferred_sequencing_platform && SEQUENCING_PLATFORM_OTHER != this->sequencing_platform) {
         bq_phred_added_indel += 6;
         bq_phred_added_misma += 0;
+        minABQ += 0;
     }
-    return plat;
+    return inferred_sequencing_platform;
 }
 
 void check_file_exist(const std::string & fname, const std::string ftype) {
@@ -108,7 +108,7 @@ const std::string stringvec_to_descstring(const std::vector<std::string> & v) {
 };
 
 int
-CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *const* argv) {
+CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & inferred_sequencing_platform, int argc, const char *const* argv) {
     parsing_result_flag = -1;
     auto version_cb = [](int count){
         std::cout << "uvc-" << VERSION << std::endl;
@@ -135,7 +135,7 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
     app.add_option("--mapqual",      min_mapqual,       "Minimum mapping  quality below which the alignment is filtered out (如果比对质量低于此值则过滤掉一行的比对结果).", true);
     app.add_option("--phred-sscs",   phred_max_sscs,    "Maximum phred score for single-strand consensus sequences (SSCSs)", true);
     app.add_option("--phred-dscs",   phred_max_dscs,    "Maximum phred score for double-strand consensus sequences (DSCSs)", true);
-    app.add_option("--platform",     platform,          "Platform or the sequencer that generated the data, which is either illumina or iontorrent."); 
+    //app.add_option("--platform",     platform,          "Platform or the sequencer that generated the data, which is either illumina or iontorrent."); 
     app.add_option("--minABQ",       minABQ,            "Minimum average base quality below which variant quality is capped to average base quality, "
                    "recommend 25 for Illumina and 0 for IonTorrent "
                    " (如果位点平均碱基质量低于此值则变异质量不会超过平均碱基质量，建议对Illumina用25并且对IonTorrent用0).", true); 
@@ -167,7 +167,7 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
         } else {
             fasta_ref_fname = "";
         }
-        this->selfUpdateByPlatform();
+        inferred_sequencing_platform = this->selfUpdateByPlatform();
         parsing_result_flag = 0;
     });
     

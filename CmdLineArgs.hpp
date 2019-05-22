@@ -29,12 +29,12 @@ struct CommandLineArgs {
     uint32_t    phred_max_sscs = 50;
     uint32_t    phred_max_dscs = 60;
     double      vqual = 10;
-    std::string platform = "auto";
+    //std::string platform = "auto";
     uint32_t    minABQ = 0;
     uint32_t    bq_phred_added_indel = 0;
     uint32_t    bq_phred_added_misma = 0;
     bool        should_add_note = false;
-    int initFromArgCV(int & parsing_result_flag, int argc, const char *const* argv);
-    std::string selfUpdateByPlatform(void); 
+    int initFromArgCV(int & parsing_result_flag, SequencingPlatform & inferred_sequencing_platform, int argc, const char *const* argv);
+    SequencingPlatform selfUpdateByPlatform(void);
 };
 #endif

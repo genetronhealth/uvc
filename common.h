@@ -37,12 +37,21 @@ enum SequencingPlatform {
     SEQUENCING_PLATFORM_AUTO,
     SEQUENCING_PLATFORM_ILLUMINA,
     SEQUENCING_PLATFORM_IONTORRENT,
+    SEQUENCING_PLATFORM_OTHER,
 };
 
 const std::vector<std::string> SEQUENCING_PLATFORM_TO_MSG = {
     [SEQUENCING_PLATFORM_AUTO] = "Automatically infer assay type from the data (根据数据自动判断试验类型)",
-    [SEQUENCING_PLATFORM_ILLUMINA] = "Illumina sequencing platform",
+    [SEQUENCING_PLATFORM_ILLUMINA] = "Illumina sequencing platform (compatible with BGI)",
     [SEQUENCING_PLATFORM_IONTORRENT] = "IonTorrent sequencing platform by Life Technologies",
+    [SEQUENCING_PLATFORM_OTHER] = "Other sequencing platform (for example, Nanopore)",
+};
+
+const std::vector<std::string> SEQUENCING_PLATFORM_TO_DESC = {
+    [SEQUENCING_PLATFORM_AUTO] = "AUTO",
+    [SEQUENCING_PLATFORM_ILLUMINA] = "ILLUMINA/BGI",
+    [SEQUENCING_PLATFORM_IONTORRENT] = "IONTORRENT/LifeTechnologies",
+    [SEQUENCING_PLATFORM_OTHER] = "OTHER",
 };
 
 enum PairEndMerge {
