@@ -21,13 +21,13 @@ callTN.st.out : callTN.c Makefile
 	gcc -O2 -g -p -o callTN.st.out callTN.c -lhts
 
 uvc        : $(HDR) $(SRC) instcode.hpp Makefile
-	g++ -O3 -DNDEBUG -o uvc        $(CXXFLAGS) $(SRC) $(VERFLAGS) -L/biocluster/data/bioexec/software/htslib-1.6/ -lhts -fopenmp # -l htslib
+	g++ -O3 -DNDEBUG -o uvc        $(CXXFLAGS) main.cpp CmdLineArgs.cpp $(VERFLAGS) -L/biocluster/data/bioexec/software/htslib-1.6/ -lhts -fopenmp # -l htslib
 
 uvc.st.out : $(HDR) $(SRC) instcode.hpp Makefile
-	g++ -O2 -g -p    -o uvc.st.out $(CXXFLAGS) $(SRC) $(VERFLAGS) -L/biocluster/data/bioexec/software/htslib-1.6/ -lhts	
+	g++ -O2 -g -p    -o uvc.st.out $(CXXFLAGS) main.cpp CmdLineArgs.cpp $(VERFLAGS) -L/biocluster/data/bioexec/software/htslib-1.6/ -lhts	
 
 uvc.mt.out : $(HDR) $(SRC) instcode.hpp Makefile
-	g++ -O2 -g -p    -o uvc.mt.out $(CXXFLAGS) $(SRC) $(VERFLAGS) -L/biocluster/data/bioexec/software/htslib-1.6/ -lhts -fopenmp
+	g++ -O2 -g -p    -o uvc.mt.out $(CXXFLAGS) main.cpp CmdLineArgs.cpp $(VERFLAGS) -L/biocluster/data/bioexec/software/htslib-1.6/ -lhts -fopenmp
 
 bcf_formats_generator1.out : bcf_formats_generator1.cpp version.h
 	g++ -o bcf_formats_generator1.out bcf_formats_generator1.cpp

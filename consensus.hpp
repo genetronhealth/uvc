@@ -84,6 +84,16 @@ const char* SYMBOL_TO_DESC_ARR[] = {
     [LINK_NN] = "<LN>",
 };
 
+const std::map<std::string, AlignmentSymbol> _generateDescToSymbolMap() {
+    std::map<std::string, AlignmentSymbol> ret;
+    for (AlignmentSymbol s = AlignmentSymbol(0); s < END_ALIGNMENT_SYMBOLS; s = AlignmentSymbol(1+(unsigned int)s)) {
+        ret[SYMBOL_TO_DESC_ARR[s]] = s;
+    }
+    return ret;
+}
+
+const std::map<std::string, AlignmentSymbol> DESC_TO_SYMBOL_MAP = _generateDescToSymbolMap();
+
 bool areSymbolsMutated(AlignmentSymbol ref, AlignmentSymbol alt) {
     if (alt <= BASE_NN) {
         return ref != alt && ref < BASE_N && alt < BASE_N;
@@ -1099,7 +1109,7 @@ if (curr_depth_symbsum * 5 <= curr_depth_typesum * 4 && curr_depth_symbsum > 0 &
                         bias_2stra[strand].getRefByPos(pos).incSymbolCount(symbol, sb100fin);
                         auto str_imba = biasfact100_to_imba(sb100fin);
                         
-                        max_imba_depth = (unsigned int)ceil(curr_depth_symbsum / MAX(dup_imba, MAX(MAX(pb_ldist_imba, pb_rdist_imba), str_imba)) + (1.0 - DBL_EPSILON));
+                        max_imba_depth = (unsigned int)ceil(curr_depth_symbsum / MAX(dup_imba, MAX(MAX(pb_ldist_imba, pb_rdist_imba), str_imba)) / (1 + DBL_EPSILON));
                         if (should_add_note) {
                             this->additional_note.getRefByPos(pos).at(symbol) += "//(" +
                                     std::to_string(uqual_avg_imba) + "/" + 
@@ -1534,7 +1544,8 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
         unsigned int phred_max_sscs,
         unsigned int phred_max_dscs,
         bool use_deduplicated_reads,
-        bool use_BQcapped_VAQ) {
+        bool use_BQcapped_VAQ,
+        bool is_rescued) {
     fmt.note = symbol2CountCoverageSet12.additional_note.getByPos(refpos).at(symbol);
     for (unsigned int strand = 0; strand < 2; strand++) {
         
@@ -1616,7 +1627,7 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
         fmt.FA = fmt.bFA;
     }
     
-    if (fmtAD > 0) {
+    if (fmtAD > 0 || is_rescued) {
         assert(fmt.FA >= 0);
         if (fmt.FA > (0.8 - DBL_EPSILON)) {
             fmt.GT = (is_novar ? "0/0" : "1/1");
@@ -1703,6 +1714,11 @@ generateVcfHeader(const char *ref_fasta_fname, const char *platform, const unsig
     for (unsigned int i = 0; i < bcfrec::FILTER_NUM; i++) {
         ret += std::string("") + bcfrec::FILTER_LINES[i] + "\n";
     }
+
+    ret += "##INFO=<ID=TNQ,Number=1,Type=Float,Description=\"Tumor-vs-normal quality based on sample comparison\">\n";
+    ret += "##INFO=<ID=tVAQ,Number=1,Type=Float,Description=\"Tumor-sample VAQ\">\n";
+    ret += "##INFO=<ID=tDP,Number=1,Type=Integer,Description=\"Tumor-sample DP\">\n";
+    ret += "##INFO=<ID=tFA,Number=1,Type=Float,Description=\"Tumor-sample FA\">\n";
     
     for (unsigned int i = 0; i < bcfrec::FORMAT_NUM; i++) {
         ret += std::string("") + bcfrec::FORMAT_LINES[i] + "\n";
@@ -1724,12 +1740,14 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         const std::string & refstring,
         const unsigned int extended_inclu_beg_pos, 
         const double vcfqual_thres,
-        const bool should_output_all
+        const bool should_output_all,
+        const auto & tki, const bool prev_is_tumor
         ) {
-    
+     
     assert(refpos >= extended_inclu_beg_pos);
     assert(refpos - extended_inclu_beg_pos < refstring.size());
     
+    const bool is_rescued = (tki.DP > 0);
     unsigned int editdist = 1;
     const unsigned int regionpos = refpos - extended_inclu_beg_pos;
     const char *altsymbolname = SYMBOL_TO_DESC_ARR[symbol];
@@ -1743,11 +1761,13 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         vcfalt = vcfref;
         std::string indelstring;
         if (fmt.gapNum[0] <= 0 && fmt.gapNum[1] <= 0) {
-            std::cerr << "Invalid indel detected : " << tname << ", " << refpos << ", " << SYMBOL_TO_DESC_ARR[symbol] << std::endl;
-            std::string msg;
-            bcfrec::streamAppendBcfFormat(msg, fmt);
-            std::cerr << msg << "\n";
-            assert(false);
+            if (!is_rescued) {
+                std::cerr << "Invalid indel detected (invalid mutation) : " << tname << ", " << refpos << ", " << SYMBOL_TO_DESC_ARR[symbol] << std::endl;
+                std::string msg;
+                bcfrec::streamAppendBcfFormat(msg, fmt);
+                std::cerr << msg << "\n";
+                assert(false);
+            }
         } else if (fmt.gapNum[0] <= 0 || fmt.gapNum[1] <= 0) {
             indelstring = fmt.gapSeq[0];
         } else {
@@ -1772,7 +1792,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         vcfalt = altsymbolname;
     }
     
-    const float vcfqual = fmt.VAQ;
+    float vcfqual = fmt.VAQ;
     
     bool is_novar = (symbol == LINK_M || (isSymbolSubstitution(symbol) && vcfref == vcfalt));
     std::string vcffilter;
@@ -1781,6 +1801,35 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
     }
     if (0 < vcffilter.size()) {
         vcffilter.pop_back();
+    }
+    
+    std::string ref_alt;
+    std::string infostring;
+    if (prev_is_tumor) {
+        vcfpos = (tki.ref_alt != "." ? (tki.pos + 1) : vcfpos);
+        ref_alt = (tki.ref_alt != "." ? tki.ref_alt : vcfref + "\t" + vcfalt);
+        const double depth_pseudocount = 1.0;
+        double tDP = (double)tki.DP;
+        double nDP = (double)fmt.DP;
+        double tAD = (tDP * (double)tki.FA);
+        double nAD = (nDP * (double)fmt.FA);
+        double tnlike = h01_to_phredlike<false>(
+                nAD + depth_pseudocount, nDP + depth_pseudocount, 
+                tAD + depth_pseudocount, tDP + depth_pseudocount, 
+                DBL_EPSILON, (1+1e-4)); // TODO: check if pseudocount should be 0.5 or 1.0 ?
+        if (!(tnlike < 1e7)) {
+            fprintf(stderr, "tnlike %f is invalid!, computed from %f %f %f %f !!!\n", tnlike, tDP, nDP, tAD, nAD);
+            abort();
+        }
+        infostring = std::string("TNQ=") + std::to_string(tnlike);
+        infostring += std::string(";tVAQ=") + std::to_string(tki.VAQ);
+        infostring += std::string(";tDP=") + std::to_string(tki.DP);
+        infostring += std::string(";tFA=") + std::to_string(tki.FA);
+        auto finalGQ = (("1/0" == fmt.GT) ? fmt.GQ : 0);
+        vcfqual = MIN(MIN(tnlike + 25, finalGQ + 30), tki.VAQ); // (germline + sys error) freq of 10^(-25/10)
+    } else {
+        ref_alt = vcfref + "\t" + vcfalt;
+        infostring = ".";
     }
     
     if (0 == vcffilter.size()) {
@@ -1797,18 +1846,18 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         } else {
             vcffilter += ("PASS");
         }
-    }
-
+    }    
+    
     if (!is_novar && vcfqual >= vcfqual_thres) {
-        out_string_pass += std::string(tname) + "\t" + std::to_string(vcfpos) + "\t.\t" + vcfref + "\t" + vcfalt + "\t" 
-            + std::to_string(vcfqual) + "\t" + vcffilter + "\t.\t" + bcfrec::FORMAT_STR_PER_REC + "\t";
+        out_string_pass += std::string(tname) + "\t" + std::to_string(vcfpos) + "\t.\t" + ref_alt + "\t" 
+            + std::to_string(vcfqual) + "\t" + vcffilter + "\t" + infostring + "\t" + bcfrec::FORMAT_STR_PER_REC + "\t";
         bcfrec::streamAppendBcfFormat(out_string_pass, fmt);
         out_string_pass += "\n";
     }
     
     if (should_output_all) {
-        out_string += std::string(tname) + "\t" + std::to_string(vcfpos) + "\t.\t" + vcfref + "\t" + vcfalt + "\t" 
-                + std::to_string(vcfqual) + "\t" + vcffilter + "\t.\t" + bcfrec::FORMAT_STR_PER_REC + "\t";
+        out_string += std::string(tname) + "\t" + std::to_string(vcfpos) + "\t.\t" + ref_alt + "\t"
+                + std::to_string(vcfqual) + "\t" + vcffilter + "\t" + infostring + "\t" + bcfrec::FORMAT_STR_PER_REC + "\t";
         bcfrec::streamAppendBcfFormat(out_string, fmt);
         out_string += "\n";
     }

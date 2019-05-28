@@ -1,5 +1,6 @@
 #include "htslib/bgzf.h"
 #include "htslib/faidx.h"
+#include "htslib/synced_bcf_reader.h"
 #include "CmdLineArgs.hpp"
 #include "consensus.hpp"
 #include "grouping.hpp"
@@ -142,6 +143,8 @@ struct BatchArg {
     unsigned int thread_id;
     hts_idx_t *hts_idx;
     faidx_t *ref_faidx;
+    bcf_hdr_t *bcf_hdr;
+    bcf_srs_t *sr;
     
     std::tuple<unsigned int, unsigned int, unsigned int, bool, unsigned int> tid_beg_end_e2e_tuple;
     std::tuple<std::string, unsigned int> tname_tseqlen_tuple;
@@ -228,6 +231,47 @@ is_sig_out(auto a, auto minval, auto maxval, unsigned int mfact, unsigned int af
     return is_sig_higher_than(a, minval, mfact, afact) || is_sig_higher_than(maxval, a, mfact, afact);
 }
 
+struct TumorKeyInfo {
+    std::string ref_alt;
+    int32_t pos = 0;
+    float VAQ = 0;
+    int32_t DP = 0;
+    float FA = 0;
+};
+
+std::string als_to_string(const char *const* const allele, unsigned int m_allele) {
+    std::string ret;
+    ret.reserve(m_allele*2);
+    for (unsigned int i = 0; i < m_allele; i++) {
+        if (0 == i) {
+            ret += allele[i];
+        } else if (1 == i) {
+            ret += std::string("\t") + allele[i];
+        } else {
+            ret += std::string(",") + allele[i];
+        }
+    }
+    /*
+    ret.reserve(m_als+1);
+    unsigned int n_alleles = 0;
+    for (unsigned int i = 0; i < m_als; i++) {
+        if ('\0' == als[i]) {
+            if (0 == n_alleles) {
+                ret += "\t";
+            } else if ((i+1) != m_als) {
+                ret += ",";
+            } else {
+                // pass
+            }
+            n_alleles++;
+        } else {
+            ret += als[i];
+        }
+    }
+    */
+    return ret;
+}
+
 int 
 process_batch(BatchArg & arg) {
     
@@ -235,6 +279,10 @@ process_batch(BatchArg & arg) {
     std::string & outstring_pass = arg.outstring_pass;
     const hts_idx_t *const hts_idx = arg.hts_idx;
     const faidx_t *const ref_faidx = arg.ref_faidx;
+    
+    const bcf_hdr_t *const bcf_hdr = arg.bcf_hdr;
+    // bcf_srs_t *const sr = arg.sr;
+    
     const CommandLineArgs & paramset = arg.paramset;
     const std::string UMI_STRUCT_STRING = arg.UMI_STRUCT_STRING;
     const std::tuple<unsigned int, unsigned int, unsigned int, bool, unsigned int> tid_beg_end_e2e_tuple = arg.tid_beg_end_e2e_tuple;
@@ -249,7 +297,7 @@ process_batch(BatchArg & arg) {
     std::string raw_out_string;
     std::string raw_out_string_pass;
     // faidx_t *ref_faidx = (fasta_ref_fname.size() > 0 ? fai_load(fasta_ref_fname.c_str()) : NULL);
-
+    
     auto tid = std::get<0>(tid_beg_end_e2e_tuple);
     auto incluBegPosition = std::get<1>(tid_beg_end_e2e_tuple);
     auto excluEndPosition = std::get<2>(tid_beg_end_e2e_tuple);
@@ -276,6 +324,78 @@ process_batch(BatchArg & arg) {
     AssayType inferred_assay_type = ((ASSAY_TYPE_AUTO == paramset.assay_type) ? (is_by_capture ? ASSAY_TYPE_CAPTURE : ASSAY_TYPE_AMPLICON) : (paramset.assay_type));
     
     if (0 == num_passed_reads) { return -1; };
+   
+    const unsigned int rpos_inclu_beg = MAX(incluBegPosition, extended_inclu_beg_pos);
+    const unsigned int rpos_exclu_end = MIN(excluEndPosition, extended_exclu_end_pos); 
+
+    std::vector<std::array<TumorKeyInfo, NUM_ALIGNMENT_SYMBOLS>> extended_posidx_to_symbol_to_tkinfo(extended_exclu_end_pos - extended_inclu_beg_pos + 1);
+    
+    if (paramset.vcf_tumor_fname.size() != 0) {
+        std::string regionstring = (std::get<0>(tname_tseqlen_tuple) + ":" + std::to_string(rpos_inclu_beg+1) + "-" + std::to_string(rpos_exclu_end+1-1));
+        
+        if (is_loginfo_enabled) { LOG(logINFO) << "Region is " << regionstring << " for thread " << thread_id; }
+        bcf_srs_t *const sr = bcf_sr_init();
+        if (NULL == sr) {
+            LOG(logCRITICAL) << "Failed to initialize bcf sr for thread with ID = " << thread_id;
+            exit(-6);
+        }
+        
+        int retflag = bcf_sr_set_regions(sr, regionstring.c_str(), false);
+        // bcf_sr_set_opt(srs[i], BCF_SR_PAIR_LOGIC, BCF_SR_PAIR_BOTH_REF); 
+        int sr_set_opt_retval = bcf_sr_set_opt(sr, BCF_SR_REQUIRE_IDX);
+        int sr_add_reader_retval = bcf_sr_add_reader(sr, paramset.vcf_tumor_fname.c_str());
+        if (sr_add_reader_retval != 1) {
+            LOG(logCRITICAL) << "Failed to synchronize-read the tumor vcf " << paramset.vcf_tumor_fname << " for thread with ID = " << thread_id;
+            exit(-7);
+        }
+        
+        int valsize = 0; 
+        int ndst_val = 0;
+        char *tVType = NULL;
+        float *tVAQ = NULL;
+        int32_t *tDP = NULL;
+        float *tFA = NULL;
+        while (bcf_sr_next_line(sr)) {
+            bcf1_t *line = bcf_sr_get_line(sr, 0);
+            ndst_val = 0;
+            valsize = bcf_get_format_char(bcf_hdr, line, "VType", &tVType, &ndst_val);
+            if (valsize <= 0) { continue; }
+            assert(ndst_val == valsize);
+            std::string desc(tVType);
+            // LOG(logINFO) << "Trying to retrieve the symbol " << desc << " at pos " << line->pos << " valsize = " << valsize << " ndst_val = " << ndst_val;
+            AlignmentSymbol symbol = DESC_TO_SYMBOL_MAP.at(desc);
+            auto pos = (isSymbolSubstitution(symbol) ? (line->pos) : (line->pos + 1));
+            if (pos < extended_inclu_beg_pos && isSymbolDel(symbol)) {
+                continue;
+            }
+            auto intpos = pos - extended_inclu_beg_pos;
+            if (!(intpos < extended_posidx_to_symbol_to_tkinfo.size())) {
+                LOG(logINFO) << "Warning!!! Trying to retrieve the symbol " << desc << " at pos " << line->pos << " valsize = " << valsize << " ndst_val = " << ndst_val;
+                fprintf(stderr, "%d < %d failed with regionstring %s!\n", intpos, extended_posidx_to_symbol_to_tkinfo.size(), regionstring.c_str());
+                abort();
+            }
+            ndst_val = 0;
+            valsize = bcf_get_format_float(bcf_hdr, line, "VAQ", &tVAQ, &ndst_val);
+            assert(ndst_val == valsize && valsize > 0 || !fprintf(stderr, "%d == %d && %d > 0 failed!", ndst_val, valsize, valsize));
+            ndst_val = 0;
+            valsize = bcf_get_format_float(bcf_hdr, line,  "FA", &tFA,  &ndst_val);
+            assert(ndst_val == valsize && valsize > 0 || !fprintf(stderr, "%d == %d && %d > 0 failed!", ndst_val, valsize, valsize));
+            ndst_val = 0;
+            valsize = bcf_get_format_int32(bcf_hdr, line,  "DP", &tDP,  &ndst_val);
+            assert(ndst_val == valsize && valsize > 0 || !fprintf(stderr, "%d == %d && %d > 0 failed!", ndst_val, valsize, valsize));
+            extended_posidx_to_symbol_to_tkinfo[intpos][symbol].VAQ += tVAQ[0];
+            extended_posidx_to_symbol_to_tkinfo[intpos][symbol].FA += tFA[0];
+            extended_posidx_to_symbol_to_tkinfo[intpos][symbol].DP += tDP[0];
+            extended_posidx_to_symbol_to_tkinfo[intpos][symbol].pos = line->pos;
+            bcf_unpack(line, BCF_UN_STR);
+            extended_posidx_to_symbol_to_tkinfo[intpos][symbol].ref_alt = als_to_string(line->d.allele, line->d.m_allele);
+        }
+        if (tVType != NULL) {free(tVType);}
+        if (tVAQ != NULL) {free(tVAQ);}
+        if (tDP != NULL) {free(tDP);}
+        if (tFA != NULL) {free(tFA);}
+        bcf_sr_destroy(sr);
+    }
     
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts converting umi_to_strand_to_reads with is_by_capture = " << is_by_capture << "  " ;}
     fill_strand_umi_readset_with_strand_to_umi_to_reads(umi_strand_readset, umi_to_strand_to_reads);
@@ -326,9 +446,6 @@ process_batch(BatchArg & arg) {
     std::string buf_out_string;
     std::string buf_out_string_pass;
     const std::set<size_t> empty_size_t_set;
-    const unsigned int rpos_inclu_beg = MAX(incluBegPosition, extended_inclu_beg_pos);
-    const unsigned int rpos_exclu_end = MIN(excluEndPosition, extended_exclu_end_pos);
-    
     const unsigned int capDP = 10*1000*1000;
     
     unsigned int gbDPmin = capDP;
@@ -358,12 +475,13 @@ process_batch(BatchArg & arg) {
                     const auto simplemut = std::make_pair(refpos, symbol);
                     auto indices_bq = (simplemut2indices_bq.find(simplemut) != simplemut2indices_bq.end() ? simplemut2indices_bq[simplemut] : empty_size_t_set); 
                     auto indices_fq = (simplemut2indices_fq.find(simplemut) != simplemut2indices_fq.end() ? simplemut2indices_fq[simplemut] : empty_size_t_set);
-                    
+                    const bool is_rescued = (extended_posidx_to_symbol_to_tkinfo[refpos-extended_inclu_beg_pos][symbol].DP > 0); 
                     int altdepth = fillBySymbol(fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]], symbolToCountCoverageSet12, 
                             refpos, symbol, refstring, extended_inclu_beg_pos, mutform2count4vec_bq, indices_bq, mutform2count4vec_fq, indices_fq, 
                             paramset.minABQ, paramset.phred_max_sscs, paramset.phred_max_dscs, 
                             // ErrorCorrectionType(paramset.seq_data_type), 
-                            paramset.is_dup_aware, (ASSAY_TYPE_CAPTURE != inferred_assay_type));
+                            paramset.is_dup_aware, (ASSAY_TYPE_CAPTURE != inferred_assay_type),
+                            is_rescued);
                 }
                 for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; symbol = AlignmentSymbol(1+(unsigned int)symbol)) {
                     float vaq = fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]].VAQ;
@@ -425,14 +543,16 @@ process_batch(BatchArg & arg) {
             if (rpos_exclu_end != refpos && bDPcDP[0] >= paramset.min_depth_thres) {
                 for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; symbol = AlignmentSymbol(1+(unsigned int)symbol)) {
                     auto & fmt = fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]];
-                    if ((fmt.bAD1[0] + fmt.bAD1[1]) < paramset.min_altdp_thres) {
-                        continue;
+                    const bool pass_thres = ((fmt.bAD1[0] + fmt.bAD1[1]) >= paramset.min_altdp_thres); //  (paramset.min_alt  );
+                    const bool is_rescued = (extended_posidx_to_symbol_to_tkinfo[refpos-extended_inclu_beg_pos][symbol].DP > 0);
+                    if (is_rescued || pass_thres) {
+                        fmt.CType = SYMBOL_TO_DESC_ARR[most_confident_symbol];
+                        fmt.CAQ = most_confident_qual;
+                        appendVcfRecord(buf_out_string, buf_out_string_pass, symbolToCountCoverageSet12,
+                                std::get<0>(tname_tseqlen_tuple).c_str(), refpos, symbol, fmt,
+                                refstring, extended_inclu_beg_pos, paramset.vqual, should_output_all, 
+                                extended_posidx_to_symbol_to_tkinfo[refpos-extended_inclu_beg_pos][symbol], paramset.vcf_tumor_fname.size() != 0);
                     }
-                    fmt.CType = SYMBOL_TO_DESC_ARR[most_confident_symbol];
-                    fmt.CAQ = most_confident_qual;
-                    appendVcfRecord(buf_out_string, buf_out_string_pass, symbolToCountCoverageSet12,
-                            std::get<0>(tname_tseqlen_tuple).c_str(), refpos, symbol, fmt,
-                            refstring, extended_inclu_beg_pos, paramset.vqual, should_output_all);
                 }
             }
         }    
@@ -517,9 +637,17 @@ int main(int argc, char **argv) {
 #else
     const unsigned int nidxs = nthreads;
 #endif
+    
+    bcf_hdr_t *g_bcf_hdr = NULL;
+    if (paramset.vcf_tumor_fname.size() > 0) {
+        htsFile *infile = hts_open(paramset.vcf_tumor_fname.c_str(), "r");
+        g_bcf_hdr = bcf_hdr_read(infile);
+        bcf_close(infile);
+    }
     std::vector<hts_idx_t*> sam_idxs(nidxs, NULL);
     std::vector<samFile*> samfiles(nidxs, NULL);
     std::vector<faidx_t*> ref_faidxs(nidxs, NULL);
+    std::vector<bcf_srs_t*> srs(nidxs, NULL);
     for (size_t i = 0; i < nidxs; i++) {
         samfiles[i] = sam_open(paramset.bam_input_fname.c_str(), "r");
         if (NULL == samfiles[i]) {
@@ -537,6 +665,23 @@ int main(int argc, char **argv) {
                 LOG(logCRITICAL) << "Failed to load reference index for file " << paramset.fasta_ref_fname << " for thread with ID = " << i;
                 exit(-5);
             }
+        }
+        if (paramset.vcf_tumor_fname.size() > 0) {
+            /*
+            srs[i] = bcf_sr_init();
+            if (NULL == srs[i]) {
+                LOG(logCRITICAL) << "Failed to initialize bcf sr for thread with ID = " << i;
+                exit(-6);
+            }
+            // bcf_sr_set_opt(srs[i], BCF_SR_PAIR_LOGIC, BCF_SR_PAIR_BOTH_REF);
+            
+            int sr_set_opt_retval = bcf_sr_set_opt(srs[i], BCF_SR_REQUIRE_IDX);
+            int sr_add_reader_retval = bcf_sr_add_reader(srs[i], paramset.vcf_tumor_fname.c_str());
+            if (sr_add_reader_retval != 1) {
+                LOG(logCRITICAL) << "Failed to synchronize-read the tumor vcf " << paramset.vcf_tumor_fname << " for thread with ID = " << i;
+                exit(-7);
+            }
+            */
         }
     }
     
@@ -636,6 +781,8 @@ int main(int argc, char **argv) {
                     thread_id : 0,
                     hts_idx : NULL, 
                     ref_faidx : NULL,
+                    bcf_hdr : g_bcf_hdr,
+                    sr : NULL,
                     
                     tid_beg_end_e2e_tuple : tid_beg_end_e2e_tuple_vec.at(0),
                     tname_tseqlen_tuple : tid_to_tname_tseqlen_tuple_vec.at(0),
@@ -668,7 +815,7 @@ int main(int argc, char **argv) {
             batcharg.thread_id = thread_id;
             batcharg.hts_idx = sam_idxs[thread_id];
             batcharg.ref_faidx = ref_faidxs[thread_id];
-
+            batcharg.sr = srs[thread_id];
             std::pair<unsigned int, unsigned int> beg_end_pair = beg_end_pair_vec[beg_end_pair_idx];
 #if defined(USE_STDLIB_THREAD)
             std::thread athread([
@@ -687,11 +834,7 @@ int main(int argc, char **argv) {
                         batcharg.regionbatch_ordinal = j;
                         batcharg.tid_beg_end_e2e_tuple = tid_beg_end_e2e_tuple_vec.at(allridx + j);
                         batcharg.tname_tseqlen_tuple = tid_to_tname_tseqlen_tuple_vec.at(std::get<0>(batcharg.tid_beg_end_e2e_tuple));
-                        process_batch(batcharg
-                                //outstrings[j], outstrings_pass[j], paramset, tid_beg_end_e2e_tuple_vec.at(i+j), tid_to_tname_tseqlen_tuple_vec, 
-                                //i+j, j, UMI_STRUCT, this_sam_idx, //sam_idxs[thread_id], 
-                                //ref_faidxs[thread_id], thread_id, is_vcf_out_pass_to_stdout
-                        );
+                        process_batch(batcharg);
                     }
 #if defined(USE_STDLIB_THREAD)
                     //hts_idx_destroy(this_sam_idx);
@@ -718,7 +861,13 @@ int main(int argc, char **argv) {
     clearstring<true>(fp_allp, std::string("")); // write end of file
     clearstring<true>(fp_pass, std::string(""), is_vcf_out_pass_to_stdout);
     bam_hdr_destroy(samheader);
+    if (NULL != g_bcf_hdr) {
+        bcf_hdr_destroy(g_bcf_hdr);
+    }
     for (size_t i = 0; i < nidxs; i++) { 
+        if (NULL != srs[i]) {
+            bcf_sr_destroy(srs[i]);
+        }
         if (NULL != ref_faidxs[i]) { 
             fai_destroy(ref_faidxs[i]); 
         }

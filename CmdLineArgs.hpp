@@ -11,6 +11,7 @@ struct CommandLineArgs {
     std::string vcf_out_pass_fname = "-";
     std::string fasta_ref_fname = "";
     std::string bed_region_fname = "";
+    std::string vcf_tumor_fname = "";
     std::string sample_name = "-";
     std::string tsv_primer_fname = "";
     
