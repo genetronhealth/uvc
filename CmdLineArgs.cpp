@@ -82,11 +82,13 @@ SequencingPlatform CommandLineArgs::selfUpdateByPlatform() {
         bq_phred_added_indel += 0;
         bq_phred_added_misma += 6;
         minABQ += 25;
+        minABQ_capture += 22;
     }
     if (SEQUENCING_PLATFORM_ILLUMINA == inferred_sequencing_platform && SEQUENCING_PLATFORM_OTHER != this->sequencing_platform) {
         bq_phred_added_indel += 6;
         bq_phred_added_misma += 0;
         minABQ += 0;
+        minABQ_capture += 0;
     }
     return inferred_sequencing_platform;
 }
@@ -140,6 +142,10 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     app.add_option("--minABQ",       minABQ,            "Minimum average base quality below which variant quality is capped to average base quality, "
                    "recommend 25 for Illumina and 0 for IonTorrent "
                    " (如果位点平均碱基质量低于此值则变异质量不会超过平均碱基质量，建议对Illumina用25并且对IonTorrent用0).", true); 
+    app.add_option("--minABQ-capt",  minABQ_capture,    "Minimum average base quality below which variant quality is capped to average base quality for capture assay."
+                   "recommend 22 for Illumina and 0 for IonTorrent "
+                   " (如果位点平均碱基质量低于此值则变异质量不会超过平均碱基质量(捕获试验)，建议对Illumina用25并且对IonTorrent用0).", true); 
+
     app.add_option("--bq-phred-added-misma", bq_phred_added_misma, "Additional base-quality phred score added to match and mismatch, recommend 6 for Illumina and BGI.");
     app.add_option("--bq-phred-added-indel", bq_phred_added_indel, "Additional base-quality phred score added to indel and no-indel, recommend 6 for IonTorrent.");
     app.add_option("--should-add-note",      should_add_note,      "Boolean indicating if the program generates more detail in the vcf result file.");

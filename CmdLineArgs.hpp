@@ -32,6 +32,7 @@ struct CommandLineArgs {
     double      vqual = 10;
     //std::string platform = "auto";
     uint32_t    minABQ = 0;
+    uint32_t    minABQ_capture = 0;
     uint32_t    bq_phred_added_indel = 0;
     uint32_t    bq_phred_added_misma = 0;
     bool        should_add_note = false;
