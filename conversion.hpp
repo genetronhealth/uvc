@@ -202,18 +202,18 @@ double dlog(double n, double r) {
 template <bool TIsConsensual = true> 
 double
 h01_to_phredlike(double h0pos, double h0tot, double h1pos, double h1tot, 
-        double pseudocount = 1, double err_amp_ratio = (TIsConsensual ? 2 : pow(2, 0.5))) {
+        double pseudocount = 1, double err_amp_ratio = (TIsConsensual ? 2.0 : 1.5)) {
     assert(h0pos <  h0tot || !fprintf(stderr, "%lf <  %lf failed", h0pos, h0tot));
     assert(h1pos <= h1tot || !fprintf(stderr, "%lf <= %lf failed", h1pos, h1tot));
     assert(h0pos >  0     || !fprintf(stderr, "%lf >  %lf failed", h0pos, 0));
     assert(h1pos >= 0     || !fprintf(stderr, "%lf >= %lf failed", h1pos, 0));
-    if (h1tot <= 0) {
+    if (h1tot <= (DBL_EPSILON * pseudocount)) {
         return 0;
     }
-    double ratio = h1tot / h0tot;
+    double ratio = (h1tot - pseudocount) / h0tot;
     h0tot *= ratio;
     h0pos *= ratio;
-    return dlog(_any4_to_biasfact(h0tot, h1tot, h0pos, h1pos, true, pseudocount), err_amp_ratio) * log((h1pos * h0tot) / (h1tot * h0pos)) * (10.0 / log(10.0));
+    return dlog(_any4_to_biasfact(h0tot + pseudocount, h1tot, h0pos + pseudocount, h1pos, true, 0), err_amp_ratio) * log((h1pos * h0tot) / (h1tot * h0pos)) * (10.0 / log(10.0));
 }
 
 //// one-way conversion of information into other measures of information (based on information theory)
@@ -257,8 +257,10 @@ int main(int argc, char **argv) {
         double a2 = atof(argv[2]);
         double b1 = atof(argv[3]); 
         double b2 = atof(argv[4]);
-        double result1 = _old_h01_to_phredlike<false>(a1, a2, b1, b2);
-        double result2 = h01_to_phredlike<false>(a1, a2, b1, b2);
+        double pc = atof(argv[5]);
+        double ear = atof(argv[6]);
+        double result1 = _old_h01_to_phredlike<false>(a1, a2, b1, b2, pc);
+        double result2 = h01_to_phredlike<false>(a1, a2, b1, b2, pc, ear);
         printf("result12 = %f %f \n", result1, result2);
     }
 }

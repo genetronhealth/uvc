@@ -476,11 +476,12 @@ process_batch(BatchArg & arg) {
                     auto indices_bq = (simplemut2indices_bq.find(simplemut) != simplemut2indices_bq.end() ? simplemut2indices_bq[simplemut] : empty_size_t_set); 
                     auto indices_fq = (simplemut2indices_fq.find(simplemut) != simplemut2indices_fq.end() ? simplemut2indices_fq[simplemut] : empty_size_t_set);
                     const bool is_rescued = (extended_posidx_to_symbol_to_tkinfo[refpos-extended_inclu_beg_pos][symbol].DP > 0); 
+                    unsigned int minABQ = ((ASSAY_TYPE_CAPTURE != inferred_assay_type) ? paramset.minABQ : paramset.minABQ_capture);
                     int altdepth = fillBySymbol(fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]], symbolToCountCoverageSet12, 
                             refpos, symbol, refstring, extended_inclu_beg_pos, mutform2count4vec_bq, indices_bq, mutform2count4vec_fq, indices_fq, 
-                            paramset.minABQ, paramset.phred_max_sscs, paramset.phred_max_dscs, 
+                            minABQ, paramset.phred_max_sscs, paramset.phred_max_dscs, 
                             // ErrorCorrectionType(paramset.seq_data_type), 
-                            paramset.is_dup_aware, (ASSAY_TYPE_CAPTURE != inferred_assay_type),
+                            paramset.is_dup_aware,
                             is_rescued);
                 }
                 for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; symbol = AlignmentSymbol(1+(unsigned int)symbol)) {
