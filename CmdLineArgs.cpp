@@ -81,14 +81,14 @@ SequencingPlatform CommandLineArgs::selfUpdateByPlatform() {
     if (SEQUENCING_PLATFORM_IONTORRENT == inferred_sequencing_platform && SEQUENCING_PLATFORM_OTHER != this->sequencing_platform) {
         bq_phred_added_indel += 0;
         bq_phred_added_misma += 6;
-        minABQ += 25;
-        minABQ_capture += 22;
+        minABQ += 0;
+        minABQ_capture += 0;
     }
     if (SEQUENCING_PLATFORM_ILLUMINA == inferred_sequencing_platform && SEQUENCING_PLATFORM_OTHER != this->sequencing_platform) {
         bq_phred_added_indel += 6;
         bq_phred_added_misma += 0;
-        minABQ += 0;
-        minABQ_capture += 0;
+        minABQ += 25;
+        minABQ_capture += 22;
     }
     return inferred_sequencing_platform;
 }
