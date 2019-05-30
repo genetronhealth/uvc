@@ -16,6 +16,10 @@
 
 const unsigned int G_BLOCK_SIZE = 1000;
 
+void xfree(void *ptr) {
+    if (NULL != ptr) { free(ptr); }
+}
+
 template <bool TIsInputCompressed>
 int clearstring(BGZF * bgzip_file, const std::string & outstring_allp, bool is_output_to_stdout = false, bool flush = !TIsInputCompressed) {
     if (is_output_to_stdout) {
@@ -237,6 +241,10 @@ struct TumorKeyInfo {
     float VAQ = 0;
     int32_t DP = 0;
     float FA = 0;
+    int32_t bDP = 0;
+    float bFA = 0;
+    int32_t AutoBestAllBQ = 0;
+    int32_t AutoBestAltBQ = 0;
 };
 
 std::string als_to_string(const char *const* const allele, unsigned int m_allele) {
@@ -355,6 +363,9 @@ process_batch(BatchArg & arg) {
         float *tVAQ = NULL;
         int32_t *tDP = NULL;
         float *tFA = NULL;
+        int32_t *tAutoBestAllBQ = NULL;
+        int32_t *tAutoBestAltBQ = NULL;
+        
         while (bcf_sr_next_line(sr)) {
             bcf1_t *line = bcf_sr_get_line(sr, 0);
             ndst_val = 0;
@@ -383,17 +394,30 @@ process_batch(BatchArg & arg) {
             ndst_val = 0;
             valsize = bcf_get_format_int32(bcf_hdr, line,  "DP", &tDP,  &ndst_val);
             assert(ndst_val == valsize && valsize > 0 || !fprintf(stderr, "%d == %d && %d > 0 failed!", ndst_val, valsize, valsize));
+            
+            ndst_val = 0;
+            valsize = bcf_get_format_int32(bcf_hdr, line,  "cAllBQ", &tAutoBestAllBQ, &ndst_val);
+            assert(ndst_val * 2 == valsize && valsize > 0 || !fprintf(stderr, "%d * 2 == %d && %d > 0 failed!", ndst_val, valsize, valsize));
+            ndst_val = 0;
+            valsize = bcf_get_format_int32(bcf_hdr, line,  "cAltBQ", &tAutoBestAltBQ, &ndst_val);
+            assert(ndst_val * 2 == valsize && valsize > 0 || !fprintf(stderr, "%d * 2 == %d && %d > 0 failed!", ndst_val, valsize, valsize));
+            
             extended_posidx_to_symbol_to_tkinfo[intpos][symbol].VAQ += tVAQ[0];
             extended_posidx_to_symbol_to_tkinfo[intpos][symbol].FA += tFA[0];
             extended_posidx_to_symbol_to_tkinfo[intpos][symbol].DP += tDP[0];
+            extended_posidx_to_symbol_to_tkinfo[intpos][symbol].AutoBestAllBQ += tAutoBestAllBQ[0] + tAutoBestAllBQ[1];
+            extended_posidx_to_symbol_to_tkinfo[intpos][symbol].AutoBestAltBQ += tAutoBestAltBQ[0] + tAutoBestAltBQ[1];
+ 
             extended_posidx_to_symbol_to_tkinfo[intpos][symbol].pos = line->pos;
             bcf_unpack(line, BCF_UN_STR);
             extended_posidx_to_symbol_to_tkinfo[intpos][symbol].ref_alt = als_to_string(line->d.allele, line->d.m_allele);
         }
-        if (tVType != NULL) {free(tVType);}
-        if (tVAQ != NULL) {free(tVAQ);}
-        if (tDP != NULL) {free(tDP);}
-        if (tFA != NULL) {free(tFA);}
+        xfree(tVType);
+        xfree(tVAQ);
+        xfree(tDP);
+        xfree(tFA);
+        xfree(tAutoBestAllBQ);
+        xfree(tAutoBestAltBQ);
         bcf_sr_destroy(sr);
     }
     
