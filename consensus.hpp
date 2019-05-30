@@ -572,6 +572,21 @@ fillTidBegEndFromAlns3(uint32_t & tid, uint32_t & inc_beg, uint32_t & exc_end, c
     }
 };
 
+unsigned int bam_to_decvalue(const bam1_t *b, unsigned int qpos) {
+    unsigned int max_repeatnum = 0;
+    for (unsigned int repeatsize = 1; repeatsize < 6; repeatsize++) {
+        unsigned int qidx = qpos;
+        while (qidx + repeatsize < b->core.l_qseq && bam_seqi(bam_get_seq(b), qidx) == bam_seqi(qidx+repeatsize)) {
+            qidx++;
+        }
+        unsigned int repeatnum = (qidx - qpos) / repeatsize + 1;
+        if (repeatnum > max_repeatnum) {
+            max_repeatnum = repeatnum;
+        }
+    }
+    return prob2phred((1.0 - DBL_EPSILON) / (double)max_repeatnum);
+}
+
 template <class TSymbol2Count>
 class GenericSymbol2CountCoverage : public CoveredRegion<TSymbol2Count> {
 public:
@@ -727,7 +742,7 @@ public:
                     unsigned int base4bit = bam_seqi(bseq, qpos);
                     unsigned int base3bit = seq_nt16_int[base4bit];
                     if (TUpdateType == BASE_QUALITY_MAX) {
-                        incvalue = bam_phredi(b, qpos); + symbolType2addPhred[BASE_SYMBOL];
+                        incvalue = bam_phredi(b, qpos) + symbolType2addPhred[BASE_SYMBOL];
                     }
                     this->inc<TUpdateType>(rpos, AlignmentSymbol(base3bit), incvalue, b);
                     rpos += 1;
@@ -743,27 +758,28 @@ public:
                     } else {
                         incvalue = MIN(bam_phredi(b, qpos-1), bam_phredi(b, qpos + cigar_oplen)) + symbolType2addPhred[LINK_SYMBOL];
                     }
+                    unsigned int decvalue = bam_get_decvalue(b, qpos);
+                    incvalue -= MIN(incvalue, decvalue);
                 }
                 this->inc<TUpdateType>(rpos, insLenToSymbol(cigar_oplen), incvalue, b);
                 std::string iseq;
                 iseq.reserve(cigar_oplen);
-                unsigned int incvalue2 = 128;
+                unsigned int incvalue2 = incvalue;
                 for (unsigned int i2 = 0; i2 < cigar_oplen; i2++) {
                     unsigned int base4bit = bam_seqi(bseq, qpos+i2);
                     const char base8bit = seq_nt16_str[base4bit];
                     iseq.push_back(base8bit);
                     if (TUpdateType == BASE_QUALITY_MAX) {
-                        incvalue2 = MIN(incvalue2, bam_seqi(bseq, qpos+i2));
+                        incvalue2 = MIN(incvalue2, bam_seqi(bseq, qpos+i2)) + symbolType2addPhred[LINK_SYMBOL];
                     }
                 }
-                if (TUpdateType == BASE_QUALITY_MAX) {
-                    incvalue = incvalue2 + symbolType2addPhred[LINK_SYMBOL];
-                }
-                this->incIns(rpos, iseq, incvalue);
+                this->incIns(rpos, iseq, incvalue2);
                 qpos += cigar_oplen;
             } else if (cigar_op == BAM_CDEL) {
                 if (TUpdateType == BASE_QUALITY_MAX) {
                     incvalue = MIN(bam_phredi(b, qpos), bam_phredi(b, qpos+1)) + symbolType2addPhred[LINK_SYMBOL];
+                    unsigned int decvalue = bam_get_decvalue(b, qpos);
+                    incvalue -= MIN(incvalue, decvalue);
                 }
                 this->inc<TUpdateType>(rpos, delLenToSymbol(cigar_oplen), incvalue, b);
                 this->incDel(rpos, cigar_oplen, incvalue);
@@ -1350,7 +1366,7 @@ if (curr_depth_symbsum * 5 <= curr_depth_typesum * 4 && curr_depth_symbsum > 0 &
                         double con_bq_pass_prob = phred2prob(con_bq_pass_thres) * (1 - DBL_EPSILON); // < 1
                         assert (con_bq_pass_prob >= pow(10, ((double)-51)/10) 
                                 || !fprintf(stderr, "%f >= phred51 failed at position %d and symbol %d!\n", con_bq_pass_prob, epos, con_symbol));
-                        unsigned int phredlike = (int)h01_to_phredlike<true>(minorcount + 1, majorcount + minorcount + (1.0 / con_bq_pass_prob), con_count, tot_count);
+                        unsigned int phredlike = (unsigned int)MAX(0, h01_to_phredlike<true>(minorcount + 1, majorcount + minorcount + (1.0 / con_bq_pass_prob), con_count, tot_count));
                         phredlike = MIN(phredlike, phred_max);
                         // no base quality stuff
                         
@@ -1463,7 +1479,8 @@ if (curr_depth_symbsum * 5 <= curr_depth_typesum * 4 && curr_depth_symbsum > 0 &
 std::array<unsigned int, 2>
 BcfFormat_init(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbolDistrSets12, unsigned int refpos, SymbolType symbolType) {
     for (unsigned int strand = 0; strand < 2; strand++) {
-        fmt.aAllBQ[strand] = symbolDistrSets12.bq_qual_phsum.at(strand).getByPos(refpos).sumBySymbolType(symbolType); 
+        fmt.bAllBQ[strand] = symbolDistrSets12.bq_qual_phsum.at(strand).getByPos(refpos).sumBySymbolType(symbolType); 
+        fmt.cAllBQ[strand] = symbolDistrSets12.fq_qual_phsum.at(strand).getByPos(refpos).sumBySymbolType(symbolType); 
         fmt.bDP1[strand] = symbolDistrSets12.bq_tsum_depth.at(strand).getByPos(refpos).sumBySymbolType(symbolType);
         fmt.cDP1[strand] = symbolDistrSets12.fq_tsum_depth.at(strand).getByPos(refpos).sumBySymbolType(symbolType);
         fmt.cDPTT[strand] = symbolDistrSets12.fam_total_dep.at(strand).getByPos(refpos).sumBySymbolType(symbolType);
@@ -1548,7 +1565,9 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
     fmt.note = symbol2CountCoverageSet12.additional_note.getByPos(refpos).at(symbol);
     for (unsigned int strand = 0; strand < 2; strand++) {
         
-        fmt.aAltBQ[strand] = symbol2CountCoverageSet12.bq_qual_phsum.at(strand).getByPos(refpos).getSymbolCount(symbol);
+        fmt.bAltBQ[strand] = symbol2CountCoverageSet12.bq_qual_phsum.at(strand).getByPos(refpos).getSymbolCount(symbol);
+        fmt.cAltBQ[strand] = symbol2CountCoverageSet12.fq_qual_phsum.at(strand).getByPos(refpos).getSymbolCount(symbol);
+
         fmt.aDB[strand]  = symbol2CountCoverageSet12.du_bias_dedup.at(strand).getByPos(refpos).getSymbolCount(symbol);
 
         fmt.bPTL[strand] = symbol2CountCoverageSet12.bq_amax_ldist.at(strand).getByPos(refpos).getSymbolCount(symbol); 
@@ -1718,7 +1737,9 @@ generateVcfHeader(const char *ref_fasta_fname, const char *platform, const unsig
     ret += "##INFO=<ID=tVAQ,Number=1,Type=Float,Description=\"Tumor-sample VAQ\">\n";
     ret += "##INFO=<ID=tDP,Number=1,Type=Integer,Description=\"Tumor-sample DP\">\n";
     ret += "##INFO=<ID=tFA,Number=1,Type=Float,Description=\"Tumor-sample FA\">\n";
-    
+    ret += "##INFO=<ID=tAltBQ,Number=1,Type=Integer,Description=\"Tumor-sample cAltBQ or bAltBQ, depending on command-line option\">\n";
+    ret += "##INFO=<ID=tAllBQ,Number=1,Type=Integer,Description=\"Tumor-sample cAllBQ or bAllBQ, depending on command-line option\">\n";
+ 
     for (unsigned int i = 0; i < bcfrec::FORMAT_NUM; i++) {
         ret += std::string("") + bcfrec::FORMAT_LINES[i] + "\n";
     }
@@ -1807,25 +1828,42 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
     if (prev_is_tumor) {
         vcfpos = (tki.ref_alt != "." ? (tki.pos + 1) : vcfpos);
         ref_alt = (tki.ref_alt != "." ? tki.ref_alt : vcfref + "\t" + vcfalt);
-        const double depth_pseudocount = 1.0;
+        const double depth_pseudocount = 0; // 1.0;
         double tDP = (double)tki.DP;
         double nDP = (double)fmt.DP;
         double tAD = (tDP * (double)tki.FA);
         double nAD = (nDP * (double)fmt.FA);
+        /*
         double tnlike = h01_to_phredlike<false>(
                 nAD + depth_pseudocount, nDP + depth_pseudocount, 
                 tAD + depth_pseudocount, tDP + depth_pseudocount, 
                 DBL_EPSILON, (1+1e-4)); // TODO: check if pseudocount should be 0.5 or 1.0 ?
+        */
+        double nAltBQ = fmt.cAltBQ[0] + fmt.cAltBQ[1];
+        double nAllBQ = fmt.cAllBQ[0] + fmt.cAllBQ[1];
+        double tAltBQ = tki.AutoBestAltBQ;
+        double tAllBQ = tki.AutoBestAllBQ;
+        
+        double pc1 = prob2phred(1.0 / (nDP + 2.0)) / (nAD + 1.0);
+        double nAD1 = nAltBQ + depth_pseudocount;
+        double nDP1 = nAllBQ + depth_pseudocount;
+        double tAD1 = tAltBQ + depth_pseudocount;
+        double tDP1 = tAllBQ + depth_pseudocount;
+                
+        double tnlike = h01_to_phredlike<false>(nAD1 + pc1, nDP1 + pc1, tAD1, tDP1, pc1, 1+1e-4);
         if (!(tnlike < 1e7)) {
-            fprintf(stderr, "tnlike %f is invalid!, computed from %f %f %f %f !!!\n", tnlike, tDP, nDP, tAD, nAD);
+            fprintf(stderr, "tnlike %f is invalid!, computed from %f %f %f %f , %f !!!\n", tnlike, nAD1, nDP1, tAD1, tDP1, pc1);
             abort();
         }
+        
         infostring = std::string("TNQ=") + std::to_string(tnlike);
         infostring += std::string(";tVAQ=") + std::to_string(tki.VAQ);
         infostring += std::string(";tDP=") + std::to_string(tki.DP);
         infostring += std::string(";tFA=") + std::to_string(tki.FA);
+        infostring += std::string(";tAltBQ=") + std::to_string(tki.AutoBestAltBQ);
+        infostring += std::string(";tAllBQ=") + std::to_string(tki.AutoBestAllBQ);
         auto finalGQ = (("1/0" == fmt.GT) ? fmt.GQ : 0);
-        vcfqual = MIN(MIN(tnlike + 25, finalGQ + 30), tki.VAQ); // (germline + sys error) freq of 10^(-25/10)
+        vcfqual = MIN(MIN(tnlike + 25, finalGQ + 30), tki.VAQ - fmt.VAQ); // (germline + sys error) freq of 10^(-25/10)
     } else {
         ref_alt = vcfref + "\t" + vcfalt;
         infostring = ".";
