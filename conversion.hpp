@@ -207,13 +207,13 @@ h01_to_phredlike(double h0pos, double h0tot, double h1pos, double h1tot,
     assert(h1pos <= h1tot || !fprintf(stderr, "%lf <= %lf failed", h1pos, h1tot));
     assert(h0pos >  0     || !fprintf(stderr, "%lf >  %lf failed", h0pos, 0));
     assert(h1pos >= 0     || !fprintf(stderr, "%lf >= %lf failed", h1pos, 0));
-    if (h1tot <= (DBL_EPSILON * pseudocount)) {
+    if (h1pos <= (DBL_EPSILON * pseudocount)) {
         return 0;
     }
-    double ratio = (h1tot - pseudocount) / h0tot;
+    double ratio = (h1tot) / h0tot;
     h0tot *= ratio;
     h0pos *= ratio;
-    return dlog(_any4_to_biasfact(h0tot + pseudocount, h1tot, h0pos + pseudocount, h1pos, true, 0), err_amp_ratio) * log((h1pos * h0tot) / (h1tot * h0pos)) * (10.0 / log(10.0));
+    return dlog(_any4_to_biasfact(h0tot + pseudocount, h1tot + pseudocount, h0pos + pseudocount, h1pos, true, 0), err_amp_ratio) * log((h1pos * h0tot) / (h1tot * h0pos)) * (10.0 / log(10.0));
 }
 
 //// one-way conversion of information into other measures of information (based on information theory)
