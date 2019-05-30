@@ -576,7 +576,7 @@ unsigned int bam_to_decvalue(const bam1_t *b, unsigned int qpos) {
     unsigned int max_repeatnum = 0;
     for (unsigned int repeatsize = 1; repeatsize < 6; repeatsize++) {
         unsigned int qidx = qpos;
-        while (qidx + repeatsize < b->core.l_qseq && bam_seqi(bam_get_seq(b), qidx) == bam_seqi(qidx+repeatsize)) {
+        while (qidx + repeatsize < b->core.l_qseq && bam_seqi(bam_get_seq(b), qidx) == bam_seqi(bam_get_seq(b), qidx+repeatsize)) {
             qidx++;
         }
         unsigned int repeatnum = (qidx - qpos) / repeatsize + 1;
@@ -758,7 +758,7 @@ public:
                     } else {
                         incvalue = MIN(bam_phredi(b, qpos-1), bam_phredi(b, qpos + cigar_oplen)) + symbolType2addPhred[LINK_SYMBOL];
                     }
-                    unsigned int decvalue = bam_get_decvalue(b, qpos);
+                    unsigned int decvalue = bam_to_decvalue(b, qpos);
                     incvalue -= MIN(incvalue, decvalue);
                 }
                 this->inc<TUpdateType>(rpos, insLenToSymbol(cigar_oplen), incvalue, b);
@@ -778,7 +778,7 @@ public:
             } else if (cigar_op == BAM_CDEL) {
                 if (TUpdateType == BASE_QUALITY_MAX) {
                     incvalue = MIN(bam_phredi(b, qpos), bam_phredi(b, qpos+1)) + symbolType2addPhred[LINK_SYMBOL];
-                    unsigned int decvalue = bam_get_decvalue(b, qpos);
+                    unsigned int decvalue = bam_to_decvalue(b, qpos);
                     incvalue -= MIN(incvalue, decvalue);
                 }
                 this->inc<TUpdateType>(rpos, delLenToSymbol(cigar_oplen), incvalue, b);
