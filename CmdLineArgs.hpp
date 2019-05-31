@@ -15,7 +15,7 @@ struct CommandLineArgs {
     std::string sample_name = "-";
     std::string tsv_primer_fname = "";
     
-    bool is_dup_aware = true;
+    bool disable_dup_read_merge = false;
     AssayType assay_type = ASSAY_TYPE_AUTO;
     MoleculeTag molecule_tag = MOLECULE_TAG_AUTO;
     SequencingPlatform sequencing_platform = SEQUENCING_PLATFORM_AUTO;

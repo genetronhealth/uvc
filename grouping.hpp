@@ -333,6 +333,7 @@ fill_isrc_isr2_beg_end_with_aln(bool & isrc, bool & isr2, uint32_t & tBeg, uint3
 
     isrc = ((aln->core.flag & 0x10) == 0x10);
     isr2 = ((aln->core.flag & 0x80) == 0x80 && (aln->core.flag & 0x1) == 0x1);
+    if (!is_pair_end_merge_enabled) { isr2 = false; }
     const uint32_t begpos = aln->core.pos;
     const uint32_t endpos = bam_endpos(aln) - 1;
     int ret = 0;
@@ -613,6 +614,7 @@ bamfname_to_strand_to_familyuid_to_reads(
         unsigned int num_seqs = 0;
         FilterReason filterReason = fill_isrc_isr2_beg_end_with_aln(isrc, isr2, tBeg, tEnd, num_seqs, 
                 aln, fetch_tbeg, fetch_tend, min_alnlen, min_mapq, end2end, is_pair_end_merge_enabled);
+        if (!is_pair_end_merge_enabled) { assert(!isr2); }
         if (NOT_FILTERED == filterReason) {
             isrc_isr2_to_beg_count[isrc * 2 + isr2][tBeg + ARRPOS_MARGIN - fetch_tbeg] += 1;
             isrc_isr2_to_end_count[isrc * 2 + isr2][tEnd + ARRPOS_MARGIN - fetch_tbeg] += 1;
@@ -655,6 +657,7 @@ bamfname_to_strand_to_familyuid_to_reads(
         unsigned int num_seqs = 0;
         FilterReason filterReason = fill_isrc_isr2_beg_end_with_aln(isrc, isr2, tBeg, tEnd, num_seqs, 
                 aln, fetch_tbeg, fetch_tend, min_alnlen, min_mapq, end2end, is_pair_end_merge_enabled);
+        if (!is_pair_end_merge_enabled) { assert(!isr2); }
         if (NOT_FILTERED != filterReason) {
             continue;
         }
@@ -757,6 +760,7 @@ bamfname_to_strand_to_familyuid_to_reads(
         umi_to_strand_to_reads[umi3hash].first[strand][qhash].push_back(bam_dup1(aln));
         
         const bool should_log_read = (ispowof2(alnidx+1) || ispowof2(num_pass_alns - alnidx));
+        if (!is_pair_end_merge_enabled) { assert(!isr2); }
         if (should_log_read && (beg_peak_max >= 2000 || should_log)) {
             LOG(logINFO) << "Thread " << thread_id << " ; readname = " << qname << " ; " 
                     << "tid = " << aln->core.tid << " ; "

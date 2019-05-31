@@ -150,15 +150,15 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     app.add_option("--bq-phred-added-indel", bq_phred_added_indel, "Additional base-quality phred score added to indel and no-indel, recommend 6 for IonTorrent.");
     app.add_option("--should-add-note",      should_add_note,      "Boolean indicating if the program generates more detail in the vcf result file.");
 
-    app.add_option("--is-dup-aware",         is_dup_aware,             "Is aware of the duplicated reads in BAM data. " + stringvec_to_descstring(ASSAY_TYPE_TO_MSG), true);
+    app.add_option("--disable-dup-read-merge",disable_dup_read_merge,   "Disable the merge of duplicate reads (0 means false and 1 means true). ", true);
     unsigned int assay_type_uint = (unsigned int)assay_type;
     unsigned int molecule_tag_uint = (unsigned int)molecule_tag;
     unsigned int sequencing_platform_uint = (unsigned int)sequencing_platform;
     unsigned int pair_end_merge_uint = (unsigned int)pair_end_merge;
-    app.add_option("--assy-type",            assay_type_uint,           "Assay type. " + stringvec_to_descstring(ASSAY_TYPE_TO_MSG), true);
+    app.add_option("--assay-type",           assay_type_uint,           "Assay type. " + stringvec_to_descstring(ASSAY_TYPE_TO_MSG), true);
     app.add_option("--molecule-tag",         molecule_tag_uint,         "Molecule tag. " + stringvec_to_descstring(MOLECULE_TAG_TO_MSG), true);
     app.add_option("--sequencing-platform",  sequencing_platform_uint,  "Sequencing platform. " + stringvec_to_descstring(SEQUENCING_PLATFORM_TO_MSG), true);
-    app.add_option("--pair-end-merge",       pair_end_merge_uint,       "Merge stat. " + stringvec_to_descstring(ASSAY_TYPE_TO_MSG), true);
+    app.add_option("--disable-pair-end-merge", pair_end_merge_uint,     "Disable the merge of R1 and R2 in a read pair. " + stringvec_to_descstring(PAIR_END_MERGE_TO_MSG), true);
     
     app.callback([&]() {
         assay_type = (AssayType)assay_type_uint;

@@ -1478,10 +1478,14 @@ if (curr_depth_symbsum * 5 <= curr_depth_typesum * 4 && curr_depth_symbsum > 0 &
 };
 
 std::array<unsigned int, 2>
-BcfFormat_init(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbolDistrSets12, unsigned int refpos, SymbolType symbolType) {
+BcfFormat_init(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbolDistrSets12, unsigned int refpos, SymbolType symbolType, bool use_deduplicated_reads) {
     for (unsigned int strand = 0; strand < 2; strand++) {
         fmt.bAllBQ[strand] = symbolDistrSets12.bq_qual_phsum.at(strand).getByPos(refpos).sumBySymbolType(symbolType); 
-        fmt.cAllBQ[strand] = symbolDistrSets12.fq_qual_phsum.at(strand).getByPos(refpos).sumBySymbolType(symbolType); 
+        if (use_deduplicated_reads) {
+            fmt.cAllBQ[strand] = symbolDistrSets12.fq_qual_phsum.at(strand).getByPos(refpos).sumBySymbolType(symbolType); 
+        } else {
+            fmt.cAllBQ[strand] = fmt.bAllBQ[strand]; 
+        }
         fmt.bDP1[strand] = symbolDistrSets12.bq_tsum_depth.at(strand).getByPos(refpos).sumBySymbolType(symbolType);
         fmt.cDP1[strand] = symbolDistrSets12.fq_tsum_depth.at(strand).getByPos(refpos).sumBySymbolType(symbolType);
         fmt.cDPTT[strand] = symbolDistrSets12.fam_total_dep.at(strand).getByPos(refpos).sumBySymbolType(symbolType);
@@ -1567,8 +1571,11 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
     for (unsigned int strand = 0; strand < 2; strand++) {
         
         fmt.bAltBQ[strand] = symbol2CountCoverageSet12.bq_qual_phsum.at(strand).getByPos(refpos).getSymbolCount(symbol);
-        fmt.cAltBQ[strand] = symbol2CountCoverageSet12.fq_qual_phsum.at(strand).getByPos(refpos).getSymbolCount(symbol);
-
+        if (use_deduplicated_reads) {
+            fmt.cAltBQ[strand] = symbol2CountCoverageSet12.fq_qual_phsum.at(strand).getByPos(refpos).getSymbolCount(symbol);
+        } else {
+            fmt.cAltBQ[strand] = fmt.bAltBQ[strand];  
+        }
         fmt.aDB[strand]  = symbol2CountCoverageSet12.du_bias_dedup.at(strand).getByPos(refpos).getSymbolCount(symbol);
 
         fmt.bPTL[strand] = symbol2CountCoverageSet12.bq_amax_ldist.at(strand).getByPos(refpos).getSymbolCount(symbol); 
@@ -1635,11 +1642,15 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
     auto fmtbAD = fmt.bAD1[0] + fmt.bAD1[1];
     fmt.bFA = (double)(fmtbAD) / (double)(fmt.bDP);
     
+    fmt.cDP = fmt.cDPTT[0] + fmt.cDPTT[1];
+    auto fmtcAD = fmt.cADTT[0] + fmt.cADTT[1];
+    fmt.cFA = (double)(fmtcAD) / (double)(fmt.cDP);
+    
     auto fmtAD = 0;
     if (use_deduplicated_reads) {
-        fmt.DP = fmt.cDPTT[0] + fmt.cDPTT[1];
-        fmtAD = fmt.cADTT[0] + fmt.cADTT[1];
-        fmt.FA = (double)(fmtAD) / (double)(fmt.DP);
+        fmt.DP = fmt.cDP;
+        fmtAD = fmtcAD;
+        fmt.FA = fmt.cFA;
     } else {
         fmt.DP = fmt.bDP;
         fmtAD = fmtbAD;
@@ -1851,7 +1862,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         double tAD1 = tAltBQ + depth_pseudocount;
         double tDP1 = tAllBQ + depth_pseudocount;
                 
-        double tnlike = h01_to_phredlike<false>(nAD1 + pc1, nDP1 + pc1, tAD1, tDP1, pc1, 1+1e-4);
+        double tnlike = h01_to_phredlike<false>(nAD1 + pc1, (nDP1 + pc1) * (1 + DBL_EPSILON), tAD1, tDP1 * (1 + DBL_EPSILON), pc1, 1+1e-4);
         if (!(tnlike < 1e7)) {
             fprintf(stderr, "tnlike %f is invalid!, computed from %f %f %f %f , %f !!!\n", tnlike, nAD1, nDP1, tAD1, tDP1, pc1);
             abort();
