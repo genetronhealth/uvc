@@ -564,13 +564,15 @@ bamfname_to_strand_to_familyuid_to_reads(
         const std::string input_bam_fname, 
         unsigned int tid, unsigned int fetch_tbeg, unsigned int fetch_tend, 
         bool end2end, unsigned int min_mapq, unsigned int min_alnlen, 
-        unsigned int contig_ordinal,
+        unsigned int regionbatch_ordinal, unsigned int regionbatch_tot_num,
         const std::string UMI_STRUCT_STRING, 
         const hts_idx_t * hts_idx,
         const bool is_molecule_tag_enabled,
-        const bool is_pair_end_merge_enabled) {
+        const bool is_pair_end_merge_enabled, 
+        size_t thread_id) {
     assert (fetch_tend > fetch_tbeg);
     
+    const bool should_log = (ispowof2(regionbatch_ordinal+1) || ispowof2(regionbatch_tot_num - regionbatch_ordinal));
     std::vector<uint8_t> umi_struct_string16;
     for (auto ch : UMI_STRUCT_STRING) {
         umi_struct_string16.push_back(seq_nt16_table[ch]);
@@ -585,8 +587,10 @@ bamfname_to_strand_to_familyuid_to_reads(
     alignmentpassed = lenpassed = cigarpassed = umipassed = pcrpassed = umi_pcrpassed = 0;
    
     samFile *sam_infile = sam_open(input_bam_fname.c_str(), "r"); // AlignmentFile(input_bam_fname, "rb");
-    LOG(logINFO) << "Start processing the chunk " << tid << ":" << fetch_tbeg << "-" << fetch_tend << " (contig no " << contig_ordinal << ")";
-    
+    if (should_log) {
+        LOG(logINFO) << "Thread " << thread_id << " started dedupping the chunk tid" << tid << ":" << fetch_tbeg << "-" << fetch_tend 
+                << " (region no " << regionbatch_ordinal << "/" << regionbatch_tot_num << " in this batch)";
+    }
     unsigned int fetch_size = fetch_tend - fetch_tbeg + (ARRPOS_MARGIN + ARRPOS_OUTER_RANGE) * 2; // arrposIsSpecial
     
     std::vector<unsigned int> inicount(fetch_size, 0);
@@ -620,7 +624,7 @@ bamfname_to_strand_to_familyuid_to_reads(
         num_iter_alns += 1;
     }
     sam_itr_destroy(hts_itr);
-    LOG(logINFO) << "Iteration 2 begins!";
+    // LOG(logINFO) << "Iteration 2 begins!";
 
     std::array<std::vector<unsigned int>, 4> isrc_isr2_to_beg2bcenter = { inicount, inicount, inicount, inicount };
     for (unsigned int isrc_isr2 = 0; isrc_isr2 < 4; isrc_isr2++) {
@@ -640,7 +644,7 @@ bamfname_to_strand_to_familyuid_to_reads(
         }
     }
     
-    LOG(logINFO) << "Iteration 3 begins!";
+    // LOG(logINFO) << "Iteration 3 begins!";
     size_t alnidx = 0;
     hts_itr = sam_itr_queryi(hts_idx, tid, fetch_tbeg, fetch_tend);
     while (sam_itr_next(sam_infile, hts_itr, aln) >= 0) {
@@ -752,9 +756,11 @@ bamfname_to_strand_to_familyuid_to_reads(
         umi_to_strand_to_reads[umi3hash].first[strand].insert(std::make_pair(qhash, std::vector<bam1_t *>()));
         umi_to_strand_to_reads[umi3hash].first[strand][qhash].push_back(bam_dup1(aln));
         
-        if ((ispowof2(alnidx+1) || ispowof2(num_pass_alns - alnidx)) && (beg_peak_max > 1000 || ispowof2(contig_ordinal+1))) {
-            LOG(logINFO) << "  readname = " << qname << " ; "
-                    << "alnidx/num_pass_alns = " << alnidx << " / " << num_pass_alns << " ; "
+        const bool should_log_read = (ispowof2(alnidx+1) || ispowof2(num_pass_alns - alnidx));
+        if (should_log_read && (beg_peak_max >= 2000 || should_log)) {
+            LOG(logINFO) << "Thread " << thread_id << " ; readname = " << qname << " ; " 
+                    << "tid = " << aln->core.tid << " ; "
+                    << "alnidx/num_pass_alns = " << alnidx << "/" << num_pass_alns << " ; "
                     << "isrc = " << isrc << " ; "
                     << "isr2 = " << isr2 << " ; " 
                     << "original-range = " << tBeg << " to " << tEnd << " ; " 
@@ -778,7 +784,7 @@ bamfname_to_strand_to_familyuid_to_reads(
     // sam_index_destroy(hts_idx); // TODO: reuse index
     // hts_idx_destroy(hts_idx);
     sam_close(sam_infile);
-    LOG(logINFO) << "Final step of dedupping!" << std::endl;
+    if (should_log) { LOG(logINFO) << "Thread " << thread_id << " finished dedupping." << std::endl; }
     return std::array<unsigned int, 3>({num_pass_alns, pcrpassed, umi_pcrpassed});
 }
 #endif

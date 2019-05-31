@@ -1253,14 +1253,15 @@ if (curr_depth_symbsum * 5 <= curr_depth_typesum * 4 && curr_depth_symbsum > 0 &
             std::array<unsigned int, 2>> & mutform2count4map,
             const auto & alns3, const std::basic_string<AlignmentSymbol> & region_symbolvec,
             const std::array<unsigned int, NUM_SYMBOL_TYPES> & symbolType2addPhred, 
-            bool should_add_note, unsigned int phred_max, bool is_loginfo_enabled) {
+            bool should_add_note, unsigned int phred_max, 
+            bool is_loginfo_enabled, unsigned int thread_id) {
         unsigned int niters = 0;
         for (const auto & alns2pair2dflag : alns3) {
             const auto & alns2pair = alns2pair2dflag.first;
             niters++;
             bool log_alns2 = (is_loginfo_enabled && ispowerof2(niters));
             if (log_alns2) {
-                LOG(logINFO) << "Processing the " << niters << "/" << alns3.size() << " th duplex-aware families which has " << alns2pair[0].size() << " and " << alns2pair[1].size() << " members.\n" ;
+                //LOG(logINFO) << "Thread " << thread_id << " is processing the " << niters << "/" << alns3.size() << " th duplex-aware families which has " << alns2pair[0].size() << " and " << alns2pair[1].size() << " members.\n" ;
             }
             assert (alns2pair[0].size() != 0 || alns2pair[1].size() != 0);
             for (unsigned int strand = 0; strand < 2; strand++) {
@@ -1278,7 +1279,7 @@ if (curr_depth_symbsum * 5 <= curr_depth_typesum * 4 && curr_depth_symbsum > 0 &
                     read_family_con_ampl.updateByConsensus<SYMBOL_COUNT_SUM>(read_ampBQerr_fragWithR1R2);
                     int updateresult = read_family_amplicon.updateByFiltering(read_ampBQerr_fragWithR1R2, this->bq_pass_thres[strand], 1, true, strand);
                     if (log_alns2) {
-                        LOG(logDEBUG) << "num-updates = " << updateresult;
+                        // LOG(logDEBUG) << "num-updates = " << updateresult;
                     }
                 }
                 for (size_t epos = read_family_amplicon.getIncluBegPosition(); epos < read_family_amplicon.getExcluEndPosition(); epos++) {
@@ -1341,7 +1342,7 @@ if (curr_depth_symbsum * 5 <= curr_depth_typesum * 4 && curr_depth_symbsum > 0 &
                     // read_family_amplicon.updateByConsensus<SYMBOL_COUNT_SUM>(read_ampBQerr_fragWithR1R2);
                     int updateresult = read_family_amplicon.updateByFiltering(read_ampBQerr_fragWithR1R2, this->bq_pass_thres[strand], 1, true, strand);
                     if (log_alns2) {
-                        LOG(logDEBUG) << "num-updates = " << updateresult << " (second time)";
+                        // LOG(logDEBUG) << "num-updates = " << updateresult << " (second time)";
                     }
                 }
                 if ((2 == alns2pair2dflag.second) && alns2pair[0].size() > 0 && alns2pair[1].size() > 0) { // is duplex
@@ -1464,13 +1465,13 @@ if (curr_depth_symbsum * 5 <= curr_depth_typesum * 4 && curr_depth_symbsum > 0 &
             const std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, int>> & alns3, 
             const std::string & refstring,
             unsigned int bq_phred_added_misma, unsigned int bq_phred_added_indel, bool should_add_note, unsigned int phred_max_sscs, unsigned int phred_max_dscs,
-            bool use_deduplicated_reads, bool is_loginfo_enabled) {
+            bool use_deduplicated_reads, bool is_loginfo_enabled, unsigned int thread_id) {
         const std::array<unsigned int, NUM_SYMBOL_TYPES> symbolType2addPhred = {bq_phred_added_misma, bq_phred_added_indel};
         std::basic_string<AlignmentSymbol> ref_symbol_string = string2symbolseq(refstring);
         updateByAlns3UsingBQ(mutform2count4map_bq, alns3, ref_symbol_string, symbolType2addPhred, should_add_note, phred_max_sscs); // base qualities
         updateHapMap(mutform2count4map_bq, this->bq_tsum_depth);
         if (use_deduplicated_reads) {
-            updateByAlns3UsingFQ(mutform2count4map_fq, alns3, ref_symbol_string, symbolType2addPhred, should_add_note, phred_max_sscs, is_loginfo_enabled); // family qualities
+            updateByAlns3UsingFQ(mutform2count4map_fq, alns3, ref_symbol_string, symbolType2addPhred, should_add_note, phred_max_sscs, is_loginfo_enabled, thread_id); // family qualities
             updateHapMap(mutform2count4map_fq, this->fq_tsum_depth);
         }
     };

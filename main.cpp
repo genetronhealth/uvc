@@ -152,8 +152,10 @@ struct BatchArg {
     
     std::tuple<unsigned int, unsigned int, unsigned int, bool, unsigned int> tid_beg_end_e2e_tuple;
     std::tuple<std::string, unsigned int> tname_tseqlen_tuple;
-    unsigned int region_ordinal;
+    unsigned int region_ordinal; // deprecated
+    unsigned int region_tot_num; // deprecated
     unsigned int regionbatch_ordinal;
+    unsigned int regionbatch_tot_num;
 
     const CommandLineArgs paramset;
     const std::string UMI_STRUCT_STRING;
@@ -295,13 +297,15 @@ process_batch(BatchArg & arg) {
     const std::string UMI_STRUCT_STRING = arg.UMI_STRUCT_STRING;
     const std::tuple<unsigned int, unsigned int, unsigned int, bool, unsigned int> tid_beg_end_e2e_tuple = arg.tid_beg_end_e2e_tuple;
     const std::tuple<std::string, unsigned int> tname_tseqlen_tuple = arg.tname_tseqlen_tuple;
-    const unsigned int region_ordinal = arg.region_ordinal;
+    //const unsigned int region_ordinal = arg.region_ordinal;
+    //const unsigned int region_tot_num = arg.region_tot_num;
     const unsigned int regionbatch_ordinal = arg.regionbatch_ordinal;
+    const unsigned int regionbatch_tot_num = arg.regionbatch_tot_num;
     const unsigned int thread_id = arg.thread_id;
     const bool should_output_all = !arg.is_vcf_out_empty_string;
     const bool is_vcf_out_pass_to_stdout = arg.is_vcf_out_pass_to_stdout;
     
-    bool is_loginfo_enabled = ispowerof2(regionbatch_ordinal);
+    bool is_loginfo_enabled = (ispowerof2(regionbatch_ordinal + 1) || ispowerof2(regionbatch_tot_num - regionbatch_ordinal));
     std::string raw_out_string;
     std::string raw_out_string_pass;
     // faidx_t *ref_faidx = (fasta_ref_fname.size() > 0 ? fai_load(fasta_ref_fname.c_str()) : NULL);
@@ -322,8 +326,8 @@ process_batch(BatchArg & arg) {
             paramset.bam_input_fname,
             tid, incluBegPosition, excluEndPosition,
             end2end, paramset.min_mapqual, paramset.min_aln_len,
-            region_ordinal, UMI_STRUCT_STRING, hts_idx, 
-            ASSAY_TYPE_CAPTURE != paramset.assay_type, PAIR_END_MERGE_NO != paramset.pair_end_merge);
+            regionbatch_ordinal, regionbatch_tot_num, UMI_STRUCT_STRING, hts_idx, 
+            ASSAY_TYPE_CAPTURE != paramset.assay_type, PAIR_END_MERGE_NO != paramset.pair_end_merge, thread_id);
     
     unsigned int num_passed_reads = passed_pcrpassed_umipassed[0];
     unsigned int num_pcrpassed_reads = passed_pcrpassed_umipassed[1];
@@ -444,7 +448,7 @@ process_batch(BatchArg & arg) {
             paramset.bq_phred_added_misma, paramset.bq_phred_added_indel, paramset.should_add_note, 
             paramset.phred_max_sscs, paramset.phred_max_dscs,
             // ErrorCorrectionType(paramset.seq_data_type), 
-            paramset.is_dup_aware, (regionbatch_ordinal < 2));
+            paramset.is_dup_aware, is_loginfo_enabled, thread_id);
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts analyzing phasing info"; }
     auto mutform2count4vec_bq = map2vector(mutform2count4map_bq);
     auto simplemut2indices_bq = mutform2count4vec_to_simplemut2indices(mutform2count4vec_bq);
@@ -721,12 +725,14 @@ int main(int argc, char **argv) {
     std::vector<std::tuple<unsigned int, unsigned int, unsigned int, bool, unsigned int>> tid_beg_end_e2e_tuple_vec2;
     SamIter samIter(paramset.bam_input_fname, paramset.bed_region_fname, nthreads); 
     int iter_nreads = samIter.iternext(tid_beg_end_e2e_tuple_vec1);
-    LOG(logINFO) << "PreProcessed " << iter_nreads << " reads!";  
+    unsigned int n_sam_iters = 0;
+    LOG(logINFO) << "PreProcessed " << iter_nreads << " reads in super-contig no " << (n_sam_iters);
     while (iter_nreads > 0) {
-        std::thread read_bam_thread([&tid_beg_end_e2e_tuple_vec2, &samIter, &iter_nreads]() {
+        n_sam_iters++;
+        std::thread read_bam_thread([&tid_beg_end_e2e_tuple_vec2, &samIter, &iter_nreads, &n_sam_iters]() {
             tid_beg_end_e2e_tuple_vec2.clear();
             iter_nreads = samIter.iternext(tid_beg_end_e2e_tuple_vec2);
-            LOG(logINFO) << "PreProcessed " << iter_nreads << " reads!";  
+            LOG(logINFO) << "PreProcessed " << iter_nreads << " reads in super-contig no " << (n_sam_iters);
         });
         const auto & tid_beg_end_e2e_tuple_vec = tid_beg_end_e2e_tuple_vec1; 
         std::string bedstring = std::string("The BED-genomic-region is as follows (") + std::to_string(tid_beg_end_e2e_tuple_vec.size()) + " chunks):\n";
@@ -811,9 +817,11 @@ int main(int argc, char **argv) {
                     
                     tid_beg_end_e2e_tuple : tid_beg_end_e2e_tuple_vec.at(0),
                     tname_tseqlen_tuple : tid_to_tname_tseqlen_tuple_vec.at(0),
-                    region_ordinal : 0,
+                    region_ordinal : n_sam_iters,
+                    region_tot_num : (unsigned int)(INT32_MAX - 1),
                     regionbatch_ordinal : 0,
-                    
+                    regionbatch_tot_num : 0,
+
                     paramset : paramset, 
                     UMI_STRUCT_STRING : UMI_STRUCT_STRING,
                     is_vcf_out_pass_to_stdout : is_vcf_out_pass_to_stdout,
@@ -841,6 +849,7 @@ int main(int argc, char **argv) {
             batcharg.hts_idx = sam_idxs[thread_id];
             batcharg.ref_faidx = ref_faidxs[thread_id];
             batcharg.sr = srs[thread_id];
+
             std::pair<unsigned int, unsigned int> beg_end_pair = beg_end_pair_vec[beg_end_pair_idx];
 #if defined(USE_STDLIB_THREAD)
             std::thread athread([
@@ -855,8 +864,8 @@ int main(int argc, char **argv) {
                     
                     //auto *this_sam_idx = sam_index_load2(samfiles[allridx], paramset.bam_input_fname.c_str(), NULL);
                     for (unsigned int j = beg_end_pair.first; j < beg_end_pair.second; j++) {
-                        batcharg.region_ordinal = allridx + j;
                         batcharg.regionbatch_ordinal = j;
+                        batcharg.regionbatch_tot_num = beg_end_pair.second;
                         batcharg.tid_beg_end_e2e_tuple = tid_beg_end_e2e_tuple_vec.at(allridx + j);
                         batcharg.tname_tseqlen_tuple = tid_to_tname_tseqlen_tuple_vec.at(std::get<0>(batcharg.tid_beg_end_e2e_tuple));
                         process_batch(batcharg);
