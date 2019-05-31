@@ -285,7 +285,9 @@ std::string als_to_string(const char *const* const allele, unsigned int m_allele
 const std::map<std::tuple<unsigned int, unsigned int, AlignmentSymbol>, TumorKeyInfo>
 rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_tname_tlen_tuple_vec, const std::string & vcf_tumor_fname, const auto *bcf_hdr) {
     std::map<std::tuple<unsigned int, unsigned int, AlignmentSymbol>, TumorKeyInfo> ret;
-    
+    if (vcf_tumor_fname.size() == 0) {
+        return ret;
+    }
     std::string regionstring;
     for (const auto & tid_beg_end_e2e : tid_beg_end_e2e_vec) {
         const unsigned int tid = std::get<0>(tid_beg_end_e2e);
