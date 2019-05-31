@@ -784,7 +784,7 @@ bamfname_to_strand_to_familyuid_to_reads(
     // sam_index_destroy(hts_idx); // TODO: reuse index
     // hts_idx_destroy(hts_idx);
     sam_close(sam_infile);
-    if (should_log) { LOG(logINFO) << "Thread " << thread_id << " finished dedupping." }
+    if (should_log) { LOG(logINFO) << "Thread " << thread_id << " finished dedupping."; }
     return std::array<unsigned int, 3>({num_pass_alns, pcrpassed, umi_pcrpassed});
 }
 #endif
