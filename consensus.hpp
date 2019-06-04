@@ -1875,7 +1875,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         infostring += std::string(";tAltBQ=") + std::to_string(tki.AutoBestAltBQ);
         infostring += std::string(";tAllBQ=") + std::to_string(tki.AutoBestAllBQ);
         auto finalGQ = (("1/0" == fmt.GT) ? fmt.GQ : 0);
-        vcfqual = MIN(MIN(tnlike + 25, finalGQ + 30), tki.VAQ - fmt.VAQ); // (germline + sys error) freq of 10^(-25/10)
+        auto tnlike_addphred = prob2phred(MAX(DBL_MIN, MIN(1.0 - DBL_EPSILON, nDP * phred2prob((nAllBQ + pc1) / (nDP + 1.0)))));
+        vcfqual = MIN(MIN(tnlike + tnlike_addphred, finalGQ + 30), tki.VAQ - fmt.VAQ); // (germline + sys error) freq of 10^(-25/10)
     } else {
         ref_alt = vcfref + "\t" + vcfalt;
         infostring = ".";
