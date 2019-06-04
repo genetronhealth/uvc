@@ -1861,8 +1861,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         double nDP1 = nAllBQ + depth_pseudocount;
         double tAD1 = tAltBQ + depth_pseudocount;
         double tDP1 = tAllBQ + depth_pseudocount;
-                
-        double tnlike = h01_to_phredlike<false>(nAD1 + pc1, (nDP1 + pc1) * (1 + DBL_EPSILON), tAD1, tDP1 * (1 + DBL_EPSILON), pc1, 1+1e-4);
+        double pc2 = pc1 * (tDP1 + pc1) / (nDP1 + pc1);
+        double tnlike = h01_to_phredlike<false>((nAD1 + pc1), (nDP1 + pc1) * (1 + DBL_EPSILON), (tAD1 + pc2), (tDP1 + pc2) * (1 + DBL_EPSILON), 0, 1+1e-4);
         if (!(tnlike < 1e7)) {
             fprintf(stderr, "tnlike %f is invalid!, computed from %f %f %f %f , %f !!!\n", tnlike, nAD1, nDP1, tAD1, tDP1, pc1);
             abort();
