@@ -735,14 +735,14 @@ public:
                             || !fprintf(stderr, "Bam line with QNAME %s has rpos that is not within the range (%d - %d)", bam_get_qname(b), b->core.pos, bam_endpos(b)));
                     if (i2 > 0) {
                         if (TUpdateType == BASE_QUALITY_MAX) {
-                            incvalue = MIN(bam_phredi(b, qpos-1), bam_phredi(b, qpos)); + symbolType2addPhred[LINK_SYMBOL];
+                            incvalue = MIN(bam_phredi(b, qpos-1), bam_phredi(b, qpos)); // + symbolType2addPhred[LINK_SYMBOL];
                         }
                         this->inc<TUpdateType>(rpos, LINK_M, incvalue, b);
                     }
                     unsigned int base4bit = bam_seqi(bseq, qpos);
                     unsigned int base3bit = seq_nt16_int[base4bit];
                     if (TUpdateType == BASE_QUALITY_MAX) {
-                        incvalue = bam_phredi(b, qpos) + symbolType2addPhred[BASE_SYMBOL];
+                        incvalue = bam_phredi(b, qpos); // + symbolType2addPhred[BASE_SYMBOL];
                     }
                     this->inc<TUpdateType>(rpos, AlignmentSymbol(base3bit), incvalue, b);
                     rpos += 1;
@@ -754,9 +754,9 @@ public:
                         LOG(logWARNING) << "Query " << bam_get_qname(b) << " has insertion of legnth " << cigar_oplen << " at " << qpos
                                 << " which is not exclusively between 0 and " << b->core.l_qseq << " aligned to tid " << b->core.tid << " and position " << rpos;
                         incvalue = (0 != qpos ? bam_phredi(b, qpos-1) : ((qpos + cigar_oplen < b->core.l_qseq) ? bam_phredi(b, qpos + cigar_oplen) : 1)) 
-                                + symbolType2addPhred[LINK_SYMBOL];
+                                ; // + symbolType2addPhred[LINK_SYMBOL];
                     } else {
-                        incvalue = MIN(bam_phredi(b, qpos-1), bam_phredi(b, qpos + cigar_oplen)) + symbolType2addPhred[LINK_SYMBOL];
+                        incvalue = MIN(bam_phredi(b, qpos-1), bam_phredi(b, qpos + cigar_oplen)); // + symbolType2addPhred[LINK_SYMBOL];
                     }
                     unsigned int decvalue = bam_to_decvalue(b, qpos);
                     incvalue -= MIN(incvalue, decvalue);
@@ -770,14 +770,14 @@ public:
                     const char base8bit = seq_nt16_str[base4bit];
                     iseq.push_back(base8bit);
                     if (TUpdateType == BASE_QUALITY_MAX) {
-                        incvalue2 = MIN(incvalue2, bam_seqi(bseq, qpos+i2)) + symbolType2addPhred[LINK_SYMBOL];
+                        incvalue2 = MIN(incvalue2, bam_seqi(bseq, qpos+i2)); // + symbolType2addPhred[LINK_SYMBOL];
                     }
                 }
                 this->incIns(rpos, iseq, incvalue2);
                 qpos += cigar_oplen;
             } else if (cigar_op == BAM_CDEL) {
                 if (TUpdateType == BASE_QUALITY_MAX) {
-                    incvalue = MIN(bam_phredi(b, qpos), bam_phredi(b, qpos+1)) + symbolType2addPhred[LINK_SYMBOL];
+                    incvalue = MIN(bam_phredi(b, qpos), bam_phredi(b, qpos+1)); // + symbolType2addPhred[LINK_SYMBOL];
                     unsigned int decvalue = bam_to_decvalue(b, qpos);
                     incvalue -= MIN(incvalue, decvalue);
                 }
@@ -943,7 +943,7 @@ struct Symbol2CountCoverageSet {
     int getbest( // auto & qual_psum, 
             auto & max_pqual, auto & best_phred, auto & best_count,
             const auto & ampDistrByPos, const double symbolTypeSum, const AlignmentSymbol symbol, const unsigned int bias_adjusted_mincount, 
-            const unsigned int phred_max, const double homogeneity = 0) const {
+            const unsigned int phred_max, const unsigned int addPhred, const double homogeneity = 0) const {
         max_pqual = 0;
         best_phred = 0;
         best_count = 0;
@@ -958,7 +958,7 @@ struct Symbol2CountCoverageSet {
             if (0 < count) {
                 if (TIsFilterStrong) {
                     if (tot_count - count <= (bias_adjusted_mincount)) {
-                        tot_pqual = h01_to_phredlike<false>(phred2prob(phred), 1 + DBL_EPSILON, MIN(tot_count, bias_adjusted_mincount), symbolTypeSum);
+                        tot_pqual = h01_to_phredlike<false>(phred2prob(phred + addPhred), 1 + DBL_EPSILON, MIN(tot_count, bias_adjusted_mincount), symbolTypeSum);
                     }
                 } else {
                     tot_pqual = tot_count * phred;
@@ -1016,7 +1016,8 @@ struct Symbol2CountCoverageSet {
             auto & pass_thres, auto & pass_depth,
             auto & vars_thres, auto & vars_depth, auto & vars_badep, auto & vars_vqual,
             auto & dedup_ampDistr, const auto & prev_tsum_depth,
-            auto & pb_dist_lpart, auto & pb_dist_rpart, auto & additional_note, bool should_add_note, unsigned int phred_max) {
+            auto & pb_dist_lpart, auto & pb_dist_rpart, auto & additional_note, bool should_add_note, unsigned int phred_max,
+            const auto & symbolType2addPhred) {
         
         assert(dedup_ampDistr.at(0).getIncluBegPosition() == dedup_ampDistr.at(1).getIncluBegPosition());
         assert(dedup_ampDistr.at(0).getExcluEndPosition() == dedup_ampDistr.at(1).getExcluEndPosition());
@@ -1141,7 +1142,7 @@ if (curr_depth_symbsum * 5 <= curr_depth_typesum * 4 && curr_depth_symbsum > 0 &
                         if (curr_depth_symbsum > 0) {
                             getbest<false>( //qual_phsum_val, 
                                     max_pqual, best_phred, best_count,
-                                    dedup_ampDistr[strand].getRefByPos(pos), curr_depth_typesum, symbol, max_imba_depth, phred_max);
+                                    dedup_ampDistr[strand].getRefByPos(pos), curr_depth_typesum, symbol, max_imba_depth, phred_max, 0);
                         } else {
                             best_phred = 0;
                             best_count = 0;
@@ -1152,7 +1153,7 @@ if (curr_depth_symbsum * 5 <= curr_depth_typesum * 4 && curr_depth_symbsum > 0 &
                         if (curr_depth_symbsum > 0) {
                             getbest<true> ( //qual_phsum_val,
                                     max_pqual, best_phred, best_count,
-                                    dedup_ampDistr[strand].getRefByPos(pos), curr_depth_typesum, symbol, max_imba_depth, phred_max);
+                                    dedup_ampDistr[strand].getRefByPos(pos), curr_depth_typesum, symbol, max_imba_depth, phred_max, symbolType2addPhred[symbolType]);
                         } else {
                             max_pqual = 0;
                             best_phred = 0;
@@ -1243,7 +1244,8 @@ if (curr_depth_symbsum * 5 <= curr_depth_typesum * 4 && curr_depth_symbsum > 0 &
                 this->bq_tsum_depth, this->bq_pass_thres, this->bq_pass_depth,
                 this->bq_vars_thres, this->bq_vars_depth, this->bq_vars_badep, this->bq_vars_vqual,
                 this->dedup_ampDistr,this->bq_tsum_depth,
-                this->pb_dist_lpart, this->pb_dist_rpart, this->additional_note, should_add_note, phred_max);
+                this->pb_dist_lpart, this->pb_dist_rpart, this->additional_note, should_add_note, phred_max, 
+                symbolType2addPhred);
         return 0;
     }
     
@@ -1427,7 +1429,8 @@ if (curr_depth_symbsum * 5 <= curr_depth_typesum * 4 && curr_depth_symbsum > 0 &
                 this->fq_tsum_depth, this->fq_pass_thres, this->fq_pass_depth,
                 this->fq_vars_thres, this->fq_vars_depth, this->fq_vars_badep, this->fq_vars_vqual,
                 this->dedup_ampDistr,this->bq_tsum_depth,
-                this->pb_dist_lpart, this->pb_dist_rpart, this->additional_note, should_add_note, phred_max);
+                this->pb_dist_lpart, this->pb_dist_rpart, this->additional_note, should_add_note, phred_max, 
+                symbolType2addPhred);
     };
     
     std::basic_string<AlignmentSymbol> string2symbolseq(const std::string & instring) {
