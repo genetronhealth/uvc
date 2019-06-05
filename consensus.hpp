@@ -1711,7 +1711,7 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
     double doubleVAQ = MAX(doubleVAQfw, doubleVAQrv);
     // double doubleVAQ = stdVAQ + (minVAQ * (phred_max_dscs - phred_max_sscs) / (double)phred_max_sscs);
     double duplexVAQ = (double)fmt.dAD3 * (double)(phred_max_dscs - phred_max_sscs) - (double)(fmt.dAD1 - fmt.dAD3); // h01_to
-    fmt.VAQ = MAX(lowestVAQ, doubleVAQ + duplexVAQ) / 1.5;
+    fmt.VAQ = MAX(lowestVAQ, doubleVAQ + duplexVAQ); // / 1.5;
     return (int)(fmt.bAD1[0] + fmt.bAD1[1]);
 };
 
@@ -1746,6 +1746,7 @@ generateVcfHeader(const char *ref_fasta_fname, const char *platform, const unsig
     }
 
     ret += "##INFO=<ID=TNQ,Number=1,Type=Float,Description=\"Tumor-vs-normal quality based on sample comparison\">\n";
+    ret += "##INFO=<ID=TNQA,Number=1,Type=Float,Description=\"The additive quality that minimizes TNQ\">\n";
     ret += "##INFO=<ID=tVAQ,Number=1,Type=Float,Description=\"Tumor-sample VAQ\">\n";
     ret += "##INFO=<ID=tDP,Number=1,Type=Integer,Description=\"Tumor-sample DP\">\n";
     ret += "##INFO=<ID=tFA,Number=1,Type=Float,Description=\"Tumor-sample FA\">\n";
@@ -1861,14 +1862,17 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         double nDP1 = nAllBQ + depth_pseudocount;
         double tAD1 = tAltBQ + depth_pseudocount;
         double tDP1 = tAllBQ + depth_pseudocount;
-                
-        double tnlike = h01_to_phredlike<false>(nAD1 + pc1, (nDP1 + pc1) * (1 + DBL_EPSILON), tAD1, tDP1 * (1 + DBL_EPSILON), pc1, 1+1e-4);
+        
+        double tnlike_argmin = 0;
+        double tnlike = sumBQ4_to_phredlike(tnlike_argmin, nDP1, nAD1, tDP1, tAD1);
+        // double tnlike = h01_to_phredlike<false>(nAD1 + pc1, (nDP1 + pc1) * (1 + DBL_EPSILON), tAD1, tDP1 * (1 + DBL_EPSILON), pc1, 1+1e-4);
         if (!(tnlike < 1e7)) {
             fprintf(stderr, "tnlike %f is invalid!, computed from %f %f %f %f , %f !!!\n", tnlike, nAD1, nDP1, tAD1, tDP1, pc1);
             abort();
         }
         
         infostring = std::string("TNQ=") + std::to_string(tnlike);
+        infostring += std::string(";TNQA=") + std::to_string(tnlike_argmin);
         infostring += std::string(";tVAQ=") + std::to_string(tki.VAQ);
         infostring += std::string(";tDP=") + std::to_string(tki.DP);
         infostring += std::string(";tFA=") + std::to_string(tki.FA);

@@ -216,6 +216,70 @@ h01_to_phredlike(double h0pos, double h0tot, double h1pos, double h1tot,
     return dlog(_any4_to_biasfact(h0tot + pseudocount, h1tot + pseudocount, h0pos + pseudocount, h1pos, true, 0), err_amp_ratio) * log((h1pos * h0tot) / (h1tot * h0pos)) * (10.0 / log(10.0));
 }
 
+struct Any4Value {
+    const double v1;
+    const double v2;
+    const double v3;
+    const double v4;
+    Any4Value(double v1, double v2, double v3, double v4) : v1(v1), v2(v2), v3(v3), v4(v4) {}
+    const double to_phredlike(double d, double pc = 0, double err_amp_ratio = 1+1e-5) const {
+        return 2 * (d + h01_to_phredlike(v1 + d, v2 + d, v3 + d, v4 + d, pc, err_amp_ratio));
+    }
+};
+
+// retrieved from https://en.wikipedia.org/wiki/Golden-section_search
+Any4Value
+gss(const auto & any4Value, double a, double b, double tol = 1.0) {
+    Any4Value ret(0, 0, 0, 0);
+    double invphi = (sqrt(5) - 1) / 2;
+    double invphi2 = (3 - sqrt(5)) / 2;
+    double h = b - a;
+    assert(h > tol);
+    /*
+    if (h <= tol) {
+        return Any4Value(a, b, 0, 0);
+    }
+    */
+    int n = (int)(ceil(log(tol/h)/log(invphi)));
+    double c = a + invphi2 * h;
+    double d = a + invphi * h;
+    double yc = any4Value.to_phredlike(c);
+    double yd = any4Value.to_phredlike(d);
+    for (int k = 0; k < n - 1; k++) {
+        if (yc < yd) {
+            b = d;
+            d = c;
+            yd = yc;
+            h = invphi*h;
+            c = a + invphi2 * h;
+            yc = any4Value.to_phredlike(c);
+        } else {
+            a = c;
+            c = d;
+            yc = yd;
+            h = invphi*h;
+            d = a + invphi * h;
+            yd = any4Value.to_phredlike(d);
+        }
+    }
+    if (yc < yd) {
+        double ya = any4Value.to_phredlike(a);
+        double yb = any4Value.to_phredlike(b);
+        return Any4Value(a, b, ya, yb);
+    } else {
+        return Any4Value(c, d, yc, yd);
+    }
+}
+
+double
+sumBQ4_to_phredlike(double & bestAddValue, 
+        double normalAllBQsum, double normalAltBQsum, double tumorAllBQsum, double tumorAltBQsum) {
+    Any4Value any4Value(normalAltBQsum, normalAllBQsum, tumorAltBQsum, tumorAllBQsum);
+    Any4Value argmin2_min2 = gss(any4Value, 1, 2 + tumorAltBQsum);
+    bestAddValue = argmin2_min2.v2;
+    return argmin2_min2.v4;
+}
+
 //// one-way conversion of information into other measures of information (based on information theory)
 // consensual means in the same MIG, 
 // homogeneity=0 means reads are completely independent (e.g. different DNA fragments), homogeneity=1 means reads are completely dependent (e.g. in the same MIG)
