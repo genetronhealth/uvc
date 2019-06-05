@@ -24,6 +24,6 @@ date && time -p bcftools index -t "${tvcfgz}"
 date && time -p "${scriptdir}/uvc1" -f "${ref}" -s "${samplename}_N" "${nbam}" -o "${nvcfgz}" "${@:6}" --tumor-vcf "${tvcfgz}" 2> "${nlog}"
 date && time -p bcftools index -t "${nvcfgz}"
 
-date && time -p bcftools merge -m none -Ou "${tvcfgz}" "${nvcfgz}" | "${scriptdir}/callTN1" - "${avcfgz}"
-date && time -p bcftools index -t "${avcfgz}"
+#date && time -p bcftools merge -m none -Ou "${tvcfgz}" "${nvcfgz}" | "${scriptdir}/callTN1" - "${avcfgz}"
+#date && time -p bcftools index -t "${avcfgz}"
 
