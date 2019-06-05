@@ -1869,7 +1869,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         double tnlike_argmin = 0;
         double tnlike = sumBQ4_to_phredlike(tnlike_argmin, nDP1, nAD1, tDP1, tAD1);
         // double tnlike = h01_to_phredlike<false>(nAD1 + pc1, (nDP1 + pc1) * (1 + DBL_EPSILON), tAD1, tDP1 * (1 + DBL_EPSILON), pc1, 1+1e-4);
-        if (!(tnlike < 1e7)) {
+        if (!(tnlike < 1e20)) {
             fprintf(stderr, "tnlike %f is invalid!, computed from %f %f %f %f , %f !!!\n", tnlike, nAD1, nDP1, tAD1, tDP1, pc1);
             abort();
         }
