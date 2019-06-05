@@ -223,7 +223,7 @@ struct Any4Value {
     const double v4;
     Any4Value(double v1, double v2, double v3, double v4) : v1(v1), v2(v2), v3(v3), v4(v4) {}
     const double to_phredlike(double d, double pc = 0, double err_amp_ratio = 1+1e-5) const {
-        return 2 * (d + h01_to_phredlike(v1 + d, v2 + d, v3 + d, v4 + d, pc, err_amp_ratio));
+        return 2 * (d + h01_to_phredlike(v1 + d, (v2 + d) * (1 + DBL_EPSILON), v3 + d, (v4 + d) * (1 + DBL_EPSILON), pc, err_amp_ratio));
     }
 };
 
@@ -275,7 +275,7 @@ double
 sumBQ4_to_phredlike(double & bestAddValue, 
         double normalAllBQsum, double normalAltBQsum, double tumorAllBQsum, double tumorAltBQsum) {
     Any4Value any4Value(normalAltBQsum, normalAllBQsum, tumorAltBQsum, tumorAllBQsum);
-    Any4Value argmin2_min2 = gss(any4Value, 1, 2 + tumorAltBQsum);
+    Any4Value argmin2_min2 = gss(any4Value, 0.5, 2 + tumorAltBQsum);
     bestAddValue = argmin2_min2.v2;
     return argmin2_min2.v4;
 }

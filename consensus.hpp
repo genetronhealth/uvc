@@ -761,7 +761,7 @@ public:
                     unsigned int decvalue = bam_to_decvalue(b, qpos);
                     incvalue -= MIN(incvalue, decvalue);
                 }
-                this->inc<TUpdateType>(rpos, insLenToSymbol(cigar_oplen), incvalue, b);
+                this->inc<TUpdateType>(rpos, insLenToSymbol(cigar_oplen), MAX(1, incvalue), b);
                 std::string iseq;
                 iseq.reserve(cigar_oplen);
                 unsigned int incvalue2 = incvalue;
@@ -773,7 +773,7 @@ public:
                         incvalue2 = MIN(incvalue2, bam_seqi(bseq, qpos+i2)); // + symbolType2addPhred[LINK_SYMBOL];
                     }
                 }
-                this->incIns(rpos, iseq, incvalue2);
+                this->incIns(rpos, iseq, MAX(1, incvalue2));
                 qpos += cigar_oplen;
             } else if (cigar_op == BAM_CDEL) {
                 if (TUpdateType == BASE_QUALITY_MAX) {
@@ -781,8 +781,8 @@ public:
                     unsigned int decvalue = bam_to_decvalue(b, qpos);
                     incvalue -= MIN(incvalue, decvalue);
                 }
-                this->inc<TUpdateType>(rpos, delLenToSymbol(cigar_oplen), incvalue, b);
-                this->incDel(rpos, cigar_oplen, incvalue);
+                this->inc<TUpdateType>(rpos, delLenToSymbol(cigar_oplen), MAX(1, incvalue), b);
+                this->incDel(rpos, cigar_oplen, MAX(1, incvalue));
                 rpos += cigar_oplen;
             } else if (cigar_op == BAM_CREF_SKIP) {
                 rpos += cigar_oplen;
