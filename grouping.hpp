@@ -129,7 +129,8 @@ struct SamIter {
                 nreads_tot += std::get<4>(bedreg); // tid, tbeg, tend, false, nreads));
                 region_tot += std::get<2>(bedreg) - std::get<1>(bedreg);
                 if (nreads_tot > (2000*1000 * nthreads) || region_tot > (1000*1000 * nthreads)) {
-                    return ret; 
+                    this->_bedregion_idx++;
+                    return ret;
                 }
             }
             return ret;
