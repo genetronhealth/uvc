@@ -148,6 +148,8 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
 
     app.add_option("--bq-phred-added-misma", bq_phred_added_misma, "Additional base-quality phred score added to match and mismatch, recommend 6 for Illumina and BGI.");
     app.add_option("--bq-phred-added-indel", bq_phred_added_indel, "Additional base-quality phred score added to indel and no-indel, recommend 6 for IonTorrent.");
+    app.add_option("--phred-germline",       phred_germline_polymorphism, "Phred-scale probabiity for germline polymorphism event.");
+    app.add_option("--nonref-to-alt-frac",   nonref_to_alt_frac,   "Fraction of NON-REF bases in normal that supports the ALT of interest.");
     app.add_option("--should-add-note",      should_add_note,      "Boolean indicating if the program generates more detail in the vcf result file.");
 
     app.add_option("--disable-dup-read-merge",disable_dup_read_merge,   "Disable the merge of duplicate reads (0 means false and 1 means true). ", true);

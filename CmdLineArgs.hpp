@@ -36,6 +36,8 @@ struct CommandLineArgs {
     uint32_t    bq_phred_added_indel = 0;
     uint32_t    bq_phred_added_misma = 0;
     bool        should_add_note = false;
+    uint32_t    phred_germline_polymorphism = 30;
+    double      nonref_to_alt_frac = 0.001;
     int initFromArgCV(int & parsing_result_flag, SequencingPlatform & inferred_sequencing_platform, int argc, const char *const* argv);
     SequencingPlatform selfUpdateByPlatform(void);
 };
