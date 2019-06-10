@@ -444,7 +444,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
     AssayType inferred_assay_type = ((ASSAY_TYPE_AUTO == paramset.assay_type) ? (is_by_capture ? ASSAY_TYPE_CAPTURE : ASSAY_TYPE_AMPLICON) : (paramset.assay_type));
     
     if (0 == num_passed_reads) { return -1; };
-   
+    unsigned int minABQ = ((ASSAY_TYPE_CAPTURE != inferred_assay_type) ? paramset.minABQ : paramset.minABQ_capture);
+
     const unsigned int rpos_inclu_beg = MAX(incluBegPosition, extended_inclu_beg_pos);
     const unsigned int rpos_exclu_end = MIN(excluEndPosition, extended_exclu_end_pos); 
 
@@ -482,7 +483,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
             // adjcount_x_rpos_x_misma_vec, // maxvalue, 
             umi_strand_readset, refstring, 
             paramset.bq_phred_added_misma, paramset.bq_phred_added_indel, paramset.should_add_note, 
-            paramset.phred_max_sscs, paramset.phred_max_dscs,
+            paramset.phred_max_sscs, paramset.phred_max_dscs, minABQ,
             // ErrorCorrectionType(paramset.seq_data_type), 
             !paramset.disable_dup_read_merge, is_loginfo_enabled, thread_id);
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts analyzing phasing info"; }
@@ -529,7 +530,9 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
         for (unsigned int stidx = 0; stidx < 2; stidx++) {
             const SymbolType symbolType = allSymbolTypes[stidx];
             bcfrec::BcfFormat init_fmt;
-            std::array<unsigned int, 2> bDPcDP = BcfFormat_init(init_fmt, symbolToCountCoverageSet12, refpos, symbolType, !paramset.disable_dup_read_merge);
+            const AlignmentSymbol refsymbol = (LINK_SYMBOL == symbolType ? LINK_M : (
+                    refstring.size() == (refpos - extended_inclu_beg_pos) ? BASE_NN : CHAR_TO_SYMBOL.data.at(refstring.at(refpos - extended_inclu_beg_pos))));
+            std::array<unsigned int, 2> bDPcDP = BcfFormat_init(init_fmt, symbolToCountCoverageSet12, refpos, symbolType, !paramset.disable_dup_read_merge, refsymbol);
             AlignmentSymbol most_confident_symbol = END_ALIGNMENT_SYMBOLS;
             float most_confident_qual = 0;
             std::string most_confident_GT = "./.";
@@ -629,7 +632,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                         appendVcfRecord(buf_out_string, buf_out_string_pass, symbolToCountCoverageSet12,
                                 std::get<0>(tname_tseqlen_tuple).c_str(), refpos, symbol, fmt,
                                 refstring, extended_inclu_beg_pos, paramset.vqual, should_output_all, 
-                                tki, paramset.vcf_tumor_fname.size() != 0);
+                                tki, paramset.vcf_tumor_fname.size() != 0, paramset.phred_germline_polymorphism, paramset.nonref_to_alt_frac);
                     }
                 }
             }
