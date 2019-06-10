@@ -81,14 +81,18 @@ SequencingPlatform CommandLineArgs::selfUpdateByPlatform() {
     if (SEQUENCING_PLATFORM_IONTORRENT == inferred_sequencing_platform && SEQUENCING_PLATFORM_OTHER != this->sequencing_platform) {
         bq_phred_added_indel += 0;
         bq_phred_added_misma += 6;
-        minABQ += 0;
-        minABQ_capture += 0;
+        minABQ_pcr_snv += 0;
+        minABQ_pcr_indel += 0;
+        minABQ_cap_snv += 0;
+        minABQ_cap_indel += 0;
     }
     if (SEQUENCING_PLATFORM_ILLUMINA == inferred_sequencing_platform && SEQUENCING_PLATFORM_OTHER != this->sequencing_platform) {
         bq_phred_added_indel += 6;
         bq_phred_added_misma += 0;
-        minABQ += 25;
-        minABQ_capture += 22;
+        minABQ_pcr_snv += 25;
+        minABQ_pcr_indel += 19;
+        minABQ_cap_snv += 22;
+        minABQ_cap_indel += 16;
     }
     return inferred_sequencing_platform;
 }
@@ -139,11 +143,17 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     app.add_option("--phred-sscs",   phred_max_sscs,    "Maximum phred score for single-strand consensus sequences (SSCSs)", true);
     app.add_option("--phred-dscs",   phred_max_dscs,    "Maximum phred score for double-strand consensus sequences (DSCSs)", true);
     //app.add_option("--platform",     platform,          "Platform or the sequencer that generated the data, which is either illumina or iontorrent."); 
-    app.add_option("--minABQ",       minABQ,            "Minimum average base quality below which variant quality is capped to average base quality, "
+    app.add_option("--minABQ-pcr-snv",   minABQ_pcr_snv,   "Minimum average base quality below which variant quality is capped to average base quality for PCR assay and SNVs, "
                    "recommend 25 for Illumina and 0 for IonTorrent "
                    " (如果位点平均碱基质量低于此值则变异质量不会超过平均碱基质量，建议对Illumina用25并且对IonTorrent用0).", true); 
-    app.add_option("--minABQ-capt",  minABQ_capture,    "Minimum average base quality below which variant quality is capped to average base quality for capture assay."
+    app.add_option("--minABQ-pcr-indel", minABQ_pcr_indel, "Minimum average base quality below which variant quality is capped to average base quality for PCR assay and InDels, "
+                   "recommend 19 for Illumina and 0 for IonTorrent "
+                   " (如果位点平均碱基质量低于此值则变异质量不会超过平均碱基质量，建议对Illumina用25并且对IonTorrent用0).", true); 
+    app.add_option("--minABQ-cap-snv",   minABQ_cap_snv,   "Minimum average base quality below which variant quality is capped to average base quality for capture assay and SNVs."
                    "recommend 22 for Illumina and 0 for IonTorrent "
+                   " (如果位点平均碱基质 量低于此值则变异质量不会超过平均碱基质量(捕获试验)，建议对Illumina用25并且对IonTorrent用0).", true); 
+    app.add_option("--minABQ-cap-indel", minABQ_cap_indel, "Minimum average base quality below which variant quality is capped to average base quality for capture assay and InDels."
+                   "recommend 16 for Illumina and 0 for IonTorrent "
                    " (如果位点平均碱基质量低于此值则变异质量不会超过平均碱基质量(捕获试验)，建议对Illumina用25并且对IonTorrent用0).", true); 
 
     app.add_option("--bq-phred-added-misma", bq_phred_added_misma, "Additional base-quality phred score added to match and mismatch, recommend 6 for Illumina and BGI.");

@@ -444,8 +444,9 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
     AssayType inferred_assay_type = ((ASSAY_TYPE_AUTO == paramset.assay_type) ? (is_by_capture ? ASSAY_TYPE_CAPTURE : ASSAY_TYPE_AMPLICON) : (paramset.assay_type));
     
     if (0 == num_passed_reads) { return -1; };
-    unsigned int minABQ = ((ASSAY_TYPE_CAPTURE != inferred_assay_type) ? paramset.minABQ : paramset.minABQ_capture);
-
+    unsigned int minABQ_snv = ((ASSAY_TYPE_CAPTURE != inferred_assay_type) ? paramset.minABQ_pcr_snv : paramset.minABQ_cap_snv);
+    unsigned int minABQ_indel = ((ASSAY_TYPE_CAPTURE != inferred_assay_type) ? paramset.minABQ_pcr_indel : paramset.minABQ_cap_indel);
+    
     const unsigned int rpos_inclu_beg = MAX(incluBegPosition, extended_inclu_beg_pos);
     const unsigned int rpos_exclu_end = MIN(excluEndPosition, extended_exclu_end_pos); 
 
@@ -492,7 +493,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
             // adjcount_x_rpos_x_misma_vec, // maxvalue, 
             umi_strand_readset, refstring, 
             paramset.bq_phred_added_misma, paramset.bq_phred_added_indel, paramset.should_add_note, 
-            paramset.phred_max_sscs, paramset.phred_max_dscs, minABQ,
+            paramset.phred_max_sscs, paramset.phred_max_dscs, minABQ_snv, // minABQ_indel,
             // ErrorCorrectionType(paramset.seq_data_type), 
             !paramset.disable_dup_read_merge, is_loginfo_enabled, thread_id);
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts analyzing phasing info"; }
@@ -556,10 +557,9 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                             extended_posidx_to_is_rescued[refpos - extended_inclu_beg_pos] &&
                             (tid_pos_symb_to_tki.end() != tid_pos_symb_to_tki.find(std::make_tuple(tid, refpos, symbol)))); 
                             //(extended_posidx_to_symbol_to_tkinfo[refpos-extended_inclu_beg_pos][symbol].DP > 0); 
-                    unsigned int minABQ = ((ASSAY_TYPE_CAPTURE != inferred_assay_type) ? paramset.minABQ : paramset.minABQ_capture);
                     int altdepth = fillBySymbol(fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]], symbolToCountCoverageSet12, 
                             refpos, symbol, refstring, extended_inclu_beg_pos, mutform2count4vec_bq, indices_bq, mutform2count4vec_fq, indices_fq, 
-                            minABQ, paramset.phred_max_sscs, paramset.phred_max_dscs, 
+                            ((BASE_SYMBOL == symbolType) ? minABQ_snv : minABQ_indel), paramset.phred_max_sscs, paramset.phred_max_dscs, 
                             // ErrorCorrectionType(paramset.seq_data_type), 
                             !paramset.disable_dup_read_merge,
                             is_rescued);
@@ -776,7 +776,8 @@ int main(int argc, char **argv) {
     }
     
     bam_hdr_t * samheader = sam_hdr_read(samfiles[0]);
-    std::string header_outstring = generateVcfHeader(paramset.fasta_ref_fname.c_str(), SEQUENCING_PLATFORM_TO_DESC.at(inferred_sequencing_platform).c_str(), paramset.minABQ, argc, argv, 
+    std::string header_outstring = generateVcfHeader(paramset.fasta_ref_fname.c_str(), SEQUENCING_PLATFORM_TO_DESC.at(inferred_sequencing_platform).c_str(), 
+            paramset.minABQ_pcr_snv, paramset.minABQ_pcr_indel, paramset.minABQ_cap_snv, paramset.minABQ_cap_indel, argc, argv, 
             samheader->n_targets, samheader->target_name, samheader->target_len, 
             paramset.sample_name.c_str());
     clearstring<false>(fp_allp, header_outstring);

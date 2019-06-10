@@ -31,8 +31,10 @@ struct CommandLineArgs {
     uint32_t    phred_max_dscs = 60;
     double      vqual = 10;
     //std::string platform = "auto";
-    uint32_t    minABQ = 0;
-    uint32_t    minABQ_capture = 0;
+    uint32_t    minABQ_pcr_snv = 0;
+    uint32_t    minABQ_pcr_indel = 0;
+    uint32_t    minABQ_cap_snv = 0;
+    uint32_t    minABQ_cap_indel = 0;
     uint32_t    bq_phred_added_indel = 0;
     uint32_t    bq_phred_added_misma = 0;
     bool        should_add_note = false;

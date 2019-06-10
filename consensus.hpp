@@ -1812,7 +1812,8 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
 
 #include "version.h"
 std::string 
-generateVcfHeader(const char *ref_fasta_fname, const char *platform, const unsigned int minABQ, 
+generateVcfHeader(const char *ref_fasta_fname, const char *platform, 
+        const unsigned int minABQ_pcr_snv, const unsigned int minABQ_pcr_indel, const unsigned int minABQ_cap_snv, const unsigned int minABQ_cap_indel, 
         unsigned int argc,      const char *const *argv,  
         unsigned int n_targets, const char *const *target_name, const uint32_t *target_len,
         const char *const sampleName) {
@@ -1829,7 +1830,8 @@ generateVcfHeader(const char *ref_fasta_fname, const char *platform, const unsig
         ret += std::string("") + std::string(argv[i]) + "\t";
     }
     ret += "\n";
-    ret += std::string("") + "##variantCallerInferredParameters=<" + "platform=" + platform + ",minABQ=" + std::to_string(minABQ) + ">\n";
+    ret += std::string("") + "##variantCallerInferredParameters=<" + "platform=" + platform + ",minABQs=("
+            + std::to_string(minABQ_pcr_snv) + "x" + std::to_string(minABQ_pcr_indel) + "x" +  std::to_string(minABQ_cap_snv) + "x" + std::to_string(minABQ_cap_indel) + ")>\n";
     ret += std::string("") + "##reference=" + ref_fasta_fname + "\n";
     for (size_t i = 0; i < n_targets; i++) {
         ret += std::string("") + "##contig=<ID=" + target_name[i] + ",length=" + std::to_string(target_len[i]) + ">\n";
