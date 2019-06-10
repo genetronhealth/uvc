@@ -67,7 +67,7 @@ template <class T> void autoswap ( T& a, T& b ) {
 
 double invmax(double x) { return MAX(x, 1/x); }
 
-template <bool TRefExcludeAlt=false, class T>
+template <bool TRefExcludeAlt=false, bool TIsPseudocountZero = false, class T>
 double
 _any4_to_biasfact(T dp0, T dp1, T ad0, T ad1, const bool is_inv, double pseudocount) {
     if (TRefExcludeAlt) {
@@ -84,22 +84,23 @@ _any4_to_biasfact(T dp0, T dp1, T ad0, T ad1, const bool is_inv, double pseudoco
         assert(ad0 >= -pseudocount/2);
         assert(ad1 >= -pseudocount/2);
     }
-    double t00 = dp0 + pseudocount;
-    double t01 = dp1 + pseudocount;
-    double t10 = ad0 + pseudocount;
-    double t11 = ad1 + pseudocount;
+    double t00 = (TIsPseudocountZero ? dp0 : (dp0 + pseudocount));
+    double t01 = (TIsPseudocountZero ? dp1 : (dp1 + pseudocount));
+    double t10 = (TIsPseudocountZero ? ad0 : (ad0 + pseudocount));
+    double t11 = (TIsPseudocountZero ? ad1 : (ad1 + pseudocount));
     
     double t0sum = t00 + t01;
     double t1sum = t10 + t11;
     
-    if (t0sum > t1sum) {
-        t00 += pseudocount * (t0sum/t1sum - 1);
-        t01 += pseudocount * (t0sum/t1sum - 1);
-    } else {
-        t10 += pseudocount * (t1sum/t0sum - 1);
-        t11 += pseudocount * (t1sum/t0sum - 1);
+    if (!TIsPseudocountZero) { 
+        if (t0sum > t1sum) {
+            t00 += pseudocount * (t0sum/t1sum - 1);
+            t01 += pseudocount * (t0sum/t1sum - 1);
+        } else {
+            t10 += pseudocount * (t1sum/t0sum - 1);
+            t11 += pseudocount * (t1sum/t0sum - 1);
+        }
     }
-    
     double t00f = t00 / t01; // observed 
     double t10f = t10 / t11; // expected 
     double weight1over01 = t11 / (t10 + t11);
@@ -199,7 +200,7 @@ double dlog(double n, double r) {
     return log(n * (r-1) + 1) / log(r);
 }
 
-template <bool TIsConsensual = true> 
+template <bool TIsConsensual, bool TIsPseudocountZero = false, bool TIsErrAmpRatioOne = false> 
 double
 h01_to_phredlike(double h0pos, double h0tot, double h1pos, double h1tot, 
         double pseudocount = 1, double err_amp_ratio = (TIsConsensual ? 2.0 : 1.5)) {
@@ -213,7 +214,19 @@ h01_to_phredlike(double h0pos, double h0tot, double h1pos, double h1tot,
     double ratio = (h1tot) / h0tot;
     h0tot *= ratio;
     h0pos *= ratio;
-    return dlog(_any4_to_biasfact(h0tot + pseudocount, h1tot + pseudocount, h0pos + pseudocount, h1pos, true, 0), err_amp_ratio) * log((h1pos * h0tot) / (h1tot * h0pos)) * (10.0 / log(10.0));
+    double bf;
+    if (TIsPseudocountZero) {
+        bf = _any4_to_biasfact<false, true>(h0tot, h1tot, h0pos, h1pos, true, 0);
+    } else {
+        bf = _any4_to_biasfact(h0tot + pseudocount, h1tot + pseudocount, h0pos + pseudocount, h1pos, true, 0);
+    }
+    double dlogval;
+    if (TIsErrAmpRatioOne) {
+        dlogval = bf;
+    } else {
+        dlogval = dlog(bf, err_amp_ratio);
+    }
+    return dlogval * log((h1pos * h0tot) / (h1tot * h0pos)) * (10.0 / log(10.0));
 }
 
 struct Any4Value {
@@ -223,7 +236,8 @@ struct Any4Value {
     const double v4;
     Any4Value(double v1, double v2, double v3, double v4) : v1(v1), v2(v2), v3(v3), v4(v4) {}
     const double to_phredlike(double d, double pc = 0, double err_amp_ratio = 1+1e-5) const {
-        return 2 * (d + h01_to_phredlike(v1 + d, (v2 + d) * (1 + DBL_EPSILON), v3 + d, (v4 + d) * (1 + DBL_EPSILON), pc, err_amp_ratio));
+        return (  2.0 * d 
+                + 2.0 * h01_to_phredlike<false, true, true>(v1 + d, (v2 + d) * (1 + DBL_EPSILON), v3 + d, (v4 + d) * (1 + DBL_EPSILON), pc, err_amp_ratio));
     }
 };
 
@@ -275,7 +289,7 @@ double
 sumBQ4_to_phredlike(double & bestAddValue, 
         double normalAllBQsum, double normalAltBQsum, double tumorAllBQsum, double tumorAltBQsum) {
     Any4Value any4Value(normalAltBQsum, normalAllBQsum, tumorAltBQsum, tumorAllBQsum);
-    Any4Value argmin2_min2 = gss(any4Value, 0.5, 2 + tumorAltBQsum);
+    Any4Value argmin2_min2 = gss(any4Value, 1, 3 + tumorAltBQsum);
     bestAddValue = argmin2_min2.v2;
     return argmin2_min2.v4;
 }
