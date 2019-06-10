@@ -453,10 +453,19 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
     const auto tki_beg = tid_pos_symb_to_tki.lower_bound(std::make_tuple(tid, extended_inclu_beg_pos    , AlignmentSymbol(0)));
     const auto tki_end = tid_pos_symb_to_tki.upper_bound(std::make_tuple(tid, extended_exclu_end_pos + 1, AlignmentSymbol(0)));
     std::vector<bool> extended_posidx_to_is_rescued(extended_exclu_end_pos - extended_inclu_beg_pos + 1, false);
+    unsigned int num_rescued = 0;
     for (auto tki_it = tki_beg; tki_it != tki_end; tki_it++) {
         auto symbolpos = std::get<1>(tki_it->first);
         extended_posidx_to_is_rescued[symbolpos - extended_inclu_beg_pos] = true;
+        num_rescued++;
+        if (is_loginfo_enabled) {
+            // NOTE: the true positive short del at 22:17946835 in NA12878-NA24385 mixture is overwhelmed by the false positve long del spanning the true positive short del.
+            // However, so far manual check with limited experience cannot confirm that the true positive is indeed a true positive.
+            // TODO: have to see more examples of this case and adjust code accordingly.
+            LOG(logDEBUG4) << "Thread " << thread_id << " iterated over symbolpos " << symbolpos << " and symbol " << std::get<2>(tki_it->first) << " as a rescued var";
+        }
     }
+    if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " deals with " << num_rescued << " tumor-sample variants in region " << extended_inclu_beg_pos << " to " << extended_exclu_end_pos + 1 ;}
     // auto tki_it = tki_beg; 
     //if (paramset.vcf_tumor_fname.size() != 0) {
         // do not check tumor vcf here.
