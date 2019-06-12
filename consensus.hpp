@@ -1827,7 +1827,7 @@ generateVcfHeader(const char *ref_fasta_fname, const char *platform,
     ret += std::string("") + "##variantCallerVersion=" + VERSION_DETAIL + "\n";
     ret += std::string("") + "##variantCallerCommand=";
     for (unsigned int i = 0; i < argc; i++) {
-        ret += std::string("") + std::string(argv[i]) + "\t";
+        ret += std::string("") + std::string(argv[i]) + "  ";
     }
     ret += "\n";
     ret += std::string("") + "##variantCallerInferredParameters=<" + "platform=" + platform + ",minABQs=("
