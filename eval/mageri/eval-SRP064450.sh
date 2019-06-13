@@ -137,6 +137,7 @@ function bcfmerge() {
 
 healthySRAregex="SRR2556933|SRR2556934|SRR2556935|SRR2556936|SRR2556937|SRR2556938|SRR2556939|SRR2556940"
 hd734SRAregexs=("SRR2556941|SRR2556942|SRR2556943|SRR2556944" "SRR2556945|SRR2556946|SRR2556947|SRR2556948")
+hd734SRAregexAll="${hd734SRAregexs[0]}|${hd734SRAregexs[1]}"
 
 bcfmerge "${VCFDIR}/SRP064450_uvc1_healthy_8.vcf.gz" $(ls "${VCFDIR}/"*"_uvc1_hd734_atleast1000dp.vcf.gz" | grep -P "${healthySRAregex}")
 bcftools view "${VCFDIR}/SRP064450_uvc1_healthy_8.vcf.gz" | sed 's;\t[0-4.][|/][0-4.];\t0/0;g' | sed 's/chr//g' | sed 's/my_project.my_sample/my_project.healthyCtrl/g' | bcftools view -Oz -o  "${VCFDIR}/SRP064450_uvc1_healthy_8_healthychr.vcf.gz" -
@@ -186,14 +187,7 @@ date && time -p "${java8}" -jar "${ROOTDIR}/eval/tools/rtg-tools-3.10.1/RTG.jar"
     --svg "${VCFDIR}/SRP064450_mageri_hd734_healthychr_8x2rep${i}.vcfeval.outdir/SRP064450.all_methods_all_vars_rocplot.svg"
 done
 
-echo UNUSED '''
-for bam in $(ls ${BAMDIR} | grep ".bam$" | grep "${PAT}"); do
-    date && time -p "${java8}" -jar "${ROOTDIR}/eval/tools/rtg-tools-3.10.1/RTG.jar" vcfeval --squash-ploidy -f QUAL \
-    -b /bionfsdate/ctDNA/experiment/zhaoxiaofei/uvc/eval/mageri/smcounter-v2-paper/N13532/misc/na12878.uniq.all.het.vcf.gz \
-    -c /bionfsdate/ctDNA/experiment/zhaoxiaofei/uvc/eval/mageri/data/baseline/N13532-SRR7526729/NEB_S2.smCounter.anno.vcf.gz \
-    -e <(cat /bionfsdate/ctDNA/experiment/zhaoxiaofei/uvc/eval/mageri/smcounter-v2-paper/N13532/misc/N13532.hc.all.na12878.na24385.v3.3.2.bed | sed 's/^/chr/g') \
-    -t /bionfsdate/ctDNA/experiment/zhaoxiaofei/database/genome/hg19_UCSC.sdf \
-    -o /hongshan/tmp/vcfeval-test5 \
-d
-one
-'''
+python /biocluster/data/biobk/user_test/zhaoxiaofei/evaluate-hd734-vs-healthy.py <(/biocluster/data/biobk/user_test/zhaoxiaofei/SRP064450/SRR255693*.uvc1.anno-by-hd734.vcf /biocluster/data/biobk/user_test/zhaoxiaofei/SRP064450/SRR2556940.uvc1.anno-by-hd734.vcf) <(/biocluster/data/biobk/user_test/zhaoxiaofei/SRP064450/SRR255694*.uvc1.anno-by-hd734.vcf) hd734 "DP>=1000"
+
+python "${ROOTDIR}/eval/scripts/evaluate-hd734-vs-healthy.py" <(ls "${VCFDIR}/*"baseline2call_isec.dir/0003.vcf.gz" | grep -P "${healthySRAregex}") <(ls "${VCFDIR}/"*"baseline2call_isec.dir/0003.vcf.gz" | grep -P "${hd734SRAregexAll}") "all,pos-all" "DP>=1000" > "${VCFDIR}/evaluation-results.tsv"
+
