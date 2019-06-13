@@ -1321,6 +1321,9 @@ if (curr_depth_symbsum * 5 <= curr_depth_typesum * 4 && curr_depth_symbsum > 0 &
                 fillTidBegEndFromAlns2(tid2, beg2, end2, alns2);
                 Symbol2CountCoverage read_family_con_ampl(tid2, beg2, end2); 
                 Symbol2CountCoverage read_family_amplicon(tid2, beg2, end2); 
+                if (log_alns2) {
+                    // LOG(logINFO) << "    has " << alns2.size() << " fragments on strand " << strand;
+                }
                 for (const auto & alns1 : alns2) {
                     uint32_t tid1, beg1, end1;
                     fillTidBegEndFromAlns1(tid1, beg1, end1, alns1);
@@ -1329,6 +1332,7 @@ if (curr_depth_symbsum * 5 <= curr_depth_typesum * 4 && curr_depth_symbsum > 0 &
                     read_family_con_ampl.updateByConsensus<SYMBOL_COUNT_SUM>(read_ampBQerr_fragWithR1R2);
                     int updateresult = read_family_amplicon.updateByFiltering(read_ampBQerr_fragWithR1R2, this->bq_pass_thres[strand], 1, true, strand);
                     if (log_alns2) {
+                        // LOG(logINFO) << "        has " << alns1.size() << " sequenced read templates.";
                         // LOG(logDEBUG) << "num-updates = " << updateresult;
                     }
                 }
