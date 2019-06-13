@@ -428,7 +428,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
     unsigned int extended_inclu_beg_pos, extended_exclu_end_pos; 
     std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, int>> umi_strand_readset;
 
-    if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts bamfname_to_strand_to_familyuid_to_reads"; }
+    if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts bamfname_to_strand_to_familyuid_to_reads with pair_end_merge = " << paramset.pair_end_merge; }
     std::array<unsigned int, 3> passed_pcrpassed_umipassed = bamfname_to_strand_to_familyuid_to_reads(umi_to_strand_to_reads, 
             extended_inclu_beg_pos, extended_exclu_end_pos,
             paramset.bam_input_fname,
