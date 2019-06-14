@@ -163,12 +163,12 @@ sortvcf "${BASELINEDIR}/SRP064450_mageri_hd734_healthychr_8x2.vcf.gz" | sed 's;\
 bcftools index -ft "${BASELINEDIR}/SRP064450_mageri_hd734_healthychr_8x2_oneSample${i}.vcf.gz"
 done
 
-FLAGS="--all-records" #" --ref-overlap --decompose" #" --ref-overlap --decompose "
+FLAGS="--all-records" #" --squash-ploidy --ref-overlap --decompose" #" --ref-overlap --decompose "
 
 for i in 0 1; do
 rm -r "${VCFDIR}/SRP064450_uvc1_hd734_healthychr_8x2rep${i}.vcfeval.outdir" || true
 date && time -p "${java8}" -jar "${ROOTDIR}/eval/tools/rtg-tools-3.10.1/RTG.jar" vcfeval --threads=16 \
-    -f QUAL --squash-ploidy $FLAGS \
+    -f QUAL $FLAGS \
     -b "${TRUTH_MA_VCFGZ}" \
     -c "${VCFDIR}/SRP064450_uvc1_hd734_healthychr_8x2_oneSample${i}.vcf.gz" \
     -t "${ROOTDIR}/eval/datafiles/b37_plus_hg19_UCSC.sdf" \
@@ -176,7 +176,7 @@ date && time -p "${java8}" -jar "${ROOTDIR}/eval/tools/rtg-tools-3.10.1/RTG.jar"
 
 rm -r "${VCFDIR}/SRP064450_mageri_hd734_healthychr_8x2rep${i}.vcfeval.outdir" || true
 date && time -p "${java8}" -jar "${ROOTDIR}/eval/tools/rtg-tools-3.10.1/RTG.jar" vcfeval --threads=16 \
-    -f QUAL --squash-ploidy $FLAGS \
+    -f QUAL $FLAGS \
     -b "${TRUTH_MA_VCFGZ}" \
     -c "${BASELINEDIR}/SRP064450_mageri_hd734_healthychr_8x2_oneSample${i}.vcf.gz" \
     -t "${ROOTDIR}/eval/datafiles/b37_plus_hg19_UCSC.sdf" \
@@ -187,7 +187,7 @@ date && time -p "${java8}" -jar "${ROOTDIR}/eval/tools/rtg-tools-3.10.1/RTG.jar"
     --svg "${VCFDIR}/SRP064450_mageri_hd734_healthychr_8x2rep${i}.vcfeval.outdir/SRP064450.all_methods_all_vars_rocplot.svg"
 done
 
-python /biocluster/data/biobk/user_test/zhaoxiaofei/evaluate-hd734-vs-healthy.py <(/biocluster/data/biobk/user_test/zhaoxiaofei/SRP064450/SRR255693*.uvc1.anno-by-hd734.vcf /biocluster/data/biobk/user_test/zhaoxiaofei/SRP064450/SRR2556940.uvc1.anno-by-hd734.vcf) <(/biocluster/data/biobk/user_test/zhaoxiaofei/SRP064450/SRR255694*.uvc1.anno-by-hd734.vcf) hd734 "DP>=1000"
+python "${ROOTDIR}/eval/scripts/evaluate-hd734-vs-healthy.py" <(ls "${VCFDIR}/"*"baseline2call_isec.dir/0003.vcf.gz" | grep -P "${healthySRAregex}") <(ls "${VCFDIR}/"*"baseline2call_isec.dir/0003.vcf.gz" | grep -P "${hd734SRAregexAll}") "all,pos-all" "DP>=1000" > "${VCFDIR}/evaluation-results-uvc1.tsv"
 
-python "${ROOTDIR}/eval/scripts/evaluate-hd734-vs-healthy.py" <(ls "${VCFDIR}/*"baseline2call_isec.dir/0003.vcf.gz" | grep -P "${healthySRAregex}") <(ls "${VCFDIR}/"*"baseline2call_isec.dir/0003.vcf.gz" | grep -P "${hd734SRAregexAll}") "all,pos-all" "DP>=1000" > "${VCFDIR}/evaluation-results.tsv"
+python "${ROOTDIR}/eval/scripts/evaluate-hd734-vs-healthy.py" <(ls "${BASELINEDIR}/"*"/my_project.my_sample_baseline2call_isec.dir/0003.vcf.gz" | grep -P "${healthySRAregex}") <(ls "${BASELINEDIR}/"*"/my_project.my_sample_baseline2call_isec.dir/0003.vcf.gz" | grep -P "${hd734SRAregexAll}") "all,pos-all" "DP>=1000" > "${VCFDIR}/evaluation-results-mageri.tsv"
 
