@@ -27,8 +27,11 @@ struct CommandLineArgs {
     uint32_t    min_mapqual = 40; // from GATK
     uint32_t    max_cpu_num = 8;
     uint32_t    primerlen = 0;
-    uint32_t    phred_max_sscs = 50;
-    uint32_t    phred_max_dscs = 60;
+    uint32_t    phred_max_sscs_transition_CG_TA = 44; // Cytosine deamination into Uracil, especially in FFPE samples, also by UV light radiation, more upstream
+    uint32_t    phred_max_sscs_transition_TA_CG = 48; // https://en.wikipedia.org/wiki/DNA_oxidation, DNA synthesis error, more downstream
+    uint32_t    phred_max_sscs_transversion_any = 52;
+    uint32_t    phred_max_sscs_indel_any = 50;
+    uint32_t    phred_dscs_minus_sscs = 10;
     double      vqual = 10;
     //std::string platform = "auto";
     uint32_t    minABQ_pcr_snv = 0;

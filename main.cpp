@@ -488,12 +488,19 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
     // unsigned int maxvalue;
     std::map<std::basic_string<std::pair<unsigned int, AlignmentSymbol>>, std::array<unsigned int, 2>> mutform2count4map_bq;
     std::map<std::basic_string<std::pair<unsigned int, AlignmentSymbol>>, std::array<unsigned int, 2>> mutform2count4map_fq;
+    const PhredMutationTable sscs_mut_table(
+                paramset.phred_max_sscs_transition_CG_TA, 
+                paramset.phred_max_sscs_transition_TA_CG, 
+                paramset.phred_max_sscs_transversion_any,
+                paramset.phred_max_sscs_indel_any);
     symbolToCountCoverageSet12.updateByRegion3Aln(
             mutform2count4map_bq, mutform2count4map_fq,
             // adjcount_x_rpos_x_misma_vec, // maxvalue, 
             umi_strand_readset, refstring, 
             paramset.bq_phred_added_misma, paramset.bq_phred_added_indel, paramset.should_add_note, 
-            paramset.phred_max_sscs, paramset.phred_max_dscs, minABQ_snv, // minABQ_indel,
+            sscs_mut_table,
+            // paramset.phred_max_dscs, 
+            minABQ_snv, // minABQ_indel,
             // ErrorCorrectionType(paramset.seq_data_type), 
             !paramset.disable_dup_read_merge, is_loginfo_enabled, thread_id);
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts analyzing phasing info"; }
@@ -557,9 +564,11 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                             extended_posidx_to_is_rescued[refpos - extended_inclu_beg_pos] &&
                             (tid_pos_symb_to_tki.end() != tid_pos_symb_to_tki.find(std::make_tuple(tid, refpos, symbol)))); 
                             //(extended_posidx_to_symbol_to_tkinfo[refpos-extended_inclu_beg_pos][symbol].DP > 0); 
+                    unsigned int phred_max_sscs = sscs_mut_table.to_phred_rate(refsymbol, symbol);
                     int altdepth = fillBySymbol(fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]], symbolToCountCoverageSet12, 
                             refpos, symbol, refstring, extended_inclu_beg_pos, mutform2count4vec_bq, indices_bq, mutform2count4vec_fq, indices_fq, 
-                            ((BASE_SYMBOL == symbolType) ? minABQ_snv : minABQ_indel), paramset.phred_max_sscs, paramset.phred_max_dscs, 
+                            ((BASE_SYMBOL == symbolType) ? minABQ_snv : minABQ_indel), 
+                            phred_max_sscs, paramset.phred_dscs_minus_sscs + phred_max_sscs,
                             // ErrorCorrectionType(paramset.seq_data_type), 
                             !paramset.disable_dup_read_merge,
                             is_rescued);

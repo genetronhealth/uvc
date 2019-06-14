@@ -58,6 +58,30 @@ enum AlignmentSymbol {
     END_ALIGNMENT_SYMBOLS,
 };
 
+struct PhredMutationTable {
+    unsigned int transition_CG_TA = 44;
+    unsigned int transition_TA_CG = 48;
+    unsigned int transversion_any = 52;
+    unsigned int indel_any = 50;
+    PhredMutationTable(unsigned int CG_TA, unsigned int TA_CG, unsigned int transversionany, unsigned int indelany) {
+        transition_CG_TA = CG_TA;
+        transition_TA_CG = TA_CG;
+        transversion_any = transversionany;
+        indel_any = indelany;
+    }
+    const unsigned int to_phred_rate(AlignmentSymbol con_symbol, AlignmentSymbol alt_symbol) const {
+        if (con_symbol == LINK_M) {
+            return indel_any;
+        } else if ((con_symbol == BASE_C && alt_symbol == BASE_T) || (con_symbol == BASE_G && alt_symbol == BASE_A)) {
+            return transition_CG_TA;
+        } else if ((con_symbol == BASE_T && alt_symbol == BASE_C) || (con_symbol == BASE_A && alt_symbol == BASE_G)) {
+            return transition_TA_CG;
+        }  else {
+            return transversion_any;
+        }
+    }
+};
+
 struct _CharToSymbol {
     std::array<AlignmentSymbol, 128> data;
     _CharToSymbol() {
@@ -1041,7 +1065,7 @@ struct Symbol2CountCoverageSet {
             auto & pass_thres, auto & pass_depth,
             auto & vars_thres, auto & vars_depth, auto & vars_badep, auto & vars_vqual,
             auto & dedup_ampDistr, const auto & prev_tsum_depth,
-            auto & pb_dist_lpart, auto & pb_dist_rpart, auto & pb_dist_nvars, auto & additional_note, bool should_add_note, unsigned int phred_max,
+            auto & pb_dist_lpart, auto & pb_dist_rpart, auto & pb_dist_nvars, auto & additional_note, bool should_add_note, const PhredMutationTable & phred_max_table,
             const auto & symbolType2addPhred) {
         
         assert(dedup_ampDistr.at(0).getIncluBegPosition() == dedup_ampDistr.at(1).getIncluBegPosition());
@@ -1165,6 +1189,15 @@ if (curr_depth_symbsum * 5 <= curr_depth_typesum * 4 && curr_depth_symbsum > 0 &
                                     ")//";
                         }
 }
+                        auto phred_max = 0;
+                        if (LINK_SYMBOL == symbolType) {
+                            phred_max = phred_max_table.indel_any;
+                        } else {
+                            AlignmentSymbol con_symbol;
+                            unsigned int con_count, tot_count;
+                            curr_tsum_depth.at(0+strand).getByPos(pos).fillConsensusCounts(con_symbol, con_count, tot_count, symbolType);
+                            phred_max = phred_max_table.to_phred_rate(con_symbol, symbol);
+                        }
                         // find best cutoff from families
                         double max_pqual = 0;
                         unsigned int best_phred = 0;
@@ -1208,7 +1241,7 @@ if (curr_depth_symbsum * 5 <= curr_depth_typesum * 4 && curr_depth_symbsum > 0 &
             const std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, int>> & alns3, 
             const std::basic_string<AlignmentSymbol> & region_symbolvec,
             const std::array<unsigned int, NUM_SYMBOL_TYPES> & symbolType2addPhred,
-            bool should_add_note, unsigned int phred_max, unsigned int phred_thres) {
+            bool should_add_note, const PhredMutationTable & phred_max_table, unsigned int phred_thres) {
         for (const auto & alns2pair2dflag : alns3) {
             const auto & alns2pair = alns2pair2dflag.first;
             for (unsigned int strand = 0; strand < 2; strand++) {
@@ -1292,7 +1325,7 @@ if (curr_depth_symbsum * 5 <= curr_depth_typesum * 4 && curr_depth_symbsum > 0 &
                 this->bq_tsum_depth, this->bq_pass_thres, this->bq_pass_depth,
                 this->bq_vars_thres, this->bq_vars_depth, this->bq_vars_badep, this->bq_vars_vqual,
                 this->dedup_ampDistr,this->bq_tsum_depth,
-                this->pb_dist_lpart, this->pb_dist_rpart, this->pb_dist_nvars, this->additional_note, should_add_note, phred_max, 
+                this->pb_dist_lpart, this->pb_dist_rpart, this->pb_dist_nvars, this->additional_note, should_add_note, phred_max_table, 
                 symbolType2addPhred);
         return 0;
     }
@@ -1303,7 +1336,7 @@ if (curr_depth_symbsum * 5 <= curr_depth_typesum * 4 && curr_depth_symbsum > 0 &
             std::array<unsigned int, 2>> & mutform2count4map,
             const auto & alns3, const std::basic_string<AlignmentSymbol> & region_symbolvec,
             const std::array<unsigned int, NUM_SYMBOL_TYPES> & symbolType2addPhred, 
-            bool should_add_note, unsigned int phred_max, unsigned int phred_thres, 
+            bool should_add_note, const PhredMutationTable & phred_max_table, unsigned int phred_thres, 
             bool is_loginfo_enabled, unsigned int thread_id) {
         unsigned int niters = 0;
         for (const auto & alns2pair2dflag : alns3) {
@@ -1426,7 +1459,7 @@ if (curr_depth_symbsum * 5 <= curr_depth_typesum * 4 && curr_depth_symbsum > 0 &
                         assert (con_bq_pass_prob >= pow(10, ((double)-51)/10) 
                                 || !fprintf(stderr, "%f >= phred51 failed at position %d and symbol %d!\n", con_bq_pass_prob, epos, con_symbol));
                         unsigned int phredlike = (unsigned int)MAX(0, h01_to_phredlike<true>(minorcount + 1, majorcount + minorcount + (1.0 / con_bq_pass_prob), con_count, tot_count));
-                        phredlike = MIN(phredlike, phred_max);
+                        phredlike = MIN(phredlike, NUM_BUCKETS - 1);
                         // no base quality stuff
                         
                         con_symbols_vec[epos - read_family_amplicon.getIncluBegPosition()][symbolType] = con_symbol;
@@ -1500,7 +1533,7 @@ if (curr_depth_symbsum * 5 <= curr_depth_typesum * 4 && curr_depth_symbsum > 0 &
                 this->fq_tsum_depth, this->fq_pass_thres, this->fq_pass_depth,
                 this->fq_vars_thres, this->fq_vars_depth, this->fq_vars_badep, this->fq_vars_vqual,
                 this->dedup_ampDistr,this->bq_tsum_depth,
-                this->pb_dist_lpart, this->pb_dist_rpart, this->pb_dist_nvars, this->additional_note, should_add_note, phred_max, 
+                this->pb_dist_lpart, this->pb_dist_rpart, this->pb_dist_nvars, this->additional_note, should_add_note, phred_max_table, 
                 symbolType2addPhred);
     };
     
@@ -1540,14 +1573,16 @@ if (curr_depth_symbsum * 5 <= curr_depth_typesum * 4 && curr_depth_symbsum > 0 &
             const std::string & refstring,
             unsigned int bq_phred_added_misma, unsigned int bq_phred_added_indel, 
             bool should_add_note, 
-            unsigned int phred_max_sscs, unsigned int phred_max_dscs, bool phred_thres,
+            const PhredMutationTable & phred_max_sscs_table, 
+            // unsigned int phred_max_dscs, 
+            bool phred_thres,
             bool use_deduplicated_reads, bool is_loginfo_enabled, unsigned int thread_id) {
         const std::array<unsigned int, NUM_SYMBOL_TYPES> symbolType2addPhred = {bq_phred_added_misma, bq_phred_added_indel};
         std::basic_string<AlignmentSymbol> ref_symbol_string = string2symbolseq(refstring);
-        updateByAlns3UsingBQ(mutform2count4map_bq, alns3, ref_symbol_string, symbolType2addPhred, should_add_note, phred_max_sscs, phred_thres); // base qualities
+        updateByAlns3UsingBQ(mutform2count4map_bq, alns3, ref_symbol_string, symbolType2addPhred, should_add_note, phred_max_sscs_table, phred_thres); // base qualities
         updateHapMap(mutform2count4map_bq, this->bq_tsum_depth);
         if (use_deduplicated_reads) {
-            updateByAlns3UsingFQ(mutform2count4map_fq, alns3, ref_symbol_string, symbolType2addPhred, should_add_note, phred_max_sscs, phred_thres, is_loginfo_enabled, thread_id); // family qualities
+            updateByAlns3UsingFQ(mutform2count4map_fq, alns3, ref_symbol_string, symbolType2addPhred, should_add_note, phred_max_sscs_table, phred_thres, is_loginfo_enabled, thread_id); // family qualities
             updateHapMap(mutform2count4map_fq, this->fq_tsum_depth);
         }
     };
@@ -1729,6 +1764,7 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
     unsigned int regionpos = refpos - refstring_offset;
     const std::string vcfref = refstring.substr(regionpos, 1);
     const std::string vcfalt = std::string(SYMBOL_TO_DESC_ARR[symbol]);
+    
     bool is_novar = (symbol == LINK_M || (isSymbolSubstitution(symbol) && vcfref == vcfalt));
     
     fmt.bDP = fmt.bDP1[0] + fmt.bDP1[1];

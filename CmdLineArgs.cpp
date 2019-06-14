@@ -140,8 +140,18 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     app.add_option("-t,--threads",   max_cpu_num,       "Number of cpu cores or equivalently threads to use (使用CPU线程的数量).", true);
     app.add_option("--alnlen",       min_aln_len,       "Minimum alignment length below which the alignment is filtered out (如果比对长度低于比值则过滤掉一行的比对结果).", true);
     app.add_option("--mapqual",      min_mapqual,       "Minimum mapping  quality below which the alignment is filtered out (如果比对质量低于此值则过滤掉一行的比对结果).", true);
-    app.add_option("--phred-sscs",   phred_max_sscs,    "Maximum phred score for single-strand consensus sequences (SSCSs)", true);
-    app.add_option("--phred-dscs",   phred_max_dscs,    "Maximum phred score for double-strand consensus sequences (DSCSs)", true);
+    
+    app.add_option("--phred-sscs-transition-CG-TA", phred_max_sscs_transition_CG_TA, 
+            "maximum phred score for single-strand consensus sequences (SSCSs) for C:G > T:A transition", true);
+    app.add_option("--phred-sscs-transition-TA-CG", phred_max_sscs_transition_TA_CG, 
+            "maximum phred score for single-strand consensus sequences (SSCSs) for T:A > C:G transition", true);
+    app.add_option("--phred-sscs-transversion-any",     phred_max_sscs_transversion_any, 
+            "maximum phred score for single-strand consensus sequences (SSCSs) for any transversion", true);
+    app.add_option("--phred-sscs-indel-any",          phred_max_sscs_indel_any, 
+            "maximum phred score for single-strand consensus sequences (SSCSs) for any indel", true);
+    app.add_option("--phred-dscs-minus-sscs",         phred_dscs_minus_sscs, 
+            "Maximum phred score for double-strand consensus sequences (DSCSs) minus the one for SSCSs", true);
+    
     //app.add_option("--platform",     platform,          "Platform or the sequencer that generated the data, which is either illumina or iontorrent."); 
     app.add_option("--minABQ-pcr-snv",   minABQ_pcr_snv,   "Minimum average base quality below which variant quality is capped to average base quality for PCR assay and SNVs, "
                    "recommend 25 for Illumina and 0 for IonTorrent "
