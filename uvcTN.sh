@@ -47,10 +47,18 @@ nlog="${outdir}/${samplename}_N_uvc1.stderr"
 
 mkdir -p "${outdir}"
 
-date && time -p "${scriptdir}/uvc1" -f "${ref}" -s "${samplename}_T" "${tbam}" -o "${tvcfgz}" "${tparams[@]}" 2> "${tlog}"
+if [ $(echo "${samplename}" | awk -F "," '{print NF}') -eq 2 ]; then
+    tsample=$(echo "${samplename}" | awk -F "," '{print $1}')
+    nsample=$(echo "${samplename}" | awk -F "," '{print $2}')
+else
+    tsample="${samplename}_T"
+    nsample="${samplename}_N"
+fi
+
+date && time -p "${scriptdir}/uvc1" -f "${ref}" -s "${tsample}" "${tbam}" -o "${tvcfgz}" "${tparams[@]}" 2> "${tlog}"
 date && time -p bcftools index -t "${tvcfgz}"
 
-date && time -p "${scriptdir}/uvc1" -f "${ref}" -s "${samplename}_N" "${nbam}" -o "${nvcfgz}" "${nparams[@]}" --tumor-vcf "${tvcfgz}" 2> "${nlog}"
+date && time -p "${scriptdir}/uvc1" -f "${ref}" -s "${nsample}" "${nbam}" -o "${nvcfgz}" "${nparams[@]}" --tumor-vcf "${tvcfgz}" 2> "${nlog}"
 date && time -p bcftools index -t "${nvcfgz}"
 
 #date && time -p bcftools merge -m none -Ou "${tvcfgz}" "${nvcfgz}" | "${scriptdir}/callTN1" - "${avcfgz}"
