@@ -567,7 +567,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                     unsigned int phred_max_sscs = sscs_mut_table.to_phred_rate(refsymbol, symbol);
                     int altdepth = fillBySymbol(fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]], symbolToCountCoverageSet12, 
                             refpos, symbol, refstring, extended_inclu_beg_pos, mutform2count4vec_bq, indices_bq, mutform2count4vec_fq, indices_fq, 
-                            ((BASE_SYMBOL == symbolType) ? minABQ_snv : minABQ_indel), 
+                            ((BASE_SYMBOL == symbolType) ? minABQ_snv : minABQ_indel),
+                            paramset.minMQ1,
                             phred_max_sscs, paramset.phred_dscs_minus_sscs + phred_max_sscs,
                             // ErrorCorrectionType(paramset.seq_data_type), 
                             !paramset.disable_dup_read_merge,

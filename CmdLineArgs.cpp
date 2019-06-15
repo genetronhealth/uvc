@@ -165,12 +165,15 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     app.add_option("--minABQ-cap-indel", minABQ_cap_indel, "Minimum average base quality below which variant quality is capped to average base quality for capture assay and InDels."
                    "recommend 13 for Illumina and 0 for IonTorrent "
                    " (如果位点平均碱基质量低于此值则变异质量不会超过平均碱基质量(捕获试验)，建议对Illumina用25并且对IonTorrent用0).", true); 
+    
+    app.add_option("--minMQ1", minMQ1, "Minimum root-mean-square (RMS) mapping quality (MQ) of non-dedupped raw reads below which variant quality is capped to this RMS MQ.", true);
 
-    app.add_option("--bq-phred-added-misma", bq_phred_added_misma, "Additional base-quality phred score added to match and mismatch, recommend 6 for Illumina and BGI.");
-    app.add_option("--bq-phred-added-indel", bq_phred_added_indel, "Additional base-quality phred score added to indel and no-indel, recommend 6 for IonTorrent.");
-    app.add_option("--phred-germline",       phred_germline_polymorphism, "Phred-scale probabiity for germline polymorphism event.");
-    app.add_option("--nonref-to-alt-frac",   nonref_to_alt_frac,   "Fraction of NON-REF bases in normal that supports the ALT of interest.");
-    app.add_option("--should-add-note",      should_add_note,      "Boolean indicating if the program generates more detail in the vcf result file.");
+    app.add_option("--bq-phred-added-misma", bq_phred_added_misma, "Additional base-quality phred score added to match and mismatch, recommend 6 for IonTorrent from Life Technologies.");
+    app.add_option("--bq-phred-added-indel", bq_phred_added_indel, "Additional base-quality phred score added to indel and no-indel, recommend 6 for Illumina and BGI.");
+    
+    app.add_option("--phred-germline",       phred_germline_polymorphism, "Phred-scale probabiity for germline polymorphism event.", true);
+    app.add_option("--nonref-to-alt-frac",   nonref_to_alt_frac,   "Fraction of NON-REF bases in normal that supports the ALT of interest.", true);
+    app.add_option("--should-add-note",      should_add_note,      "Boolean indicating if the program generates more detail in the vcf result file.", true);
 
     app.add_option("--disable-dup-read-merge",disable_dup_read_merge,   "Disable the merge of duplicate reads (0 means false and 1 means true). ", true);
     unsigned int assay_type_uint = (unsigned int)assay_type;

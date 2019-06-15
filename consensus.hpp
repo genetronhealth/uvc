@@ -850,6 +850,9 @@ struct Symbol2CountCoverageSet {
     //std::array<Symbol2CountCoverage, 2> bq_imba_depth;
     std::array<Symbol2CountCoverage, 2> bq_qual_phsum;
     std::array<Symbol2CountCoverage, 2> du_bias_dedup;  
+   
+    std::array<Symbol2CountCoverage, 2> bq_qsum_rawMQ;
+    std::array<Symbol2CountCoverageUint64, 2> bq_qsum_sqrMQ;
     
     std::array<Symbol2CountCoverage, 2> bq_amax_ldist; // edge distance to end
     std::array<Symbol2CountCoverage, 2> bq_bias_ldist; // edge distance to end
@@ -911,6 +914,9 @@ struct Symbol2CountCoverageSet {
     
     Symbol2CountCoverageSet(unsigned int t, unsigned int beg, unsigned int end):
         tid(t), incluBegPosition(beg), excluEndPosition(end)
+        , bq_qsum_rawMQ({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
+        , bq_qsum_sqrMQ({Symbol2CountCoverageUint64(t, beg, end), Symbol2CountCoverageUint64(t, beg, end)})
+        
         //, bq_imba_depth({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
         , bq_qual_phsum({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
         , du_bias_dedup({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
@@ -1251,6 +1257,10 @@ if (curr_depth_symbsum * 5 <= curr_depth_typesum * 4 && curr_depth_symbsum > 0 &
                     fillTidBegEndFromAlns1(tid2, beg2, end2, alns1);
                     Symbol2CountCoverage read_ampBQerr_fragWithR1R2(tid, beg2, end2);
                     read_ampBQerr_fragWithR1R2.updateByRead1Aln<BASE_QUALITY_MAX>(alns1, symbolType2addPhred);
+                    unsigned int minMQ = 256;
+                    for (const bam1_t * b : alns1) {
+                        minMQ = MIN(minMQ, b->core.qual);
+                    }
                     std::basic_string<std::pair<unsigned int, AlignmentSymbol>> pos_symbol_string;
                     unsigned int ldist_inc = 0;
                     unsigned int rdist_inc = 0;
@@ -1269,6 +1279,9 @@ if (curr_depth_symbsum * 5 <= curr_depth_typesum * 4 && curr_depth_symbsum > 0 &
                             assert (con_count * 2 >= tot_count);
                             if (0 == tot_count) { continue; }
                             unsigned int phredlike = (con_count * 2 - tot_count);
+                            
+                            this->bq_qsum_rawMQ [strand].getRefByPos(epos).incSymbolCount(con_symbol, minMQ);
+                            this->bq_qsum_sqrMQ [strand].getRefByPos(epos).incSymbolCount(con_symbol, minMQ * minMQ); 
                             
                             con_symbols_vec[epos - read_ampBQerr_fragWithR1R2.getIncluBegPosition()][symbolType] = con_symbol;
                             this->bq_tsum_depth [strand].getRefByPos(epos).incSymbolCount(con_symbol, 1);
@@ -1687,6 +1700,7 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
         const std::vector<std::pair<std::basic_string<std::pair<unsigned int, AlignmentSymbol>>, std::array<unsigned int, 2>>> & mutform2count4vec_fq,
         std::set<size_t> indices_fq,
         unsigned int minABQ, // = 25
+        unsigned int minMQ1,
         unsigned int phred_max_sscs,
         unsigned int phred_max_dscs,
         bool use_deduplicated_reads,
@@ -1722,6 +1736,11 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
         fmt.bQT3[strand] = symbol2CountCoverageSet12.bq_vars_thres.at(strand).getByPos(refpos).getSymbolCount(symbol); // pass  threshold
         fmt.bVQ3[strand] = symbol2CountCoverageSet12.bq_vars_vqual.at(strand).getByPos(refpos).getSymbolCount(symbol); // pass  allele depth 
         
+        double bq_qsum_rawMQ = (double)symbol2CountCoverageSet12.bq_qsum_rawMQ.at(strand).getByPos(refpos).getSymbolCount(symbol);
+        double bq_qsum_sqrMQ = (double)symbol2CountCoverageSet12.bq_qsum_sqrMQ.at(strand).getByPos(refpos).getSymbolCount(symbol);
+        fmt.bMQ1[strand] = sqrt(bq_qsum_sqrMQ / (DBL_MIN + (double)fmt.bAD1[strand])); // total allele depth
+        fmt.bMQ2[strand] = bq_qsum_sqrMQ / (DBL_MIN + bq_qsum_rawMQ);
+
         // family quality
         fmt.cPTL[strand] = symbol2CountCoverageSet12.fq_amax_ldist.at(strand).getByPos(refpos).getSymbolCount(symbol); 
         fmt.cPTR[strand] = symbol2CountCoverageSet12.fq_amax_rdist.at(strand).getByPos(refpos).getSymbolCount(symbol); 
@@ -1830,11 +1849,14 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
         }
         double currVAQ = (fmt.bVQ3[i] * minAD1 + fmt.cVQ3[i] * gapAD1) / (double)(minAD1 + gapAD1 + DBL_MIN); // prevent div by zero
         weightedQT3s[i] = (fmt.bQT3[i] * minAD1 + fmt.cQT3[i] * gapAD1) / (double)(minAD1 + gapAD1 + DBL_MIN);
-        if ((fmt.bQT2[i] >= minABQ)) {
-            stdVAQs[i] = currVAQ;
-        } else {
-            stdVAQs[i] = MIN(currVAQ, minABQ);
+        stdVAQs[i] = currVAQ;
+        if ((fmt.bQT2[i] < minABQ)) {
+            stdVAQs[i] = MIN(stdVAQs[i], minABQ);
         }
+        if ((unsigned int)fmt.bMQ1[i] < minMQ1) {
+            stdVAQs[i] = MIN(stdVAQs[i], minABQ);
+        }
+        fmt.cVAQ1[i] = currVAQ;
     }
     //double minVAQ = MIN(stdVAQs[0], stdVAQs[1]);
     //double stdVAQ = MAX(stdVAQs[0], stdVAQs[1]);
@@ -1842,6 +1864,7 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
     double weightsum = MIN((double)(weightedQT3s[0] + weightedQT3s[1]), phred_max_dscs);
     double doubleVAQfw = stdVAQs[0] + stdVAQs[1] * MIN(1.0, (weightsum - weightedQT3s[0]) / (weightedQT3s[0] + DBL_EPSILON));
     double doubleVAQrv = stdVAQs[1] + stdVAQs[0] * MIN(1.0, (weightsum - weightedQT3s[1]) / (weightedQT3s[1] + DBL_EPSILON));
+    fmt.cVAQ2 = {(float)doubleVAQfw, (float)doubleVAQrv};
     
     double doubleVAQ = MAX(doubleVAQfw, doubleVAQrv);
     // double doubleVAQ = stdVAQ + (minVAQ * (phred_max_dscs - phred_max_sscs) / (double)phred_max_sscs);

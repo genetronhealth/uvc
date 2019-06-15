@@ -24,7 +24,7 @@ struct CommandLineArgs {
     uint32_t    min_depth_thres = 4;
     uint32_t    min_altdp_thres = 2;
     uint32_t    min_aln_len = 0;
-    uint32_t    min_mapqual = 40; // from GATK
+    uint32_t    min_mapqual = 0; // 40; // from GATK
     uint32_t    max_cpu_num = 8;
     uint32_t    primerlen = 0;
     uint32_t    phred_max_sscs_transition_CG_TA = 44; // Cytosine deamination into Uracil, especially in FFPE samples, also by UV light radiation, more upstream
@@ -38,6 +38,7 @@ struct CommandLineArgs {
     uint32_t    minABQ_pcr_indel = 0;
     uint32_t    minABQ_cap_snv = 0;
     uint32_t    minABQ_cap_indel = 0;
+    uint32_t    minMQ1 = 40; // from GATK
     uint32_t    bq_phred_added_indel = 0;
     uint32_t    bq_phred_added_misma = 0;
     bool        should_add_note = false;
