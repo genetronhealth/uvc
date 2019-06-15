@@ -112,7 +112,7 @@ done
 for bam in $(ls ${BAMDIR} | grep ".bam$" | grep -P "${PAT}"); do
     vcf=${bam/%.bam/_uvc1.vcf.gz}
     if [ $(echo "${PAT}" | grep "run-uvc1" | wc -l) -gt 0 -o $(echo "${PAT}" | grep "run-bwa" | wc -l) -gt 0 ]; then
-        date && time -p "${UVC}" -f "${HG19}" -o "${VCFDIR}/${vcf}" -t $NCPUS -s "${bam}" "${BAMDIR}/${bam}"
+        date && time -p "${UVC}" -f "${HG19}" -o "${VCFDIR}/${vcf}" -t $NCPUS -s "${bam}" "${BAMDIR}/${bam}" 2> "${VCFDIR}/${vcf/%.vcf.gz/.stderr.log}"
         date && time -p bcftools index -ft "${VCFDIR}/${vcf}"
     fi
     isecdir="${VCFDIR}/${vcf/%_uvc1.vcf.gz/_uvc1_baseline2call_isec.dir}"
