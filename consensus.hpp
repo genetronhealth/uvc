@@ -1081,8 +1081,9 @@ struct Symbol2CountCoverageSet {
                 for (SymbolType symbolType = SymbolType(0); symbolType < NUM_SYMBOL_TYPES; symbolType = SymbolType(1+(unsigned int)symbolType)) {
                     // prepare duplication bias
                     const auto prev_depth_typesum = (TUsePrev ? prev_tsum_depth[strand].getByPos(pos).sumBySymbolType(symbolType) : 0);
-                    const auto curr_depth_typesum = curr_tsum_depth[strand].getByPos(pos).sumBySymbolType(symbolType); 
-                    
+                    const auto curr_depth_typesum = curr_tsum_depth[0+strand].getByPos(pos).sumBySymbolType(symbolType); 
+                    const auto curr_deprv_typesum = curr_tsum_depth[1-strand].getByPos(pos).sumBySymbolType(symbolType);
+ 
                     // prepare positional bias
                     Bucket2CountEdgeDist vsum_pb_dist_lpart = pb_dist_lpart[strand].getByPos(pos).vectorsumBySymbolType(symbolType);
                     Bucket2CountEdgeDist vsum_pb_dist_rpart = pb_dist_rpart[strand].getByPos(pos).vectorsumBySymbolType(symbolType);
@@ -1102,9 +1103,12 @@ struct Symbol2CountCoverageSet {
                     for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType];
                             symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType];
                             symbol = AlignmentSymbol(1+((unsigned int)symbol))) {
-                        auto curr_depth_symbsum = curr_tsum_depth[strand].getByPos(pos).getSymbolCount(symbol);
-                        unsigned int max_imba_depth = curr_depth_symbsum + (1000*1000); // magic number meaning no limit on imba depth
-if (curr_depth_symbsum * 5 <= curr_depth_typesum * 4 && curr_depth_symbsum > 0 && SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol) {
+                        auto curr_depth_symbsum = curr_tsum_depth[0+strand].getByPos(pos).getSymbolCount(symbol);
+                        auto curr_deprv_symbsum = curr_tsum_depth[1-strand].getByPos(pos).getSymbolCount(symbol);
+                        unsigned int max_imba_depth = (100100100); // magic number meaning no limit on imba depth
+if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol 
+        && ((curr_depth_symbsum * 5 < curr_depth_typesum * 4 && curr_depth_symbsum > 0)
+         || (curr_deprv_symbsum * 5 < curr_deprv_typesum * 4 && curr_deprv_symbsum > 0))) {
                         const double pseudocount = (double)1;
                         // double pseudocount = ((double)1) + ((double)1); // pseudocount should be one and there should be another threshold.
                         // compute duplication bias
