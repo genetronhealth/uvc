@@ -98,7 +98,8 @@ bcftools index -f -t "${CALLVCFGZ}"
 TRUTHBED="${ROOTDIR}/eval/smcounter2/smcounter-v2-paper/N13532/misc/N13532.hc.all.na12878.na24385.v3.3.2.bed" 
 
 IEXPR="(bDP >= 10000 && cDP >= 3000 & bFA >= 0.001 && cFA >= 0.001 && QUAL>=65 && MAX(bSB1) <= 250 && MAX(cSB1) <= 250 && MAX(aDB) <= 150 && MAX(bPBL) <= 250 && MAX(bPBR) <= 250 && MAX(cPBL) <= 250 && MAX(cPBR) <= 250 && MAX(cVQ3) >= 100 && MAX(bMMB) <= 250 && MAX(cMMB) <= 250)" 
-IEXPR="((1 - cFA - cFR)/ cFA <= 0.5 && bDP >= 10000 && cDP >= 3000 && (cFA/bFA) < 1.5 && (bFA/cFA) < 1.5 && MAX(bSB1) <= 250 && MAX(cSB1) <= 250 && MAX(bPBL) <= 250 && MAX(bPBR) <= 250 && MAX(cPBL) <= 250 && MAX(cPBR) <= 250 && MAX(bMMB) <= 250 && MAX(cMMB) <= 250)"
+IMBA=200
+IEXPR="(((1.0 - cFA - cFR)/ cFA) <= 0.75 && (cFA/bFA) <= 1.75 && MAX(bSB1) <= $IMBA && MAX(cSB1) <= $IMBA && MAX(bPBL) <= $IMBA && MAX(bPBR) <= $IMBA && MAX(cPBL) <= $IMBA && MAX(cPBR) <= $IMBA && MAX(bMMB) <= $IMBA && MAX(cMMB) <= $IMBA)"
 
 VCFDIR="${ROOTDIR}/eval/${SOFTNAME}/data/${SRP}/vcf/"
 for bam in $(ls ${BAMDIR} | grep ".bam$" | grep -P "${PAT}"); do
@@ -109,9 +110,19 @@ for bam in $(ls ${BAMDIR} | grep ".bam$" | grep -P "${PAT}"); do
     fi
     ## 
     isecdir="${VCFDIR}/${vcf/%.vcf.gz/.germline2call_isec.dir}"
-    bcftools isec -Oz -p "${isecdir}" "${HOMVCF}.gz" "${VCFDIR}/${vcf}" -R <(cat ${TRUTHBED} | sed 's/^/chr/g')  
+    # bcftools isec -Oz -p "${isecdir}" "${HOMVCF}.gz" "${VCFDIR}/${vcf}" -R <(cat ${TRUTHBED} | sed 's/^/chr/g')  
     bcftools index -f -t "${isecdir}/0001.vcf.gz" 
-    bcftools view "${isecdir}/0001.vcf.gz" -Oz -o "${isecdir}/0001-flt.vcf.gz" -i "${IEXPR}" 
+    #bcftools view "${isecdir}/0001.vcf.gz" -Oz -o "${isecdir}/0001-flt.vcf.gz" -i "${IEXPR}" 
+    bcftools view -i "QUAL>=40" "${isecdir}/0001.vcf.gz" \
+        | bcftools filter -Ou -m+ -s moreThanTwoAlleles -e "((1.0 - cFA - cFR)/ cFA) > 0.75" \
+        | bcftools filter -Ou -m+ -s lowDupEfficiency   -e "(cFA/bFA) > 1.75" \
+        | bcftools filter -Ou -m+ -s dupedStrandBias    -e "(bSBR[0:0] * bDP1[0:0] + bSBR[0:1] * bDP1[0:1]) / (bDP1[0:0] + bDP1[0:1]) > $IMBA" \
+        | bcftools filter -Ou -m+ -s dedupStrandBias    -e "(cSBR[0:0] * cDP1[0:0] + cSBR[0:1] * cDP1[0:1]) / (cDP1[0:0] + cDP1[0:1]) > $IMBA" \
+        | bcftools filter -Ou -m+ -s dupedPositionBias  -e "((bPBL[0:0] * bDP1[0:0] + bPBL[0:1] * bDP1[0:1]) / (bDP1[0:0] + bDP1[0:1]) > $IMBA) || ((bPBR[0:0] * bDP1[0:0] + bPBR[0:1] * bDP1[0:1]) / (bDP1[0:0] + bDP1[0:1]) > $IMBA)" \
+        | bcftools filter -Ou -m+ -s dedupPositionBias  -e "((cPBL[0:0] * cDP1[0:0] + cPBL[0:1] * cDP1[0:1]) / (cDP1[0:0] + cDP1[0:1]) > $IMBA) || ((cPBR[0:0] * cDP1[0:0] + cPBR[0:1] * cDP1[0:1]) / (cDP1[0:0] + cDP1[0:1]) > $IMBA)" \
+        | bcftools filter -Ou -m+ -s dupedManyMismaches -e "(bMMB[0:0] * bDP1[0:0] + bMMB[0:1] * bDP1[0:1]) / (bDP1[0:0] + bDP1[0:1]) > ($IMBA + 100)" \
+        | bcftools filter -Ou -m+ -s dedupManyMismaches -e "(cMMB[0:0] * cDP1[0:0] + cMMB[0:1] * cDP1[0:1]) / (cDP1[0:0] + cDP1[0:1]) > ($IMBA + 100)" \
+        | bcftools view   -Oz -o "${isecdir}/0001-flt.vcf.gz" 
     bcftools index -f -t "${isecdir}/0001-flt.vcf.gz"
     evalout="${bam/%.bam/_uvc1-flt.vcfeval.outdir}"
     ## 
@@ -126,9 +137,9 @@ for bam in $(ls ${BAMDIR} | grep ".bam$" | grep -P "${PAT}"); do
     evalout="${bam/%.bam/_uvc1.vcfeval.outdir}"
     ## 
     rm -r "${VCFDIR}/${evalout}" || true
-    date && time -p "${java8}" -jar "${ROOTDIR}/eval/tools/rtg-tools-3.10.1/RTG.jar" vcfeval --squash-ploidy -f QUAL \
+    date && time -p "${java8}" -jar "${ROOTDIR}/eval/tools/rtg-tools-3.10.1/RTG.jar" vcfeval --squash-ploidy --all-records -f QUAL \
         -b "${TRUTHVCFGZ}" \
-        -c "${isecdir}/0001.vcf.gz" \
+        -c "${isecdir}/0001-flt.vcf.gz" \
         -e <(cat ${TRUTHBED} | sed 's/^/chr/g') \
         -t "${ROOTDIR}/eval/datafiles/hg19_UCSC.sdf" \
         -o "${VCFDIR}/${evalout}" || true
