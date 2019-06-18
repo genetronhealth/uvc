@@ -110,18 +110,18 @@ for bam in $(ls ${BAMDIR} | grep ".bam$" | grep -P "${PAT}"); do
     fi
     ## 
     isecdir="${VCFDIR}/${vcf/%.vcf.gz/.germline2call_isec.dir}"
-    # bcftools isec -Oz -p "${isecdir}" "${HOMVCF}.gz" "${VCFDIR}/${vcf}" -R <(cat ${TRUTHBED} | sed 's/^/chr/g')  
+    bcftools isec -Oz -p "${isecdir}" "${HOMVCF}.gz" "${VCFDIR}/${vcf}" -R <(cat ${TRUTHBED} | sed 's/^/chr/g')  
     bcftools index -f -t "${isecdir}/0001.vcf.gz" 
     #bcftools view "${isecdir}/0001.vcf.gz" -Oz -o "${isecdir}/0001-flt.vcf.gz" -i "${IEXPR}" 
     bcftools view -i "QUAL>=40" "${isecdir}/0001.vcf.gz" \
-        | bcftools filter -Ou -m+ -s moreThanTwoAlleles -e "((1.0 - cFA - cFR)/ cFA) > 0.75" \
-        | bcftools filter -Ou -m+ -s lowDupEfficiency   -e "(cFA/bFA) > 1.75" \
-        | bcftools filter -Ou -m+ -s dupedStrandBias    -e "(bSBR[0:0] * bDP1[0:0] + bSBR[0:1] * bDP1[0:1]) / (bDP1[0:0] + bDP1[0:1]) > $IMBA" \
-        | bcftools filter -Ou -m+ -s dedupStrandBias    -e "(cSBR[0:0] * cDP1[0:0] + cSBR[0:1] * cDP1[0:1]) / (cDP1[0:0] + cDP1[0:1]) > $IMBA" \
-        | bcftools filter -Ou -m+ -s dupedPositionBias  -e "((bPBL[0:0] * bDP1[0:0] + bPBL[0:1] * bDP1[0:1]) / (bDP1[0:0] + bDP1[0:1]) > $IMBA) || ((bPBR[0:0] * bDP1[0:0] + bPBR[0:1] * bDP1[0:1]) / (bDP1[0:0] + bDP1[0:1]) > $IMBA)" \
-        | bcftools filter -Ou -m+ -s dedupPositionBias  -e "((cPBL[0:0] * cDP1[0:0] + cPBL[0:1] * cDP1[0:1]) / (cDP1[0:0] + cDP1[0:1]) > $IMBA) || ((cPBR[0:0] * cDP1[0:0] + cPBR[0:1] * cDP1[0:1]) / (cDP1[0:0] + cDP1[0:1]) > $IMBA)" \
-        | bcftools filter -Ou -m+ -s dupedManyMismaches -e "(bMMB[0:0] * bDP1[0:0] + bMMB[0:1] * bDP1[0:1]) / (bDP1[0:0] + bDP1[0:1]) > ($IMBA + 100)" \
-        | bcftools filter -Ou -m+ -s dedupManyMismaches -e "(cMMB[0:0] * cDP1[0:0] + cMMB[0:1] * cDP1[0:1]) / (cDP1[0:0] + cDP1[0:1]) > ($IMBA + 100)" \
+        | bcftools filter -Ou -m+ -s moreThanTwoAlleles  -e "1 / cFA - 1 - cFR / cFA > 0.5" \
+        | bcftools filter -Ou -m+ -s lowDupEfficiency    -e "(cFA/bFA) > 2" \
+        | bcftools filter -Ou -m+ -s dupedStrandBias     -e "(bSBR[0:0] * bDP1[0:0] + bSBR[0:1] * bDP1[0:1]) / (bDP1[0:0] + bDP1[0:1]) > $IMBA" \
+        | bcftools filter -Ou -m+ -s dedupStrandBias     -e "(cSBR[0:0] * cDP1[0:0] + cSBR[0:1] * cDP1[0:1]) / (cDP1[0:0] + cDP1[0:1]) > $IMBA" \
+        | bcftools filter -Ou -m+ -s dupedPositionBias   -e "((bPBL[0:0] * bDP1[0:0] + bPBL[0:1] * bDP1[0:1]) / (bDP1[0:0] + bDP1[0:1]) > $IMBA) || ((bPBR[0:0] * bDP1[0:0] + bPBR[0:1] * bDP1[0:1]) / (bDP1[0:0] + bDP1[0:1]) > $IMBA)" \
+        | bcftools filter -Ou -m+ -s dedupPositionBias   -e "((cPBL[0:0] * cDP1[0:0] + cPBL[0:1] * cDP1[0:1]) / (cDP1[0:0] + cDP1[0:1]) > $IMBA) || ((cPBR[0:0] * cDP1[0:0] + cPBR[0:1] * cDP1[0:1]) / (cDP1[0:0] + cDP1[0:1]) > $IMBA)" \
+        | bcftools filter -Ou -m+ -s dupedManyMismatches -e "(bMMB[0:0] * bDP1[0:0] + bMMB[0:1] * bDP1[0:1]) / (bDP1[0:0] + bDP1[0:1]) > ($IMBA+100)" \
+        | bcftools filter -Ou -m+ -s dedupManyMismatches -e "(cMMB[0:0] * cDP1[0:0] + cMMB[0:1] * cDP1[0:1]) / (cDP1[0:0] + cDP1[0:1]) > ($IMBA+100)" \
         | bcftools view   -Oz -o "${isecdir}/0001-flt.vcf.gz" 
     bcftools index -f -t "${isecdir}/0001-flt.vcf.gz"
     evalout="${bam/%.bam/_uvc1-flt.vcfeval.outdir}"
@@ -160,11 +160,13 @@ for sample in N13532-SRR7526729; do
         -t "${ROOTDIR}/eval/datafiles/hg19_UCSC.sdf" \
         -o "${VCFDIR}/${evalout}" || true
     date && time -p $java8 -jar /bionfsdate/ctDNA/experiment/zhaoxiaofei/uvc//eval/tools/rtg-tools-3.10.1/RTG.jar rocplot \
-        "${VCFDIR}/"*SRR7526729*.vcfeval.outdir/*"snp_roc.tsv.gz" --scores \
-        --svg "${VCFDIR}/${evalout}/${evalout/%_smcounter2.vcfeval.outdir/.all_methods_all_vars_rocplot.svg}"
+        "${VCFDIR}/"*SRR7526729*.vcfeval.outdir/*"snp_roc.tsv.gz" --scores --zoom 200,300 \
+        --svg "${VCFDIR}/${evalout}/${evalout/%_smcounter2.vcfeval.outdir/_all_methods_all_vars_rocplot.svg}" \
+        --png "${VCFDIR}/${evalout}/${evalout/%_smcounter2.vcfeval.outdir/_all_methods_all_vars_rocplot.png}"
     date && time -p $java8 -jar /bionfsdate/ctDNA/experiment/zhaoxiaofei/uvc//eval/tools/rtg-tools-3.10.1/RTG.jar rocplot \
-        "${VCFDIR}/"*SRR7526729*.vcfeval.outdir/*"snp_roc.tsv.gz" --scores --zoom 30,300 \
-        --svg "${VCFDIR}/${evalout}/${evalout/%_smcounter2.vcfeval.outdir/.all_methods_all_vars_rocplot_zoom.svg}"
+        "${VCFDIR}/"*SRR7526729*.vcfeval.outdir/*"snp_roc.tsv.gz" --scores --zoom 20,300 \
+        --svg "${VCFDIR}/${evalout}/${evalout/%_smcounter2.vcfeval.outdir/_all_methods_all_vars_rocplot_zoom.svg}" \
+        --png "${VCFDIR}/${evalout}/${evalout/%_smcounter2.vcfeval.outdir/_all_methods_all_vars_rocplot_zoom.png}"
 done
 
 echo UNUSED '''
