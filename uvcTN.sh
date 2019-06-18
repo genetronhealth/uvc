@@ -1,5 +1,13 @@
 #!/usr/bin/env sh
 
+scriptdir="$(dirname "$(which "$0")")"
+if [ $# -lt 5 ]; then
+    echo "Usage: $0 REF tumor-bam normal-bam output-directory tumor-sample-name[,normal-sample-name] [--tumor-parameters <tumor-params>] [--normal-parameters <normal-params>]"
+    echo "     --tumor-parameters is optional and is followed by the parameters to ${scriptdir}/uvc1 for the  tumor-sample"
+    echo "    --normal-parameters is optional and is followed by the parameters to ${scriptdir}/uvc1 for the normal-sample"
+    exit 1
+fi
+
 tstate=1
 nstate=1
 tparams=()
@@ -35,8 +43,6 @@ tbam="$2"
 nbam="$3"
 outdir="$4"
 samplename="$5"
-
-scriptdir="$(dirname "$(which "$0")")"
 
 tvcfgz="${outdir}/${samplename}_T_uvc1.vcf.gz"
 nvcfgz="${outdir}/${samplename}_N_uvc1.vcf.gz"
