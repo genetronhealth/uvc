@@ -2,9 +2,10 @@
 
 scriptdir="$(dirname "$(which "$0")")"
 if [ $# -lt 5 ]; then
-    echo "Usage: $0 REF tumor-bam normal-bam output-directory tumor-sample-name[,normal-sample-name] [--tumor-parameters <tumor-params>] [--normal-parameters <normal-params>]"
-    echo "     --tumor-parameters is optional and is followed by the parameters to ${scriptdir}/uvc1 for the  tumor-sample"
-    echo "    --normal-parameters is optional and is followed by the parameters to ${scriptdir}/uvc1 for the normal-sample"
+    echo "Usage: $0 REF tumor-bam normal-bam output-directory tumor-sample-name[,normal-sample-name] [<all-params>] [--tumor-parameters <tumor-params>] [--normal-parameters <normal-params>]"
+    echo "    <all-params> is the set of parameters to ${scriptdir}/uvc1 for both tumor and normal samples"
+    echo "     --tumor-parameters is optional and is followed by the parameters to ${scriptdir}/uvc1 for only the  tumor-sample"
+    echo "    --normal-parameters is optional and is followed by the parameters to ${scriptdir}/uvc1 for only the normal-sample"
     exit 1
 fi
 
