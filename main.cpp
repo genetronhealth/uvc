@@ -428,7 +428,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
     unsigned int extended_inclu_beg_pos, extended_exclu_end_pos; 
     std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, int>> umi_strand_readset;
 
-    if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts bamfname_to_strand_to_familyuid_to_reads"; }
+    if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts bamfname_to_strand_to_familyuid_to_reads with pair_end_merge = " << paramset.pair_end_merge; }
     std::array<unsigned int, 3> passed_pcrpassed_umipassed = bamfname_to_strand_to_familyuid_to_reads(umi_to_strand_to_reads, 
             extended_inclu_beg_pos, extended_exclu_end_pos,
             paramset.bam_input_fname,
@@ -444,7 +444,9 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
     AssayType inferred_assay_type = ((ASSAY_TYPE_AUTO == paramset.assay_type) ? (is_by_capture ? ASSAY_TYPE_CAPTURE : ASSAY_TYPE_AMPLICON) : (paramset.assay_type));
     
     if (0 == num_passed_reads) { return -1; };
-   
+    unsigned int minABQ_snv = ((ASSAY_TYPE_CAPTURE != inferred_assay_type) ? paramset.minABQ_pcr_snv : paramset.minABQ_cap_snv);
+    unsigned int minABQ_indel = ((ASSAY_TYPE_CAPTURE != inferred_assay_type) ? paramset.minABQ_pcr_indel : paramset.minABQ_cap_indel);
+    
     const unsigned int rpos_inclu_beg = MAX(incluBegPosition, extended_inclu_beg_pos);
     const unsigned int rpos_exclu_end = MIN(excluEndPosition, extended_exclu_end_pos); 
 
@@ -452,10 +454,19 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
     const auto tki_beg = tid_pos_symb_to_tki.lower_bound(std::make_tuple(tid, extended_inclu_beg_pos    , AlignmentSymbol(0)));
     const auto tki_end = tid_pos_symb_to_tki.upper_bound(std::make_tuple(tid, extended_exclu_end_pos + 1, AlignmentSymbol(0)));
     std::vector<bool> extended_posidx_to_is_rescued(extended_exclu_end_pos - extended_inclu_beg_pos + 1, false);
+    unsigned int num_rescued = 0;
     for (auto tki_it = tki_beg; tki_it != tki_end; tki_it++) {
         auto symbolpos = std::get<1>(tki_it->first);
         extended_posidx_to_is_rescued[symbolpos - extended_inclu_beg_pos] = true;
+        num_rescued++;
+        if (is_loginfo_enabled) {
+            // NOTE: the true positive short del at 22:17946835 in NA12878-NA24385 mixture is overwhelmed by the false positve long del spanning the true positive short del.
+            // However, so far manual check with limited experience cannot confirm that the true positive is indeed a true positive.
+            // TODO: have to see more examples of this case and adjust code accordingly.
+            LOG(logDEBUG4) << "Thread " << thread_id << " iterated over symbolpos " << symbolpos << " and symbol " << std::get<2>(tki_it->first) << " as a rescued var";
+        }
     }
+    if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " deals with " << num_rescued << " tumor-sample variants in region " << extended_inclu_beg_pos << " to " << extended_exclu_end_pos + 1 ;}
     // auto tki_it = tki_beg; 
     //if (paramset.vcf_tumor_fname.size() != 0) {
         // do not check tumor vcf here.
@@ -477,12 +488,19 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
     // unsigned int maxvalue;
     std::map<std::basic_string<std::pair<unsigned int, AlignmentSymbol>>, std::array<unsigned int, 2>> mutform2count4map_bq;
     std::map<std::basic_string<std::pair<unsigned int, AlignmentSymbol>>, std::array<unsigned int, 2>> mutform2count4map_fq;
+    const PhredMutationTable sscs_mut_table(
+                paramset.phred_max_sscs_transition_CG_TA, 
+                paramset.phred_max_sscs_transition_TA_CG, 
+                paramset.phred_max_sscs_transversion_any,
+                paramset.phred_max_sscs_indel_any);
     symbolToCountCoverageSet12.updateByRegion3Aln(
             mutform2count4map_bq, mutform2count4map_fq,
             // adjcount_x_rpos_x_misma_vec, // maxvalue, 
             umi_strand_readset, refstring, 
             paramset.bq_phred_added_misma, paramset.bq_phred_added_indel, paramset.should_add_note, 
-            paramset.phred_max_sscs, paramset.phred_max_dscs,
+            sscs_mut_table,
+            // paramset.phred_max_dscs, 
+            minABQ_snv, // minABQ_indel,
             // ErrorCorrectionType(paramset.seq_data_type), 
             !paramset.disable_dup_read_merge, is_loginfo_enabled, thread_id);
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts analyzing phasing info"; }
@@ -529,7 +547,9 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
         for (unsigned int stidx = 0; stidx < 2; stidx++) {
             const SymbolType symbolType = allSymbolTypes[stidx];
             bcfrec::BcfFormat init_fmt;
-            std::array<unsigned int, 2> bDPcDP = BcfFormat_init(init_fmt, symbolToCountCoverageSet12, refpos, symbolType, !paramset.disable_dup_read_merge);
+            const AlignmentSymbol refsymbol = (LINK_SYMBOL == symbolType ? LINK_M : (
+                    refstring.size() == (refpos - extended_inclu_beg_pos) ? BASE_NN : CHAR_TO_SYMBOL.data.at(refstring.at(refpos - extended_inclu_beg_pos))));
+            std::array<unsigned int, 2> bDPcDP = BcfFormat_init(init_fmt, symbolToCountCoverageSet12, refpos, symbolType, !paramset.disable_dup_read_merge, refsymbol);
             AlignmentSymbol most_confident_symbol = END_ALIGNMENT_SYMBOLS;
             float most_confident_qual = 0;
             std::string most_confident_GT = "./.";
@@ -544,10 +564,12 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                             extended_posidx_to_is_rescued[refpos - extended_inclu_beg_pos] &&
                             (tid_pos_symb_to_tki.end() != tid_pos_symb_to_tki.find(std::make_tuple(tid, refpos, symbol)))); 
                             //(extended_posidx_to_symbol_to_tkinfo[refpos-extended_inclu_beg_pos][symbol].DP > 0); 
-                    unsigned int minABQ = ((ASSAY_TYPE_CAPTURE != inferred_assay_type) ? paramset.minABQ : paramset.minABQ_capture);
+                    unsigned int phred_max_sscs = sscs_mut_table.to_phred_rate(refsymbol, symbol);
                     int altdepth = fillBySymbol(fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]], symbolToCountCoverageSet12, 
                             refpos, symbol, refstring, extended_inclu_beg_pos, mutform2count4vec_bq, indices_bq, mutform2count4vec_fq, indices_fq, 
-                            minABQ, paramset.phred_max_sscs, paramset.phred_max_dscs, 
+                            ((BASE_SYMBOL == symbolType) ? minABQ_snv : minABQ_indel),
+                            paramset.minMQ1,
+                            phred_max_sscs, paramset.phred_dscs_minus_sscs + phred_max_sscs,
                             // ErrorCorrectionType(paramset.seq_data_type), 
                             !paramset.disable_dup_read_merge,
                             is_rescued);
@@ -629,7 +651,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                         appendVcfRecord(buf_out_string, buf_out_string_pass, symbolToCountCoverageSet12,
                                 std::get<0>(tname_tseqlen_tuple).c_str(), refpos, symbol, fmt,
                                 refstring, extended_inclu_beg_pos, paramset.vqual, should_output_all, 
-                                tki, paramset.vcf_tumor_fname.size() != 0);
+                                tki, paramset.vcf_tumor_fname.size() != 0, paramset.phred_germline_polymorphism, paramset.nonref_to_alt_frac);
                     }
                 }
             }
@@ -764,7 +786,8 @@ int main(int argc, char **argv) {
     }
     
     bam_hdr_t * samheader = sam_hdr_read(samfiles[0]);
-    std::string header_outstring = generateVcfHeader(paramset.fasta_ref_fname.c_str(), SEQUENCING_PLATFORM_TO_DESC.at(inferred_sequencing_platform).c_str(), paramset.minABQ, argc, argv, 
+    std::string header_outstring = generateVcfHeader(paramset.fasta_ref_fname.c_str(), SEQUENCING_PLATFORM_TO_DESC.at(inferred_sequencing_platform).c_str(), 
+            paramset.minABQ_pcr_snv, paramset.minABQ_pcr_indel, paramset.minABQ_cap_snv, paramset.minABQ_cap_indel, argc, argv, 
             samheader->n_targets, samheader->target_name, samheader->target_len, 
             paramset.sample_name.c_str());
     clearstring<false>(fp_allp, header_outstring);

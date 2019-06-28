@@ -24,18 +24,26 @@ struct CommandLineArgs {
     uint32_t    min_depth_thres = 4;
     uint32_t    min_altdp_thres = 2;
     uint32_t    min_aln_len = 0;
-    uint32_t    min_mapqual = 40; // from GATK
+    uint32_t    min_mapqual = 0; // 40; // from GATK
     uint32_t    max_cpu_num = 8;
     uint32_t    primerlen = 0;
-    uint32_t    phred_max_sscs = 50;
-    uint32_t    phred_max_dscs = 60;
+    uint32_t    phred_max_sscs_transition_CG_TA = 44; // Cytosine deamination into Uracil, especially in FFPE samples, also by UV light radiation, more upstream
+    uint32_t    phred_max_sscs_transition_TA_CG = 48; // https://en.wikipedia.org/wiki/DNA_oxidation, DNA synthesis error, more downstream
+    uint32_t    phred_max_sscs_transversion_any = 52;
+    uint32_t    phred_max_sscs_indel_any = 50;
+    uint32_t    phred_dscs_minus_sscs = 10;
     double      vqual = 10;
     //std::string platform = "auto";
-    uint32_t    minABQ = 0;
-    uint32_t    minABQ_capture = 0;
+    uint32_t    minABQ_pcr_snv = 0;
+    uint32_t    minABQ_pcr_indel = 0;
+    uint32_t    minABQ_cap_snv = 0;
+    uint32_t    minABQ_cap_indel = 0;
+    uint32_t    minMQ1 = 40; // from GATK
     uint32_t    bq_phred_added_indel = 0;
     uint32_t    bq_phred_added_misma = 0;
     bool        should_add_note = false;
+    uint32_t    phred_germline_polymorphism = 30;
+    double      nonref_to_alt_frac = 0.001;
     int initFromArgCV(int & parsing_result_flag, SequencingPlatform & inferred_sequencing_platform, int argc, const char *const* argv);
     SequencingPlatform selfUpdateByPlatform(void);
 };

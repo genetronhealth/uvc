@@ -81,14 +81,18 @@ SequencingPlatform CommandLineArgs::selfUpdateByPlatform() {
     if (SEQUENCING_PLATFORM_IONTORRENT == inferred_sequencing_platform && SEQUENCING_PLATFORM_OTHER != this->sequencing_platform) {
         bq_phred_added_indel += 0;
         bq_phred_added_misma += 6;
-        minABQ += 0;
-        minABQ_capture += 0;
+        minABQ_pcr_snv += 0;
+        minABQ_pcr_indel += 0;
+        minABQ_cap_snv += 0;
+        minABQ_cap_indel += 0;
     }
     if (SEQUENCING_PLATFORM_ILLUMINA == inferred_sequencing_platform && SEQUENCING_PLATFORM_OTHER != this->sequencing_platform) {
         bq_phred_added_indel += 6;
         bq_phred_added_misma += 0;
-        minABQ += 25;
-        minABQ_capture += 22;
+        minABQ_pcr_snv += 25;
+        minABQ_pcr_indel += 18;
+        minABQ_cap_snv += 20;
+        minABQ_cap_indel += 13;
     }
     return inferred_sequencing_platform;
 }
@@ -136,19 +140,40 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     app.add_option("-t,--threads",   max_cpu_num,       "Number of cpu cores or equivalently threads to use (使用CPU线程的数量).", true);
     app.add_option("--alnlen",       min_aln_len,       "Minimum alignment length below which the alignment is filtered out (如果比对长度低于比值则过滤掉一行的比对结果).", true);
     app.add_option("--mapqual",      min_mapqual,       "Minimum mapping  quality below which the alignment is filtered out (如果比对质量低于此值则过滤掉一行的比对结果).", true);
-    app.add_option("--phred-sscs",   phred_max_sscs,    "Maximum phred score for single-strand consensus sequences (SSCSs)", true);
-    app.add_option("--phred-dscs",   phred_max_dscs,    "Maximum phred score for double-strand consensus sequences (DSCSs)", true);
+    
+    app.add_option("--phred-sscs-transition-CG-TA", phred_max_sscs_transition_CG_TA, 
+            "maximum phred score for single-strand consensus sequences (SSCSs) for C:G > T:A transition", true);
+    app.add_option("--phred-sscs-transition-TA-CG", phred_max_sscs_transition_TA_CG, 
+            "maximum phred score for single-strand consensus sequences (SSCSs) for T:A > C:G transition", true);
+    app.add_option("--phred-sscs-transversion-any",     phred_max_sscs_transversion_any, 
+            "maximum phred score for single-strand consensus sequences (SSCSs) for any transversion", true);
+    app.add_option("--phred-sscs-indel-any",          phred_max_sscs_indel_any, 
+            "maximum phred score for single-strand consensus sequences (SSCSs) for any indel", true);
+    app.add_option("--phred-dscs-minus-sscs",         phred_dscs_minus_sscs, 
+            "Maximum phred score for double-strand consensus sequences (DSCSs) minus the one for SSCSs", true);
+    
     //app.add_option("--platform",     platform,          "Platform or the sequencer that generated the data, which is either illumina or iontorrent."); 
-    app.add_option("--minABQ",       minABQ,            "Minimum average base quality below which variant quality is capped to average base quality, "
+    app.add_option("--minABQ-pcr-snv",   minABQ_pcr_snv,   "Minimum average base quality below which variant quality is capped to average base quality for PCR assay and SNVs, "
                    "recommend 25 for Illumina and 0 for IonTorrent "
                    " (如果位点平均碱基质量低于此值则变异质量不会超过平均碱基质量，建议对Illumina用25并且对IonTorrent用0).", true); 
-    app.add_option("--minABQ-capt",  minABQ_capture,    "Minimum average base quality below which variant quality is capped to average base quality for capture assay."
-                   "recommend 22 for Illumina and 0 for IonTorrent "
+    app.add_option("--minABQ-pcr-indel", minABQ_pcr_indel, "Minimum average base quality below which variant quality is capped to average base quality for PCR assay and InDels, "
+                   "recommend 18 for Illumina and 0 for IonTorrent "
+                   " (如果位点平均碱基质量低于此值则变异质量不会超过平均碱基质量，建议对Illumina用25并且对IonTorrent用0).", true); 
+    app.add_option("--minABQ-cap-snv",   minABQ_cap_snv,   "Minimum average base quality below which variant quality is capped to average base quality for capture assay and SNVs."
+                   "recommend 20 for Illumina and 0 for IonTorrent "
+                   " (如果位点平均碱基质 量低于此值则变异质量不会超过平均碱基质量(捕获试验)，建议对Illumina用25并且对IonTorrent用0).", true); 
+    app.add_option("--minABQ-cap-indel", minABQ_cap_indel, "Minimum average base quality below which variant quality is capped to average base quality for capture assay and InDels."
+                   "recommend 13 for Illumina and 0 for IonTorrent "
                    " (如果位点平均碱基质量低于此值则变异质量不会超过平均碱基质量(捕获试验)，建议对Illumina用25并且对IonTorrent用0).", true); 
+    
+    app.add_option("--minMQ1", minMQ1, "Minimum root-mean-square (RMS) mapping quality (MQ) of non-dedupped raw reads below which variant quality is capped to this RMS MQ.", true);
 
-    app.add_option("--bq-phred-added-misma", bq_phred_added_misma, "Additional base-quality phred score added to match and mismatch, recommend 6 for Illumina and BGI.");
-    app.add_option("--bq-phred-added-indel", bq_phred_added_indel, "Additional base-quality phred score added to indel and no-indel, recommend 6 for IonTorrent.");
-    app.add_option("--should-add-note",      should_add_note,      "Boolean indicating if the program generates more detail in the vcf result file.");
+    app.add_option("--bq-phred-added-misma", bq_phred_added_misma, "Additional base-quality phred score added to match and mismatch, recommend 6 for IonTorrent from Life Technologies.");
+    app.add_option("--bq-phred-added-indel", bq_phred_added_indel, "Additional base-quality phred score added to indel and no-indel, recommend 6 for Illumina and BGI.");
+    
+    app.add_option("--phred-germline",       phred_germline_polymorphism, "Phred-scale probabiity for germline polymorphism event.", true);
+    app.add_option("--nonref-to-alt-frac",   nonref_to_alt_frac,   "Fraction of NON-REF bases in normal that supports the ALT of interest.", true);
+    app.add_option("--should-add-note",      should_add_note,      "Boolean indicating if the program generates more detail in the vcf result file.", true);
 
     app.add_option("--disable-dup-read-merge",disable_dup_read_merge,   "Disable the merge of duplicate reads (0 means false and 1 means true). ", true);
     unsigned int assay_type_uint = (unsigned int)assay_type;

@@ -129,7 +129,8 @@ struct SamIter {
                 nreads_tot += std::get<4>(bedreg); // tid, tbeg, tend, false, nreads));
                 region_tot += std::get<2>(bedreg) - std::get<1>(bedreg);
                 if (nreads_tot > (2000*1000 * nthreads) || region_tot > (1000*1000 * nthreads)) {
-                    return ret; 
+                    this->_bedregion_idx++;
+                    return ret;
                 }
             }
             return ret;
@@ -146,7 +147,7 @@ struct SamIter {
                 bool has_many_positions = npositions > n_overlap_positions * (1024); // (npositions * npositions > n_overlap_positions * (1024UL*1024UL*1UL));
                 bool has_many_reads = nreads > n_overlap_positions * (1024 * 2); // ; (nreads * nreads > n_overlap_positions * (1024UL*1024UL*2UL));
                 if (has_many_positions || has_many_reads) {
-                    endingpos = max(bam_endpos(alnrecord), min(alnrecord->core.pos, alnrecord->core.mpos) + min(alnrecord->core.isize, ARRPOS_MARGIN)) + (ARRPOS_OUTER_RANGE * 2);
+                    endingpos = max(bam_endpos(alnrecord), min(alnrecord->core.pos, alnrecord->core.mpos) + min(abs(alnrecord->core.isize), ARRPOS_MARGIN)) + (ARRPOS_OUTER_RANGE * 2);
                 }
             }
             next_nreads += (bam_endpos(alnrecord) > endingpos ? 1 : 0);
@@ -241,7 +242,7 @@ sam_fname_to_contigs(
                 bool has_many_positions = npositions > n_overlap_positions * (1024); // (npositions * npositions > n_overlap_positions * (1024UL*1024UL*1UL));
                 bool has_many_reads = nreads > n_overlap_positions * (1024 * 2); // ; (nreads * nreads > n_overlap_positions * (1024UL*1024UL*2UL));
                 if (has_many_positions || has_many_reads) {
-                    endingpos = max(bam_endpos(alnrecord), min(alnrecord->core.pos, alnrecord->core.mpos) + min(alnrecord->core.isize, ARRPOS_MARGIN)) + (ARRPOS_OUTER_RANGE * 2);
+                    endingpos = max(bam_endpos(alnrecord), min(alnrecord->core.pos, alnrecord->core.mpos) + min(abs(alnrecord->core.isize), ARRPOS_MARGIN)) + (ARRPOS_OUTER_RANGE * 2);
                 }
             }
             next_nreads += (bam_endpos(alnrecord) > endingpos ? 1 : 0);
@@ -339,18 +340,31 @@ fill_isrc_isr2_beg_end_with_aln(bool & isrc, bool & isr2, uint32_t & tBeg, uint3
     int ret = 0;
     if ((!is_pair_end_merge_enabled) 
             || ((aln->core.flag & 0x1) == 0) 
-            || ((aln->core.flag & 0x2) == 0) 
+            // || ((aln->core.flag & 0x2) == 0) // having this line causes problems to SRR2556939_chr3_178936090_178936092
             || (aln->core.flag & 0x8) 
-            ||  0 == aln->core.isize 
-            || aln->core.isize >= (ARRPOS_MARGIN - ARRPOS_OUTER_RANGE)) {
+            || (0 == aln->core.isize) 
+            || (abs(aln->core.isize) >= (ARRPOS_MARGIN))) {
         tBeg = (isrc ? endpos : begpos);
         tEnd = (isrc ? begpos : endpos);
+        /*
+        if (!is_pair_end_merge_enabled) {
+            fprintf(stderr, "%s !is_pair_end_merge_enabled\n", bam_get_qname(aln));
+        }
+        if (aln->core.isize >= (ARRPOS_MARGIN)) {
+            fprintf(stderr, "%s (aln->core.isize >= (ARRPOS_MARGIN) %d >= %d\n", bam_get_qname(aln), aln->core.isize, ARRPOS_MARGIN);
+        }
+        if (0 == aln->core.isize) {
+            fprintf(stderr, "%s (aln->core.isize == 0)\n", bam_get_qname(aln), aln->core.isize);
+        }
+        fprintf(stderr, "%s (aln->core.flag == 0)\n", bam_get_qname(aln), aln->core.flag);
+        */
         num_seqs = 1;
     } else {
         auto tBegP1 = min(begpos, aln->core.mpos);
         auto tEndP1 = tBegP1 + abs(aln->core.isize) - 1;
-        tBeg = (isrc ? tEndP1 : tBegP1); 
-        tEnd = (isrc ? tBegP1 : tEndP1);
+        bool strand = (isrc ^ isr2);
+        tBeg = (strand ? tEndP1 : tBegP1); 
+        tEnd = (strand ? tBegP1 : tEndP1);
         num_seqs = 2;
     }
     auto tOrdBeg = min(tBeg, tEnd);
@@ -753,7 +767,7 @@ bamfname_to_strand_to_familyuid_to_reads(
         // umi3hash = umilabel;
         
         //LOG(logINFO) << "Iteration 3.6 begins!";
-        unsigned int strand = isrc ^ isr2;
+        unsigned int strand = (isrc ^ isr2);
         int dflag = (is_duplex_found ? 2 : (is_umi_found ? 1 : 0));
         umi_to_strand_to_reads.insert(std::make_pair(umi3hash, std::make_pair(std::array<std::map<uint64_t, std::vector<bam1_t *>>, 2>(), dflag)));
         umi_to_strand_to_reads[umi3hash].first[strand].insert(std::make_pair(qhash, std::vector<bam1_t *>()));
@@ -766,7 +780,8 @@ bamfname_to_strand_to_familyuid_to_reads(
                     << "tid = " << aln->core.tid << " ; "
                     << "alnidx/num_pass_alns = " << alnidx << "/" << num_pass_alns << " ; "
                     << "isrc = " << isrc << " ; "
-                    << "isr2 = " << isr2 << " ; " 
+                    << "isr2 = " << isr2 << " ; "
+                    << "num_seqs = " << num_seqs << " ; "
                     << "original-range = " << tBeg << " to " << tEnd << " ; " 
                     << "adjusted-range = " << beg2 << " to " << end2 << " ; "
                     << "adjusted-counts = " << beg2count << " to " << end2count << " ; " 
@@ -780,7 +795,6 @@ bamfname_to_strand_to_familyuid_to_reads(
         }
         alnidx += 1;
         //LOG(logINFO) << "Iteration 3.7 begins!";
-
     }
     sam_itr_destroy(hts_itr);
     
