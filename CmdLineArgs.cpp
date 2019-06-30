@@ -87,7 +87,7 @@ SequencingPlatform CommandLineArgs::selfUpdateByPlatform() {
         minABQ_cap_indel += 0;
     }
     if (SEQUENCING_PLATFORM_ILLUMINA == inferred_sequencing_platform && SEQUENCING_PLATFORM_OTHER != this->sequencing_platform) {
-        bq_phred_added_indel += 6;
+        bq_phred_added_indel += 6; //10;
         bq_phred_added_misma += 0;
         minABQ_pcr_snv += 25;
         minABQ_pcr_indel += 18;
@@ -141,15 +141,19 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     app.add_option("--alnlen",       min_aln_len,       "Minimum alignment length below which the alignment is filtered out (如果比对长度低于比值则过滤掉一行的比对结果).", true);
     app.add_option("--mapqual",      min_mapqual,       "Minimum mapping  quality below which the alignment is filtered out (如果比对质量低于此值则过滤掉一行的比对结果).", true);
     
+    app.add_option("--phred-frag-indel-ext",        phred_max_frag_indel_ext,
+            "maximum phred score fo the indel of one base, capped at four bases", true);
     app.add_option("--phred-sscs-transition-CG-TA", phred_max_sscs_transition_CG_TA, 
             "maximum phred score for single-strand consensus sequences (SSCSs) for C:G > T:A transition", true);
     app.add_option("--phred-sscs-transition-TA-CG", phred_max_sscs_transition_TA_CG, 
             "maximum phred score for single-strand consensus sequences (SSCSs) for T:A > C:G transition", true);
-    app.add_option("--phred-sscs-transversion-any",     phred_max_sscs_transversion_any, 
+    app.add_option("--phred-sscs-transversion-any", phred_max_sscs_transversion_any, 
             "maximum phred score for single-strand consensus sequences (SSCSs) for any transversion", true);
-    app.add_option("--phred-sscs-indel-any",          phred_max_sscs_indel_any, 
-            "maximum phred score for single-strand consensus sequences (SSCSs) for any indel", true);
-    app.add_option("--phred-dscs-minus-sscs",         phred_dscs_minus_sscs, 
+    app.add_option("--phred-sscs-indel-open",       phred_max_sscs_indel_open, 
+            "maximum phred score for single-strand consensus sequences (SSCSs) for the opening of indel gap (the opening includes the insertion/deletion of one base)", true);
+    app.add_option("--phred-sscs-indel-ext" ,       phred_max_sscs_indel_ext, 
+            "maximum phred score for single-strand consensus sequences (SSCSs) for the extension of indel gap (excluding the extension of one base) per base", true);
+    app.add_option("--phred-dscs-minus-sscs",       phred_dscs_minus_sscs, 
             "Maximum phred score for double-strand consensus sequences (DSCSs) minus the one for SSCSs", true);
     
     //app.add_option("--platform",     platform,          "Platform or the sequencer that generated the data, which is either illumina or iontorrent."); 
@@ -172,10 +176,14 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     app.add_option("--bq-phred-added-indel", bq_phred_added_indel, "Additional base-quality phred score added to indel and no-indel, recommend 6 for Illumina and BGI.");
     
     app.add_option("--phred-germline",       phred_germline_polymorphism, "Phred-scale probabiity for germline polymorphism event.", true);
-    app.add_option("--nonref-to-alt-frac",   nonref_to_alt_frac,   "Fraction of NON-REF bases in normal that supports the ALT of interest.", true);
-    app.add_option("--should-add-note",      should_add_note,      "Boolean indicating if the program generates more detail in the vcf result file.", true);
+    app.add_option("--nonref-alt-frac-snv",  nonref_to_alt_frac_snv,      "Fraction of NON-REF bases in normal that supports the ALT of interest for SNVs.", true);
+    app.add_option("--nonref-alt-frac-indel",nonref_to_alt_frac_indel,    "Fraction of NON-REF bases in normal that supports the ALT of interest for InDels.", true);
+    app.add_option("--tnq-mult-snv",         tnq_mult_snv,                "Multiplicative factor by which TNQ (tumor-normal quality) is amplified for computing QUAL for SNVs.", true);
+    app.add_option("--tnq-mult-indel",       tnq_mult_indel,              "Multiplicative factor by which TNQ (tumor-normal quality) is amplified for computing QUAL for InDels.", true);
 
-    app.add_option("--disable-dup-read-merge",disable_dup_read_merge,   "Disable the merge of duplicate reads (0 means false and 1 means true). ", true);
+    app.add_option("--should-add-note",      should_add_note,             "Boolean indicating if the program generates more detail in the vcf result file.", true);
+
+    app.add_option("--disable-dup-read-merge",disable_dup_read_merge,     "Disable the merge of duplicate reads (0 means false and 1 means true). ", true);
     unsigned int assay_type_uint = (unsigned int)assay_type;
     unsigned int molecule_tag_uint = (unsigned int)molecule_tag;
     unsigned int sequencing_platform_uint = (unsigned int)sequencing_platform;

@@ -1,6 +1,6 @@
 #ifndef common_INCLUDED
 #define common_INCLUDED
-#define NUM_BUCKETS (64)
+#define NUM_BUCKETS (64+8)
 
 #include <string>
 #include <vector>

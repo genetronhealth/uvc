@@ -393,8 +393,8 @@ const unsigned int prob2phred(const double probvalue) {
 }
 
 const unsigned int phred2bucket(const unsigned int phredvalue) {
-    assert(phredvalue < 64);
-    return phredvalue / (64/NUM_BUCKETS);
+    assert(phredvalue < NUM_BUCKETS);
+    return phredvalue; // return phredvalue / (64/NUM_BUCKETS);
     // return MIN(32-1, phredvalue / 2);
     // 0 - 8 -> 1, 8 - 40 -> 2, 40 - .. -> 4 ; 
     //  0 - 10 : 1 -> 10
@@ -406,7 +406,7 @@ const unsigned int phred2bucket(const unsigned int phredvalue) {
 }
 
 const unsigned int bucket2phred(const unsigned int bucketvalue) {
-    return bucketvalue * (64/NUM_BUCKETS);
+    return bucketvalue; // return bucketvalue * (64/NUM_BUCKETS);
     //return bucketvalue * 2;
     // return floor(pow(10, ((float)(bucketvalue)) / 20) - 1);
 }

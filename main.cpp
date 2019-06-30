@@ -492,16 +492,18 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                 paramset.phred_max_sscs_transition_CG_TA, 
                 paramset.phred_max_sscs_transition_TA_CG, 
                 paramset.phred_max_sscs_transversion_any,
-                paramset.phred_max_sscs_indel_any);
+                paramset.phred_max_sscs_indel_open,
+                paramset.phred_max_sscs_indel_ext);
     symbolToCountCoverageSet12.updateByRegion3Aln(
             mutform2count4map_bq, mutform2count4map_fq,
             // adjcount_x_rpos_x_misma_vec, // maxvalue, 
             umi_strand_readset, refstring, 
             paramset.bq_phred_added_misma, paramset.bq_phred_added_indel, paramset.should_add_note, 
+            paramset.phred_max_frag_indel_ext,
             sscs_mut_table,
             // paramset.phred_max_dscs, 
             minABQ_snv, // minABQ_indel,
-            // ErrorCorrectionType(paramset.seq_data_type), 
+            // ErrorCorrectionType(paramset.seq_data_type),
             !paramset.disable_dup_read_merge, is_loginfo_enabled, thread_id);
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts analyzing phasing info"; }
     auto mutform2count4vec_bq = map2vector(mutform2count4map_bq);
@@ -651,7 +653,9 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                         appendVcfRecord(buf_out_string, buf_out_string_pass, symbolToCountCoverageSet12,
                                 std::get<0>(tname_tseqlen_tuple).c_str(), refpos, symbol, fmt,
                                 refstring, extended_inclu_beg_pos, paramset.vqual, should_output_all, 
-                                tki, paramset.vcf_tumor_fname.size() != 0, paramset.phred_germline_polymorphism, paramset.nonref_to_alt_frac);
+                                tki, paramset.vcf_tumor_fname.size() != 0, paramset.phred_germline_polymorphism, 
+                                paramset.nonref_to_alt_frac_snv, paramset.nonref_to_alt_frac_indel,
+                                paramset.tnq_mult_snv, paramset.tnq_mult_indel);
                     }
                 }
             }
