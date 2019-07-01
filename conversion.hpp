@@ -328,7 +328,7 @@ _old_h01_to_phredlike(double h0pos, double h0tot, double h1pos, double h1tot,
 #ifdef TEST_h01_to_phredlike
 int main(int argc, char **argv) {
     double result1 = _old_h01_to_phredlike<true>(10, 30000, 20, 30);
-    double result2 = h01_to_phredlike<true>(10, 30000, 20, 30);
+    double result2 = h01_to_phredlike<true>(10, 30000, 20, 30, 1, 1.5);
     printf("result12 = %f %f \n", result1, result2);
     if (argc > 4) {
         double a1 = atof(argv[1]);
