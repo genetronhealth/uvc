@@ -1001,7 +1001,7 @@ struct Symbol2CountCoverageSet {
     int getbest( // auto & qual_psum, 
             auto & max_pqual, auto & best_phred, auto & best_count,
             const auto & ampDistrByPos, const double symbolTypeSum, const AlignmentSymbol symbol, const unsigned int bias_adjusted_mincount, 
-            const unsigned int phred_max, const unsigned int addPhred, const double homogeneity = 0) const {
+            const unsigned int phred_max, const unsigned int addPhred, double ess_georatio_dedup, const double homogeneity = 0) const {
         max_pqual = 0;
         best_phred = 0;
         best_count = 0;
@@ -1016,7 +1016,7 @@ struct Symbol2CountCoverageSet {
             if (0 < count) {
                 if (TIsFilterStrong) {
                     if (tot_count - count <= (bias_adjusted_mincount)) {
-                        tot_pqual = h01_to_phredlike<false>(phred2prob(phred + addPhred), 1 + DBL_EPSILON, MIN(tot_count, bias_adjusted_mincount), symbolTypeSum);
+                        tot_pqual = h01_to_phredlike<false>(phred2prob(phred + addPhred), 1 + DBL_EPSILON, MIN(tot_count, bias_adjusted_mincount), symbolTypeSum, 1.0, ess_georatio_dedup);
                     }
                 } else {
                     tot_pqual = tot_count * phred;
@@ -1085,7 +1085,7 @@ struct Symbol2CountCoverageSet {
             auto & vars_thres, auto & vars_depth, auto & vars_badep, auto & vars_vqual,
             auto & dedup_ampDistr, const auto & prev_tsum_depth,
             auto & pb_dist_lpart, auto & pb_dist_rpart, auto & pb_dist_nvars, auto & additional_note, bool should_add_note, const PhredMutationTable & phred_max_table,
-            const auto & symbolType2addPhred) {
+            const auto & symbolType2addPhred, const double ess_georatio_dedup) {
         
         assert(dedup_ampDistr.at(0).getIncluBegPosition() == dedup_ampDistr.at(1).getIncluBegPosition());
         assert(dedup_ampDistr.at(0).getExcluEndPosition() == dedup_ampDistr.at(1).getExcluEndPosition());
@@ -1226,7 +1226,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         if (curr_depth_symbsum > 0) {
                             getbest<false>( //qual_phsum_val, 
                                     max_pqual, best_phred, best_count,
-                                    dedup_ampDistr[strand].getRefByPos(pos), curr_depth_typesum, symbol, max_imba_depth, phred_max, 0);
+                                    dedup_ampDistr[strand].getRefByPos(pos), curr_depth_typesum, symbol, max_imba_depth, phred_max, 0, ess_georatio_dedup);
                         } else {
                             best_phred = 0;
                             best_count = 0;
@@ -1237,7 +1237,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         if (curr_depth_symbsum > 0) {
                             getbest<true> ( //qual_phsum_val,
                                     max_pqual, best_phred, best_count,
-                                    dedup_ampDistr[strand].getRefByPos(pos), curr_depth_typesum, symbol, max_imba_depth, phred_max, symbolType2addPhred[symbolType]);
+                                    dedup_ampDistr[strand].getRefByPos(pos), curr_depth_typesum, symbol, max_imba_depth, phred_max, symbolType2addPhred[symbolType], ess_georatio_dedup);
                         } else {
                             max_pqual = 0;
                             best_phred = 0;
@@ -1262,7 +1262,9 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
             const std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, int>> & alns3, 
             const std::basic_string<AlignmentSymbol> & region_symbolvec,
             const std::array<unsigned int, NUM_SYMBOL_TYPES> & symbolType2addPhred,
-            bool should_add_note, unsigned int frag_indel_ext, const PhredMutationTable & phred_max_table, unsigned int phred_thres) {
+            bool should_add_note, unsigned int frag_indel_ext, const PhredMutationTable & phred_max_table, unsigned int phred_thres
+            , double ess_georatio_dedup, double ess_georatio_duped_pcr
+            ) {
         for (const auto & alns2pair2dflag : alns3) {
             const auto & alns2pair = alns2pair2dflag.first;
             for (unsigned int strand = 0; strand < 2; strand++) {
@@ -1354,7 +1356,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                 this->bq_vars_thres, this->bq_vars_depth, this->bq_vars_badep, this->bq_vars_vqual,
                 this->dedup_ampDistr,this->bq_tsum_depth,
                 this->pb_dist_lpart, this->pb_dist_rpart, this->pb_dist_nvars, this->additional_note, should_add_note, phred_max_table, 
-                symbolType2addPhred);
+                symbolType2addPhred, ess_georatio_dedup);
         return 0;
     }
     
@@ -1365,6 +1367,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
             const auto & alns3, const std::basic_string<AlignmentSymbol> & region_symbolvec,
             const std::array<unsigned int, NUM_SYMBOL_TYPES> & symbolType2addPhred, 
             bool should_add_note, const unsigned int frag_indel_ext, const PhredMutationTable & phred_max_table, unsigned int phred_thres, 
+            const double ess_georatio_dedup, const double ess_georatio_duped_pcr,
             bool is_loginfo_enabled, unsigned int thread_id) {
         unsigned int niters = 0;
         for (const auto & alns2pair2dflag : alns3) {
@@ -1486,7 +1489,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         double con_bq_pass_prob = phred2prob(con_bq_pass_thres) * (1 - DBL_EPSILON); // < 1
                         assert (con_bq_pass_prob >= pow(10, ((double)-51)/10) 
                                 || !fprintf(stderr, "%f >= phred51 failed at position %d and symbol %d!\n", con_bq_pass_prob, epos, con_symbol));
-                        unsigned int phredlike = (unsigned int)MAX(0, h01_to_phredlike<true>(minorcount + 1, majorcount + minorcount + (1.0 / con_bq_pass_prob), con_count, tot_count));
+                        unsigned int phredlike = (unsigned int)MAX(0, h01_to_phredlike<true>(minorcount + 1, majorcount + minorcount + (1.0 / con_bq_pass_prob), con_count, tot_count, 1.0, (ess_georatio_duped_pcr)));
                         phredlike = MIN(phredlike, NUM_BUCKETS - 1);
                         // no base quality stuff
                         
@@ -1562,7 +1565,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                 this->fq_vars_thres, this->fq_vars_depth, this->fq_vars_badep, this->fq_vars_vqual,
                 this->dedup_ampDistr,this->bq_tsum_depth,
                 this->pb_dist_lpart, this->pb_dist_rpart, this->pb_dist_nvars, this->additional_note, should_add_note, phred_max_table, 
-                symbolType2addPhred);
+                symbolType2addPhred, ess_georatio_dedup);
     };
     
     std::basic_string<AlignmentSymbol> string2symbolseq(const std::string & instring) {
@@ -1605,13 +1608,18 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
             const PhredMutationTable & phred_max_sscs_table, 
             // unsigned int phred_max_dscs, 
             bool phred_thres,
-            bool use_deduplicated_reads, bool is_loginfo_enabled, unsigned int thread_id) {
+            const bool ess_georatio_dedup, const double ess_georatio_duped_pcr,
+            bool use_deduplicated_reads, bool is_loginfo_enabled, unsigned int thread_id
+            ) {
         const std::array<unsigned int, NUM_SYMBOL_TYPES> symbolType2addPhred = {bq_phred_added_misma, bq_phred_added_indel};
         std::basic_string<AlignmentSymbol> ref_symbol_string = string2symbolseq(refstring);
-        updateByAlns3UsingBQ(mutform2count4map_bq, alns3, ref_symbol_string, symbolType2addPhred, should_add_note, frag_indel_ext, phred_max_sscs_table, phred_thres); // base qualities
+        updateByAlns3UsingBQ(mutform2count4map_bq, alns3, ref_symbol_string, symbolType2addPhred, should_add_note, frag_indel_ext, phred_max_sscs_table, phred_thres
+                , ess_georatio_dedup, ess_georatio_duped_pcr); // base qualities
         updateHapMap(mutform2count4map_bq, this->bq_tsum_depth);
         if (use_deduplicated_reads) {
-            updateByAlns3UsingFQ(mutform2count4map_fq, alns3, ref_symbol_string, symbolType2addPhred, should_add_note, frag_indel_ext, phred_max_sscs_table, phred_thres, is_loginfo_enabled, thread_id); // family qualities
+            updateByAlns3UsingFQ(mutform2count4map_fq, alns3, ref_symbol_string, symbolType2addPhred, should_add_note, frag_indel_ext, phred_max_sscs_table, phred_thres, 
+                    is_loginfo_enabled, thread_id
+                    , ess_georatio_dedup, ess_georatio_duped_pcr); // family qualities
             updateHapMap(mutform2count4map_fq, this->fq_tsum_depth);
         }
     };
