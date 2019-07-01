@@ -157,6 +157,14 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
             "Maximum phred score for double-strand consensus sequences (DSCSs) minus the one for SSCSs", true);
     
     //app.add_option("--platform",     platform,          "Platform or the sequencer that generated the data, which is either illumina or iontorrent."); 
+    
+    app.add_option("--ess-georatio-dedup-cap", ess_georatio_dedup_cap, 
+                   "Geometric common ratio of the increase in the observed number of deduped reads as a function of the effective number of deduped reads (effective sample size) for capture-based assays.", true);
+    app.add_option("--ess-georatio-dedup-pcr", ess_georatio_dedup_pcr, 
+                   "Geometric common ratio of the increase in the observed number of deduped reads as a function of the effective number of deduped reads (effective sample size) for PCR-based assays.", true);
+    app.add_option("--ess-georatio-duped-pcr", ess_georatio_duped_pcr, 
+                   "Geometric common ratio of the increase in the observed number of duped reads as a function of the effective number of duped reads (effective sample size) for reads derived from one template molecule.", true);
+ 
     app.add_option("--minABQ-pcr-snv",   minABQ_pcr_snv,   "Minimum average base quality below which variant quality is capped to average base quality for PCR assay and SNVs, "
                    "recommend 25 for Illumina and 0 for IonTorrent "
                    " (如果位点平均碱基质量低于此值则变异质量不会超过平均碱基质量，建议对Illumina用25并且对IonTorrent用0).", true); 

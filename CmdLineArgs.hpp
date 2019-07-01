@@ -34,12 +34,17 @@ struct CommandLineArgs {
     uint32_t    phred_max_sscs_indel_open = 34;
     uint32_t    phred_max_sscs_indel_ext  = 5;
     uint32_t    phred_dscs_minus_sscs = 10;
-    double      vqual = 10;
+    double      vqual = 20; // 10;
     //std::string platform = "auto";
     uint32_t    minABQ_pcr_snv = 0;
     uint32_t    minABQ_pcr_indel = 0;
     uint32_t    minABQ_cap_snv = 0;
     uint32_t    minABQ_cap_indel = 0;
+
+    double      ess_georatio_dedup_cap = 1.50;
+    double      ess_georatio_dedup_pcr = 1.75;
+    double      ess_georatio_duped_pcr = 2.00;
+ 
     uint32_t    minMQ1 = 40; // from GATK
     uint32_t    bq_phred_added_indel = 0;
     uint32_t    bq_phred_added_misma = 0;
