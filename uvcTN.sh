@@ -6,6 +6,7 @@ if [ $# -lt 5 ]; then
     echo "    <all-params> is the set of parameters to ${scriptdir}/uvc1 for both tumor and normal samples"
     echo "     --tumor-parameters is optional and is followed by the parameters to ${scriptdir}/uvc1 for only the  tumor-sample"
     echo "    --normal-parameters is optional and is followed by the parameters to ${scriptdir}/uvc1 for only the normal-sample"
+    echo "    For help on the usage of \"${scriptdir}/uvc1\", please enter \"${scriptdir}/uvc1\" -h "
     exit 1
 fi
 
