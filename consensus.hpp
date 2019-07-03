@@ -1608,7 +1608,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
             const PhredMutationTable & phred_max_sscs_table, 
             // unsigned int phred_max_dscs, 
             bool phred_thres,
-            const bool ess_georatio_dedup, const double ess_georatio_duped_pcr,
+            const double ess_georatio_dedup, const double ess_georatio_duped_pcr,
             bool use_deduplicated_reads, bool is_loginfo_enabled, unsigned int thread_id
             ) {
         const std::array<unsigned int, NUM_SYMBOL_TYPES> symbolType2addPhred = {bq_phred_added_misma, bq_phred_added_indel};

@@ -203,7 +203,7 @@ double dlog(double n, double r) {
 template <bool TIsConsensual, bool TIsPseudocountZero = false, bool TIsErrAmpRatioOne = false> 
 double
 h01_to_phredlike(double h0pos, double h0tot, double h1pos, double h1tot, 
-        double pseudocount = 1, double err_amp_ratio = (TIsConsensual ? 2.0 : 1.5)) {
+        double pseudocount, double err_amp_ratio) {
     assert(h0pos <  h0tot || !fprintf(stderr, "%lf <  %lf failed", h0pos, h0tot));
     assert(h1pos <= h1tot || !fprintf(stderr, "%lf <= %lf failed", h1pos, h1tot));
     assert(h0pos >  0     || !fprintf(stderr, "%lf >  %lf failed", h0pos, 0));
