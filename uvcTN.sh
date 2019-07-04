@@ -2,7 +2,8 @@
 
 scriptdir="$(dirname "$(which "$0")")"
 if [ $# -lt 5 ]; then
-    echo "Usage: $0 REF tumor-bam normal-bam output-directory tumor-sample-name[,normal-sample-name] [<all-params>] [--tumor-params <tumor-params>] [--normal-params <normal-params>]"
+    echo "Usage: $0 <REF> <tumor-bam> <normal-bam> <output-directory> <tumor-sample-name>[,<normal-sample-name>] [<all-params>] [--tumor-params <tumor-params>] [--normal-params <normal-params>]"
+    echo "    The output bgzipped vcf file is <output-directory>/<normal-sample-name>.vcf.gz if normal-sample-name is provided or <output-directory>/<tumor-sample-name>_N.vcf.gz if normal-sample-name is not provided"
     echo "    <all-params> is the set of parameters to ${scriptdir}/uvc1 for both tumor and normal samples"
     echo "     --tumor-parameters is optional and is followed by the parameters to ${scriptdir}/uvc1 for only the  tumor-sample"
     echo "    --normal-parameters is optional and is followed by the parameters to ${scriptdir}/uvc1 for only the normal-sample"
