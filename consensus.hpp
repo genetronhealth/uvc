@@ -1487,7 +1487,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         unsigned int minorcount = this->minor_amplicon[strand].getByPos(epos).getSymbolCount(con_symbol);
                         auto con_bq_pass_thres = this->bq_pass_thres[strand].getByPos(epos).getSymbolCount(con_symbol);
                         double con_bq_pass_prob = phred2prob(con_bq_pass_thres) * (1 - DBL_EPSILON); // < 1
-                        assert (con_bq_pass_prob >= pow(10, ((double)-51)/10) 
+                        assert (con_bq_pass_prob >= pow(10, (-(double)NUM_BUCKETS)/10) 
                                 || !fprintf(stderr, "%f >= phred51 failed at position %d and symbol %d!\n", con_bq_pass_prob, epos, con_symbol));
                         unsigned int phredlike = (unsigned int)MAX(0, h01_to_phredlike<true>(minorcount + 1, majorcount + minorcount + (1.0 / con_bq_pass_prob), con_count, tot_count, 1.0, (ess_georatio_duped_pcr)));
                         phredlike = MIN(phredlike, NUM_BUCKETS - 1);
@@ -1607,7 +1607,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
             const unsigned int frag_indel_ext,
             const PhredMutationTable & phred_max_sscs_table, 
             // unsigned int phred_max_dscs, 
-            bool phred_thres,
+            unsigned int phred_thres,
             const double ess_georatio_dedup, const double ess_georatio_duped_pcr,
             bool use_deduplicated_reads, bool is_loginfo_enabled, unsigned int thread_id
             ) {
@@ -1617,9 +1617,10 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                 , ess_georatio_dedup, ess_georatio_duped_pcr); // base qualities
         updateHapMap(mutform2count4map_bq, this->bq_tsum_depth);
         if (use_deduplicated_reads) {
-            updateByAlns3UsingFQ(mutform2count4map_fq, alns3, ref_symbol_string, symbolType2addPhred, should_add_note, frag_indel_ext, phred_max_sscs_table, phred_thres, 
-                    is_loginfo_enabled, thread_id
-                    , ess_georatio_dedup, ess_georatio_duped_pcr); // family qualities
+            updateByAlns3UsingFQ(mutform2count4map_fq, alns3, ref_symbol_string, symbolType2addPhred, should_add_note, frag_indel_ext, phred_max_sscs_table, phred_thres 
+                    , ess_georatio_dedup, ess_georatio_duped_pcr
+                    , is_loginfo_enabled, thread_id
+                    ); // family qualities
             updateHapMap(mutform2count4map_fq, this->fq_tsum_depth);
         }
     };
