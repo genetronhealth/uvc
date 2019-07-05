@@ -236,13 +236,8 @@ struct Any4Value {
     const double v4;
     Any4Value(double v1, double v2, double v3, double v4) : v1(v1), v2(v2), v3(v3), v4(v4) {}
     const double to_phredlike(double d, double pc = 0, double err_amp_ratio = 1+1e-5) const {
-        auto n_all_dp = (v1 + d);
-        auto n_alt_dp = (v2 + d) * (1 + DBL_EPSILON);
-        auto t_all_dp = (v3 + d);
-        auto t_alt_dp = (v4 + d) * (1 + DBL_EPSILON);
-        auto t_delta = (n_alt_dp / n_all_dp) * t_all_dp;
-        return (  1.0 * d 
-                + 1.0 * h01_to_phredlike<false, true, true>(n_all_dp, n_alt_dp, t_all_dp, MIN(t_alt_dp + t_delta, t_all_dp), pc, err_amp_ratio));
+        return (  2.0 * d 
+                + 2.0 * h01_to_phredlike<false, true, true>(v1 + d, (v2 + d) * (1 + DBL_EPSILON), v3 + d, (v4 + d) * (1 + DBL_EPSILON), pc, err_amp_ratio));
     }
 };
 
