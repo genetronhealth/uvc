@@ -39,6 +39,23 @@ void UPDATE_MAX2(auto & a, const auto & b) {
     for (int i = 0; i < 2; i++) { UPDATE_MAX(a[i], b[i]); }
 }
 
+double powermean2(double a, double b, double p) {
+    return pow((pow(a, p) + pow(b, p)) / 2.0, 1.0 / p);
+}
+
+double lehmermean2(double a, double b, double p) {
+    return (pow(a, p) + pow(b, p)) / (pow(a, p-1) + pow(b, p-1));
+}
+
+template <bool TEnsurePositive = false>
+double geomean2(double a, double b) {
+    if (TEnsurePositive) {
+        a = MAX(a, 0);
+        b = MAX(b, 0);
+    }
+    return sqrt(a * b);
+}
+
 auto safediv0(auto a, auto b) {
     return (b != 0 ? a / b : 0);
 }
