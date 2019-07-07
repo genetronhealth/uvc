@@ -52,8 +52,8 @@ struct CommandLineArgs {
     uint32_t    phred_germline_polymorphism = 30;
     double      nonref_to_alt_frac_snv = 0.50; // 0.50 for practically removing tri-allelic sites.
     double      nonref_to_alt_frac_indel = 0.20;
-    double      tnq_mult_snv = 0.5;
-    double      tnq_mult_indel = 2.0;
+    double      tnq_mult_snv = 2.000;
+    double      tnq_mult_indel = 2.000;
     int initFromArgCV(int & parsing_result_flag, SequencingPlatform & inferred_sequencing_platform, int argc, const char *const* argv);
     SequencingPlatform selfUpdateByPlatform(void);
 };

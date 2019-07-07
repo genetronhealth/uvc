@@ -1952,7 +1952,7 @@ generateVcfHeader(const char *ref_fasta_fname, const char *platform,
     return ret;
 }
 
-void
+int
 appendVcfRecord(std::string & out_string, std::string & out_string_pass, const Symbol2CountCoverageSet & symbol2CountCoverageSet, 
         const char *tname, unsigned int refpos, 
         const AlignmentSymbol symbol, const bcfrec::BcfFormat & fmt, 
@@ -1972,6 +1972,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
     assert(refpos - extended_inclu_beg_pos < refstring.size());
     
     const bool is_rescued = (tki.DP > 0);
+    if (prev_is_tumor && (!is_rescued)) { return -1; }
     unsigned int editdist = 1;
     const unsigned int regionpos = refpos - extended_inclu_beg_pos;
     const char *altsymbolname = SYMBOL_TO_DESC_ARR[symbol];
@@ -2081,9 +2082,9 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
             // - GATK recommended SOR threshold of 4 for SNVs and 7 for InDels. 
             // - IonTorrent variantCaller has less stringent bias filter for InDels than for SNVs with its default parameters.
             // Therefore, the false positive filter for InDels is more lenient here too.
-            vcfqual = MIN(MIN(MIN(tnlike, tnlike_nonref) * tnq_mult_indel, fmt.GQ + germline_phred), tki.VAQ - fmt.VAQ); // 5.00 is too high, 1.50 is too low
+            vcfqual = MIN(MIN(MIN(tnlike, tnlike_nonref) * tnq_mult_indel, tki.VAQ - fmt.VAQ  ), fmt.GQ + germline_phred); // 5.00 is too high, 1.50 is too low
         } else {
-            vcfqual = MIN(MIN(MIN(tnlike, tnlike_nonref) * tnq_mult_snv  , fmt.GQ + germline_phred), tki.VAQ - fmt.VAQ); // (germline + sys error) freq of 10^(-25/10)
+            vcfqual = MIN(MIN(MIN(tnlike, tnlike_nonref) * tnq_mult_snv  , tki.VAQ - fmt.VAQ  ), fmt.GQ + germline_phred); // (germline + sys error) freq of 10^(-25/10)
         }
     } else {
         ref_alt = vcfref + "\t" + vcfalt;

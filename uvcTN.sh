@@ -65,7 +65,7 @@ else
 fi
 
 #date && time -p "${scriptdir}/uvc1" -f "${ref}" -s "${tsample}" "${tbam}" -o "${tvcfgz}" "${tparams[@]}" 2> "${tlog}"
-date && time -p bcftools index -ft "${tvcfgz}"
+#date && time -p bcftools index -ft "${tvcfgz}"
 
 date && time -p "${scriptdir}/uvc1" -f "${ref}" -s "${nsample}" "${nbam}" -o "${nvcfgz}" "${nparams[@]}" --tumor-vcf "${tvcfgz}" 2> "${nlog}"
 date && time -p bcftools index -ft "${nvcfgz}"
