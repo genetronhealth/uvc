@@ -316,7 +316,7 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
     int sr_set_opt_retval = bcf_sr_set_opt(sr, BCF_SR_REQUIRE_IDX);
     int sr_add_reader_retval = bcf_sr_add_reader(sr, vcf_tumor_fname.c_str());
     if (sr_add_reader_retval != 1) {
-        LOG(logCRITICAL) << "Failed to synchronize-read the tumor vcf " << vcf_tumor_fname;
+        LOG(logCRITICAL) << "Failed to synchronize-read the tumor vcf " << vcf_tumor_fname << " with return code " << sr_add_reader_retval;
         exit(-7);
     }
     
