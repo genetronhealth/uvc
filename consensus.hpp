@@ -2084,15 +2084,16 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         infostring += std::string(";tAltBQ=") + std::to_string(tki.AutoBestAltBQ);
         infostring += std::string(";tAllBQ=") + std::to_string(tki.AutoBestAllBQ);
         // auto finalGQ = (("1/0" == fmt.GT) ? fmt.GQ : 0);
+        auto diffVAQ = MAX(tki.VAQ - fmt.VAQ, tki.VAQ / (fmt.VAQ + tki.VAQ + DBL_MIN));
         if (isInDel) {
             //vcfqual = MIN(MIN(tnlike * 1.0              , fmt.GQ + germline_phred), tki.VAQ - fmt.VAQ);
             // Usually, InDels is charaterized by less stringent filter threshold than SNVs. For example,
             // - GATK recommended SOR threshold of 4 for SNVs and 7 for InDels. 
             // - IonTorrent variantCaller has less stringent bias filter for InDels than for SNVs with its default parameters.
             // Therefore, the false positive filter for InDels is more lenient here too.
-            vcfqual = MIN(MIN(MIN(tnlike, tnlike_nonref) * tnq_mult_indel, tki.VAQ - fmt.VAQ  ), fmt.GQ + germline_phred); // 5.00 is too high, 1.50 is too low
+            vcfqual = MIN(MIN(MIN(tnlike, tnlike_nonref) * tnq_mult_indel, diffVAQ), fmt.GQ + germline_phred); // 5.00 is too high, 1.50 is too low
         } else {
-            vcfqual = MIN(MIN(MIN(tnlike, tnlike_nonref) * tnq_mult_snv  , tki.VAQ - fmt.VAQ  ), fmt.GQ + germline_phred); // (germline + sys error) freq of 10^(-25/10)
+            vcfqual = MIN(MIN(MIN(tnlike, tnlike_nonref) * tnq_mult_snv  , diffVAQ), fmt.GQ + germline_phred); // (germline + sys error) freq of 10^(-25/10)
         }
     } else {
         ref_alt = vcfref + "\t" + vcfalt;
