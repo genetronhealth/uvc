@@ -46,6 +46,7 @@ struct CommandLineArgs {
     double      ess_georatio_duped_pcr = 2.00;
  
     uint32_t    minMQ1 = 40; // from GATK
+    uint32_t    maxMQ  = 60; // from bwa
     uint32_t    bq_phred_added_indel = 0;
     uint32_t    bq_phred_added_misma = 0;
     bool        should_add_note = false;
