@@ -173,8 +173,10 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("dVQ3"     , 1, BCF_INTEGER, "see above"), // AD2=QT2=NotApplicable QT3=60 (all passed)
     BcfFormatStruct("dAD3"     , 1, BCF_INTEGER, "see above"),
     // BcfFormatStruct("RVAQ"     , 1, BCF_FLOAT,   "Raw Variant Allele Quality"),
-    BcfFormatStruct("e_gap"    , 1, BCF_SEP,     "Number of indels in forward&reverse strand (gapNum), indel sequences (gapSeq), duped read count of each gapSeq, dedup family count of each gapSeq"), 
+    BcfFormatStruct("e_gap"    , 1, BCF_SEP,     "Number of indels in forward&reverse strand (gapNum), max cAD diff (gapcADD), total cAD depth (gapcADT), indel sequences (gapSeq), duped read count of each gapSeq, dedup family count of each gapSeq"), 
     BcfFormatStruct("gapNum"   , 2, BCF_INTEGER, "see above"), // 2 * number-of-alts
+    BcfFormatStruct("gapcADD"  , 2, BCF_INTEGER, "see above"), // 2 * number-of-alts
+    BcfFormatStruct("gapcADT"  , 2, BCF_INTEGER, "see above"), // 2 * number-of-alts
     BcfFormatStruct("gapSeq"   , BCF_NUM_D, BCF_STRING,  "see above"),
     BcfFormatStruct("gapbAD1"  , BCF_NUM_D, BCF_INTEGER, "see above"),
     BcfFormatStruct("gapcAD1"  , BCF_NUM_D, BCF_INTEGER, "see above"),

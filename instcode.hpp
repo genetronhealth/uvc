@@ -8,7 +8,7 @@
 
 // this code is instantiated multiple times, with INDELTYPE as instantiation parameter.
 // template <AlignmentSymbol link1, AlignmentSymbol link2, AlignmentSymbol link3p> // , LinkType linkType>
-void   
+std::array<unsigned int, 2>
 #if INDEL_ID == 1
 fillByIndelInfo2_1
 #else
@@ -87,11 +87,22 @@ fillByIndelInfo2_2
     //unsigned int gapAD2sum = 0;
     //unsigned int gapADrsum = 0;
     //for (auto rawdu_dedup_size1_mutform_tuple : rawdu2_dedup_size1_mutform_tuples) {
+    unsigned int prev_gapseq_len = 0;
+    unsigned int prev_gap_cAD = 0;
+    unsigned int maxdiff = 0; 
     for (auto bqfq_depth_mutform : bqfq_depth_mutform_tuples) {
-        assert(std::get<2>(bqfq_depth_mutform).size() > 0);
-        fmt.gapSeq.push_back(std::get<2>(bqfq_depth_mutform));
-        fmt.gapbAD1.push_back(std::get<1>(bqfq_depth_mutform));
-        fmt.gapcAD1.push_back(std::get<0>(bqfq_depth_mutform));
+        const auto gap_seq = std::get<2>(bqfq_depth_mutform);
+        assert(gap_seq.size() > 0);
+        auto gap_cAD = std::get<0>(bqfq_depth_mutform);
+        auto gap_bAD = std::get<1>(bqfq_depth_mutform);
+        fmt.gapSeq.push_back(gap_seq);
+        fmt.gapbAD1.push_back(gap_bAD);
+        fmt.gapcAD1.push_back(gap_cAD);
+        if (gap_seq.size() != prev_gapseq_len && prev_gap_cAD > gap_cAD) {
+            maxdiff = MAX(maxdiff, prev_gap_cAD - gap_cAD);
+        }
+        prev_gapseq_len = gap_seq.size();
+        prev_gap_cAD = gap_cAD;
         //fmt.gapSeq.push_back(std::get<4>(rawdu_dedup_size1_mutform_tuple)); // this is a std::string
         //fmt.gapAD2.push_back(std::get<2>(rawdu_dedup_size1_mutform_tuple));
         //fmt.gapAD4.push_back(std::get<3>(rawdu_dedup_size1_mutform_tuple));
@@ -99,10 +110,11 @@ fillByIndelInfo2_2
         //fmt.gapADr.push_back(std::get<0>(rawdu_dedup_size1_mutform_tuple));
         //gapAD2sum += fmt.gapAD2.back();
         //gapADrsum += fmt.gapADr.back();
-        gapbAD1sum += fmt.gapbAD1.back();
-        gapcAD1sum += fmt.gapcAD1.back();
+        gapbAD1sum += gap_bAD; // fmt.gapbAD1.back();
+        gapcAD1sum += gap_cAD; // fmt.gapcAD1.back();
         // ituple++; if (2 == ituple) { break; }
     }
+    return {MAX(maxdiff, prev_gap_cAD), gapcAD1sum};
     /*
     if (fmt.gapbAD1[strand] != gapbAD1sum) {
         std::string msg = std::to_string(strand) + "\t" + std::to_string(refpos) + "\t" + std::to_string(symbol);

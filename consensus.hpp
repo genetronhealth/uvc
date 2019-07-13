@@ -1670,19 +1670,19 @@ BcfFormat_init(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbolDi
 #undef INDEL_ID
 #define INDEL_ID 2
 #include "instcode.hpp"
-void
+std::array<unsigned int, 2>
 fillByIndelInfo(bcfrec::BcfFormat & fmt,
         const Symbol2CountCoverageSet & symbol2CountCoverageSet, 
         const unsigned int strand, const unsigned int refpos, const AlignmentSymbol symbol, 
         const std::string & refstring) {
     assert(isSymbolIns(symbol) || isSymbolDel(symbol));
     if (isSymbolIns(symbol)) {
-        fillByIndelInfo2_1(fmt, symbol2CountCoverageSet, strand, refpos, symbol,
+        return fillByIndelInfo2_1(fmt, symbol2CountCoverageSet, strand, refpos, symbol,
                 symbol2CountCoverageSet.bq_tsum_depth.at(strand).getPosToIseqToData(),
                 symbol2CountCoverageSet.fq_tsum_depth.at(strand).getPosToIseqToData(),
                 refstring);
     } else {
-        fillByIndelInfo2_2(fmt, symbol2CountCoverageSet, strand, refpos, symbol,
+        return fillByIndelInfo2_2(fmt, symbol2CountCoverageSet, strand, refpos, symbol,
                 symbol2CountCoverageSet.bq_tsum_depth.at(strand).getPosToDlenToData(),
                 symbol2CountCoverageSet.fq_tsum_depth.at(strand).getPosToDlenToData(),
                 refstring);
@@ -1803,7 +1803,9 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
         
         fmt.gapNum[strand] = 0;
         if ((0 < fmt.bAD1[strand]) && (isSymbolIns(symbol) || isSymbolDel(symbol))) {
-            fillByIndelInfo(fmt, symbol2CountCoverageSet12, strand, refpos, symbol, refstring);
+            auto cADdiff_cADtotal = fillByIndelInfo(fmt, symbol2CountCoverageSet12, strand, refpos, symbol, refstring);
+            fmt.gapcADD[strand] = cADdiff_cADtotal[0]; // diff
+            fmt.gapcADT[strand] = cADdiff_cADtotal[1];
         }
     }
     
@@ -1899,7 +1901,8 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
     double doubleVAQrv = stdVAQs[1] + stdVAQs[0] * MIN(1.0, (weightsum - weightedQT3s[1]) / (weightedQT3s[1] + DBL_EPSILON));
     fmt.cVAQ2 = {(float)doubleVAQfw, (float)doubleVAQrv};
     
-    double doubleVAQ = MAX(doubleVAQfw, doubleVAQrv);
+    double doubleVAQ_multnorm =(double)(1 + fmt.gapcADD[0] + fmt.gapcADD[1]) / (double)(1 + fmt.gapcADT[0] + fmt.gapcADT[1]);
+    double doubleVAQ = MAX(doubleVAQfw, doubleVAQrv) * doubleVAQ_multnorm;
     // double doubleVAQ = stdVAQ + (minVAQ * (phred_max_dscs - phred_max_sscs) / (double)phred_max_sscs);
     double duplexVAQ = (double)fmt.dAD3 * (double)(phred_max_dscs - phred_max_sscs) - (double)(fmt.dAD1 - fmt.dAD3); // h01_to
     fmt.VAQ = MAX(lowestVAQ, doubleVAQ + duplexVAQ); // / 1.5;
