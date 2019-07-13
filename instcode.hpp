@@ -74,7 +74,7 @@ fillByIndelInfo2_2
             // rawdu2_dedup_size1_mutform_tuples.push_back(
             //        std::make_tuple(rawdu_amplicon_data, rawdu_ampBQerr_data, dedup_amplicon_data, size1_amplicon_data, indelstring)
             // );
-            bqfq_depth_mutform_tuples.push_back(std::make_tuple(bqdata, fqdata, indelstring));
+            bqfq_depth_mutform_tuples.push_back(std::make_tuple(fqdata, bqdata, indelstring));
         }
     }
     unsigned int gapbAD1sum = 0;
@@ -90,8 +90,8 @@ fillByIndelInfo2_2
     for (auto bqfq_depth_mutform : bqfq_depth_mutform_tuples) {
         assert(std::get<2>(bqfq_depth_mutform).size() > 0);
         fmt.gapSeq.push_back(std::get<2>(bqfq_depth_mutform));
-        fmt.gapbAD1.push_back(std::get<0>(bqfq_depth_mutform));
-        fmt.gapcAD1.push_back(std::get<1>(bqfq_depth_mutform));
+        fmt.gapbAD1.push_back(std::get<1>(bqfq_depth_mutform));
+        fmt.gapcAD1.push_back(std::get<0>(bqfq_depth_mutform));
         //fmt.gapSeq.push_back(std::get<4>(rawdu_dedup_size1_mutform_tuple)); // this is a std::string
         //fmt.gapAD2.push_back(std::get<2>(rawdu_dedup_size1_mutform_tuple));
         //fmt.gapAD4.push_back(std::get<3>(rawdu_dedup_size1_mutform_tuple));
