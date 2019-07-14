@@ -1902,10 +1902,12 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
     fmt.cVAQ2 = {(float)doubleVAQfw, (float)doubleVAQrv};
     
     double doubleVAQ_multnorm =(double)(1 + fmt.gapcADD[0] + fmt.gapcADD[1]) / (double)(1 + fmt.gapcADT[0] + fmt.gapcADT[1]);
-    double doubleVAQ = MAX(doubleVAQfw, doubleVAQrv) * doubleVAQ_multnorm;
+    double doubleVAQ = MAX(doubleVAQfw, doubleVAQrv);
+    double doubleVAQ_norm = doubleVAQ * doubleVAQ_multnorm;
     // double doubleVAQ = stdVAQ + (minVAQ * (phred_max_dscs - phred_max_sscs) / (double)phred_max_sscs);
     double duplexVAQ = (double)fmt.dAD3 * (double)(phred_max_dscs - phred_max_sscs) - (double)(fmt.dAD1 - fmt.dAD3); // h01_to
     fmt.VAQ = MAX(lowestVAQ, doubleVAQ + duplexVAQ); // / 1.5;
+    fmt.VAQ2 = MAX(lowestVAQ, doubleVAQ_norm + duplexVAQ); // treat other forms of indels as background noise if matched normal is not available.
     return (int)(fmt.bAD1[0] + fmt.bAD1[1]);
 };
 
@@ -2029,7 +2031,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         vcfalt = altsymbolname;
     }
     
-    float vcfqual = fmt.VAQ;
+    float vcfqual = fmt.VAQ2; // here we assume the matched normal is not available (yet)
     
     bool is_novar = (symbol == LINK_M || (isSymbolSubstitution(symbol) && vcfref == vcfalt));
     std::string vcffilter;
