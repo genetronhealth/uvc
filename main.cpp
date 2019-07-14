@@ -499,7 +499,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
             // adjcount_x_rpos_x_misma_vec, // maxvalue, 
             umi_strand_readset, refstring, 
             paramset.bq_phred_added_misma, paramset.bq_phred_added_indel, paramset.should_add_note, 
-            paramset.phred_max_frag_indel_ext,
+            paramset.phred_max_frag_indel_ext, paramset.phred_max_frag_indel_basemax,  
             sscs_mut_table,
             // paramset.phred_max_dscs, 
             minABQ_snv, // minABQ_indel,

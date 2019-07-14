@@ -743,9 +743,11 @@ public:
         posToIndelToCount_inc(this->pos2dlen2data, ipos, dlen, incvalue);
     };
     
-    template<ValueType TUpdateType, unsigned int TIndelAddPhred = 0*29>
+    template<ValueType TUpdateType, bool THasDups, unsigned int TIndelAddPhred = 0*29>
     int // GenericSymbol2CountCoverage<TSymbol2Count>::
-    updateByAln(const bam1_t *const b, unsigned int frag_indel_ext, const std::array<unsigned int, NUM_SYMBOL_TYPES> & symbolType2addPhredArg, uint32_t primerlen = 0) {
+    updateByAln(const bam1_t *const b, unsigned int frag_indel_ext, 
+            const std::array<unsigned int, NUM_SYMBOL_TYPES> & symbolType2addPhredArg, 
+            unsigned int frag_indel_basemax, uint32_t primerlen = 0) {
         static_assert(BASE_QUALITY_MAX == TUpdateType || SYMBOL_COUNT_SUM == TUpdateType);
         assert(this->tid == b->core.tid);
         assert(this->getIncluBegPosition() <= b->core.pos   || !fprintf(stderr, "%d <= %d failed", this->getIncluBegPosition(), b->core.pos));
@@ -783,7 +785,7 @@ public:
                 }
             } else if (cigar_op == BAM_CINS) {
                 if (TUpdateType == BASE_QUALITY_MAX) {
-                    auto addidq = MIN(cigar_oplen - 1, (3+1) - 1) * frag_indel_ext;
+                    auto addidq = (THasDups ? 0 : (MIN(cigar_oplen - 1, (3+0) - 1) * frag_indel_ext));
                     if (TIndelAddPhred) {
                         incvalue = TIndelAddPhred + addidq;
                     } else if (0 == qpos || qpos + cigar_oplen >= b->core.l_qseq) {
@@ -792,9 +794,9 @@ public:
                         incvalue = (0 != qpos ? bam_phredi(b, qpos-1) : ((qpos + cigar_oplen < b->core.l_qseq) ? bam_phredi(b, qpos + cigar_oplen) : 1)) + addidq 
                                 ; // + symbolType2addPhred[LINK_SYMBOL];
                     } else {
-                        incvalue = MIN(bam_phredi(b, qpos-1), bam_phredi(b, qpos + cigar_oplen)) + addidq; // + symbolType2addPhred[LINK_SYMBOL];
+                        incvalue = MIN(MIN(bam_phredi(b, qpos-1), bam_phredi(b, qpos + cigar_oplen)), frag_indel_basemax) + addidq; // + symbolType2addPhred[LINK_SYMBOL];
                     }
-                    unsigned int decvalue = bam_to_decvalue(b, qpos);
+                    unsigned int decvalue = (THasDups ? 0 : bam_to_decvalue(b, qpos));
                     incvalue -= MIN(incvalue, decvalue);
                 }
                 this->inc<TUpdateType>(rpos, insLenToSymbol(cigar_oplen), MAX(1, incvalue), b);
@@ -813,13 +815,13 @@ public:
                 qpos += cigar_oplen;
             } else if (cigar_op == BAM_CDEL) {
                 if (TUpdateType == BASE_QUALITY_MAX) {
-                    auto addidq = MIN(cigar_oplen - 1, (3+1) - 1) * frag_indel_ext;
+                    auto addidq = (THasDups ? 0 : (MIN(cigar_oplen - 1, (3+0) - 1) * frag_indel_ext));
                     if (TIndelAddPhred) {
                         incvalue = TIndelAddPhred + addidq;
                     } else {
-                        incvalue = MIN(bam_phredi(b, qpos), bam_phredi(b, qpos+1)) + addidq; // + symbolType2addPhred[LINK_SYMBOL];
+                        incvalue = MIN(MIN(bam_phredi(b, qpos), bam_phredi(b, qpos+1)), frag_indel_basemax) + addidq; // + symbolType2addPhred[LINK_SYMBOL];
                     }
-                    unsigned int decvalue = bam_to_decvalue(b, qpos);
+                    unsigned int decvalue = (THasDups ? 0 : bam_to_decvalue(b, qpos));
                     incvalue -= MIN(incvalue, decvalue);
                 }
                 this->inc<TUpdateType>(rpos, delLenToSymbol(cigar_oplen), MAX(1, incvalue), b);
@@ -843,9 +845,15 @@ public:
 
     template<ValueType TUpdateType>
     int // GenericSymbol2CountCoverage<TSymbol2Count>::
-    updateByRead1Aln(std::vector<bam1_t *> aln_vec, unsigned int frag_indel_ext, const std::array<unsigned int, NUM_SYMBOL_TYPES> & symbolType2addPhred) {
+    updateByRead1Aln(std::vector<bam1_t *> aln_vec, unsigned int frag_indel_ext, 
+            const std::array<unsigned int, NUM_SYMBOL_TYPES> & symbolType2addPhred, const unsigned int alns2size, 
+            const unsigned int frag_indel_basemax, unsigned int dflag) {
         for (bam1_t *aln : aln_vec) {
-            this->updateByAln<TUpdateType>(aln, frag_indel_ext, symbolType2addPhred);
+            if (alns2size > 1 && dflag > 0) { // is barcoded and not singleton
+                this->updateByAln<TUpdateType, true>(aln, frag_indel_ext, symbolType2addPhred, frag_indel_basemax);
+            } else {
+                this->updateByAln<TUpdateType, false>(aln, frag_indel_ext, symbolType2addPhred, frag_indel_basemax);
+            }
         }
     }
 };
@@ -1264,7 +1272,8 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
             const std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, int>> & alns3, 
             const std::basic_string<AlignmentSymbol> & region_symbolvec,
             const std::array<unsigned int, NUM_SYMBOL_TYPES> & symbolType2addPhred,
-            bool should_add_note, unsigned int frag_indel_ext, const PhredMutationTable & phred_max_table, unsigned int phred_thres
+            bool should_add_note, unsigned int frag_indel_ext, unsigned int frag_indel_basemax,
+            const PhredMutationTable & phred_max_table, unsigned int phred_thres
             , double ess_georatio_dedup, double ess_georatio_duped_pcr
             ) {
         for (const auto & alns2pair2dflag : alns3) {
@@ -1275,7 +1284,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                     uint32_t tid2, beg2, end2;
                     fillTidBegEndFromAlns1(tid2, beg2, end2, alns1);
                     Symbol2CountCoverage read_ampBQerr_fragWithR1R2(tid, beg2, end2);
-                    read_ampBQerr_fragWithR1R2.updateByRead1Aln<BASE_QUALITY_MAX>(alns1, frag_indel_ext, symbolType2addPhred);
+                    read_ampBQerr_fragWithR1R2.updateByRead1Aln<BASE_QUALITY_MAX>(alns1, frag_indel_ext, symbolType2addPhred, alns2.size(), frag_indel_basemax, alns2pair2dflag.second);
                     unsigned int minMQ = 256;
                     for (const bam1_t * b : alns1) {
                         minMQ = MIN(minMQ, b->core.qual);
@@ -1369,7 +1378,8 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
             std::array<unsigned int, 2>> & mutform2count4map,
             const auto & alns3, const std::basic_string<AlignmentSymbol> & region_symbolvec,
             const std::array<unsigned int, NUM_SYMBOL_TYPES> & symbolType2addPhred, 
-            bool should_add_note, const unsigned int frag_indel_ext, const PhredMutationTable & phred_max_table, unsigned int phred_thres, 
+            bool should_add_note, const unsigned int frag_indel_ext, const unsigned int frag_indel_basemax, 
+            const PhredMutationTable & phred_max_table, unsigned int phred_thres, 
             const double ess_georatio_dedup, const double ess_georatio_duped_pcr,
             bool is_loginfo_enabled, unsigned int thread_id) {
         unsigned int niters = 0;
@@ -1395,7 +1405,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                     uint32_t tid1, beg1, end1;
                     fillTidBegEndFromAlns1(tid1, beg1, end1, alns1);
                     Symbol2CountCoverage read_ampBQerr_fragWithR1R2(tid1, beg1, end1);
-                    read_ampBQerr_fragWithR1R2.updateByRead1Aln<BASE_QUALITY_MAX>(alns1, frag_indel_ext, symbolType2addPhred);
+                    read_ampBQerr_fragWithR1R2.updateByRead1Aln<BASE_QUALITY_MAX>(alns1, frag_indel_ext, symbolType2addPhred, alns2.size(), frag_indel_basemax, alns2pair2dflag.second);
                     read_family_con_ampl.updateByConsensus<SYMBOL_COUNT_SUM>(read_ampBQerr_fragWithR1R2);
                     int updateresult = read_family_amplicon.updateByFiltering(read_ampBQerr_fragWithR1R2, this->bq_pass_thres[strand], 1, true, strand);
                     if (log_alns2) {
@@ -1459,7 +1469,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                     uint32_t tid1, beg1, end1;
                     fillTidBegEndFromAlns1(tid1, beg1, end1, aln_vec);
                     Symbol2CountCoverage read_ampBQerr_fragWithR1R2(tid1, beg1, end1);
-                    read_ampBQerr_fragWithR1R2.updateByRead1Aln<BASE_QUALITY_MAX>(aln_vec, frag_indel_ext, symbolType2addPhred);
+                    read_ampBQerr_fragWithR1R2.updateByRead1Aln<BASE_QUALITY_MAX>(aln_vec, frag_indel_ext, symbolType2addPhred, alns2.size(), frag_indel_basemax, alns2pair2dflag.second);
                     // read_family_amplicon.updateByConsensus<SYMBOL_COUNT_SUM>(read_ampBQerr_fragWithR1R2);
                     int updateresult = read_family_amplicon.updateByFiltering(read_ampBQerr_fragWithR1R2, this->bq_pass_thres[strand], 1, true, strand);
                     if (log_alns2) {
@@ -1607,7 +1617,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
             const std::string & refstring,
             unsigned int bq_phred_added_misma, unsigned int bq_phred_added_indel, 
             bool should_add_note, 
-            const unsigned int frag_indel_ext,
+            const unsigned int frag_indel_ext, const unsigned int frag_indel_basemax,
             const PhredMutationTable & phred_max_sscs_table, 
             // unsigned int phred_max_dscs, 
             unsigned int phred_thres,
@@ -1616,11 +1626,13 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
             ) {
         const std::array<unsigned int, NUM_SYMBOL_TYPES> symbolType2addPhred = {bq_phred_added_misma, bq_phred_added_indel};
         std::basic_string<AlignmentSymbol> ref_symbol_string = string2symbolseq(refstring);
-        updateByAlns3UsingBQ(mutform2count4map_bq, alns3, ref_symbol_string, symbolType2addPhred, should_add_note, frag_indel_ext, phred_max_sscs_table, phred_thres
+        updateByAlns3UsingBQ(mutform2count4map_bq, alns3, ref_symbol_string, symbolType2addPhred, should_add_note, frag_indel_ext, frag_indel_basemax, 
+                phred_max_sscs_table, phred_thres
                 , ess_georatio_dedup, ess_georatio_duped_pcr); // base qualities
         updateHapMap(mutform2count4map_bq, this->bq_tsum_depth);
         if (use_deduplicated_reads) {
-            updateByAlns3UsingFQ(mutform2count4map_fq, alns3, ref_symbol_string, symbolType2addPhred, should_add_note, frag_indel_ext, phred_max_sscs_table, phred_thres 
+            updateByAlns3UsingFQ(mutform2count4map_fq, alns3, ref_symbol_string, symbolType2addPhred, should_add_note, frag_indel_ext, frag_indel_basemax, 
+                    phred_max_sscs_table, phred_thres 
                     , ess_georatio_dedup, ess_georatio_duped_pcr
                     , is_loginfo_enabled, thread_id
                     ); // family qualities
@@ -1885,7 +1897,8 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
         double currVAQ = (fmt.bVQ3[i] * minAD1 + fmt.cVQ3[i] * gapAD1) / (double)(minAD1 + gapAD1 + DBL_MIN); // prevent div by zero
         weightedQT3s[i] = (fmt.bQT3[i] * minAD1 + fmt.cQT3[i] * gapAD1) / (double)(minAD1 + gapAD1 + DBL_MIN);
         stdVAQs[i] = currVAQ;
-        if ((fmt.bQT2[i] < minABQ && isSymbolSubstitution(symbol))) {
+        // && isSymbolSubstitution(symbol) // not needed
+        if ((fmt.bBQ1[i] < minABQ)) {
             stdVAQs[i] = MIN(stdVAQs[i], minABQ);
         }
         if ((unsigned int)fmt.bMQ1[i] < minMQ1) {
@@ -2031,8 +2044,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         vcfalt = altsymbolname;
     }
     
-    //float vcfqual = fmt.VAQ; // TODO: investigate whether to use VAQ or VAQ2
-    float vcfqual = fmt.VAQ2; // here we assume the matched normal is not available (yet)
+    float vcfqual = fmt.VAQ; // TODO: investigate whether to use VAQ or VAQ2
+    //float vcfqual = fmt.VAQ2; // here we assume the matched normal is not available (yet)
     
     bool is_novar = (symbol == LINK_M || (isSymbolSubstitution(symbol) && vcfref == vcfalt));
     std::string vcffilter;
