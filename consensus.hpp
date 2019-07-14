@@ -2031,6 +2031,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         vcfalt = altsymbolname;
     }
     
+    //float vcfqual = fmt.VAQ; // TODO: investigate whether to use VAQ or VAQ2
     float vcfqual = fmt.VAQ2; // here we assume the matched normal is not available (yet)
     
     bool is_novar = (symbol == LINK_M || (isSymbolSubstitution(symbol) && vcfref == vcfalt));
