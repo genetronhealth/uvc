@@ -1845,7 +1845,7 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
     fmt.cFA = (double)(fmtcAD) / (double)(fmt.cDP);
     auto fmtcRD = fmt.cRDTT[0] + fmt.cRDTT[1];
     fmt.cFR = (double)(fmtcRD) / (double)(fmt.cDP);
-    fmt.cFO = 1.0 - fmt.cFA - fmt.cFR
+    fmt.cFO = 1.0 - fmt.cFA - fmt.cFR;
 
     auto fmtAD = 0;
     if (use_deduplicated_reads) {
