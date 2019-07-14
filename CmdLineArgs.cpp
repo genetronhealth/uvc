@@ -142,7 +142,9 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     app.add_option("--mapqual",      min_mapqual,       "Minimum mapping  quality below which the alignment is filtered out (如果比对质量低于此值则过滤掉一行的比对结果).", true);
     
     app.add_option("--phred-frag-indel-ext",        phred_max_frag_indel_ext,
-            "maximum phred score fo the indel of one base, capped at four bases", true);
+            "maximum phred score fo the indel of one additional base (excluding the one base require for opening indel), capped at two additional bases", true);
+    app.add_option("--phred-frag-indel-basemax",    phred_max_frag_indel_basemax,
+            "maximum phred score fo the opening of an indel (including the one base required for opening indel)", true);
     app.add_option("--phred-sscs-transition-CG-TA", phred_max_sscs_transition_CG_TA, 
             "maximum phred score for single-strand consensus sequences (SSCSs) for C:G > T:A transition", true);
     app.add_option("--phred-sscs-transition-TA-CG", phred_max_sscs_transition_TA_CG, 
