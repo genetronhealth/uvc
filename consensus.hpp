@@ -1838,12 +1838,14 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
     fmt.bFA = (double)(fmtbAD) / (double)(fmt.bDP);
     auto fmtbRD = fmt.bRD1[0] + fmt.bRD1[1];
     fmt.bFR = (double)(fmtbRD) / (double)(fmt.bDP);
+    fmt.bFO = 1.0 - fmt.bFA - fmt.bFR;
 
     fmt.cDP = fmt.cDPTT[0] + fmt.cDPTT[1];
     auto fmtcAD = fmt.cADTT[0] + fmt.cADTT[1];
     fmt.cFA = (double)(fmtcAD) / (double)(fmt.cDP);
     auto fmtcRD = fmt.cRDTT[0] + fmt.cRDTT[1];
     fmt.cFR = (double)(fmtcRD) / (double)(fmt.cDP);
+    fmt.cFO = 1.0 - fmt.cFA - fmt.cFR
 
     auto fmtAD = 0;
     if (use_deduplicated_reads) {
