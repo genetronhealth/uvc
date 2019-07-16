@@ -2170,7 +2170,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
     if ((!is_novar && vcfqual >= vcfqual_thres) || should_output_all) {
         unsigned int repeatnum = 0;
         std::string repeatunit = "";
-        indelpos_to_context(repeatunit, repeatnum, refstring, refpos);
+        indelpos_to_context(repeatunit, repeatnum, refstring, regionpos);
         infostring += ";RU=" + repeatunit + ";RC=" + std::to_string(repeatnum);
     }
     
