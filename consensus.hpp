@@ -605,6 +605,25 @@ fillTidBegEndFromAlns3(uint32_t & tid, uint32_t & inc_beg, uint32_t & exc_end, c
     }
 };
 
+int indelpos_to_context(
+        std::string & repeatunit, unsigned int & max_repeatnum,
+        const std::string & refstring, unsigned int refpos) {
+    max_repeatnum = 0;
+    unsigned int repeatsize_at_max_repeatnum = 0;
+    for (unsigned int repeatsize = 1; repeatsize < 6*2; repeatsize++) {
+        unsigned int qidx = refpos;
+        while (qidx + repeatsize < refstring.size() && refstring[qidx] == refstring[qidx+repeatsize]) {
+            qidx++;
+        }
+        unsigned int repeatnum = (qidx - refpos) / repeatsize + 1;
+        if (repeatnum > max_repeatnum) {
+            max_repeatnum = repeatnum;
+            repeatsize_at_max_repeatnum = repeatsize;
+        }
+    }
+    repeatunit = refstring.substr(refpos, refpos + repeatsize_at_max_repeatnum);
+}
+
 unsigned int bam_to_decvalue(const bam1_t *b, unsigned int qpos) {
     unsigned int max_repeatnum = 0;
     unsigned int repeatsize_at_max_repeatnum = 0;
@@ -619,8 +638,8 @@ unsigned int bam_to_decvalue(const bam1_t *b, unsigned int qpos) {
             repeatsize_at_max_repeatnum = repeatsize;
         }
     }
-    return (repeatsize_at_max_repeatnum * max_repeatnum); // one base in MSI reduces phred-indel-quality by 1, TODO: the one is arbitrary, justify it.
-    // return prob2phred((1.0 - DBL_EPSILON) / (double)max_repeatnum);
+    return prob2phred((1.0 - DBL_EPSILON) / (double)max_repeatnum);
+    // return (repeatsize_at_max_repeatnum * max_repeatnum); // one base in MSI reduces phred-indel-quality by 1, TODO: the one is arbitrary, justify it.
 }
 
 template <class TSymbol2Count>
@@ -2064,7 +2083,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
     }
     
     std::string ref_alt;
-    std::string infostring;
+    std::string infostring = "SOMATIC";
     if (prev_is_tumor) {
         vcfpos = (tki.ref_alt != "." ? (tki.pos + 1) : vcfpos);
         ref_alt = (tki.ref_alt != "." ? tki.ref_alt : vcfref + "\t" + vcfalt);
@@ -2101,14 +2120,15 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         Any4Value bq4((nDP1 - nRD1) * (isInDel ? nonref_to_alt_frac_indel : nonref_to_alt_frac_snv) + 1, nDP1 + 1, tAD1 + 1, tDP1 + 1);
         double tnlike_nonref = bq4.to_phredlike(1);
         
-        infostring = std::string("TNQ=") + std::to_string(tnlike);
-        infostring += std::string(";TNQA=") + std::to_string(tnlike_argmin);
+        infostring += std::string(";TNQ=") + std::to_string(tnlike);
         infostring += std::string(";TNQNR=") + std::to_string(tnlike_nonref);
         infostring += std::string(";tVAQ=") + std::to_string(tki.VAQ);
         infostring += std::string(";tDP=") + std::to_string(tki.DP);
         infostring += std::string(";tFA=") + std::to_string(tki.FA);
         infostring += std::string(";tAltBQ=") + std::to_string(tki.AutoBestAltBQ);
         infostring += std::string(";tAllBQ=") + std::to_string(tki.AutoBestAllBQ);
+        infostring += std::string(";TNQA=") + std::to_string(tnlike_argmin);
+
         // auto finalGQ = (("1/0" == fmt.GT) ? fmt.GQ : 0);
         auto diffVAQ = MAX(tki.VAQ - fmt.VAQ, tki.VAQ / (fmt.VAQ + tki.VAQ + DBL_MIN));
         if (isInDel) {
@@ -2123,7 +2143,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         }
     } else {
         ref_alt = vcfref + "\t" + vcfalt;
-        infostring = ".";
+        // infostring = "";
     }
     
     if (0 == vcffilter.size()) {
@@ -2144,8 +2164,15 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         }
     }
     
+    if ((!is_novar && vcfqual >= vcfqual_thres) || should_output_all) {
+        unsigned int repeatnum = 0;
+        std::string repeatunit = "";
+        indelpos_to_context(repeatunit, repeatnum, refstring, refpos);
+        infostring += ";RU=" + repeatunit + ";RC=" + std::to_string(repeatnum);
+    }
+    
     if (!is_novar && vcfqual >= vcfqual_thres) {
-        out_string_pass += std::string(tname) + "\t" + std::to_string(vcfpos) + "\t.\t" + ref_alt + "\t" 
+                out_string_pass += std::string(tname) + "\t" + std::to_string(vcfpos) + "\t.\t" + ref_alt + "\t" 
             + std::to_string(vcfqual) + "\t" + vcffilter + "\t" + infostring + "\t" + bcfrec::FORMAT_STR_PER_REC + "\t";
         bcfrec::streamAppendBcfFormat(out_string_pass, fmt);
         out_string_pass += "\n";
