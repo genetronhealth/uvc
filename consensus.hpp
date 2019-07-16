@@ -607,6 +607,7 @@ fillTidBegEndFromAlns3(uint32_t & tid, uint32_t & inc_beg, uint32_t & exc_end, c
 
 unsigned int bam_to_decvalue(const bam1_t *b, unsigned int qpos) {
     unsigned int max_repeatnum = 0;
+    unsigned int repeatsize_at_max_repeatnum = 0;
     for (unsigned int repeatsize = 1; repeatsize < 6; repeatsize++) {
         unsigned int qidx = qpos;
         while (qidx + repeatsize < b->core.l_qseq && bam_seqi(bam_get_seq(b), qidx) == bam_seqi(bam_get_seq(b), qidx+repeatsize)) {
@@ -615,9 +616,11 @@ unsigned int bam_to_decvalue(const bam1_t *b, unsigned int qpos) {
         unsigned int repeatnum = (qidx - qpos) / repeatsize + 1;
         if (repeatnum > max_repeatnum) {
             max_repeatnum = repeatnum;
+            repeatsize_at_max_repeatnum = repeatsize;
         }
     }
-    return prob2phred((1.0 - DBL_EPSILON) / (double)max_repeatnum);
+    return (repeatsize_at_max_repeatnum * max_repeatnum); // one base in MSI reduces phred-indel-quality by 1, TODO: the one is arbitrary, justify it.
+    // return prob2phred((1.0 - DBL_EPSILON) / (double)max_repeatnum);
 }
 
 template <class TSymbol2Count>
@@ -794,10 +797,11 @@ public:
                         incvalue = (0 != qpos ? bam_phredi(b, qpos-1) : ((qpos + cigar_oplen < b->core.l_qseq) ? bam_phredi(b, qpos + cigar_oplen) : 1)) + addidq 
                                 ; // + symbolType2addPhred[LINK_SYMBOL];
                     } else {
-                        incvalue = MIN(MIN(bam_phredi(b, qpos-1), bam_phredi(b, qpos + cigar_oplen)), frag_indel_basemax) + addidq; // + symbolType2addPhred[LINK_SYMBOL];
+                        unsigned int decvalue = (THasDups ? 0 : bam_to_decvalue(b, qpos));
+                        incvalue = MIN(MIN(bam_phredi(b, qpos-1), bam_phredi(b, qpos + cigar_oplen)), 
+                                frag_indel_basemax - MIN(frag_indel_basemax, decvalue)) + addidq; 
+                        // + symbolType2addPhred[LINK_SYMBOL];
                     }
-                    unsigned int decvalue = (THasDups ? 0 : bam_to_decvalue(b, qpos));
-                    incvalue -= MIN(incvalue, decvalue);
                 }
                 this->inc<TUpdateType>(rpos, insLenToSymbol(cigar_oplen), MAX(1, incvalue), b);
                 std::string iseq;
@@ -819,10 +823,11 @@ public:
                     if (TIndelAddPhred) {
                         incvalue = TIndelAddPhred + addidq;
                     } else {
-                        incvalue = MIN(MIN(bam_phredi(b, qpos), bam_phredi(b, qpos+1)), frag_indel_basemax) + addidq; // + symbolType2addPhred[LINK_SYMBOL];
+                        unsigned int decvalue = (THasDups ? 0 : bam_to_decvalue(b, qpos));
+                        incvalue = MIN(MIN(bam_phredi(b, qpos), bam_phredi(b, qpos+1)), 
+                                frag_indel_basemax - MIN(frag_indel_basemax, decvalue)) + addidq; 
+                        // + symbolType2addPhred[LINK_SYMBOL];
                     }
-                    unsigned int decvalue = (THasDups ? 0 : bam_to_decvalue(b, qpos));
-                    incvalue -= MIN(incvalue, decvalue);
                 }
                 this->inc<TUpdateType>(rpos, delLenToSymbol(cigar_oplen), MAX(1, incvalue), b);
                 this->incDel(rpos, cigar_oplen, MAX(1, incvalue));
