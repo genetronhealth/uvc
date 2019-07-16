@@ -621,7 +621,7 @@ int indelpos_to_context(
             repeatsize_at_max_repeatnum = repeatsize;
         }
     }
-    repeatunit = refstring.substr(refpos, refpos + repeatsize_at_max_repeatnum);
+    repeatunit = refstring.substr(refpos, repeatsize_at_max_repeatnum);
 }
 
 unsigned int bam_to_decvalue(const bam1_t *b, unsigned int qpos) {
