@@ -609,6 +609,10 @@ int indelpos_to_context(
         std::string & repeatunit, unsigned int & max_repeatnum,
         const std::string & refstring, unsigned int refpos) {
     max_repeatnum = 0;
+    if (refpos >= refstring.size()) {
+        repeatunit = "";
+        return -1;
+    }
     unsigned int repeatsize_at_max_repeatnum = 0;
     for (unsigned int repeatsize = 1; repeatsize < 6*2; repeatsize++) {
         unsigned int qidx = refpos;
@@ -1991,8 +1995,8 @@ generateVcfHeader(const char *ref_fasta_fname, const char *platform,
     ret += "##INFO=<ID=tAltBQ,Number=1,Type=Integer,Description=\"Tumor-sample cAltBQ or bAltBQ, depending on command-line option\">\n";
     ret += "##INFO=<ID=tAllBQ,Number=1,Type=Integer,Description=\"Tumor-sample cAllBQ or bAllBQ, depending on command-line option\">\n";
     ret += "##INFO=<ID=TNQA,Number=1,Type=Float,Description=\"The additive quality that minimizes TNQ\">\n";
-    ret += "##INFO=<ID=RU,Number=1,Type=String,Description=\"The shortest repeating unit in reference\">\n";
-    ret += "##INFO=<ID=RC,Number=1,Type=String,Description=\"The number of non-interrupted RUs in the reference\">\n"; 
+    ret += "##INFO=<ID=RU,Number=1,Type=String,Description=\"The shortest repeating unit in the reference\">\n";
+    ret += "##INFO=<ID=RC,Number=1,Type=Integer,Description=\"The number of non-interrupted RUs in the reference\">\n"; 
     
     for (unsigned int i = 0; i < bcfrec::FORMAT_NUM; i++) {
         ret += std::string("") + bcfrec::FORMAT_LINES[i] + "\n";
@@ -2172,6 +2176,16 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         std::string repeatunit = "";
         indelpos_to_context(repeatunit, repeatnum, refstring, regionpos);
         infostring += ";RU=" + repeatunit + ";RC=" + std::to_string(repeatnum);
+        if (isInDel) {
+            // Heuristically, incorporating additional information from the repeat pattern should generate more accurate var calls.
+            // However, it is not clear how we can do this in a theoretically sound way.
+            // A simple logistic regression on repeatnum and repeatunit.size() results in an accuracy of 58% with balanced true positives and false positives.
+            //auto decphred = prob2phred(1.0 / (repeatnum * repeatunit.size() + 1.0));
+            //vcfqual = MAX(vcfqual - decphred, vcfqual / (decphred));
+            // auto slipdist = 25; // (ref_alt.size() - 3);
+            // vcfqual = vcfqual * sqrt((double)(slipdist) / (double)(repeatnum * repeatunit.size() + slipdist));
+        
+        }
     }
     
     if (!is_novar && vcfqual >= vcfqual_thres) {
