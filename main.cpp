@@ -243,10 +243,12 @@ struct TumorKeyInfo {
     float VAQ = 0;
     int32_t DP = 0;
     float FA = 0;
+    float FR = 0;
     int32_t bDP = 0;
     float bFA = 0;
     int32_t AutoBestAllBQ = 0;
     int32_t AutoBestAltBQ = 0;
+    int32_t AutoBestRefBQ = 0;
 };
 
 std::string als_to_string(const char *const* const allele, unsigned int m_allele) {
@@ -326,8 +328,10 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
     float *tVAQ = NULL;
     int32_t *tDP = NULL;
     float *tFA = NULL;
+    float *tFR = NULL;
     int32_t *tAutoBestAllBQ = NULL;
     int32_t *tAutoBestAltBQ = NULL;
+    int32_t *tAutoBestRefBQ = NULL;
     
     while (bcf_sr_next_line(sr)) {
         bcf1_t *line = bcf_sr_get_line(sr, 0);
@@ -358,6 +362,9 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         valsize = bcf_get_format_float(bcf_hdr, line,  "FA", &tFA,  &ndst_val);
         assert(ndst_val == valsize && valsize > 0 || !fprintf(stderr, "%d == %d && %d > 0 failed!", ndst_val, valsize, valsize));
         ndst_val = 0;
+        valsize = bcf_get_format_float(bcf_hdr, line,  "FR", &tFR,  &ndst_val);
+        assert(ndst_val == valsize && valsize > 0 || !fprintf(stderr, "%d == %d && %d > 0 failed!", ndst_val, valsize, valsize)); 
+        ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line,  "DP", &tDP,  &ndst_val);
         assert(ndst_val == valsize && valsize > 0 || !fprintf(stderr, "%d == %d && %d > 0 failed!", ndst_val, valsize, valsize));
         
@@ -367,13 +374,18 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line,  "cAltBQ", &tAutoBestAltBQ, &ndst_val);
         assert(2 == ndst_val && 2 == valsize || !fprintf(stderr, "2 == %d == %d failed!", ndst_val, valsize));
-        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "cRefBQ", &tAutoBestRefBQ, &ndst_val);
+        assert(2 == ndst_val && 2 == valsize || !fprintf(stderr, "2 == %d == %d failed!", ndst_val, valsize));
+          
         TumorKeyInfo tki;
         tki.VAQ = tVAQ[0];
-        tki.FA = tFA[0];
         tki.DP = tDP[0];
+        tki.FA = tFA[0];
+        tki.FR = tFR[0];
         tki.AutoBestAllBQ = tAutoBestAllBQ[0] + tAutoBestAllBQ[1];
         tki.AutoBestAltBQ = tAutoBestAltBQ[0] + tAutoBestAltBQ[1];
+        tki.AutoBestRefBQ = tAutoBestRefBQ[0] + tAutoBestRefBQ[1];
         tki.pos = line->pos;
         bcf_unpack(line, BCF_UN_STR);
         tki.ref_alt = als_to_string(line->d.allele, line->d.m_allele);
@@ -384,8 +396,10 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
     xfree(tVAQ);
     xfree(tDP);
     xfree(tFA);
+    xfree(tFR);
     xfree(tAutoBestAllBQ);
     xfree(tAutoBestAltBQ);
+    xfree(tAutoBestRefBQ);
     bcf_sr_destroy(sr);
     return ret;
 }
