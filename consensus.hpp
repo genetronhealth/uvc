@@ -2128,6 +2128,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         double nRD1 = fmt.cRefBQ[0] + fmt.cRefBQ[1];
         Any4Value bq4((nDP1 - nRD1) * (isInDel ? nonref_to_alt_frac_indel : nonref_to_alt_frac_snv) + 1, nDP1 + 1, tAD1 + 1, tDP1 + 1);
         double tnlike_nonref = bq4.to_phredlike(1);
+
+        assert(tki.AutoBestAllBQ >= tki.AutoBestRefBQ + tki.AutoBestAltBQ);
         
         infostring += std::string(";TNQ=") + std::to_string(tnlike);
         infostring += std::string(";TNQNR=") + std::to_string(tnlike_nonref);
@@ -2149,6 +2151,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
             // - IonTorrent variantCaller has less stringent bias filter for InDels than for SNVs with its default parameters.
             // Therefore, the false positive filter for InDels is more lenient here too.
             vcfqual = MIN(MIN(MIN(tnlike, tnlike_nonref) * tnq_mult_indel, diffVAQ), fmt.GQ + germline_phred); // 5.00 is too high, 1.50 is too low
+            // vcfqual = vcfqual * (double)(tki.AutoBestAltBQ + 63) / (double)(tki.AutoBestAllBQ - tki.AutoBestRefBQ + 63) ;
         } else {
             vcfqual = MIN(MIN(MIN(tnlike, tnlike_nonref) * tnq_mult_snv  , diffVAQ), fmt.GQ + germline_phred); // (germline + sys error) freq of 10^(-25/10)
         }
@@ -2188,7 +2191,17 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
             //vcfqual = MAX(vcfqual - decphred, vcfqual / (decphred));
             // auto slipdist = 25; // (ref_alt.size() - 3);
             // vcfqual = vcfqual * sqrt((double)(slipdist) / (double)(repeatnum * repeatunit.size() + slipdist));
-        
+            
+            if (vcfqual > 40) {
+                // penalize multi-allelic indels.
+                vcfqual = 40 + (vcfqual - 40) * (double)(tki.AutoBestAltBQ + 40) / (double)(tki.AutoBestAllBQ - tki.AutoBestRefBQ + 40);
+            }
+            if (vcfqual > 50) {
+                // penalize indels with a high number of nucleotides in repeat region.
+                // https://github.com/Illumina/strelka/blob/ac7233f1a35d0e4405848a4fc80260a10248f989/src/c%2B%2B/lib/starling_common/AlleleGroupGenotype.cpp
+                auto context_len = repeatunit.size() * repeatnum;
+                vcfqual = 50 + (vcfqual - 50) * (double)(16) / (double)(16 + context_len);
+            }
         }
     }
     
