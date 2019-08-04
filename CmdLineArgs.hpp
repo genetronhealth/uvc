@@ -56,6 +56,12 @@ struct CommandLineArgs {
     double      nonref_to_alt_frac_indel = 0.20;
     double      tnq_mult_snv = 2.000;
     double      tnq_mult_indel = 2.000;
+    
+    double      mai_tier_qual = 40; // = 40;
+    uint32_t    mai_tier_abq  = 40; // = 40;
+    double      str_tier_qual = 50; // = 50;
+    uint32_t    str_tier_len  = 15; // = 16; 
+    
     int initFromArgCV(int & parsing_result_flag, SequencingPlatform & inferred_sequencing_platform, int argc, const char *const* argv);
     SequencingPlatform selfUpdateByPlatform(void);
 };

@@ -191,7 +191,12 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     app.add_option("--nonref-alt-frac-indel",nonref_to_alt_frac_indel,    "Fraction of NON-REF bases in normal that supports the ALT of interest for InDels.", true);
     app.add_option("--tnq-mult-snv",         tnq_mult_snv,                "Multiplicative factor by which TNQ (tumor-normal quality) is amplified for computing QUAL for SNVs.", true);
     app.add_option("--tnq-mult-indel",       tnq_mult_indel,              "Multiplicative factor by which TNQ (tumor-normal quality) is amplified for computing QUAL for InDels.", true);
-
+    
+    app.add_option("--mai-tier-qual",        mai_tier_qual,               "Quality above this is subject to diminushing return due to multi-allelic indels MAI", true);
+    app.add_option("--mai-tier-abq",         mai_tier_abq,                "Additive smoothing factor for multi-allelic indels with diminushing-return formula AltBQ/(AllBQ-RefBQ)", true);
+    app.add_option("--str-tier-qual",        str_tier_qual,               "Quality above this is subject to diminushing effect due to short tandem repeats STR", true);
+    app.add_option("--str-tier-len",         str_tier_len,                "Additive smoothing factor for short tandem repeats with diminushing-return formula 1/(num-bases-in-STR-region)", true);
+     
     app.add_option("--should-add-note",      should_add_note,             "Boolean indicating if the program generates more detail in the vcf result file.", true);
 
     app.add_option("--disable-dup-read-merge",disable_dup_read_merge,     "Disable the merge of duplicate reads (0 means false and 1 means true). ", true);
