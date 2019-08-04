@@ -321,8 +321,8 @@ public:
     };
     
     template <ValueType TUpdateType = SYMBOL_COUNT_SUM>
-    int // update_max_inc : high GC : 3, even distribution of nucleotides : 6
-    incSymbolCount(const AlignmentSymbol symbol, const TInteger increment, const unsigned int update_max_inc = 4) {
+    int // update_max_inc : high GC : 3, even distribution of nucleotides : 6, conservative : 0
+    incSymbolCount(const AlignmentSymbol symbol, const TInteger increment, const unsigned int update_max_inc = 0) {
         static_assert(BASE_QUALITY_MAX == TUpdateType || SYMBOL_COUNT_SUM == TUpdateType);
         if (SYMBOL_COUNT_SUM == TUpdateType) {
             this->symbol2data[symbol] += increment;
@@ -449,7 +449,8 @@ public:
         for (SymbolType symbolType = SymbolType(0); symbolType < NUM_SYMBOL_TYPES; symbolType = SymbolType(1 + (unsigned int)symbolType)) {
             // consalpha = END_ALIGNMENT_SYMBOLS;
             other.fillConsensusCounts(consalpha, countalpha, totalalpha, symbolType);
-            if (countalpha >= (thres.getSymbolCount(consalpha)) && countalpha > 0) {
+            auto adjcount = MAX(consalpha * 2, totalalpha) - totalalpha;
+            if (adjcount >= (thres.getSymbolCount(consalpha)) && adjcount > 0) {
                 this->symbol2data[consalpha] += incvalue;
                 ret++;
                 //LOG(logINFO) << " The value " << countalpha << " can indeed pass the base quality threshold " << thres.getSymbolCount(consalpha) << " for symbol " << SYMBOL_TO_DESC_ARR[consalpha];
@@ -2027,6 +2028,10 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         double nonref_to_alt_frac_indel,
         double tnq_mult_snv,
         double tnq_mult_indel
+        , const double mai_tier_qual      // = 40;
+        , const unsigned int mai_tier_abq // = 40;
+        , const double str_tier_qual      // = 50;
+        , const unsigned int str_tier_len // = 16;
         ) {
     
     assert(refpos >= extended_inclu_beg_pos);
@@ -2192,16 +2197,25 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
             // auto slipdist = 25; // (ref_alt.size() - 3);
             // vcfqual = vcfqual * sqrt((double)(slipdist) / (double)(repeatnum * repeatunit.size() + slipdist));
             
-            if (vcfqual > 40) {
+            auto context_len = repeatunit.size() * repeatnum;
+            //const double mai_tier_qual = 40;
+            //const unsigned int mai_tier_abq = 40;
+            auto vcfqual2 = vcfqual;
+            if (vcfqual > mai_tier_qual) {
                 // penalize multi-allelic indels.
-                vcfqual = 40 + (vcfqual - 40) * (double)(tki.AutoBestAltBQ + 40) / (double)(tki.AutoBestAllBQ - tki.AutoBestRefBQ + 40);
+                vcfqual2 = MIN(vcfqual2, mai_tier_qual + (vcfqual - mai_tier_qual) * 
+                        (double)(tki.AutoBestAltBQ + mai_tier_abq) / (double)(tki.AutoBestAllBQ - tki.AutoBestRefBQ + mai_tier_abq));
             }
-            if (vcfqual > 50) {
+            //const double str_tier_qual = 50;
+            //const unsigned int str_tier_len = 20; // 20;
+            if (vcfqual > str_tier_qual) {
                 // penalize indels with a high number of nucleotides in repeat region.
                 // https://github.com/Illumina/strelka/blob/ac7233f1a35d0e4405848a4fc80260a10248f989/src/c%2B%2B/lib/starling_common/AlleleGroupGenotype.cpp
-                auto context_len = repeatunit.size() * repeatnum;
-                vcfqual = 50 + (vcfqual - 50) * (double)(16) / (double)(16 + context_len);
+                // vcfqual = 40 + (vcfqual - 40) / exp(MAX(context_len, 40) / ((double)40) * (log(3e-4) - log(5e-5))); // (double)(15) / (double)(context_len);
+                vcfqual2 = MIN(vcfqual2, str_tier_qual + (vcfqual - str_tier_qual) * 
+                        (double)(str_tier_len) / (double)(str_tier_len + context_len));
             }
+            vcfqual = vcfqual2;
         }
     }
     

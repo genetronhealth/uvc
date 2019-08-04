@@ -671,7 +671,12 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                                 refstring, extended_inclu_beg_pos, paramset.vqual, should_output_all, 
                                 tki, paramset.vcf_tumor_fname.size() != 0, paramset.phred_germline_polymorphism, 
                                 paramset.nonref_to_alt_frac_snv, paramset.nonref_to_alt_frac_indel,
-                                paramset.tnq_mult_snv, paramset.tnq_mult_indel);
+                                paramset.tnq_mult_snv, paramset.tnq_mult_indel
+                                , paramset.mai_tier_qual // = 40;
+                                , paramset.mai_tier_abq // = 40;
+                                , paramset.str_tier_qual // = 50;
+                                , paramset.str_tier_len // = 16;
+                                );
                     }
                 }
             }
