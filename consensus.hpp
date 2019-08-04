@@ -449,7 +449,7 @@ public:
         for (SymbolType symbolType = SymbolType(0); symbolType < NUM_SYMBOL_TYPES; symbolType = SymbolType(1 + (unsigned int)symbolType)) {
             // consalpha = END_ALIGNMENT_SYMBOLS;
             other.fillConsensusCounts(consalpha, countalpha, totalalpha, symbolType);
-            auto adjcount = MAX(consalpha * 2, totalalpha) - totalalpha;
+            auto adjcount = MAX(countalpha * 2, totalalpha) - totalalpha;
             if (adjcount >= (thres.getSymbolCount(consalpha)) && adjcount > 0) {
                 this->symbol2data[consalpha] += incvalue;
                 ret++;
