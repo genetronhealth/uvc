@@ -2198,24 +2198,18 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
             // vcfqual = vcfqual * sqrt((double)(slipdist) / (double)(repeatnum * repeatunit.size() + slipdist));
             
             auto context_len = repeatunit.size() * repeatnum;
-            //const double mai_tier_qual = 40;
-            //const unsigned int mai_tier_abq = 40;
-            auto vcfqual2 = vcfqual;
             if (vcfqual > mai_tier_qual) {
                 // penalize multi-allelic indels.
-                vcfqual2 = MIN(vcfqual2, mai_tier_qual + (vcfqual - mai_tier_qual) * 
-                        (double)(tki.AutoBestAltBQ + mai_tier_abq) / (double)(tki.AutoBestAllBQ - tki.AutoBestRefBQ + mai_tier_abq));
+                vcfqual = mai_tier_qual + (vcfqual - mai_tier_qual) * 
+                        (double)(tki.AutoBestAltBQ + mai_tier_abq) / (double)(tki.AutoBestAllBQ - tki.AutoBestRefBQ + mai_tier_abq);
             }
-            //const double str_tier_qual = 50;
-            //const unsigned int str_tier_len = 20; // 20;
             if (vcfqual > str_tier_qual) {
                 // penalize indels with a high number of nucleotides in repeat region.
                 // https://github.com/Illumina/strelka/blob/ac7233f1a35d0e4405848a4fc80260a10248f989/src/c%2B%2B/lib/starling_common/AlleleGroupGenotype.cpp
                 // vcfqual = 40 + (vcfqual - 40) / exp(MAX(context_len, 40) / ((double)40) * (log(3e-4) - log(5e-5))); // (double)(15) / (double)(context_len);
-                vcfqual2 = MIN(vcfqual2, str_tier_qual + (vcfqual - str_tier_qual) * 
-                        (double)(str_tier_len) / (double)(str_tier_len + context_len));
+                vcfqual = str_tier_qual + (vcfqual - str_tier_qual) * 
+                        (double)(str_tier_len) / (double)(str_tier_len + context_len);
             }
-            vcfqual = vcfqual2;
         }
     }
     
