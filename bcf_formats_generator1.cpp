@@ -1,3 +1,6 @@
+// This is the framework for generating VCF/BCF header and its associated data on each line.
+// Manual update of VCF/BCF header and its associated data on each line is extremely error-prone.
+// Therefore, this framework is used.
 #include <cassert>
 #include <iostream>
 #include <string>
