@@ -2165,24 +2165,6 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         // infostring = "";
     }
     
-    if (0 == vcffilter.size()) {
-        if (vcfqual < 10) {
-            vcffilter += (std::string(bcfrec::FILTER_IDS[bcfrec::Q10]) + ";");
-        } else if (vcfqual < 20) {
-            vcffilter += (std::string(bcfrec::FILTER_IDS[bcfrec::Q20]) + ";");
-        } else if (vcfqual < 30) {
-            vcffilter += (std::string(bcfrec::FILTER_IDS[bcfrec::Q30]) + ";");
-        } else if (vcfqual < 40) {
-            vcffilter += (std::string(bcfrec::FILTER_IDS[bcfrec::Q40]) + ";");
-        } else if (vcfqual < 50) {
-            vcffilter += (std::string(bcfrec::FILTER_IDS[bcfrec::Q50]) + ";");
-        } else if (vcfqual < 60) {
-            vcffilter += (std::string(bcfrec::FILTER_IDS[bcfrec::Q60]) + ";");
-        } else {
-            vcffilter += ("PASS");
-        }
-    }
-    
     if ((!is_novar && vcfqual >= vcfqual_thres) || should_output_all) {
         unsigned int repeatnum = 0;
         std::string repeatunit = "";
@@ -2210,6 +2192,24 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
                 vcfqual = str_tier_qual + (vcfqual - str_tier_qual) * 
                         (double)(str_tier_len) / (double)(str_tier_len + context_len);
             }
+        }
+    }
+    
+    if (0 == vcffilter.size()) {
+        if (vcfqual < 10) {
+            vcffilter += (std::string(bcfrec::FILTER_IDS[bcfrec::Q10]) + ";");
+        } else if (vcfqual < 20) {
+            vcffilter += (std::string(bcfrec::FILTER_IDS[bcfrec::Q20]) + ";");
+        } else if (vcfqual < 30) {
+            vcffilter += (std::string(bcfrec::FILTER_IDS[bcfrec::Q30]) + ";");
+        } else if (vcfqual < 40) {
+            vcffilter += (std::string(bcfrec::FILTER_IDS[bcfrec::Q40]) + ";");
+        } else if (vcfqual < 50) {
+            vcffilter += (std::string(bcfrec::FILTER_IDS[bcfrec::Q50]) + ";");
+        } else if (vcfqual < 60) {
+            vcffilter += (std::string(bcfrec::FILTER_IDS[bcfrec::Q60]) + ";");
+        } else {
+            vcffilter += ("PASS");
         }
     }
     
