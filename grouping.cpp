@@ -137,7 +137,7 @@ int SamIter::iternext(std::vector<std::tuple<unsigned int, unsigned int, unsigne
 }
 
 int
-samfname_to_tid_to_tname_tseq_tup_vec(auto & tid_to_tname_tseqlen_tuple_vec, const std::string & bam_input_fname) {
+samfname_to_tid_to_tname_tseq_tup_vec(std::vector<std::tuple<std::string, unsigned int>> & tid_to_tname_tseqlen_tuple_vec, const std::string & bam_input_fname) {
     tid_to_tname_tseqlen_tuple_vec.clear();
     samFile *sam_infile = sam_open(bam_input_fname.c_str(), "r"); // AlignmentFile(samfname, "rb")
     bam_hdr_t * samheader = sam_hdr_read(sam_infile);
