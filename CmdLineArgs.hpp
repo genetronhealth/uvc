@@ -16,7 +16,7 @@ struct CommandLineArgs {
     std::string tsv_primer_fname = "";
     
     bool disable_dup_read_merge = false;
-    bool  enable_dup_read_vqual = false;
+    bool  enable_dup_read_vqual = true;
     AssayType assay_type = ASSAY_TYPE_AUTO;
     MoleculeTag molecule_tag = MOLECULE_TAG_AUTO;
     SequencingPlatform sequencing_platform = SEQUENCING_PLATFORM_AUTO;
