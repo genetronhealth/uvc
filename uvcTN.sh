@@ -64,12 +64,9 @@ else
     nsample="${samplename}_N"
 fi
 
-date && time -p "${scriptdir}/uvc1" -f "${ref}" -s "${tsample}" "${tbam}" -o "${tvcfgz}" "${tparams[@]}" 2> "${tlog}"
-date && time -p bcftools index -ft "${tvcfgz}"
+date && eval time -p "${scriptdir}/uvc1" -f "${ref}" -s "${tsample}" "${tbam}" -o "${tvcfgz}" "${tparams[@]}" 2> "${tlog}"
+date && eval time -p bcftools index -ft "${tvcfgz}"
 
-date && time -p "${scriptdir}/uvc1" -f "${ref}" -s "${nsample}" "${nbam}" -o "${nvcfgz}" "${nparams[@]}" --tumor-vcf "${tvcfgz}" 2> "${nlog}"
-date && time -p bcftools index -ft "${nvcfgz}"
-
-#date && time -p bcftools merge -m none -Ou "${tvcfgz}" "${nvcfgz}" | "${scriptdir}/callTN1" - "${avcfgz}"
-#date && time -p bcftools index -t "${avcfgz}"
+date && eval time -p "${scriptdir}/uvc1" -f "${ref}" -s "${nsample}" "${nbam}" -o "${nvcfgz}" "${nparams[@]}" --tumor-vcf "${tvcfgz}" 2> "${nlog}"
+date && eval time -p bcftools index -ft "${nvcfgz}"
 
