@@ -589,7 +589,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                             paramset.minMQ1, paramset.maxMQ,
                             phred_max_sscs, paramset.phred_dscs_minus_sscs + phred_max_sscs,
                             // ErrorCorrectionType(paramset.seq_data_type), 
-                            !paramset.disable_dup_read_merge,
+                            !paramset.disable_dup_read_merge, !paramset.enable_dup_read_vqual,
                             is_rescued);
                 }
                 for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; symbol = AlignmentSymbol(1+(unsigned int)symbol)) {

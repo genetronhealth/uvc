@@ -200,6 +200,7 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     app.add_option("--should-add-note",      should_add_note,             "Boolean indicating if the program generates more detail in the vcf result file.", true);
 
     app.add_option("--disable-dup-read-merge",disable_dup_read_merge,     "Disable the merge of duplicate reads (0 means false and 1 means true). ", true);
+    app.add_option( "--enable-dup-read-vqual",enable_dup_read_vqual,      "Enable the use of raw non-dedupped reads in the calculation of variant quality (0 means false and 1 means true). ", true);
     unsigned int assay_type_uint = (unsigned int)assay_type;
     unsigned int molecule_tag_uint = (unsigned int)molecule_tag;
     unsigned int sequencing_platform_uint = (unsigned int)sequencing_platform;

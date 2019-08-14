@@ -1772,7 +1772,7 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
         unsigned int minMQ1, unsigned int maxMQ,
         unsigned int phred_max_sscs,
         unsigned int phred_max_dscs,
-        bool use_deduplicated_reads,
+        bool use_deduplicated_reads, bool use_only_deduplicated_reads,
         bool is_rescued) {
     fmt.note = symbol2CountCoverageSet12.additional_note.getByPos(refpos).at(symbol);
     for (unsigned int strand = 0; strand < 2; strand++) {
@@ -1915,14 +1915,17 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
     std::array<unsigned int, 2> weightedQT3s = {0, 0};
     for (size_t i = 0; i < 2; i++) {
         auto minAD1 = 1; 
-        auto maxAD1 = 1;
         auto gapAD1 = 0;
         if (use_deduplicated_reads) {
-            minAD1 = MIN(fmt.bAD1[i], fmt.cAD1[i]); // prevent symbol with suffix = _N
-            maxAD1 = MAX(fmt.bAD1[i], fmt.cAD1[i]);
-            gapAD1 = maxAD1 - minAD1;
-            if (fmt.bVQ3[i] < fmt.cVQ3[i]) {
-                gapAD1 *= 3;
+            if (use_only_deduplicated_reads) {
+                minAD1 = 0;
+                gapAD1 = 1;
+            } else {
+                minAD1 = MIN(fmt.bAD1[i], fmt.cAD1[i]); // prevent symbol with suffix = _N
+                gapAD1 = MAX(fmt.bAD1[i], fmt.cAD1[i]) - minAD1;
+                if (fmt.bVQ3[i] < fmt.cVQ3[i]) {
+                    gapAD1 *= 3;
+                }
             }
         }
         double currVAQ = (fmt.bVQ3[i] * minAD1 + fmt.cVQ3[i] * gapAD1) / (double)(minAD1 + gapAD1 + DBL_MIN); // prevent div by zero
