@@ -3,8 +3,8 @@
 
 # Multi threads and single thread debug
 debug-mt : uvc.mt.out 
-debug-st : uvc.st.out callTN.st.out
-release : uvc callTN
+debug-st : uvc.st.out
+release : uvc
 all : debug-mt debug-st release
 
 HDR=CLI11-1.7.1/CLI11.hpp logging.hpp consensus.hpp CmdLineArgs.hpp 
