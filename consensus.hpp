@@ -1168,13 +1168,16 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         if (TUsePrev) {
                             auto prev_depth_symbsum = prev_tsum_depth[strand].getByPos(pos).getSymbolCount(symbol);
                             // pseudocount = (double)(2 * curr_depth_symbsum) / (double)(curr_depth_symbsum + prev_depth_symbsum) + ((double)1);
-                            // auto db100 = any4_to_biasfact100(curr_depth_symbsum, curr_depth_typesum, prev_depth_symbsum, prev_depth_typesum, true, pseudocount / 2);
+                            auto db100 = any4_to_biasfact100(curr_depth_symbsum, curr_depth_typesum, prev_depth_symbsum, prev_depth_typesum, true, pseudocount / 2);
+                            // If the peak family sizes are 100+-10 and 16+-4 for REF and ALT, then the formula below would fail. Thus it is not used.
+                            /*
                             auto db100 = any4_to_biasfact100(
                                     MAX(prev_depth_typesum, curr_depth_typesum) - curr_depth_typesum, 
                                     curr_depth_typesum, 
                                     MAX(prev_depth_symbsum, curr_depth_symbsum) - curr_depth_symbsum, 
                                     curr_depth_symbsum, 
                                     false, pseudocount / 2);
+                            */
                             du_bias_dedup[strand].getRefByPos(pos).incSymbolCount(symbol, db100);
                             dup_imba = biasfact100_to_imba(db100);
                         }
