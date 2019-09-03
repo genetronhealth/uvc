@@ -395,6 +395,15 @@ clean_fill_strand_umi_readset(
     }
 }
 
+int apply_baq(bam1_t *aln) {
+    if (aln->core.l_qseq < (10*2)) { return -1; }
+    for (unsigned int i = 0; i < 10; i++) { 
+        auto j = aln->core.l_qseq - 1 - i;
+        (bam_get_qual(aln))[i] = min((bam_get_qual(aln))[i], 4*(i+1));
+        (bam_get_qual(aln))[j] = min((bam_get_qual(aln))[j], 4*(i+1));
+    }
+}
+
 int 
 fill_strand_umi_readset_with_strand_to_umi_to_reads(
         std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, int>> &umi_strand_readset,
@@ -412,6 +421,7 @@ fill_strand_umi_readset_with_strand_to_umi_to_reads(
                 const std::vector<bam1_t *> alns = read.second;
                 umi_strand_readset.back().first[strand].push_back(std::vector<bam1_t *>());
                 for (auto aln : alns) {
+                    apply_baq(aln);
                     umi_strand_readset.back().first[strand].back().push_back(aln);
                 }
             }
@@ -424,6 +434,7 @@ fill_strand_umi_readset_with_strand_to_umi_to_reads(
             for (auto reads : umi_to_reads.second) {
                 strand_umi_readset.at(strand).back().push_back(std::vector<bam1_t*>());
                 for (auto read : reads.second) {
+                    apply_baq(aln);
                     strand_umi_readset.at(strand).back().back().push_back(read);
                 }
             }
