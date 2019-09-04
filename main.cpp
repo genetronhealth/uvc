@@ -425,6 +425,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
     const unsigned int regionbatch_tot_num = arg.regionbatch_tot_num;
     const unsigned int thread_id = arg.thread_id;
     const bool should_output_all = !arg.is_vcf_out_empty_string;
+    const bool should_let_all_pass = paramset.should_let_all_pass;
     const bool is_vcf_out_pass_to_stdout = arg.is_vcf_out_pass_to_stdout;
     
     bool is_loginfo_enabled = (ispowerof2(regionbatch_ordinal + 1) || ispowerof2(regionbatch_tot_num - regionbatch_ordinal));
@@ -668,7 +669,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                         fmt.CAQ = most_confident_qual;
                         appendVcfRecord(buf_out_string, buf_out_string_pass, symbolToCountCoverageSet12,
                                 std::get<0>(tname_tseqlen_tuple).c_str(), refpos, symbol, fmt,
-                                refstring, extended_inclu_beg_pos, paramset.vqual, should_output_all, 
+                                refstring, extended_inclu_beg_pos, paramset.vqual, should_output_all, should_let_all_pass,
                                 tki, paramset.vcf_tumor_fname.size() != 0, paramset.phred_germline_polymorphism, 
                                 paramset.nonref_to_alt_frac_snv, paramset.nonref_to_alt_frac_indel,
                                 paramset.tnq_mult_snv, paramset.tnq_mult_indel

@@ -2033,7 +2033,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         const std::string & refstring,
         const unsigned int extended_inclu_beg_pos, 
         const double vcfqual_thres,
-        const bool should_output_all,
+        const bool should_output_all, const bool should_let_all_pass,
         const auto & tki, const bool prev_is_tumor, // , unsigned int rank
         unsigned int germline_phred,
         double nonref_to_alt_frac_snv,
@@ -2177,7 +2177,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         // infostring = "";
     }
     
-    if ((!is_novar && vcfqual >= vcfqual_thres) || should_output_all) {
+    if ((!is_novar && vcfqual >= vcfqual_thres) || should_output_all || should_let_all_pass) {
         unsigned int repeatnum = 0;
         std::string repeatunit = "";
         indelpos_to_context(repeatunit, repeatnum, refstring, regionpos);
@@ -2225,15 +2225,17 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         }
     }
     
-    if (!is_novar && vcfqual >= vcfqual_thres) {
-                out_string_pass += std::string(tname) + "\t" + std::to_string(vcfpos) + "\t.\t" + ref_alt + "\t" 
-            + std::to_string(vcfqual) + "\t" + vcffilter + "\t" + infostring + "\t" + bcfrec::FORMAT_STR_PER_REC + "\t";
+    if ((!is_novar && vcfqual >= vcfqual_thres) || should_let_all_pass) {
+        out_string_pass += 
+                std::string(tname) + "\t" + std::to_string(vcfpos) + "\t.\t" + ref_alt + "\t" 
+                + std::to_string(vcfqual) + "\t" + vcffilter + "\t" + infostring + "\t" + bcfrec::FORMAT_STR_PER_REC + "\t";
         bcfrec::streamAppendBcfFormat(out_string_pass, fmt);
         out_string_pass += "\n";
     }
     
     if (should_output_all) {
-        out_string += std::string(tname) + "\t" + std::to_string(vcfpos) + "\t.\t" + ref_alt + "\t"
+        out_string += 
+                std::string(tname) + "\t" + std::to_string(vcfpos) + "\t.\t" + ref_alt + "\t"
                 + std::to_string(vcfqual) + "\t" + vcffilter + "\t" + infostring + "\t" + bcfrec::FORMAT_STR_PER_REC + "\t";
         bcfrec::streamAppendBcfFormat(out_string, fmt);
         out_string += "\n";
