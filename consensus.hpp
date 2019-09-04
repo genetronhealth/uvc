@@ -1962,6 +1962,7 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
     double doubleVAQ_norm = doubleVAQ * doubleVAQ_multnorm;
     // double doubleVAQ = stdVAQ + (minVAQ * (phred_max_dscs - phred_max_sscs) / (double)phred_max_sscs);
     double duplexVAQ = (double)fmt.dAD3 * (double)(phred_max_dscs - phred_max_sscs) - (double)(fmt.dAD1 - fmt.dAD3); // h01_to
+    duplexVAQ = MIN(duplexVAQ, 200); // Similar to many other upper bounds, the 200 here has no theoretical foundation.
     fmt.VAQ = MAX(lowestVAQ, doubleVAQ + duplexVAQ); // / 1.5;
     fmt.VAQ2 = MAX(lowestVAQ, doubleVAQ_norm + duplexVAQ); // treat other forms of indels as background noise if matched normal is not available.
     return (int)(fmt.bAD1[0] + fmt.bAD1[1]);
