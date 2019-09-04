@@ -15,6 +15,7 @@ struct CommandLineArgs {
     std::string sample_name = "-";
     std::string tsv_primer_fname = "";
     
+    bool should_let_all_pass = false;
     bool disable_dup_read_merge = false;
     bool  enable_dup_read_vqual = true;
     AssayType assay_type = ASSAY_TYPE_AUTO;

@@ -123,10 +123,10 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     CLI::App app{(std::string("Universal Variant Caller (UVC) version ") + VERSION_DETAIL)};
     app.add_flag_function("-v,--version", version_cb,   "Show the version of this program (打印此软件版本号).");    
     app.add_option("inputBam",       bam_input_fname,   "Input coordinate-sorted BAM file that is supposed to contain raw reads (按照位置排序的有原始reads的BAM文件).")->required()->check(CLI::ExistingFile);
-    app.add_option("--output-bpRES", vcf_output_fname,  "Output bgzipped vcf file in the format of base-pair resolution (每个位置都输出检测信息的VCF输出文件，文件有可能非常大).");
+    app.add_option("--output-bpRES", vcf_output_fname,  "Output bgzipped vcf file in the format of base-pair resolution (每个位置都输出检测信息的VCF输出文件，文件有可能非常大). This option is deprecated, please use -A instead. (已经废除，建议使用-A参数)");
     app.add_option("-o,--output",    vcf_out_pass_fname,"Output bgzipped vcf file in the format of blocked gVCF. (区块gVCF输出文件).", true);
+    app.add_option("-A,--output-all",should_let_all_pass,"All possible alleles including REF allele at each position is in <--output>. The output is base-pair resolution VCF.(在--output文件输出每个位置的所有等位基因形)", true);
     app.add_option("--tumor-vcf",    vcf_tumor_fname,   "Bgzipped vcf file of tumor sample as input to the bam file of normal sample (肿瘤样本的VCF文件，用于输入).", true);
-    
     app.add_option("-f,--fasta",     fasta_ref_fname,   "Input reference fasta file, where the special value NA means not available (FASTA参考基因组).");
     app.add_option("-R,--region",    bed_region_fname,  "Input BED region file which is optional and delimits the genomic regions to call variants from, "
             "if not provided then call variants from all the sequenced genomic regions. "
