@@ -658,9 +658,9 @@ bamfname_to_strand_to_familyuid_to_reads(
             endIsVariable = 1; // special flag indicating no end as lots of reads begin at the same position but end at different positions
         } else if (beg2count * peakimba < end2count) {
             begIsVariable = 1;
-        } else if (beg2count > end2count && begfrac > peakfrac) {
+        } else if (beg2count > end2count && begfrac > peakfrac && (2 != num_seqs)) {
             endIsVariable = 2; // special flag indicating no end as the begin position attracts lots of reads
-        } else if (beg2count < end2count && endfrac > peakfrac) {
+        } else if (beg2count < end2count && endfrac > peakfrac && (2 != num_seqs)) {
             begIsVariable = 2; 
         }
         //LOG(logINFO) << "Iteration 3.5 begins!";
@@ -687,7 +687,8 @@ bamfname_to_strand_to_familyuid_to_reads(
         
         const bool should_log_read = (ispowof2(alnidx+1) || ispowof2(num_pass_alns - alnidx));
         if (!is_pair_end_merge_enabled) { assert(!isr2); }
-        if (should_log_read && (beg_peak_max >= 2000 || should_log)) {
+        if ((should_log_read && (beg_peak_max >= 2000 || should_log))
+                ) {
             LOG(logINFO) << "Thread " << thread_id << " ; readname = " << qname << " ; " 
                     << "tid = " << aln->core.tid << " ; "
                     << "alnidx/num_pass_alns = " << alnidx << "/" << num_pass_alns << " ; "
