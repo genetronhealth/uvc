@@ -22,6 +22,7 @@ struct CommandLineArgs {
     MoleculeTag molecule_tag = MOLECULE_TAG_AUTO;
     SequencingPlatform sequencing_platform = SEQUENCING_PLATFORM_AUTO;
     PairEndMerge pair_end_merge = PAIR_END_MERGE_YES;
+    unsigned int fixedthresBQ = 20;
     // https://www.biostars.org/p/110670/
     uint32_t    min_depth_thres = 4;
     uint32_t    min_altdp_thres = 2;
@@ -37,7 +38,7 @@ struct CommandLineArgs {
     uint32_t    phred_max_sscs_indel_open = 50; // 34;
     uint32_t    phred_max_sscs_indel_ext  = 0;  // 5;
     uint32_t    phred_dscs_minus_sscs = 10;
-    double      vqual = 20; // 10;
+    double      vqual = 15; // 10; set to 20 for less output
     //std::string platform = "auto";
     uint32_t    minABQ_pcr_snv = 0;
     uint32_t    minABQ_pcr_indel = 0;
