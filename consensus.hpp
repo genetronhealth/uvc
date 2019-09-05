@@ -905,7 +905,8 @@ struct Symbol2CountCoverageSet {
    
     std::array<Symbol2CountCoverage, 2> bq_qsum_rawMQ;
     std::array<Symbol2CountCoverageUint64, 2> bq_qsum_sqrMQ;
-    
+    std::array<Symbol2CountCoverage, 2> bq_tsum_LQdep; 
+
     std::array<Symbol2CountCoverage, 2> bq_amax_ldist; // edge distance to end
     std::array<Symbol2CountCoverage, 2> bq_bias_ldist; // edge distance to end
     std::array<Symbol2CountCoverage, 2> bq_amax_rdist; // edge distance to end
@@ -970,6 +971,7 @@ struct Symbol2CountCoverageSet {
         , bq_qsum_sqrMQ({Symbol2CountCoverageUint64(t, beg, end), Symbol2CountCoverageUint64(t, beg, end)})
         , bq_qual_phsum({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
         , bq_qsum_sqrBQ({Symbol2CountCoverageUint64(t, beg, end), Symbol2CountCoverageUint64(t, beg, end)})
+        , bq_tsum_LQdep({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
         
         , du_bias_dedup({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
         
@@ -1313,6 +1315,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
             bool should_add_note, unsigned int frag_indel_ext, unsigned int frag_indel_basemax,
             const PhredMutationTable & phred_max_table, unsigned int phred_thres
             , double ess_georatio_dedup, double ess_georatio_duped_pcr
+            , unsigned int fixedthresBQ
             ) {
         for (const auto & alns2pair2dflag : alns3) {
             const auto & alns2pair = alns2pair2dflag.first;
@@ -1348,7 +1351,8 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                             
                             this->bq_qsum_rawMQ [strand].getRefByPos(epos).incSymbolCount(con_symbol, minMQ);
                             this->bq_qsum_sqrMQ [strand].getRefByPos(epos).incSymbolCount(con_symbol, minMQ * minMQ); 
-                            
+                           
+                            // shared between BQ and FQ
                             con_symbols_vec[epos - read_ampBQerr_fragWithR1R2.getIncluBegPosition()][symbolType] = con_symbol;
                             this->bq_tsum_depth [strand].getRefByPos(epos).incSymbolCount(con_symbol, 1);
                             unsigned int edge_baq = MIN(ldist, rdist) * 4;
@@ -1378,6 +1382,10 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                             this->bq_bsum_ldist [strand].getRefByPos(epos).incSymbolCount(con_symbol, ldist + ldist_inc);
                             this->bq_bsum_rdist [strand].getRefByPos(epos).incSymbolCount(con_symbol, rdist + rdist_inc);
                             rdist_inc -= posToInsertLen[epos - read_ampBQerr_fragWithR1R2.getIncluBegPosition()];
+                            
+                            if (overallq < fixedthresBQ) {
+                                this->bq_tsum_LQdep[strand].getRefByPos(epos).incSymbolCount(con_symbol, 1); 
+                            }
                         }
                     }
                     n_vars = MIN(n_vars, NUM_NMBUCKS - 1);
@@ -1660,13 +1668,13 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
             // unsigned int phred_max_dscs, 
             unsigned int phred_thres,
             const double ess_georatio_dedup, const double ess_georatio_duped_pcr,
-            bool use_deduplicated_reads, bool is_loginfo_enabled, unsigned int thread_id
+            bool use_deduplicated_reads, bool is_loginfo_enabled, unsigned int thread_id, unsigned int fixedthresBQ
             ) {
         const std::array<unsigned int, NUM_SYMBOL_TYPES> symbolType2addPhred = {bq_phred_added_misma, bq_phred_added_indel};
         std::basic_string<AlignmentSymbol> ref_symbol_string = string2symbolseq(refstring);
         updateByAlns3UsingBQ(mutform2count4map_bq, alns3, ref_symbol_string, symbolType2addPhred, should_add_note, frag_indel_ext, frag_indel_basemax, 
                 phred_max_sscs_table, phred_thres
-                , ess_georatio_dedup, ess_georatio_duped_pcr); // base qualities
+                , ess_georatio_dedup, ess_georatio_duped_pcr, fixedthresBQ); // base qualities
         updateHapMap(mutform2count4map_bq, this->bq_tsum_depth);
         if (use_deduplicated_reads) {
             updateByAlns3UsingFQ(mutform2count4map_fq, alns3, ref_symbol_string, symbolType2addPhred, should_add_note, frag_indel_ext, frag_indel_basemax, 
@@ -1700,10 +1708,12 @@ BcfFormat_init(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbolDi
         fmt.bDP1[strand] = symbolDistrSets12.bq_tsum_depth.at(strand).getByPos(refpos).sumBySymbolType(symbolType);
         fmt.cDP1[strand] = symbolDistrSets12.fq_tsum_depth.at(strand).getByPos(refpos).sumBySymbolType(symbolType);
         fmt.cDPTT[strand] = symbolDistrSets12.fam_total_dep.at(strand).getByPos(refpos).sumBySymbolType(symbolType);
-    
+        fmt.bDPLQ[strand] = symbolDistrSets12.bq_tsum_LQdep.at(strand).getByPos(refpos).sumBySymbolType(symbolType);
+        
         fmt.bRD1[strand] = symbolDistrSets12.bq_tsum_depth.at(strand).getByPos(refpos).getSymbolCount(refsymbol);
         fmt.cRD1[strand] = symbolDistrSets12.fq_tsum_depth.at(strand).getByPos(refpos).getSymbolCount(refsymbol);
         fmt.cRDTT[strand] = symbolDistrSets12.fam_total_dep.at(strand).getByPos(refpos).getSymbolCount(refsymbol);
+        fmt.bRDLQ[strand] = symbolDistrSets12.bq_tsum_LQdep.at(strand).getByPos(refpos).getSymbolCount(refsymbol);
     }
     fmt.gapSeq.clear();
     fmt.gapbAD1.clear();
@@ -1824,6 +1834,8 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
         fmt.bBQ1[strand] = sqrt(bq_qsum_sqrBQ / (DBL_MIN + (double)fmt.bAD1[strand]));
         fmt.bBQ2[strand] = bq_qsum_sqrBQ / (DBL_MIN + bq_qsum_rawBQ);
         
+        fmt.bADLQ[strand] = symbol2CountCoverageSet12.bq_tsum_LQdep.at(strand).getByPos(refpos).getSymbolCount(symbol);
+        
         // family quality
         fmt.cPTL[strand] = symbol2CountCoverageSet12.fq_amax_ldist.at(strand).getByPos(refpos).getSymbolCount(symbol); 
         fmt.cPTR[strand] = symbol2CountCoverageSet12.fq_amax_rdist.at(strand).getByPos(refpos).getSymbolCount(symbol); 
@@ -1872,8 +1884,8 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
     bool is_novar = (symbol == LINK_M || (isSymbolSubstitution(symbol) && vcfref == vcfalt));
     
     fmt.bDP = fmt.bDP1[0] + fmt.bDP1[1];
-    auto fmtbAD = fmt.bAD1[0] + fmt.bAD1[1];
-    fmt.bFA = (double)(fmtbAD) / (double)(fmt.bDP);
+    auto fmt_bAD = fmt.bAD1[0] + fmt.bAD1[1];
+    fmt.bFA = (double)(fmt_bAD) / (double)(fmt.bDP);
     auto fmtbRD = fmt.bRD1[0] + fmt.bRD1[1];
     fmt.bFR = (double)(fmtbRD) / (double)(fmt.bDP);
     fmt.bFO = 1.0 - fmt.bFA - fmt.bFR;
@@ -1893,10 +1905,15 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
         fmt.FR = fmt.cFR;
     } else {
         fmt.DP = fmt.bDP;
-        fmtAD = fmtbAD;
+        fmtAD = fmt_bAD;
         fmt.FA = fmt.bFA;
         fmt.FR = fmt.bFR;
     }
+     
+    fmt.DPHQ = fmt.bDP - (fmt.bDPLQ[0] + fmt.bDPLQ[1]);
+    fmt.ADHQ = fmt_bAD - (fmt.bADLQ[0] + fmt.bADLQ[1]);
+    assert(fmt.DPHQ >= 0);
+    assert(fmt.ADHQ >= 0);
     
     if (fmtAD > 0 || is_rescued) {
         assert(fmt.FA >= 0);
@@ -1942,7 +1959,7 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
         stdVAQs[i] = currVAQ;
         // && isSymbolSubstitution(symbol) // not needed
         if ((fmt.bBQ1[i] < minABQ)) {
-            stdVAQs[i] = MIN(stdVAQs[i], minABQ);
+            stdVAQs[i] = MIN(stdVAQs[i], fmt.bBQ1[i]);
         }
         if ((unsigned int)fmt.bMQ1[i] < minMQ1) {
             stdVAQs[i] = MIN(stdVAQs[i], MIN((unsigned int)(fmt.bMQ1[i] * 2), maxMQ)); // 60 is max MAPQ of bwa // TODO: provide theory for this formula
