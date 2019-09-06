@@ -1794,6 +1794,7 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
         bool use_deduplicated_reads, bool use_only_deduplicated_reads,
         bool is_rescued) {
     fmt.note = symbol2CountCoverageSet12.additional_note.getByPos(refpos).at(symbol);
+    uint64_t bq_qsum_sqrMQ_tot = 0; 
     for (unsigned int strand = 0; strand < 2; strand++) {
         
         fmt.bAltBQ[strand] = symbol2CountCoverageSet12.bq_qual_phsum.at(strand).getByPos(refpos).getSymbolCount(symbol);
@@ -1828,6 +1829,7 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
         double bq_qsum_sqrMQ = (double)symbol2CountCoverageSet12.bq_qsum_sqrMQ.at(strand).getByPos(refpos).getSymbolCount(symbol);
         fmt.bMQ1[strand] = sqrt(bq_qsum_sqrMQ / (DBL_MIN + (double)fmt.bAD1[strand])); // total allele depth
         fmt.bMQ2[strand] = bq_qsum_sqrMQ / (DBL_MIN + bq_qsum_rawMQ);
+        bq_qsum_sqrMQ_tot += bq_qsum_sqrMQ;
         
         double bq_qsum_rawBQ = (double)symbol2CountCoverageSet12.bq_qual_phsum.at(strand).getByPos(refpos).getSymbolCount(symbol);
         double bq_qsum_sqrBQ = (double)symbol2CountCoverageSet12.bq_qsum_sqrBQ.at(strand).getByPos(refpos).getSymbolCount(symbol);
@@ -1914,6 +1916,7 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
     fmt.ADHQ = fmt_bAD - (fmt.bADLQ[0] + fmt.bADLQ[1]);
     assert(fmt.DPHQ >= 0);
     assert(fmt.ADHQ >= 0);
+    fmt.MQ = sqrt((double)bq_qsum_sqrMQ_tot / (DBL_MIN + (double)(fmt.bAD1[0] + fmt.bAD1[1])));
     
     if (fmtAD > 0 || is_rescued) {
         assert(fmt.FA >= 0);
@@ -1962,10 +1965,15 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
             stdVAQs[i] = MIN(stdVAQs[i], fmt.bBQ1[i]);
         }
         if ((unsigned int)fmt.bMQ1[i] < minMQ1) {
-            stdVAQs[i] = MIN(stdVAQs[i], MIN((unsigned int)(fmt.bMQ1[i] * 2), maxMQ)); // 60 is max MAPQ of bwa // TODO: provide theory for this formula
+            // the following line of code is not theoretically sound
+            // stdVAQs[i] = MIN(stdVAQs[i], MIN((unsigned int)(fmt.bMQ1[i] * 2), maxMQ)); // 60 is max MAPQ of bwa
         }
         fmt.cVAQ1[i] = currVAQ;
     }
+    // Ideally (no read supports a variant at its border, there is no mismatch in any read other than at the variant site) the variable below has a value of 4.
+    // Even more ideally (there is no mismatch in the entire contig other than at the variant site) the variable below increases logarithmically as a function of variant depth.
+    const double contig_to_frag_len_ratio = (double)2;
+    double vaqMQcap = (fmt.MQ < minMQ1 ? (fmt.MQ * contig_to_frag_len_ratio) : ((double)FLT_MAX));
     //double minVAQ = MIN(stdVAQs[0], stdVAQs[1]);
     //double stdVAQ = MAX(stdVAQs[0], stdVAQs[1]);
     
@@ -1980,8 +1988,8 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
     // double doubleVAQ = stdVAQ + (minVAQ * (phred_max_dscs - phred_max_sscs) / (double)phred_max_sscs);
     double duplexVAQ = (double)fmt.dAD3 * (double)(phred_max_dscs - phred_max_sscs) - (double)(fmt.dAD1 - fmt.dAD3); // h01_to
     duplexVAQ = MIN(duplexVAQ, 200); // Similar to many other upper bounds, the 200 here has no theoretical foundation.
-    fmt.VAQ = MAX(lowestVAQ, doubleVAQ + duplexVAQ); // / 1.5;
-    fmt.VAQ2 = MAX(lowestVAQ, doubleVAQ_norm + duplexVAQ); // treat other forms of indels as background noise if matched normal is not available.
+    fmt.VAQ  = MIN(vaqMQcap, MAX(lowestVAQ, doubleVAQ + duplexVAQ)); // / 1.5;
+    fmt.VAQ2 = MIN(vaqMQcap, MAX(lowestVAQ, doubleVAQ_norm + duplexVAQ)); // treat other forms of indels as background noise if matched normal is not available.
     return (int)(fmt.bAD1[0] + fmt.bAD1[1]);
 };
 
