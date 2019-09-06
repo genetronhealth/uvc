@@ -64,9 +64,15 @@ else
     nsample="${samplename}_N"
 fi
 
-date && eval time -p "${scriptdir}/uvc1" -f "${ref}" -s "${tsample}" "${tbam}" -o "${tvcfgz}" "${tparams[@]}" 2> "${tlog}"
-date && eval time -p bcftools index -ft "${tvcfgz}"
+date 
+"${scriptdir}/uvc1" -f "${ref}" -s "${tsample}" "${tbam}" -o "${tvcfgz}" "${tparams[@]}" 2> "${tlog}"
+date 
+bcftools index -ft "${tvcfgz}" # or use tabix, requires htslib 1.6 or plus
 
-date && eval time -p "${scriptdir}/uvc1" -f "${ref}" -s "${nsample}" "${nbam}" -o "${nvcfgz}" "${nparams[@]}" --tumor-vcf "${tvcfgz}" 2> "${nlog}"
-date && eval time -p bcftools index -ft "${nvcfgz}"
+date
+"${scriptdir}/uvc1" -f "${ref}" -s "${nsample}" "${nbam}" -o "${nvcfgz}" "${nparams[@]}" --tumor-vcf "${tvcfgz}" 2> "${nlog}"
+date
+bcftools index -ft "${nvcfgz}" # or use tabix, requires htslib 1.6 or plus
+
+date
 
