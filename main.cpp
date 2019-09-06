@@ -6,6 +6,8 @@
 #include "grouping.hpp"
 #include "version.h"
 
+#include <chrono>
+#include <ctime>
 #include <thread>
 #if defined(USE_STDLIB_THREAD)
 #else
@@ -704,6 +706,9 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
 };
 
 int main(int argc, char **argv) {
+    std::clock_t c_start = std::clock();
+    auto t_start = std::chrono::high_resolution_clock::now();
+    
     const char *UMI_STRUCT = getenv("ONE_STEP_UMI_STRUCT");
     const std::string UMI_STRUCT_STRING = (UMI_STRUCT != NULL ? std::string(UMI_STRUCT) : std::string(""));
     CommandLineArgs paramset;
@@ -1044,5 +1049,13 @@ int main(int argc, char **argv) {
             LOG(logERROR) << "Unable to close the bgzip file " << paramset.vcf_output_fname;
         }
     }
+    std::clock_t c_end = std::clock();
+    auto t_end = std::chrono::high_resolution_clock::now();
+ 
+    std::cerr << std::fixed << std::setprecision(2) << "CPU time used: "
+              << 1000.0 * (c_end-c_start) / CLOCKS_PER_SEC << " ms\n"
+              << "Wall clock time passed: "
+              << std::chrono::duration<double, std::milli>(t_end-t_start).count()
+              << " ms\n";
 }
 
