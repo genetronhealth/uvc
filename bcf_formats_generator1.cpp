@@ -87,7 +87,7 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("FR"       , 1, BCF_FLOAT,   "Frequency of the REF allele [consensus family, deduped]"),
     BcfFormatStruct("DPHQ"     , 1, BCF_INTEGER, "Fragment depth supporting any allele if low-quality bases are ignored which means only high quality (HQ) bases are used [base read, duped]"),
     BcfFormatStruct("ADHQ"     , 1, BCF_INTEGER, "Fragment depth supporting the ALT allele if low-quality bases are ignored which means only high quality (HQ) bases are used [base read, duped]"),
-    
+    BcfFormatStruct("MQ"       , 1, BCF_FLOAT,   "Root mean square (RMS) mapping quality [base read, duped]"), 
     BcfFormatStruct("a_a"      , 1, BCF_SEP,     "Depth and REF/ALT allele frequency for base read and consensus family"),  
     BcfFormatStruct("bDP"      , 1, BCF_INTEGER, "Fragment depth supporting any allele [base read, duped]"),
     BcfFormatStruct("bFA"      , 1, BCF_FLOAT,   "Frequency of the ALT allele [base read, duped]"),
