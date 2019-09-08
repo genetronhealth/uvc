@@ -23,6 +23,7 @@ struct CommandLineArgs {
     SequencingPlatform sequencing_platform = SEQUENCING_PLATFORM_AUTO;
     PairEndMerge pair_end_merge = PAIR_END_MERGE_YES;
     unsigned int fixedthresBQ = 20;
+    unsigned int uni_bias_thres = 180;
     // https://www.biostars.org/p/110670/
     uint32_t    min_depth_thres = 4;
     uint32_t    min_altdp_thres = 2;
