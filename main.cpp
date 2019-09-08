@@ -679,6 +679,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                                 , paramset.mai_tier_abq // = 40;
                                 , paramset.str_tier_qual // = 50;
                                 , paramset.str_tier_len // = 16;
+                                , paramset.uni_bias_thres // = 180
                                 );
                     }
                 }
