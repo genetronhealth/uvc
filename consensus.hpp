@@ -2252,6 +2252,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         int64_t cDP1_1 = (int64_t) fmt.cDP1[1];
         fmtvar.FT = "";
         fmtvar.FTV.clear();
+        float uni_bias_float = ((float)uni_bias_thres) / 100.0;
         fmtFTupdate(fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::DB1],    uni_bias_thres, ((fmt.aDB [0] * bDP1_0 + fmt.aDB [1] * bDP1_1) / (bDP1_0 + bDP1_1)));
         fmtFTupdate(fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::DB2],    uni_bias_thres, ((fmt.aDB [0] * cDP1_0 + fmt.aDB [1] * cDP1_1) / (cDP1_0 + cDP1_1)));
         fmtFTupdate(fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::MB1],    uni_bias_thres, ((fmt.bMMB[0] * bDP1_0 + fmt.bMMB[1] * bDP1_1) / (bDP1_0 + bDP1_1)));
@@ -2262,12 +2263,12 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         fmtFTupdate(fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::PB2R],   uni_bias_thres, ((fmt.cPBR[0] * cDP1_0 + fmt.cPBR[1] * cDP1_1) / (cDP1_0 + cDP1_1)));
         fmtFTupdate(fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::SB1],    uni_bias_thres, ((fmt.bSBR[0] * bDP1_0 + fmt.bSBR[1] * bDP1_1) / (bDP1_0 + bDP1_1)));
         fmtFTupdate(fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::SB2],    uni_bias_thres, ((fmt.cSBR[0] * cDP1_0 + fmt.cSBR[1] * cDP1_1) / (cDP1_0 + cDP1_1)));
-        fmtFTupdate(fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::QTD1],   uni_bias_thres, (MAX(fmt.bQT3[0], fmt.bQT3[1]) / (FLT_MIN+(double)MAX(fmt.bQT2[0], fmt.bQT2[1]))));
-        fmtFTupdate(fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::QTD2],   uni_bias_thres, (MAX(fmt.cQT3[0], fmt.cQT3[1]) / (FLT_MIN+(double)MAX(fmt.cQT2[0], fmt.cQT2[1]))));
-        fmtFTupdate(fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::DBthis], uni_bias_thres, (     fmt.cFA  / (    fmt.bFA + FLT_MIN)));
+        fmtFTupdate(fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::QTD1],   uni_bias_float, (MAX(fmt.bQT3[0], fmt.bQT3[1]) / (FLT_MIN+(double)MAX(fmt.bQT2[0], fmt.bQT2[1]))));
+        fmtFTupdate(fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::QTD2],   uni_bias_float, (MAX(fmt.cQT3[0], fmt.cQT3[1]) / (FLT_MIN+(double)MAX(fmt.cQT2[0], fmt.cQT2[1]))));
+        fmtFTupdate(fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::DBthis], uni_bias_float, (     fmt.cFA  / (    fmt.bFA + FLT_MIN)));
         if ((fmt.cFA < 0.8 || fmt.bFA < 0.8)) {
             fmtFTupdate(
-                    fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::DBrest], uni_bias_thres, ((1.0-fmt.cFA) / (1.0-fmt.bFA + FLT_MIN))); 
+                    fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::DBrest], uni_bias_float, ((1.0-fmt.cFA) / (1.0-fmt.bFA + FLT_MIN))); 
         }
         if (0 < fmtvar.FT.size()) {
             fmtvar.FT.pop_back(); // not passed
