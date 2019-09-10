@@ -352,49 +352,59 @@ public:
             assert(false);
         }
     };
-
+    
+    template <bool TIndelIsMajor>
     int
     _fillConsensusCounts(
             AlignmentSymbol & count_argmax, unsigned int & count_max, unsigned int & count_sum,
             AlignmentSymbol incluBeg, AlignmentSymbol incluEnd) const {
         assert (incluBeg <= incluEnd);
-
+        
         count_argmax = incluEnd; // AlignmentSymbol(NUM_ALIGNMENT_SYMBOLS); // TODO:investigate further
         count_max = 0;
         count_sum = 0;
         for (AlignmentSymbol symb = incluBeg; symb <= incluEnd; symb = AlignmentSymbol(((unsigned int)symb) + 1)) {
-            if (count_max < this->symbol2data[symb]) {
-                count_argmax = symb;
-                count_max = this->symbol2data[symb];
+            if (TIndelIsMajor) {
+                if (count_max < this->symbol2data[symb] || (LINK_M == count_argmax && (0 < this->symbol2data[symb]))) {
+                    count_argmax = symb;
+                    count_max = this->symbol2data[symb];
+                    count_sum = count_max;
+                }
+            } else {
+                if (count_max < this->symbol2data[symb]) {
+                    count_argmax = symb;
+                    count_max = this->symbol2data[symb];
+                }
+                count_sum += this->symbol2data[symb];
             }
-            count_sum += this->symbol2data[symb];
         }
         
         assert (incluBeg <= count_argmax && count_argmax <= incluEnd || !fprintf(stderr, "The value %d is not between %d and %d", count_argmax, incluBeg, incluEnd));
         return 0;
     };
     
+    template <bool TIndelIsMajor = false>
     const int
     fillConsensusCounts(
             AlignmentSymbol & count_argmax, unsigned int & count_max, unsigned int & count_sum,
             const SymbolType symbolType) const {
         if (symbolType == BASE_SYMBOL) {
-            return this->_fillConsensusCounts(count_argmax, count_max, count_sum, BASE_A, BASE_NN);
+            return this->_fillConsensusCounts<false        >(count_argmax, count_max, count_sum, BASE_A, BASE_NN);
         } else if (symbolType == LINK_SYMBOL) {
-            return this->_fillConsensusCounts(count_argmax, count_max, count_sum, LINK_M, LINK_NN);
+            return this->_fillConsensusCounts<TIndelIsMajor>(count_argmax, count_max, count_sum, LINK_M, LINK_NN);
         } else {
             assert(false);
         }
     };
     
-    template<ValueType T_SymbolCountType>
+    template<ValueType T_SymbolCountType, bool TIndelIsMajor>
     const AlignmentSymbol
     _updateByConsensus(const GenericSymbol2Count<TInteger> & thatSymbol2Count,
             const SymbolType symbolType, const AlignmentSymbol ambig_pos, unsigned int incvalue2) {
         AlignmentSymbol argmax_count = END_ALIGNMENT_SYMBOLS; AlignmentSymbol(0);
         unsigned int max_count = 0;
         unsigned int sum_count = 0;
-        thatSymbol2Count.fillConsensusCounts(argmax_count, max_count, sum_count, symbolType);
+        thatSymbol2Count.fillConsensusCounts<TIndelIsMajor>(argmax_count, max_count, sum_count, symbolType);
         unsigned int incvalue;
         if (T_SymbolCountType == SYMBOL_COUNT_SUM) {
             incvalue = incvalue2;
@@ -418,11 +428,11 @@ public:
         }
     };
 
-    template<ValueType T_SymbolCountType>
+    template<ValueType T_SymbolCountType, bool TIndelIsMajor = false>
     std::array<AlignmentSymbol, 2>
     updateByConsensus(const GenericSymbol2Count<TInteger> & thatSymbol2Count, unsigned int incvalue = 1) {
-        AlignmentSymbol baseSymb = this->_updateByConsensus<T_SymbolCountType>(thatSymbol2Count, BASE_SYMBOL, BASE_NN, incvalue);
-        AlignmentSymbol linkSymb = this->_updateByConsensus<T_SymbolCountType>(thatSymbol2Count, LINK_SYMBOL, LINK_NN, incvalue);
+        AlignmentSymbol baseSymb = this->_updateByConsensus<T_SymbolCountType, false        >(thatSymbol2Count, BASE_SYMBOL, BASE_NN, incvalue);
+        AlignmentSymbol linkSymb = this->_updateByConsensus<T_SymbolCountType, TIndelIsMajor>(thatSymbol2Count, LINK_SYMBOL, LINK_NN, incvalue);
         return {baseSymb, linkSymb};
     };
     
@@ -448,7 +458,11 @@ public:
         unsigned int countalpha, totalalpha;
         for (SymbolType symbolType = SymbolType(0); symbolType < NUM_SYMBOL_TYPES; symbolType = SymbolType(1 + (unsigned int)symbolType)) {
             // consalpha = END_ALIGNMENT_SYMBOLS;
-            other.fillConsensusCounts(consalpha, countalpha, totalalpha, symbolType);
+            if (LINK_SYMBOL == symbolType) {
+                other.fillConsensusCounts<true >(consalpha, countalpha, totalalpha, symbolType);
+            } else {
+                other.fillConsensusCounts<false>(consalpha, countalpha, totalalpha, symbolType);
+            }
             auto adjcount = MAX(countalpha * 2, totalalpha) - totalalpha;
             if (adjcount >= (thres.getSymbolCount(consalpha)) && adjcount > 0) {
                 this->symbol2data[consalpha] += incvalue;
@@ -703,14 +717,14 @@ public:
     }
 
     // mainly for merging R1 and R2 into one read
-    template<ValueType T_ConsensusType> void
+    template<ValueType T_ConsensusType, bool TIndelIsMajor = false> void
     updateByConsensus(const GenericSymbol2CountCoverage<TSymbol2Count> &other, unsigned int incvalue = 1,
             const bool update_pos2indel2count = true, const bool update_idx2symbol2data = true) {
         this->assertUpdateIsLegal(other);
         
         if (update_idx2symbol2data) {
             for (size_t epos = other.getIncluBegPosition(); epos < other.getExcluEndPosition(); epos++) {
-                const std::array<AlignmentSymbol, NUM_SYMBOL_TYPES> consymbols = this->getRefByPos(epos).updateByConsensus<T_ConsensusType>(other.getByPos(epos), incvalue);
+                const std::array<AlignmentSymbol, NUM_SYMBOL_TYPES> consymbols = this->getRefByPos(epos).updateByConsensus<T_ConsensusType, TIndelIsMajor>(other.getByPos(epos), incvalue);
                 if (update_pos2indel2count) {
                     if (isSymbolIns(consymbols[1])) {
                         posToIndelToCount_updateByConsensus(this->pos2iseq2data, other.getPosToIseqToData(), epos, incvalue);
@@ -774,7 +788,9 @@ public:
     int // GenericSymbol2CountCoverage<TSymbol2Count>::
     updateByAln(const bam1_t *const b, unsigned int frag_indel_ext, 
             const std::array<unsigned int, NUM_SYMBOL_TYPES> & symbolType2addPhredArg, 
-            unsigned int frag_indel_basemax, uint32_t primerlen = 0) {
+            unsigned int frag_indel_basemax, 
+            unsigned int nogap_phred, // this is obsolete
+            uint32_t primerlen = 0) {
         static_assert(BASE_QUALITY_MAX == TUpdateType || SYMBOL_COUNT_SUM == TUpdateType);
         assert(this->tid == b->core.tid);
         assert(this->getIncluBegPosition() <= b->core.pos   || !fprintf(stderr, "%d <= %d failed", this->getIncluBegPosition(), b->core.pos));
@@ -797,7 +813,7 @@ public:
                             || !fprintf(stderr, "Bam line with QNAME %s has rpos that is not within the range (%d - %d)", bam_get_qname(b), b->core.pos, bam_endpos(b)));
                     if (i2 > 0) {
                         if (TUpdateType == BASE_QUALITY_MAX) {
-                            incvalue = MIN(bam_phredi(b, qpos-1), bam_phredi(b, qpos)); // + symbolType2addPhred[LINK_SYMBOL];
+                            incvalue = (MIN(bam_phredi(b, qpos-1), bam_phredi(b, qpos))); // + symbolType2addPhred[LINK_SYMBOL];
                         }
                         this->inc<TUpdateType>(rpos, LINK_M, incvalue, b);
                     }
@@ -876,12 +892,12 @@ public:
     int // GenericSymbol2CountCoverage<TSymbol2Count>::
     updateByRead1Aln(std::vector<bam1_t *> aln_vec, unsigned int frag_indel_ext, 
             const std::array<unsigned int, NUM_SYMBOL_TYPES> & symbolType2addPhred, const unsigned int alns2size, 
-            const unsigned int frag_indel_basemax, unsigned int dflag) {
+            const unsigned int frag_indel_basemax, unsigned int dflag, unsigned int nogap_phred) {
         for (bam1_t *aln : aln_vec) {
             if (alns2size > 1 && dflag > 0) { // is barcoded and not singleton
-                this->updateByAln<TUpdateType, true>(aln, frag_indel_ext, symbolType2addPhred, frag_indel_basemax);
+                this->updateByAln<TUpdateType, true>(aln, frag_indel_ext, symbolType2addPhred, frag_indel_basemax, nogap_phred);
             } else {
-                this->updateByAln<TUpdateType, false>(aln, frag_indel_ext, symbolType2addPhred, frag_indel_basemax);
+                this->updateByAln<TUpdateType, false>(aln, frag_indel_ext, symbolType2addPhred, frag_indel_basemax, nogap_phred);
             }
         }
     }
@@ -1264,10 +1280,12 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
 }
                         auto phred_max = 0;
                         //if (LINK_SYMBOL == symbolType) { phred_max = phred_max_table.indel_any; } else {
+                        {
                             AlignmentSymbol con_symbol;
                             unsigned int con_count, tot_count;
                             curr_tsum_depth.at(0+strand).getByPos(pos).fillConsensusCounts(con_symbol, con_count, tot_count, symbolType);
                             phred_max = phred_max_table.to_phred_rate(con_symbol, symbol);
+                        }
                         //}
                         // find best cutoff from families
                         double max_pqual = 0;
@@ -1315,7 +1333,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
             bool should_add_note, unsigned int frag_indel_ext, unsigned int frag_indel_basemax,
             const PhredMutationTable & phred_max_table, unsigned int phred_thres
             , double ess_georatio_dedup, double ess_georatio_duped_pcr
-            , unsigned int fixedthresBQ
+            , unsigned int fixedthresBQ, unsigned int nogap_phred
             ) {
         for (const auto & alns2pair2dflag : alns3) {
             const auto & alns2pair = alns2pair2dflag.first;
@@ -1325,7 +1343,8 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                     uint32_t tid2, beg2, end2;
                     fillTidBegEndFromAlns1(tid2, beg2, end2, alns1);
                     Symbol2CountCoverage read_ampBQerr_fragWithR1R2(tid, beg2, end2);
-                    read_ampBQerr_fragWithR1R2.updateByRead1Aln<BASE_QUALITY_MAX>(alns1, frag_indel_ext, symbolType2addPhred, alns2.size(), frag_indel_basemax, alns2pair2dflag.second);
+                    read_ampBQerr_fragWithR1R2.updateByRead1Aln<BASE_QUALITY_MAX>(alns1, frag_indel_ext, symbolType2addPhred, alns2.size(), 
+                            frag_indel_basemax, alns2pair2dflag.second, nogap_phred);
                     unsigned int minMQ = 256;
                     for (const bam1_t * b : alns1) {
                         minMQ = MIN(minMQ, b->core.qual);
@@ -1344,7 +1363,11 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         for (SymbolType symbolType = SymbolType(0); symbolType < NUM_SYMBOL_TYPES; symbolType = SymbolType(1+((unsigned int)symbolType))) {
                             AlignmentSymbol con_symbol;
                             unsigned int con_count, tot_count;
-                            read_ampBQerr_fragWithR1R2.getByPos(epos).fillConsensusCounts(con_symbol, con_count, tot_count, symbolType);
+                            if (LINK_SYMBOL == symbolType) {
+                                read_ampBQerr_fragWithR1R2.getByPos(epos).fillConsensusCounts<true >(con_symbol, con_count, tot_count, symbolType);
+                            } else {
+                                read_ampBQerr_fragWithR1R2.getByPos(epos).fillConsensusCounts<false>(con_symbol, con_count, tot_count, symbolType); 
+                            }
                             assert (con_count * 2 >= tot_count);
                             if (0 == tot_count) { continue; }
                             unsigned int phredlike = (con_count * 2 - tot_count);
@@ -1427,7 +1450,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
             bool should_add_note, const unsigned int frag_indel_ext, const unsigned int frag_indel_basemax, 
             const PhredMutationTable & phred_max_table, unsigned int phred_thres, 
             const double ess_georatio_dedup, const double ess_georatio_duped_pcr,
-            bool is_loginfo_enabled, unsigned int thread_id) {
+            bool is_loginfo_enabled, unsigned int thread_id, unsigned int nogap_phred) {
         unsigned int niters = 0;
         for (const auto & alns2pair2dflag : alns3) {
             const auto & alns2pair = alns2pair2dflag.first;
@@ -1451,8 +1474,9 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                     uint32_t tid1, beg1, end1;
                     fillTidBegEndFromAlns1(tid1, beg1, end1, alns1);
                     Symbol2CountCoverage read_ampBQerr_fragWithR1R2(tid1, beg1, end1);
-                    read_ampBQerr_fragWithR1R2.updateByRead1Aln<BASE_QUALITY_MAX>(alns1, frag_indel_ext, symbolType2addPhred, alns2.size(), frag_indel_basemax, alns2pair2dflag.second);
-                    read_family_con_ampl.updateByConsensus<SYMBOL_COUNT_SUM>(read_ampBQerr_fragWithR1R2);
+                    read_ampBQerr_fragWithR1R2.updateByRead1Aln<BASE_QUALITY_MAX>(alns1, frag_indel_ext, symbolType2addPhred, alns2.size(), 
+                            frag_indel_basemax, alns2pair2dflag.second, nogap_phred);
+                    read_family_con_ampl.updateByConsensus<SYMBOL_COUNT_SUM, true>(read_ampBQerr_fragWithR1R2);
                     int updateresult = read_family_amplicon.updateByFiltering(read_ampBQerr_fragWithR1R2, this->bq_pass_thres[strand], 1, true, strand);
                     if (log_alns2) {
                         // LOG(logINFO) << "        has " << alns1.size() << " sequenced read templates.";
@@ -1515,7 +1539,8 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                     uint32_t tid1, beg1, end1;
                     fillTidBegEndFromAlns1(tid1, beg1, end1, aln_vec);
                     Symbol2CountCoverage read_ampBQerr_fragWithR1R2(tid1, beg1, end1);
-                    read_ampBQerr_fragWithR1R2.updateByRead1Aln<BASE_QUALITY_MAX>(aln_vec, frag_indel_ext, symbolType2addPhred, alns2.size(), frag_indel_basemax, alns2pair2dflag.second);
+                    read_ampBQerr_fragWithR1R2.updateByRead1Aln<BASE_QUALITY_MAX>(aln_vec, frag_indel_ext, symbolType2addPhred, alns2.size(), 
+                            frag_indel_basemax, alns2pair2dflag.second, nogap_phred);
                     // read_family_amplicon.updateByConsensus<SYMBOL_COUNT_SUM>(read_ampBQerr_fragWithR1R2);
                     int updateresult = read_family_amplicon.updateByFiltering(read_ampBQerr_fragWithR1R2, this->bq_pass_thres[strand], 1, true, strand);
                     if (log_alns2) {
@@ -1668,19 +1693,19 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
             // unsigned int phred_max_dscs, 
             unsigned int phred_thres,
             const double ess_georatio_dedup, const double ess_georatio_duped_pcr,
-            bool use_deduplicated_reads, bool is_loginfo_enabled, unsigned int thread_id, unsigned int fixedthresBQ
+            bool use_deduplicated_reads, bool is_loginfo_enabled, unsigned int thread_id, unsigned int fixedthresBQ, unsigned int nogap_phred
             ) {
         const std::array<unsigned int, NUM_SYMBOL_TYPES> symbolType2addPhred = {bq_phred_added_misma, bq_phred_added_indel};
         std::basic_string<AlignmentSymbol> ref_symbol_string = string2symbolseq(refstring);
         updateByAlns3UsingBQ(mutform2count4map_bq, alns3, ref_symbol_string, symbolType2addPhred, should_add_note, frag_indel_ext, frag_indel_basemax, 
                 phred_max_sscs_table, phred_thres
-                , ess_georatio_dedup, ess_georatio_duped_pcr, fixedthresBQ); // base qualities
+                , ess_georatio_dedup, ess_georatio_duped_pcr, fixedthresBQ, nogap_phred); // base qualities
         updateHapMap(mutform2count4map_bq, this->bq_tsum_depth);
         if (use_deduplicated_reads) {
             updateByAlns3UsingFQ(mutform2count4map_fq, alns3, ref_symbol_string, symbolType2addPhred, should_add_note, frag_indel_ext, frag_indel_basemax, 
                     phred_max_sscs_table, phred_thres 
                     , ess_georatio_dedup, ess_georatio_duped_pcr
-                    , is_loginfo_enabled, thread_id
+                    , is_loginfo_enabled, thread_id, nogap_phred
                     ); // family qualities
             updateHapMap(mutform2count4map_fq, this->fq_tsum_depth);
         }
