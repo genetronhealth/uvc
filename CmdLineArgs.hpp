@@ -18,6 +18,7 @@ struct CommandLineArgs {
     bool should_let_all_pass = false;
     bool disable_dup_read_merge = false;
     bool  enable_dup_read_vqual = true;
+    unsigned int nogap_phred = 8;
     AssayType assay_type = ASSAY_TYPE_AUTO;
     MoleculeTag molecule_tag = MOLECULE_TAG_AUTO;
     SequencingPlatform sequencing_platform = SEQUENCING_PLATFORM_AUTO;
