@@ -12,7 +12,7 @@ SRC=main.cpp  bcf_formats.step1.c conversion.hpp grouping.hpp grouping.cpp utils
 
 HTSFLAGS=ext/lib/libhts.a -lm -lz -lbz2 -llzma -lcurl -lcrypto # can be changed depending on the specific installed components of htslib (please refer to the INSTALL file in htslib)
 CXX=g++ # can be changed to clang or other compilers as needed
-CXXFLAGS=-std=c++14
+CXXFLAGS=-std=c++14 -static-libstdc++
 COMMIT_VERSION=$(shell git rev-parse HEAD)
 COMMIT_DIFF_SH=$(shell git diff HEAD --shortstat)
 VERFLAGS=-DCOMMIT_VERSION="\"$(COMMIT_VERSION)\"" -DCOMMIT_DIFF_SH="\"$(COMMIT_DIFF_SH)\"" 
