@@ -11,7 +11,7 @@ all : debug-mt debug-st release test-cppt
 HDR=CLI11-1.7.1/CLI11.hpp logging.hpp consensus.hpp CmdLineArgs.hpp 
 SRC=main.cpp  bcf_formats.step1.c conversion.hpp grouping.hpp grouping.cpp utils.hpp CmdLineArgs.cpp 
 
-HTSFLAGS=ext/lib/libhts.a -lm -lz -lbz2 -llzma -lcurl -lcrypto # can be changed depending on the specific installed components of htslib (please refer to the INSTALL file in htslib)
+HTSFLAGS=ext/lib/libhts.a -lm -lz -lcurl -lbz2 # -llzma -lcrypto # can be changed depending on the specific installed components of htslib (please refer to the INSTALL file in htslib)
 CXX=g++ # can be changed to clang or other compilers as needed
 CXXFLAGS=-std=c++14 -static-libstdc++
 COMMIT_VERSION=$(shell git rev-parse HEAD)
