@@ -140,5 +140,6 @@ bamfname_to_strand_to_familyuid_to_reads(
         const hts_idx_t * hts_idx,
         const bool is_molecule_tag_enabled,
         const bool is_pair_end_merge_enabled, 
+        bool disable_duplex,
         size_t thread_id);
 #endif

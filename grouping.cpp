@@ -495,7 +495,8 @@ bamfname_to_strand_to_familyuid_to_reads(
         const std::string UMI_STRUCT_STRING, 
         const hts_idx_t * hts_idx,
         const bool is_molecule_tag_enabled,
-        const bool is_pair_end_merge_enabled, 
+        const bool is_pair_end_merge_enabled,
+        bool disable_duplex,
         size_t thread_id) {
     assert (fetch_tend > fetch_tbeg);
     
@@ -601,7 +602,7 @@ bamfname_to_strand_to_familyuid_to_reads(
         if (is_umi_found) {
             size_t umi_len = umi_end - umi_beg;
             size_t umi_half = (umi_end - umi_beg - 1) / 2;
-            if ((umi_len % 2 == 1 ) && ( '+' == umi_beg[umi_half])) {
+            if ((umi_len % 2 == 1 ) && ( '+' == umi_beg[umi_half]) && (!disable_duplex)) {
                 uint64_t umihash_part1 = strnhash(umi_beg               , umi_half); // alpha
                 uint64_t umihash_part2 = strnhash(umi_beg + umi_half + 1, umi_half); // beta
                 umihash = ((isrc ^ isr2) ? hash2hash(umihash_part1, umihash_part2) : hash2hash(umihash_part2, umihash_part1));

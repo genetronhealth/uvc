@@ -452,7 +452,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
             tid, incluBegPosition, excluEndPosition,
             end2end, paramset.min_mapqual, paramset.min_aln_len,
             regionbatch_ordinal, regionbatch_tot_num, UMI_STRUCT_STRING, hts_idx, 
-            ASSAY_TYPE_CAPTURE != paramset.assay_type, PAIR_END_MERGE_NO != paramset.pair_end_merge, thread_id);
+            ASSAY_TYPE_CAPTURE != paramset.assay_type, PAIR_END_MERGE_NO != paramset.pair_end_merge, paramset.disable_duplex, thread_id);
     
     unsigned int num_passed_reads = passed_pcrpassed_umipassed[0];
     unsigned int num_pcrpassed_reads = passed_pcrpassed_umipassed[1];
