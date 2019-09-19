@@ -125,7 +125,7 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     app.add_option("inputBam",       bam_input_fname,   "Input coordinate-sorted BAM file that is supposed to contain raw reads (按照位置排序的有原始reads的BAM文件).")->required()->check(CLI::ExistingFile);
     app.add_option("--output-bpRES", vcf_output_fname,  "Output bgzipped vcf file in the format of base-pair resolution (每个位置都输出检测信息的VCF输出文件，文件有可能非常大). This option is deprecated, please use -A instead. (已经废除，建议使用-A参数)");
     app.add_option("-o,--output",    vcf_out_pass_fname,"Output bgzipped vcf file in the format of blocked gVCF. (区块gVCF输出文件).", true);
-    app.add_flag("-A,--output-all", should_let_all_pass,"All possible alleles including REF allele at each position is in <--output>. The output is base-pair resolution VCF.(在--output文件输出每个位置的所有等位基因形)", true);
+    app.add_flag("-A,--All-out",     should_let_all_pass,"All possible alleles including REF allele at each position is in <--output>. The output is base-pair resolution VCF.(在--output文件输出每个位置的所有等位基因形)");
     app.add_option("--tumor-vcf",    vcf_tumor_fname,   "Bgzipped vcf file of tumor sample as input to the bam file of normal sample (肿瘤样本的VCF文件，用于输入).", true);
     app.add_option("-f,--fasta",     fasta_ref_fname,   "Input reference fasta file, where the special value NA means not available (FASTA参考基因组).");
     app.add_option("-R,--region",    bed_region_fname,  "Input BED region file which is optional and delimits the genomic regions to call variants from, "
@@ -201,10 +201,10 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     app.add_option("--str-tier-qual",        str_tier_qual,               "Quality above this is subject to diminushing effect due to short tandem repeats STR", true);
     app.add_option("--str-tier-len",         str_tier_len,                "Additive smoothing factor for short tandem repeats with diminushing-return formula 1/(num-bases-in-STR-region)", true);
      
-    app.add_option("--should-add-note",      should_add_note,             "Boolean indicating if the program generates more detail in the vcf result file.", true);
-
-    app.add_option("--disable-dup-read-merge",disable_dup_read_merge,     "Disable the merge of duplicate reads (0 means false and 1 means true). ", true);
-    app.add_option( "--enable-dup-read-vqual",enable_dup_read_vqual,      "Enable the use of raw non-dedupped reads in the calculation of variant quality (0 means false and 1 means true). ", true);
+    app.add_flag("--Should-add-note",        should_add_note,             "Flag indicating if the program generates more detail in the vcf result file.");
+    
+    app.add_option("--disable-dup-read-merge", disable_dup_read_merge,      "Boolean (0: false, 1: true) indicating if the program should disable the merge of duplicate reads.", true);
+    app.add_option("--enable-dup-read-vqual",  enable_dup_read_vqual,       "Boolean (0: false, 1: true) indicating if the program should disable the use of raw non-dedupped reads in the calculation of variant quality.", true);
     unsigned int assay_type_uint = (unsigned int)assay_type;
     unsigned int molecule_tag_uint = (unsigned int)molecule_tag;
     unsigned int sequencing_platform_uint = (unsigned int)sequencing_platform;
@@ -212,7 +212,9 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     app.add_option("--assay-type",           assay_type_uint,           "Assay type. " + stringvec_to_descstring(ASSAY_TYPE_TO_MSG), true);
     app.add_option("--molecule-tag",         molecule_tag_uint,         "Molecule tag. " + stringvec_to_descstring(MOLECULE_TAG_TO_MSG), true);
     app.add_option("--sequencing-platform",  sequencing_platform_uint,  "Sequencing platform. " + stringvec_to_descstring(SEQUENCING_PLATFORM_TO_MSG), true);
-    app.add_option("--disable-pair-end-merge", pair_end_merge_uint,     "Disable the merge of R1 and R2 in a read pair. " + stringvec_to_descstring(PAIR_END_MERGE_TO_MSG), true);
+    app.add_option("--pair-end-merge",       pair_end_merge_uint,       "Mode for the merge of R1 and R2 in a read pair. " + stringvec_to_descstring(PAIR_END_MERGE_TO_MSG), true);
+    
+    app.add_flag("--Disable-duplex",         disable_duplex,            "Flag indicating if the program should disable the merge of two SSCSs (single-strand-consensus-sequences) into a DSCS (double strand consensus sequence). The UMI of the duplex tag should be in the form of <alpha>+<beta>.");
     
     app.callback([&]() {
         assay_type = (AssayType)assay_type_uint;
