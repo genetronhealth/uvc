@@ -21,7 +21,7 @@ def iter_fq(fqfile):
             qual = line
             yield hdr, seq, comment, qual
 
-def change_hdr(hdr, seq1, umi_beg1, umi_end1, seq2, umi_beg2, umi_end2):
+def change_hdr(hdr, seq1, umi_beg1, umi_end1, seq2, umi_beg2, umi_end2, isduplex):
     hdr2 = hdr.rstrip().split()
     if (len(hdr2) > 1 and len(hdr2[1].split(':')[0]) >= 3):
         hdr3 = hdr2[1]
@@ -33,18 +33,19 @@ def change_hdr(hdr, seq1, umi_beg1, umi_end1, seq2, umi_beg2, umi_end2):
            hdr3 = '.'.join(hdrtokens)
     r1tag = (seq1[umi_beg1:umi_end1] if len(seq1) > umi_end1 else ''.join(['N' for _ in range(umi_end1-umi_beg1)]))
     r2tag = (seq2[umi_beg2:umi_end2] if len(seq2) > umi_end2 else ''.join(['N' for _ in range(umi_end2-umi_beg2)]))
-    hdr4 = hdr3 + '#' + ((r1tag + '+' + r2tag) if (r1tag != '' and r2tag != '') else (r1tag + r2tag))
+    combsymbol = ('+' if isduplex else '-')
+    hdr4 = hdr3 + '#' + ((r1tag + combsymbol + r2tag) if (r1tag != '' and r2tag != '') else (r1tag + r2tag))
     return hdr4 + '\n'
-
-def proc(r1infile, r2infile, r1outfile, r2outfile, incluBeg1 = 0, excluEnd1 = 11, incluBeg2 = 0, excluEnd2 = 11):
+    
+def proc(r1infile, r2infile, r1outfile, r2outfile, incluBeg1 = 0, excluEnd1 = 11, incluBeg2 = 0, excluEnd2 = 11, isduplex = False):
     g1, g2 = iter_fq(r1infile), iter_fq(r2infile)
     rec1 = next(g1, -1)
     rec2 = next(g2, -1)
     while rec1 != -1 and rec2 != -1:
         #hdr1 = change_hdr(rec1[0], rec1[1])
         #hdr2 = change_hdr(rec2[0], rec1[1])
-        hdr1 = change_hdr(rec1[0], rec1[1], incluBeg1, excluEnd1, rec2[1], incluBeg2, excluEnd2)
-        hdr2 = change_hdr(rec2[0], rec1[1], incluBeg1, excluEnd1, rec2[1], incluBeg2, excluEnd2)
+        hdr1 = change_hdr(rec1[0], rec1[1], incluBeg1, excluEnd1, rec2[1], incluBeg2, excluEnd2, isduplex)
+        hdr2 = change_hdr(rec2[0], rec1[1], incluBeg1, excluEnd1, rec2[1], incluBeg2, excluEnd2, isduplex)
         r1outfile.write('@{}{}+{}{}'.format(hdr1, rec1[1], rec1[2], rec1[3]))
         r2outfile.write('@{}{}+{}{}'.format(hdr2, rec2[1], rec2[2], rec2[3])) 
         rec1 = next(g1, -1)
@@ -67,13 +68,18 @@ else:
     excluEnd = 23
 
 if len(sys.argv) > 8:
-    incluBeg2 = int(sys.argv[5])
-    excluEnd2 = int(sys.argv[6])
+    incluBeg2 = int(sys.argv[7])
+    excluEnd2 = int(sys.argv[8])
 else:
     incluBeg2 = 0
     excluEnd2 = 0
 
+if len(sys.argv) > 9 and 'duplex' not in sys.argv[9]:
+    isduplex = False
+else:
+    isduplex = True
+
 with gzip.open(r1in) as r1infile, gzip.open(r2in) as r2infile, gzip.open(r1out, 'wb', compresslevel=1) as r1outfile, gzip.open(r2out, 'wb', compresslevel=1) as r2outfile:
-    proc(r1infile, r2infile, r1outfile, r2outfile, incluBeg, excluEnd, incluBeg2, excluEnd2)
+    proc(r1infile, r2infile, r1outfile, r2outfile, incluBeg, excluEnd, incluBeg2, excluEnd2, isduplex)
 
 
