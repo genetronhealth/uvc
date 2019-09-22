@@ -125,6 +125,7 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("VType"    , 1, BCF_STRING,  "Type of variant allele"),
     BcfFormatStruct("VAQ"      , 1, BCF_FLOAT,   "Variant Allele Quality"),
     BcfFormatStruct("VAQ2"     , 1, BCF_FLOAT,   "Variant Allele Quality of the specific form(s) of InDel in ALT assuming other forms of InDels are noise"),
+    BcfFormatStruct("VAQAB"    , 1, BCF_FLOAT,   "Variant Allele Quality adjusted with bias"),
     BcfFormatStruct("a_c"      , 1, BCF_SEP,     "Average base quality for ALL/ALT (bAllBQ/bAltBQ) and duplication bias (aDB). All biases are percentages where 100% means no bias."), // global 
     BcfFormatStruct("bAllBQ"   , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("bAltBQ"   , 2, BCF_INTEGER, "see above"),
