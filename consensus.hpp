@@ -1345,9 +1345,9 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                     Symbol2CountCoverage read_ampBQerr_fragWithR1R2(tid, beg2, end2);
                     read_ampBQerr_fragWithR1R2.updateByRead1Aln<BASE_QUALITY_MAX>(alns1, frag_indel_ext, symbolType2addPhred, alns2.size(), 
                             frag_indel_basemax, alns2pair2dflag.second, nogap_phred);
-                    unsigned int minMQ = 256;
+                    unsigned int normMQ = 0;
                     for (const bam1_t * b : alns1) {
-                        minMQ = MIN(minMQ, b->core.qual);
+                        normMQ = MAX(normMQ, b->core.qual);
                     }
                     std::basic_string<std::pair<unsigned int, AlignmentSymbol>> pos_symbol_string;
                     unsigned int ldist_inc = 0;
@@ -1372,8 +1372,8 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                             if (0 == tot_count) { continue; }
                             unsigned int phredlike = (con_count * 2 - tot_count);
                             
-                            this->bq_qsum_rawMQ [strand].getRefByPos(epos).incSymbolCount(con_symbol, minMQ);
-                            this->bq_qsum_sqrMQ [strand].getRefByPos(epos).incSymbolCount(con_symbol, minMQ * minMQ); 
+                            this->bq_qsum_rawMQ [strand].getRefByPos(epos).incSymbolCount(con_symbol, normMQ);
+                            this->bq_qsum_sqrMQ [strand].getRefByPos(epos).incSymbolCount(con_symbol, normMQ * normMQ); 
                            
                             // shared between BQ and FQ
                             con_symbols_vec[epos - read_ampBQerr_fragWithR1R2.getIncluBegPosition()][symbolType] = con_symbol;
