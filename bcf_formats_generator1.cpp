@@ -105,7 +105,7 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
                                                    "or '.' to indicate that filters have not been applied. "
                                                  "These values should be described in the meta-information in the same way as FILTERs. "
                                                  "No white-space or semi-colons permitted."),
-    BcfFormatStruct("FTV"      , BCF_NUM_D, BCF_FLOAT, "Bias values for the FT strings"),
+    BcfFormatStruct("FTV"      , BCF_NUM_D, BCF_INTEGER, "Percent bias values for the FT strings"),
     BcfFormatStruct("DPHQ"     , 1, BCF_INTEGER, "Fragment depth supporting any allele if low-quality bases are ignored which means only high quality (HQ) bases are used [base read, duped]"),
     BcfFormatStruct("ADHQ"     , 1, BCF_INTEGER, "Fragment depth supporting the ALT allele if low-quality bases are ignored which means only high quality (HQ) bases are used [base read, duped]"),
     BcfFormatStruct("MQ"       , 1, BCF_FLOAT,   "Root mean square (RMS) mapping quality [base read, duped]"), 

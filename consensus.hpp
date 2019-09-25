@@ -2024,7 +2024,7 @@ generateVcfHeader(const char *ref_fasta_fname, const char *platform,
         const unsigned int minABQ_pcr_snv, const unsigned int minABQ_pcr_indel, const unsigned int minABQ_cap_snv, const unsigned int minABQ_cap_indel, 
         unsigned int argc,      const char *const *argv,  
         unsigned int n_targets, const char *const *target_name, const uint32_t *target_len,
-        const char *const sampleName, const char *const tumor_sampleName) {
+        const char *const sampleName, const char *const tumor_sampleName, bool is_tumor_format_retrieved) {
     time_t rawtime;
     time(&rawtime);
     char timestring[80];
@@ -2074,17 +2074,17 @@ generateVcfHeader(const char *ref_fasta_fname, const char *platform,
     ret += std::string("") + "##FORMAT=<ID=gEND,Number=1,Type=Integer,Description=\"End position of the genomic block (one-based inclusive)\">\n";
     ret += std::string("") + "##phasing=partial\n";
     ret += std::string("") + "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t" 
-            + sampleName + (tumor_sampleName != NULL ? (std::string("\t") + tumor_sampleName) : std::string("")) + "\n";
+            + sampleName + ((tumor_sampleName != NULL && is_tumor_format_retrieved) ? (std::string("\t") + tumor_sampleName) : std::string("")) + "\n";
     return ret;
 }
 
 
 int
-fmtFTupdate(auto & maxval, std::string & ft, std::vector<float> & ftv, const char *fkey , const auto fthres, const auto fval) {
+fmtFTupdate(auto & maxval, std::string & ft, std::vector<unsigned int> & ftv, const char *fkey , const auto fthres, const auto fval) {
     maxval = MAX(maxval, fval);
     if (fthres < fval) {
         ft  += (std::string(fkey) + ";");
-        ftv.push_back((float)fval);
+        ftv.push_back((unsigned int)fval);
     }
 }
 
@@ -2092,11 +2092,12 @@ std::string
 bcf1_to_string(const bcf_hdr_t *tki_bcf1_hdr, const bcf1_t *bcf1_record) {
     kstring_t ks = { 0, 0, NULL };
     vcf_format(tki_bcf1_hdr, bcf1_record, &ks);
-    size_t idx = ks_len(&ks) - 1;
+    assert (ks.l > 2); 
+    size_t idx = ks.l - 1;
     // fprintf(stderr, "kstring_t.size = %d\n", idx);
     for (;idx != 0 && ks.s[idx] != '\t'; idx--) {
     }
-    std::string ret = std::string(ks.s, idx, ks_len(&ks) - idx);
+    std::string ret = std::string(ks.s, idx, ks.l - idx - 1);
     if (ks.s != NULL) {
         free(ks.s);
     }
@@ -2123,7 +2124,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         , const double str_tier_qual      // = 50;
         , const unsigned int str_tier_len // = 16;
         , const unsigned int uni_bias_thres
-        , const bcf_hdr_t *g_bcf_hdr
+        , const bcf_hdr_t *g_bcf_hdr, const bool is_tumor_format_retrieved 
         ) {
     
     const bcfrec::BcfFormat & fmt = fmtvar; 
@@ -2345,7 +2346,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
                 std::string(tname) + "\t" + std::to_string(vcfpos) + "\t.\t" + ref_alt + "\t" 
                 + std::to_string(vcfqual) + "\t" + vcffilter + "\t" + infostring + "\t" + bcfrec::FORMAT_STR_PER_REC + "\t";
         bcfrec::streamAppendBcfFormat(out_string_pass, fmt);
-        out_string_pass += (g_bcf_hdr != NULL ? bcf1_to_string(g_bcf_hdr, tki.bcf1_record) : std::string("")) + "\n";
+        out_string_pass += ((g_bcf_hdr != NULL && is_tumor_format_retrieved) ? bcf1_to_string(g_bcf_hdr, tki.bcf1_record) : std::string("")) + "\n";
     }
     
     if (should_output_all) {
@@ -2353,7 +2354,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
                 std::string(tname) + "\t" + std::to_string(vcfpos) + "\t.\t" + ref_alt + "\t"
                 + std::to_string(vcfqual) + "\t" + vcffilter + "\t" + infostring + "\t" + bcfrec::FORMAT_STR_PER_REC + "\t";
         bcfrec::streamAppendBcfFormat(out_string, fmt);
-        out_string += (g_bcf_hdr  != NULL ? bcf1_to_string(g_bcf_hdr, tki.bcf1_record) : std::string("")) + "\n";
+        out_string += ((g_bcf_hdr != NULL && is_tumor_format_retrieved) ? bcf1_to_string(g_bcf_hdr, tki.bcf1_record) : std::string("")) + "\n";
     }
 }
 

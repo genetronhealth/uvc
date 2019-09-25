@@ -621,7 +621,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                     }
                 }
             }
-            if ((!paramset.is_tumor_format_retrieved) && (rpos_exclu_end != refpos || allSymbolTypes[0] == symbolType)) {
+            if (rpos_exclu_end != refpos || allSymbolTypes[0] == symbolType) {
                 auto bDPval = bDPcDP[0];
                 auto cDPval = bDPcDP[1];
                 auto fGTmm2 = (most_confident_GQ >= 10 ? most_confident_GT : "./.");
@@ -637,7 +637,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                     unsigned int begpos = (BASE_SYMBOL == prevSymbolType ? (prevPosition+1) : prevPosition);
                     unsigned int endpos = (BASE_SYMBOL == iendSymbolType ? (iendPosition+1) : iendPosition);
                     
-                    std::string genomicInfoString = ((0 == gbDPmax) ? "" : genomicRegionInfoToString(
+                    std::string genomicInfoString = ((0 == gbDPmax || (bcf_hdr != NULL && paramset.is_tumor_format_retrieved)) ? "" : genomicRegionInfoToString(
                             std::get<0>(tname_tseqlen_tuple),
                             begpos, prevSymbolType,
                             endpos, iendSymbolType,
@@ -694,7 +694,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                                 , paramset.str_tier_qual // = 50;
                                 , paramset.str_tier_len // = 16;
                                 , paramset.uni_bias_thres // = 180
-                                , bcf_hdr);
+                                , bcf_hdr, paramset.is_tumor_format_retrieved);
                     }
                 }
             }
@@ -840,7 +840,7 @@ int main(int argc, char **argv) {
     std::string header_outstring = generateVcfHeader(paramset.fasta_ref_fname.c_str(), SEQUENCING_PLATFORM_TO_DESC.at(inferred_sequencing_platform).c_str(), 
             paramset.minABQ_pcr_snv, paramset.minABQ_pcr_indel, paramset.minABQ_cap_snv, paramset.minABQ_cap_indel, argc, argv, 
             samheader->n_targets, samheader->target_name, samheader->target_len,
-            paramset.sample_name.c_str(), g_sample);
+            paramset.sample_name.c_str(), g_sample, paramset.is_tumor_format_retrieved);
     clearstring<false>(fp_allp, header_outstring);
     clearstring<false>(fp_pass, header_outstring, is_vcf_out_pass_to_stdout);
     
