@@ -2343,6 +2343,9 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         }
     }
     
+    if (0 < vcffilter.size() && ';' == vcffilter[vcffilter.size()-1]) {
+        vcffilter.pop_back();
+    }
     if ((!is_novar && vcfqual >= vcfqual_thres) || should_let_all_pass) {
         out_string_pass += 
                 std::string(tname) + "\t" + std::to_string(vcfpos) + "\t.\t" + ref_alt + "\t" 

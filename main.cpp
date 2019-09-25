@@ -396,7 +396,12 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         ndst_val = 0;
         valsize = bcf_get_format_char(bcf_hdr, line, "FT", &tFT, &ndst_val);
         assert(ndst_val == valsize && valsize > 0 || !fprintf(stderr, "%d == %d && %d > 0 failed!", ndst_val, valsize, valsize));
-        tki.FT = std::string(tFT, valsize);
+        for (unsigned int ftidx = 0; ftidx < valsize - 1; ftidx++) {
+            if (';' == tFT[ftidx]) {
+                tFT[ftidx] = '.';
+            }
+        }
+        tki.FT = std::string(tFT, valsize-1);
         
         tki.VAQ = tVAQ[0];
         tki.DP = tDP[0];
