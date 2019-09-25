@@ -15,6 +15,7 @@ struct CommandLineArgs {
     std::string sample_name = "-";
     std::string tsv_primer_fname = "";
     
+    bool is_tumor_format_retrieved = false;
     bool should_let_all_pass = false;
     bool disable_dup_read_merge = false;
     bool  enable_dup_read_vqual = true;

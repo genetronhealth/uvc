@@ -203,6 +203,8 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
      
     app.add_flag("--Should-add-note",        should_add_note,             "Flag indicating if the program generates more detail in the vcf result file.");
     
+    app.add_option("--is-tumor-format-retrieved", is_tumor_format_retrieved, "Boolean (0: false, 1: true) indicating if the format from the tumor vcf should be retrieved in the tumor-normal comparison. This boolean is only useful if tumor vcf is provided. Notice that a true value for this boolean disables the generation of genomic block so that the output is no longer gvcf.", true);
+    
     app.add_option("--disable-dup-read-merge", disable_dup_read_merge,      "Boolean (0: false, 1: true) indicating if the program should disable the merge of duplicate reads.", true);
     app.add_option("--enable-dup-read-vqual",  enable_dup_read_vqual,       "Boolean (0: false, 1: true) indicating if the program should disable the use of raw non-dedupped reads in the calculation of variant quality.", true);
     unsigned int assay_type_uint = (unsigned int)assay_type;

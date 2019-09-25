@@ -251,6 +251,15 @@ struct TumorKeyInfo {
     int32_t AutoBestAllBQ = 0;
     int32_t AutoBestAltBQ = 0;
     int32_t AutoBestRefBQ = 0;
+    bcf1_t *bcf1_record = NULL;
+    /*
+    ~TumorKeyInfo() {
+        if (bcf1_record != NULL) {
+            // this line must be elsewhere apparently due to the subtle differences between C and C++.
+            // bcf_destroy(bcf1_record);
+        }
+    }
+    */
 };
 
 std::string als_to_string(const char *const* const allele, unsigned int m_allele) {
@@ -287,7 +296,8 @@ std::string als_to_string(const char *const* const allele, unsigned int m_allele
 }
 
 const std::map<std::tuple<unsigned int, unsigned int, AlignmentSymbol>, TumorKeyInfo>
-rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_tname_tlen_tuple_vec, const std::string & vcf_tumor_fname, const auto *bcf_hdr) {
+rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_tname_tlen_tuple_vec, const std::string & vcf_tumor_fname, const auto *bcf_hdr, 
+        const bool is_tumor_format_retrieved) {
     std::map<std::tuple<unsigned int, unsigned int, AlignmentSymbol>, TumorKeyInfo> ret;
     if (vcf_tumor_fname.size() == 0) {
         return ret;
@@ -391,6 +401,10 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         tki.pos = line->pos;
         bcf_unpack(line, BCF_UN_STR);
         tki.ref_alt = als_to_string(line->d.allele, line->d.m_allele);
+        if (is_tumor_format_retrieved) {
+            tki.bcf1_record = bcf_dup(line);
+            // bcf_unpack(tki.bcf1_record, BCF_UN_STR);
+        }
         const auto retkey = std::make_tuple(line->rid, symbolpos, symbol);            
         ret.insert(std::make_pair(retkey, tki));
     }
@@ -607,7 +621,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                     }
                 }
             }
-            if (rpos_exclu_end != refpos || allSymbolTypes[0] == symbolType) {
+            if ((!paramset.is_tumor_format_retrieved) && (rpos_exclu_end != refpos || allSymbolTypes[0] == symbolType)) {
                 auto bDPval = bDPcDP[0];
                 auto cDPval = bDPcDP[1];
                 auto fGTmm2 = (most_confident_GQ >= 10 ? most_confident_GT : "./.");
@@ -615,8 +629,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                 bool gbDPhasWideRange = (is_sig_out(bDPval, gbDPmin, gbDPmax, 130,  3) || (0 == gbDPmax && bDPval > gbDPmax) || (0 == bDPval && gbDPmin > bDPval));
                 bool gcDPhasWideRange = (is_sig_out(cDPval, gcDPmin, gcDPmax, 130,  3));
                 bool gfGQhasWideRange = (is_sig_out(fGQval, gfGQmin, gfGQmax, 130, 10) || (std::string(fGTmm2) != gfGTmm2));
-                if ((gbDPhasWideRange || gcDPhasWideRange || gfGQhasWideRange ||
-                        (refpos - prevPosition >= G_BLOCK_SIZE) || (refpos == rpos_exclu_end))) {
+                if (gbDPhasWideRange || gcDPhasWideRange || gfGQhasWideRange ||
+                        (refpos - prevPosition >= G_BLOCK_SIZE) || (refpos == rpos_exclu_end)) {
                     auto iendPosition = (LINK_SYMBOL == symbolType ? (refpos - 1) : refpos);
                     auto iendSymbolType = stype_to_immediate_prev[symbolType];
                     
@@ -680,7 +694,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                                 , paramset.str_tier_qual // = 50;
                                 , paramset.str_tier_len // = 16;
                                 , paramset.uni_bias_thres // = 180
-                                );
+                                , bcf_hdr);
                     }
                 }
             }
@@ -771,9 +785,14 @@ int main(int argc, char **argv) {
 #endif
     
     bcf_hdr_t *g_bcf_hdr = NULL;
+    const char *g_sample = NULL;
     if (paramset.vcf_tumor_fname.size() > 0) {
         htsFile *infile = hts_open(paramset.vcf_tumor_fname.c_str(), "r");
         g_bcf_hdr = bcf_hdr_read(infile);
+        g_sample = "";
+        if (bcf_hdr_nsamples(g_bcf_hdr) > 0) {
+            g_sample = g_bcf_hdr->samples[0];
+        };
         bcf_close(infile);
     }
     std::vector<hts_idx_t*> sam_idxs(nidxs, NULL);
@@ -820,11 +839,11 @@ int main(int argc, char **argv) {
     bam_hdr_t * samheader = sam_hdr_read(samfiles[0]);
     std::string header_outstring = generateVcfHeader(paramset.fasta_ref_fname.c_str(), SEQUENCING_PLATFORM_TO_DESC.at(inferred_sequencing_platform).c_str(), 
             paramset.minABQ_pcr_snv, paramset.minABQ_pcr_indel, paramset.minABQ_cap_snv, paramset.minABQ_cap_indel, argc, argv, 
-            samheader->n_targets, samheader->target_name, samheader->target_len, 
-            paramset.sample_name.c_str());
+            samheader->n_targets, samheader->target_name, samheader->target_len,
+            paramset.sample_name.c_str(), g_sample);
     clearstring<false>(fp_allp, header_outstring);
     clearstring<false>(fp_pass, header_outstring, is_vcf_out_pass_to_stdout);
-
+    
     std::vector<std::tuple<unsigned int, unsigned int, unsigned int, bool, unsigned int>> tid_beg_end_e2e_tuple_vec1;
     std::vector<std::tuple<unsigned int, unsigned int, unsigned int, bool, unsigned int>> tid_beg_end_e2e_tuple_vec2;
     std::map<std::tuple<unsigned int, unsigned int, AlignmentSymbol>, TumorKeyInfo> tid_pos_symb_to_tki1; 
@@ -834,7 +853,7 @@ int main(int argc, char **argv) {
     int iter_nreads = samIter.iternext(tid_beg_end_e2e_tuple_vec1);
     LOG(logINFO) << "PreProcessed " << iter_nreads << " reads in super-contig no " << (n_sam_iters);
     // rescue_variants_from_vcf
-    tid_pos_symb_to_tki1 = rescue_variants_from_vcf(tid_beg_end_e2e_tuple_vec1, tid_to_tname_tseqlen_tuple_vec, paramset.vcf_tumor_fname, g_bcf_hdr);
+    tid_pos_symb_to_tki1 = rescue_variants_from_vcf(tid_beg_end_e2e_tuple_vec1, tid_to_tname_tseqlen_tuple_vec, paramset.vcf_tumor_fname, g_bcf_hdr, paramset.is_tumor_format_retrieved);
     LOG(logINFO) << "Rescued/retrieved " << tid_pos_symb_to_tki1.size() << " variants in super-contig no " << (n_sam_iters);
     while (iter_nreads > 0) {
         n_sam_iters++;
@@ -843,7 +862,7 @@ int main(int argc, char **argv) {
             iter_nreads = samIter.iternext(tid_beg_end_e2e_tuple_vec2);
             LOG(logINFO) << "PreProcessed " << iter_nreads << " reads in super-contig no " << (n_sam_iters);
             
-            tid_pos_symb_to_tki2 = rescue_variants_from_vcf(tid_beg_end_e2e_tuple_vec2, tid_to_tname_tseqlen_tuple_vec, paramset.vcf_tumor_fname, g_bcf_hdr);
+            tid_pos_symb_to_tki2 = rescue_variants_from_vcf(tid_beg_end_e2e_tuple_vec2, tid_to_tname_tseqlen_tuple_vec, paramset.vcf_tumor_fname, g_bcf_hdr, paramset.is_tumor_format_retrieved);
             LOG(logINFO) << "Rescued/retrieved " << tid_pos_symb_to_tki2.size() << " variants in super-contig no " << (n_sam_iters);
         });
         const auto & tid_beg_end_e2e_tuple_vec = tid_beg_end_e2e_tuple_vec1; 
@@ -1003,6 +1022,11 @@ int main(int argc, char **argv) {
             }
         }
         read_bam_thread.join(); // end this iter
+        for (auto tid_pos_symb_to_tki1_pair: tid_pos_symb_to_tki1) {
+            if (NULL != tid_pos_symb_to_tki1_pair.second.bcf1_record) {
+                bcf_destroy(tid_pos_symb_to_tki1_pair.second.bcf1_record); 
+            }
+        }
         autoswap(tid_beg_end_e2e_tuple_vec1, tid_beg_end_e2e_tuple_vec2);
         autoswap(tid_pos_symb_to_tki1, tid_pos_symb_to_tki2);
     }
