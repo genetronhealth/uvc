@@ -241,6 +241,7 @@ is_sig_out(auto a, auto minval, auto maxval, unsigned int mfact, unsigned int af
 
 struct TumorKeyInfo {
     std::string ref_alt;
+    std::string FT;
     int32_t pos = 0;
     float VAQ = 0;
     int32_t DP = 0;
@@ -344,7 +345,8 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
     int32_t *tAutoBestAllBQ = NULL;
     int32_t *tAutoBestAltBQ = NULL;
     int32_t *tAutoBestRefBQ = NULL;
-    
+    char *tFT = NULL;
+
     while (bcf_sr_next_line(sr)) {
         bcf1_t *line = bcf_sr_get_line(sr, 0);
         ndst_val = 0;
@@ -389,8 +391,13 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line,  "cRefBQ", &tAutoBestRefBQ, &ndst_val);
         assert(2 == ndst_val && 2 == valsize || !fprintf(stderr, "2 == %d == %d failed!", ndst_val, valsize));
-          
+        
         TumorKeyInfo tki;
+        ndst_val = 0;
+        valsize = bcf_get_format_char(bcf_hdr, line, "FT", &tFT, &ndst_val);
+        assert(ndst_val == valsize && valsize > 0 || !fprintf(stderr, "%d == %d && %d > 0 failed!", ndst_val, valsize, valsize));
+        tki.FT = std::string(tFT, valsize);
+        
         tki.VAQ = tVAQ[0];
         tki.DP = tDP[0];
         tki.FA = tFA[0];
@@ -416,6 +423,8 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
     xfree(tAutoBestAllBQ);
     xfree(tAutoBestAltBQ);
     xfree(tAutoBestRefBQ);
+    xfree(tFT);
+
     bcf_sr_destroy(sr);
     return ret;
 }

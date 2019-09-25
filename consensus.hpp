@@ -2057,6 +2057,7 @@ generateVcfHeader(const char *ref_fasta_fname, const char *platform,
     ret += "##INFO=<ID=tDP,Number=1,Type=Integer,Description=\"Tumor-sample DP\">\n";
     ret += "##INFO=<ID=tFA,Number=1,Type=Float,Description=\"Tumor-sample FA\">\n";
     ret += "##INFO=<ID=tFR,Number=1,Type=Float,Description=\"Tumor-sample FR\">\n";
+    ret += "##INFO=<ID=tFT,Number=1,Type=String,Description=\"Tumor-sample FT\">\n";
     ret += "##INFO=<ID=tAltBQ,Number=1,Type=Integer,Description=\"Tumor-sample cAltBQ or bAltBQ, depending on command-line option\">\n";
     ret += "##INFO=<ID=tAllBQ,Number=1,Type=Integer,Description=\"Tumor-sample cAllBQ or bAllBQ, depending on command-line option\">\n";
     ret += "##INFO=<ID=tRefBQ,Number=1,Type=Integer,Description=\"Tumor-sample cRefBQ or bRefBQ, depending on command-line option\">\n";
@@ -2237,6 +2238,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         infostring += std::string(";tDP=") + std::to_string(tki.DP);
         infostring += std::string(";tFA=") + std::to_string(tki.FA);
         infostring += std::string(";tFR=") + std::to_string(tki.FR);
+        infostring += std::string(";tFT=") + tki.FT;
         infostring += std::string(";tAltBQ=") + std::to_string(tki.AutoBestAltBQ);
         infostring += std::string(";tAllBQ=") + std::to_string(tki.AutoBestAllBQ);
         infostring += std::string(";tRefBQ=") + std::to_string(tki.AutoBestRefBQ);
