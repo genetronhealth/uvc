@@ -19,6 +19,11 @@ The executable uvc1 can perform each of the following tasks:
  2. filtering of tumor variants in tumor-only bgzipped vcf with its matched normal.
 The script uvcTN.sh simply wraps around the binary executable uvc1.
 
+For UMI to be detected, the read name (QNAME) in the input BAM file should be in the format of <original-name>#<UMI>, where UMI stands for unique moleculer identifier.
+For example, the UMI-labeled read name can be
+ 1. "H5G7WCCXX:4:1209:10114:63736#ACGTAACCA" (ACGTAACCA is the single-strand barcode) or 
+ 2. "H5G7WCCXX:1:3010:10412:33669#AGTA+TGGT" (AGTA+TGGT is the duplex barcode).
+
 --- What to report if a runtime error arises ---
 
 In fact, uvc1 and some other executables all generated the same output given the same input. Their differences are as follows.
