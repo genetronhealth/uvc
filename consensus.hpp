@@ -2015,6 +2015,8 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
     duplexVAQ = MIN(duplexVAQ, 200); // Similar to many other upper bounds, the 200 here has no theoretical foundation.
     fmt.VAQ  = MIN(vaqMQcap, MAX(lowestVAQ, doubleVAQ + duplexVAQ)); // / 1.5;
     fmt.VAQ2 = MIN(vaqMQcap, MAX(lowestVAQ, doubleVAQ_norm + duplexVAQ)); // treat other forms of indels as background noise if matched normal is not available.
+    ensure_positive_1(fmt.VAQ);
+    ensure_positive_1(fmt.VAQ2);
     return (int)(fmt.bAD1[0] + fmt.bAD1[1]);
 };
 
@@ -2257,6 +2259,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         } else {
             vcfqual = MIN(MIN(MIN(tnlike, tnlike_nonref) * tnq_mult_snv  , diffVAQ), fmt.GQ + germline_phred); // (germline + sys error) freq of 10^(-25/10)
         }
+        ensure_positive_1(vcfqual);
     } else {
         ref_alt = vcfref + "\t" + vcfalt;
         // infostring = "";

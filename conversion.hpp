@@ -56,6 +56,13 @@ double geomean2(double a, double b) {
     return sqrt(a * b);
 }
 
+// 1e-6 is the somatic mutation rate
+void ensure_positive_1(auto & v, auto thres = 1e-6) {
+    if (v < thres) {
+        v = thres / ((1.0 + thres) - v);
+    }
+}
+
 auto safediv0(auto a, auto b) {
     return (b != 0 ? a / b : 0);
 }
