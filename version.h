@@ -3,7 +3,7 @@
 #include <string.h>
 #include <string>
 
-#define VERSION123 "0.0.5"
+#define VERSION123 "0.0.3"
 
 #ifndef COMMIT_VERSION
 #define COMMIT_VERSION "NotVersionControlled"
