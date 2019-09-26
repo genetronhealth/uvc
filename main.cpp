@@ -337,7 +337,10 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
     
     int valsize = 0; 
     int ndst_val = 0;
-    char *tVType = NULL;
+    char *bcfstring = NULL;
+    //float *bcffloats = NULL;
+    //int32_t *bcfints = NULL;
+    
     float *tVAQ = NULL;
     int32_t *tDP = NULL;
     float *tFA = NULL;
@@ -350,10 +353,10 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
     while (bcf_sr_next_line(sr)) {
         bcf1_t *line = bcf_sr_get_line(sr, 0);
         ndst_val = 0;
-        valsize = bcf_get_format_char(bcf_hdr, line, "VType", &tVType, &ndst_val);
+        valsize = bcf_get_format_char(bcf_hdr, line, "VType", &bcfstring, &ndst_val);
         if (valsize <= 0) { continue; }
         assert(ndst_val == valsize);
-        std::string desc(tVType);
+        std::string desc(bcfstring);
         // LOG(logINFO) << "Trying to retrieve the symbol " << desc << " at pos " << line->pos << " valsize = " << valsize << " ndst_val = " << ndst_val;
         AlignmentSymbol symbol = DESC_TO_SYMBOL_MAP.at(desc);
         
@@ -371,37 +374,43 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         */
         ndst_val = 0;
         valsize = bcf_get_format_float(bcf_hdr, line, "VAQ", &tVAQ, &ndst_val);
-        assert(ndst_val == valsize && valsize > 0 || !fprintf(stderr, "%d == %d && %d > 0 failed!", ndst_val, valsize, valsize));
+        assert(1 == ndst_val && 1 == valsize || !fprintf(stderr, "1 == %d && 1 == %d failed for VAQ!\n", ndst_val, valsize));
         ndst_val = 0;
         valsize = bcf_get_format_float(bcf_hdr, line,  "FA", &tFA,  &ndst_val);
-        assert(ndst_val == valsize && valsize > 0 || !fprintf(stderr, "%d == %d && %d > 0 failed!", ndst_val, valsize, valsize));
+        assert(1 == ndst_val && 1 == valsize || !fprintf(stderr, "1 == %d && 1 == %d failed for FA!\n", ndst_val, valsize));
         ndst_val = 0;
         valsize = bcf_get_format_float(bcf_hdr, line,  "FR", &tFR,  &ndst_val);
-        assert(ndst_val == valsize && valsize > 0 || !fprintf(stderr, "%d == %d && %d > 0 failed!", ndst_val, valsize, valsize)); 
+        assert(1 == ndst_val && 1 == valsize || !fprintf(stderr, "1 == %d && 1 == %d failed for FR!\n", ndst_val, valsize)); 
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line,  "DP", &tDP,  &ndst_val);
-        assert(ndst_val == valsize && valsize > 0 || !fprintf(stderr, "%d == %d && %d > 0 failed!", ndst_val, valsize, valsize));
+        assert(1 == ndst_val && 1 == valsize || !fprintf(stderr, "1 == %d && 1 == %d failed for DP!\n", ndst_val, valsize));
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line,  "cAllBQ", &tAutoBestAllBQ, &ndst_val);
-        assert(2 == ndst_val && 2 == valsize || !fprintf(stderr, "2 == %d == %d failed!", ndst_val, valsize));
+        assert(2 == ndst_val && 2 == valsize || !fprintf(stderr, "2 == %d && 2 == %d failed for cAllBQ!\n", ndst_val, valsize));
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line,  "cAltBQ", &tAutoBestAltBQ, &ndst_val);
-        assert(2 == ndst_val && 2 == valsize || !fprintf(stderr, "2 == %d == %d failed!", ndst_val, valsize));
+        assert(2 == ndst_val && 2 == valsize || !fprintf(stderr, "2 == %d && 2 == %d failed for cAltBQ!\n", ndst_val, valsize));
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line,  "cRefBQ", &tAutoBestRefBQ, &ndst_val);
-        assert(2 == ndst_val && 2 == valsize || !fprintf(stderr, "2 == %d == %d failed!", ndst_val, valsize));
+        assert(2 == ndst_val && 2 == valsize || !fprintf(stderr, "2 == %d && 2 == %d failed for cRefBQ!\n", ndst_val, valsize));
         
         TumorKeyInfo tki;
+        
         ndst_val = 0;
-        valsize = bcf_get_format_char(bcf_hdr, line, "FT", &tFT, &ndst_val);
-        assert(ndst_val == valsize && valsize > 0 || !fprintf(stderr, "%d == %d && %d > 0 failed!", ndst_val, valsize, valsize));
+        valsize = bcf_get_format_char(bcf_hdr, line, "FT", &bcfstring, &ndst_val);
+        assert(ndst_val == valsize && 0 < valsize || !fprintf(stderr, "%d == %d && nonzero failed for FT!\n", ndst_val, valsize));
         for (unsigned int ftidx = 0; ftidx < valsize - 1; ftidx++) {
-            if (';' == tFT[ftidx]) {
-                tFT[ftidx] = '.';
+            if (';' == bcfstring[ftidx]) {
+                bcfstring[ftidx] = '.';
             }
         }
-        tki.FT = std::string(tFT, valsize-1);
+        tki.FT = std::string(bcfstring, valsize-1);
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_char(bcf_hdr, line, "cHap", &bcfstring, &ndst_val);
+        assert(ndst_val == valsize && 0 < valsize || !fprintf(stderr, "%d == %d && nonzero failed for cHap!\n", ndst_val, valsize));
+        tki.FT += std::string(":tcHap=") + std::string(bcfstring);
         
         tki.VAQ = tVAQ[0];
         tki.DP = tDP[0];
@@ -420,7 +429,7 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         const auto retkey = std::make_tuple(line->rid, symbolpos, symbol);            
         ret.insert(std::make_pair(retkey, tki));
     }
-    xfree(tVType);
+    xfree(bcfstring);
     xfree(tVAQ);
     xfree(tDP);
     xfree(tFA);
