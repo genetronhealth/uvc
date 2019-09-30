@@ -80,11 +80,12 @@ SequencingPlatform CommandLineArgs::selfUpdateByPlatform() {
     }
     if (SEQUENCING_PLATFORM_IONTORRENT == inferred_sequencing_platform && SEQUENCING_PLATFORM_OTHER != this->sequencing_platform) {
         bq_phred_added_indel += 0;
-        bq_phred_added_misma += 6;
+        bq_phred_added_misma += 4; // it was 6
         minABQ_pcr_snv += 0;
         minABQ_pcr_indel += 0;
         minABQ_cap_snv += 0;
         minABQ_cap_indel += 0;
+        if (0 == highqual_thres_indel) { highqual_thres_indel = highqual_thres_snv - 4; }
     }
     if (SEQUENCING_PLATFORM_ILLUMINA == inferred_sequencing_platform && SEQUENCING_PLATFORM_OTHER != this->sequencing_platform) {
         bq_phred_added_indel += 6; //10;
@@ -93,6 +94,7 @@ SequencingPlatform CommandLineArgs::selfUpdateByPlatform() {
         minABQ_pcr_indel += 18;
         minABQ_cap_snv += 20;
         minABQ_cap_indel += 13;
+        if (0 == highqual_thres_indel) { highqual_thres_indel = highqual_thres_snv + 6; }
     }
     return inferred_sequencing_platform;
 }
@@ -144,7 +146,18 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     app.add_option("--nogap-phred",  nogap_phred,       "Base quality for the symbol denoting non-InDel, can solve disconcordant alignment problem in the overlap between R1 and R2, This parameter is now obsolete because the current R1-R2 merge considers symbols to be merged so that InDels dominate over non-Indels. (合并 R1 和 R2 有可能遇到没有InDel和有InDel这种不一致情况，因此没有InDel的质量有这个上限，目前已废除).", true);
 
     app.add_option("--uni-bias-thres", uni_bias_thres,  "Unified-bias threshold for generating the filter strings in FORMAT/FT. This parameter is only for generating statistics and therefore does not affect variant quality. Downstream hard filtering with FORMAT/FT is possible (统一偏好性的阈值，用于生成FORMAT/FT信息，只用于统计，不影响变异质量，FORMAT/FT可用于下游硬过滤). ", true);
-
+    
+    app.add_option("--highqual-thres-snv",          highqual_thres_snv,
+            "the SNV quality threshold above which the quality is considered to be high", true);
+    app.add_option("--highqual-thres-indel",        highqual_thres_indel,
+            "the InDel quality threshold above which the quality is considered to be high", true);
+    app.add_option("--highqual-min-ratio",          highqual_min_ratio,
+            "the mininum ratio of the sum of high qualities to the sum of all qualities to trigger tumor-normal comparison with families of duplicated reads only", true);
+    app.add_option("--highqual-min-vardep",         highqual_min_vardep,
+            "the mininum number of families suporting the variant in the tumor sample to trigger tumor-normal comparison with families of duplicated reads only", true);
+    app.add_option("--highqual-min-totdep",         highqual_min_vardep,
+            "the mininum number of familiess supporting any allele in the tumor sample to trigger tumor-normal comparison with families of duplicated reads only", true);
+    
     app.add_option("--phred-frag-indel-ext",        phred_max_frag_indel_ext,
             "maximum phred score fo the indel of one additional base (excluding the one base require for opening indel), capped at two additional bases", true);
     app.add_option("--phred-frag-indel-basemax",    phred_max_frag_indel_basemax,
