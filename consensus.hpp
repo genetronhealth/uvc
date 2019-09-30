@@ -950,7 +950,8 @@ struct Symbol2CountCoverageSet {
     std::array<Symbol2CountCoverage, 2> fam_nocon_dep; // deduped 
 
     std::array<Symbol2CountCoverage, 2> fq_qual_phsum;
-    
+    std::array<Symbol2CountCoverage, 2> fq_hiqual_dep;
+
     std::array<Symbol2CountCoverage, 2> fq_amax_ldist; // edge distance to end
     std::array<Symbol2CountCoverage, 2> fq_bias_ldist; // edge distance to end
     std::array<Symbol2CountCoverage, 2> fq_amax_rdist; // edge distance to end
@@ -1013,7 +1014,8 @@ struct Symbol2CountCoverageSet {
        
         // , fq_imba_depth({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
         , fq_qual_phsum({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
-        
+        , fq_hiqual_dep({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
+
         , fq_amax_ldist({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
         , fq_bias_ldist({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
         , fq_amax_rdist({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
@@ -1450,7 +1452,8 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
             bool should_add_note, const unsigned int frag_indel_ext, const unsigned int frag_indel_basemax, 
             const PhredMutationTable & phred_max_table, unsigned int phred_thres, 
             const double ess_georatio_dedup, const double ess_georatio_duped_pcr,
-            bool is_loginfo_enabled, unsigned int thread_id, unsigned int nogap_phred) {
+	        bool is_loginfo_enabled, unsigned int thread_id, unsigned int nogap_phred
+            , unsigned int highqual_thres_snv, unsigned int highqual_thres_indel) {
         unsigned int niters = 0;
         for (const auto & alns2pair2dflag : alns3) {
             const auto & alns2pair = alns2pair2dflag.first;
@@ -1566,7 +1569,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         unsigned int con_count, tot_count;
                         read_family_amplicon.getRefByPos(epos).fillConsensusCounts(con_symbol, con_count, tot_count, symbolType);
                         if (0 == tot_count) { continue; }
-                                                
+                        
                         unsigned int majorcount = this->major_amplicon[strand].getByPos(epos).getSymbolCount(con_symbol);
                         unsigned int minorcount = this->minor_amplicon[strand].getByPos(epos).getSymbolCount(con_symbol);
                         auto con_bq_pass_thres = this->bq_pass_thres[strand].getByPos(epos).getSymbolCount(con_symbol);
@@ -1582,9 +1585,12 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         unsigned int edge_baq = MIN(ldist, rdist) * 4;
                         unsigned int overallq = MIN(edge_baq, phredlike);
                         this->fq_qual_phsum [strand].getRefByPos(epos).incSymbolCount(con_symbol, overallq);
+                        if (overallq >= (BASE_SYMBOL == symbolType ? highqual_thres_snv : (LINK_SYMBOL == symbolType ? highqual_thres_indel : 0))) {
+                            this->fq_hiqual_dep[strand].getRefByPos(epos).incSymbolCount(con_symbol, 1);
+                        }
                         unsigned int pbucket = phred2bucket(overallq);
                         assert (pbucket < NUM_BUCKETS || !fprintf(stderr, "%d < %d failed at position %d and con_symbol %d symboltype %d plusbucket %d\n", 
-                                pbucket,  NUM_BUCKETS, epos, con_symbol, symbolType, symbolType2addPhred[symbolType]));
+	                             pbucket,  NUM_BUCKETS, epos, con_symbol, symbolType, symbolType2addPhred[symbolType]));
                         if (isSymbolIns(con_symbol)) {
                             posToIndelToCount_updateByConsensus(this->fq_tsum_depth[strand].getRefPosToIseqToData(), read_family_amplicon.getPosToIseqToData(), epos, 1);
                         }
@@ -1694,6 +1700,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
             unsigned int phred_thres,
             const double ess_georatio_dedup, const double ess_georatio_duped_pcr,
             bool use_deduplicated_reads, bool is_loginfo_enabled, unsigned int thread_id, unsigned int fixedthresBQ, unsigned int nogap_phred
+            , unsigned int highqual_thres_snv, unsigned int highqual_thres_indel
             ) {
         const std::array<unsigned int, NUM_SYMBOL_TYPES> symbolType2addPhred = {bq_phred_added_misma, bq_phred_added_indel};
         std::basic_string<AlignmentSymbol> ref_symbol_string = string2symbolseq(refstring);
@@ -1706,6 +1713,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                     phred_max_sscs_table, phred_thres 
                     , ess_georatio_dedup, ess_georatio_duped_pcr
                     , is_loginfo_enabled, thread_id, nogap_phred
+                    , highqual_thres_snv, highqual_thres_indel
                     ); // family qualities
             updateHapMap(mutform2count4map_fq, this->fq_tsum_depth);
         }
@@ -1722,6 +1730,7 @@ BcfFormat_init(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbolDi
         } else {
             fmt.cAllBQ[strand] = fmt.bAllBQ[strand]; 
         }
+        fmt.cAllHD[strand] = symbolDistrSets12.fq_hiqual_dep.at(strand).getByPos(refpos).sumBySymbolType(symbolType);
         
         fmt.bRefBQ[strand] = symbolDistrSets12.bq_qual_phsum.at(strand).getByPos(refpos).getSymbolCount(refsymbol); 
         if (use_deduplicated_reads) {
@@ -1729,7 +1738,8 @@ BcfFormat_init(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbolDi
         } else {
             fmt.cRefBQ[strand] = fmt.bRefBQ[strand]; 
         }
-
+        fmt.cRefHD[strand] = symbolDistrSets12.fq_hiqual_dep.at(strand).getByPos(refpos).getSymbolCount(refsymbol); 
+        
         fmt.bDP1[strand] = symbolDistrSets12.bq_tsum_depth.at(strand).getByPos(refpos).sumBySymbolType(symbolType);
         fmt.cDP1[strand] = symbolDistrSets12.fq_tsum_depth.at(strand).getByPos(refpos).sumBySymbolType(symbolType);
         fmt.cDPTT[strand] = symbolDistrSets12.fam_total_dep.at(strand).getByPos(refpos).sumBySymbolType(symbolType);
@@ -1828,6 +1838,7 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
         } else {
             fmt.cAltBQ[strand] = fmt.bAltBQ[strand];  
         }
+        fmt.cAltHD[strand] = symbol2CountCoverageSet12.fq_hiqual_dep.at(strand).getByPos(refpos).getSymbolCount(symbol);
         fmt.aDB[strand]  = symbol2CountCoverageSet12.du_bias_dedup.at(strand).getByPos(refpos).getSymbolCount(symbol);
 
         fmt.bPTL[strand] = symbol2CountCoverageSet12.bq_amax_ldist.at(strand).getByPos(refpos).getSymbolCount(symbol); 
@@ -2063,6 +2074,9 @@ generateVcfHeader(const char *ref_fasta_fname, const char *platform,
     ret += "##INFO=<ID=tAltBQ,Number=1,Type=Integer,Description=\"Tumor-sample cAltBQ or bAltBQ, depending on command-line option\">\n";
     ret += "##INFO=<ID=tAllBQ,Number=1,Type=Integer,Description=\"Tumor-sample cAllBQ or bAllBQ, depending on command-line option\">\n";
     ret += "##INFO=<ID=tRefBQ,Number=1,Type=Integer,Description=\"Tumor-sample cRefBQ or bRefBQ, depending on command-line option\">\n";
+    ret += "##INFO=<ID=tAltHD,Number=1,Type=Integer,Description=\"Tumor-sample cAltHD or bAltHD, depending on command-line option\">\n";
+    ret += "##INFO=<ID=tAllHD,Number=1,Type=Integer,Description=\"Tumor-sample cAllHD or bAllHD, depending on command-line option\">\n";
+    ret += "##INFO=<ID=tRefHD,Number=1,Type=Integer,Description=\"Tumor-sample cRefHD or bRefHD, depending on command-line option\">\n";
     ret += "##INFO=<ID=TNQA,Number=1,Type=Float,Description=\"The additive quality that minimizes TNQ\">\n";
     ret += "##INFO=<ID=RU,Number=1,Type=String,Description=\"The shortest repeating unit in the reference\">\n";
     ret += "##INFO=<ID=RC,Number=1,Type=Integer,Description=\"The number of non-interrupted RUs in the reference\">\n"; 
@@ -2127,7 +2141,11 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         , const double str_tier_qual      // = 50;
         , const unsigned int str_tier_len // = 16;
         , const unsigned int uni_bias_thres
-        , const bcf_hdr_t *g_bcf_hdr, const bool is_tumor_format_retrieved 
+        , const bcf_hdr_t *g_bcf_hdr, const bool is_tumor_format_retrieved
+        , const unsigned int highqual_thres
+        , const double highqual_min_ratio
+        , unsigned int highqual_min_vardep
+        , unsigned int highqual_min_totdep
         ) {
     
     const bcfrec::BcfFormat & fmt = fmtvar; 
@@ -2215,11 +2233,20 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         double tAltBQ = tki.AutoBestAltBQ;
         double tAllBQ = tki.AutoBestAllBQ;
         
+        double nAltHD = fmt.cAltHD[0] + fmt.cAltHD[1];
+        double nAllHD = fmt.cAllHD[0] + fmt.cAllHD[1];
+        double tAltHD = tki.AutoBestAltHD;
+        double tAllHD = tki.AutoBestAllHD;
+        
+        const bool useHD = ((tAltHD * highqual_thres> tAltBQ * highqual_min_ratio)
+                && (tAllHD * highqual_thres > tAllBQ * highqual_min_ratio)
+                && (tAltHD >= highqual_min_vardep) && (tAllHD >= highqual_min_totdep));
+        
         double pc1 = prob2phred(1.0 / (nDP + 2.0)) / (nAD + 1.0);
-        double nAD1 = nAltBQ + depth_pseudocount;
-        double nDP1 = nAllBQ + depth_pseudocount;
-        double tAD1 = tAltBQ + depth_pseudocount;
-        double tDP1 = tAllBQ + depth_pseudocount;
+        double nAD1 = (useHD ? (highqual_thres * nAltHD) : nAltBQ) + depth_pseudocount;
+        double nDP1 = (useHD ? (highqual_thres * nAllHD) : nAllBQ) + depth_pseudocount;
+        double tAD1 = (useHD ? (highqual_thres * tAltHD) : tAltBQ) + depth_pseudocount;
+        double tDP1 = (useHD ? (highqual_thres * tAllHD) : tAllBQ) + depth_pseudocount;
         
         double tnlike_argmin = 0;
         double tnlike = sumBQ4_to_phredlike(tnlike_argmin, nDP1, nAD1, tDP1, tAD1);
@@ -2228,10 +2255,10 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
             fprintf(stderr, "tnlike %f is invalid!, computed from %f %f %f %f , %f !!!\n", tnlike, nAD1, nDP1, tAD1, tDP1, pc1);
             abort();
         }
-        double nRD1 = fmt.cRefBQ[0] + fmt.cRefBQ[1];
+        double nRD1 = (useHD ? (highqual_thres * (fmt.cRefHD[0] + fmt.cRefHD[1])) : (fmt.cRefBQ[0] + fmt.cRefBQ[1]));
         Any4Value bq4((nDP1 - nRD1) * (isInDel ? nonref_to_alt_frac_indel : nonref_to_alt_frac_snv) + 1, nDP1 + 1, tAD1 + 1, tDP1 + 1);
         double tnlike_nonref = bq4.to_phredlike(1);
-
+        
         assert(tki.AutoBestAllBQ >= tki.AutoBestRefBQ + tki.AutoBestAltBQ);
         
         infostring += std::string(";TNQ=") + std::to_string(tnlike);
@@ -2244,8 +2271,10 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         infostring += std::string(";tAltBQ=") + std::to_string(tki.AutoBestAltBQ);
         infostring += std::string(";tAllBQ=") + std::to_string(tki.AutoBestAllBQ);
         infostring += std::string(";tRefBQ=") + std::to_string(tki.AutoBestRefBQ);
+        infostring += std::string(";tAltHD=") + std::to_string(tki.AutoBestAltHD);
+        infostring += std::string(";tAllHD=") + std::to_string(tki.AutoBestAllHD);
         infostring += std::string(";TNQA=") + std::to_string(tnlike_argmin);
-
+        
         // auto finalGQ = (("1/0" == fmt.GT) ? fmt.GQ : 0);
         auto diffVAQ = MAX(tki.VAQ - fmt.VAQ, tki.VAQ / (fmt.VAQ + tki.VAQ + DBL_MIN));
         if (isInDel) {

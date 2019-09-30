@@ -252,6 +252,8 @@ struct TumorKeyInfo {
     int32_t AutoBestAllBQ = 0;
     int32_t AutoBestAltBQ = 0;
     int32_t AutoBestRefBQ = 0;
+    int32_t AutoBestAllHD = 0;
+    int32_t AutoBestAltHD = 0;
     bcf1_t *bcf1_record = NULL;
     /*
     ~TumorKeyInfo() {
@@ -348,6 +350,8 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
     int32_t *tAutoBestAllBQ = NULL;
     int32_t *tAutoBestAltBQ = NULL;
     int32_t *tAutoBestRefBQ = NULL;
+    int32_t *tAutoBestAllHD = NULL;
+    int32_t *tAutoBestAltHD = NULL;
     char *tFT = NULL;
 
     while (bcf_sr_next_line(sr)) {
@@ -395,6 +399,14 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         valsize = bcf_get_format_int32(bcf_hdr, line,  "cRefBQ", &tAutoBestRefBQ, &ndst_val);
         assert(2 == ndst_val && 2 == valsize || !fprintf(stderr, "2 == %d && 2 == %d failed for cRefBQ!\n", ndst_val, valsize));
         
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "cAllHD", &tAutoBestAllHD, &ndst_val);
+        assert(2 == ndst_val && 2 == valsize || !fprintf(stderr, "2 == %d && 2 == %d failed for cAllBQ!\n", ndst_val, valsize));
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "cAltHD", &tAutoBestAltHD, &ndst_val);
+        assert(2 == ndst_val && 2 == valsize || !fprintf(stderr, "2 == %d && 2 == %d failed for cAltBQ!\n", ndst_val, valsize));
+        ndst_val = 0;
+        
         TumorKeyInfo tki;
         
         ndst_val = 0;
@@ -419,6 +431,8 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         tki.AutoBestAllBQ = tAutoBestAllBQ[0] + tAutoBestAllBQ[1];
         tki.AutoBestAltBQ = tAutoBestAltBQ[0] + tAutoBestAltBQ[1];
         tki.AutoBestRefBQ = tAutoBestRefBQ[0] + tAutoBestRefBQ[1];
+        tki.AutoBestAllHD = tAutoBestAllHD[0] + tAutoBestAllHD[1];
+        tki.AutoBestAltHD = tAutoBestAltHD[0] + tAutoBestAltHD[1];
         tki.pos = line->pos;
         bcf_unpack(line, BCF_UN_STR);
         tki.ref_alt = als_to_string(line->d.allele, line->d.m_allele);
@@ -437,7 +451,9 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
     xfree(tAutoBestAllBQ);
     xfree(tAutoBestAltBQ);
     xfree(tAutoBestRefBQ);
-    xfree(tFT);
+    xfree(tFT); 
+    xfree(tAutoBestAllHD);
+    xfree(tAutoBestAltHD);
 
     bcf_sr_destroy(sr);
     return ret;
@@ -560,7 +576,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
             // ErrorCorrectionType(paramset.seq_data_type),
             (is_by_capture ? paramset.ess_georatio_dedup_cap : paramset.ess_georatio_dedup_pcr), paramset.ess_georatio_duped_pcr,
             !paramset.disable_dup_read_merge, 
-            is_loginfo_enabled, thread_id, paramset.fixedthresBQ, paramset.nogap_phred);
+            is_loginfo_enabled, thread_id, paramset.fixedthresBQ, paramset.nogap_phred
+            , paramset.highqual_thres_snv, paramset.highqual_thres_indel);
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts analyzing phasing info"; }
     auto mutform2count4vec_bq = map2vector(mutform2count4map_bq);
     auto simplemut2indices_bq = mutform2count4vec_to_simplemut2indices(mutform2count4vec_bq);
@@ -717,7 +734,9 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                                 , paramset.str_tier_qual // = 50;
                                 , paramset.str_tier_len // = 16;
                                 , paramset.uni_bias_thres // = 180
-                                , bcf_hdr, paramset.is_tumor_format_retrieved);
+                                , bcf_hdr, paramset.is_tumor_format_retrieved
+                                , ((BASE_SYMBOL == symbolType) ? paramset.highqual_thres_snv : (LINK_SYMBOL == symbolType ? paramset.highqual_thres_indel : 0))
+                                , paramset.highqual_min_ratio, paramset.highqual_min_vardep, paramset.highqual_min_totdep);
                     }
                 }
             }
