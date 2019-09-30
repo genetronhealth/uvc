@@ -58,7 +58,8 @@ r2in = sys.argv[2]
 r1out = sys.argv[3]
 r2out = sys.argv[4]
 
-assert 4 == len(set([r1in, r2in, r1out, r2out]))
+assert 4 == len(set([r1in, r2in, r1out, r2out])) or r2in == 'None'
+if r2in == 'None': r2in = r1in
 
 if len(sys.argv) > 6:
     incluBeg = int(sys.argv[5])
