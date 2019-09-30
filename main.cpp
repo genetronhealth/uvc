@@ -340,20 +340,9 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
     int valsize = 0; 
     int ndst_val = 0;
     char *bcfstring = NULL;
-    //float *bcffloats = NULL;
-    //int32_t *bcfints = NULL;
+    float *bcffloats = NULL;
+    int32_t *bcfints = NULL;
     
-    float *tVAQ = NULL;
-    int32_t *tDP = NULL;
-    float *tFA = NULL;
-    float *tFR = NULL;
-    int32_t *tAutoBestAllBQ = NULL;
-    int32_t *tAutoBestAltBQ = NULL;
-    int32_t *tAutoBestRefBQ = NULL;
-    int32_t *tAutoBestAllHD = NULL;
-    int32_t *tAutoBestAltHD = NULL;
-    char *tFT = NULL;
-
     while (bcf_sr_next_line(sr)) {
         bcf1_t *line = bcf_sr_get_line(sr, 0);
         ndst_val = 0;
@@ -376,38 +365,57 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
             abort();
         }
         */
-        ndst_val = 0;
-        valsize = bcf_get_format_float(bcf_hdr, line, "VAQ", &tVAQ, &ndst_val);
-        assert(1 == ndst_val && 1 == valsize || !fprintf(stderr, "1 == %d && 1 == %d failed for VAQ!\n", ndst_val, valsize));
-        ndst_val = 0;
-        valsize = bcf_get_format_float(bcf_hdr, line,  "FA", &tFA,  &ndst_val);
-        assert(1 == ndst_val && 1 == valsize || !fprintf(stderr, "1 == %d && 1 == %d failed for FA!\n", ndst_val, valsize));
-        ndst_val = 0;
-        valsize = bcf_get_format_float(bcf_hdr, line,  "FR", &tFR,  &ndst_val);
-        assert(1 == ndst_val && 1 == valsize || !fprintf(stderr, "1 == %d && 1 == %d failed for FR!\n", ndst_val, valsize)); 
-        ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line,  "DP", &tDP,  &ndst_val);
-        assert(1 == ndst_val && 1 == valsize || !fprintf(stderr, "1 == %d && 1 == %d failed for DP!\n", ndst_val, valsize));
-        
-        ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line,  "cAllBQ", &tAutoBestAllBQ, &ndst_val);
-        assert(2 == ndst_val && 2 == valsize || !fprintf(stderr, "2 == %d && 2 == %d failed for cAllBQ!\n", ndst_val, valsize));
-        ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line,  "cAltBQ", &tAutoBestAltBQ, &ndst_val);
-        assert(2 == ndst_val && 2 == valsize || !fprintf(stderr, "2 == %d && 2 == %d failed for cAltBQ!\n", ndst_val, valsize));
-        ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line,  "cRefBQ", &tAutoBestRefBQ, &ndst_val);
-        assert(2 == ndst_val && 2 == valsize || !fprintf(stderr, "2 == %d && 2 == %d failed for cRefBQ!\n", ndst_val, valsize));
-        
-        ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line,  "cAllHD", &tAutoBestAllHD, &ndst_val);
-        assert(2 == ndst_val && 2 == valsize || !fprintf(stderr, "2 == %d && 2 == %d failed for cAllBQ!\n", ndst_val, valsize));
-        ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line,  "cAltHD", &tAutoBestAltHD, &ndst_val);
-        assert(2 == ndst_val && 2 == valsize || !fprintf(stderr, "2 == %d && 2 == %d failed for cAltBQ!\n", ndst_val, valsize));
-        ndst_val = 0;
-        
         TumorKeyInfo tki;
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_float(bcf_hdr, line, "VAQ", &bcffloats, &ndst_val);
+        assert(1 == ndst_val && 1 == valsize || !fprintf(stderr, "1 == %d && 1 == %d failed for VAQ!\n", ndst_val, valsize));
+        tki.VAQ = bcffloats[0];
+
+        ndst_val = 0;
+        valsize = bcf_get_format_float(bcf_hdr, line,  "FA", &bcffloats,  &ndst_val);
+        assert(1 == ndst_val && 1 == valsize || !fprintf(stderr, "1 == %d && 1 == %d failed for FA!\n", ndst_val, valsize));
+        tki.FA = bcffloats[0];
+
+        ndst_val = 0;
+        valsize = bcf_get_format_float(bcf_hdr, line,  "FR", &bcffloats,  &ndst_val);
+        assert(1 == ndst_val && 1 == valsize || !fprintf(stderr, "1 == %d && 1 == %d failed for FR!\n", ndst_val, valsize)); 
+        tki.FR = bcffloats[0];
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "DP", &bcfints,  &ndst_val);
+        assert(1 == ndst_val && 1 == valsize || !fprintf(stderr, "1 == %d && 1 == %d failed for DP!\n", ndst_val, valsize));
+        tki.DP = bcfints[0];
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "bDP", &bcfints,  &ndst_val);
+        assert(1 == ndst_val && 1 == valsize || !fprintf(stderr, "1 == %d && 1 == %d failed for DP!\n", ndst_val, valsize));
+        tki.bDP = bcfints[0]; 
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "cAllBQ", &bcfints, &ndst_val);
+        assert(2 == ndst_val && 2 == valsize || !fprintf(stderr, "2 == %d && 2 == %d failed for cAllBQ!\n", ndst_val, valsize));
+        tki.AutoBestAllBQ = bcfints[0] + bcfints[1];
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "cAltBQ", &bcfints, &ndst_val);
+        assert(2 == ndst_val && 2 == valsize || !fprintf(stderr, "2 == %d && 2 == %d failed for cAltBQ!\n", ndst_val, valsize));
+        tki.AutoBestAltBQ = bcfints[0] + bcfints[1];
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "cRefBQ", &bcfints, &ndst_val);
+        assert(2 == ndst_val && 2 == valsize || !fprintf(stderr, "2 == %d && 2 == %d failed for cRefBQ!\n", ndst_val, valsize));
+        tki.AutoBestRefBQ = bcfints[0] + bcfints[1];
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "cAllHD", &bcfints, &ndst_val);
+        assert(2 == ndst_val && 2 == valsize || !fprintf(stderr, "2 == %d && 2 == %d failed for cAllBQ!\n", ndst_val, valsize));
+        tki.AutoBestAllHD = bcfints[0] + bcfints[1];
+
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "cAltHD", &bcfints, &ndst_val);
+        assert(2 == ndst_val && 2 == valsize || !fprintf(stderr, "2 == %d && 2 == %d failed for cAltBQ!\n", ndst_val, valsize));
+        tki.AutoBestAltHD = bcfints[0] + bcfints[1];
         
         ndst_val = 0;
         valsize = bcf_get_format_char(bcf_hdr, line, "FT", &bcfstring, &ndst_val);
@@ -424,37 +432,18 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         assert(ndst_val == valsize && 0 < valsize || !fprintf(stderr, "%d == %d && nonzero failed for cHap!\n", ndst_val, valsize));
         tki.FT += std::string(":tcHap=") + std::string(bcfstring);
         
-        tki.VAQ = tVAQ[0];
-        tki.DP = tDP[0];
-        tki.FA = tFA[0];
-        tki.FR = tFR[0];
-        tki.AutoBestAllBQ = tAutoBestAllBQ[0] + tAutoBestAllBQ[1];
-        tki.AutoBestAltBQ = tAutoBestAltBQ[0] + tAutoBestAltBQ[1];
-        tki.AutoBestRefBQ = tAutoBestRefBQ[0] + tAutoBestRefBQ[1];
-        tki.AutoBestAllHD = tAutoBestAllHD[0] + tAutoBestAllHD[1];
-        tki.AutoBestAltHD = tAutoBestAltHD[0] + tAutoBestAltHD[1];
         tki.pos = line->pos;
         bcf_unpack(line, BCF_UN_STR);
         tki.ref_alt = als_to_string(line->d.allele, line->d.m_allele);
         if (is_tumor_format_retrieved) {
             tki.bcf1_record = bcf_dup(line);
-            // bcf_unpack(tki.bcf1_record, BCF_UN_STR);
         }
         const auto retkey = std::make_tuple(line->rid, symbolpos, symbol);            
         ret.insert(std::make_pair(retkey, tki));
     }
     xfree(bcfstring);
-    xfree(tVAQ);
-    xfree(tDP);
-    xfree(tFA);
-    xfree(tFR);
-    xfree(tAutoBestAllBQ);
-    xfree(tAutoBestAltBQ);
-    xfree(tAutoBestRefBQ);
-    xfree(tFT); 
-    xfree(tAutoBestAllHD);
-    xfree(tAutoBestAltHD);
-
+    xfree(bcfints);
+    xfree(bcffloats);
     bcf_sr_destroy(sr);
     return ret;
 }
