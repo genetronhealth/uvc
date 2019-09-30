@@ -47,13 +47,6 @@ nbam="$3"
 outdir="$4"
 samplename="$5"
 
-tvcfgz="${outdir}/${samplename}_T_uvc1.vcf.gz"
-nvcfgz="${outdir}/${samplename}_N_uvc1.vcf.gz"
-avcfgz="${outdir}/${samplename}_TandN_uvc1.vcf.gz"
-
-tlog="${outdir}/${samplename}_T_uvc1.stderr"
-nlog="${outdir}/${samplename}_N_uvc1.stderr"
-
 mkdir -p "${outdir}"
 
 if [ $(echo "${samplename}" | awk -F "," '{print NF}') -eq 2 ]; then
@@ -63,6 +56,12 @@ else
     tsample="${samplename}_T"
     nsample="${samplename}_N"
 fi
+
+tvcfgz="${outdir}/${tsample}_uvc1.vcf.gz"
+nvcfgz="${outdir}/${nsample}_uvc1.vcf.gz"
+
+tlog="${outdir}/${tsample}_uvc1.stderr"
+nlog="${outdir}/${nsample}_uvc1.stderr"
 
 date 
 "${scriptdir}/uvc1" -f "${ref}" -s "${tsample}" "${tbam}" -o "${tvcfgz}" "${tparams[@]}" 2> "${tlog}"
