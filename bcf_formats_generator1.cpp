@@ -133,7 +133,9 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("cAllBQ"   , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("cAltBQ"   , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("cRefBQ"   , 2, BCF_INTEGER, "see above"),
-    
+    BcfFormatStruct("cAllHD"   , 2, BCF_INTEGER, "see above"),
+    BcfFormatStruct("cAltHD"   , 2, BCF_INTEGER, "see above"),
+    BcfFormatStruct("cRefHD"   , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("aDB"      , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("b_a"      , 1, BCF_SEP,     "Forward&reverse max-bias base distances to left/right end positions (T1PTL/T1PTR) and position bias (T1PBL/T1PBR) [base read, duped]"), 
     BcfFormatStruct("bPTL"     , 2, BCF_INTEGER, "see above"),
