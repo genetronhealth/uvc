@@ -1577,6 +1577,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         assert (con_bq_pass_prob >= pow(10, (-(double)NUM_BUCKETS)/10) 
                                 || !fprintf(stderr, "%f >= phred51 failed at position %d and symbol %d!\n", con_bq_pass_prob, epos, con_symbol));
                         unsigned int phredlike = (unsigned int)MAX(0, h01_to_phredlike<true>(minorcount + 1, majorcount + minorcount + (1.0 / con_bq_pass_prob), con_count, tot_count, 1.0, (ess_georatio_duped_pcr)));
+                        if (BASE_N == con_symbol) { phredlike = MIN(phredlike, phred_thres); }
                         phredlike = MIN(phredlike, NUM_BUCKETS - 1);
                         // no base quality stuff
                         
