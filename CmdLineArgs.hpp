@@ -31,9 +31,10 @@ struct CommandLineArgs {
     // it is used to decide whether UMI or non-UMI tumor-vs-normal quality should be used
     unsigned int highqual_thres_snv = 44;
     unsigned int highqual_thres_indel = 0; // 44+6;
-    double highqual_min_ratio = 0.5;
-    unsigned int highqual_min_vardep = 3;
-    unsigned int highqual_min_totdep = 500;
+    double highqual_min_ratio = 2.5;
+    // removed two variables because too hard to use
+    //unsigned int highqual_min_vardep = 3;
+    //unsigned int highqual_min_totdep = 500;
     
     // https://www.biostars.org/p/110670/
     uint32_t    min_depth_thres = 4;

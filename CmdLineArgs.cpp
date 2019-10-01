@@ -148,15 +148,16 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     app.add_option("--uni-bias-thres", uni_bias_thres,  "Unified-bias threshold for generating the filter strings in FORMAT/FT. This parameter is only for generating statistics and therefore does not affect variant quality. Downstream hard filtering with FORMAT/FT is possible (统一偏好性的阈值，用于生成FORMAT/FT信息，只用于统计，不影响变异质量，FORMAT/FT可用于下游硬过滤). ", true);
     
     app.add_option("--highqual-thres-snv",          highqual_thres_snv,
-            "the SNV quality threshold above which the quality is considered to be high", true);
+            "the SNV quality threshold above which the family quality is considered to be high", true);
     app.add_option("--highqual-thres-indel",        highqual_thres_indel,
-            "the InDel quality threshold above which the quality is considered to be high", true);
+            "the InDel quality threshold above which the family quality is considered to be high, "
+            "zero means auto infer to highqual-thres-snv + 6 for Illumina/BGI and -4 for IonTorrent)", true);
     app.add_option("--highqual-min-ratio",          highqual_min_ratio,
-            "the mininum ratio of the sum of high qualities to the sum of all qualities to trigger tumor-normal comparison with families of duplicated reads only", true);
-    app.add_option("--highqual-min-vardep",         highqual_min_vardep,
-            "the mininum number of families suporting the variant in the tumor sample to trigger tumor-normal comparison with families of duplicated reads only", true);
-    app.add_option("--highqual-min-totdep",         highqual_min_vardep,
-            "the mininum number of familiess supporting any allele in the tumor sample to trigger tumor-normal comparison with families of duplicated reads only", true);
+            "the mininum ratio of the raw non-deduplicated read depth to the deduplicated read family depth to trigger tumor-normal comparison with high quality families only", true);
+    //app.add_option("--highqual-min-vardep",         highqual_min_vardep,
+    //        "the mininum number of families suporting the variant in the tumor sample to trigger tumor-normal comparison with families of duplicated reads only", true);
+    //app.add_option("--highqual-min-totdep",         highqual_min_vardep,
+    //        "the mininum number of familiess supporting any allele in the tumor sample to trigger tumor-normal comparison with families of duplicated reads only", true);
     
     app.add_option("--phred-frag-indel-ext",        phred_max_frag_indel_ext,
             "maximum phred score fo the indel of one additional base (excluding the one base require for opening indel), capped at two additional bases", true);
