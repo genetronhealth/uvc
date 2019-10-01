@@ -2071,6 +2071,7 @@ generateVcfHeader(const char *ref_fasta_fname, const char *platform,
     ret += "##INFO=<ID=tFA,Number=1,Type=Float,Description=\"Tumor-sample FA\">\n";
     ret += "##INFO=<ID=tFR,Number=1,Type=Float,Description=\"Tumor-sample FR\">\n";
     ret += "##INFO=<ID=tFT,Number=1,Type=String,Description=\"Tumor-sample FT where the filter strings are separated by period (.) instead of semi-colon because semi-colon is not permitted in INFO\">\n";
+    ret += "##INFO=<ID=tbDP,Number=1,Type=Integer,Description=\"Tumor-sample bDP\">\n";
     ret += "##INFO=<ID=tAltBQ,Number=1,Type=Integer,Description=\"Tumor-sample cAltBQ or bAltBQ, depending on command-line option\">\n";
     ret += "##INFO=<ID=tAllBQ,Number=1,Type=Integer,Description=\"Tumor-sample cAllBQ or bAllBQ, depending on command-line option\">\n";
     ret += "##INFO=<ID=tRefBQ,Number=1,Type=Integer,Description=\"Tumor-sample cRefBQ or bRefBQ, depending on command-line option\">\n";
@@ -2144,8 +2145,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         , const bcf_hdr_t *g_bcf_hdr, const bool is_tumor_format_retrieved
         , const unsigned int highqual_thres
         , const double highqual_min_ratio
-        , unsigned int highqual_min_vardep
-        , unsigned int highqual_min_totdep
+        //, unsigned int highqual_min_vardep
+        //, unsigned int highqual_min_totdep
         ) {
     
     const bcfrec::BcfFormat & fmt = fmtvar; 
@@ -2238,25 +2239,33 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         double tAltHD = tki.AutoBestAltHD;
         double tAllHD = tki.AutoBestAllHD;
         
-        const bool useHD = ((tAltHD * highqual_thres> tAltBQ * highqual_min_ratio)
-                && (tAllHD * highqual_thres > tAllBQ * highqual_min_ratio)
-                && (tAltHD >= highqual_min_vardep) && (tAllHD >= highqual_min_totdep));
+        const bool tUseHD =  (tki.bDP > tki.DP * highqual_min_ratio);
+        const bool nUseHD = ((fmt.bDP > fmt.DP * highqual_min_ratio) && tUseHD);
         
         double pc1 = prob2phred(1.0 / (nDP + 2.0)) / (nAD + 1.0);
-        double nAD1 = (useHD ? (highqual_thres * nAltHD) : nAltBQ) + depth_pseudocount;
-        double nDP1 = (useHD ? (highqual_thres * nAllHD) : nAllBQ) + depth_pseudocount;
-        double tAD1 = (useHD ? (highqual_thres * tAltHD) : tAltBQ) + depth_pseudocount;
-        double tDP1 = (useHD ? (highqual_thres * tAllHD) : tAllBQ) + depth_pseudocount;
+        double nAD1 = (nUseHD ? (highqual_thres * nAltHD) : nAltBQ) + depth_pseudocount;
+        double nDP1 = (nUseHD ? (highqual_thres * nAllHD) : nAllBQ) + depth_pseudocount;
+        double tAD1 = (tUseHD ? (highqual_thres * tAltHD) : tAltBQ) + depth_pseudocount;
+        double tDP1 = (tUseHD ? (highqual_thres * tAllHD) : tAllBQ) + depth_pseudocount;
         
+        double nfreqmult = 1.0;
+        if (tUseHD && (!nUseHD)) {
+            if (std::string("PASS") == tki.FT) {
+                nfreqmult /= 3.0; // this is heuristically found
+            }
+            if (std::string("PASS") == fmt.FT) {
+                nfreqmult /= 2.0; // this is heuristically found
+            }
+        }
         double tnlike_argmin = 0;
-        double tnlike = sumBQ4_to_phredlike(tnlike_argmin, nDP1, nAD1, tDP1, tAD1);
+        double tnlike = sumBQ4_to_phredlike(tnlike_argmin, nDP1, nAD1 * nfreqmult, tDP1, tAD1);
         // double tnlike = h01_to_phredlike<false>((nAD1 + 1.0), (nDP1 + 1.0) * (1.0 + DBL_EPSILON), (tAD1 + 1.0), (tDP1 + 1.0) * (1.0 + DBL_EPSILON), pc1, 1+1e-4);
         if (!(tnlike < 1e20)) {
             fprintf(stderr, "tnlike %f is invalid!, computed from %f %f %f %f , %f !!!\n", tnlike, nAD1, nDP1, tAD1, tDP1, pc1);
             abort();
         }
-        double nRD1 = (useHD ? (highqual_thres * (fmt.cRefHD[0] + fmt.cRefHD[1])) : (fmt.cRefBQ[0] + fmt.cRefBQ[1]));
-        Any4Value bq4((nDP1 - nRD1) * (isInDel ? nonref_to_alt_frac_indel : nonref_to_alt_frac_snv) + 1, nDP1 + 1, tAD1 + 1, tDP1 + 1);
+        double nRD1 = (nUseHD ? (highqual_thres * (fmt.cRefHD[0] + fmt.cRefHD[1])) : (fmt.cRefBQ[0] + fmt.cRefBQ[1]));
+        Any4Value bq4((nDP1 - nRD1) * (isInDel ? nonref_to_alt_frac_indel : nonref_to_alt_frac_snv) * nfreqmult + 1, nDP1 + 1, tAD1 + 1, tDP1 + 1);
         double tnlike_nonref = bq4.to_phredlike(1);
         
         assert(tki.AutoBestAllBQ >= tki.AutoBestRefBQ + tki.AutoBestAltBQ);
@@ -2268,6 +2277,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         infostring += std::string(";tFA=") + std::to_string(tki.FA);
         infostring += std::string(";tFR=") + std::to_string(tki.FR);
         infostring += std::string(";tFT=") + tki.FT;
+        infostring += std::string(";tbDP=") + std::to_string(tki.bDP);
         infostring += std::string(";tAltBQ=") + std::to_string(tki.AutoBestAltBQ);
         infostring += std::string(";tAllBQ=") + std::to_string(tki.AutoBestAllBQ);
         infostring += std::string(";tRefBQ=") + std::to_string(tki.AutoBestRefBQ);
@@ -2275,23 +2285,20 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         infostring += std::string(";tAllHD=") + std::to_string(tki.AutoBestAllHD);
         infostring += std::string(";TNQA=") + std::to_string(tnlike_argmin);
         
-        // auto finalGQ = (("1/0" == fmt.GT) ? fmt.GQ : 0);
+        // auto finalGQ = (("1/0" == fmt.GT) ? fmt.GQ : 0); // is probably redundant?
         auto diffVAQ = MAX(tki.VAQ - fmt.VAQ, tki.VAQ / (fmt.VAQ + tki.VAQ + DBL_MIN));
         if (isInDel) {
-            //vcfqual = MIN(MIN(tnlike * 1.0              , fmt.GQ + germline_phred), tki.VAQ - fmt.VAQ);
             // Usually, InDels is charaterized by less stringent filter threshold than SNVs. For example,
             // - GATK recommended SOR threshold of 4 for SNVs and 7 for InDels. 
             // - IonTorrent variantCaller has less stringent bias filter for InDels than for SNVs with its default parameters.
             // Therefore, the false positive filter for InDels is more lenient here too.
             vcfqual = MIN(MIN(MIN(tnlike, tnlike_nonref) * tnq_mult_indel, diffVAQ), fmt.GQ + germline_phred); // 5.00 is too high, 1.50 is too low
-            // vcfqual = vcfqual * (double)(tki.AutoBestAltBQ + 63) / (double)(tki.AutoBestAllBQ - tki.AutoBestRefBQ + 63) ;
         } else {
-            vcfqual = MIN(MIN(MIN(tnlike, tnlike_nonref) * tnq_mult_snv  , diffVAQ), fmt.GQ + germline_phred); // (germline + sys error) freq of 10^(-25/10)
+            vcfqual = MIN(MIN(MIN(tnlike, tnlike_nonref) * tnq_mult_snv  , diffVAQ), fmt.GQ + germline_phred); // (germline + sys error) freq of 10^(-25/10) ?
         }
         ensure_positive_1(vcfqual);
     } else {
         ref_alt = vcfref + "\t" + vcfalt;
-        // infostring = "";
     }
     
     if ((!is_novar && vcfqual >= vcfqual_thres) || should_output_all || should_let_all_pass) {
@@ -2303,11 +2310,6 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
             // Heuristically, incorporating additional information from the repeat pattern should generate more accurate var calls.
             // However, it is not clear how we can do this in a theoretically sound way.
             // A simple logistic regression on repeatnum and repeatunit.size() results in an accuracy of 58% with balanced true positives and false positives.
-            //auto decphred = prob2phred(1.0 / (repeatnum * repeatunit.size() + 1.0));
-            //vcfqual = MAX(vcfqual - decphred, vcfqual / (decphred));
-            // auto slipdist = 25; // (ref_alt.size() - 3);
-            // vcfqual = vcfqual * sqrt((double)(slipdist) / (double)(repeatnum * repeatunit.size() + slipdist));
-            
             auto context_len = repeatunit.size() * repeatnum;
             if (vcfqual > mai_tier_qual) {
                 // penalize multi-allelic indels.
@@ -2317,9 +2319,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
             if (vcfqual > str_tier_qual) {
                 // penalize indels with a high number of nucleotides in repeat region.
                 // https://github.com/Illumina/strelka/blob/ac7233f1a35d0e4405848a4fc80260a10248f989/src/c%2B%2B/lib/starling_common/AlleleGroupGenotype.cpp
-                // vcfqual = 40 + (vcfqual - 40) / exp(MAX(context_len, 40) / ((double)40) * (log(3e-4) - log(5e-5))); // (double)(15) / (double)(context_len);
-                vcfqual = str_tier_qual + (vcfqual - str_tier_qual) * 
-                        (double)(str_tier_len) / (double)(str_tier_len + context_len);
+                // modified from Strelka2: vcfqual = 40 + (vcfqual - 40) / exp(MAX(context_len, 40) / ((double)40) * (log(3e-4) - log(5e-5))); // (double)(15) / (double)(context_len);
+                vcfqual = str_tier_qual + (vcfqual - str_tier_qual) * (double)(str_tier_len) / (double)(str_tier_len + context_len);
             }
         }
         
@@ -2330,7 +2331,6 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         int64_t cDP1_1 = (int64_t) fmt.cDP1[1];
         fmtvar.FT = "";
         fmtvar.FTV.clear();
-        // float uni_bias_float = ((float)uni_bias_thres) / 100.0;
         unsigned int maxbias = 100;
         fmtFTupdate(maxbias, fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::DB1],    uni_bias_thres, ((fmt.aDB [0] * bDP1_0 + fmt.aDB [1] * bDP1_1) / (bDP1_0 + bDP1_1)));
         fmtFTupdate(maxbias, fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::DB2],    uni_bias_thres, ((fmt.aDB [0] * cDP1_0 + fmt.aDB [1] * cDP1_1) / (cDP1_0 + cDP1_1)));
