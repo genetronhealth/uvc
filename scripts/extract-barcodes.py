@@ -23,7 +23,7 @@ def iter_fq(fqfile):
 
 def change_hdr(hdr, seq1, umi_beg1, umi_end1, seq2, umi_beg2, umi_end2, isduplex):
     hdr2 = hdr.rstrip().split()
-    if (len(hdr2) > 1 and len(hdr2[1].split(':')[0]) >= 3):
+    if (len(hdr2) > 1 and len(hdr2[1]) > 15 and len(hdr2[1].split(':')) > 2):
         hdr3 = hdr2[1]
     else:
         hdr3 = hdr2[0]

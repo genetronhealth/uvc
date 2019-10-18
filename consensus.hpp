@@ -2067,6 +2067,7 @@ generateVcfHeader(const char *ref_fasta_fname, const char *platform,
         ret += std::string("") + bcfrec::FILTER_LINES[i] + "\n";
     }
     
+    ret += "##INFO=<ID=ANY_VAR,Number=0,Type=Flag,Description=\"Any type of variant which may be caused by germline polymorphism and/or experimental artifact\">\n";
     ret += "##INFO=<ID=SOMATIC,Number=0,Type=Flag,Description=\"Somatic variant\">\n";
     ret += "##INFO=<ID=TNQ,Number=1,Type=Float,Description=\"Tumor-vs-normal quality based on sample comparison\">\n";
     ret += "##INFO=<ID=TNQNR,Number=1,Type=Float,Description=\"TNQ that considers all NON-REF bases as background noise\">\n";
@@ -2218,7 +2219,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
     }
     
     std::string ref_alt;
-    std::string infostring = "SOMATIC";
+    std::string infostring = (prev_is_tumor ? "SOMATIC" : "ANY_VAR");
     if (prev_is_tumor) {
         vcfpos = (tki.ref_alt != "." ? (tki.pos + 1) : vcfpos);
         ref_alt = (tki.ref_alt != "." ? tki.ref_alt : vcfref + "\t" + vcfalt);
