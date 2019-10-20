@@ -63,6 +63,8 @@ nvcfgz="${outdir}/${nsample}_uvc1.vcf.gz"
 tlog="${outdir}/${tsample}_uvc1.stderr"
 nlog="${outdir}/${nsample}_uvc1.stderr"
 
+export PATH="${scriptdir}:${PATH}" # remove this line in the rare case that an important executable is shadowed by this command.
+
 date 
 "${scriptdir}/uvc1" -f "${ref}" -s "${tsample}" "${tbam}" -o "${tvcfgz}" "${tparams[@]}" 2> "${tlog}"
 date 
