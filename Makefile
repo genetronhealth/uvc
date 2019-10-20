@@ -20,7 +20,7 @@ COMMIT_DIFF_SH=$(shell git diff HEAD --shortstat)
 VERFLAGS=-DCOMMIT_VERSION="\"$(COMMIT_VERSION)\"" -DCOMMIT_DIFF_SH="\"$(COMMIT_DIFF_SH)\"" 
 
 debarcode  : debarcode_main.c version.h
-	$(CC) -O3 -o debarcode debarcode_main.c ext/lib/libhts.a -lz
+	$(CC) -O3 -o debarcode $(VERFLAGS) debarcode_main.c ext/lib/libhts.a -lz
 	
 # the main executable, uses OpenMP for multi-threading
 uvc        : $(HDR) $(SRC) instcode.hpp Makefile
