@@ -122,7 +122,7 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
         std::cout << "uvc-" << VERSION << std::endl;
         exit(0);
     };
-    CLI::App app{(std::string("Universal Variant Caller (UVC) version ") + VERSION_DETAIL)};
+    CLI::App app{(std::string("Unified Variant Caller (UVC) version ") + VERSION_DETAIL)};
     app.add_flag_function("-v,--version", version_cb,   "Show the version of this program (打印此软件版本号).");    
     app.add_option("inputBam",       bam_input_fname,   "Input coordinate-sorted BAM file that is supposed to contain raw reads (按照位置排序的有原始reads的BAM文件).")->required()->check(CLI::ExistingFile);
     app.add_option("--output-bpRES", vcf_output_fname,  "Output bgzipped vcf file in the format of base-pair resolution (每个位置都输出检测信息的VCF输出文件，文件有可能非常大). This option is deprecated, please use -A instead. (已经废除，建议使用-A参数)");
