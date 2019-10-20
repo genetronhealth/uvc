@@ -11,7 +11,7 @@ all : debug-mt debug-st release test-cppt
 HDR=CLI11-1.7.1/CLI11.hpp logging.hpp consensus.hpp CmdLineArgs.hpp 
 SRC=main.cpp  bcf_formats.step1.c conversion.hpp grouping.hpp grouping.cpp utils.hpp CmdLineArgs.cpp
 
-HTSFLAGS=ext/lib/libhts.a -lm -lz -lcurl -lbz2 # -llzma -lcrypto # can be changed depending on the specific installed components of htslib (please refer to the INSTALL file in htslib)
+HTSFLAGS=ext/bcftools-1.9/htslib-1.9/libhts.a -lm -lz -lcurl -lbz2 -llzma # -lcrypto # can be changed depending on the specific installed components of htslib (please refer to the INSTALL file in htslib)
 CC=gcc  # can be changed to clang or other compilers as needed
 CXX=g++ # can be changed to clang or other compilers as needed
 CXXFLAGS=-std=c++14 -static-libstdc++
@@ -20,7 +20,7 @@ COMMIT_DIFF_SH=$(shell git diff HEAD --shortstat)
 VERFLAGS=-DCOMMIT_VERSION="\"$(COMMIT_VERSION)\"" -DCOMMIT_DIFF_SH="\"$(COMMIT_DIFF_SH)\"" 
 
 debarcode  : debarcode_main.c version.h
-	$(CC) -O3 -o debarcode $(VERFLAGS) debarcode_main.c ext/lib/libhts.a -lz
+	$(CC) -O3 -o debarcode $(VERFLAGS) debarcode_main.c ext/bcftools-1.9/htslib-1.9/libhts.a -lz
 	
 # the main executable, uses OpenMP for multi-threading
 uvc        : $(HDR) $(SRC) instcode.hpp Makefile
@@ -46,12 +46,13 @@ bcf_formats_generator1.out : bcf_formats_generator1.cpp version.h
 bcf_formats.step1.c : bcf_formats_generator1.out
 	./bcf_formats_generator1.out > bcf_formats.step1.c
 
-.PHONY: clean dup
+.PHONY: clean deploy
 
 clean:
 	rm bcf_formats_generator1.out bcf_formats.step1.c *.o *.out *.gch uvc debarcode || true
 
 # uvc1 is used by uvcTN.sh
-dup:
-	cp uvc uvc1
-
+deploy:
+	cp uvc bin/uvc1
+	cp debarcode bin/debarcode
+	
