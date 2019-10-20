@@ -61,7 +61,7 @@ int parse(CmdLineArgs *args_ptr, int argc, char **argv) {
             case 'C': args_ptr->use_comment_as_header = 1; break;
             case 'D': args_ptr->isduplex = 1; break;
             case 'v': fprintf(stderr, "Program %s version %s\n", argv[0], VERSION_DETAIL); return 0;
-            case 'h': usage(argc, argv); return 0;
+            case 'h': usage(argc, argv); exit(0);
             default:  usage(argc, argv); return -1;
         }
     }
