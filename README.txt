@@ -1,28 +1,33 @@
-
+UVC is a very accurate and reasonably fast somatic variant caller.
+The executable uvc1 in the bin direcotry takes one BAM file as input and generates one block-gzipped VCF file as output.
+The script uvcTN.sh in the bin directory takes two BAM files corresponding to tumor and normal as input and generate two block-gzipped VCF files (tumor-variant VCF and normal-filtered VCF) as output.
 
 --- How to install ---
 
+UVC requires a compiler that supports the c++14 standard.
+The Makefile in this directory compiles with g++, but the Makefile can be easily modified to use another compiler instead of g++ (for example, clang).
+To install from scratch, please run ./install-dependencies.sh && make clean && make all && make deploy
 UVC depends on htslib 1.6+ and bcftools 1.6+ (lower versions of htslib and bcftools may also work, but are not tested).
-UVC requires bcftools to be installed on a system location, for example at a location that can be found in the <PATH> environment variable.
-UVC requires the static library libhts.a to be at the relative path ext/lib/, which is the default directory for external libraries. The default path ext/lib/ can be changed by modifying the Makefile.
-The library htslib is also part of bcftools. For instructions on how to install htslib and bcftools, please check their official repositories at https://github.com/samtools/htslib and  https://github.com/samtools/bcftools
-UVC requires a compiler that supports the c++14 standard. 
-The Makefile compiles with g++, but the Makefile can be easily modified to use another compiler instead of g++ (for example clang).
+If these two dependencies were already installed, then install-dependencies.sh may not be necessary.
+For trouble-shooting with the installation of htslib and bcftools, please check their official repositories at https://github.com/samtools/htslib and https://github.com/samtools/bcftools
+Although not required, it is highly recommmended that bcftools is installed at a system location (a location that can be found in the <PATH> environment variable).
 
 --- How to use ---
 
-The script uvcTN.sh is used for analyzing tumor-normal pairs.
-Run uvcTN.sh without any argument will display its usage help.
+The script uvcTN.sh in the bin directory is used for analyzing tumor-normal pairs.
+Run uvcTN.sh without any command-line argument will display its usage help.
 The usage help for uvcTN.sh refers to the executable uvc1, which performs the actual variant calling.
 The executable uvc1 can perform each of the following tasks:
- 1. tumor-only variant call to generate a tumor-only bgzipped vcf (typically with vcf.gz as file extension)
+ 1. tumor-only variant call to generate a tumor-only bgzipped vcf with vcf.gz as file extension.
  2. filtering of tumor variants in tumor-only bgzipped vcf with its matched normal.
 The script uvcTN.sh simply wraps around the binary executable uvc1.
 
 For UMI to be detected, the read name (QNAME) in the input BAM file should be in the format of <original-name>#<UMI>, where UMI stands for unique moleculer identifier.
 For example, the UMI-labeled read name can be
- 1. "H5G7WCCXX:4:1209:10114:63736#ACGTAACCA" (ACGTAACCA is the single-strand barcode) or 
- 2. "H5G7WCCXX:1:3010:10412:33669#AGTA+TGGT" (AGTA+TGGT is the duplex barcode).
+ 1. "H5G5ABBCC:4:1209:10114:63736#ACGTAACCA" (ACGTAACCA is the single-strand barcode) or 
+ 2. "H5G5ABBCC:1:3010:10412:33669#AGTA+TGGT" (AGTA+TGGT is the duplex barcode).
+The auxiliary tool debarcode can be used for appending UMI (unique molecular identifier, a.k.a. molecular barcode) sequences into read names.
+Running debarcode without any command-line argument will display its usage help.
 
 --- What to report if a runtime error arises ---
 
@@ -39,4 +44,9 @@ uvc.cppt.out: similar to uvc1 except that uvc.cppt.out uses c++14 thread instead
 
 All bug reports, feature requests, and ideas for improvement are welcome (although not all of them may be addressed in time)!
 
+--- Other things --
+
+The python script extract-barcodes.py is obsolete and is replaced by debarcode.
+Compared with extract-barcodes.py, debarcode generates equivalent output but consumes only 40% of its runtime.
+The outputs of these two programs may not be the same in compressed space but are exactly the same in decompressed space.
 
