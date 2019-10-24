@@ -27,6 +27,7 @@ struct CommandLineArgs {
     PairEndMerge pair_end_merge = PAIR_END_MERGE_YES;
     unsigned int fixedthresBQ = 20;
     unsigned int uni_bias_thres = 180;
+    unsigned int uni_bias_r_max = 1900900900;
     
     // it is used to decide whether UMI or non-UMI tumor-vs-normal quality should be used
     unsigned int highqual_thres_snv = 44;

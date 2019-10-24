@@ -1144,7 +1144,7 @@ struct Symbol2CountCoverageSet {
             auto & vars_thres, auto & vars_depth, auto & vars_badep, auto & vars_vqual,
             auto & dedup_ampDistr, const auto & prev_tsum_depth,
             auto & pb_dist_lpart, auto & pb_dist_rpart, auto & pb_dist_nvars, auto & additional_note, bool should_add_note, const PhredMutationTable & phred_max_table,
-            const auto & symbolType2addPhred, const double ess_georatio_dedup) {
+            const auto & symbolType2addPhred, const double ess_georatio_dedup, const unsigned int uni_bias_r_max) {
         
         assert(dedup_ampDistr.at(0).getIncluBegPosition() == dedup_ampDistr.at(1).getIncluBegPosition());
         assert(dedup_ampDistr.at(0).getExcluEndPosition() == dedup_ampDistr.at(1).getExcluEndPosition());
@@ -1271,7 +1271,9 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         bias_2stra[strand].getRefByPos(pos).incSymbolCount(symbol, sb100fin);
                         auto str_imba = biasfact100_to_imba(sb100fin);
                         
-                        max_imba_depth = (unsigned int)ceil(curr_depth_symbsum / MAX(dup_imba, MAX(MAX(MAX(pb_ldist_imba, pb_rdist_imba), str_imba), pb_nvars_imba)) / (1 + DBL_EPSILON));
+                        max_imba_depth = (unsigned int)ceil(curr_depth_symbsum / 
+                                MIN(uni_bias_r_max, MAX(dup_imba, MAX(MAX(MAX(pb_ldist_imba, pb_rdist_imba), str_imba), pb_nvars_imba)))
+                                / (1 + DBL_EPSILON));
                         if (should_add_note) {
                             this->additional_note.getRefByPos(pos).at(symbol) += "//(" +
                                     std::to_string(uqual_avg_imba) + "/" + 
@@ -1335,7 +1337,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
             bool should_add_note, unsigned int frag_indel_ext, unsigned int frag_indel_basemax,
             const PhredMutationTable & phred_max_table, unsigned int phred_thres
             , double ess_georatio_dedup, double ess_georatio_duped_pcr
-            , unsigned int fixedthresBQ, unsigned int nogap_phred
+            , unsigned int fixedthresBQ, unsigned int nogap_phred, unsigned int uni_bias_r_max
             ) {
         for (const auto & alns2pair2dflag : alns3) {
             const auto & alns2pair = alns2pair2dflag.first;
@@ -1439,7 +1441,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                 this->bq_vars_thres, this->bq_vars_depth, this->bq_vars_badep, this->bq_vars_vqual,
                 this->dedup_ampDistr,this->bq_tsum_depth,
                 this->pb_dist_lpart, this->pb_dist_rpart, this->pb_dist_nvars, this->additional_note, should_add_note, phred_max_table, 
-                symbolType2addPhred, ess_georatio_dedup);
+                symbolType2addPhred, ess_georatio_dedup, uni_bias_r_max);
         return 0;
     }
     
@@ -1453,7 +1455,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
             const PhredMutationTable & phred_max_table, unsigned int phred_thres, 
             const double ess_georatio_dedup, const double ess_georatio_duped_pcr,
 	        bool is_loginfo_enabled, unsigned int thread_id, unsigned int nogap_phred
-            , unsigned int highqual_thres_snv, unsigned int highqual_thres_indel) {
+            , unsigned int highqual_thres_snv, unsigned int highqual_thres_indel, unsigned int uni_bias_r_max) {
         unsigned int niters = 0;
         for (const auto & alns2pair2dflag : alns3) {
             const auto & alns2pair = alns2pair2dflag.first;
@@ -1656,7 +1658,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                 this->fq_vars_thres, this->fq_vars_depth, this->fq_vars_badep, this->fq_vars_vqual,
                 this->dedup_ampDistr,this->bq_tsum_depth,
                 this->pb_dist_lpart, this->pb_dist_rpart, this->pb_dist_nvars, this->additional_note, should_add_note, phred_max_table, 
-                symbolType2addPhred, ess_georatio_dedup);
+                symbolType2addPhred, ess_georatio_dedup, uni_bias_r_max);
     };
     
     std::basic_string<AlignmentSymbol> string2symbolseq(const std::string & instring) {
@@ -1701,20 +1703,20 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
             unsigned int phred_thres,
             const double ess_georatio_dedup, const double ess_georatio_duped_pcr,
             bool use_deduplicated_reads, bool is_loginfo_enabled, unsigned int thread_id, unsigned int fixedthresBQ, unsigned int nogap_phred
-            , unsigned int highqual_thres_snv, unsigned int highqual_thres_indel
+            , unsigned int highqual_thres_snv, unsigned int highqual_thres_indel, unsigned int uni_bias_r_max
             ) {
         const std::array<unsigned int, NUM_SYMBOL_TYPES> symbolType2addPhred = {bq_phred_added_misma, bq_phred_added_indel};
         std::basic_string<AlignmentSymbol> ref_symbol_string = string2symbolseq(refstring);
         updateByAlns3UsingBQ(mutform2count4map_bq, alns3, ref_symbol_string, symbolType2addPhred, should_add_note, frag_indel_ext, frag_indel_basemax, 
                 phred_max_sscs_table, phred_thres
-                , ess_georatio_dedup, ess_georatio_duped_pcr, fixedthresBQ, nogap_phred); // base qualities
+                , ess_georatio_dedup, ess_georatio_duped_pcr, fixedthresBQ, nogap_phred, uni_bias_r_max); // base qualities
         updateHapMap(mutform2count4map_bq, this->bq_tsum_depth);
         if (use_deduplicated_reads) {
             updateByAlns3UsingFQ(mutform2count4map_fq, alns3, ref_symbol_string, symbolType2addPhred, should_add_note, frag_indel_ext, frag_indel_basemax, 
                     phred_max_sscs_table, phred_thres 
                     , ess_georatio_dedup, ess_georatio_duped_pcr
                     , is_loginfo_enabled, thread_id, nogap_phred
-                    , highqual_thres_snv, highqual_thres_indel
+                    , highqual_thres_snv, highqual_thres_indel, uni_bias_r_max
                     ); // family qualities
             updateHapMap(mutform2count4map_fq, this->fq_tsum_depth);
         }

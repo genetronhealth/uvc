@@ -430,7 +430,7 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         ndst_val = 0;
         valsize = bcf_get_format_char(bcf_hdr, line, "cHap", &bcfstring, &ndst_val);
         assert(ndst_val == valsize && 0 < valsize || !fprintf(stderr, "%d == %d && nonzero failed for cHap!\n", ndst_val, valsize));
-        tki.FT += std::string(":tcHap=") + std::string(bcfstring);
+        tki.FT += std::string(";tcHap=") + std::string(bcfstring);
         
         tki.pos = line->pos;
         bcf_unpack(line, BCF_UN_STR);
@@ -566,7 +566,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
             (is_by_capture ? paramset.ess_georatio_dedup_cap : paramset.ess_georatio_dedup_pcr), paramset.ess_georatio_duped_pcr,
             !paramset.disable_dup_read_merge, 
             is_loginfo_enabled, thread_id, paramset.fixedthresBQ, paramset.nogap_phred
-            , paramset.highqual_thres_snv, paramset.highqual_thres_indel);
+            , paramset.highqual_thres_snv, paramset.highqual_thres_indel, paramset.uni_bias_r_max);
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts analyzing phasing info"; }
     auto mutform2count4vec_bq = map2vector(mutform2count4map_bq);
     auto simplemut2indices_bq = mutform2count4vec_to_simplemut2indices(mutform2count4vec_bq);
