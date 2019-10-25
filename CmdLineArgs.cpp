@@ -147,7 +147,8 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
 
     app.add_option("--uni-bias-thres", uni_bias_thres,  "Unified-bias threshold for generating the filter strings in FORMAT/FT. This parameter is only for generating statistics and therefore does not affect variant quality. Downstream hard filtering with FORMAT/FT is possible (统一偏好性的阈值，用于生成FORMAT/FT信息，只用于统计，不影响变异质量，FORMAT/FT可用于下游硬过滤). ", true);
     app.add_option("--uni-bias-r-max", uni_bias_r_max,  "Maximum unified-bias threshold used for reducing variant read support. This parameter does affect variant quality. (统一偏好性的最大值，用于减少变异支持，会影响变异质量). ", true);
-
+    app.add_option("--diffVAQfrac",    diffVAQfrac,     "Experimental real-numbered parameter that should be set to either zero or one (实验性的实数参数，理论值要么是零要么是一). ", true);
+    
     app.add_option("--highqual-thres-snv",          highqual_thres_snv,
             "the SNV quality threshold above which the family quality is considered to be high", true);
     app.add_option("--highqual-thres-indel",        highqual_thres_indel,

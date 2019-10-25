@@ -727,6 +727,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                                 , bcf_hdr, paramset.is_tumor_format_retrieved
                                 , ((BASE_SYMBOL == symbolType) ? paramset.highqual_thres_snv : (LINK_SYMBOL == symbolType ? paramset.highqual_thres_indel : 0))
                                 , paramset.highqual_min_ratio
+                                , paramset.diffVAQfrac
                                 // , paramset.highqual_min_vardep, paramset.highqual_min_totdep
                                 );
                     }
