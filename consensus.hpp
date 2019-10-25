@@ -2253,8 +2253,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         double pc1 = prob2phred(1.0 / (nDP + 2.0)) / (nAD + 1.0);
         double nAD1 = (nUseHD ? (highqual_thres * nAltHD) : nAltBQ) + depth_pseudocount;
         double nDP1 = (nUseHD ? (highqual_thres * nAllHD) : nAllBQ) + depth_pseudocount;
-        double tAD1 = (tUseHD ? (highqual_thres * tAltHD) : tAltBQ) + depth_pseudocount;
-        double tDP1 = (tUseHD ? (highqual_thres * tAllHD) : tAllBQ) + depth_pseudocount;
+        double tAD1 = (tUseHD ? (highqual_thres * tAltHD) : tAltBQ) + depth_pseudocount + sys_bias_phred;
+        double tDP1 = (tUseHD ? (highqual_thres * tAllHD) : tAllBQ) + depth_pseudocount + sys_bias_phred;
         
         double nfreqmult = 1.0;
         if (tUseHD && (!nUseHD)) {
@@ -2300,9 +2300,9 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
             // - GATK recommended SOR threshold of 4 for SNVs and 7 for InDels. 
             // - IonTorrent variantCaller has less stringent bias filter for InDels than for SNVs with its default parameters.
             // Therefore, the false positive filter for InDels is more lenient here too.
-            vcfqual = MIN(MIN(MIN(tnlike, tnlike_nonref) * tnq_mult_indel + sys_bias_phred, diffVAQ), fmt.GQ + germline_phred); // 5.00 is too high, 1.50 is too low
+            vcfqual = MIN(MIN(MIN(tnlike, tnlike_nonref) * tnq_mult_indel, diffVAQ), fmt.GQ + germline_phred); // 5.00 is too high, 1.50 is too low
         } else {
-            vcfqual = MIN(MIN(MIN(tnlike, tnlike_nonref) * tnq_mult_snv   + sys_bias_phred, diffVAQ), fmt.GQ + germline_phred); // (germline + sys error) freq of 10^(-25/10) ?
+            vcfqual = MIN(MIN(MIN(tnlike, tnlike_nonref) * tnq_mult_snv  , diffVAQ), fmt.GQ + germline_phred); // (germline + sys error) freq of 10^(-25/10) ?
         }
         ensure_positive_1(vcfqual);
     } else {
