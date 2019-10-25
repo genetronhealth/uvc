@@ -2078,6 +2078,7 @@ generateVcfHeader(const char *ref_fasta_fname, const char *platform,
     ret += "##INFO=<ID=tFA,Number=1,Type=Float,Description=\"Tumor-sample FA\">\n";
     ret += "##INFO=<ID=tFR,Number=1,Type=Float,Description=\"Tumor-sample FR\">\n";
     ret += "##INFO=<ID=tFT,Number=1,Type=String,Description=\"Tumor-sample FT where the filter strings are separated by period (.) instead of semi-colon because semi-colon is not permitted in INFO\">\n";
+    ret += "##INFO=<ID=tcHap,Number=1,Type=String,Description=\"Tumor-sample cHap\">\n";
     ret += "##INFO=<ID=tbDP,Number=1,Type=Integer,Description=\"Tumor-sample bDP\">\n";
     ret += "##INFO=<ID=tAltBQ,Number=1,Type=Integer,Description=\"Tumor-sample cAltBQ or bAltBQ, depending on command-line option\">\n";
     ret += "##INFO=<ID=tAllBQ,Number=1,Type=Integer,Description=\"Tumor-sample cAllBQ or bAllBQ, depending on command-line option\">\n";
