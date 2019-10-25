@@ -1272,7 +1272,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         auto str_imba = biasfact100_to_imba(sb100fin);
                         
                         max_imba_depth = (unsigned int)ceil(curr_depth_symbsum / 
-                                MIN(uni_bias_r_max, MAX(dup_imba, MAX(MAX(MAX(pb_ldist_imba, pb_rdist_imba), str_imba), pb_nvars_imba)))
+                                MIN(((double)uni_bias_r_max) / 100.0, MAX(dup_imba, MAX(MAX(MAX(pb_ldist_imba, pb_rdist_imba), str_imba), pb_nvars_imba)))
                                 / (1 + DBL_EPSILON));
                         if (should_add_note) {
                             this->additional_note.getRefByPos(pos).at(symbol) += "//(" +
