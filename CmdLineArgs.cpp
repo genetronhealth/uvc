@@ -205,7 +205,8 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     app.add_option("--bq-phred-added-misma", bq_phred_added_misma, "Additional base-quality phred score added to match and mismatch, recommend 6 for IonTorrent from Life Technologies.");
     app.add_option("--bq-phred-added-indel", bq_phred_added_indel, "Additional base-quality phred score added to indel and no-indel, recommend 6 for Illumina and BGI.");
     
-    app.add_option("--phred-germline",       phred_germline_polymorphism, "Phred-scale probabiity for germline polymorphism event.", true);
+    app.add_option("--phred-germline",       phred_germline_polymorphism, "Phred-scale probabiity for germline polymorphism event at a loci.", true);
+    app.add_option("--phred-sys-bias",       phred_sys_bias,              "Phred-scale probabiity for systematically biased error generation at a loci.", true);
     app.add_option("--nonref-alt-frac-snv",  nonref_to_alt_frac_snv,      "Fraction of NON-REF bases in normal that supports the ALT of interest for SNVs.", true);
     app.add_option("--nonref-alt-frac-indel",nonref_to_alt_frac_indel,    "Fraction of NON-REF bases in normal that supports the ALT of interest for InDels.", true);
     app.add_option("--tnq-mult-snv",         tnq_mult_snv,                "Multiplicative factor by which TNQ (tumor-normal quality) is amplified for computing QUAL for SNVs.", true);
