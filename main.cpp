@@ -18,12 +18,14 @@
 
 const unsigned int G_BLOCK_SIZE = 1000;
 
-void xfree(void *ptr) {
+void 
+xfree(void *ptr) {
     if (NULL != ptr) { free(ptr); }
 }
 
 template <bool TIsInputCompressed>
-int clearstring(BGZF * bgzip_file, const std::string & outstring_allp, bool is_output_to_stdout = false, bool flush = !TIsInputCompressed) {
+int 
+clearstring(BGZF * bgzip_file, const std::string & outstring_allp, bool is_output_to_stdout = false, bool flush = !TIsInputCompressed) {
     if (is_output_to_stdout) {
         std::cout << outstring_allp;
         return outstring_allp.size();
@@ -46,7 +48,8 @@ int clearstring(BGZF * bgzip_file, const std::string & outstring_allp, bool is_o
     return ret;
 };
 
-std::string load_refstring(const faidx_t *ref_faidx, unsigned int tid, unsigned int incbeg, unsigned int excend) {
+std::string 
+load_refstring(const faidx_t *ref_faidx, unsigned int tid, unsigned int incbeg, unsigned int excend) {
     assert(incbeg < excend);
     if (NULL == ref_faidx) {
         return std::string(excend - incbeg, 'n');
@@ -250,11 +253,11 @@ struct TumorKeyInfo {
     float FR = 0;
     int32_t bDP = 0;
     float bFA = 0;
-    int32_t AutoBestAllBQ = 0;
-    int32_t AutoBestAltBQ = 0;
-    int32_t AutoBestRefBQ = 0;
-    int32_t AutoBestAllHD = 0;
-    int32_t AutoBestAltHD = 0;
+    int32_t autoBestAllBQ = 0;
+    int32_t autoBestAltBQ = 0;
+    int32_t autoBestRefBQ = 0;
+    int32_t autoBestAllHD = 0;
+    int32_t autoBestAltHD = 0;
     bcf1_t *bcf1_record = NULL;
     /*
     ~TumorKeyInfo() {
@@ -266,7 +269,8 @@ struct TumorKeyInfo {
     */
 };
 
-std::string als_to_string(const char *const* const allele, unsigned int m_allele) {
+std::string 
+als_to_string(const char *const* const allele, unsigned int m_allele) {
     std::string ret;
     ret.reserve(m_allele*2);
     for (unsigned int i = 0; i < m_allele; i++) {
@@ -397,27 +401,27 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line,  "cAllBQ", &bcfints, &ndst_val);
         assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cAllBQ!\n", ndst_val, valsize));
-        tki.AutoBestAllBQ = bcfints[0] + bcfints[1];
+        tki.autoBestAllBQ = bcfints[0] + bcfints[1];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line,  "cAltBQ", &bcfints, &ndst_val);
         assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cAltBQ!\n", ndst_val, valsize));
-        tki.AutoBestAltBQ = bcfints[0] + bcfints[1];
+        tki.autoBestAltBQ = bcfints[0] + bcfints[1];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line,  "cRefBQ", &bcfints, &ndst_val);
         assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cRefBQ!\n", ndst_val, valsize));
-        tki.AutoBestRefBQ = bcfints[0] + bcfints[1];
+        tki.autoBestRefBQ = bcfints[0] + bcfints[1];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line,  "cAllHD", &bcfints, &ndst_val);
         assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cAllBQ!\n", ndst_val, valsize));
-        tki.AutoBestAllHD = bcfints[0] + bcfints[1];
+        tki.autoBestAllHD = bcfints[0] + bcfints[1];
 
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line,  "cAltHD", &bcfints, &ndst_val);
         assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cAltBQ!\n", ndst_val, valsize));
-        tki.AutoBestAltHD = bcfints[0] + bcfints[1];
+        tki.autoBestAltHD = bcfints[0] + bcfints[1];
         
         ndst_val = 0;
         valsize = bcf_get_format_char(bcf_hdr, line, "FT", &bcfstring, &ndst_val);
@@ -759,7 +763,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
     return 0;
 };
 
-int main(int argc, char **argv) {
+int 
+main(int argc, char **argv) {
     std::clock_t c_start = std::clock();
     auto t_start = std::chrono::high_resolution_clock::now();
     

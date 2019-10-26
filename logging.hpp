@@ -17,9 +17,11 @@ class Log {
 public:
     Log() {};
     virtual ~Log();
-    std::ostringstream& Get(TLogLevel level = logINFO2);
+    std::ostringstream& 
+    Get(TLogLevel level = logINFO2);
 public:
-    static TLogLevel& ReportingLevel() { return globalMessageLevel; };
+    static TLogLevel& 
+    ReportingLevel() { return globalMessageLevel; };
 protected:
     std::ostringstream os;
 private:
@@ -29,6 +31,7 @@ private:
     TLogLevel messageLevel;
 };
 
-char *NowTime(char *buffer);
+char *
+NowTime(char *buffer);
 
 #endif

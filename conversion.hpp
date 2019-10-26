@@ -15,40 +15,49 @@
 //#define MIN(a, b) ((a) < (b) ? (a) : (b))
 //#define MAX(a, b) ((a) > (b) ? (a) : (b))
 
-auto MIN(auto a, auto b) {
+auto 
+MIN(auto a, auto b) {
     return (a < b ? a :b);
 }
 
-auto MAX(auto a, auto b) {
+auto 
+MAX(auto a, auto b) {
     return (a > b ? a :b);
 }
 
-void UPDATE_MIN(auto & a, const auto & b) {
+void 
+UPDATE_MIN(auto & a, const auto & b) {
     a = MIN(a, b);
 }
 
-void UPDATE_MAX(auto & a, const auto & b) {
+void 
+UPDATE_MAX(auto & a, const auto & b) {
     a = MAX(a, b);
 }
 
-void UPDATE_MIN2(auto & a, const auto & b) {
+void 
+UPDATE_MIN2(auto & a, const auto & b) {
     for (int i = 0; i < 2; i++) { UPDATE_MIN(a[i], b[i]); }
 }
 
-void UPDATE_MAX2(auto & a, const auto & b) {
+void 
+UPDATE_MAX2(auto & a, const auto & b) {
     for (int i = 0; i < 2; i++) { UPDATE_MAX(a[i], b[i]); }
 }
 
-double powermean2(double a, double b, double p) {
+double 
+powermean2(double a, double b, double p) {
     return pow((pow(a, p) + pow(b, p)) / 2.0, 1.0 / p);
 }
 
-double lehmermean2(double a, double b, double p) {
+double 
+lehmermean2(double a, double b, double p) {
     return (pow(a, p) + pow(b, p)) / (pow(a, p-1) + pow(b, p-1));
 }
 
 template <bool TEnsurePositive = false>
-double geomean2(double a, double b) {
+double 
+geomean2(double a, double b) {
     if (TEnsurePositive) {
         a = MAX(a, 0);
         b = MAX(b, 0);
@@ -58,23 +67,30 @@ double geomean2(double a, double b) {
 
 // 1e-6 is the somatic mutation rate
 template <class T>
-void ensure_positive_1(T & v, T thres = 1e-6) {
+void 
+ensure_positive_1(T & v, T thres = 1e-6) {
     if (v < thres) {
         v = thres / ((1.0 + thres) - v);
     }
 }
 
-auto safediv0(auto a, auto b) {
+auto 
+safediv0(auto a, auto b) {
     return (b != 0 ? a / b : 0);
 }
 
-auto mathsquare(auto x) { return x * x; }
+auto 
+mathsquare(auto x) { 
+    return x * x; 
+}
 
-auto calc_directional_likeratio(double prob, double a, double b) {
+auto 
+calc_directional_likeratio(double prob, double a, double b) {
     return a * (log((double)a / (double)(a+b)) - log(prob))  + b * (log((double)b / (double)(a+b)) - log(1.0-prob));
 }
 
-auto calc_phred10_likeratio(auto prob, auto a, auto b) {
+auto 
+calc_phred10_likeratio(auto prob, auto a, auto b) {
     auto a2 = MIN(a, b);
     auto b2 = MAX(a, b);
     return (10.0 / log(10.0)) * calc_directional_likeratio(prob, a2 + DBL_EPSILON, b2 + DBL_EPSILON);
@@ -86,7 +102,9 @@ double calc_sdev (double sum_of_sqr, double sqr_of_sum, unsigned int size) {
 }
 */
 
-template <class T> void autoswap ( T& a, T& b ) {
+template <class T> 
+void 
+autoswap ( T& a, T& b ) {
     T c(a); a=b; b=c;
 }
 
@@ -160,7 +178,8 @@ any4_to_bias_symmetrical_max(T t00, T t01, T t10, T t11, double p) {
 }
 
 #ifdef TEST_any4_to_bias
-int main(int argc, char **argv) {
+int 
+main(int argc, char **argv) {
     double t00 = atof(argv[1]);
     double t01 = atof(argv[2]);
     double t10 = atof(argv[3]);
@@ -221,7 +240,8 @@ geometric_sum_to_nterms(double geosum, double term1, double ratio) {
     return ret;
 }
 
-double dlog(double n, double r) {
+double 
+dlog(double n, double r) {
     return log(n * (r-1) + 1) / log(r);
 }
 
@@ -351,7 +371,8 @@ _old_h01_to_phredlike(double h0pos, double h0tot, double h1pos, double h1tot,
 }
 
 #ifdef TEST_h01_to_phredlike
-int main(int argc, char **argv) {
+int 
+main(int argc, char **argv) {
     double result1 = _old_h01_to_phredlike<true>(10, 30000, 20, 30);
     double result2 = h01_to_phredlike<true>(10, 30000, 20, 30, 1, 1.5);
     printf("result12 = %f %f \n", result1, result2);
@@ -400,24 +421,29 @@ dp4_to_sratio(double all_fw0, double all_rv0, double alt_fw0, double alt_rv0, do
 
 //// conversion between different defintions in bioinformatics
 
-const unsigned int char2phred(const unsigned char charvalue) {
+const unsigned int 
+char2phred(const unsigned char charvalue) {
     return charvalue - 33;
 }
 
-const unsigned char phred2char(const unsigned int phredvalue) {
+const unsigned char 
+phred2char(const unsigned int phredvalue) {
     // return chr(MAX((33-1, MIN((phredvalue + 33, 126)))))
     return phredvalue + 33;
 }
 
-const double phred2prob(const unsigned int phredvalue) {
+const double 
+phred2prob(const unsigned int phredvalue) {
     return pow(10, -((float)phredvalue) / 10);
 }
 
-const unsigned int prob2phred(const double probvalue) {
+const unsigned int 
+prob2phred(const double probvalue) {
     return floor(-10 * log(probvalue) / log(10));
 }
 
-const unsigned int phred2bucket(const unsigned int phredvalue) {
+const unsigned int 
+phred2bucket(const unsigned int phredvalue) {
     assert(phredvalue < NUM_BUCKETS);
     return phredvalue; // return phredvalue / (64/NUM_BUCKETS);
     // return MIN(32-1, phredvalue / 2);
@@ -430,7 +456,8 @@ const unsigned int phred2bucket(const unsigned int phredvalue) {
     //return floor(20 * log(phredvalue + 1) / log(10));
 }
 
-const unsigned int bucket2phred(const unsigned int bucketvalue) {
+const unsigned int 
+bucket2phred(const unsigned int bucketvalue) {
     return bucketvalue; // return bucketvalue * (64/NUM_BUCKETS);
     //return bucketvalue * 2;
     // return floor(pow(10, ((float)(bucketvalue)) / 20) - 1);

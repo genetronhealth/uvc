@@ -65,7 +65,8 @@ struct SamIter {
         sam_close(sam_infile);
     }
     
-    int iternext(std::vector<std::tuple<unsigned int, unsigned int, unsigned int, bool, unsigned int>> & tid_beg_end_e2e_vec);
+    int 
+    iternext(std::vector<std::tuple<unsigned int, unsigned int, unsigned int, bool, unsigned int>> & tid_beg_end_e2e_vec);
 };
 
 int

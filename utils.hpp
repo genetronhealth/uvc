@@ -6,14 +6,16 @@
 
 // T=uint32_t for deletion and T=string for insertion
 
-template <class T> uint32_t 
+template <class T> 
+uint32_t 
 posToIndelToData_get(const std::map<uint32_t, std::map<T, uint32_t>> & pos2indel2data, const uint32_t refpos, const T & indel, uint32_t default1 = 0, uint32_t default2 = 0) {
     if (pos2indel2data.find(refpos) == pos2indel2data.end()) { return default1; }
     if (pos2indel2data.at(refpos).find(indel) == pos2indel2data.at(refpos).end()) { return default2; }
     return pos2indel2data.at(refpos).at(indel);
 }
 
-template <class T> void
+template <class T> 
+void
 posToIndelToCount_inc(std::map<uint32_t, std::map<T, uint32_t>> & pos2indel2count, uint32_t pos, const T indel, uint32_t incvalue = 1) {
     assert(incvalue > 0);
     auto pos2indel2count4it = pos2indel2count.insert(std::make_pair(pos, std::map<T, uint32_t>()));
@@ -22,7 +24,8 @@ posToIndelToCount_inc(std::map<uint32_t, std::map<T, uint32_t>> & pos2indel2coun
     assert (posToIndelToData_get(pos2indel2count, pos, indel) > 0); 
 }
 
-template <class T> T
+template <class T> 
+T
 posToIndelToCount_updateByConsensus(std::map<uint32_t, std::map<T, uint32_t>> & dst, const std::map<uint32_t, std::map<T, uint32_t>> & src, uint32_t epos, uint32_t incvalue = 1) {
     const auto pos2indel2count4it = src.find(epos);
     assert(pos2indel2count4it != src.end());
@@ -38,7 +41,8 @@ posToIndelToCount_updateByConsensus(std::map<uint32_t, std::map<T, uint32_t>> & 
     //return (int)src_count;
 }
 
-template <bool TIsIncVariable, class T> int
+template <bool TIsIncVariable, class T> 
+int
 posToIndelToCount_updateByRepresentative(std::map<uint32_t, std::map<T, uint32_t>> & dst, const std::map<uint32_t, std::map<T, uint32_t>> & src, uint32_t epos, uint32_t incvalue = 1) {
     const auto pos2indel2count4it = src.find(epos);
     assert(pos2indel2count4it != src.end());
@@ -64,7 +68,8 @@ posToIndelToCount_updateByRepresentative(std::map<uint32_t, std::map<T, uint32_t
     return (int)max_count;
 }
 
-template <class T> void
+template <class T> 
+void
 posToIndelToCount_updateByConsensus_old(std::map<uint32_t, std::map<T, uint32_t>> & dst, const std::map<uint32_t, std::map<T, uint32_t>> & src, uint32_t incvalue = 1) {
     for (auto src_pos2indel2count4it : src) {
         auto src_pos = src_pos2indel2count4it.first;
@@ -80,7 +85,8 @@ posToIndelToCount_updateByConsensus_old(std::map<uint32_t, std::map<T, uint32_t>
     }
 }
 
-template <class T> void
+template <class T> 
+void
 posToIndelToCount_updateBySummation(std::map<uint32_t, std::map<T, uint32_t>> & dst, const std::map<uint32_t, std::map<T, uint32_t>> & src) {
     for (auto src_pos2indel2count4it : src) {
         auto src_pos = src_pos2indel2count4it.first;
@@ -106,6 +112,4 @@ posToIndelToCount_DlenToDseq(std::map<uint32_t, std::map<std::string, uint32_t>>
         }
     }
 }
-
-
 

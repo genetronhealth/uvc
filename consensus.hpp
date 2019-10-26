@@ -113,7 +113,8 @@ const char* SYMBOL_TO_DESC_ARR[] = {
     [LINK_NN] = "<LN>",
 };
 
-const std::map<std::string, AlignmentSymbol> _generateDescToSymbolMap() {
+const std::map<std::string, AlignmentSymbol>
+_generateDescToSymbolMap() {
     std::map<std::string, AlignmentSymbol> ret;
     for (AlignmentSymbol s = AlignmentSymbol(0); s < END_ALIGNMENT_SYMBOLS; s = AlignmentSymbol(1+(unsigned int)s)) {
         ret[SYMBOL_TO_DESC_ARR[s]] = s;
@@ -123,7 +124,8 @@ const std::map<std::string, AlignmentSymbol> _generateDescToSymbolMap() {
 
 const std::map<std::string, AlignmentSymbol> DESC_TO_SYMBOL_MAP = _generateDescToSymbolMap();
 
-bool areSymbolsMutated(AlignmentSymbol ref, AlignmentSymbol alt) {
+bool 
+areSymbolsMutated(AlignmentSymbol ref, AlignmentSymbol alt) {
     if (alt <= BASE_NN) {
         return ref != alt && ref < BASE_N && alt < BASE_N;
     } else {
@@ -131,7 +133,8 @@ bool areSymbolsMutated(AlignmentSymbol ref, AlignmentSymbol alt) {
     }
 };
 
-constexpr bool isSymbolIns(const AlignmentSymbol symbol) {
+constexpr bool 
+isSymbolIns(const AlignmentSymbol symbol) {
     if (LINK_I3P == symbol || LINK_I2 == symbol || LINK_I1 == symbol) {
         return true;
     } else {
@@ -139,7 +142,8 @@ constexpr bool isSymbolIns(const AlignmentSymbol symbol) {
     }
 }
 
-constexpr bool isSymbolDel(const AlignmentSymbol symbol) {
+constexpr bool 
+isSymbolDel(const AlignmentSymbol symbol) {
      if (LINK_D3P == symbol || LINK_D2 == symbol || LINK_D1 == symbol) {
         return true;
     } else {
@@ -147,12 +151,14 @@ constexpr bool isSymbolDel(const AlignmentSymbol symbol) {
     }  
 }
 
-const AlignmentSymbol insLenToSymbol(unsigned int len) {
+const AlignmentSymbol 
+insLenToSymbol(unsigned int len) {
     assert(len > 0);
     return 1 == len ? LINK_I1 : (2 == len ? LINK_I2 : LINK_I3P);
 }
 
-const AlignmentSymbol delLenToSymbol(unsigned int len) {
+const AlignmentSymbol 
+delLenToSymbol(unsigned int len) {
     assert(len > 0);
     return 1 == len ? LINK_D1 : (2 == len ? LINK_D2 : LINK_D3P);
 }
@@ -188,7 +194,8 @@ const AlignmentSymbol SYMBOL_TYPE_TO_AMBIG[NUM_SYMBOL_TYPES] = {
     [LINK_SYMBOL] = LINK_NN,
 };
 
-bool isSymbolSubstitution(AlignmentSymbol symbol) {
+bool 
+isSymbolSubstitution(AlignmentSymbol symbol) {
     return (SYMBOL_TYPE_TO_INCLU_BEG[BASE_SYMBOL] <= symbol && symbol <= SYMBOL_TYPE_TO_INCLU_END[BASE_SYMBOL]);
 }
 
@@ -238,12 +245,14 @@ EDBUCK_TO_DIST = {
     12*13/2
 };
 
-unsigned int pos2edbuck(unsigned int pos) {
+unsigned int 
+pos2edbuck(unsigned int pos) {
     //return MIN(pos / EDBUCK_SIZE, NUM_EDBUCKS - 1);
     return DIST_TO_EDBUCK[MIN(pos, DIST_TO_EDBUCK.size()-1)];
 }
 
-unsigned int edbuck2pos(unsigned int edbuck) {
+unsigned int 
+edbuck2pos(unsigned int edbuck) {
     assert(EDBUCK_TO_DIST.size() > edbuck);
     // return edbuck * EDBUCK_SIZE;
     return EDBUCK_TO_DIST[edbuck];
@@ -253,7 +262,8 @@ typedef std::array<molcount_t, NUM_BUCKETS> Bucket2Count;
 typedef std::array<molcount_t, NUM_EDBUCKS> Bucket2CountEdgeDist;
 typedef std::array<molcount_t, NUM_NMBUCKS> Bucket2CountNumMisma;
 
-const int _print_Bucket2CountEdgeDist(const Bucket2CountEdgeDist & arg) {
+const int 
+_print_Bucket2CountEdgeDist(const Bucket2CountEdgeDist & arg) {
     for (size_t i = 0; i < NUM_EDBUCKS; i++) {
         LOG(logINFO) << arg.at(i) << "\t";
     }
@@ -489,13 +499,16 @@ protected:
     std::vector<T> idx2symbol2data;
     std::map<uint32_t, std::map<uint32_t   , uint32_t>> pos2dlen2data;
     std::map<uint32_t, std::map<std::string, uint32_t>> pos2iseq2data;
-    const size_t _extern2intern4pos(size_t extern_ref_pos) {
+    
+    const size_t 
+    _extern2intern4pos(size_t extern_ref_pos) {
         assert(extern_ref_pos >= incluBegPosition);
         assert(extern_ref_pos <  incluBegPosition + idx2symbol2data.size() || !fprintf(stderr, "%d is not within (%d - %d)", extern_ref_pos, incluBegPosition, incluBegPosition + idx2symbol2data.size()));
         return extern_ref_pos - incluBegPosition;
     };
 public:
-    const char rchars_rpos_to_rchar(const std::string & refstring, unsigned int extern_ref_pos) {
+    const char 
+    rchars_rpos_to_rchar(const std::string & refstring, unsigned int extern_ref_pos) {
         auto internpos = _extern2intern4pos(extern_ref_pos);
         assert(internpos < refstring.size());
         return refstring.at(internpos);
@@ -551,8 +564,7 @@ public:
     getRefPosToIseqToData() {
         return pos2iseq2data;
     };
-
-
+    
     template <LinkType TLinkType>
     const auto &
     getPosToIndelToData() const {
@@ -681,7 +693,8 @@ public:
         assert(this->getExcluEndPosition() >= other.getExcluEndPosition() || !fprintf(stderr, "%lu >= %lu failed!", this->getExcluEndPosition(), other.getExcluEndPosition())); 
     }
     
-    std::vector<unsigned int> computeZeroBasedPosToInsLenVec(unsigned int & totInsLen) {
+    std::vector<unsigned int> 
+    computeZeroBasedPosToInsLenVec(unsigned int & totInsLen) {
         std::vector<unsigned int> ret(this->getExcluEndPosition() - this->getIncluBegPosition(), 0);
         for (auto & refPosToIseqToData : this->getRefPosToIseqToData()) {
             uint32_t refPos = refPosToIseqToData.first;
@@ -724,7 +737,8 @@ public:
     }
 
     // mainly for merging R1 and R2 into one read
-    template<ValueType T_ConsensusType, bool TIndelIsMajor = false> void
+    template<ValueType T_ConsensusType, bool TIndelIsMajor = false> 
+    void
     updateByConsensus(const GenericSymbol2CountCoverage<TSymbol2Count> &other, unsigned int incvalue = 1,
             const bool update_pos2indel2count = true, const bool update_idx2symbol2data = true) {
         this->assertUpdateIsLegal(other);
@@ -1341,7 +1355,8 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
         return 0;
     };
 
-    int updateByAlns3UsingBQ(
+    int 
+    updateByAlns3UsingBQ(
             std::map<std::basic_string<std::pair<unsigned int, AlignmentSymbol>>, std::array<unsigned int, 2>> & mutform2count4map,
             const std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, int>> & alns3, 
             const std::basic_string<AlignmentSymbol> & region_symbolvec,
@@ -1674,7 +1689,8 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
         return 0;
     };
     
-    std::basic_string<AlignmentSymbol> string2symbolseq(const std::string & instring) {
+    std::basic_string<AlignmentSymbol> 
+    string2symbolseq(const std::string & instring) {
         std::basic_string<AlignmentSymbol> ret;
         ret.reserve(instring.size());
         for (size_t i = 0; i < instring.size(); i++) {
@@ -1705,7 +1721,8 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
         return 0;
     };
     
-    int updateByRegion3Aln(
+    int 
+    updateByRegion3Aln(
             std::map<std::basic_string<std::pair<unsigned int, AlignmentSymbol>>, std::array<unsigned int, 2>> & mutform2count4map_bq,
             std::map<std::basic_string<std::pair<unsigned int, AlignmentSymbol>>, std::array<unsigned int, 2>> & mutform2count4map_fq,
             const std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, int>> & alns3, 
@@ -2257,13 +2274,13 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         */
         double nAltBQ = fmt.cAltBQ[0] + fmt.cAltBQ[1];
         double nAllBQ = fmt.cAllBQ[0] + fmt.cAllBQ[1];
-        double tAltBQ = tki.AutoBestAltBQ;
-        double tAllBQ = tki.AutoBestAllBQ;
+        double tAltBQ = tki.autoBestAltBQ;
+        double tAllBQ = tki.autoBestAllBQ;
         
         double nAltHD = fmt.cAltHD[0] + fmt.cAltHD[1];
         double nAllHD = fmt.cAllHD[0] + fmt.cAllHD[1];
-        double tAltHD = tki.AutoBestAltHD;
-        double tAllHD = tki.AutoBestAllHD;
+        double tAltHD = tki.autoBestAltHD;
+        double tAllHD = tki.autoBestAllHD;
         
         const bool tUseHD =  (tki.bDP > tki.DP * highqual_min_ratio);
         const bool nUseHD = ((fmt.bDP > fmt.DP * highqual_min_ratio) && tUseHD);
@@ -2294,7 +2311,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         Any4Value bq4((nDP1 - nRD1) * (isInDel ? nonref_to_alt_frac_indel : nonref_to_alt_frac_snv) * nfreqmult + 1, nDP1 + 1, tAD1 + 1, tDP1 + 1);
         double tnlike_nonref = bq4.to_phredlike(1);
         
-        assert(tki.AutoBestAllBQ >= tki.AutoBestRefBQ + tki.AutoBestAltBQ);
+        assert(tki.autoBestAllBQ >= tki.autoBestRefBQ + tki.autoBestAltBQ);
         
         infostring += std::string(";TNQ=") + std::to_string(tnlike);
         infostring += std::string(";TNQNR=") + std::to_string(tnlike_nonref);
@@ -2304,11 +2321,11 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         infostring += std::string(";tFR=") + std::to_string(tki.FR);
         infostring += std::string(";tFT=") + tki.FT;
         infostring += std::string(";tbDP=") + std::to_string(tki.bDP);
-        infostring += std::string(";tAltBQ=") + std::to_string(tki.AutoBestAltBQ);
-        infostring += std::string(";tAllBQ=") + std::to_string(tki.AutoBestAllBQ);
-        infostring += std::string(";tRefBQ=") + std::to_string(tki.AutoBestRefBQ);
-        infostring += std::string(";tAltHD=") + std::to_string(tki.AutoBestAltHD);
-        infostring += std::string(";tAllHD=") + std::to_string(tki.AutoBestAllHD);
+        infostring += std::string(";tAltBQ=") + std::to_string(tki.autoBestAltBQ);
+        infostring += std::string(";tAllBQ=") + std::to_string(tki.autoBestAllBQ);
+        infostring += std::string(";tRefBQ=") + std::to_string(tki.autoBestRefBQ);
+        infostring += std::string(";tAltHD=") + std::to_string(tki.autoBestAltHD);
+        infostring += std::string(";tAllHD=") + std::to_string(tki.autoBestAllHD);
         infostring += std::string(";TNQA=") + std::to_string(tnlike_argmin);
         
         // auto finalGQ = (("1/0" == fmt.GT) ? fmt.GQ : 0); // is probably redundant?
@@ -2344,7 +2361,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
             if (vcfqual > mai_tier_qual) {
                 // penalize multi-allelic indels.
                 vcfqual = mai_tier_qual + (vcfqual - mai_tier_qual) * 
-                        (double)(tki.AutoBestAltBQ + mai_tier_abq) / (double)(tki.AutoBestAllBQ - tki.AutoBestRefBQ + mai_tier_abq);
+                        (double)(tki.autoBestAltBQ + mai_tier_abq) / (double)(tki.autoBestAllBQ - tki.autoBestRefBQ + mai_tier_abq);
             }
             if (vcfqual > str_tier_qual) {
                 // penalize indels with a high number of nucleotides in repeat region.

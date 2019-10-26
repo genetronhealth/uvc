@@ -30,7 +30,8 @@ private:
     TLogLevel messageLevel;
 };
 
-char *NowTime(char *buffer) {
+char *
+NowTime(char *buffer) {
     time_t rawtime;
     time(&rawtime);
     struct tm t;
@@ -39,7 +40,8 @@ char *NowTime(char *buffer) {
     return buffer;
 }
 
-std::ostringstream& Log::Get(TLogLevel level) {
+std::ostringstream& 
+Log::Get(TLogLevel level) {
     char buffer[128];
     os << "- " << NowTime(buffer);
     os << " " << TLogLevelToString[level] << ": ";

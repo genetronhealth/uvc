@@ -332,7 +332,8 @@ fill_isrc_isr2_beg_end_with_aln(bool & isrc, bool & isr2, uint32_t & tBeg, uint3
     return NOT_FILTERED;
 }
 
-unsigned int unsigned_diff(unsigned int a, unsigned int b) {
+unsigned int 
+unsigned_diff(unsigned int a, unsigned int b) {
     return (a > b ? a - b : b - a);
 }
 
@@ -361,7 +362,8 @@ poscounter_to_pos2pcenter(
 //// one-way converion of data into hash values
 
 // https://en.wikipedia.org/wiki/Universal_hashing#Hashing_strings
-template <class T> uint64_t 
+template <class T> 
+uint64_t 
 strnhash(const T *str, size_t n) {
     uint64_t ret = 0;
     for (size_t i = 0; i < n && str[i]; i++) {
@@ -370,7 +372,8 @@ strnhash(const T *str, size_t n) {
     return ret;
 }
 
-template <class T> uint64_t 
+template <class T> 
+uint64_t 
 strnhash_rc(const T *str, size_t n) {
     uint64_t ret = 0;
     for (size_t i = 0; i < n && str[i]; i++) {
@@ -379,7 +382,8 @@ strnhash_rc(const T *str, size_t n) {
     return ret;
 }
 
-template<class T> uint64_t 
+template<class T> 
+uint64_t 
 strhash(const T *str) {
     return strnhash(str, SIZE_MAX);
 }
