@@ -54,7 +54,7 @@ std::string load_refstring(const faidx_t *ref_faidx, unsigned int tid, unsigned 
     const char *tname = faidx_iseq(ref_faidx, tid);
     int regionlen;
     char *fetchedseq = faidx_fetch_seq(ref_faidx, tname, incbeg, excend - 1, &regionlen);
-    assert (regionlen == (excend - incbeg) || !fprintf(stderr, "%d == %d - %d failed", regionlen, excend, incbeg));
+    assert (regionlen == (int)(excend - incbeg) || !fprintf(stderr, "%d == %u - %u failed", regionlen, excend, incbeg));
     std::string ret(fetchedseq);
     for (size_t i = 0; i < ret.size(); i++) {
         ret[i] = toupper(ret[i]);
@@ -421,7 +421,7 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         ndst_val = 0;
         valsize = bcf_get_format_char(bcf_hdr, line, "FT", &bcfstring, &ndst_val);
         assert(ndst_val == valsize && 0 < valsize || !fprintf(stderr, "%d == %d && nonzero failed for FT!\n", ndst_val, valsize));
-        for (unsigned int ftidx = 0; ftidx < valsize - 1; ftidx++) {
+        for (int ftidx = 0; ftidx < valsize - 1; ftidx++) {
             if (';' == bcfstring[ftidx]) {
                 bcfstring[ftidx] = '.';
             }
