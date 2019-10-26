@@ -141,6 +141,7 @@ bgzip_string(std::string & compressed_outstring, const std::string & uncompresse
     } while (uncompress_totlen < uncompressed_outstring.size());
     compressed_outstring += std::string(compressed_outstr, compressed_totlen);
     free(compressed_outstr);
+    return 0;
 }
 
 struct BatchArg {
@@ -753,6 +754,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
         outstring_pass += raw_out_string_pass;
     }
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id  << " is done with current task"; }
+    return 0;
 };
 
 int main(int argc, char **argv) {
@@ -1117,5 +1119,6 @@ int main(int argc, char **argv) {
               << "Wall clock time passed: "
               << std::chrono::duration<double>(t_end-t_start).count()
               << " seconds\n";
+    return 0;
 }
 

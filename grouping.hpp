@@ -105,17 +105,20 @@ struct _RevComplement {
 const _RevComplement THE_REV_COMPLEMENT;
 
 template <class TContainer>
-int revcompln(TContainer & str, size_t len) {
+int 
+revcompln(TContainer & str, size_t len) {
     for (size_t i = 0; i < len / 2; i++) {
         autoswap(str[i], str[len-1-i]);
     }
     for (size_t i = 0; i < len; i++) {
         str[i] = THE_REV_COMPLEMENT.data[str[i]];    
     }
+    return 0;
 }
 
 template <class TContainer>
-int revcompl(TContainer & str) {
+int 
+revcompl(TContainer & str) {
     return revcompln(str, str.size());
 }
 

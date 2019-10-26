@@ -598,6 +598,7 @@ fillTidBegEndFromAlns1(uint32_t & tid, uint32_t & inc_beg, uint32_t & exc_end, c
     }
     assert (tid != UINT32_MAX);
     assert (inc_beg < exc_end);
+    return 0;
 };
 
 int 
@@ -609,6 +610,7 @@ fillTidBegEndFromAlns2(uint32_t  & tid, uint32_t & inc_beg, uint32_t & exc_end, 
     for (auto alns1 : alns2) {
         fillTidBegEndFromAlns1(tid, inc_beg, exc_end, alns1, true);
     }
+    return 0;
 };
 
 int 
@@ -620,9 +622,11 @@ fillTidBegEndFromAlns3(uint32_t & tid, uint32_t & inc_beg, uint32_t & exc_end, c
     for (auto alns2 : alns3) {
         fillTidBegEndFromAlns2(tid, inc_beg, exc_end, alns2, true);
     }
+    return 0;
 };
 
-int indelpos_to_context(
+int 
+indelpos_to_context(
         std::string & repeatunit, unsigned int & max_repeatnum,
         const std::string & refstring, unsigned int refpos) {
     max_repeatnum = 0;
@@ -643,9 +647,11 @@ int indelpos_to_context(
         }
     }
     repeatunit = refstring.substr(refpos, repeatsize_at_max_repeatnum);
+    return 0;
 }
 
-unsigned int bam_to_decvalue(const bam1_t *b, unsigned int qpos) {
+unsigned int 
+bam_to_decvalue(const bam1_t *b, unsigned int qpos) {
     unsigned int max_repeatnum = 0;
     // unsigned int repeatsize_at_max_repeatnum = 0;
     for (unsigned int repeatsize = 1; repeatsize < 6; repeatsize++) {
@@ -888,6 +894,7 @@ public:
                 throw -2;
             }
         }
+        return 0;
     }
 
     template<ValueType TUpdateType>
@@ -1060,7 +1067,8 @@ struct Symbol2CountCoverageSet {
     };
    
     template <bool TIsFilterStrong=false>
-    int getbest( // auto & qual_psum, 
+    int 
+    getbest( // auto & qual_psum, 
             auto & max_pqual, auto & best_phred, auto & best_count,
             const auto & ampDistrByPos, const double symbolTypeSum, const AlignmentSymbol symbol, const unsigned int bias_adjusted_mincount, 
             const unsigned int phred_max, const unsigned int addPhred, double ess_georatio_dedup, const double homogeneity = 0) const {
@@ -1090,6 +1098,7 @@ struct Symbol2CountCoverageSet {
                 }
             }
         }
+        return 0;
     };
     
     std::pair<unsigned int, unsigned int>
@@ -1135,7 +1144,7 @@ struct Symbol2CountCoverageSet {
     }
     
     template<bool TUsePrev = false>
-    double 
+    int 
     adafilter(
             auto & du_bias_dedup,
             const auto & bq_qual_phsum, const auto & bq_tsum_depth,
@@ -1330,6 +1339,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                 pb_dist_nvars[strand].getRefByPos(pos).clearSymbolBucketCount(); 
             }
         }
+        return 0;
     };
 
     int updateByAlns3UsingBQ(
@@ -1662,6 +1672,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                 this->dedup_ampDistr,this->bq_tsum_depth,
                 this->pb_dist_lpart, this->pb_dist_rpart, this->pb_dist_nvars, this->additional_note, should_add_note, phred_max_table, 
                 symbolType2addPhred, ess_georatio_dedup, uni_bias_r_max);
+        return 0;
     };
     
     std::basic_string<AlignmentSymbol> string2symbolseq(const std::string & instring) {
@@ -1674,7 +1685,8 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
     };
     
     int 
-    updateHapMap(std::map<std::basic_string<std::pair<unsigned int, AlignmentSymbol>>, std::array<unsigned int, 2>> & mutform2count4map, const auto & tsum_depth, unsigned int max_ploidy = 4) {
+    updateHapMap(std::map<std::basic_string<std::pair<unsigned int, AlignmentSymbol>>, std::array<unsigned int, 2>> & mutform2count4map, 
+            const auto & tsum_depth, unsigned int max_ploidy = 4) {
         for (auto it = mutform2count4map.begin(); it != mutform2count4map.end();) {
             std::basic_string<std::pair<unsigned int, AlignmentSymbol>> mutform = it->first;
             auto counts = it->second;
@@ -1691,6 +1703,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                 it++;
             }
         }
+        return 0;
     };
     
     int updateByRegion3Aln(
@@ -1723,6 +1736,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                     ); // family qualities
             updateHapMap(mutform2count4map_fq, this->fq_tsum_depth);
         }
+        return 0;
     };
 };
 
@@ -2115,6 +2129,7 @@ fmtFTupdate(auto & maxval, std::string & ft, std::vector<unsigned int> & ftv, co
         ft  += (std::string(fkey) + ";");
         ftv.push_back((unsigned int)fval);
     }
+    return 0;
 }
 
 std::string
@@ -2409,6 +2424,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         bcfrec::streamAppendBcfFormat(out_string, fmt);
         out_string += ((g_bcf_hdr != NULL && is_tumor_format_retrieved) ? bcf1_to_string(g_bcf_hdr, tki.bcf1_record) : std::string("")) + "\n";
     }
+
+    return 0;
 }
 
 #endif

@@ -6,15 +6,18 @@
 
 // position of 5' is the starting position, but position of 3' is unreliable without mate info.
 
-bool ispowof2(auto num) {
+bool 
+ispowof2(auto num) {
     return (num & (num-1)) == 0;
 }
 
-auto min(auto a, auto b) {
+auto 
+min(auto a, auto b) {
     return a < b ? a : b;
 }
 
-auto max(auto a, auto b) {
+auto 
+max(auto a, auto b) {
     return a > b ? a : b;
 }
 
@@ -58,9 +61,11 @@ bed_fname_to_contigs(
         }
         tid_beg_end_e2e_vec.push_back(std::make_tuple(tname_to_tid[tname], tbeg, tend, end2end, nreads)); // assume 100*1000 reads fall into this region
     }
+    return 0;
 }
 
-int SamIter::iternext(std::vector<std::tuple<unsigned int, unsigned int, unsigned int, bool, unsigned int>> & tid_beg_end_e2e_vec) {
+int 
+SamIter::iternext(std::vector<std::tuple<unsigned int, unsigned int, unsigned int, bool, unsigned int>> & tid_beg_end_e2e_vec) {
     int ret = 0;
     unsigned int nreads_tot = 0;
     unsigned int region_tot = 0;
@@ -147,6 +152,7 @@ samfname_to_tid_to_tname_tseq_tup_vec(std::vector<std::tuple<std::string, unsign
     }
     bam_hdr_destroy(samheader);
     sam_close(sam_infile);
+    return 0;
 }
 
 int 
@@ -393,15 +399,18 @@ clean_fill_strand_umi_readset(
             }
         }
     }
+    return 0;
 }
 
-int apply_baq(bam1_t *aln) {
+int 
+apply_baq(bam1_t *aln) {
     if (aln->core.l_qseq < (10*2)) { return -1; }
     for (unsigned int i = 0; i < 10; i++) { 
         auto j = aln->core.l_qseq - 1 - i;
         (bam_get_qual(aln))[i] = min((bam_get_qual(aln))[i], 4*(i+1));
         (bam_get_qual(aln))[j] = min((bam_get_qual(aln))[j], 4*(i+1));
     }
+    return 0;
 }
 
 int 
