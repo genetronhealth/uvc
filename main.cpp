@@ -370,57 +370,57 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         
         ndst_val = 0;
         valsize = bcf_get_format_float(bcf_hdr, line, "VAQ", &bcffloats, &ndst_val);
-        assert(1 == ndst_val && 1 == valsize || !fprintf(stderr, "1 == %d && 1 == %d failed for VAQ!\n", ndst_val, valsize));
+        assert((1 == ndst_val && 1 == valsize) || !fprintf(stderr, "1 == %d && 1 == %d failed for VAQ!\n", ndst_val, valsize));
         tki.VAQ = bcffloats[0];
 
         ndst_val = 0;
         valsize = bcf_get_format_float(bcf_hdr, line,  "FA", &bcffloats,  &ndst_val);
-        assert(1 == ndst_val && 1 == valsize || !fprintf(stderr, "1 == %d && 1 == %d failed for FA!\n", ndst_val, valsize));
+        assert((1 == ndst_val && 1 == valsize) || !fprintf(stderr, "1 == %d && 1 == %d failed for FA!\n", ndst_val, valsize));
         tki.FA = bcffloats[0];
 
         ndst_val = 0;
         valsize = bcf_get_format_float(bcf_hdr, line,  "FR", &bcffloats,  &ndst_val);
-        assert(1 == ndst_val && 1 == valsize || !fprintf(stderr, "1 == %d && 1 == %d failed for FR!\n", ndst_val, valsize)); 
+        assert((1 == ndst_val && 1 == valsize) || !fprintf(stderr, "1 == %d && 1 == %d failed for FR!\n", ndst_val, valsize)); 
         tki.FR = bcffloats[0];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line,  "DP", &bcfints,  &ndst_val);
-        assert(1 == ndst_val && 1 == valsize || !fprintf(stderr, "1 == %d && 1 == %d failed for DP!\n", ndst_val, valsize));
+        assert((1 == ndst_val && 1 == valsize) || !fprintf(stderr, "1 == %d && 1 == %d failed for DP!\n", ndst_val, valsize));
         tki.DP = bcfints[0];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line,  "bDP", &bcfints,  &ndst_val);
-        assert(1 == ndst_val && 1 == valsize || !fprintf(stderr, "1 == %d && 1 == %d failed for DP!\n", ndst_val, valsize));
+        assert((1 == ndst_val && 1 == valsize) || !fprintf(stderr, "1 == %d && 1 == %d failed for DP!\n", ndst_val, valsize));
         tki.bDP = bcfints[0]; 
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line,  "cAllBQ", &bcfints, &ndst_val);
-        assert(2 == ndst_val && 2 == valsize || !fprintf(stderr, "2 == %d && 2 == %d failed for cAllBQ!\n", ndst_val, valsize));
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cAllBQ!\n", ndst_val, valsize));
         tki.AutoBestAllBQ = bcfints[0] + bcfints[1];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line,  "cAltBQ", &bcfints, &ndst_val);
-        assert(2 == ndst_val && 2 == valsize || !fprintf(stderr, "2 == %d && 2 == %d failed for cAltBQ!\n", ndst_val, valsize));
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cAltBQ!\n", ndst_val, valsize));
         tki.AutoBestAltBQ = bcfints[0] + bcfints[1];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line,  "cRefBQ", &bcfints, &ndst_val);
-        assert(2 == ndst_val && 2 == valsize || !fprintf(stderr, "2 == %d && 2 == %d failed for cRefBQ!\n", ndst_val, valsize));
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cRefBQ!\n", ndst_val, valsize));
         tki.AutoBestRefBQ = bcfints[0] + bcfints[1];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line,  "cAllHD", &bcfints, &ndst_val);
-        assert(2 == ndst_val && 2 == valsize || !fprintf(stderr, "2 == %d && 2 == %d failed for cAllBQ!\n", ndst_val, valsize));
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cAllBQ!\n", ndst_val, valsize));
         tki.AutoBestAllHD = bcfints[0] + bcfints[1];
 
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line,  "cAltHD", &bcfints, &ndst_val);
-        assert(2 == ndst_val && 2 == valsize || !fprintf(stderr, "2 == %d && 2 == %d failed for cAltBQ!\n", ndst_val, valsize));
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cAltBQ!\n", ndst_val, valsize));
         tki.AutoBestAltHD = bcfints[0] + bcfints[1];
         
         ndst_val = 0;
         valsize = bcf_get_format_char(bcf_hdr, line, "FT", &bcfstring, &ndst_val);
-        assert(ndst_val == valsize && 0 < valsize || !fprintf(stderr, "%d == %d && nonzero failed for FT!\n", ndst_val, valsize));
+        assert((ndst_val == valsize && 0 < valsize) || !fprintf(stderr, "%d == %d && nonzero failed for FT!\n", ndst_val, valsize));
         for (int ftidx = 0; ftidx < valsize - 1; ftidx++) {
             if (';' == bcfstring[ftidx]) {
                 bcfstring[ftidx] = '.';
@@ -430,7 +430,7 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         
         ndst_val = 0;
         valsize = bcf_get_format_char(bcf_hdr, line, "cHap", &bcfstring, &ndst_val);
-        assert(ndst_val == valsize && 0 < valsize || !fprintf(stderr, "%d == %d && nonzero failed for cHap!\n", ndst_val, valsize));
+        assert((ndst_val == valsize && 0 < valsize) || !fprintf(stderr, "%d == %d && nonzero failed for cHap!\n", ndst_val, valsize));
         tki.FT += std::string(";tcHap=") + std::string(bcfstring);
         
         tki.pos = line->pos;

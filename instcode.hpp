@@ -70,7 +70,7 @@ fillByIndelInfo2_2
         //if (link1 == symbol && indelstring.size() != 1 || link2 == symbol && indelstring.size() != 2 || link3p == symbol && indelstring.size() < 3) {
         //    continue;
         //}
-        if (link1 == symbol && indelstring.size() == 1 || link2 == symbol && indelstring.size() == 2 || link3p == symbol && indelstring.size() >= 3) {
+        if ((link1 == symbol && indelstring.size() == 1) || (link2 == symbol && indelstring.size() == 2) || (link3p == symbol && indelstring.size() >= 3)) {
             // rawdu2_dedup_size1_mutform_tuples.push_back(
             //        std::make_tuple(rawdu_amplicon_data, rawdu_ampBQerr_data, dedup_amplicon_data, size1_amplicon_data, indelstring)
             // );

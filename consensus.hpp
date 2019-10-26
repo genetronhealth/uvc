@@ -381,7 +381,7 @@ public:
             }
         }
         
-        assert (incluBeg <= count_argmax && count_argmax <= incluEnd || !fprintf(stderr, "The value %d is not between %d and %d", count_argmax, incluBeg, incluEnd));
+        assert((incluBeg <= count_argmax && count_argmax <= incluEnd) || !fprintf(stderr, "The value %d is not between %d and %d", count_argmax, incluBeg, incluEnd));
         return 0;
     };
     
@@ -817,7 +817,7 @@ public:
             unsigned int cigar_oplen = bam_cigar_oplen(c);
             if (cigar_op == BAM_CMATCH || cigar_op == BAM_CEQUAL || cigar_op == BAM_CDIFF) {
                 for (unsigned int i2 = 0; i2 < cigar_oplen; i2++) {
-                    assert(rpos >= SIGN2UNSIGN(b->core.pos) && rpos < SIGN2UNSIGN(bam_endpos(b)) 
+                    assert((rpos >= SIGN2UNSIGN(b->core.pos) && rpos < SIGN2UNSIGN(bam_endpos(b)))
                             || !fprintf(stderr, "Bam line with QNAME %s has rpos that is not within the range (%d - %d)", bam_get_qname(b), b->core.pos, bam_endpos(b)));
                     if (i2 > 0) {
                         if (TUpdateType == BASE_QUALITY_MAX) {
