@@ -403,7 +403,7 @@ public:
     const AlignmentSymbol
     _updateByConsensus(const GenericSymbol2Count<TInteger> & thatSymbol2Count,
             const SymbolType symbolType, const AlignmentSymbol ambig_pos, unsigned int incvalue2) {
-        AlignmentSymbol argmax_count = END_ALIGNMENT_SYMBOLS; AlignmentSymbol(0);
+        AlignmentSymbol argmax_count = END_ALIGNMENT_SYMBOLS; // AlignmentSymbol(0) is not fully correct
         unsigned int max_count = 0;
         unsigned int sum_count = 0;
         thatSymbol2Count.fillConsensusCounts<TIndelIsMajor>(argmax_count, max_count, sum_count, symbolType);
@@ -484,9 +484,7 @@ typedef GenericSymbol2Count<uint64_t> Symbol2CountUint64;
 
 template<class T>
 class CoveredRegion {
-    
-    const uint32_t incluBegPosition; // end_pos = incluBegPosition + idx2symbol2data
-     
+         
 protected:
     std::vector<T> idx2symbol2data;
     std::map<uint32_t, std::map<uint32_t   , uint32_t>> pos2dlen2data;
@@ -504,7 +502,8 @@ public:
     };
     
     const uint32_t tid;
-    
+    const uint32_t incluBegPosition; // end_pos = incluBegPosition + idx2symbol2data
+
     CoveredRegion(uint32_t tid, unsigned int beg, unsigned int end): tid(tid), incluBegPosition(beg)  {
         assert (beg < end || !fprintf(stderr, "assertion %d < %d failed!\n", beg, end));
         this->idx2symbol2data = std::vector<T>(end-beg); // TODO: see if + 1 is needed ehre
@@ -803,7 +802,7 @@ public:
         assert(this->tid == SIGN2UNSIGN(b->core.tid));
         assert(this->getIncluBegPosition() <= SIGN2UNSIGN(b->core.pos)   || !fprintf(stderr, "%lu <= %d failed", this->getIncluBegPosition(), b->core.pos));
         assert(this->getExcluEndPosition() >= SIGN2UNSIGN(bam_endpos(b)) || !fprintf(stderr, "%lu >= %d failed", this->getExcluEndPosition(), bam_endpos(b)));
-        const auto symbolType2addPhred = symbolType2addPhredArg; // std::array({0, 0});
+        // const auto symbolType2addPhred = symbolType2addPhredArg; // std::array({0, 0});
         
         unsigned int qpos = 0;
         unsigned int rpos = b->core.pos;
@@ -2183,7 +2182,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
     
     const bool is_rescued = (tki.DP > 0);
     if (prev_is_tumor && (!is_rescued)) { return -1; }
-    unsigned int editdist = 1;
+    //unsigned int editdist = 1;
     const unsigned int regionpos = refpos - extended_inclu_beg_pos;
     const char *altsymbolname = SYMBOL_TO_DESC_ARR[symbol];
     std::string vcfref;
@@ -2209,7 +2208,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         } else {
             indelstring = (fmt.gapbAD1[0] > fmt.gapbAD1[fmt.gapNum[0]] ? fmt.gapSeq[0] : fmt.gapSeq.at(fmt.gapNum[0]));
         }
-        editdist = MAX(SIGN2UNSIGN(1), indelstring.size());
+        //editdist = MAX(SIGN2UNSIGN(1), indelstring.size());
         if (indelstring.size() == 0) {
             vcfalt = altsymbolname;
         } else if (isSymbolIns(symbol)) {

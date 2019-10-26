@@ -470,7 +470,7 @@ bam2umihash(int & is_umi_found, const bam1_t *aln, const std::vector<uint8_t> & 
             char int4base;
             if (is_rc) {
                 char int4base2 = bam_seqi(bamseq, aln->core.l_qseq - 1 - j);
-                int4base = THE_REV_COMPLEMENT.table16[int4base2];
+                int4base = THE_REV_COMPLEMENT.table16[(int8_t)int4base2];
             } else {
                 int4base = bam_seqi(bamseq, j);
             }
@@ -514,7 +514,7 @@ bamfname_to_strand_to_familyuid_to_reads(
     const bool should_log = (ispowof2(regionbatch_ordinal+1) || ispowof2(regionbatch_tot_num - regionbatch_ordinal));
     std::vector<uint8_t> umi_struct_string16;
     for (auto ch : UMI_STRUCT_STRING) {
-        umi_struct_string16.push_back(seq_nt16_table[ch]);
+        umi_struct_string16.push_back(seq_nt16_table[(int8_t)ch]);
     }
     for (auto base : umi_struct_string16) {
         LOG(logDEBUGx1) << "Base " << (int)base;
@@ -522,8 +522,10 @@ bamfname_to_strand_to_familyuid_to_reads(
     extended_inclu_beg_pos = INT32_MAX;
     extended_exclu_end_pos = 0;
     
-    unsigned int alignmentpassed, lenpassed, cigarpassed, umipassed, pcrpassed, umi_pcrpassed;
-    alignmentpassed = lenpassed = cigarpassed = umipassed = pcrpassed = umi_pcrpassed = 0;
+    // unsigned int alignmentpassed, lenpassed, cigarpassed, umipassed, 
+    unsigned int pcrpassed, umi_pcrpassed;
+    // alignmentpassed = lenpassed = cigarpassed = umipassed = 
+    pcrpassed = umi_pcrpassed = 0;
    
     samFile *sam_infile = sam_open(input_bam_fname.c_str(), "r"); // AlignmentFile(input_bam_fname, "rb");
     if (should_log) {
@@ -557,8 +559,8 @@ bamfname_to_strand_to_familyuid_to_reads(
             isrc_isr2_to_beg_count[isrc * 2 + isr2][tBeg + ARRPOS_MARGIN - fetch_tbeg] += 1;
             isrc_isr2_to_end_count[isrc * 2 + isr2][tEnd + ARRPOS_MARGIN - fetch_tbeg] += 1;
             num_pass_alns += 1;
-            extended_inclu_beg_pos = min(extended_inclu_beg_pos, aln->core.pos);
-            extended_exclu_end_pos = max(extended_exclu_end_pos, bam_endpos(aln));
+            extended_inclu_beg_pos = min(extended_inclu_beg_pos, SIGN2UNSIGN(aln->core.pos));
+            extended_exclu_end_pos = max(extended_exclu_end_pos, SIGN2UNSIGN(bam_endpos(aln)));
         }
         fillcode_to_num_alns[filterReason]++;
         num_iter_alns += 1;
