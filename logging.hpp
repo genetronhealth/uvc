@@ -31,7 +31,4 @@ private:
     TLogLevel messageLevel;
 };
 
-char *
-NowTime(char *buffer);
-
 #endif

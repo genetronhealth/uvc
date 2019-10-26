@@ -68,7 +68,7 @@ struct PhredMutationTable {
             : transition_CG_TA(CG_TA), transition_TA_CG(TA_CG), transversion_any(transversionany), indel_open(idopen), indel_ext(idext) 
             {
     }
-    const unsigned int to_phred_rate(const AlignmentSymbol con_symbol, const AlignmentSymbol alt_symbol) const {
+    const unsigned int toPhredErrRate(const AlignmentSymbol con_symbol, const AlignmentSymbol alt_symbol) const {
         if (con_symbol == LINK_M) {
             if (LINK_D1 == alt_symbol || LINK_I1 == alt_symbol) {
                 return indel_open; // + indel_ext * 1;
@@ -507,12 +507,6 @@ protected:
         return extern_ref_pos - incluBegPosition;
     };
 public:
-    const char 
-    rchars_rpos_to_rchar(const std::string & refstring, unsigned int extern_ref_pos) {
-        auto internpos = _extern2intern4pos(extern_ref_pos);
-        assert(internpos < refstring.size());
-        return refstring.at(internpos);
-    };
     
     const uint32_t tid;
     const uint32_t incluBegPosition; // end_pos = incluBegPosition + idx2symbol2data
@@ -1313,7 +1307,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                             AlignmentSymbol con_symbol;
                             unsigned int con_count, tot_count;
                             curr_tsum_depth.at(0+strand).getByPos(pos).fillConsensusCounts(con_symbol, con_count, tot_count, symbolType);
-                            phred_max = phred_max_table.to_phred_rate(con_symbol, symbol);
+                            phred_max = phred_max_table.toPhredErrRate(con_symbol, symbol);
                         }
                         //}
                         // find best cutoff from families
@@ -1481,7 +1475,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
             bool should_add_note, const unsigned int frag_indel_ext, const unsigned int frag_indel_basemax, 
             const PhredMutationTable & phred_max_table, unsigned int phred_thres, 
             const double ess_georatio_dedup, const double ess_georatio_duped_pcr,
-	        bool is_loginfo_enabled, unsigned int thread_id, unsigned int nogap_phred
+            bool is_loginfo_enabled, unsigned int thread_id, unsigned int nogap_phred
             , unsigned int highqual_thres_snv, unsigned int highqual_thres_indel, unsigned int uni_bias_r_max) {
         unsigned int niters = 0;
         for (const auto & alns2pair2dflag : alns3) {
@@ -1620,7 +1614,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         }
                         unsigned int pbucket = phred2bucket(overallq);
                         assert (pbucket < NUM_BUCKETS || !fprintf(stderr, "%u < %u failed at position %lu and con_symbol %u symboltype %u plusbucket %u\n", 
-	                             pbucket,  NUM_BUCKETS, epos, con_symbol, symbolType, symbolType2addPhred[symbolType]));
+                                 pbucket,  NUM_BUCKETS, epos, con_symbol, symbolType, symbolType2addPhred[symbolType]));
                         if (isSymbolIns(con_symbol)) {
                             posToIndelToCount_updateByConsensus(this->fq_tsum_depth[strand].getRefPosToIseqToData(), read_family_amplicon.getPosToIseqToData(), epos, 1);
                         }
@@ -1805,18 +1799,18 @@ BcfFormat_init(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbolDi
 #define INDEL_ID 2
 #include "instcode.hpp"
 std::array<unsigned int, 2>
-fillByIndelInfo(bcfrec::BcfFormat & fmt,
+fill_by_indel_info(bcfrec::BcfFormat & fmt,
         const Symbol2CountCoverageSet & symbol2CountCoverageSet, 
         const unsigned int strand, const unsigned int refpos, const AlignmentSymbol symbol, 
         const std::string & refstring) {
     assert(isSymbolIns(symbol) || isSymbolDel(symbol));
     if (isSymbolIns(symbol)) {
-        return fillByIndelInfo2_1(fmt, symbol2CountCoverageSet, strand, refpos, symbol,
+        return fill_by_indel_info2_1(fmt, symbol2CountCoverageSet, strand, refpos, symbol,
                 symbol2CountCoverageSet.bq_tsum_depth.at(strand).getPosToIseqToData(),
                 symbol2CountCoverageSet.fq_tsum_depth.at(strand).getPosToIseqToData(),
                 refstring);
     } else {
-        return fillByIndelInfo2_2(fmt, symbol2CountCoverageSet, strand, refpos, symbol,
+        return fill_by_indel_info2_2(fmt, symbol2CountCoverageSet, strand, refpos, symbol,
                 symbol2CountCoverageSet.bq_tsum_depth.at(strand).getPosToDlenToData(),
                 symbol2CountCoverageSet.fq_tsum_depth.at(strand).getPosToDlenToData(),
                 refstring);
@@ -1942,7 +1936,7 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
         
         fmt.gapNum[strand] = 0;
         if ((0 < fmt.bAD1[strand]) && (isSymbolIns(symbol) || isSymbolDel(symbol))) {
-            auto cADdiff_cADtotal = fillByIndelInfo(fmt, symbol2CountCoverageSet12, strand, refpos, symbol, refstring);
+            auto cADdiff_cADtotal = fill_by_indel_info(fmt, symbol2CountCoverageSet12, strand, refpos, symbol, refstring);
             fmt.gapcADD[strand] = cADdiff_cADtotal[0]; // diff
             fmt.gapcADT[strand] = cADdiff_cADtotal[1];
         }

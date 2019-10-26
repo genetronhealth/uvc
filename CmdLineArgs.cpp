@@ -9,7 +9,8 @@
 
 #include "CmdLineArgs.hpp"
 
-SequencingPlatform CommandLineArgs::selfUpdateByPlatform() {
+SequencingPlatform 
+CommandLineArgs::selfUpdateByPlatform() {
     SequencingPlatform inferred_sequencing_platform = this->sequencing_platform;
     if (SEQUENCING_PLATFORM_AUTO == this->sequencing_platform || SEQUENCING_PLATFORM_OTHER == this->sequencing_platform) {
         // unsigned int bqsum = 0;
@@ -99,7 +100,8 @@ SequencingPlatform CommandLineArgs::selfUpdateByPlatform() {
     return inferred_sequencing_platform;
 }
 
-void check_file_exist(const std::string & fname, const std::string ftype) {
+void 
+check_file_exist(const std::string & fname, const std::string ftype) {
     std::ifstream ifile(fname.c_str());
     if (!(bool)ifile) {
         std::cerr << "The file " << fname << " of type (" << ftype << ") does not exist." << std::endl;
@@ -107,7 +109,8 @@ void check_file_exist(const std::string & fname, const std::string ftype) {
     }
 }
 
-const std::string stringvec_to_descstring(const std::vector<std::string> & v) {
+const std::string 
+stringvec_to_descstring(const std::vector<std::string> & v) {
     std::string ret;
     for (unsigned int i = 0; i < v.size(); i++) {
         ret += std::to_string(i) + " : " + v[i] + ". ";

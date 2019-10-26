@@ -211,7 +211,7 @@ dp100_to_string(const std::vector<unsigned int> & bg1dp100, const std::vector<un
 }
 
 std::string
-genomicRegionInfoToString(const std::string & chromosome, 
+genomic_reg_info_to_string(const std::string & chromosome, 
         unsigned int incluBeg, SymbolType stypeBeg,
         unsigned int incluEnd, SymbolType stypeEnd,
         const unsigned int gbDPmin, const unsigned int gcDPmin,
@@ -634,7 +634,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                             extended_posidx_to_is_rescued[refpos - extended_inclu_beg_pos] &&
                             (tid_pos_symb_to_tki.end() != tid_pos_symb_to_tki.find(std::make_tuple(tid, refpos, symbol)))); 
                             //(extended_posidx_to_symbol_to_tkinfo[refpos-extended_inclu_beg_pos][symbol].DP > 0); 
-                    unsigned int phred_max_sscs = sscs_mut_table.to_phred_rate(refsymbol, symbol);
+                    unsigned int phred_max_sscs = sscs_mut_table.toPhredErrRate(refsymbol, symbol);
                     // int altdepth = 
                     fillBySymbol(fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]], symbolToCountCoverageSet12, 
                             refpos, symbol, refstring, extended_inclu_beg_pos, mutform2count4vec_bq, indices_bq, mutform2count4vec_fq, indices_fq, 
@@ -673,7 +673,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                     unsigned int begpos = (BASE_SYMBOL == prevSymbolType ? (prevPosition+1) : prevPosition);
                     unsigned int endpos = (BASE_SYMBOL == iendSymbolType ? (iendPosition+1) : iendPosition);
                     
-                    std::string genomicInfoString = ((0 == gbDPmax || (bcf_hdr != NULL && paramset.is_tumor_format_retrieved)) ? "" : genomicRegionInfoToString(
+                    std::string genomicInfoString = ((0 == gbDPmax || (bcf_hdr != NULL && paramset.is_tumor_format_retrieved)) ? "" : genomic_reg_info_to_string(
                             std::get<0>(tname_tseqlen_tuple),
                             begpos, prevSymbolType,
                             endpos, iendSymbolType,

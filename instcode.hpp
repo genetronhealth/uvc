@@ -10,9 +10,9 @@
 // template <AlignmentSymbol link1, AlignmentSymbol link2, AlignmentSymbol link3p> // , LinkType linkType>
 std::array<unsigned int, 2>
 #if INDEL_ID == 1
-fillByIndelInfo2_1
+fill_by_indel_info2_1
 #else
-fillByIndelInfo2_2
+fill_by_indel_info2_2
 #endif
 (bcfrec::BcfFormat & fmt,
         const Symbol2CountCoverageSet & symbol2CountCoverageSet, 

@@ -31,7 +31,7 @@ private:
 };
 
 char *
-NowTime(char *buffer) {
+nowtime(char *buffer) {
     time_t rawtime;
     time(&rawtime);
     struct tm t;
@@ -43,7 +43,7 @@ NowTime(char *buffer) {
 std::ostringstream& 
 Log::Get(TLogLevel level) {
     char buffer[128];
-    os << "- " << NowTime(buffer);
+    os << "- " << nowtime(buffer);
     os << " " << TLogLevelToString[level] << ": ";
     // os << std::string(level > logDEBUG ? 0 : level - logDEBUG, '\t');
     messageLevel = level;
