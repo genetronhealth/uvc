@@ -1,9 +1,10 @@
 #ifndef common_INCLUDED
 #define common_INCLUDED
-#define NUM_BUCKETS (64+8)
-
 #include <string>
 #include <vector>
+
+#define NUM_BUCKETS (64+8)
+#define SIGN2UNSIGN(a) ((unsigned int)(a))
 
 const char *const NOT_PROVIDED = "";
 

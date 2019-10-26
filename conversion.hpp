@@ -146,7 +146,7 @@ any4_to_biasfact100(T dp0, T dp1, T ad0, T ad1, const bool is_inv = false, doubl
 
 double
 biasfact100_to_imba(unsigned int biasfact100) {
-    return MAX(100, biasfact100) / (double)100;
+    return MAX(SIGN2UNSIGN(100), biasfact100) / (double)100;
     // return MAX((double)biasfrac/(double)100, (double)1);
     // return (100 + (MAX(biasfact100, 100) - 100) * 2) / (double)100;
 }

@@ -352,7 +352,7 @@ int main(int argc, char **argv) {
         }
         itnum++;
     }
-    std::cout << "};\n";
+    std::cout << "\n    return 0;};\n";
     
     std::cout << "const char *const FORMAT_LINES[] = {\n";
     for (auto fmt : FORMAT_VEC) {

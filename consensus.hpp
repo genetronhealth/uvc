@@ -203,8 +203,8 @@ uint32_t \
 molcount_t;
 
 // edge distance bucket
-#define NUM_EDBUCKS (11+1) // (11*12/2+1)
-#define NUM_NMBUCKS (12)
+#define NUM_EDBUCKS (SIGN2UNSIGN(11+1)) // (11*12/2+1)
+#define NUM_NMBUCKS (SIGN2UNSIGN(12))
 // #define EDBUCK_SIZE 4
 
 const std::array<unsigned int, (NUM_EDBUCKS*(NUM_EDBUCKS-1)/2+1+1)> 
@@ -257,6 +257,7 @@ const int _print_Bucket2CountEdgeDist(const Bucket2CountEdgeDist & arg) {
     for (size_t i = 0; i < NUM_EDBUCKS; i++) {
         LOG(logINFO) << arg.at(i) << "\t";
     }
+    return 0;
 }
 
 template <class TB2C>
@@ -329,6 +330,7 @@ public:
         } else {
             this->symbol2data[symbol] = MAX(this->symbol2data[symbol], increment) + (this->symbol2data[symbol] ? update_max_inc : 0);
         }
+        return 0;
     };
     
     const TInteger
@@ -589,10 +591,10 @@ fillTidBegEndFromAlns1(uint32_t & tid, uint32_t & inc_beg, uint32_t & exc_end, c
         initTidBegEnd(tid, inc_beg, exc_end);
     }
     for (const bam1_t *aln : alns1) {
-        assert (tid == UINT32_MAX || aln->core.tid == tid);
+        assert (tid == UINT32_MAX || SIGN2UNSIGN(aln->core.tid) == tid);
         tid = aln->core.tid;
-        inc_beg = MIN(inc_beg, aln->core.pos);
-        exc_end = MAX(exc_end, bam_endpos(aln)) + 1; // accounts for insertion at the end 
+        inc_beg = MIN(inc_beg, SIGN2UNSIGN(aln->core.pos));
+        exc_end = MAX(exc_end, SIGN2UNSIGN(bam_endpos(aln))) + 1; // accounts for insertion at the end 
     }
     assert (tid != UINT32_MAX);
     assert (inc_beg < exc_end);
@@ -645,16 +647,16 @@ int indelpos_to_context(
 
 unsigned int bam_to_decvalue(const bam1_t *b, unsigned int qpos) {
     unsigned int max_repeatnum = 0;
-    unsigned int repeatsize_at_max_repeatnum = 0;
+    // unsigned int repeatsize_at_max_repeatnum = 0;
     for (unsigned int repeatsize = 1; repeatsize < 6; repeatsize++) {
         unsigned int qidx = qpos;
-        while (qidx + repeatsize < b->core.l_qseq && bam_seqi(bam_get_seq(b), qidx) == bam_seqi(bam_get_seq(b), qidx+repeatsize)) {
+        while (qidx + repeatsize < SIGN2UNSIGN(b->core.l_qseq) && bam_seqi(bam_get_seq(b), qidx) == bam_seqi(bam_get_seq(b), qidx+repeatsize)) {
             qidx++;
         }
         unsigned int repeatnum = (qidx - qpos) / repeatsize + 1;
         if (repeatnum > max_repeatnum) {
             max_repeatnum = repeatnum;
-            repeatsize_at_max_repeatnum = repeatsize;
+            // repeatsize_at_max_repeatnum = repeatsize;
         }
     }
     return prob2phred((1.0 - DBL_EPSILON) / (double)max_repeatnum);
@@ -900,6 +902,7 @@ public:
                 this->updateByAln<TUpdateType, false>(aln, frag_indel_ext, symbolType2addPhred, frag_indel_basemax, nogap_phred);
             }
         }
+        return 0;
     }
 };
 
@@ -914,15 +917,14 @@ struct Symbol2CountCoverageSet {
     std::string refstring;
     
     //std::array<Symbol2CountCoverage, 2> bq_imba_depth;
-    std::array<Symbol2CountCoverage, 2> bq_qual_phsum;
-    std::array<Symbol2CountCoverageUint64, 2> bq_qsum_sqrBQ;
-
-    std::array<Symbol2CountCoverage, 2> du_bias_dedup;  
-   
     std::array<Symbol2CountCoverage, 2> bq_qsum_rawMQ;
     std::array<Symbol2CountCoverageUint64, 2> bq_qsum_sqrMQ;
+    std::array<Symbol2CountCoverage, 2> bq_qual_phsum;
+    std::array<Symbol2CountCoverageUint64, 2> bq_qsum_sqrBQ;
     std::array<Symbol2CountCoverage, 2> bq_tsum_LQdep; 
 
+    std::array<Symbol2CountCoverage, 2> du_bias_dedup;  
+    
     std::array<Symbol2CountCoverage, 2> bq_amax_ldist; // edge distance to end
     std::array<Symbol2CountCoverage, 2> bq_bias_ldist; // edge distance to end
     std::array<Symbol2CountCoverage, 2> bq_amax_rdist; // edge distance to end
@@ -1005,14 +1007,21 @@ struct Symbol2CountCoverageSet {
         , bq_bias_2stra({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
 
         , bq_tsum_depth({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
-        , bq_pass_depth({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
         , bq_pass_thres({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
+        , bq_pass_depth({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
+        , bq_vars_thres({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
         , bq_vars_depth({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
         , bq_vars_badep({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
-        , bq_vars_thres({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
         , bq_vars_vqual({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
        
         // , fq_imba_depth({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
+        
+        , major_amplicon({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
+        , minor_amplicon({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
+        , fam_total_dep({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
+        , fam_size1_dep({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
+        , fam_nocon_dep({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
+        
         , fq_qual_phsum({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
         , fq_hiqual_dep({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
 
@@ -1029,19 +1038,13 @@ struct Symbol2CountCoverageSet {
         , fq_bias_2stra({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
         
         , fq_tsum_depth({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
-        , fq_pass_depth({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
         , fq_pass_thres({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
+        , fq_pass_depth({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
+        , fq_vars_thres({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
         , fq_vars_depth({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
         , fq_vars_badep({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
-        , fq_vars_thres({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
         , fq_vars_vqual({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
         
-        , major_amplicon({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
-        , minor_amplicon({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
-        , fam_total_dep({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
-        , fam_size1_dep({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
-        , fam_nocon_dep({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
-
         , duplex_pass_depth(Symbol2CountCoverage(t, beg, end))
         , duplex_tsum_depth(Symbol2CountCoverage(t, beg, end))
         , dedup_ampDistr({Symbol2Bucket2CountCoverage(t, beg, end), Symbol2Bucket2CountCoverage(t, beg, end)})
@@ -1387,8 +1390,8 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                             this->bq_qual_phsum [strand].getRefByPos(epos).incSymbolCount(con_symbol, overallq);
                             this->bq_qsum_sqrBQ [strand].getRefByPos(epos).incSymbolCount(con_symbol, overallq * overallq); // specific to BQ
                             unsigned int pbucket = phred2bucket(overallq); // phred2bucket(MIN(edge_baq, phredlike + symbolType2addPhred[symbolType])); // special
-                            assert (pbucket < NUM_BUCKETS || !fprintf(stderr, "%d < %d failed at position %d and con_symbol %d symboltype %d plusbucket %d\n", 
-                                    pbucket,  NUM_BUCKETS, epos, con_symbol, symbolType, symbolType2addPhred[symbolType]));
+                            assert (pbucket < NUM_BUCKETS || !fprintf(stderr, "%u < %u failed at position %u and con_symbol %u symboltype %u plusbucket %u\n", 
+                                    pbucket,  NUM_BUCKETS, epos, con_symbol, symbolType, SIGN2UNSIGN(symbolType2addPhred[symbolType])));
                             if (isSymbolIns(con_symbol)) {
                                 posToIndelToCount_updateByConsensus(this->bq_tsum_depth[strand].getRefPosToIseqToData(), read_ampBQerr_fragWithR1R2.getPosToIseqToData(), epos, 1);
                             }
