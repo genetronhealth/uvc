@@ -297,7 +297,7 @@ public:
     clearSymbolBucketCount() { // AlignmentSymbol symbol, unsigned int bucket, unsigned int increment) {
         //char errmsg[100];
         //sprintf(errmsg, "%d * %d != %d\n", sizeof(TB2C), NUM_BUCKETS, sizeof(symbol2data));
-        assert(sizeof(TB2C) * NUM_ALIGNMENT_SYMBOLS == sizeof(this->symbol2data) || !fprintf(stderr, "%d * %d != %d\n", sizeof(TB2C), NUM_ALIGNMENT_SYMBOLS, sizeof(this->symbol2data)));
+        assert(sizeof(TB2C) * NUM_ALIGNMENT_SYMBOLS == sizeof(this->symbol2data) || !fprintf(stderr, "%lu * %u != %lu\n", sizeof(TB2C), NUM_ALIGNMENT_SYMBOLS, sizeof(this->symbol2data)));
         // memset(this->symbol2data, 0, sizeof(this->symbol2data));
         
         for (unsigned int i = 0; i < NUM_ALIGNMENT_SYMBOLS; i++) {
@@ -512,17 +512,17 @@ public:
     
     T &
     getRefByPos(const unsigned int pos, const bam1_t *bam = NULL) {
-        assert(pos >= this->incluBegPosition || !fprintf(stderr, "%d >= %d failed for qname %s !!\n", pos, this->incluBegPosition, (NULL != bam ? bam_get_qname(bam) : "?")));
+        assert(pos >= this->incluBegPosition || !fprintf(stderr, "%u >= %u failed for qname %s !!\n", pos, this->incluBegPosition, (NULL != bam ? bam_get_qname(bam) : "?")));
         unsigned int pos2 = pos - this->incluBegPosition;
-        assert(pos2 < idx2symbol2data.size() || !fprintf(stderr, "%d  < %d failed for qname %s !!\n", pos, this->incluBegPosition + idx2symbol2data.size(), (NULL != bam ? bam_get_qname(bam) : "?")));
+        assert(pos2 < idx2symbol2data.size() || !fprintf(stderr, "%u  < %lu failed for qname %s !!\n", pos, this->incluBegPosition + idx2symbol2data.size(), (NULL != bam ? bam_get_qname(bam) : "?")));
         return this->idx2symbol2data[pos2];
     };
     
     const T &
     getByPos(const unsigned int pos, const bam1_t *bam = NULL) const {
-        assert(pos >= this->incluBegPosition || !fprintf(stderr, "%d >= %d failed for qname %s !\n", pos, this->incluBegPosition, (NULL != bam ? bam_get_qname(bam) : "?")));
+        assert(pos >= this->incluBegPosition || !fprintf(stderr, "%u >= %u failed for qname %s !\n", pos, this->incluBegPosition, (NULL != bam ? bam_get_qname(bam) : "?")));
         unsigned int pos2 = pos - this->incluBegPosition;
-        assert(pos2 < idx2symbol2data.size() || !fprintf(stderr, "%d  < %d failed for qname %s !\n", pos, this->incluBegPosition + idx2symbol2data.size(), (NULL != bam ? bam_get_qname(bam) : "?")));
+        assert(pos2 < idx2symbol2data.size() || !fprintf(stderr, "%u  < %lu failed for qname %s !\n", pos, this->incluBegPosition + idx2symbol2data.size(), (NULL != bam ? bam_get_qname(bam) : "?")));
         return this->idx2symbol2data[pos2];
     };
     
@@ -678,8 +678,8 @@ public:
     void
     assertUpdateIsLegal(const GenericSymbol2CountCoverage<TSymbol2Count> & other) const {
         assert(this->tid == other.tid);
-        assert(this->getIncluBegPosition() <= other.getIncluBegPosition() || !fprintf(stderr, "%d <= %d failed!", this->getIncluBegPosition(), other.getIncluBegPosition()));
-        assert(this->getExcluEndPosition() >= other.getExcluEndPosition() || !fprintf(stderr, "%d >= %d failed!", this->getExcluEndPosition(), other.getExcluEndPosition())); 
+        assert(this->getIncluBegPosition() <= other.getIncluBegPosition() || !fprintf(stderr, "%lu <= %lu failed!", this->getIncluBegPosition(), other.getIncluBegPosition()));
+        assert(this->getExcluEndPosition() >= other.getExcluEndPosition() || !fprintf(stderr, "%lu >= %lu failed!", this->getExcluEndPosition(), other.getExcluEndPosition())); 
     }
     
     std::vector<unsigned int> computeZeroBasedPosToInsLenVec(unsigned int & totInsLen) {
@@ -801,8 +801,8 @@ public:
             uint32_t primerlen = 0) {
         static_assert(BASE_QUALITY_MAX == TUpdateType || SYMBOL_COUNT_SUM == TUpdateType);
         assert(this->tid == SIGN2UNSIGN(b->core.tid));
-        assert(this->getIncluBegPosition() <= SIGN2UNSIGN(b->core.pos)   || !fprintf(stderr, "%d <= %d failed", this->getIncluBegPosition(), b->core.pos));
-        assert(this->getExcluEndPosition() >= SIGN2UNSIGN(bam_endpos(b)) || !fprintf(stderr, "%d >= %d failed", this->getExcluEndPosition(), bam_endpos(b)));
+        assert(this->getIncluBegPosition() <= SIGN2UNSIGN(b->core.pos)   || !fprintf(stderr, "%lu <= %d failed", this->getIncluBegPosition(), b->core.pos));
+        assert(this->getExcluEndPosition() >= SIGN2UNSIGN(bam_endpos(b)) || !fprintf(stderr, "%lu >= %d failed", this->getExcluEndPosition(), bam_endpos(b)));
         const auto symbolType2addPhred = symbolType2addPhredArg; // std::array({0, 0});
         
         unsigned int qpos = 0;
@@ -1400,7 +1400,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                             this->bq_qual_phsum [strand].getRefByPos(epos).incSymbolCount(con_symbol, overallq);
                             this->bq_qsum_sqrBQ [strand].getRefByPos(epos).incSymbolCount(con_symbol, overallq * overallq); // specific to BQ
                             unsigned int pbucket = phred2bucket(overallq); // phred2bucket(MIN(edge_baq, phredlike + symbolType2addPhred[symbolType])); // special
-                            assert (pbucket < NUM_BUCKETS || !fprintf(stderr, "%u < %u failed at position %u and con_symbol %u symboltype %u plusbucket %u\n", 
+                            assert (pbucket < NUM_BUCKETS || !fprintf(stderr, "%u < %u failed at position %lu and con_symbol %u symboltype %u plusbucket %u\n", 
                                     pbucket,  NUM_BUCKETS, epos, con_symbol, symbolType, SIGN2UNSIGN(symbolType2addPhred[symbolType])));
                             if (isSymbolIns(con_symbol)) {
                                 posToIndelToCount_updateByConsensus(this->bq_tsum_depth[strand].getRefPosToIseqToData(), read_ampBQerr_fragWithR1R2.getPosToIseqToData(), epos, 1);
@@ -1590,7 +1590,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         auto con_bq_pass_thres = this->bq_pass_thres[strand].getByPos(epos).getSymbolCount(con_symbol);
                         double con_bq_pass_prob = phred2prob(con_bq_pass_thres) * (1 - DBL_EPSILON); // < 1
                         assert (con_bq_pass_prob >= pow(10, (-(double)NUM_BUCKETS)/10) 
-                                || !fprintf(stderr, "%f >= phred51 failed at position %d and symbol %d!\n", con_bq_pass_prob, epos, con_symbol));
+                                || !fprintf(stderr, "%lf >= phred51 failed at position %lu and symbol %u!\n", con_bq_pass_prob, epos, con_symbol));
                         unsigned int phredlike = (unsigned int)MAX(0, h01_to_phredlike<true>(minorcount + 1, majorcount + minorcount + (1.0 / con_bq_pass_prob), con_count, tot_count, 1.0, (ess_georatio_duped_pcr)));
                         if (BASE_N == con_symbol) { phredlike = MIN(phredlike, phred_thres); }
                         phredlike = MIN(phredlike, NUM_BUCKETS - SIGN2UNSIGN(1));
@@ -1605,7 +1605,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                             this->fq_hiqual_dep[strand].getRefByPos(epos).incSymbolCount(con_symbol, 1);
                         }
                         unsigned int pbucket = phred2bucket(overallq);
-                        assert (pbucket < NUM_BUCKETS || !fprintf(stderr, "%d < %d failed at position %d and con_symbol %d symboltype %d plusbucket %d\n", 
+                        assert (pbucket < NUM_BUCKETS || !fprintf(stderr, "%u < %u failed at position %lu and con_symbol %u symboltype %u plusbucket %u\n", 
 	                             pbucket,  NUM_BUCKETS, epos, con_symbol, symbolType, symbolType2addPhred[symbolType]));
                         if (isSymbolIns(con_symbol)) {
                             posToIndelToCount_updateByConsensus(this->fq_tsum_depth[strand].getRefPosToIseqToData(), read_family_amplicon.getPosToIseqToData(), epos, 1);

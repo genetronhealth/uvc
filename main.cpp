@@ -115,7 +115,7 @@ int
 bgzip_string(std::string & compressed_outstring, const std::string & uncompressed_outstring) {
     char *compressed_outstr = (char*)malloc(uncompressed_outstring.size() * sizeof(char));
     if (NULL == compressed_outstr) {
-        fprintf(stderr, "The library function malloc failed at line %s in file %s !\n", __LINE__, __FILE__);
+        fprintf(stderr, "The library function malloc failed at line %d in file %s !\n", __LINE__, __FILE__);
         exit(-1);
     }
     size_t compressed_capacity = uncompressed_outstring.size();
@@ -125,7 +125,7 @@ bgzip_string(std::string & compressed_outstring, const std::string & uncompresse
         if (compressed_totlen + BGZF_BLOCK_SIZE >= compressed_capacity) {
             char *compressed_outstr_tmp = (char*)realloc(compressed_outstr, (compressed_capacity * 2 + BGZF_BLOCK_SIZE) * sizeof(char));
             if (NULL == compressed_outstr_tmp) {
-                fprintf(stderr, "The library function realloc failed at line %s in file %s !\n", __LINE__, __FILE__);
+                fprintf(stderr, "The library function realloc failed at line %d in file %s !\n", __LINE__, __FILE__);
                 exit(-2);
             }
             compressed_outstr = compressed_outstr_tmp;
