@@ -292,7 +292,6 @@ fill_isrc_isr2_beg_end_with_aln(bool & isrc, bool & isr2, uint32_t & tBeg, uint3
     if (!is_pair_end_merge_enabled) { isr2 = false; }
     const uint32_t begpos = aln->core.pos;
     const uint32_t endpos = bam_endpos(aln) - 1;
-    int ret = 0;
     if ((!is_pair_end_merge_enabled) 
             || ((aln->core.flag & 0x1) == 0) 
             // || ((aln->core.flag & 0x2) == 0) // having this line causes problems to SRR2556939_chr3_178936090_178936092
@@ -424,7 +423,6 @@ fill_strand_umi_readset_with_strand_to_umi_to_reads(
         ) {
 #if 1
     for (auto & umi_to_strand_to_reads_element : umi_to_strand_to_reads) {
-        const auto umi = umi_to_strand_to_reads_element.first;
         const auto strand_to_reads = umi_to_strand_to_reads_element.second.first;
         const auto dflag = umi_to_strand_to_reads_element.second.second;
         umi_strand_readset.push_back(std::make_pair(std::array<std::vector<std::vector<bam1_t *>>, 2>(), dflag));

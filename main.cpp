@@ -329,9 +329,10 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         exit(-6);
     }
     
-    int retflag = bcf_sr_set_regions(sr, regionstring.c_str(), false);
-    // bcf_sr_set_opt(srs[i], BCF_SR_PAIR_LOGIC, BCF_SR_PAIR_BOTH_REF); 
-    int sr_set_opt_retval = bcf_sr_set_opt(sr, BCF_SR_REQUIRE_IDX);
+    // int retflag = // bcf_sr_set_opt(srs[i], BCF_SR_PAIR_LOGIC, BCF_SR_PAIR_BOTH_REF); 
+    bcf_sr_set_regions(sr, regionstring.c_str(), false);
+    /*int sr_set_opt_retval =*/ 
+    bcf_sr_set_opt(sr, BCF_SR_REQUIRE_IDX);
     int sr_add_reader_retval = bcf_sr_add_reader(sr, vcf_tumor_fname.c_str());
     if (sr_add_reader_retval != 1) {
         LOG(logCRITICAL) << "Failed to synchronize-read the tumor vcf " << vcf_tumor_fname << " with return code " << sr_add_reader_retval;
@@ -482,7 +483,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
     auto incluBegPosition = std::get<1>(tid_beg_end_e2e_tuple);
     auto excluEndPosition = std::get<2>(tid_beg_end_e2e_tuple);
     auto end2end = std::get<3>(tid_beg_end_e2e_tuple);
-    auto nreads = std::get<4>(tid_beg_end_e2e_tuple);
+    // auto nreads = std::get<4>(tid_beg_end_e2e_tuple);
     
     std::map<uint64_t, std::pair<std::array<std::map<uint64_t, std::vector<bam1_t *>>, 2>, int>> umi_to_strand_to_reads;
     unsigned int extended_inclu_beg_pos, extended_exclu_end_pos; 
@@ -499,7 +500,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
     
     unsigned int num_passed_reads = passed_pcrpassed_umipassed[0];
     unsigned int num_pcrpassed_reads = passed_pcrpassed_umipassed[1];
-    unsigned int num_umipassed_reads = passed_pcrpassed_umipassed[2];
+    // unsigned int num_umipassed_reads = passed_pcrpassed_umipassed[2];
     bool is_by_capture = ((num_pcrpassed_reads) * 2 <= num_passed_reads);
     AssayType inferred_assay_type = ((ASSAY_TYPE_AUTO == paramset.assay_type) ? (is_by_capture ? ASSAY_TYPE_CAPTURE : ASSAY_TYPE_AMPLICON) : (paramset.assay_type));
     
@@ -630,7 +631,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                             (tid_pos_symb_to_tki.end() != tid_pos_symb_to_tki.find(std::make_tuple(tid, refpos, symbol)))); 
                             //(extended_posidx_to_symbol_to_tkinfo[refpos-extended_inclu_beg_pos][symbol].DP > 0); 
                     unsigned int phred_max_sscs = sscs_mut_table.to_phred_rate(refsymbol, symbol);
-                    int altdepth = fillBySymbol(fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]], symbolToCountCoverageSet12, 
+                    // int altdepth = 
+                    fillBySymbol(fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]], symbolToCountCoverageSet12, 
                             refpos, symbol, refstring, extended_inclu_beg_pos, mutform2count4vec_bq, indices_bq, mutform2count4vec_fq, indices_fq, 
                             ((BASE_SYMBOL == symbolType) ? minABQ_snv : minABQ_indel),
                             paramset.minMQ1, paramset.maxMQ,
@@ -926,17 +928,18 @@ int main(int argc, char **argv) {
             nreads += std::get<4>(tid_beg_end_e2e_tuple_vec[region_idx]);
             npositions += std::get<2>(tid_beg_end_e2e_tuple_vec[region_idx]) - std::get<1>(tid_beg_end_e2e_tuple_vec[region_idx]); 
         }
-
+        
         /*
-    unsigned int incvalue = 0;
-    for (unsigned int allridx = 0; allridx < tid_beg_end_e2e_tuple_vec.size(); allridx += incvalue) {
-        incvalue = 0;
-        unsigned int nreads = 0;
-        unsigned int npositions = 0;
-        while (allridx + incvalue < tid_beg_end_e2e_tuple_vec.size() && nreads < (2000*1000 * nthreads)  && npositions < (1000*1000 * nthreads)) {
-            nreads += std::get<4>(tid_beg_end_e2e_tuple_vec[allridx + incvalue]);
-            npositions += std::get<2>(tid_beg_end_e2e_tuple_vec[allridx + incvalue]) - std::get<1>(tid_beg_end_e2e_tuple_vec[allridx + incvalue]); 
-            incvalue++;
+        unsigned int incvalue = 0;
+        for (unsigned int allridx = 0; allridx < tid_beg_end_e2e_tuple_vec.size(); allridx += incvalue) {
+            incvalue = 0;
+            unsigned int nreads = 0;
+            unsigned int npositions = 0;
+            while (allridx + incvalue < tid_beg_end_e2e_tuple_vec.size() && nreads < (2000*1000 * nthreads)  && npositions < (1000*1000 * nthreads)) {
+                nreads += std::get<4>(tid_beg_end_e2e_tuple_vec[allridx + incvalue]);
+                npositions += std::get<2>(tid_beg_end_e2e_tuple_vec[allridx + incvalue]) - std::get<1>(tid_beg_end_e2e_tuple_vec[allridx + incvalue]); 
+                incvalue++;
+            }
         }
         */
         assert(incvalue > 0);

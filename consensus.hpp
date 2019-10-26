@@ -1495,7 +1495,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                     read_ampBQerr_fragWithR1R2.updateByRead1Aln<BASE_QUALITY_MAX>(alns1, frag_indel_ext, symbolType2addPhred, alns2.size(), 
                             frag_indel_basemax, alns2pair2dflag.second, nogap_phred);
                     read_family_con_ampl.updateByConsensus<SYMBOL_COUNT_SUM, true>(read_ampBQerr_fragWithR1R2);
-                    int updateresult = read_family_amplicon.updateByFiltering(read_ampBQerr_fragWithR1R2, this->bq_pass_thres[strand], 1, true, strand);
+                    read_family_amplicon.updateByFiltering(read_ampBQerr_fragWithR1R2, this->bq_pass_thres[strand], 1, true, strand);
                     if (log_alns2) {
                         // LOG(logINFO) << "        has " << alns1.size() << " sequenced read templates.";
                         // LOG(logDEBUG) << "num-updates = " << updateresult;
@@ -1560,7 +1560,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                     read_ampBQerr_fragWithR1R2.updateByRead1Aln<BASE_QUALITY_MAX>(aln_vec, frag_indel_ext, symbolType2addPhred, alns2.size(), 
                             frag_indel_basemax, alns2pair2dflag.second, nogap_phred);
                     // read_family_amplicon.updateByConsensus<SYMBOL_COUNT_SUM>(read_ampBQerr_fragWithR1R2);
-                    int updateresult = read_family_amplicon.updateByFiltering(read_ampBQerr_fragWithR1R2, this->bq_pass_thres[strand], 1, true, strand);
+                    read_family_amplicon.updateByFiltering(read_ampBQerr_fragWithR1R2, this->bq_pass_thres[strand], 1, true, strand);
                     if (log_alns2) {
                         // LOG(logDEBUG) << "num-updates = " << updateresult << " (second time)";
                     }
@@ -2246,9 +2246,9 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         vcfpos = (tki.ref_alt != "." ? (tki.pos + 1) : vcfpos);
         ref_alt = (tki.ref_alt != "." ? tki.ref_alt : vcfref + "\t" + vcfalt);
         const double depth_pseudocount = 0; // 1.0;
-        double tDP = (double)tki.DP;
+        //double tDP = (double)tki.DP;
         double nDP = (double)fmt.DP;
-        double tAD = (tDP * (double)tki.FA);
+        //double tAD = (tDP * (double)tki.FA);
         double nAD = (nDP * (double)fmt.FA);
         /*
         double tnlike = h01_to_phredlike<false>(
