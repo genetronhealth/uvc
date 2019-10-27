@@ -73,8 +73,8 @@ struct CommandLineArgs {
     uint32_t    phred_sys_bias = 0;
     double      nonref_to_alt_frac_snv = 0.50; // 0.50 for practically removing tri-allelic sites.
     double      nonref_to_alt_frac_indel = 0.20;
-    double      tnq_mult_snv = 2.000;
-    double      tnq_mult_indel = 2.000;
+    double      tnq_mult_snv = 4.000;
+    double      tnq_mult_indel = 4.000;
     
     double      mai_tier_qual = 40; // = 40;
     uint32_t    mai_tier_abq  = 40; // = 40;

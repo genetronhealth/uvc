@@ -281,8 +281,7 @@ struct Any4Value {
     const double v4;
     Any4Value(double v1, double v2, double v3, double v4) : v1(v1), v2(v2), v3(v3), v4(v4) {}
     const double to_phredlike(double d, double pc = 0, double err_amp_ratio = 1+1e-5) const {
-        return (  2.0 * d 
-                + 2.0 * h01_to_phredlike<false, true, true>(v1 + d, (v2 + d) * (1 + DBL_EPSILON), v3 + d, (v4 + d) * (1 + DBL_EPSILON), pc, err_amp_ratio));
+        return (d + h01_to_phredlike<false, true, true>(v1 + d, (v2 + d) * (1 + DBL_EPSILON), v3 + d, (v4 + d) * (1 + DBL_EPSILON), pc, err_amp_ratio));
     }
 };
 
