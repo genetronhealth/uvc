@@ -22,11 +22,11 @@ The executable uvc1 can perform each of the following tasks:
  2. filtering of tumor variants in tumor-only bgzipped vcf with its matched normal.
 The script uvcTN.sh simply wraps around the binary executable uvc1.
 
-For UMI to be detected, the read name (QNAME) in the input BAM file should be in the format of <original-name>#<UMI>, where UMI stands for unique moleculer identifier.
+For UMI (unique molecular identifier, a.k.a. molecular barcode) to be detected, the read name (QNAME) in the input BAM file should be in the format of <original-name>#<UMI>.
 For example, the UMI-labeled read name can be
  1. "H5G5ABBCC:4:1209:10114:63736#ACGTAACCA" (ACGTAACCA is the single-strand barcode) or 
  2. "H5G5ABBCC:1:3010:10412:33669#AGTA+TGGT" (AGTA+TGGT is the duplex barcode).
-The auxiliary tool debarcode can be used for appending UMI (unique molecular identifier, a.k.a. molecular barcode) sequences into read names.
+The auxiliary tool debarcode can be used for appending UMI sequences into read names.
 Running debarcode without any command-line argument will display its usage help.
 
 --- What to report if a runtime error arises ---
@@ -46,6 +46,8 @@ All bug reports, feature requests, and ideas for improvement are welcome (althou
 
 --- Other things --
 
+The environment variable ONE_STEP_UMI_STRUCT has special meaning to UVC.
+Please make sure that ONE_STEP_UMI_STRUCT is not set before running UVC.
 The python script extract-barcodes.py is obsolete and is replaced by debarcode.
 Compared with extract-barcodes.py, debarcode generates equivalent output but consumes only 40% of its runtime.
 The outputs of these two programs may not be the same in compressed space but are exactly the same in decompressed space.

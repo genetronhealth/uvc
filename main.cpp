@@ -769,7 +769,7 @@ main(int argc, char **argv) {
     auto t_start = std::chrono::high_resolution_clock::now();
     
     const char *UMI_STRUCT = getenv("ONE_STEP_UMI_STRUCT");
-    const std::string UMI_STRUCT_STRING = (UMI_STRUCT != NULL ? std::string(UMI_STRUCT) : std::string(""));
+    const std::string UMI_STRUCT_STRING = ((UMI_STRUCT != NULL && strlen(UMI_STRUCT) > 0) ? std::string(UMI_STRUCT) : std::string(""));
     CommandLineArgs paramset;
     int parsing_result_flag = -1;
     SequencingPlatform inferred_sequencing_platform = SEQUENCING_PLATFORM_AUTO;
