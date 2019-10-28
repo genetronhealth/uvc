@@ -11,6 +11,9 @@ UVC depends on htslib 1.6+ and bcftools 1.6+ (lower versions of htslib and bcfto
 If these two dependencies were already installed, then install-dependencies.sh may not be necessary.
 For trouble-shooting with the installation of htslib and bcftools, please check their official repositories at https://github.com/samtools/htslib and https://github.com/samtools/bcftools
 Although not required, it is highly recommmended that bcftools is installed at a system location (a location that can be found in the <PATH> environment variable).
+The UVC binary uses multi-threading efficiently for up to 16 threads. 
+After reaching 16 threads, adding more threads no longer significantly reduces wall-clock runtime.
+However, more efficient speed-up can still be gained by runing with GNU parallel or qsub to use one job per chromosome.
 
 --- How to use ---
 

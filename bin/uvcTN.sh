@@ -49,7 +49,7 @@ nbam="$3"
 outdir="$4"
 samplename=$(echo "$5/0/parallel" | awk -F"/" '{print $1}')
 nprocs=$(echo "$5/0/parallel" | awk -F"/" '{print $2}')
-paratool=$(echo "$5/0/parallel" | awk -F"/" '{print $2}')
+paratool=$(echo "$5/0/parallel" | awk -F"/" '{print $3}')
 
 mkdir -p "${outdir}"
 
@@ -71,19 +71,19 @@ export PATH="${scriptdir}:${PATH}" # remove this line in the rare case that an i
 
 if [ "${nprocs}" -gt 0 ]; then
     tnames=$(cat "${ref}.fai" | awk '{print $1}')
-    if [ "${paratool}" -eq "parallel" ]; then
+    if [ "${paratool}" = "parallel" ]; then
         for tname in ${tnames}; do
-            echo "${ref}" "${tbam}" "${nbam}" "${outdir}/${tname}" "${samplename}" -t "${tname}" "${@:6}" 
+            echo "${0}" "${ref}" "${tbam}" "${nbam}" "${outdir}/${tname}" "${samplename}" --targets "${tname}" "${@:6}" 
         done > "${outdir}/run_parallel.sh"
         cat "${outdir}/run_parallel.sh" | parallel -j "${nprocs}"
         bcftools concat -n -Oz -o "${nvcfgz}" "${outdir}/"*"/${nsample}_uvc1.vcf.gz"
-    elif [ "${paratool}" -eq "qsub" ]; then
+    elif [ "${paratool}" = "qsub" ]; then
         if [ -z "${UVC_QSUB_CMD}" ]; then
             echo "The variable UVC_QSUB_CMD must be set and exported in order to use qsub!"
             exit -2
         fi
         for tname in ${tnames}; do
-            echo "${ref}" "${tbam}" "${nbam}" "${outdir}/${tname}" "${samplename}" -t "${tname}" "${@:6}" "|" "${UVC_QSUB_CMD}" -o "${outdir}" -e "${outdir}" -j "${tname}.job"
+            echo echo "${0}" "${ref}" "${tbam}" "${nbam}" "${outdir}/${tname}" "${samplename}" --targets "${tname}" "${@:6}" "|" "${UVC_QSUB_CMD}" -o "${outdir}" -e "${outdir}" -v JOB_NAME="${tname}.job"
         done > "${outdir}/run_qsub.sh"
         sh "${outdir}/run_qsub.sh"
     else
