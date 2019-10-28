@@ -77,6 +77,7 @@ if [ "${nprocs}" -gt 0 ]; then
         done > "${outdir}/run_parallel.sh"
         cat "${outdir}/run_parallel.sh" | parallel -j "${nprocs}"
         bcftools concat -n -Oz -o "${nvcfgz}" "${outdir}/"*"/${nsample}_uvc1.vcf.gz"
+        bcftools index -ft "${nvcfgz}"
     elif [ "${paratool}" = "qsub" ]; then
         if [ -z "${UVC_QSUB_CMD}" ]; then
             echo "The variable UVC_QSUB_CMD must be set and exported in order to use qsub!"
