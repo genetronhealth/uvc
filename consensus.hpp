@@ -2168,7 +2168,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         const double vcfqual_thres,
         const bool should_output_all, const bool should_let_all_pass,
         const auto & tki, const bool prev_is_tumor, // , unsigned int rank
-        unsigned int germline_phred, unsigned int sys_bias_phred,
+        unsigned int phred_germline,
         double nonref_to_alt_frac_snv,
         double nonref_to_alt_frac_indel,
         double tnq_mult_snv,
@@ -2182,6 +2182,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         , const unsigned int highqual_thres
         , const double highqual_min_ratio
         , const double diffVAQfrac
+        , const double phred_sys_artifact
         //, unsigned int highqual_min_vardep
         //, unsigned int highqual_min_totdep
         ) {
@@ -2282,8 +2283,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         double pc1 = prob2phred(1.0 / (nDP + 2.0)) / (nAD + 1.0);
         double nAD1 = (nUseHD ? (highqual_thres * nAltHD) : nAltBQ) + depth_pseudocount;
         double nDP1 = (nUseHD ? (highqual_thres * nAllHD) : nAllBQ) + depth_pseudocount;
-        double tAD1 = (tUseHD ? (highqual_thres * tAltHD) : tAltBQ) + depth_pseudocount + sys_bias_phred;
-        double tDP1 = (tUseHD ? (highqual_thres * tAllHD) : tAllBQ) + depth_pseudocount + sys_bias_phred;
+        double tAD1 = (tUseHD ? (highqual_thres * tAltHD) : tAltBQ) + depth_pseudocount;
+        double tDP1 = (tUseHD ? (highqual_thres * tAllHD) : tAllBQ) + depth_pseudocount;
         
         double nfreqmult = 1.0;
         if (tUseHD && (!nUseHD)) {
@@ -2296,7 +2297,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         }
         double tnlike_argmin = 0;
         const double nAD2 = nAD1 * nfreqmult;
-        double tnlike = sumBQ4_to_phredlike(tnlike_argmin, nDP1, nAD2, tDP1 + nAD2, tAD1 + nAD2);
+        double tnlike = sumBQ4_to_phredlike(tnlike_argmin, nDP1, nAD2, tDP1, tAD1);
         // double tnlike = h01_to_phredlike<false>((nAD1 + 1.0), (nDP1 + 1.0) * (1.0 + DBL_EPSILON), (tAD1 + 1.0), (tDP1 + 1.0) * (1.0 + DBL_EPSILON), pc1, 1+1e-4);
         if (!(tnlike < 1e20)) {
             fprintf(stderr, "tnlike %f is invalid!, computed from %f %f %f %f , %f !!!\n", tnlike, nAD1, nDP1, tAD1, tDP1, pc1);
@@ -2307,6 +2308,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         double tnlike_nonref = bq4.to_phredlike(1);
         
         assert(tki.autoBestAllBQ >= tki.autoBestRefBQ + tki.autoBestAltBQ);
+        
+        double phred_non_germline = (double)((fmt.FA >= 0.2) ? 0 : (MAX(phred_sys_artifact, phred_germline) - phred_germline));
         
         infostring += std::string(";TNQ=") + std::to_string(tnlike);
         infostring += std::string(";TNQNR=") + std::to_string(tnlike_nonref);
@@ -2334,9 +2337,9 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
             // - GATK recommended SOR threshold of 4 for SNVs and 7 for InDels. 
             // - IonTorrent variantCaller has less stringent bias filter for InDels than for SNVs with its default parameters.
             // Therefore, the false positive filter for InDels is more lenient here too.
-            vcfqual = MIN(MIN(MIN(tnlike, tnlike_nonref) * tnq_mult_indel, diffVAQ), fmt.GQ + germline_phred); // 5.00 is too high, 1.50 is too low
+            vcfqual = MIN(MIN(MIN(tnlike, tnlike_nonref) * tnq_mult_indel + phred_non_germline, diffVAQ), fmt.GQ + phred_germline); // 5.00 is too high, 1.50 is too low
         } else {
-            vcfqual = MIN(MIN(MIN(tnlike, tnlike_nonref) * tnq_mult_snv  , diffVAQ), fmt.GQ + germline_phred); // (germline + sys error) freq of 10^(-25/10) ?
+            vcfqual = MIN(MIN(MIN(tnlike, tnlike_nonref) * tnq_mult_snv   + phred_non_germline, diffVAQ), fmt.GQ + phred_germline); // (germline + sys error) freq of 10^(-25/10) ?
         }
         ensure_positive_1(vcfqual);
     } else {

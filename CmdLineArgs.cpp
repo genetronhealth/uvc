@@ -128,7 +128,8 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     CLI::App app{(std::string("Unified Variant Caller (UVC) version ") + VERSION_DETAIL)};
     app.add_flag_function("-v,--version", version_cb,   "Show the version of this program (打印此软件版本号).");    
     app.add_option("inputBam",       bam_input_fname,   "Input coordinate-sorted BAM file that is supposed to contain raw reads (按照位置排序的有原始reads的BAM文件).")->required()->check(CLI::ExistingFile);
-    app.add_option("--output-bpRES", vcf_output_fname,  "Output bgzipped vcf file in the format of base-pair resolution (每个位置都输出检测信息的VCF输出文件，文件有可能非常大). This option is deprecated, please use -A instead. (已经废除，建议使用-A参数)");
+    app.add_option("--output-bpRES", vcf_output_fname,  "Output bgzipped vcf file in the format of base-pair resolution. "
+            "This option is deprecated, please use -A instead. (每个位置都输出检测信息的VCF输出文件，文件有可能非常大。已经废除，建议使用-A参数)");
     app.add_option("-o,--output",    vcf_out_pass_fname,"Output bgzipped vcf file in the format of blocked gVCF. (区块gVCF输出文件).", true);
     app.add_flag("-A,--All-out",     should_let_all_pass,"All possible alleles including REF allele at each position is in <--output>. The output is base-pair resolution VCF.(在--output文件输出每个位置的所有等位基因形)");
     app.add_option("--tumor-vcf",    vcf_tumor_fname,   "Bgzipped vcf file of tumor sample as input to the bam file of normal sample (肿瘤样本的VCF文件，用于输入).", true);
@@ -153,31 +154,31 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     app.add_option("--diffVAQfrac",    diffVAQfrac,     "Experimental real-numbered parameter that should be set to either zero or one (实验性的实数参数，理论值要么是零要么是一). ", true);
     
     app.add_option("--highqual-thres-snv",          highqual_thres_snv,
-            "the SNV quality threshold above which the family quality is considered to be high", true);
+            "The SNV quality threshold above which the family quality is considered to be high", true);
     app.add_option("--highqual-thres-indel",        highqual_thres_indel,
-            "the InDel quality threshold above which the family quality is considered to be high, "
+            "The InDel quality threshold above which the family quality is considered to be high, "
             "zero means auto infer to highqual-thres-snv + 6 for Illumina/BGI and -4 for IonTorrent)", true);
     app.add_option("--highqual-min-ratio",          highqual_min_ratio,
-            "the mininum ratio of the raw non-deduplicated read depth to the deduplicated read family depth to trigger tumor-normal comparison with high quality families only", true);
+            "The mininum ratio of the raw non-deduplicated read depth to the deduplicated read family depth to trigger tumor-normal comparison with high quality families only", true);
     //app.add_option("--highqual-min-vardep",         highqual_min_vardep,
     //        "the mininum number of families suporting the variant in the tumor sample to trigger tumor-normal comparison with families of duplicated reads only", true);
     //app.add_option("--highqual-min-totdep",         highqual_min_vardep,
     //        "the mininum number of familiess supporting any allele in the tumor sample to trigger tumor-normal comparison with families of duplicated reads only", true);
     
     app.add_option("--phred-frag-indel-ext",        phred_max_frag_indel_ext,
-            "maximum phred score fo the indel of one additional base (excluding the one base require for opening indel), capped at two additional bases", true);
+            "Maximum phred score fo the indel of one additional base (excluding the one base required for opening indel), capped at two additional bases", true);
     app.add_option("--phred-frag-indel-basemax",    phred_max_frag_indel_basemax,
-            "maximum phred score fo the opening of an indel (including the one base required for opening indel)", true);
+            "Maximum phred score fo the opening of an indel (including the one base required for opening indel)", true);
     app.add_option("--phred-sscs-transition-CG-TA", phred_max_sscs_transition_CG_TA, 
-            "maximum phred score for single-strand consensus sequences (SSCSs) for C:G > T:A transition", true);
+            "Maximum phred score for single-strand consensus sequences (SSCSs) for C:G > T:A transition", true);
     app.add_option("--phred-sscs-transition-TA-CG", phred_max_sscs_transition_TA_CG, 
-            "maximum phred score for single-strand consensus sequences (SSCSs) for T:A > C:G transition", true);
+            "Maximum phred score for single-strand consensus sequences (SSCSs) for T:A > C:G transition", true);
     app.add_option("--phred-sscs-transversion-any", phred_max_sscs_transversion_any, 
-            "maximum phred score for single-strand consensus sequences (SSCSs) for any transversion", true);
+            "Maximum phred score for single-strand consensus sequences (SSCSs) for any transversion", true);
     app.add_option("--phred-sscs-indel-open",       phred_max_sscs_indel_open, 
-            "maximum phred score for single-strand consensus sequences (SSCSs) for the opening of indel gap (the opening includes the insertion/deletion of one base)", true);
+            "Maximum phred score for single-strand consensus sequences (SSCSs) for the opening of indel gap (the opening includes the insertion/deletion of one base)", true);
     app.add_option("--phred-sscs-indel-ext" ,       phred_max_sscs_indel_ext, 
-            "maximum phred score for single-strand consensus sequences (SSCSs) for the extension of indel gap (excluding the extension of one base) per base", true);
+            "Maximum phred score for single-strand consensus sequences (SSCSs) for the extension of indel gap (excluding the extension of one base) per base", true);
     app.add_option("--phred-dscs-minus-sscs",       phred_dscs_minus_sscs, 
             "Maximum phred score for double-strand consensus sequences (DSCSs) minus the one for SSCSs", true);
     
@@ -210,12 +211,14 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     app.add_option("--bq-phred-added-indel", bq_phred_added_indel, "Additional base-quality phred score added to indel and no-indel, recommend 6 for Illumina and BGI.");
     
     app.add_option("--phred-germline",       phred_germline_polymorphism, "Phred-scale prior probability of germline polymorphism event at a loci.", true);
-    app.add_option("--phred-sys-bias",       phred_sys_bias,              "Phred-scale prior probability of systematic noise at a loci. Increasing this value increases sensitivity", true);
+    app.add_option("--phred-sys-artifact",   phred_sys_artifact,          "Phred-scale prior probability of systematic error at a loci. "
+                   "Must be greater than phred-germline. Increasing this value increases sensitivity", true);
     app.add_option("--nonref-alt-frac-snv",  nonref_to_alt_frac_snv,      "Fraction of NON-REF bases in normal that supports the ALT of interest for SNVs.", true);
     app.add_option("--nonref-alt-frac-indel",nonref_to_alt_frac_indel,    "Fraction of NON-REF bases in normal that supports the ALT of interest for InDels.", true);
     app.add_option("--tnq-mult-snv",         tnq_mult_snv,                "Multiplicative factor by which TNQ (tumor-normal quality) is amplified for computing QUAL for SNVs.", true);
     app.add_option("--tnq-mult-indel",       tnq_mult_indel,              "Multiplicative factor by which TNQ (tumor-normal quality) is amplified for computing QUAL for InDels.", true);
-    
+    // app.add_option("--tn-contam-ratio",      tn_contam_ratio,             "Tumor-to-normal contamination ratio. 0 means no contaminaton. ", true);
+ 
     app.add_option("--mai-tier-qual",        mai_tier_qual,               "Quality above this is subject to diminushing return due to multi-allelic indels MAI", true);
     app.add_option("--mai-tier-abq",         mai_tier_abq,                "Additive smoothing factor for multi-allelic indels with diminushing-return formula AltBQ/(AllBQ-RefBQ)", true);
     app.add_option("--str-tier-qual",        str_tier_qual,               "Quality above this is subject to diminushing effect due to short tandem repeats STR", true);

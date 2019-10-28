@@ -723,7 +723,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                                 std::get<0>(tname_tseqlen_tuple).c_str(), refpos, symbol, fmt,
                                 refstring, extended_inclu_beg_pos, paramset.vqual, should_output_all, should_let_all_pass,
                                 tki, paramset.vcf_tumor_fname.size() != 0, 
-                                paramset.phred_germline_polymorphism, paramset.phred_sys_bias,
+                                paramset.phred_germline_polymorphism,
                                 paramset.nonref_to_alt_frac_snv, paramset.nonref_to_alt_frac_indel,
                                 paramset.tnq_mult_snv, paramset.tnq_mult_indel
                                 , paramset.mai_tier_qual // = 40;
@@ -735,6 +735,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                                 , ((BASE_SYMBOL == symbolType) ? paramset.highqual_thres_snv : (LINK_SYMBOL == symbolType ? paramset.highqual_thres_indel : 0))
                                 , paramset.highqual_min_ratio
                                 , paramset.diffVAQfrac
+                                , paramset.phred_sys_artifact
                                 // , paramset.highqual_min_vardep, paramset.highqual_min_totdep
                                 );
                     }
