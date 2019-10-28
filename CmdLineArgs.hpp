@@ -72,7 +72,7 @@ struct CommandLineArgs {
     bool        should_add_note = false;
     uint32_t    phred_germline_polymorphism = 30; // probablity of germline polymorphism is between 1/500 and 1/1kb
     //uint32_t    phred_sys_bias = 0;
-    uint32_t    phred_sys_artifact = 55; // PMC4271055: probablity of germline call error is between 1/100kb and 1/200kb
+    uint32_t    phred_sys_artifact = 60; // or 55; // PMC4271055: probablity of germline call error is between 1/100kb and 1/200kb
     double      nonref_to_alt_frac_snv = 0.50; // 0.50 for practically removing tri-allelic sites.
     double      nonref_to_alt_frac_indel = 0.20;
     double      tnq_mult_snv = 2.000;
