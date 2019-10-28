@@ -361,7 +361,8 @@ public:
         } else if (symbolType == LINK_SYMBOL) {
             return this->_sumBySymbolType(LINK_M, LINK_NN);
         } else {
-            assert(false);
+            abort(); // assert(false);
+            return -1;
         }
     };
     
@@ -405,7 +406,8 @@ public:
         } else if (symbolType == LINK_SYMBOL) {
             return this->_fillConsensusCounts<TIndelIsMajor>(count_argmax, count_max, count_sum, LINK_M, LINK_NN);
         } else {
-            assert(false);
+            abort(); //assert(false);
+            return -1;
         }
     };
     

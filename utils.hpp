@@ -34,8 +34,8 @@ posToIndelToCount_updateByConsensus(std::map<uint32_t, std::map<T, uint32_t>> & 
     // if (indel2count.size() > 1) { return T(); }
     
     const T & src_indel = (indel2count.size() > 1 ? T() : indel2count.begin()->first);
-    const uint32_t src_count = indel2count.begin()->second;
-    assert (src_count > 0);
+    // const uint32_t src_count = indel2count.begin()->second;
+    assert (indel2count.begin()->second > 0);
     posToIndelToCount_inc<T>(dst, epos, src_indel, incvalue);
     return src_indel;
     //return (int)src_count;

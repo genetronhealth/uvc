@@ -6,14 +6,15 @@
 #include "common.h"
 
 struct CommandLineArgs {
-    std::string bam_input_fname = ""; // not missing
-    std::string vcf_output_fname = "";
+    std::string bam_input_fname = NOT_PROVIDED; // not missing
+    std::string vcf_output_fname = NOT_PROVIDED;
     std::string vcf_out_pass_fname = "-";
-    std::string fasta_ref_fname = "";
-    std::string bed_region_fname = "";
-    std::string vcf_tumor_fname = "";
+    std::string fasta_ref_fname = NOT_PROVIDED;
+    std::string tier1_target_region = NOT_PROVIDED; // bcftools view -t
+    std::string bed_region_fname = NOT_PROVIDED;    // bcftools view -R
+    std::string vcf_tumor_fname = NOT_PROVIDED;
     std::string sample_name = "-";
-    std::string tsv_primer_fname = "";
+    std::string tsv_primer_fname = NOT_PROVIDED;
     
     bool is_tumor_format_retrieved = false;
     bool should_let_all_pass = false;

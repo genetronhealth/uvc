@@ -35,10 +35,13 @@ bed_fname_to_contigs(
 
 struct SamIter {
     const std::string input_bam_fname;
+    const std::string & tier1_target_region; 
     const std::string region_bed_fname;
     const unsigned int nthreads;
     samFile *sam_infile = NULL;
-    bam_hdr_t * samheader = NULL;
+    bam_hdr_t *samheader = NULL;
+    hts_idx_t *sam_idx = NULL; 
+    hts_itr_t *sam_itr = NULL;
     
     unsigned int endingpos = UINT_MAX;
     unsigned int tid = UINT_MAX;
@@ -50,17 +53,41 @@ struct SamIter {
     
     std::vector<std::tuple<unsigned int, unsigned int, unsigned int, bool, unsigned int>> _tid_beg_end_e2e_vec;
     unsigned int _bedregion_idx = 0;
-
-    SamIter(const std::string & in_bam_fname, const std::string & reg_bed_fname, const unsigned int nt): input_bam_fname(in_bam_fname), region_bed_fname(reg_bed_fname), nthreads(nt) {
+    
+    SamIter(const std::string & in_bam_fname, const std::string & tier1_target_reg, const std::string & reg_bed_fname, const unsigned int nt): 
+            input_bam_fname(in_bam_fname), tier1_target_region(tier1_target_reg), region_bed_fname(reg_bed_fname), nthreads(nt) {
         this->sam_infile = sam_open(input_bam_fname.c_str(), "r");
+        if (NULL == this->sam_infile) {
+            fprintf(stderr, "Failed to open the file %s!", input_bam_fname.c_str());
+            abort();
+        }
         this->samheader = sam_hdr_read(sam_infile);
+        if (NULL == this->samheader) {
+            fprintf(stderr, "Failed to read the header of the file %s!", input_bam_fname.c_str());
+            abort();
+        }
         //this->region_bed_fname = reg_bed_fname;
+        if (NOT_PROVIDED != this->tier1_target_region) {
+            this->sam_idx = sam_index_load2(this->sam_infile, input_bam_fname.c_str(), NULL);
+            if (NULL == this->sam_idx) {
+                fprintf(stderr, "Failed to load the index for the file %s!", input_bam_fname.c_str());
+                abort();
+            }
+            this->sam_itr = sam_itr_querys(this->sam_idx, this->samheader, this->tier1_target_region.c_str());
+            if (NULL == this->sam_itr) {
+                fprintf(stderr, "Failed to load the region %s in the indexed file %s!", tier1_target_region.c_str(), input_bam_fname.c_str());
+                abort(); // while (sam_itr_next(sam_infile, hts_itr, aln) >= 0) {
+            }
+        }
+        
         if (NOT_PROVIDED != this->region_bed_fname) {
             bed_fname_to_contigs(this->_tid_beg_end_e2e_vec, this->region_bed_fname, this->samheader); 
         }
     }
     ~SamIter() {
         bam_destroy1(alnrecord);
+        if (NULL != sam_itr) { sam_itr_destroy(sam_itr); }
+        if (NULL != sam_idx) { hts_idx_destroy(sam_idx); }
         bam_hdr_destroy(samheader);
         sam_close(sam_infile);
     }

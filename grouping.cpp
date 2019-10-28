@@ -86,7 +86,8 @@ SamIter::iternext(std::vector<std::tuple<unsigned int, unsigned int, unsigned in
         }
         return ret;
     }
-    while (sam_read1(sam_infile, samheader, alnrecord) >= 0) {
+    while (    (NULL == sam_idx && (sam_read1(this->sam_infile, this->samheader, alnrecord) >= 0))
+            || (NULL != sam_idx && (sam_itr_next(this->sam_infile, this->sam_itr, alnrecord) >= 0))) {
         ret++;
         if (BAM_FUNMAP & alnrecord->core.flag) {
             continue;
