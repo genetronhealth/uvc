@@ -134,10 +134,10 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     app.add_flag("-A,--All-out",     should_let_all_pass,"All possible alleles including REF allele at each position is in <--output>. The output is base-pair resolution VCF.(在--output文件输出每个位置的所有等位基因形)");
     app.add_option("--tumor-vcf",    vcf_tumor_fname,   "Bgzipped vcf file of tumor sample as input to the bam file of normal sample (肿瘤样本的VCF文件，用于输入).", true);
     app.add_option("-f,--fasta",     fasta_ref_fname,   "Input reference fasta file, where the special value NA means not available (FASTA参考基因组).");
-    app.add_option("-t,--tier1-reg", tier1_target_region,"Input region string (for example, chr1:2-3 or chr1) which is optional and globally delimits the genomic region to call variants from, "
+    app.add_option("--targets",     tier1_target_region,"Input region string (for example, chr1:2-3 or chr1) which is optional and globally delimits the genomic region to call variants from, "
             "if not provided then call variants from all the sequenced genomic regions. This parameter does not affect memory consumption. "
             "(基因组区域字符串，可有可无，如果没提供则从reads覆盖信息自动计算出BED文件，此参数不影响内存消耗).");
-    app.add_option("-R,--tier2-Reg", bed_region_fname,  "Input BED region file which is optional and delimits the genomic regions to call variants from, "
+    app.add_option("-R,--regions-file", bed_region_fname,  "Input BED region file which is optional and delimits the genomic regions to call variants from, "
             "if not provided then call variants from all the sequenced genomic regions. "
             "This overrides the -t parameter. Please ensure that each region here is small enough to prevent memory exhaustion. "
             "Typically, each region covers one exon. "
