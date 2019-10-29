@@ -2061,8 +2061,8 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
     duplexVAQ = MIN(duplexVAQ, 200); // Similar to many other upper bounds, the 200 here has no theoretical foundation.
     fmt.VAQ  = MIN(vaqMQcap, MAX(lowestVAQ, doubleVAQ + duplexVAQ)); // / 1.5;
     fmt.VAQ2 = MIN(vaqMQcap, MAX(lowestVAQ, doubleVAQ_norm + duplexVAQ)); // treat other forms of indels as background noise if matched normal is not available.
-    ensure_positive_1(fmt.VAQ);
-    ensure_positive_1(fmt.VAQ2);
+    //ensure_positive_1(fmt.VAQ);
+    //ensure_positive_1(fmt.VAQ2);
     return (int)(fmt.bAD1[0] + fmt.bAD1[1]);
 };
 
@@ -2311,7 +2311,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         
         assert(tki.autoBestAllBQ >= tki.autoBestRefBQ + tki.autoBestAltBQ);
         
-        double phred_non_germline = (double)((fmt.FA >= 0.2) ? 0 : (MAX(phred_sys_artifact, phred_germline) - phred_germline));
+        auto phred_diff_artifact = (MAX(phred_sys_artifact, phred_germline) - phred_germline);
+        double phred_non_germline = (double)((fmt.FA > 0.2) ? (phred_diff_artifact - MIN(fmt.GQ, phred_diff_artifact)) : phred_diff_artifact);
         
         infostring += std::string(";TNQ=") + std::to_string(tnlike);
         infostring += std::string(";TNQNR=") + std::to_string(tnlike_nonref);
@@ -2332,18 +2333,21 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         auto diffVAQ = tki.VAQ;
         if (diffVAQfrac) {
             diffVAQ = MAX(tki.VAQ - (fmt.VAQ * diffVAQfrac), tki.VAQ / ((fmt.VAQ * diffVAQfrac) + tki.VAQ + DBL_MIN));
+            ensure_positive_1(diffVAQ);
         }
+         
+        auto tnlike_all = MIN(tnlike, tnlike_nonref);
+        ensure_positive_1(tnlike_all);
         // auto diffVAQ = MAX(tki.VAQ - fmt.VAQ, tki.VAQ / (fmt.VAQ + tki.VAQ + DBL_MIN)); // diffVAQ makes sense but can lead to false negatives.
         if (isInDel) {
             // Usually, InDels is charaterized by less stringent filter threshold than SNVs. For example,
             // - GATK recommended SOR threshold of 4 for SNVs and 7 for InDels. 
             // - IonTorrent variantCaller has less stringent bias filter for InDels than for SNVs with its default parameters.
             // Therefore, the false positive filter for InDels is more lenient here too.
-            vcfqual = MIN(MIN(MIN(tnlike, tnlike_nonref) * tnq_mult_indel + phred_non_germline, diffVAQ), fmt.GQ + phred_germline); // 5.00 is too high, 1.50 is too low
+            vcfqual = MIN(MIN(tnlike_all * tnq_mult_indel + phred_non_germline, diffVAQ), fmt.GQ + phred_germline); // 5.00 is too high, 1.50 is too low
         } else {
-            vcfqual = MIN(MIN(MIN(tnlike, tnlike_nonref) * tnq_mult_snv   + phred_non_germline, diffVAQ), fmt.GQ + phred_germline); // (germline + sys error) freq of 10^(-25/10) ?
+            vcfqual = MIN(MIN(tnlike_all * tnq_mult_snv   + phred_non_germline, diffVAQ), fmt.GQ + phred_germline); // (germline + sys error) freq of 10^(-25/10) ?
         }
-        ensure_positive_1(vcfqual);
     } else {
         ref_alt = vcfref + "\t" + vcfalt;
     }

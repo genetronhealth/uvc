@@ -68,9 +68,10 @@ geomean2(double a, double b) {
 // 1e-6 is the somatic mutation rate
 template <class T>
 void 
-ensure_positive_1(T & v, T thres = 1e-6) {
+ensure_positive_1(T & v, T base = pow(10.0, 0.1), T thres = 20.0) {
     if (v < thres) {
-        v = thres / ((1.0 + thres) - v);
+        v = log1p(pow(base, v)) / log(base);
+        // v = thres / ((1.0 + thres) - v);
     }
 }
 
