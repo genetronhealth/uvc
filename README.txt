@@ -50,7 +50,7 @@ All bug reports, feature requests, and ideas for improvement are welcome (althou
 --- Other things --
 
 The environment variable ONE_STEP_UMI_STRUCT has special meaning to UVC.
-Please make sure that ONE_STEP_UMI_STRUCT is not set before running UVC.
+Please make sure that ONE_STEP_UMI_STRUCT is either not set or set to the empty string before running UVC.
 The python script extract-barcodes.py is obsolete and is replaced by debarcode.
 Compared with extract-barcodes.py, debarcode generates equivalent output but consumes only 40% of its runtime.
 The outputs of these two programs may not be the same in compressed space but are exactly the same in decompressed space.
