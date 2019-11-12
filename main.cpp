@@ -735,7 +735,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                                 , ((BASE_SYMBOL == symbolType) ? paramset.highqual_thres_snv : (LINK_SYMBOL == symbolType ? paramset.highqual_thres_indel : 0))
                                 , paramset.highqual_min_ratio
                                 , paramset.diffVAQfrac
-                                , paramset.phred_sys_artifact
+                                , ((BASE_SYMBOL == symbolType) ? paramset.phred_sys_artifact_snv : (LINK_SYMBOL == symbolType ? paramset.phred_sys_artifact_indel : 0))
+                                // paramset.phred_sys_artifact
                                 // , paramset.highqual_min_vardep, paramset.highqual_min_totdep
                                 );
                     }

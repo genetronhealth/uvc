@@ -288,7 +288,7 @@ struct Any4Value {
 
 // retrieved from https://en.wikipedia.org/wiki/Golden-section_search
 Any4Value
-gss(const auto & any4Value, double a, double b, double tol = 1.0) {
+gss(const auto & any4Value, double a, double b, double tol = 0.5) {
     Any4Value ret(0, 0, 0, 0);
     double invphi = (sqrt(5) - 1) / 2;
     double invphi2 = (3 - sqrt(5)) / 2;

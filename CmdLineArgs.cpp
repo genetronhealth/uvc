@@ -217,7 +217,9 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     app.add_option("--bq-phred-added-indel", bq_phred_added_indel, "Additional base-quality phred score added to indel and no-indel, recommend 6 for Illumina and BGI.");
     
     app.add_option("--phred-germline",       phred_germline_polymorphism, "Phred-scale prior probability of germline polymorphism event at a loci.", true);
-    app.add_option("--phred-sys-artifact",   phred_sys_artifact,          "Phred-scale prior probability of systematic error at a loci. "
+    app.add_option("--phred-sys-err-snv",    phred_sys_artifact_snv,          "Phred-scale prior probability of systematic SNV error at a loci. "
+                   "Must be greater than phred-germline. Increasing this value increases sensitivity", true);
+    app.add_option("--phred-sys-err-indel",  phred_sys_artifact_indel,        "Phred-scale prior probability of systematic InDel error at a loci. "
                    "Must be greater than phred-germline. Increasing this value increases sensitivity", true);
     app.add_option("--nonref-alt-frac-snv",  nonref_to_alt_frac_snv,      "Fraction of NON-REF bases in normal that supports the ALT of interest for SNVs.", true);
     app.add_option("--nonref-alt-frac-indel",nonref_to_alt_frac_indel,    "Fraction of NON-REF bases in normal that supports the ALT of interest for InDels.", true);
