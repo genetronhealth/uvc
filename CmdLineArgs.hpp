@@ -80,8 +80,8 @@ struct CommandLineArgs {
         
     double      mai_tier_qual = 40; // = 40;
     uint32_t    mai_tier_abq  = 40; // = 40;
-    double      str_tier_qual = 50; // = 50;
-    uint32_t    str_tier_len  = 15; // = 16; 
+    double      str_tier_qual = 30; // 50; // = 50;
+    uint32_t    str_tier_len  = 20; // 15; // = 16; 
     
     int 
     initFromArgCV(int & parsing_result_flag, SequencingPlatform & inferred_sequencing_platform, int argc, const char *const* argv);
