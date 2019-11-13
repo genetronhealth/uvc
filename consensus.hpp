@@ -2372,13 +2372,13 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
                 vcfqual = str_tier_qual + (vcfqual - str_tier_qual) * (double)(str_tier_len) / (double)(str_tier_len + context_len);
             }
             
-            if (vcfqual > mai_tier_qual) {
+            if (prev_is_tumor && vcfqual > mai_tier_qual) {
                 // penalize multi-allelic indels.
                 vcfqual = mai_tier_qual + (vcfqual - mai_tier_qual) * 
                         (double)(tki.autoBestAltBQ + mai_tier_abq) / (double)(tki.autoBestAllBQ - tki.autoBestRefBQ + mai_tier_abq);
             }
             
-            if (vcfqual > ldi_tier_qual) {
+            if (prev_is_tumor && vcfqual > ldi_tier_qual) {
                 double tAD = (tki.FA * (double)tki.DP);
                 vcfqual = ldi_tier_qual + (vcfqual - ldi_tier_qual) * (double)(tAD) / (double)(tAD + (double)ldi_tier_cnt);
             }
