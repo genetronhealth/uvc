@@ -230,8 +230,10 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     app.add_option("--mai-tier-qual",        mai_tier_qual,               "Quality above this is subject to diminushing return due to multi-allelic indels MAI", true);
     app.add_option("--mai-tier-abq",         mai_tier_abq,                "Additive smoothing factor for multi-allelic indels with diminushing-return formula AltBQ/(AllBQ-RefBQ)", true);
     app.add_option("--str-tier-qual",        str_tier_qual,               "Quality above this is subject to diminushing effect due to short tandem repeats STR", true);
-    app.add_option("--str-tier-len",         str_tier_len,                "Additive smoothing factor for short tandem repeats with diminushing-return formula 1/(num-bases-in-STR-region)", true);
-     
+    app.add_option("--str-tier-len",         str_tier_len,                "Additive smoothing factor for short tandem repeats with diminushing-return formula 1/(num-bases-in-STR-region)", true); 
+    app.add_option("--ldi-tier-qual",        ldi_tier_qual,               "Quality above this is subject to diminushing return due to low-depth indel LDI", true);
+    app.add_option("--ldi-tier-cnt",         ldi_tier_cnt,                "Additive smoothing factor for low-depth indel with diminushing-return formula 1/(tFA*tDP)", true);
+
     app.add_flag("--Should-add-note",        should_add_note,             "Flag indicating if the program generates more detail in the vcf result file.");
     
     app.add_option("--is-tumor-format-retrieved", is_tumor_format_retrieved, "Boolean (0: false, 1: true) indicating if the format from the tumor vcf should be retrieved in the tumor-normal comparison. This boolean is only useful if tumor vcf is provided. Notice that a true value for this boolean disables the generation of genomic block so that the output is no longer gvcf.", true);

@@ -2179,6 +2179,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         , const unsigned int mai_tier_abq // = 40;
         , const double str_tier_qual      // = 50;
         , const unsigned int str_tier_len // = 16;
+        , const double ldi_tier_qual
+        , const unsigned int ldi_tier_cnt
         , const unsigned int uni_bias_thres
         , const bcf_hdr_t *g_bcf_hdr, const bool is_tumor_format_retrieved
         , const unsigned int highqual_thres
@@ -2358,20 +2360,27 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         indelpos_to_context(repeatunit, repeatnum, refstring, regionpos);
         infostring += ";RU=" + repeatunit + ";RC=" + std::to_string(repeatnum);
         if (isInDel) {
-            // Heuristically, incorporating additional information from the repeat pattern should generate more accurate var calls.
-            // However, it is not clear how we can do this in a theoretically sound way.
-            // A simple logistic regression on repeatnum and repeatunit.size() results in an accuracy of 58% with balanced true positives and false positives.
-            auto context_len = repeatunit.size() * repeatnum;
+            
+            if (vcfqual > str_tier_qual) {
+                // penalize indels with a high number of nucleotides in repeat region.
+                // https://github.com/Illumina/strelka/blob/ac7233f1a35d0e4405848a4fc80260a10248f989/src/c%2B%2B/lib/starling_common/AlleleGroupGenotype.cpp
+                // modified from Strelka2: vcfqual = 40 + (vcfqual - 40) / exp(MAX(context_len, 40) / ((double)40) * (log(3e-4) - log(5e-5))); // (double)(15) / (double)(context_len);
+                // Heuristically, incorporating additional information from the repeat pattern should generate more accurate var calls.
+                // However, it is not clear how we can do this in a theoretically sound way.
+                // A simple logistic regression on repeatnum and repeatunit.size() results in an accuracy of 58% with balanced true positives and false positives.
+                auto context_len = repeatunit.size() * repeatnum;
+                vcfqual = str_tier_qual + (vcfqual - str_tier_qual) * (double)(str_tier_len) / (double)(str_tier_len + context_len);
+            }
+            
             if (vcfqual > mai_tier_qual) {
                 // penalize multi-allelic indels.
                 vcfqual = mai_tier_qual + (vcfqual - mai_tier_qual) * 
                         (double)(tki.autoBestAltBQ + mai_tier_abq) / (double)(tki.autoBestAllBQ - tki.autoBestRefBQ + mai_tier_abq);
             }
-            if (vcfqual > str_tier_qual) {
-                // penalize indels with a high number of nucleotides in repeat region.
-                // https://github.com/Illumina/strelka/blob/ac7233f1a35d0e4405848a4fc80260a10248f989/src/c%2B%2B/lib/starling_common/AlleleGroupGenotype.cpp
-                // modified from Strelka2: vcfqual = 40 + (vcfqual - 40) / exp(MAX(context_len, 40) / ((double)40) * (log(3e-4) - log(5e-5))); // (double)(15) / (double)(context_len);
-                vcfqual = str_tier_qual + (vcfqual - str_tier_qual) * (double)(str_tier_len) / (double)(str_tier_len + context_len);
+            
+            if (vcfqual > ldi_tier_qual) {
+                double tAD = (tki.FA * (double)tki.DP);
+                vcfqual = ldi_tier_qual + (vcfqual - ldi_tier_qual) * (double)(tAD) / (double)(tAD + (double)ldi_tier_cnt);
             }
         }
         
