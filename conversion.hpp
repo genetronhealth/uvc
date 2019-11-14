@@ -187,12 +187,12 @@ main(int argc, char **argv) {
     double t11 = atof(argv[4]);
     double p = atof(argv[5]);
 
-    auto bf1 = any4_to_biasfact100<false>(t00, t01, t10, t11, p);
-    auto bf2 = any4_to_biasfact100<false>(t01, t00, t11, t10, p);
+    auto bf1 = any4_to_biasfact100<false>(t00, t01, t10, t11, false, p);
+    auto bf2 = any4_to_biasfact100<false>(t01, t00, t11, t10, false, p);
     //auto im1 = biasfact100_to_imba(bf1);
     //auto im2 = biasfact100_to_imba(bf2);
-    printf("any4_to_bias100(%f %f %f %f) == %d\n", t00, t01, t10, t11, bf1);
-    printf("any4_to_bias100(%f %f %f %f) == %d\n", t01, t00, t11, t10, bf2);
+    printf("any4_to_bias100(%f %f %f %f %f) == %d\n", t00, t01, t10, t11, p, bf1);
+    printf("any4_to_bias100(%f %f %f %f %f) == %d\n", t01, t00, t11, t10, p, bf2);
     //printf("biasfact100_to_imba(%d) == %f\n", bf1, im1);
     //printf("biasfact100_to_imba(%d) == %f\n", bf2, im2);
 }

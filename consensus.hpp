@@ -1213,9 +1213,9 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                             // If the peak family sizes are 100+-10 and 16+-4 for REF and ALT, then the formula below would fail.
                             // TODO: find theoretical justification for this
                             auto db100 = any4_to_biasfact100(
-                                    MAX(prev_depth_typesum, curr_depth_typesum) - curr_depth_typesum, 
+                                    MAX(prev_depth_typesum, curr_depth_typesum) - curr_depth_typesum + pseudocount, 
                                     curr_depth_typesum, 
-                                    MAX(prev_depth_symbsum, curr_depth_symbsum) - curr_depth_symbsum, 
+                                    MAX(prev_depth_symbsum, curr_depth_symbsum) - curr_depth_symbsum + pseudocount, 
                                     curr_depth_symbsum, 
                                     false, pseudocount / 2);
                             
