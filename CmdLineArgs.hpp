@@ -21,14 +21,14 @@ struct CommandLineArgs {
     bool disable_dup_read_merge = false;
     bool  enable_dup_read_vqual = true;
     bool disable_duplex = false;
-    unsigned int nogap_phred = 8;
+    unsigned int nogap_phred = 8; // obsolete, not used anymore
     AssayType assay_type = ASSAY_TYPE_AUTO;
     MoleculeTag molecule_tag = MOLECULE_TAG_AUTO;
     SequencingPlatform sequencing_platform = SEQUENCING_PLATFORM_AUTO;
     PairEndMerge pair_end_merge = PAIR_END_MERGE_YES;
-    unsigned int fixedthresBQ = 20;
-    unsigned int uni_bias_thres = 180;
-    unsigned int uni_bias_r_max = 1900900900;
+    unsigned int fixedthresBQ = 20; // to count the number of bases with base quality of more than this value at each position
+    unsigned int uni_bias_thres = 180; // sampple FT includes the filter string if the filter value is higher than this value
+    unsigned int uni_bias_r_max = 1900900900; // is used as infinity here
     double diffVAQfrac = 0; // set to 1 to get the old behavior
     
     // it is used to decide whether UMI or non-UMI tumor-vs-normal quality should be used
@@ -79,14 +79,14 @@ struct CommandLineArgs {
     double      tnq_mult_snv   = 2.000;
     double      tnq_mult_indel = 2.000; // * 1.5;
     
-    double      ldi_tier_qual = 20;
-    uint32_t    ldi_tier1cnt  = 300;
-    uint32_t    ldi_tier2cnt  = 100; // almost disabled
-    double      mai_tier_qual = 40; // = 40;
-    uint32_t    mai_tier1abq  = 40; // = 40;
+    double      ldi_tier_qual = 0; // strongly enabled ; // 20;
+    uint32_t    ldi_tier1cnt  = 100; // 300; 
+    uint32_t    ldi_tier2cnt  = 100; // weakly enabled with add-one smoothing
+    double      mai_tier_qual = 40; // = 40; // probability of germline indel
+    uint32_t    mai_tier1abq  = 40; // = 40; // approximately one extra indel is added as a pseudocount
     uint32_t    mai_tier2abq  = 1024*1024*1024; // disabled
-    double      str_tier_qual = 50; // = 50;
-    uint32_t    str_tier1len  = 15; // = 16; 
+    double      str_tier_qual = 50; // = 50; // is slightly lower than phred_sys_artifact_indel as STR-indel sys error is more common than germline-indel sys error
+    uint32_t    str_tier1len  = 15; // = 16; // critical STR region size at which polymerase slippage error reaches a plateau
     uint32_t    str_tier2len  = 15; // enabled 
     
     int 

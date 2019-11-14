@@ -2364,25 +2364,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         indelpos_to_context(repeatunit, repeatnum, refstring, regionpos);
         infostring += ";RU=" + repeatunit + ";RC=" + std::to_string(repeatnum);
         if (isInDel) {
-            
             const bool tUseHD = (prev_is_tumor ? (tki.bDP > tki.DP * highqual_min_ratio) : (fmt.bDP > fmt.DP * highqual_min_ratio));
-            
-            if (vcfqual > ldi_tier_qual) {
-                // penalize low-allele-depth indels.
-                double tAD = (prev_is_tumor ? (tki.FA * (double)tki.DP) : (fmt.FA * (double)fmt.DP));
-                auto ldi_tier_cnt = (tUseHD ? ldi_tier2cnt : ldi_tier1cnt);
-                vcfqual = ldi_tier_qual + ((vcfqual - ldi_tier_qual) * ((double)tAD) / (((double)tAD) + (((double)ldi_tier_cnt)/100.0)));
-            }
-            
-            if (vcfqual > mai_tier_qual) {
-                // penalize multi-allelic indels.
-                auto tAltBQ = (double)(prev_is_tumor ? tki.autoBestAltBQ : SUM2(fmt.cAltBQ));
-                auto tAllBQ = (double)(prev_is_tumor ? tki.autoBestAllBQ : SUM2(fmt.cAllBQ));
-                auto tRefBQ = (double)(prev_is_tumor ? tki.autoBestRefBQ : SUM2(fmt.cRefBQ));
-                auto tOthBQ= MAX(tAllBQ - tRefBQ, tAltBQ);
-                auto mai_tier_abq = (double)(tUseHD ? mai_tier2abq : mai_tier1abq); 
-                vcfqual = mai_tier_qual + ((vcfqual - mai_tier_qual) * (tAltBQ + mai_tier_abq) / (tOthBQ + mai_tier_abq));
-            }
             
             if (vcfqual > str_tier_qual) {
                 // penalize indels with a high number of nucleotides in repeat region.
@@ -2395,6 +2377,23 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
                 auto str_tier_len = (tUseHD ? str_tier2len : str_tier1len);
                 vcfqual = str_tier_qual + ((vcfqual - str_tier_qual) * (double)(str_tier_len) / (double)(str_tier_len + context_len));
             }
+            
+            if (vcfqual > mai_tier_qual) {
+                // penalize multi-allelic indels.
+                auto tAltBQ = (double)(prev_is_tumor ? tki.autoBestAltBQ : SUM2(fmt.cAltBQ));
+                auto tAllBQ = (double)(prev_is_tumor ? tki.autoBestAllBQ : SUM2(fmt.cAllBQ));
+                auto tRefBQ = (double)(prev_is_tumor ? tki.autoBestRefBQ : SUM2(fmt.cRefBQ));
+                auto tOthBQ= MAX(tAllBQ - tRefBQ, tAltBQ);
+                auto mai_tier_abq = (double)(tUseHD ? mai_tier2abq : mai_tier1abq); 
+                vcfqual = mai_tier_qual + ((vcfqual - mai_tier_qual) * (tAltBQ + mai_tier_abq) / (tOthBQ + mai_tier_abq));
+            }
+            
+            if (vcfqual > ldi_tier_qual) {
+                // penalize low-allele-depth indels.
+                double tAD = (prev_is_tumor ? (tki.FA * (double)tki.DP) : (fmt.FA * (double)fmt.DP));
+                auto ldi_tier_cnt = (tUseHD ? ldi_tier2cnt : ldi_tier1cnt);
+                vcfqual = ldi_tier_qual + ((vcfqual - ldi_tier_qual) * ((double)tAD) / (((double)tAD) + (((double)ldi_tier_cnt)/100.0)));
+            }           
         }
         
         // This hard-filtering can be done by bcftools but much more slowly
