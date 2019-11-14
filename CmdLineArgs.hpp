@@ -79,12 +79,15 @@ struct CommandLineArgs {
     double      tnq_mult_snv   = 2.000;
     double      tnq_mult_indel = 2.000; // * 1.5;
     
-    double      mai_tier_qual = 40; // = 40;
-    uint32_t    mai_tier_abq  = 40; // = 40;
-    double      str_tier_qual = 50; // = 50;
-    uint32_t    str_tier_len  = 15; // = 16; 
     double      ldi_tier_qual = 20;
-    uint32_t    ldi_tier_cnt  =  4;
+    uint32_t    ldi_tier1cnt  = 300;
+    uint32_t    ldi_tier2cnt  = 100; // almost disabled
+    double      mai_tier_qual = 40; // = 40;
+    uint32_t    mai_tier1abq  = 40; // = 40;
+    uint32_t    mai_tier2abq  = 1024*1024*1024; // disabled
+    double      str_tier_qual = 50; // = 50;
+    uint32_t    str_tier1len  = 15; // = 16; 
+    uint32_t    str_tier2len  = 15; // enabled 
     
     int 
     initFromArgCV(int & parsing_result_flag, SequencingPlatform & inferred_sequencing_platform, int argc, const char *const* argv);

@@ -726,12 +726,15 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                                 paramset.phred_germline_polymorphism,
                                 paramset.nonref_to_alt_frac_snv, paramset.nonref_to_alt_frac_indel,
                                 paramset.tnq_mult_snv, paramset.tnq_mult_indel
-                                , paramset.mai_tier_qual // = 40;
-                                , paramset.mai_tier_abq // = 40;
-                                , paramset.str_tier_qual // = 50;
-                                , paramset.str_tier_len // = 16;
                                 , paramset.ldi_tier_qual
-                                , paramset.ldi_tier_cnt
+                                , paramset.ldi_tier1cnt
+                                , paramset.ldi_tier2cnt
+                                , paramset.mai_tier_qual // = 40;
+                                , paramset.mai_tier1abq  // = 40;
+                                , paramset.mai_tier2abq  // = 40;
+                                , paramset.str_tier_qual // = 50;
+                                , paramset.str_tier1len  // = 16;
+                                , paramset.str_tier2len  // = 16;
                                 , paramset.uni_bias_thres // = 180
                                 , bcf_hdr, paramset.is_tumor_format_retrieved
                                 , ((BASE_SYMBOL == symbolType) ? paramset.highqual_thres_snv : (LINK_SYMBOL == symbolType ? paramset.highqual_thres_indel : 0))

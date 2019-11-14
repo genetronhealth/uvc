@@ -227,12 +227,17 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     app.add_option("--tnq-mult-indel",       tnq_mult_indel,              "Multiplicative factor by which TNQ (tumor-normal quality) is amplified for computing QUAL for InDels.", true);
     // app.add_option("--tn-contam-ratio",      tn_contam_ratio,             "Tumor-to-normal contamination ratio. 0 means no contaminaton. ", true);
  
-    app.add_option("--mai-tier-qual",        mai_tier_qual,               "Quality above this is subject to diminushing return due to multi-allelic indels MAI", true);
-    app.add_option("--mai-tier-abq",         mai_tier_abq,                "Additive smoothing factor for multi-allelic indels with diminushing-return formula AltBQ/(AllBQ-RefBQ)", true);
-    app.add_option("--str-tier-qual",        str_tier_qual,               "Quality above this is subject to diminushing effect due to short tandem repeats STR", true);
-    app.add_option("--str-tier-len",         str_tier_len,                "Additive smoothing factor for short tandem repeats with diminushing-return formula 1/(num-bases-in-STR-region)", true); 
-    app.add_option("--ldi-tier-qual",        ldi_tier_qual,               "Quality above this is subject to diminushing return due to low-depth indel LDI", true);
-    app.add_option("--ldi-tier-cnt",         ldi_tier_cnt,                "Additive smoothing factor for low-depth indel with diminushing-return formula 1/(tFA*tDP)", true);
+    app.add_option("--ldi-tier-qual",        ldi_tier_qual,               "InDel variant quality above this is subject to diminushing return due to low allele-depth indel LDI", true);
+    app.add_option("--ldi-tier1cnt",         ldi_tier1cnt,                "Additive smoothing factor (X100) for LDI with diminushing-return formula 1/(tFA*tDP)", true);
+    app.add_option("--ldi-tier2cnt",         ldi_tier2cnt,                "--ldi-tier1cnt for UMI data", true);
+    
+    app.add_option("--mai-tier-qual",        mai_tier_qual,               "InDel variant quality above this is subject to diminushing return due to multi-allelic indels MAI", true);
+    app.add_option("--mai-tier1abq",         mai_tier1abq,                "Additive smoothing factor for MAI with diminushing-return formula AltBQ/(AllBQ-RefBQ)", true);
+    app.add_option("--mai-tier2abq",         mai_tier2abq,                "--mai-tier1abq for UMI data", true);
+ 
+    app.add_option("--str-tier-qual",        str_tier_qual,               "InDel variant quality above this is subject to diminushing effect due to short tandem repeats STR", true);
+    app.add_option("--str-tier1len",         str_tier1len,                "Additive smooth factor for STR with diminushing-return formula 1/(num-bases-in-STR-region)", true); 
+    app.add_option("--str-tier2len",         str_tier2len,                "--str-tier1len for UMI data", true); 
 
     app.add_flag("--Should-add-note",        should_add_note,             "Flag indicating if the program generates more detail in the vcf result file.");
     

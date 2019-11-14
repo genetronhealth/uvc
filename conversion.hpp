@@ -35,6 +35,13 @@ UPDATE_MAX(auto & a, const auto & b) {
     a = MAX(a, b);
 }
 
+auto 
+SUM2(const auto & vec) {
+    static_assert (vec.size() == 2);
+    return vec[0] + vec[1];
+}
+
+
 void 
 UPDATE_MIN2(auto & a, const auto & b) {
     for (int i = 0; i < 2; i++) { UPDATE_MIN(a[i], b[i]); }

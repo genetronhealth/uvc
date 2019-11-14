@@ -1202,7 +1202,8 @@ struct Symbol2CountCoverageSet {
 if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol 
         && ((curr_depth_symbsum * 5 < curr_depth_typesum * 4 && curr_depth_symbsum > 0)
          || (curr_deprv_symbsum * 5 < curr_deprv_typesum * 4 && curr_deprv_symbsum > 0))) {
-                        const double pseudocount = (double)1;
+                        const unsigned int add1count = 1;
+                        const double pseudocount = (double)add1count;
                         // double pseudocount = ((double)1) + ((double)1); // pseudocount should be one and there should be another threshold.
                         // compute duplication bias
                         double dup_imba = 1;
@@ -1213,9 +1214,9 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                             // If the peak family sizes are 100+-10 and 16+-4 for REF and ALT, then the formula below would fail.
                             // TODO: find theoretical justification for this
                             auto db100 = any4_to_biasfact100(
-                                    MAX(prev_depth_typesum, curr_depth_typesum) - curr_depth_typesum + pseudocount, 
+                                    MAX(prev_depth_typesum, curr_depth_typesum) - curr_depth_typesum + add1count,
                                     curr_depth_typesum, 
-                                    MAX(prev_depth_symbsum, curr_depth_symbsum) - curr_depth_symbsum + pseudocount, 
+                                    MAX(prev_depth_symbsum, curr_depth_symbsum) - curr_depth_symbsum + add1count,
                                     curr_depth_symbsum, 
                                     false, pseudocount / 2);
                             
@@ -2175,13 +2176,16 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         double nonref_to_alt_frac_indel,
         double tnq_mult_snv,
         double tnq_mult_indel
-        , const double mai_tier_qual      // = 40;
-        , const unsigned int mai_tier_abq // = 40;
-        , const double str_tier_qual      // = 50;
-        , const unsigned int str_tier_len // = 16;
-        , const double ldi_tier_qual
-        , const unsigned int ldi_tier_cnt
-        , const unsigned int uni_bias_thres
+        , const double       ldi_tier_qual
+        , const unsigned int ldi_tier1cnt
+        , const unsigned int ldi_tier2cnt
+        , const double       mai_tier_qual // = 40;
+        , const unsigned int mai_tier1abq  // = 40;
+        , const unsigned int mai_tier2abq  // = 40;
+        , const double       str_tier_qual // = 50;
+        , const unsigned int str_tier1len // = 16;
+        , const unsigned int str_tier2len // = 16;
+       , const unsigned int uni_bias_thres
         , const bcf_hdr_t *g_bcf_hdr, const bool is_tumor_format_retrieved
         , const unsigned int highqual_thres
         , const double highqual_min_ratio
@@ -2361,6 +2365,25 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         infostring += ";RU=" + repeatunit + ";RC=" + std::to_string(repeatnum);
         if (isInDel) {
             
+            const bool tUseHD = (prev_is_tumor ? (tki.bDP > tki.DP * highqual_min_ratio) : (fmt.bDP > fmt.DP * highqual_min_ratio));
+            
+            if (vcfqual > ldi_tier_qual) {
+                // penalize low-allele-depth indels.
+                double tAD = (prev_is_tumor ? (tki.FA * (double)tki.DP) : (fmt.FA * (double)fmt.DP));
+                auto ldi_tier_cnt = (tUseHD ? ldi_tier2cnt : ldi_tier1cnt);
+                vcfqual = ldi_tier_qual + ((vcfqual - ldi_tier_qual) * ((double)tAD) / (((double)tAD) + (((double)ldi_tier_cnt)/100.0)));
+            }
+            
+            if (vcfqual > mai_tier_qual) {
+                // penalize multi-allelic indels.
+                auto tAltBQ = (double)(prev_is_tumor ? tki.autoBestAltBQ : SUM2(fmt.cAltBQ));
+                auto tAllBQ = (double)(prev_is_tumor ? tki.autoBestAllBQ : SUM2(fmt.cAllBQ));
+                auto tRefBQ = (double)(prev_is_tumor ? tki.autoBestRefBQ : SUM2(fmt.cRefBQ));
+                auto tOthBQ= MAX(tAllBQ - tRefBQ, tAltBQ);
+                auto mai_tier_abq = (double)(tUseHD ? mai_tier2abq : mai_tier1abq); 
+                vcfqual = mai_tier_qual + ((vcfqual - mai_tier_qual) * (tAltBQ + mai_tier_abq) / (tOthBQ + mai_tier_abq));
+            }
+            
             if (vcfqual > str_tier_qual) {
                 // penalize indels with a high number of nucleotides in repeat region.
                 // https://github.com/Illumina/strelka/blob/ac7233f1a35d0e4405848a4fc80260a10248f989/src/c%2B%2B/lib/starling_common/AlleleGroupGenotype.cpp
@@ -2369,18 +2392,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
                 // However, it is not clear how we can do this in a theoretically sound way.
                 // A simple logistic regression on repeatnum and repeatunit.size() results in an accuracy of 58% with balanced true positives and false positives.
                 auto context_len = repeatunit.size() * repeatnum;
-                vcfqual = str_tier_qual + (vcfqual - str_tier_qual) * (double)(str_tier_len) / (double)(str_tier_len + context_len);
-            }
-            
-            if (prev_is_tumor && vcfqual > mai_tier_qual) {
-                // penalize multi-allelic indels.
-                vcfqual = mai_tier_qual + (vcfqual - mai_tier_qual) * 
-                        (double)(tki.autoBestAltBQ + mai_tier_abq) / (double)(tki.autoBestAllBQ - tki.autoBestRefBQ + mai_tier_abq);
-            }
-            
-            if (prev_is_tumor && vcfqual > ldi_tier_qual) {
-                double tAD = (tki.FA * (double)tki.DP);
-                vcfqual = ldi_tier_qual + (vcfqual - ldi_tier_qual) * (double)(tAD) / (double)(tAD + (double)ldi_tier_cnt);
+                auto str_tier_len = (tUseHD ? str_tier2len : str_tier1len);
+                vcfqual = str_tier_qual + ((vcfqual - str_tier_qual) * (double)(str_tier_len) / (double)(str_tier_len + context_len));
             }
         }
         
