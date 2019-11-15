@@ -225,6 +225,9 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     app.add_option("--nonref-alt-frac-indel",nonref_to_alt_frac_indel,    "Fraction of NON-REF bases in normal that supports the ALT of interest for InDels.", true);
     app.add_option("--tnq-mult-snv",         tnq_mult_snv,                "Multiplicative factor by which TNQ (tumor-normal quality) is amplified for computing QUAL for SNVs.", true);
     app.add_option("--tnq-mult-indel",       tnq_mult_indel,              "Multiplicative factor by which TNQ (tumor-normal quality) is amplified for computing QUAL for InDels.", true);
+    app.add_option("--tnq-mult-tADadd-snv",  tnq_mult_tADadd_snv,         "Additional smoothing factor for SNV TNQ.", true);
+    app.add_option("--tnq-mult-tADadd-indel",tnq_mult_tADadd_indel,       "Additional smoothing factor for InDel TNQ", true);
+    
     // app.add_option("--tn-contam-ratio",      tn_contam_ratio,             "Tumor-to-normal contamination ratio. 0 means no contaminaton. ", true);
  
     app.add_option("--ldi-tier-qual",        ldi_tier_qual,               "InDel variant quality above this is subject to diminushing return due to low allele-depth indel LDI", true);
