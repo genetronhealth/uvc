@@ -127,12 +127,12 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     };
     CLI::App app{(std::string("Unified Variant Caller (UVC) version ") + VERSION_DETAIL)};
     app.add_flag_function("-v,--version", version_cb,   "Show the version of this program (打印此软件版本号).");    
-    app.add_option("inputBam",       bam_input_fname,   "Input coordinate-sorted BAM file that is supposed to contain raw reads (按照位置排序的有原始reads的BAM文件).")->required()->check(CLI::ExistingFile);
-    app.add_option("--output-bpRES", vcf_output_fname,  "Output bgzipped vcf file in the format of base-pair resolution. "
+    app.add_option("inputBAM",       bam_input_fname,   "Input coordinate-sorted BAM file that is supposed to contain raw reads (按照位置排序的有原始reads的BAM文件).")->required()->check(CLI::ExistingFile);
+    app.add_option("--output-bpRES", vcf_output_fname,  "Output bgzipped VCF file in the format of base-pair resolution. "
             "This option is deprecated, please use -A instead. (每个位置都输出检测信息的VCF输出文件，文件有可能非常大。已经废除，建议使用-A参数)");
-    app.add_option("-o,--output",    vcf_out_pass_fname,"Output bgzipped vcf file in the format of blocked gVCF. (区块gVCF输出文件).", true);
+    app.add_option("-o,--output",    vcf_out_pass_fname,"Output bgzipped VCF file in the format of blocked gVCF. (区块gVCF输出文件).", true);
     app.add_flag("-A,--All-out",     should_let_all_pass,"All possible alleles including REF allele at each position is in <--output>. The output is base-pair resolution VCF.(在--output文件输出每个位置的所有等位基因形)");
-    app.add_option("--tumor-vcf",    vcf_tumor_fname,   "Bgzipped vcf file of tumor sample as input to the bam file of normal sample (肿瘤样本的VCF文件，用于输入).", true);
+    app.add_option("--tumor-vcf",    vcf_tumor_fname,   "Block-gzipped VCF file of the tumor sample as input to the BAM file of normal sample. If specified/unspecified, then the input BAM is considered to be from normal/tumor. (肿瘤样本的VCF文件，用于输入。如果提供/不提供则认为BAM文件是normal/tumor的).", true);
     app.add_option("-f,--fasta",     fasta_ref_fname,   "Input reference fasta file, where the special value NA means not available (FASTA参考基因组).");
     app.add_option("--targets",     tier1_target_region,"Input region string (for example, chr1:2-3 or chr1) which is optional and globally delimits the genomic region to call variants from, "
             "if not provided then call variants from all the sequenced genomic regions. This parameter does not affect memory consumption. "
@@ -146,8 +146,8 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     app.add_option("-s,--sample",    sample_name,       "Sample name which is optional (样本名称，可有可无).");
     // app.add_option("--primers",      tsv_primer_fname,  "primer files")->check(CLI::ExistingFile);
     
-    app.add_option("-q,--vqual",     vqual,             "Minimum variant quality to be present in --out-pass (如果变异质量低于此值，则不输出到--out-pass文件).", true);
-    app.add_option("-d,--min-depth", min_depth_thres,   "Minimum depth below which results are fitlered out and therefore not in the output vcf (如果低于此原始深度则在VCF不输入任何结果).", true);
+    app.add_option("-q,--vqual",     vqual,             "Minimum variant quality to be present in -o file. If the input is a BAM file for the normal, then the program internally subtracts this parameter by 10. (如果变异质量低于此值，则不输出到-o文件。如果输入为normal比对结果则本参数减10).", true);
+    app.add_option("-d,--min-depth", min_depth_thres,   "Minimum depth below which results are fitlered out and therefore not in the output VCF (如果低于此原始深度则在VCF不输入任何结果).", true);
     app.add_option("-D,--min-altdp", min_altdp_thres,   "Minimum depth of ALT below which results are filtered out (如果ALT深度低于此数则不输出结果).", true);
     app.add_option("-t,--threads",   max_cpu_num,       "Number of cpu cores or equivalently threads to use (使用CPU线程的数量).", true);
     app.add_option("--alnlen",       min_aln_len,       "Minimum alignment length below which the alignment is filtered out (如果比对长度低于比值则过滤掉一行的比对结果).", true);
@@ -242,9 +242,9 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     app.add_option("--str-tier1len",         str_tier1len,                "Additive smooth factor for STR with diminushing-return formula 1/(num-bases-in-STR-region)", true); 
     app.add_option("--str-tier2len",         str_tier2len,                "--str-tier1len for UMI data", true); 
 
-    app.add_flag("--Should-add-note",        should_add_note,             "Flag indicating if the program generates more detail in the vcf result file.");
+    app.add_flag("--Should-add-note",        should_add_note,             "Flag indicating if the program generates more detail in the VCF result file.");
     
-    app.add_option("--is-tumor-format-retrieved", is_tumor_format_retrieved, "Boolean (0: false, 1: true) indicating if the format from the tumor vcf should be retrieved in the tumor-normal comparison. This boolean is only useful if tumor vcf is provided. Notice that a true value for this boolean disables the generation of genomic block so that the output is no longer gvcf.", true);
+    app.add_option("--is-tumor-format-retrieved", is_tumor_format_retrieved, "Boolean (0: false, 1: true) indicating if the format from the tumor VCF should be retrieved in the tumor-normal comparison. This boolean is only useful if tumor VCF is provided. Notice that a true value for this boolean disables the generation of genomic block so that the output is no longer gvcf.", true);
     
     app.add_option("--disable-dup-read-merge", disable_dup_read_merge,      "Boolean (0: false, 1: true) indicating if the program should disable the merge of duplicate reads.", true);
     app.add_option("--enable-dup-read-vqual",  enable_dup_read_vqual,       "Boolean (0: false, 1: true) indicating if the program should disable the use of raw non-dedupped reads in the calculation of variant quality.", true);
@@ -274,6 +274,9 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
             fasta_ref_fname = "";
         }
         inferred_sequencing_platform = this->selfUpdateByPlatform();
+        if (vcf_tumor_fname != NOT_PROVIDED) {
+            vqual -= (double)10;
+        }
         parsing_result_flag = 0;
     });
     
