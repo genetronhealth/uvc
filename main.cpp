@@ -724,8 +724,9 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                                 refstring, extended_inclu_beg_pos, paramset.vqual, should_output_all, should_let_all_pass,
                                 tki, paramset.vcf_tumor_fname.size() != 0, 
                                 paramset.phred_germline_polymorphism,
-                                paramset.nonref_to_alt_frac_snv, paramset.nonref_to_alt_frac_indel,
-                                paramset.tnq_mult_snv, paramset.tnq_mult_indel
+                                paramset.nonref_to_alt_frac_snv, paramset.nonref_to_alt_frac_indel
+                                , paramset.tnq_mult_snv, paramset.tnq_mult_indel
+                                , paramset.tnq_mult_tADadd_snv, paramset.tnq_mult_tADadd_indel
                                 , paramset.ldi_tier_qual
                                 , paramset.ldi_tier1cnt
                                 , paramset.ldi_tier2cnt

@@ -2173,9 +2173,9 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         const auto & tki, const bool prev_is_tumor, // , unsigned int rank
         unsigned int phred_germline,
         double nonref_to_alt_frac_snv,
-        double nonref_to_alt_frac_indel,
-        double tnq_mult_snv,
-        double tnq_mult_indel
+        double nonref_to_alt_frac_indel
+        , double tnq_mult_snv,        double tnq_mult_indel
+        , double tnq_mult_tADadd_snv, double tnq_mult_tADadd_indel
         , const double       ldi_tier_qual
         , const unsigned int ldi_tier1cnt
         , const unsigned int ldi_tier2cnt
@@ -2350,9 +2350,13 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
             // - GATK recommended SOR threshold of 4 for SNVs and 7 for InDels. 
             // - IonTorrent variantCaller has less stringent bias filter for InDels than for SNVs with its default parameters.
             // Therefore, the false positive filter for InDels is more lenient here too.
-            vcfqual = MIN(MIN(tnlike_all * tnq_mult_indel + phred_non_germline, diffVAQ), fmt.GQ + phred_germline); // 5.00 is too high, 1.50 is too low
+            double tnq_eff_tAD = tnq_mult_tADadd_indel * (tki.FA * (double)tki.DP); 
+            double tnq_mult = tnq_mult_indel + tnq_eff_tAD / (tnq_eff_tAD + fmt.DP);
+            vcfqual = MIN(MIN(tnlike_all * tnq_mult + phred_non_germline, diffVAQ), fmt.GQ + phred_germline); // 5.00 is too high, 1.50 is too low
         } else {
-            vcfqual = MIN(MIN(tnlike_all * tnq_mult_snv   + phred_non_germline, diffVAQ), fmt.GQ + phred_germline); // (germline + sys error) freq of 10^(-25/10) ?
+            double tnq_eff_tAD = tnq_mult_tADadd_snv   * (tki.FA * (double)tki.DP);
+            double tnq_mult = tnq_mult_snv   + tnq_eff_tAD / (tnq_eff_tAD + fmt.DP);
+            vcfqual = MIN(MIN(tnlike_all * tnq_mult + phred_non_germline, diffVAQ), fmt.GQ + phred_germline); // (germline + sys error) freq of 10^(-25/10) ?
         }
     } else {
         ref_alt = vcfref + "\t" + vcfalt;
