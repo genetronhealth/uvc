@@ -2345,17 +2345,28 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         auto tnlike_all = MIN(tnlike, tnlike_nonref);
         ensure_positive_1(tnlike_all);
         // auto diffVAQ = MAX(tki.VAQ - fmt.VAQ, tki.VAQ / (fmt.VAQ + tki.VAQ + DBL_MIN)); // diffVAQ makes sense but can lead to false negatives.
+        
+        double tnq_mult_ad = (isInDel ? tnq_mult_tADadd_indel : tnq_mult_tADadd_snv);
+        double tnq_mult_fa = (isInDel ? tnq_mult_indel        : tnq_mult_snv);
+        double tnq_mult = 1.0 + MIN(MIN(
+                (double)(tki.FA * (double)tki.DP - 1.0)       
+                    / (double)tnq_mult_ad,
+                (double)(tki.FA)                                
+                    / (double)tnq_mult_fa),
+                (double)(tki.DP + tki.DP) 
+                    / (DBL_EPSILON+(double)(tki.DP + fmt.DP)));
+        
         if (isInDel) {
             // Usually, InDels is charaterized by less stringent filter threshold than SNVs. For example,
             // - GATK recommended SOR threshold of 4 for SNVs and 7 for InDels. 
             // - IonTorrent variantCaller has less stringent bias filter for InDels than for SNVs with its default parameters.
             // Therefore, the false positive filter for InDels is more lenient here too.
-            double tnq_eff_tAD = tnq_mult_tADadd_indel * (tki.FA * (double)tki.DP); 
-            double tnq_mult = tnq_mult_indel + tnq_eff_tAD / (tnq_eff_tAD + fmt.DP);
+            //double tnq_eff_tAD = tnq_mult_tADadd_indel * (tki.FA * (double)tki.DP); 
+            //double tnq_mult = tnq_mult_indel + tnq_eff_tAD / (tnq_eff_tAD + fmt.DP);
             vcfqual = MIN(MIN(tnlike_all * tnq_mult + phred_non_germline, diffVAQ), fmt.GQ + phred_germline); // 5.00 is too high, 1.50 is too low
         } else {
-            double tnq_eff_tAD = tnq_mult_tADadd_snv   * (tki.FA * (double)tki.DP);
-            double tnq_mult = tnq_mult_snv   + tnq_eff_tAD / (tnq_eff_tAD + fmt.DP);
+            //double tnq_eff_tAD = tnq_mult_tADadd_snv   * (tki.FA * (double)tki.DP);
+            //double tnq_mult = tnq_mult_snv   + tnq_eff_tAD / (tnq_eff_tAD + fmt.DP);
             vcfqual = MIN(MIN(tnlike_all * tnq_mult + phred_non_germline, diffVAQ), fmt.GQ + phred_germline); // (germline + sys error) freq of 10^(-25/10) ?
         }
     } else {
