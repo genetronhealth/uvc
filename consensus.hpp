@@ -2345,7 +2345,9 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         auto tnlike_all = MIN(tnlike, tnlike_nonref);
         ensure_positive_1(tnlike_all);
         // auto diffVAQ = MAX(tki.VAQ - fmt.VAQ, tki.VAQ / (fmt.VAQ + tki.VAQ + DBL_MIN)); // diffVAQ makes sense but can lead to false negatives.
-        
+        double tnq_base = MIN(MAX((double)0, tki.VAQ - phred_germline), phred_non_germline);
+        /* 
+        // this needs more theoretical justification if used
         double tnq_mult_ad = (isInDel ? tnq_mult_tADadd_indel : tnq_mult_tADadd_snv);
         double tnq_mult_fa = (isInDel ? tnq_mult_indel        : tnq_mult_snv);
         double tnq_mult = 1.0 + MIN(MIN(
@@ -2355,7 +2357,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
                     / (double)tnq_mult_fa),
                 (double)(tki.DP + tki.DP) 
                     / (DBL_EPSILON+(double)(tki.DP + fmt.DP)));
-        
+        */
+        double tnq_mult = (isInDel ? tnq_mult_indel : tnq_mult_snv);
         if (isInDel) {
             // Usually, InDels is charaterized by less stringent filter threshold than SNVs. For example,
             // - GATK recommended SOR threshold of 4 for SNVs and 7 for InDels. 

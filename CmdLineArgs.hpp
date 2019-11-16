@@ -54,7 +54,7 @@ struct CommandLineArgs {
     uint32_t    phred_max_sscs_indel_open = 50; // 34;
     uint32_t    phred_max_sscs_indel_ext  = 0;  // 5;
     uint32_t    phred_dscs_minus_sscs = 10;
-    double      vqual = 20; // 10; set to 20 for less output
+    double      vqual = (double)15; // 10; set to 20 for less output
     //std::string platform = "auto";
     uint32_t    minABQ_pcr_snv = 0;
     uint32_t    minABQ_pcr_indel = 0;
@@ -72,14 +72,14 @@ struct CommandLineArgs {
     bool        should_add_note = false;
     uint32_t    phred_germline_polymorphism = 30; // probablity of germline polymorphism is between 1/500 and 1/1kb
     //uint32_t    phred_sys_bias = 0;
-    uint32_t    phred_sys_artifact_snv   = phred_germline_polymorphism + 15; // or 55; // PMC4271055: probablity of germline call error is between 1/100kb and 1/200kb
-    uint32_t    phred_sys_artifact_indel = phred_germline_polymorphism + 15; // 3 / 2;
+    uint32_t    phred_sys_artifact_snv   = phred_germline_polymorphism * 2; // or 55; // PMC4271055: probablity of germline call error is between 1/100kb and 1/200kb
+    uint32_t    phred_sys_artifact_indel = phred_germline_polymorphism * 2; // 3 / 2;
     double      nonref_to_alt_frac_snv   = 0.50; // 0.50 for practically removing tri-allelic sites.
     double      nonref_to_alt_frac_indel = 0.20;
-    double      tnq_mult_snv   = 0.05;
-    double      tnq_mult_indel = 0.05; // * 1.5;
-    double      tnq_mult_tADadd_snv   = 4.000;
-    double      tnq_mult_tADadd_indel = 4.000; // * 1.5;
+    double      tnq_mult_snv   = 2.0; // 0.05;
+    double      tnq_mult_indel = 2.0; // 0.05; // * 1.5;
+    double      tnq_mult_tADadd_snv   = 4.000; // not used anymore
+    double      tnq_mult_tADadd_indel = 4.000; // not used anymore // * 1.5;
     
     double      ldi_tier_qual = 0; // strongly enabled ; // 20;
     uint32_t    ldi_tier1cnt  = 100; // 300; 
@@ -87,7 +87,7 @@ struct CommandLineArgs {
     double      mai_tier_qual = 40; // = 40; // probability of germline indel
     uint32_t    mai_tier1abq  = 40; // = 40; // approximately one extra indel is added as a pseudocount
     uint32_t    mai_tier2abq  = 1024*1024*1024; // disabled
-    double      str_tier_qual = 45; // = 50; // is approximately the same as phred_sys_artifact_indel
+    double      str_tier_qual = 50; // 45; // = 50; // is approximately the same as phred_sys_artifact_indel
     uint32_t    str_tier1len  = 15; // = 16; // critical STR region size at which polymerase slippage error reaches a plateau
     uint32_t    str_tier2len  = 15; // enabled 
     

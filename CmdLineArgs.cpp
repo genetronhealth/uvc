@@ -146,7 +146,8 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     app.add_option("-s,--sample",    sample_name,       "Sample name which is optional (样本名称，可有可无).");
     // app.add_option("--primers",      tsv_primer_fname,  "primer files")->check(CLI::ExistingFile);
     
-    app.add_option("-q,--vqual",     vqual,             "Minimum variant quality to be present in -o file. If the input is a BAM file for the normal, then the program internally subtracts this parameter by 10. (如果变异质量低于此值，则不输出到-o文件。如果输入为normal比对结果则本参数减10).", true);
+    // If the input is a BAM file for the normal, then the program internally subtracts this parameter by 10. 如果输入为normal比对结果则本参数减10
+    app.add_option("-q,--vqual",     vqual,             "Minimum variant quality to be present in -o file. (如果变异质量低于此值，则不输出到-o文件).", true);
     app.add_option("-d,--min-depth", min_depth_thres,   "Minimum depth below which results are fitlered out and therefore not in the output VCF (如果低于此原始深度则在VCF不输入任何结果).", true);
     app.add_option("-D,--min-altdp", min_altdp_thres,   "Minimum depth of ALT below which results are filtered out (如果ALT深度低于此数则不输出结果).", true);
     app.add_option("-t,--threads",   max_cpu_num,       "Number of cpu cores or equivalently threads to use (使用CPU线程的数量).", true);
@@ -225,8 +226,8 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     app.add_option("--nonref-alt-frac-indel",nonref_to_alt_frac_indel,    "Fraction of NON-REF bases in normal that supports the ALT of interest for InDels.", true);
     app.add_option("--tnq-mult-snv",         tnq_mult_snv,                "Multiplicative factor by which TNQ (tumor-normal quality) is amplified for computing QUAL for SNVs.", true);
     app.add_option("--tnq-mult-indel",       tnq_mult_indel,              "Multiplicative factor by which TNQ (tumor-normal quality) is amplified for computing QUAL for InDels.", true);
-    app.add_option("--tnq-mult-tADadd-snv",  tnq_mult_tADadd_snv,         "Additional smoothing factor for SNV TNQ.", true);
-    app.add_option("--tnq-mult-tADadd-indel",tnq_mult_tADadd_indel,       "Additional smoothing factor for InDel TNQ", true);
+    //app.add_option("--tnq-mult-tADadd-snv",  tnq_mult_tADadd_snv,         "Additional smoothing factor for SNV TNQ.", true);
+    //app.add_option("--tnq-mult-tADadd-indel",tnq_mult_tADadd_indel,       "Additional smoothing factor for InDel TNQ", true);
     
     // app.add_option("--tn-contam-ratio",      tn_contam_ratio,             "Tumor-to-normal contamination ratio. 0 means no contaminaton. ", true);
  
@@ -275,7 +276,7 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
         }
         inferred_sequencing_platform = this->selfUpdateByPlatform();
         if (vcf_tumor_fname != NOT_PROVIDED) {
-            vqual -= (double)10;
+            // vqual -= (double)10; // maybe useful but not now
         }
         parsing_result_flag = 0;
     });
