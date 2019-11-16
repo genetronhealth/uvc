@@ -2343,9 +2343,9 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         }
          
         auto tnlike_all = MIN(tnlike, tnlike_nonref);
-        ensure_positive_1(tnlike_all);
+        // ensure_positive_1(tnlike_all); // ensure later
         // auto diffVAQ = MAX(tki.VAQ - fmt.VAQ, tki.VAQ / (fmt.VAQ + tki.VAQ + DBL_MIN)); // diffVAQ makes sense but can lead to false negatives.
-        double tnq_base = MIN(MAX((double)0, tki.VAQ - phred_germline), phred_non_germline);
+        double tnq_base = MIN(MAX((double)0, tki.VAQ - (double)phred_germline), (double)phred_non_germline);
         /* 
         // this needs more theoretical justification if used
         double tnq_mult_ad = (isInDel ? tnq_mult_tADadd_indel : tnq_mult_tADadd_snv);
@@ -2359,6 +2359,11 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
                     / (DBL_EPSILON+(double)(tki.DP + fmt.DP)));
         */
         double tnq_mult = (isInDel ? tnq_mult_indel : tnq_mult_snv);
+        double tnq1 = tnlike_all * tnq_mult + tnq_base;
+        ensure_positive_1(tnq1);
+        vcfqual = MIN(MIN(tnq1, diffVAQ), fmt.GQ + phred_germline); 
+        // SNV and InDels were unified
+        /* 
         if (isInDel) {
             // Usually, InDels is charaterized by less stringent filter threshold than SNVs. For example,
             // - GATK recommended SOR threshold of 4 for SNVs and 7 for InDels. 
@@ -2366,12 +2371,13 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
             // Therefore, the false positive filter for InDels is more lenient here too.
             //double tnq_eff_tAD = tnq_mult_tADadd_indel * (tki.FA * (double)tki.DP); 
             //double tnq_mult = tnq_mult_indel + tnq_eff_tAD / (tnq_eff_tAD + fmt.DP);
-            vcfqual = MIN(MIN(tnlike_all * tnq_mult + tnq_base, diffVAQ), fmt.GQ + phred_germline); // 5.00 is too high, 1.50 is too low
+            // vcfqual = MIN(MIN(tnq1, diffVAQ), fmt.GQ + phred_germline); // 5.00 is too high, 1.50 is too low
         } else {
             //double tnq_eff_tAD = tnq_mult_tADadd_snv   * (tki.FA * (double)tki.DP);
             //double tnq_mult = tnq_mult_snv   + tnq_eff_tAD / (tnq_eff_tAD + fmt.DP);
-            vcfqual = MIN(MIN(tnlike_all * tnq_mult + tnq_base, diffVAQ), fmt.GQ + phred_germline); // (germline + sys error) freq of 10^(-25/10) ?
+            // vcfqual = MIN(MIN(tnq1, diffVAQ), fmt.GQ + phred_germline); // (germline + sys error) freq of 10^(-25/10) ?
         }
+        */
     } else {
         ref_alt = vcfref + "\t" + vcfalt;
     }
