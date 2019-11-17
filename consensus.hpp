@@ -2418,17 +2418,25 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
                 auto ldi_tier_cnt = (tUseHD ? ldi_tier2cnt : ldi_tier1cnt);
                 vcfqual = ldi_tier_qual + ((vcfqual - ldi_tier_qual) * ((double)tAD) / (((double)tAD) + (((double)ldi_tier_cnt)/100.0)));
             }
-        } 
-        // apply to both SNVs and InDels
-        // else
+        }
+        // apply to only SNVs excluding InDels
+        else
         {
             if (tUseHD) {
                 // do nothing because the LOD for ctDNA is not clear now
             } else {
                 auto tDP = (prev_is_tumor ? (tki.DP) : (fmt.DP));
                 auto tFA = (prev_is_tumor ? (tki.FA) : (fmt.FA));
-                auto tFA2 = (tFA * ((double)tDP) + ((double)1)) / ((double)(tDP + 1));
-                tFA2 = MAX(0.02/10.0, MIN(0.02*10.0, tFA2));
+                auto tAD = tFA * (double)tDP;
+                
+                // micro-adjustment by FFPE artifact
+                auto refalt2chars = std::string(vcfref) + vcfalt;
+                if (std::string("AG") == refalt2chars || std::string("TC") == refalt2chars) {
+                    vcfqual = vcfqual * tAD / (tAD + 1.0);
+                }
+                // micro-adjustment by LOD
+                auto tFA2 = (tAD + (double)1) / ((double)(tDP + 1));
+                tFA2 = MAX(0.02/2.0, MIN(0.02*2.0, tFA2));
                 vcfqual += log(tFA2 / 0.02) / log(10.0) * 10.0;
             }
         }
