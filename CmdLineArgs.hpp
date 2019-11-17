@@ -82,7 +82,7 @@ struct CommandLineArgs {
     double      tnq_mult_tADadd_indel = 4.000; // not used anymore // * 1.5;
     
     double      ldi_tier_qual = 0; // strongly enabled ; // 20;
-    uint32_t    ldi_tier1cnt  = 100; // 300; 
+    uint32_t    ldi_tier1cnt  = 150; // 300; 
     uint32_t    ldi_tier2cnt  = 100; // weakly enabled with add-one smoothing
     double      mai_tier_qual = 40; // = 40; // probability of germline indel
     uint32_t    mai_tier1abq  = 40; // = 40; // approximately one extra indel is added as a pseudocount
