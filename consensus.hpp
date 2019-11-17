@@ -2429,15 +2429,20 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
                 auto tFA = (prev_is_tumor ? (tki.FA) : (fmt.FA));
                 auto tAD = tFA * (double)tDP;
                 
-                // micro-adjustment by FFPE artifact
+                // TODO: theoretical-or-empirical justification for the micro-adjustments below
+                // micro-adjustment for A->T and G->C artifacts
                 auto refalt2chars = std::string(vcfref) + vcfalt;
                 if (std::string("AG") == refalt2chars || std::string("TC") == refalt2chars) {
-                    vcfqual = vcfqual * tAD / (tAD + 1.0);
+                    vcfqual = vcfqual * tAD / (tAD + 0.5);
                 }
-                // micro-adjustment by LOD
-                auto tFA2 = (tAD + (double)1) / ((double)(tDP + 1));
-                tFA2 = MAX(0.02/2.0, MIN(0.02*2.0, tFA2));
-                vcfqual += log(tFA2 / 0.02) / log(10.0) * 10.0;
+                
+                if (tAD < 1.5) {
+                    vcfqual *= (tAD / 1.5);
+                }
+                // micro-adjustment for LOD // WARNING: no theoretical justification
+                // auto tFA2 = (tAD + (double)1) / ((double)(tDP + 1));
+                // tFA2 = MAX(0.02/2.0, MIN(0.02*2.0, tFA2));
+                // vcfqual += log(tFA2 / 0.02) / log(10.0) * 10.0;
             }
         }
         
