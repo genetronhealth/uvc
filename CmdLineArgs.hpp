@@ -76,8 +76,8 @@ struct CommandLineArgs {
     uint32_t    phred_sys_artifact_indel = phred_germline_polymorphism * 2; // 3 / 2;
     double      nonref_to_alt_frac_snv   = 0.50; // 0.50 for practically removing tri-allelic sites.
     double      nonref_to_alt_frac_indel = 0.20;
-    double      tnq_mult_snv   = 2.0; // 0.05;
-    double      tnq_mult_indel = 2.0; // 0.05; // * 1.5;
+    double      tnq_mult_snv   = 2.5; // 0.05;
+    double      tnq_mult_indel = 2.5; // 0.05; // * 1.5;
     double      tnq_mult_tADadd_snv   = 4.000; // not used anymore
     double      tnq_mult_tADadd_indel = 4.000; // not used anymore // * 1.5;
     
