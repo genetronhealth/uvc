@@ -2430,11 +2430,11 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
                 auto tAD = tFA * (double)tDP;
                 
                 // TODO: theoretical-or-empirical justification for the micro-adjustments below
-                // micro-adjustment for A->T and G->C artifacts
+                // micro-adjustment for A->T and G->C artifacts // // WARNING: no theoretical justification
                 auto refalt2chars = std::string(vcfref) + vcfalt;
-                if (std::string("AG") == refalt2chars || std::string("TC") == refalt2chars) {
-                    vcfqual = vcfqual * tAD / (tAD + 0.5);
-                }
+                // if (tAD < 2.5 && (std::string("AG") == refalt2chars || std::string("TC") == refalt2chars)) {
+                //    vcfqual = vcfqual * tAD / (tAD + 0.5);
+                // }
                 
                 if (tAD < 1.5) {
                     vcfqual *= (tAD / 1.5);
