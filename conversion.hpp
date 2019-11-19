@@ -84,7 +84,7 @@ calc_non_negative(const T v, T base = pow(10.0, 0.1), T thres = 20.0) {
 }
 
 double
-calc_upper_bounded(double v, double thres = (double)60, double bound = (double)120) {
+calc_upper_bounded(double v, double thres = (double)100, double bound = (double)120) {
     if (v > thres) {
         auto surplus = v - thres;
         auto max_surplus = bound - thres;

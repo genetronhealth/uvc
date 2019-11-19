@@ -2328,12 +2328,14 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
                 ? ((double)((int)phred_germline - (int)fmt.GQ))
                 : ((double)(     phred_germline +      fmt.GQ)));
         
-        auto tnlike_all = MIN(MIN(tnlike_alt, tnlike_nonref),              
-                    ((double)tki.FA) * (10.0 * 20.0) + (double)30);
-        double tnq_base = MIN(calc_dim_return((double)tki.VAQ, (double)30, (double)2),
-            MIN(0.1, (double)tki.FA) * (10.0 * 20.0) + (double)30); // truncate tumor VAQ
+        double effectiveFA = calc_upper_bounded(tki.FA, 0.5, 0.1); // effectively cap the value att 0.1
+        auto tvn_vaq = MIN(tnlike_alt, tnlike_nonref);
+        double tnq_TandN = MIN(calc_dim_return((double)tvn_vaq, (double)30, (double)2),
+            effectiveFA * (10.0 * 20.0) + (double)30);
+        double tnq_onlyT = MIN(calc_dim_return((double)tki.VAQ, (double)30, (double)2),
+            effectiveFA * (10.0 * 20.0) + (double)30); // truncate tumor VAQ
         double tnq_mult = (isInDel ? tnq_mult_indel : tnq_mult_snv);
-        double tnq_val = tnlike_all * tnq_mult + tnq_base;
+        double tnq_val = tnq_TandN * tnq_mult + tnq_onlyT;
         vcfqual = MIN(tnq_val, phred_non_germ);
         
         infostring += std::string(";TNQ=") + std::to_string(tnlike_alt);
