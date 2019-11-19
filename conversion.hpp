@@ -74,11 +74,33 @@ geomean2(double a, double b) {
 
 // 1e-6 is the somatic mutation rate
 template <class T>
-void 
-ensure_positive_1(T & v, T base = pow(10.0, 0.1), T thres = 20.0) {
+T
+calc_non_negative(const T v, T base = pow(10.0, 0.1), T thres = 20.0) {
     if (v < thres) {
-        v = log1p(pow(base, v)) / log(base);
-        // v = thres / ((1.0 + thres) - v);
+        return log1p(pow(base, v)) / log(base);
+    } else {
+        return v;
+    }
+}
+
+double
+calc_upper_bounded(double v, double thres = (double)60, double bound = (double)120) {
+    if (v > thres) {
+        auto surplus = v - thres;
+        auto max_surplus = bound - thres;
+        return surplus / (1.0 + surplus / max_surplus) + thres;
+    } else {
+        return v;
+    }
+}
+
+template <class T>
+T
+calc_dim_return(T v, T thres = 30, T dim = 2) {
+    if (v > thres) {
+        return ((v - thres) / dim) + thres;
+    } else {
+        return v;
     }
 }
 

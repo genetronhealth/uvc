@@ -2062,8 +2062,6 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
     duplexVAQ = MIN(duplexVAQ, 200); // Similar to many other upper bounds, the 200 here has no theoretical foundation.
     fmt.VAQ  = MIN(vaqMQcap, MAX(lowestVAQ, doubleVAQ + duplexVAQ)); // / 1.5;
     fmt.VAQ2 = MIN(vaqMQcap, MAX(lowestVAQ, doubleVAQ_norm + duplexVAQ)); // treat other forms of indels as background noise if matched normal is not available.
-    //ensure_positive_1(fmt.VAQ);
-    //ensure_positive_1(fmt.VAQ2);
     return (int)(fmt.bAD1[0] + fmt.bAD1[1]);
 };
 
@@ -2323,18 +2321,20 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         
         assert(tki.autoBestAllBQ >= tki.autoBestRefBQ + tki.autoBestAltBQ);
         
-        // auto phred_diff_artifact = (MAX(phred_sys_artifact, phred_germline) - phred_germline);
-        // auto phred_diff_artifact = MIN(tki.VAQ, MIN(0.1, fmt.FA) * 10.0 * 20.0 + (double)30);
-        double phred_non_germ = (double)((fmt.FA > 0.2)
+        const bool is_nonref_snp_excluded = false;
+        const bool is_nonref_indel_excluded = false;
+        const bool is_nonref_germline_excluded = (isInDel ? is_nonref_snp_excluded : is_nonref_indel_excluded);
+        double phred_non_germ = (double)((fmt.FA > 0.2 || (is_nonref_germline_excluded && fmt.FR < 0.8))
                 ? ((double)((int)phred_germline - (int)fmt.GQ))
                 : ((double)(     phred_germline +      fmt.GQ)));
         
-        auto tnlike_all = MIN(tnlike_alt, tnlike_nonref);
-        double tnq_base = MIN((double)tki.VAQ, MIN(0.1, (double)fmt.FA) * (10.0 * 20.0) + (double)30); // truncate tumor VAQ
+        auto tnlike_all = MIN(MIN(tnlike_alt, tnlike_nonref),              
+                    ((double)tki.FA) * (10.0 * 20.0) + (double)30);
+        double tnq_base = MIN(calc_dim_return((double)tki.VAQ, (double)30, (double)2),
+            MIN(0.1, (double)tki.FA) * (10.0 * 20.0) + (double)30); // truncate tumor VAQ
         double tnq_mult = (isInDel ? tnq_mult_indel : tnq_mult_snv);
         double tnq_val = tnlike_all * tnq_mult + tnq_base;
         vcfqual = MIN(tnq_val, phred_non_germ);
-        ensure_positive_1(vcfqual);
         
         infostring += std::string(";TNQ=") + std::to_string(tnlike_alt);
         infostring += std::string(";TNQNR=") + std::to_string(tnlike_nonref);
@@ -2356,10 +2356,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         auto diffVAQ = tki.VAQ;
         if (diffVAQfrac) {
             diffVAQ = MAX(tki.VAQ - (fmt.VAQ * diffVAQfrac), tki.VAQ / ((fmt.VAQ * diffVAQfrac) + tki.VAQ + DBL_MIN));
-            ensure_positive_1(diffVAQ);
         }
         */
-        // ensure_positive_1(tnlike_all); // ensure later
         // auto diffVAQ = MAX(tki.VAQ - fmt.VAQ, tki.VAQ / (fmt.VAQ + tki.VAQ + DBL_MIN)); // diffVAQ makes sense but can lead to false negatives.
         // double tnq_base = phred_non_germline; // MIN(MAX((double)0, tki.VAQ - (double)phred_germline), (double)phred_non_germline);
         /* 
@@ -2490,6 +2488,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         }
         fmtvar.VAQAB = vcfqual * 100.0 / maxbias;
     }
+    
+    vcfqual = calc_upper_bounded(calc_non_negative(vcfqual));
     
     if (0 == vcffilter.size()) {
         if (vcfqual < 10) {
