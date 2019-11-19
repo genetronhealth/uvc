@@ -2314,7 +2314,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         double tFA1 = (tAD1 / (DBL_EPSILON + (double)tDP1));
         double nFA1 = (nAD1 / (DBL_EPSILON + (double)nDP1));
         double qminus = (double)0;
-        if (tFA1 < 1.5 * nFA1) {
+        if (tFA1 < 2.0 * nFA1) {
             qminus = nFA1 / (tFA1 + DBL_EPSILON) * 3.0 * tAD1 * nDP1 / ((double)tDP1 + DBL_EPSILON);
         }
         
@@ -2325,7 +2325,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         assert(tki.autoBestAllBQ >= tki.autoBestRefBQ + tki.autoBestAltBQ);
         
         // auto phred_diff_artifact = (MAX(phred_sys_artifact, phred_germline) - phred_germline);
-        auto phred_diff_artifact = MIN(0.1, fmt.FA) * (double)20 + (double)30;
+        auto phred_diff_artifact = MIN(tki.VAQ, MIN(0.1, fmt.FA) * (double)20 + (double)30);
         double phred_non_germline = (double)((fmt.FA > 0.2) ? (phred_germline - MIN(fmt.GQ, phred_germline)) : MIN(phred_diff_artifact, (double)fmt.GQ + (double)phred_germline));
         
         infostring += std::string(";TNQ=") + std::to_string(tnlike);
@@ -2349,7 +2349,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
             diffVAQ = MAX(tki.VAQ - (fmt.VAQ * diffVAQfrac), tki.VAQ / ((fmt.VAQ * diffVAQfrac) + tki.VAQ + DBL_MIN));
             ensure_positive_1(diffVAQ);
         }
-         
+        
         auto tnlike_all = MIN(tnlike, tnlike_nonref);
         // ensure_positive_1(tnlike_all); // ensure later
         // auto diffVAQ = MAX(tki.VAQ - fmt.VAQ, tki.VAQ / (fmt.VAQ + tki.VAQ + DBL_MIN)); // diffVAQ makes sense but can lead to false negatives.
