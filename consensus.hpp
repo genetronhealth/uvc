@@ -2305,19 +2305,18 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         }
         double tnlike_argmin = 0;
         const double nAD2 = nAD1 * nfreqmult;
-        double tnlike = sumBQ4_to_phredlike(tnlike_argmin, nDP1, nAD2, tDP1, tAD1);
-        // double tnlike = h01_to_phredlike<false>((nAD1 + 1.0), (nDP1 + 1.0) * (1.0 + DBL_EPSILON), (tAD1 + 1.0), (tDP1 + 1.0) * (1.0 + DBL_EPSILON), pc1, 1+1e-4);
-        if (!(tnlike < 1e20)) {
-            fprintf(stderr, "tnlike %f is invalid!, computed from %f %f %f %f , %f !!!\n", tnlike, nAD1, nDP1, tAD1, tDP1, pc1);
+        double tnlike_alt = sumBQ4_to_phredlike(tnlike_argmin, nDP1, nAD2, tDP1, tAD1);
+        // double tnlike_alt = h01_to_phredlike<false>((nAD1 + 1.0), (nDP1 + 1.0) * (1.0 + DBL_EPSILON), (tAD1 + 1.0), (tDP1 + 1.0) * (1.0 + DBL_EPSILON), pc1, 1+1e-4);
+        if (!(tnlike_alt < 1e20)) {
+            fprintf(stderr, "tnlike_alt %f is invalid!, computed from %f %f %f %f , %f !!!\n", tnlike_alt, nAD1, nDP1, tAD1, tDP1, pc1);
             abort();
         }
-        double tFA1 = (tAD1 / (DBL_EPSILON + (double)tDP1));
-        double nFA1 = (nAD1 / (DBL_EPSILON + (double)nDP1));
-        double qminus = (double)0;
-        if (tFA1 < 2.0 * nFA1) {
-            qminus = nFA1 / (tFA1 + DBL_EPSILON) * 3.0 * tAD1 * nDP1 / ((double)tDP1 + DBL_EPSILON);
+        {
+            double tFA1 = (tAD1 / (DBL_EPSILON + (double)tDP1));
+            double nFA1 = (nAD1 / (DBL_EPSILON + (double)nDP1));
+            double qminus = nFA1 / (tFA1 + DBL_EPSILON) * 3.0 * MIN(10.0, tAD1 * nDP1 / ((double)tDP1 + DBL_EPSILON));
+            tnlike_alt -= qminus;
         }
-        
         double nRD1 = (nUseHD ? (highqual_thres * (fmt.cRefHD[0] + fmt.cRefHD[1])) : (fmt.cRefBQ[0] + fmt.cRefBQ[1]));
         Any4Value bq4((nDP1 - nRD1) * (isInDel ? nonref_to_alt_frac_indel : nonref_to_alt_frac_snv) * nfreqmult + 1, nDP1 + 1, tAD1 + 1, tDP1 + 1);
         double tnlike_nonref = bq4.to_phredlike(1);
@@ -2325,10 +2324,19 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         assert(tki.autoBestAllBQ >= tki.autoBestRefBQ + tki.autoBestAltBQ);
         
         // auto phred_diff_artifact = (MAX(phred_sys_artifact, phred_germline) - phred_germline);
-        auto phred_diff_artifact = MIN(tki.VAQ, MIN(0.1, fmt.FA) * (double)20 + (double)30);
-        double phred_non_germline = (double)((fmt.FA > 0.2) ? (phred_germline - MIN(fmt.GQ, phred_germline)) : MIN(phred_diff_artifact, (double)fmt.GQ + (double)phred_germline));
+        // auto phred_diff_artifact = MIN(tki.VAQ, MIN(0.1, fmt.FA) * 10.0 * 20.0 + (double)30);
+        double phred_non_germ = (double)((fmt.FA > 0.2)
+                ? ((double)((int)phred_germline - (int)fmt.GQ))
+                : ((double)(     phred_germline +      fmt.GQ)));
         
-        infostring += std::string(";TNQ=") + std::to_string(tnlike);
+        auto tnlike_all = MIN(tnlike_alt, tnlike_nonref);
+        double tnq_base = MIN((double)tki.VAQ, MIN(0.1, (double)fmt.FA) * (10.0 * 20.0) + (double)30); // truncate tumor VAQ
+        double tnq_mult = (isInDel ? tnq_mult_indel : tnq_mult_snv);
+        double tnq_val = tnlike_all * tnq_mult + tnq_base;
+        vcfqual = MIN(tnq_val, phred_non_germ);
+        ensure_positive_1(vcfqual);
+        
+        infostring += std::string(";TNQ=") + std::to_string(tnlike_alt);
         infostring += std::string(";TNQNR=") + std::to_string(tnlike_nonref);
         infostring += std::string(";tVAQ=") + std::to_string(tki.VAQ);
         infostring += std::string(";tDP=") + std::to_string(tki.DP);
@@ -2344,16 +2352,16 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         infostring += std::string(";TNQA=") + std::to_string(tnlike_argmin);
         
         // auto finalGQ = (("1/0" == fmt.GT) ? fmt.GQ : 0); // is probably redundant?
+        /*
         auto diffVAQ = tki.VAQ;
         if (diffVAQfrac) {
             diffVAQ = MAX(tki.VAQ - (fmt.VAQ * diffVAQfrac), tki.VAQ / ((fmt.VAQ * diffVAQfrac) + tki.VAQ + DBL_MIN));
             ensure_positive_1(diffVAQ);
         }
-        
-        auto tnlike_all = MIN(tnlike, tnlike_nonref);
+        */
         // ensure_positive_1(tnlike_all); // ensure later
         // auto diffVAQ = MAX(tki.VAQ - fmt.VAQ, tki.VAQ / (fmt.VAQ + tki.VAQ + DBL_MIN)); // diffVAQ makes sense but can lead to false negatives.
-        double tnq_base = phred_non_germline; // MIN(MAX((double)0, tki.VAQ - (double)phred_germline), (double)phred_non_germline);
+        // double tnq_base = phred_non_germline; // MIN(MAX((double)0, tki.VAQ - (double)phred_germline), (double)phred_non_germline);
         /* 
         // this needs more theoretical justification if used
         double tnq_mult_ad = (isInDel ? tnq_mult_tADadd_indel : tnq_mult_tADadd_snv);
@@ -2366,15 +2374,6 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
                 (double)(tki.DP + tki.DP) 
                     / (DBL_EPSILON+(double)(tki.DP + fmt.DP)));
         */
-        double tnq_mult = (isInDel ? tnq_mult_indel : tnq_mult_snv);
-        double tnq1 = tnlike_all * tnq_mult + tnq_base;
-        if (qminus > 0) {
-            tnq1 = MIN(tnq1, MAX((double)phred_diff_artifact - qminus, 20.0));
-        }
-        
-        ensure_positive_1(tnq1);
-        // vcfqual = MIN(MIN(tnq1, diffVAQ), fmt.GQ + phred_germline);
-        vcfqual = MIN(tnq1, fmt.GQ + phred_germline);
         // SNV and InDels were unified
         /* 
         if (isInDel) {
