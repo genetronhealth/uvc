@@ -2373,7 +2373,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         }
         
         ensure_positive_1(tnq1);
-        vcfqual = MIN(MIN(tnq1, diffVAQ), fmt.GQ + phred_germline); 
+        // vcfqual = MIN(MIN(tnq1, diffVAQ), fmt.GQ + phred_germline);
+        vcfqual = MIN(tnq1, fmt.GQ + phred_germline);
         // SNV and InDels were unified
         /* 
         if (isInDel) {
