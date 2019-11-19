@@ -2262,7 +2262,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
     if (prev_is_tumor) {
         vcfpos = (tki.ref_alt != "." ? (tki.pos + 1) : vcfpos);
         ref_alt = (tki.ref_alt != "." ? tki.ref_alt : vcfref + "\t" + vcfalt);
-        const double depth_pseudocount = 0; // 1.0;
+        const double depth_pseudocount = 1.0; // 1.0;
         //double tDP = (double)tki.DP;
         double nDP = (double)fmt.DP;
         //double tAD = (tDP * (double)tki.FA);
@@ -2286,7 +2286,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         const bool tUseHD =  (tki.bDP > tki.DP * highqual_min_ratio);
         const bool nUseHD = ((fmt.bDP > fmt.DP * highqual_min_ratio) && tUseHD);
         
-        double pc1 = prob2phred(1.0 / (nDP + 2.0)) / (nAD + 1.0);
+        double pc1 = prob2phred(1.0 / (nDP + 2.0)); // / (nAD + 1.0);
         double nAD1 = (nUseHD ? (highqual_thres * nAltHD) : nAltBQ) + depth_pseudocount;
         double nDP1 = (nUseHD ? (highqual_thres * nAllHD) : nAllBQ) + depth_pseudocount;
         double tAD1 = (tUseHD ? (highqual_thres * tAltHD) : tAltBQ) + depth_pseudocount;
@@ -2302,11 +2302,12 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
             }
         }
         double tnlike_argmin = 0;
-        const double nAD2 = nAD1 * nfreqmult;
-        double tnlike_alt = sumBQ4_to_phredlike(tnlike_argmin, nDP1, nAD2, tDP1, tAD1);
+        const double nAD2 = nAD1 * nfreqmult + pc1;
+        const double nDP2 = nDP1 + (pc1 * (double)tDP1 / (double)tAD1 * (1.0 + FLT_EPSILON));
+        double tnlike_alt = sumBQ4_to_phredlike(tnlike_argmin, nDP2, nAD2, tDP1, tAD1);
         // double tnlike_alt = h01_to_phredlike<false>((nAD1 + 1.0), (nDP1 + 1.0) * (1.0 + DBL_EPSILON), (tAD1 + 1.0), (tDP1 + 1.0) * (1.0 + DBL_EPSILON), pc1, 1+1e-4);
         if (!(tnlike_alt < 1e20)) {
-            fprintf(stderr, "tnlike_alt %f is invalid!, computed from %f %f %f %f , %f !!!\n", tnlike_alt, nAD1, nDP1, tAD1, tDP1, pc1);
+            fprintf(stderr, "tnlike_alt %f is invalid!, computed from %f %f %f %f , %f !!!\n", tnlike_alt, nAD2, nDP2, tAD1, tDP1, pc1);
             abort();
         }
         {
@@ -2337,6 +2338,10 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         double tnq_TandN = MIN((double)tvn_vaq, tnq_onlyT) - (1.0 / MAX(10.0, (double)tvn_vaq));
         double tnq_mult = (isInDel ? tnq_mult_indel : tnq_mult_snv);
         double tnq_val = tnq_onlyT + (tnq_TandN * tnq_mult);
+        if (tki.VAQ > tvq_ubmax) {
+            tnq_val += MIN((tki.VAQ - tvq_ubmax) / 2.0, 10.0);
+        }
+        
         vcfqual = MIN(tnq_val, phred_non_germ);
         
         infostring += std::string(";TNQ=") + std::to_string(tnlike_alt);
