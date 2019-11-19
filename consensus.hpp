@@ -2312,7 +2312,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         {
             double tFA1 = (tAD1 / (DBL_EPSILON + (double)tDP1));
             double nFA1 = (nAD1 / (DBL_EPSILON + (double)nDP1));
-            double qminus = nFA1 / (tFA1 + DBL_EPSILON) * 3.0 * MIN(10.0, tAD1 * nDP1 / ((double)tDP1 + DBL_EPSILON));
+            double ratioFA1 = nFA1 / (nFA1 + tFA1 + DBL_EPSILON); 
+            double qminus = ratioFA1 * ratioFA1 * 9.0 * MIN(10.0, tAD1 * nDP1 / ((double)tDP1 + DBL_EPSILON));
             tnlike_alt -= qminus;
         }
         double nRD1 = (nUseHD ? (highqual_thres * (fmt.cRefHD[0] + fmt.cRefHD[1])) : (fmt.cRefBQ[0] + fmt.cRefBQ[1]));
@@ -2328,12 +2329,14 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
                 ? ((double)((int)phred_germline - (int)fmt.GQ))
                 : ((double)(     phred_germline +      fmt.GQ)));
         
-        double effectiveFA = calc_upper_bounded(tki.FA, 0.5, 0.1); // effectively cap the value att 0.1
+        // double effectiveFA = calc_upper_bounded(tki.FA, 0.5, 0.1); // effectively cap the value att 0.1
         auto tvn_vaq = MIN(tnlike_alt, tnlike_nonref);
         double tnq_TandN = MIN(calc_dim_return((double)tvn_vaq, (double)30, (double)2),
-            effectiveFA * (10.0 * 20.0) + (double)30);
+                calc_upper_bounded(log(tki.FA + DBL_EPSILON) / log(10.0) * (10.0 * 2.0) + 80.0, (double)57, (double)60)) 
+                    - (1.0 / MAX(10.0, (double)tvn_vaq));
         double tnq_onlyT = MIN(calc_dim_return((double)tki.VAQ, (double)30, (double)2),
-            effectiveFA * (10.0 * 20.0) + (double)30); // truncate tumor VAQ
+                calc_upper_bounded(log(tki.FA + DBL_EPSILON) / log(10.0) * (10.0 * 2.0) + 80.0, (double)57, (double)60)) 
+                    - (1.0 / MAX(10.0, (double)tki.VAQ)); // truncate tumor VAQ
         double tnq_mult = (isInDel ? tnq_mult_indel : tnq_mult_snv);
         double tnq_val = tnq_TandN * tnq_mult + tnq_onlyT;
         vcfqual = MIN(tnq_val, phred_non_germ);
