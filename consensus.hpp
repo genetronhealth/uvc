@@ -2330,17 +2330,23 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         auto nonref_to_alt_frac = (isInDel ? nonref_to_alt_frac_indel : nonref_to_alt_frac_snv); 
         double nNRD0 = nonref_to_alt_frac * (nDP0 - nRD0);
         double nNRD1 = nonref_to_alt_frac * (nDP1 - nRD1);
+        
+        const bool normal_has_alt = (tAD1 / tDP1 / 2.0 < nAD1 / nDP1);
         double tnlike_alt    = calc_directional_likeratio(tAD1 / tDP1 / 2.0, nAD1, nDP1 - nAD1 ) // * 2.0 
-                / nDP1 * nDP0 * (double)(dlog(MIN(tAD0, nAD0 ), 1.5)+0.5) / (double)(MIN(tAD0, nAD0 )+0.5) * (10.0/log(10.0));
-        if (tAD1 / tDP1 / 2.0 < nAD1 / nDP1 ) {
+                / nDP1 * nDP0 * (double)(dlog(MIN(tAD0, nAD0 ), (normal_has_alt    ? 1.2 : 1.5))+0.5) / (double)(MIN(tAD0, nAD0 )+0.5) * (10.0/log(10.0));
+        
+        if (normal_has_alt) {
             tnlike_alt = MAX(-tnlike_alt, -30.0);
         } else {
             auto upper_alt    = MIN(2.0 * MIN(tDP0, nDP0), 2.5 * 10.0 / log(10.0) * log((tAD1 / tDP1) / (nAD1  / nDP1)));
             tnlike_alt = MIN(tnlike_alt, upper_alt);
         }
+        
+        const bool normal_has_nonref = (tAD1 / tDP1 / 2.0 < nNRD1 / nDP1);
         double tnlike_nonref = calc_directional_likeratio(tAD1 / tDP1 / 2.0, nNRD1, nDP1 - nNRD1) // * 2.0 
-                / nDP1 * nDP0 * (double)(dlog(MIN(tAD0, nNRD0), 1.5)+0.5) / (double)(MIN(tAD0, nNRD0)+0.5) * (10.0/log(10.0));
-        if (tAD1 / tDP1 / 2.0 < nNRD1 / nDP1) {
+                / nDP1 * nDP0 * (double)(dlog(MIN(tAD0, nNRD0), (normal_has_nonref ? 1.2 : 1.5))+0.5) / (double)(MIN(tAD0, nNRD0)+0.5) * (10.0/log(10.0));
+        
+        if (normal_has_nonref) {
             tnlike_nonref = MAX(-tnlike_nonref, -30.0);
         } else {
             auto upper_nonref = MIN(2.0 * MIN(tDP0, nDP0), 2.5 * 10.0 / log(10.0) * log((tAD1 / tDP1) / (nNRD1 / nDP1)));
