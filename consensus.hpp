@@ -2263,10 +2263,10 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         vcfpos = (tki.ref_alt != "." ? (tki.pos + 1) : vcfpos);
         ref_alt = (tki.ref_alt != "." ? tki.ref_alt : vcfref + "\t" + vcfalt);
         const double depth_pseudocount = 1.0; // 1.0;
-        //double tDP = (double)tki.DP;
-        double nDP = (double)fmt.DP;
-        //double tAD = (tDP * (double)tki.FA);
-        double nAD = (nDP * (double)fmt.FA);
+        
+        const bool tUseHD =  (tki.bDP > tki.DP * highqual_min_ratio);
+        const bool nUseHD = ((fmt.bDP > fmt.DP * highqual_min_ratio) && tUseHD); 
+
         /*
         double tnlike = h01_to_phredlike<false>(
                 nAD + depth_pseudocount, nDP + depth_pseudocount, 
@@ -2282,15 +2282,19 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         double nAllHD = fmt.cAllHD[0] + fmt.cAllHD[1];
         double tAltHD = tki.autoBestAltHD;
         double tAllHD = tki.autoBestAllHD;
+        double nRefHD = fmt.cRefHD[0] + fmt.cRefHD[1];
+ 
+        double nAD0 = (double)(nUseHD ? (nAltHD) : tki.FA * (double)tki.DP);
+        double nRD0 = (double)(nUseHD ? (nRefHD) : tki.FR * (double)tki.DP);
+        double nDP0 = (double)(nUseHD ? (nAllHD) :          (double)tki.DP);
         
-        const bool tUseHD =  (tki.bDP > tki.DP * highqual_min_ratio);
-        const bool nUseHD = ((fmt.bDP > fmt.DP * highqual_min_ratio) && tUseHD);
-        
-        double pc1 = prob2phred(1.0 / (nDP + 2.0)); // / (nAD + 1.0);
-        double nAD1 = (nUseHD ? (highqual_thres * nAltHD) : nAltBQ) + depth_pseudocount;
+                // double pc1 = prob2phred(1.0 / ((double)fmt.DP + 2.0)); // / (nAD + 1.0);
+        double nAD1 = (nUseHD ? (highqual_thres * nAltHD) : nAltBQ) + depth_pseudocount / 2.0;
         double nDP1 = (nUseHD ? (highqual_thres * nAllHD) : nAllBQ) + depth_pseudocount;
-        double tAD1 = (tUseHD ? (highqual_thres * tAltHD) : tAltBQ) + depth_pseudocount;
+        double tAD1 = (tUseHD ? (highqual_thres * tAltHD) : tAltBQ) + depth_pseudocount / 2.0;
         double tDP1 = (tUseHD ? (highqual_thres * tAllHD) : tAllBQ) + depth_pseudocount;
+        
+        double nRD1 = (nUseHD ? (highqual_thres * (fmt.cRefHD[0] + fmt.cRefHD[1])) : (fmt.cRefBQ[0] + fmt.cRefBQ[1])) + depth_pseudocount / 2.0;
         
         double nfreqmult = 1.0;
         if (tUseHD && (!nUseHD)) {
@@ -2302,24 +2306,37 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
             }
         }
         double tnlike_argmin = 0;
-        const double nAD2 = nAD1 * nfreqmult + pc1;
-        const double nDP2 = nDP1 + (pc1 * (double)tDP1 / (double)tAD1 * (1.0 + FLT_EPSILON));
-        double tnlike_alt = sumBQ4_to_phredlike(tnlike_argmin, nDP2, nAD2, tDP1, tAD1);
+        //const double nAD2 = nAD1 * nfreqmult + pc1;
+        //const double nDP2 = nDP1 + (pc1 * (double)tDP1 / (double)tAD1 * (1.0 + FLT_EPSILON));
+        // double tnlike_alt = sumBQ4_to_phredlike(tnlike_argmin, nDP2, nAD2, tDP1, tAD1);
+        
         // double tnlike_alt = h01_to_phredlike<false>((nAD1 + 1.0), (nDP1 + 1.0) * (1.0 + DBL_EPSILON), (tAD1 + 1.0), (tDP1 + 1.0) * (1.0 + DBL_EPSILON), pc1, 1+1e-4);
-        if (!(tnlike_alt < 1e20)) {
-            fprintf(stderr, "tnlike_alt %f is invalid!, computed from %f %f %f %f , %f !!!\n", tnlike_alt, nAD2, nDP2, tAD1, tDP1, pc1);
-            abort();
+        
+        //if (!(tnlike_alt < 1e20)) {
+        //    fprintf(stderr, "tnlike_alt %f is invalid!, computed from %f %f %f %f , %f !!!\n", tnlike_alt, nAD2, nDP2, tAD1, tDP1, pc1);
+        //    abort();
+        //}
+        //{
+        //    double tFA1 = (tAD1 / (DBL_EPSILON + (double)tDP1));
+        //    double nFA1 = (nAD1 / (DBL_EPSILON + (double)nDP1));
+        //    double ratioFA1 = nFA1 / (nFA1 + tFA1 + DBL_EPSILON); 
+        //    double qminus = ratioFA1 * ratioFA1 * 9.0 * MIN(4.0, tAD1 * nDP1 / ((double)tDP1 + DBL_EPSILON));
+            //tnlike_alt -= qminus;
+        //}
+                //Any4Value bq4((nDP1 - nRD1) * (isInDel ? nonref_to_alt_frac_indel : nonref_to_alt_frac_snv) * nfreqmult + 1, nDP1 + 1, tAD1 + 1, tDP1 + 1);
+        //double tnlike_nonref = bq4.to_phredlike(1);
+        
+        auto nonref_to_alt_frac = (isInDel ? nonref_to_alt_frac_indel : nonref_to_alt_frac_snv); 
+        double nNRD0 = nonref_to_alt_frac * (nDP0 - nRD0);
+        double nNRD1 = nonref_to_alt_frac * (nDP1 - nRD1);
+        double tnlike_alt    = calc_directional_likeratio(tAD1 / tDP1, nAD1,  nDP1 - nAD1 ) * 4.0 / (4.0 + nAD0);
+        if (tAD1 / tDP1 < nAD1 /  nDP1) {
+            tnlike_alt = -tnlike_alt;
         }
-        {
-            double tFA1 = (tAD1 / (DBL_EPSILON + (double)tDP1));
-            double nFA1 = (nAD1 / (DBL_EPSILON + (double)nDP1));
-            double ratioFA1 = nFA1 / (nFA1 + tFA1 + DBL_EPSILON); 
-            double qminus = ratioFA1 * ratioFA1 * 9.0 * MIN(4.0, tAD1 * nDP1 / ((double)tDP1 + DBL_EPSILON));
-            tnlike_alt -= qminus;
+        double tnlike_nonref = calc_directional_likeratio(tAD1 / tDP1, nNRD1, nDP1 - nNRD1) * 4.0 / (4.0 + nNRD0);
+        if (tAD1 / tDP1 < nNRD1 / nDP1) {
+            tnlike_nonref = -tnlike_nonref;
         }
-        double nRD1 = (nUseHD ? (highqual_thres * (fmt.cRefHD[0] + fmt.cRefHD[1])) : (fmt.cRefBQ[0] + fmt.cRefBQ[1]));
-        Any4Value bq4((nDP1 - nRD1) * (isInDel ? nonref_to_alt_frac_indel : nonref_to_alt_frac_snv) * nfreqmult + 1, nDP1 + 1, tAD1 + 1, tDP1 + 1);
-        double tnlike_nonref = bq4.to_phredlike(1);
         
         assert(tki.autoBestAllBQ >= tki.autoBestRefBQ + tki.autoBestAltBQ);
         
