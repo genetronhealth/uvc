@@ -2473,8 +2473,10 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
                 //    vcfqual = vcfqual * tAD / (tAD + 0.5);
                 // }
                 
-                if (tAD < 2.5) {
-                    vcfqual = vcfqual * tAD / (tAD + 0.5);
+                if (tAD < 3.5) {
+                    double tADf = (double)tAD;
+                    double tbase = 1.0 / (double)(tADf < 1.5 ? 1 : (tADf < 2.5 ? 4 : 16));
+                    vcfqual = vcfqual * tAD / (tAD + tbase);
                     //vcfqual *= (tAD / 1.5);
                 }
                 // micro-adjustment for LOD // WARNING: no theoretical justification
