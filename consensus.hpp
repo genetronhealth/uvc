@@ -2330,12 +2330,14 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         auto nonref_to_alt_frac = (isInDel ? nonref_to_alt_frac_indel : nonref_to_alt_frac_snv); 
         double nNRD0 = nonref_to_alt_frac * (nDP0 - nRD0);
         double nNRD1 = nonref_to_alt_frac * (nDP1 - nRD1);
-        double tnlike_alt    = calc_directional_likeratio(tAD1 / tDP1, nAD1,  nDP1 - nAD1 ) * 4.0 / (4.0 + MIN(tAD0, nAD0 )) / nDP1 * nDP0 * (10.0/log(10.0));
-        if (tAD1 / tDP1 < nAD1 /  nDP1) {
+        double tnlike_alt    = calc_directional_likeratio(tAD1 / tDP1, nAD1  * 2.0, nDP1 - nAD1  * (2.0-2.0)) // * 2.0 
+                * 4.0 / (4.0 + MIN(tAD0, nAD0 )) / (nDP1 + nAD1) * nDP0 * (10.0/log(10.0));
+        if (tAD1 / tDP1 < (nAD1  * 2.0) / (nDP1 + nAD1 )) {
             tnlike_alt = -tnlike_alt;
         }
-        double tnlike_nonref = calc_directional_likeratio(tAD1 / tDP1, nNRD1, nDP1 - nNRD1) * 4.0 / (4.0 + MIN(tAD0, nNRD0)) / nDP1 * nDP0 * (10.0/log(10.0));
-        if (tAD1 / tDP1 < nNRD1 / nDP1) {
+        double tnlike_nonref = calc_directional_likeratio(tAD1 / tDP1, nNRD1 * 2.0, nDP1 - nNRD1 * (2.0-2.0)) // * 2.0 
+                * 4.0 / (4.0 + MIN(tAD0, nNRD0)) / (nDP1 + nAD1) * nDP0 * (10.0/log(10.0));
+        if (tAD1 / tDP1 < (nNRD1 * 2.0) / (nDP1 + nNRD1)) {
             tnlike_nonref = -tnlike_nonref;
         }
         
@@ -2348,7 +2350,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
                 ? ((double)((int)phred_germline - (int)fmt.GQ))
                 : ((double)(     phred_germline +      fmt.GQ)));
         
-        const auto tvn_ubmax_frac = 0.5;
+        const auto tvn_ubmax_frac = 1.0;
         // // calc_dim_return((double)tvn_vaq, (double)300, (double)2),
         // double effectiveFA = calc_upper_bounded(tki.FA, 0.5, 0.1); // effectively cap the value att 0.1
         auto tvn_vaq = MIN(tnlike_alt, tnlike_nonref);
@@ -2356,7 +2358,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         double tnq_onlyT = MIN((double)tki.VAQ, vaq_ubmax) - (1.0 / MAX(10.0, (double)tki.VAQ)); // truncate tumor VAQ
         //double tnq_TandN = MIN((double)tvn_vaq, tnq_onlyT) - (1.0 / MAX(10.0, (double)tvn_vaq));
         // double tnq_mult = (isInDel ? tnq_mult_indel : tnq_mult_snv);
-        double tnq_val = tnq_onlyT + (tvn_vaq * (1.0 - tvn_ubmax_frac)); // + (tnq_TandN * tnq_mult);
+        double tnq_val = tnq_onlyT + (tvn_vaq * (1.0 - tvn_ubmax_frac)); // + MIN(20.0, tvn_vaq) / 10; // + (tnq_TandN * tnq_mult);
         // if (tki.VAQ > vaq_ubmax) { tnq_val += MIN((tki.VAQ - vaq_ubmax) / 2.0, 10.0); }
         
         vcfqual = MIN(tnq_val, phred_non_germ);
