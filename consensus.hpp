@@ -2273,28 +2273,29 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
                 tAD + depth_pseudocount, tDP + depth_pseudocount, 
                 DBL_EPSILON, (1+1e-4)); // TODO: check if pseudocount should be 0.5 or 1.0 ?
         */
-        double nAltBQ = fmt.cAltBQ[0] + fmt.cAltBQ[1];
-        double nAllBQ = fmt.cAllBQ[0] + fmt.cAllBQ[1];
+        double nAltBQ = SUM2(fmt.cAltBQ);
+        double nAllBQ = SUM2(fmt.cAllBQ);
         double tAltBQ = tki.autoBestAltBQ;
         double tAllBQ = tki.autoBestAllBQ;
+        double nRefBQ = SUM2(fmt.cRefBQ);
         
-        double nAltHD = fmt.cAltHD[0] + fmt.cAltHD[1];
-        double nAllHD = fmt.cAllHD[0] + fmt.cAllHD[1];
+        double nAltHD = SUM2(fmt.cAltHD);
+        double nAllHD = SUM2(fmt.cAllHD);
         double tAltHD = tki.autoBestAltHD;
         double tAllHD = tki.autoBestAllHD;
-        double nRefHD = fmt.cRefHD[0] + fmt.cRefHD[1];
- 
-        double nAD0 = (double)(nUseHD ? (nAltHD) : tki.FA * (double)tki.DP);
-        double nRD0 = (double)(nUseHD ? (nRefHD) : tki.FR * (double)tki.DP);
-        double nDP0 = (double)(nUseHD ? (nAllHD) :          (double)tki.DP);
+        double nRefHD = SUM2(fmt.cRefHD);
         
-                // double pc1 = prob2phred(1.0 / ((double)fmt.DP + 2.0)); // / (nAD + 1.0);
+        double nDP0 = (double)(nUseHD ? (nAllHD) :          (double)fmt.DP);
+        double nAD0 = (double)(nUseHD ? (nAltHD) : fmt.FA * (double)fmt.DP);
+        double nRD0 = (double)(nUseHD ? (nRefHD) : fmt.FR * (double)fmt.DP);
+        double tDP0 = (double)(nUseHD ? (tAllHD) :          (double)tki.DP);
+        double tAD0 = (double)(nUseHD ? (tAltHD) : tki.FA * (double)tki.DP);
+        
         double nAD1 = (nUseHD ? (highqual_thres * nAltHD) : nAltBQ) + depth_pseudocount / 2.0;
         double nDP1 = (nUseHD ? (highqual_thres * nAllHD) : nAllBQ) + depth_pseudocount;
         double tAD1 = (tUseHD ? (highqual_thres * tAltHD) : tAltBQ) + depth_pseudocount / 2.0;
         double tDP1 = (tUseHD ? (highqual_thres * tAllHD) : tAllBQ) + depth_pseudocount;
-        
-        double nRD1 = (nUseHD ? (highqual_thres * (fmt.cRefHD[0] + fmt.cRefHD[1])) : (fmt.cRefBQ[0] + fmt.cRefBQ[1])) + depth_pseudocount / 2.0;
+        double nRD1 = (nUseHD ? (highqual_thres * nRefHD) : nRefBQ) + depth_pseudocount / 2.0;
         
         double nfreqmult = 1.0;
         if (tUseHD && (!nUseHD)) {
@@ -2329,11 +2330,11 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         auto nonref_to_alt_frac = (isInDel ? nonref_to_alt_frac_indel : nonref_to_alt_frac_snv); 
         double nNRD0 = nonref_to_alt_frac * (nDP0 - nRD0);
         double nNRD1 = nonref_to_alt_frac * (nDP1 - nRD1);
-        double tnlike_alt    = calc_directional_likeratio(tAD1 / tDP1, nAD1,  nDP1 - nAD1 ) * 4.0 / (4.0 + nAD0);
+        double tnlike_alt    = calc_directional_likeratio(tAD1 / tDP1, nAD1,  nDP1 - nAD1 ) * 4.0 / (4.0 + MIN(tAD0, nAD0));
         if (tAD1 / tDP1 < nAD1 /  nDP1) {
             tnlike_alt = -tnlike_alt;
         }
-        double tnlike_nonref = calc_directional_likeratio(tAD1 / tDP1, nNRD1, nDP1 - nNRD1) * 4.0 / (4.0 + nNRD0);
+        double tnlike_nonref = calc_directional_likeratio(tAD1 / tDP1, nNRD1, nDP1 - nNRD1) * 4.0 / (4.0 + MIN(tAD0, nNRD0));
         if (tAD1 / tDP1 < nNRD1 / nDP1) {
             tnlike_nonref = -tnlike_nonref;
         }
@@ -2347,17 +2348,16 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
                 ? ((double)((int)phred_germline - (int)fmt.GQ))
                 : ((double)(     phred_germline +      fmt.GQ)));
         
+        const auto tvn_ubmax_frac = 0.5;
         // // calc_dim_return((double)tvn_vaq, (double)300, (double)2),
         // double effectiveFA = calc_upper_bounded(tki.FA, 0.5, 0.1); // effectively cap the value att 0.1
-        double tvq_ubmax = calc_upper_bounded(log(tki.FA + DBL_EPSILON) / log(10.0) * (10.0 * 2.0) + 80.0, (double)57, (double)60);
         auto tvn_vaq = MIN(tnlike_alt, tnlike_nonref);
-        double tnq_onlyT = MIN((double)tki.VAQ, tvq_ubmax) - (1.0 / MAX(10.0, (double)tki.VAQ)); // truncate tumor VAQ
-        double tnq_TandN = MIN((double)tvn_vaq, tnq_onlyT) - (1.0 / MAX(10.0, (double)tvn_vaq));
-        double tnq_mult = (isInDel ? tnq_mult_indel : tnq_mult_snv);
-        double tnq_val = tnq_onlyT + (tnq_TandN * tnq_mult);
-        if (tki.VAQ > tvq_ubmax) {
-            tnq_val += MIN((tki.VAQ - tvq_ubmax) / 2.0, 10.0);
-        }
+        double vaq_ubmax = calc_upper_bounded(log(tki.FA + DBL_EPSILON) / log(10.0) * (10.0 * 2.0) + 80.0, (double)57, (double)60) + (tvn_vaq * tvn_ubmax_frac);
+        double tnq_onlyT = MIN((double)tki.VAQ, vaq_ubmax) - (1.0 / MAX(10.0, (double)tki.VAQ)); // truncate tumor VAQ
+        //double tnq_TandN = MIN((double)tvn_vaq, tnq_onlyT) - (1.0 / MAX(10.0, (double)tvn_vaq));
+        // double tnq_mult = (isInDel ? tnq_mult_indel : tnq_mult_snv);
+        double tnq_val = tnq_onlyT + (tvn_vaq * (1.0 - tvn_ubmax_frac)); // + (tnq_TandN * tnq_mult);
+        // if (tki.VAQ > vaq_ubmax) { tnq_val += MIN((tki.VAQ - vaq_ubmax) / 2.0, 10.0); }
         
         vcfqual = MIN(tnq_val, phred_non_germ);
         
@@ -2374,7 +2374,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         infostring += std::string(";tRefBQ=") + std::to_string(tki.autoBestRefBQ);
         infostring += std::string(";tAltHD=") + std::to_string(tki.autoBestAltHD);
         infostring += std::string(";tAllHD=") + std::to_string(tki.autoBestAllHD);
-        infostring += std::string(";TNQA=") + std::to_string(tnlike_argmin);
+        infostring += std::string(";TNQA=") + std::to_string(vaq_ubmax);
         
         // auto finalGQ = (("1/0" == fmt.GT) ? fmt.GQ : 0); // is probably redundant?
         /*
