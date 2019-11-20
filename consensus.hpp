@@ -2262,7 +2262,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
     if (prev_is_tumor) {
         vcfpos = (tki.ref_alt != "." ? (tki.pos + 1) : vcfpos);
         ref_alt = (tki.ref_alt != "." ? tki.ref_alt : vcfref + "\t" + vcfalt);
-        const double depth_pseudocount = 1.0; // 1.0;
+        const double depth_pseudocount = highqual_thres; // 1.0;
         
         const bool tUseHD =  (tki.bDP > tki.DP * highqual_min_ratio);
         const bool nUseHD = ((fmt.bDP > fmt.DP * highqual_min_ratio) && tUseHD); 
@@ -2330,11 +2330,11 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         auto nonref_to_alt_frac = (isInDel ? nonref_to_alt_frac_indel : nonref_to_alt_frac_snv); 
         double nNRD0 = nonref_to_alt_frac * (nDP0 - nRD0);
         double nNRD1 = nonref_to_alt_frac * (nDP1 - nRD1);
-        double tnlike_alt    = calc_directional_likeratio(tAD1 / tDP1, nAD1,  nDP1 - nAD1 ) * 4.0 / (4.0 + MIN(tAD0, nAD0));
+        double tnlike_alt    = calc_directional_likeratio(tAD1 / tDP1, nAD1,  nDP1 - nAD1 ) * 4.0 / (4.0 + MIN(tAD0, nAD0 )) / nDP1 * nDP0 * (10.0/log(10.0));
         if (tAD1 / tDP1 < nAD1 /  nDP1) {
             tnlike_alt = -tnlike_alt;
         }
-        double tnlike_nonref = calc_directional_likeratio(tAD1 / tDP1, nNRD1, nDP1 - nNRD1) * 4.0 / (4.0 + MIN(tAD0, nNRD0));
+        double tnlike_nonref = calc_directional_likeratio(tAD1 / tDP1, nNRD1, nDP1 - nNRD1) * 4.0 / (4.0 + MIN(tAD0, nNRD0)) / nDP1 * nDP0 * (10.0/log(10.0));
         if (tAD1 / tDP1 < nNRD1 / nDP1) {
             tnlike_nonref = -tnlike_nonref;
         }

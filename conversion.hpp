@@ -114,6 +114,7 @@ mathsquare(auto x) {
     return x * x; 
 }
 
+// non-negative, with prob compared with a/(a+b)
 auto 
 calc_directional_likeratio(double prob, double a, double b) {
     return a * (log((double)a / (double)(a+b)) - log(prob))  + b * (log((double)b / (double)(a+b)) - log(1.0-prob));
