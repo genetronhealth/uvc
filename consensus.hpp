@@ -2338,10 +2338,10 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         
         double tn_diffq = MIN(tnlike_alt, tnlike_nonref);
         
-        double tn_tvarq = MIN(tki.VAQ, log(tki.FA + DBL_EPSILON) / log(10.0) * (10.0 * 2.5) + 80.0, (2.0 * tki.FA * (double)tki.DP) + (double)60);
-        double tn_nvarq = MIN(fmt.VAQ, log(fmt.FA + DBL_EPSILON) / log(10.0) * (10.0 * 2.5) + 80.0, (2.0 * fmt.FA * (double)fmt.DP) + (double)60);
-i       
-        vqual = tn_tvarq + tn_diffq - MIN(15.0, tn_nvarq);
+        double tn_tvarq = MIN(MIN((double)tki.VAQ, log(tki.FA + DBL_EPSILON) / log(10.0) * (10.0 * 2.5) + 80.0), (2.0 * tki.FA * (double)tki.DP) + (double)60);
+        double tn_nvarq = MIN(MIN((double)fmt.VAQ, log(fmt.FA + DBL_EPSILON) / log(10.0) * (10.0 * 2.5) + 80.0), (2.0 * fmt.FA * (double)fmt.DP) + (double)60);
+        
+        vcfqual = MIN(tn_tvarq + tn_diffq - MIN(15.0, tn_nvarq), phred_non_germ);
         
         //double vaq_ubmax = MIN(log(tki.FA + DBL_EPSILON) / log(10.0) * (10.0 * 2.5) + 80.0, (2.0 * tki.FA * (double)tki.DP) + (double)60) + (tvn_vaq * tvn_ubmax_frac);
         //double tnq_onlyT = MIN((double)tki.VAQ + (tvn_vaq >= 0 ? 0 : tvn_vaq), vaq_ubmax) - (1.0 / MAX(10.0, (double)tki.VAQ)); // truncate tumor VAQ
@@ -2361,7 +2361,7 @@ i
         infostring += std::string(";tRefBQ=") + std::to_string(tki.autoBestRefBQ);
         infostring += std::string(";tAltHD=") + std::to_string(tki.autoBestAltHD);
         infostring += std::string(";tAllHD=") + std::to_string(tki.autoBestAllHD);
-        infostring += std::string(";TNQA=") + std::to_string(vaq_ubmax);
+        infostring += std::string(";TNQA=") + std::to_string(phred_non_germ);
         
         // auto finalGQ = (("1/0" == fmt.GT) ? fmt.GQ : 0); // is probably redundant?
         /*
