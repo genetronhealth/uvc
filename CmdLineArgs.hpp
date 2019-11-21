@@ -61,7 +61,7 @@ struct CommandLineArgs {
     uint32_t    minABQ_cap_snv = 0;
     uint32_t    minABQ_cap_indel = 0;
 
-    double      ess_georatio_dedup_cap = 1.50;
+    double      ess_georatio_dedup_cap = 1.25;
     double      ess_georatio_dedup_pcr = 1.50; // increase to 1.65 does not help in matching empirical variant score
     double      ess_georatio_duped_pcr = 2.00;
  
