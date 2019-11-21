@@ -2099,7 +2099,7 @@ generateVcfHeader(const char *ref_fasta_fname, const char *platform,
     
     ret += "##INFO=<ID=ANY_VAR,Number=0,Type=Flag,Description=\"Any type of variant which may be caused by germline polymorphism and/or experimental artifact\">\n";
     ret += "##INFO=<ID=SOMATIC,Number=0,Type=Flag,Description=\"Somatic variant\">\n";
-    ret += "##INFO=<ID=TNQ,Number=4,Type=Float,Description=\"Tumor-only variant quality (VQ), normal-only VQ, tumor-vs-normal (TVN) VQ, and TVN VQ with NON_REF as ALT for normal\">\n";
+    ret += "##INFO=<ID=TNQ,Number=4,Type=Float,Description=\"Tumor-only variant quality (VQ), normal-adjusted VQ coefficient, tumor-vs-normal (TVN) VQ, and TVN VQ with NON_REF as ALT for normal\">\n";
     ret += "##INFO=<ID=NGQ,Number=1,Type=Float,Description=\"PHRED-scaled probability of non-germline event\">\n";
     ret += "##INFO=<ID=tVAQ,Number=1,Type=Float,Description=\"Tumor-sample VAQ\">\n";
     ret += "##INFO=<ID=tDP,Number=1,Type=Integer,Description=\"Tumor-sample DP\">\n";
@@ -2339,16 +2339,20 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         double tn_diffq = MIN(tnlike_alt, tnlike_nonref);
         
         double tn_tvarq = MIN(MIN((double)tki.VAQ, log(tki.FA + DBL_EPSILON) / log(10.0) * (10.0 * 2.5) + 80.0), (2.0 * tki.FA * (double)tki.DP) + (double)60);
-        double tn_nvarq = MIN(MIN((double)fmt.VAQ, log(fmt.FA + DBL_EPSILON) / log(10.0) * (10.0 * 2.5) + 80.0), (2.0 * fmt.FA * (double)fmt.DP) + (double)60);
-        
-        vcfqual = MIN(tn_tvarq + tn_diffq - MIN(15.0, tn_nvarq), phred_non_germ);
+        // double tn_nvarq = MIN(MIN((double)fmt.VAQ, log(fmt.FA + DBL_EPSILON) / log(10.0) * (10.0 * 2.5) + 80.0), (2.0 * fmt.FA * (double)fmt.DP) + (double)60);
+        double tn_tfrac = (tAD1 / (tDP1 + eps));
+        double tn_nfrac = (nAD1 / (nDP1 + eps));
+        double tn_mcoef = tn_tfrac / (tn_tfrac + tn_nfrac + eps);
+        double tn_tva2q = tn_mcoef * (tn_tvarq + tn_diffq);
+        vcfqual = MIN(tn_tva2q, phred_non_germ);
+        //vcfqual = MIN(tn_tvarq + tn_diffq - MIN(15.0, tn_nvarq), phred_non_germ);
         
         //double vaq_ubmax = MIN(log(tki.FA + DBL_EPSILON) / log(10.0) * (10.0 * 2.5) + 80.0, (2.0 * tki.FA * (double)tki.DP) + (double)60) + (tvn_vaq * tvn_ubmax_frac);
         //double tnq_onlyT = MIN((double)tki.VAQ + (tvn_vaq >= 0 ? 0 : tvn_vaq), vaq_ubmax) - (1.0 / MAX(10.0, (double)tki.VAQ)); // truncate tumor VAQ
         //double tnq_val = tnq_onlyT - (0.5 / MAX(10.0, (double)tvn_vaq)); // + MIN(20.0, tvn_vaq) / 10; // + (tnq_TandN * tnq_mult);
         // vcfqual = MIN(tnq_val, phred_non_germ);
         
-        infostring += std::string(";TNQ=") + std::to_string(tn_tvarq) + "," + std::to_string(tn_nvarq) + "," +  std::to_string(tnlike_alt) + "," + std::to_string(tnlike_nonref);
+        infostring += std::string(";TNQ=") + std::to_string(tn_tvarq) + "," + std::to_string(tn_mcoef) + "," +  std::to_string(tnlike_alt) + "," + std::to_string(tnlike_nonref);
         infostring += std::string(";NGQ=") + std::to_string(phred_non_germ);
         infostring += std::string(";tVAQ=") + std::to_string(tki.VAQ);
         infostring += std::string(";tDP=") + std::to_string(tki.DP);
