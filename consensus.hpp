@@ -2333,7 +2333,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         
         const bool normal_has_alt = (tAD1 / tDP1 / 2.0 < nAD1 / nDP1);
         double tnlike_alt    = calc_directional_likeratio(tAD1 / tDP1 / 2.0, nAD1, nDP1 - nAD1 ) // * 2.0 
-                / nDP1 * nDP0 * (double)(dlog(MIN(tAD0, nAD0 ), (normal_has_alt    ? 1.2 : 1.5))+0.5) / (double)(MIN(tAD0, nAD0 )+0.5) * (10.0/log(10.0));
+                / nDP1 * nDP0 * (double)(dlog(MIN(tAD0, nAD0 ), (normal_has_alt    ? 1.15 : 1.3))+0.5) / (double)(MIN(tAD0, nAD0 )+0.5) * (10.0/log(10.0));
         
         if (normal_has_alt) {
             tnlike_alt = MAX(-tnlike_alt, -30.0);
@@ -2344,7 +2344,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         
         const bool normal_has_nonref = (tAD1 / tDP1 / 2.0 < nNRD1 / nDP1);
         double tnlike_nonref = calc_directional_likeratio(tAD1 / tDP1 / 2.0, nNRD1, nDP1 - nNRD1) // * 2.0 
-                / nDP1 * nDP0 * (double)(dlog(MIN(tAD0, nNRD0), (normal_has_nonref ? 1.2 : 1.5))+0.5) / (double)(MIN(tAD0, nNRD0)+0.5) * (10.0/log(10.0));
+                / nDP1 * nDP0 * (double)(dlog(MIN(tAD0, nNRD0), (normal_has_nonref ? 1.15 : 1.3))+0.5) / (double)(MIN(tAD0, nNRD0)+0.5) * (10.0/log(10.0));
         
         if (normal_has_nonref) {
             tnlike_nonref = MAX(-tnlike_nonref, -30.0);
@@ -2367,7 +2367,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         // double effectiveFA = calc_upper_bounded(tki.FA, 0.5, 0.1); // effectively cap the value att 0.1
         auto tvn_vaq = MIN(tnlike_alt, tnlike_nonref);
         double vaq_ubmax = MIN(log(tki.FA + DBL_EPSILON) / log(10.0) * (10.0 * 2.5) + 80.0, (2.0 * tki.FA * (double)tki.DP) + (double)60) + (tvn_vaq * tvn_ubmax_frac);
-        double tnq_onlyT = MIN((double)tki.VAQ, vaq_ubmax) - (1.0 / MAX(10.0, (double)tki.VAQ)); // truncate tumor VAQ
+        double tnq_onlyT = MIN((double)tki.VAQ + (tvn_vaq >= 0 ? 0 : tvn_vaq), vaq_ubmax) - (1.0 / MAX(10.0, (double)tki.VAQ); // truncate tumor VAQ
         //double tnq_TandN = MIN((double)tvn_vaq, tnq_onlyT) - (1.0 / MAX(10.0, (double)tvn_vaq));
         // double tnq_mult = (isInDel ? tnq_mult_indel : tnq_mult_snv);
         double tnq_val = tnq_onlyT - (0.5 / MAX(10.0, (double)tvn_vaq)); // + MIN(20.0, tvn_vaq) / 10; // + (tnq_TandN * tnq_mult);
