@@ -2312,27 +2312,20 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         double nNRD1 = nonref_to_alt_frac * (nDP1 - nRD1);
        
         const double eps = (double)sqrt(FLT_EPSILON);
-        const bool normal_has_alt = (tAD1 / tDP1 / 2.0 < nAD1 / nDP1);
-        double tnlike_alt    = calc_directional_likeratio(tAD1 / tDP1 / 2.0, nAD1, nDP1 - nAD1 ) // * 2.0 
-                / nDP1 * nDP0 * (double)(dlog(MIN(tAD0, nAD0 ), (normal_has_alt    ? sqrt(4.0/3.0) : (4.0/3.0)))+eps) / (double)(MIN(tAD0, nAD0 )+eps) * (10.0/log(10.0));
+        // const bool normal_has_alt = (tAD1 / tDP1 / 2.0 < nAD1 / nDP1);
+        double tnlike_alt    = calc_directional_likeratio(tAD1 / tDP1, nAD1, nDP1 - nAD1 )
+                / nDP1 * nDP0 * (double)(dlog(MIN(tAD0, nAD0 ), 1.25) + eps)
+                / (double)(MIN(tAD0, nAD0 ) + eps) * (10.0/log(10.0));
+        auto upper_alt    = MIN(2.0 * MIN(tDP0, nDP0), 2.5 * 10.0 / log(10.0) * log((tAD1 / tDP1) / (nAD1  / nDP1)));
+        tnlike_alt    = MAX(0.0, MIN(tnlike_alt   , upper_alt   ));
         
-        if (normal_has_alt) {
-            tnlike_alt = MAX(-tnlike_alt, -30.0);
-        } else {
-            auto upper_alt    = MIN(2.0 * MIN(tDP0, nDP0), 2.5 * 10.0 / log(10.0) * log((tAD1 / tDP1) / (nAD1  / nDP1)));
-            tnlike_alt = MIN(tnlike_alt, upper_alt);
-        }
+        // const bool normal_has_nonref = (tAD1 / tDP1 / 2.0 < nNRD1 / nDP1);
+        double tnlike_nonref = calc_directional_likeratio(tAD1 / tDP1, nNRD1, nDP1 - nNRD1)
+                / nDP1 * nDP0 * (double)(dlog(MIN(tAD0, nNRD0), 1.25) + eps)
+                / (double)(MIN(tAD0, nNRD0) + eps) * (10.0/log(10.0));
         
-        const bool normal_has_nonref = (tAD1 / tDP1 / 2.0 < nNRD1 / nDP1);
-        double tnlike_nonref = calc_directional_likeratio(tAD1 / tDP1 / 2.0, nNRD1, nDP1 - nNRD1) // * 2.0 
-                / nDP1 * nDP0 * (double)(dlog(MIN(tAD0, nNRD0), (normal_has_nonref ? sqrt(4.0/3.0) : (4.0/3.0)))+eps) / (double)(MIN(tAD0, nNRD0)+eps) * (10.0/log(10.0));
-        
-        if (normal_has_nonref) {
-            tnlike_nonref = MAX(-tnlike_nonref, -30.0);
-        } else {
-            auto upper_nonref = MIN(2.0 * MIN(tDP0, nDP0), 2.5 * 10.0 / log(10.0) * log((tAD1 / tDP1) / (nNRD1 / nDP1)));
-            tnlike_nonref = MIN(tnlike_nonref, upper_nonref); 
-        }
+        auto upper_nonref = MIN(2.0 * MIN(tDP0, nDP0), 2.5 * 10.0 / log(10.0) * log((tAD1 / tDP1) / (nNRD1 / nDP1)));
+        tnlike_nonref = MAX(0.0, MIN(tnlike_nonref, upper_nonref));
         
         assert(tki.autoBestAllBQ >= tki.autoBestRefBQ + tki.autoBestAltBQ);
         
@@ -2343,18 +2336,17 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
                 ? ((double)((int)phred_germline - (int)fmt.GQ))
                 : ((double)(     phred_germline +      fmt.GQ)));
         
-        const auto tvn_ubmax_frac = 1.0;
-        // // calc_dim_return((double)tvn_vaq, (double)300, (double)2),
-        // double effectiveFA = calc_upper_bounded(tki.FA, 0.5, 0.1); // effectively cap the value att 0.1
-        auto tvn_vaq = MIN(tnlike_alt, tnlike_nonref);
-        double vaq_ubmax = MIN(log(tki.FA + DBL_EPSILON) / log(10.0) * (10.0 * 2.5) + 80.0, (2.0 * tki.FA * (double)tki.DP) + (double)60) + (tvn_vaq * tvn_ubmax_frac);
-        double tnq_onlyT = MIN((double)tki.VAQ + (tvn_vaq >= 0 ? 0 : tvn_vaq), vaq_ubmax) - (1.0 / MAX(10.0, (double)tki.VAQ)); // truncate tumor VAQ
-        //double tnq_TandN = MIN((double)tvn_vaq, tnq_onlyT) - (1.0 / MAX(10.0, (double)tvn_vaq));
-        // double tnq_mult = (isInDel ? tnq_mult_indel : tnq_mult_snv);
-        double tnq_val = tnq_onlyT - (0.5 / MAX(10.0, (double)tvn_vaq)); // + MIN(20.0, tvn_vaq) / 10; // + (tnq_TandN * tnq_mult);
-        // if (tki.VAQ > vaq_ubmax) { tnq_val += MIN((tki.VAQ - vaq_ubmax) / 2.0, 10.0); }
+        double tn_diffq = MIN(tnlike_alt, tnlike_nonref);
         
-        vcfqual = MIN(tnq_val, phred_non_germ);
+        double tn_tvarq = MIN(tki.VAQ, log(tki.FA + DBL_EPSILON) / log(10.0) * (10.0 * 2.5) + 80.0, (2.0 * tki.FA * (double)tki.DP) + (double)60);
+        double tn_nvarq = MIN(fmt.VAQ, log(fmt.FA + DBL_EPSILON) / log(10.0) * (10.0 * 2.5) + 80.0, (2.0 * fmt.FA * (double)fmt.DP) + (double)60);
+i       
+        vqual = tn_tvarq + tn_diffq - MIN(15.0, tn_nvarq);
+        
+        //double vaq_ubmax = MIN(log(tki.FA + DBL_EPSILON) / log(10.0) * (10.0 * 2.5) + 80.0, (2.0 * tki.FA * (double)tki.DP) + (double)60) + (tvn_vaq * tvn_ubmax_frac);
+        //double tnq_onlyT = MIN((double)tki.VAQ + (tvn_vaq >= 0 ? 0 : tvn_vaq), vaq_ubmax) - (1.0 / MAX(10.0, (double)tki.VAQ)); // truncate tumor VAQ
+        //double tnq_val = tnq_onlyT - (0.5 / MAX(10.0, (double)tvn_vaq)); // + MIN(20.0, tvn_vaq) / 10; // + (tnq_TandN * tnq_mult);
+        // vcfqual = MIN(tnq_val, phred_non_germ);
         
         infostring += std::string(";TNQ=") + std::to_string(tnlike_alt);
         infostring += std::string(";TNQNR=") + std::to_string(tnlike_nonref);
