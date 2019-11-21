@@ -2099,8 +2099,8 @@ generateVcfHeader(const char *ref_fasta_fname, const char *platform,
     
     ret += "##INFO=<ID=ANY_VAR,Number=0,Type=Flag,Description=\"Any type of variant which may be caused by germline polymorphism and/or experimental artifact\">\n";
     ret += "##INFO=<ID=SOMATIC,Number=0,Type=Flag,Description=\"Somatic variant\">\n";
-    ret += "##INFO=<ID=TNQ,Number=1,Type=Float,Description=\"Tumor-vs-normal quality based on sample comparison\">\n";
-    ret += "##INFO=<ID=TNQNR,Number=1,Type=Float,Description=\"TNQ that considers all NON-REF bases as background noise\">\n";
+    ret += "##INFO=<ID=TNQ,Number=4,Type=Float,Description=\"Tumor-only variant quality (VQ), normal-only VQ, tumor-vs-normal (TVN) VQ, and TVN VQ with NON_REF as ALT for normal\">\n";
+    ret += "##INFO=<ID=NGQ,Number=1,Type=Float,Description=\"PHRED-scaled probability of non-germline event\">\n";
     ret += "##INFO=<ID=tVAQ,Number=1,Type=Float,Description=\"Tumor-sample VAQ\">\n";
     ret += "##INFO=<ID=tDP,Number=1,Type=Integer,Description=\"Tumor-sample DP\">\n";
     ret += "##INFO=<ID=tFA,Number=1,Type=Float,Description=\"Tumor-sample FA\">\n";
@@ -2114,7 +2114,7 @@ generateVcfHeader(const char *ref_fasta_fname, const char *platform,
     ret += "##INFO=<ID=tAltHD,Number=1,Type=Integer,Description=\"Tumor-sample cAltHD or bAltHD, depending on command-line option\">\n";
     ret += "##INFO=<ID=tAllHD,Number=1,Type=Integer,Description=\"Tumor-sample cAllHD or bAllHD, depending on command-line option\">\n";
     ret += "##INFO=<ID=tRefHD,Number=1,Type=Integer,Description=\"Tumor-sample cRefHD or bRefHD, depending on command-line option\">\n";
-    ret += "##INFO=<ID=TNQA,Number=1,Type=Float,Description=\"The additive quality that minimizes TNQ\">\n";
+    // ret += "##INFO=<ID=TNQA,Number=.,Type=Float,Description=\"Tumor-only variant quality (VQ), normal-only VQ, tumor-vs-normal VQ, and optionally some other VQs.\">\n";
     ret += "##INFO=<ID=RU,Number=1,Type=String,Description=\"The shortest repeating unit in the reference\">\n";
     ret += "##INFO=<ID=RC,Number=1,Type=Integer,Description=\"The number of non-interrupted RUs in the reference\">\n"; 
     
@@ -2348,8 +2348,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         //double tnq_val = tnq_onlyT - (0.5 / MAX(10.0, (double)tvn_vaq)); // + MIN(20.0, tvn_vaq) / 10; // + (tnq_TandN * tnq_mult);
         // vcfqual = MIN(tnq_val, phred_non_germ);
         
-        infostring += std::string(";TNQ=") + std::to_string(tnlike_alt);
-        infostring += std::string(";TNQNR=") + std::to_string(tnlike_nonref);
+        infostring += std::string(";TNQ=") + std::to_string(tn_tvarq) + "," + std::to_string(tn_nvarq) + "," +  std::to_string(tnlike_alt) + "," + std::to_string(tnlike_nonref);
+        infostring += std::string(";NGQ=") + std::to_string(phred_non_germ);
         infostring += std::string(";tVAQ=") + std::to_string(tki.VAQ);
         infostring += std::string(";tDP=") + std::to_string(tki.DP);
         infostring += std::string(";tFA=") + std::to_string(tki.FA);
