@@ -2096,12 +2096,15 @@ generateVcfHeader(const char *ref_fasta_fname, const char *platform,
     for (unsigned int i = 0; i < bcfrec::FILTER_NUM; i++) {
         ret += std::string("") + bcfrec::FILTER_LINES[i] + "\n";
     }
-    
+    /* infostring += std::string(";TNQ=") + std::to_string(tn_var_q) + "," + std::to_string(phred_non_germ);
+        infostring += std::string(";TNNQ=") + std::to_string(t_nonorm_q) + "," + std::to_string(tn_mcoef)   + "," + std::to_string(tnlike_alt) + "," + std::to_string(tnlike_nonref);
+        infostring += std::string(";TNTQ=") + std::to_string(t_sample_q) + "," + std::to_string(t_powlaw_q) + "," + std::to_string(tki.VAQ);
+     * */ 
     ret += "##INFO=<ID=ANY_VAR,Number=0,Type=Flag,Description=\"Any type of variant which may be caused by germline polymorphism and/or experimental artifact\">\n";
     ret += "##INFO=<ID=SOMATIC,Number=0,Type=Flag,Description=\"Somatic variant\">\n";
-    ret += "##INFO=<ID=TNQ,Number=4,Type=Float,Description=\"Tumor-only variant quality (VQ), normal-adjusted VQ coefficient, tumor-vs-normal (TVN) VQ, and TVN VQ with NON_REF as ALT for normal\">\n";
-    ret += "##INFO=<ID=NGQ,Number=1,Type=Float,Description=\"PHRED-scaled probability of non-germline event\">\n";
-    ret += "##INFO=<ID=tVAQ,Number=1,Type=Float,Description=\"Tumor-sample VAQ\">\n";
+    ret += "##INFO=<ID=TNQ,Number=2,Type=Float,Description=\"Normal-adjusted variant quality (VQ) and non-germline quality\">\n";
+    ret += "##INFO=<ID=TNNQ,Number=4,Type=Float,Description=\"Tumor normalized variant quality (VQ), normal-adjusted VQ coefficient, tumor-vs-normal (TVN) VQ, and TVN VQ with NON_REF as ALT for normal\">\n";
+    ret += "##INFO=<ID=TNTQ,Number=3,Type=Float,Description=\"Tumor sampling quality, allele-fraction quality, and VAQ\">\n";
     ret += "##INFO=<ID=tDP,Number=1,Type=Integer,Description=\"Tumor-sample DP\">\n";
     ret += "##INFO=<ID=tFA,Number=1,Type=Float,Description=\"Tumor-sample FA\">\n";
     ret += "##INFO=<ID=tFR,Number=1,Type=Float,Description=\"Tumor-sample FR\">\n";
@@ -2262,7 +2265,9 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
     if (prev_is_tumor) {
         vcfpos = (tki.ref_alt != "." ? (tki.pos + 1) : vcfpos);
         ref_alt = (tki.ref_alt != "." ? tki.ref_alt : vcfref + "\t" + vcfalt);
-        const double depth_pseudocount = highqual_thres; // 1.0;
+        
+        const double eps = (double)(FLT_EPSILON);
+        const double depth_pseudocount = eps; // highqual_thres; // 1.0;
         
         const bool tUseHD =  (tki.bDP > tki.DP * highqual_min_ratio);
         const bool nUseHD = ((fmt.bDP > fmt.DP * highqual_min_ratio) && tUseHD); 
@@ -2307,24 +2312,25 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
             }
         }
         
+        double t_sample_q = (10.0 / log(10.0)) * (log((tDP0 + tAD0 + 1.0) / (tAD0 + 1.0)) / log(2.0)) * tAD0;
+        double t_powlaw_q = (10.0 / log(10.0)) * log((double)tAD1 / (double)tDP1) * (8.0/3.0) + 90.0;
+        double t_nonorm_q = MIN((double)tki.VAQ, MIN(t_sample_q, t_powlaw_q));
+        
         auto nonref_to_alt_frac = (isInDel ? nonref_to_alt_frac_indel : nonref_to_alt_frac_snv); 
         double nNRD0 = nonref_to_alt_frac * (nDP0 - nRD0);
         double nNRD1 = nonref_to_alt_frac * (nDP1 - nRD1);
        
-        const double eps = (double)sqrt(FLT_EPSILON);
         // const bool normal_has_alt = (tAD1 / tDP1 / 2.0 < nAD1 / nDP1);
-        double tnlike_alt    = calc_directional_likeratio(tAD1 / tDP1, nAD1, nDP1 - nAD1 )
-                / nDP1 * nDP0 * (double)(dlog(MIN(tAD0, nAD0 ), 1.25) + eps)
-                / (double)(MIN(tAD0, nAD0 ) + eps) * (10.0/log(10.0));
-        auto upper_alt    = MIN(2.0 * MIN(tDP0, nDP0), 2.5 * 10.0 / log(10.0) * log((tAD1 / tDP1) / (nAD1  / nDP1)));
+        double tnlike_alt    =  (10.0/log(10.0)) * calc_directional_likeratio(tAD1 / tDP1, nAD1, nDP1 - nAD1 )
+                / nDP1 * nDP0 * (double)(dlog(MIN(tAD0, nAD0 ), 1.25) + eps) / (double)(MIN(tAD0, nAD0 ) + eps);
+        auto upper_alt    = (10.0 / log(10.0)) * (8.0/3.0) * log((tAD1 / tDP1) / (nAD1  / nDP1));
         tnlike_alt    = MAX(0.0, MIN(tnlike_alt   , upper_alt   ));
         
         // const bool normal_has_nonref = (tAD1 / tDP1 / 2.0 < nNRD1 / nDP1);
-        double tnlike_nonref = calc_directional_likeratio(tAD1 / tDP1, nNRD1, nDP1 - nNRD1)
-                / nDP1 * nDP0 * (double)(dlog(MIN(tAD0, nNRD0), 1.25) + eps)
-                / (double)(MIN(tAD0, nNRD0) + eps) * (10.0/log(10.0));
+        double tnlike_nonref = (10.0/log(10.0)) * calc_directional_likeratio(tAD1 / tDP1, nNRD1, nDP1 - nNRD1)
+                / nDP1 * nDP0 * (double)(dlog(MIN(tAD0, nNRD0), 1.25) + eps) / (double)(MIN(tAD0, nNRD0) + eps);
         
-        auto upper_nonref = MIN(2.0 * MIN(tDP0, nDP0), 2.5 * 10.0 / log(10.0) * log((tAD1 / tDP1) / (nNRD1 / nDP1)));
+        auto upper_nonref = (10.0 / log(10.0)) * (8.0/3.0) * log((tAD1 / tDP1) / (nNRD1 / nDP1));
         tnlike_nonref = MAX(0.0, MIN(tnlike_nonref, upper_nonref));
         
         assert(tki.autoBestAllBQ >= tki.autoBestRefBQ + tki.autoBestAltBQ);
@@ -2338,23 +2344,21 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         
         double tn_diffq = MIN(tnlike_alt, tnlike_nonref);
         
-        double tn_tvarq = MIN(MIN((double)tki.VAQ, log(tki.FA + DBL_EPSILON) / log(10.0) * (10.0 * 2.5) + 80.0), (2.0 * tki.FA * (double)tki.DP) + (double)60);
-        // double tn_nvarq = MIN(MIN((double)fmt.VAQ, log(fmt.FA + DBL_EPSILON) / log(10.0) * (10.0 * 2.5) + 80.0), (2.0 * fmt.FA * (double)fmt.DP) + (double)60);
         double tn_tfrac = (tAD1 / (tDP1 + eps));
         double tn_nfrac = (nAD1 / (nDP1 + eps));
-        double tn_mcoef = tn_tfrac / (tn_tfrac + tn_nfrac + eps);
-        double tn_tva2q = tn_mcoef * (tn_tvarq + tn_diffq);
-        vcfqual = MIN(tn_tva2q, phred_non_germ);
+        double tn_mcoef = MIN(1.0, (tn_tfrac + eps) / (tn_tfrac + tn_nfrac + eps) + eps);
+        double tn_var_q = (tn_mcoef * t_nonorm_q) + tn_diffq;
+        vcfqual = MIN(tn_var_q, phred_non_germ);
         //vcfqual = MIN(tn_tvarq + tn_diffq - MIN(15.0, tn_nvarq), phred_non_germ);
         
-        //double vaq_ubmax = MIN(log(tki.FA + DBL_EPSILON) / log(10.0) * (10.0 * 2.5) + 80.0, (2.0 * tki.FA * (double)tki.DP) + (double)60) + (tvn_vaq * tvn_ubmax_frac);
+        //double vaq_ubmax = MIN(log(tki.FA + DBL_EPSILON) / log(10.0) * (10.0 * 2.5) + 85.0, (2.0 * tki.FA * (double)tki.DP) + (double)60) + (tvn_vaq * tvn_ubmax_frac);
         //double tnq_onlyT = MIN((double)tki.VAQ + (tvn_vaq >= 0 ? 0 : tvn_vaq), vaq_ubmax) - (1.0 / MAX(10.0, (double)tki.VAQ)); // truncate tumor VAQ
         //double tnq_val = tnq_onlyT - (0.5 / MAX(10.0, (double)tvn_vaq)); // + MIN(20.0, tvn_vaq) / 10; // + (tnq_TandN * tnq_mult);
         // vcfqual = MIN(tnq_val, phred_non_germ);
         
-        infostring += std::string(";TNQ=") + std::to_string(tn_tvarq) + "," + std::to_string(tn_mcoef) + "," +  std::to_string(tnlike_alt) + "," + std::to_string(tnlike_nonref);
-        infostring += std::string(";NGQ=") + std::to_string(phred_non_germ);
-        infostring += std::string(";tVAQ=") + std::to_string(tki.VAQ);
+        infostring += std::string(";TNQ=") + std::to_string(tn_var_q) + "," + std::to_string(phred_non_germ);
+        infostring += std::string(";TNNQ=") + std::to_string(t_nonorm_q) + "," + std::to_string(tn_mcoef)   + "," + std::to_string(tnlike_alt) + "," + std::to_string(tnlike_nonref);
+        infostring += std::string(";TNTQ=") + std::to_string(t_sample_q) + "," + std::to_string(t_powlaw_q) + "," + std::to_string(tki.VAQ);
         infostring += std::string(";tDP=") + std::to_string(tki.DP);
         infostring += std::string(";tFA=") + std::to_string(tki.FA);
         infostring += std::string(";tFR=") + std::to_string(tki.FR);
@@ -2365,7 +2369,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         infostring += std::string(";tRefBQ=") + std::to_string(tki.autoBestRefBQ);
         infostring += std::string(";tAltHD=") + std::to_string(tki.autoBestAltHD);
         infostring += std::string(";tAllHD=") + std::to_string(tki.autoBestAllHD);
-        infostring += std::string(";TNQA=") + std::to_string(phred_non_germ);
+        // infostring += std::string(";TNQA=") + std::to_string(phred_non_germ);
         
         // auto finalGQ = (("1/0" == fmt.GT) ? fmt.GQ : 0); // is probably redundant?
         /*
