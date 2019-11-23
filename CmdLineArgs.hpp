@@ -81,13 +81,13 @@ struct CommandLineArgs {
     double      tnq_mult_tADadd_snv   = 4.000; // not used anymore
     double      tnq_mult_tADadd_indel = 4.000; // not used anymore // * 1.5;
     
-    double      ldi_tier_qual = 0; // strongly enabled ; // 20;
+    double      ldi_tier_qual = 1e9; // disabled // 0; // strongly enabled ; // 20;
     uint32_t    ldi_tier1cnt  = 150; // 300; 
     uint32_t    ldi_tier2cnt  = 100; // weakly enabled with add-one smoothing
-    double      mai_tier_qual = 40; // = 40; // probability of germline indel
+    double      mai_tier_qual = 30; // 40; // = 40; // probability of germline indel
     uint32_t    mai_tier1abq  = 40; // = 40; // approximately one extra indel is added as a pseudocount
     uint32_t    mai_tier2abq  = 1024*1024*1024; // disabled
-    double      str_tier_qual = 50; // 45; // = 50; // is approximately the same as phred_sys_artifact_indel
+    double      str_tier_qual = 40; // 50; // 45; // = 50; // is approximately the same as phred_sys_artifact_indel
     uint32_t    str_tier1len  = 15; // = 16; // critical STR region size at which polymerase slippage error reaches a plateau
     uint32_t    str_tier2len  = 15; // enabled 
     
