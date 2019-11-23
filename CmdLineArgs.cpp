@@ -236,7 +236,7 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     app.add_option("--ldi-tier2cnt",         ldi_tier2cnt,                "--ldi-tier1cnt for UMI data", true);
     
     app.add_option("--mai-tier-qual",        mai_tier_qual,               "InDel variant quality above this is subject to diminushing return due to multi-allelic indels MAI", true);
-    app.add_option("--mai-tier1abq",         mai_tier1abq,                "Additive smoothing factor for MAI with diminushing-return formula AltBQ/(AllBQ-RefBQ)", true);
+    app.add_option("--mai-tier1abq",         mai_tier1abq,                "Multiplier x for MAI with diminushing-return formula AltBQ/(AltBQ+(AllBQ-RefBQ-AltBQ)*x)", true);
     app.add_option("--mai-tier2abq",         mai_tier2abq,                "--mai-tier1abq for UMI data", true);
  
     app.add_option("--str-tier-qual",        str_tier_qual,               "InDel variant quality above this is subject to diminushing effect due to short tandem repeats STR", true);
