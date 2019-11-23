@@ -2311,10 +2311,11 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
                 nfreqmult /= 2.0; // this is heuristically found
             }
         }
-
+        const double fa100qual = 75.0; // 90
+        const double fa_pl_pow = 2.0; // 2.667
         double t_ess_frac = (double)tAD0 / ((double)tAD0 + 1.0);
-        double t_sample_q = (10.0 / log(10.0)) * (log((tDP0 + tAD0 + 1.0) / (tAD0 + 1.0)) / log(2.0)) * tAD0;
-        double t_powlaw_q = (10.0 / log(10.0)) * log((double)tAD1 / (double)tDP1) * (8.0/3.0) + 90.0;
+        double t_sample_q = (10.0 / log(10.0)) * (log((double)(tDP0 + tAD0 + 2.0) / (double)(tAD0 + 1.0)) / log(2.0)) * tAD0;
+        double t_powlaw_q = (10.0 / log(10.0)) * log((double)(tAD0 + 1.0) / (double)(tDP0 + 2.0)) * fa_pl_pow + fa100qual;
         double t_nonorm_q = MIN((double)tki.VAQ, MIN(t_sample_q, t_powlaw_q));
         
         auto nonref_to_alt_frac = (isInDel ? nonref_to_alt_frac_indel : nonref_to_alt_frac_snv); 
@@ -2323,15 +2324,15 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
        
         // const bool normal_has_alt = (tAD1 / tDP1 / 2.0 < nAD1 / nDP1);
         double tnlike_alt    =  (10.0/log(10.0)) * calc_directional_likeratio(tAD1 / tDP1, nAD1, nDP1 - nAD1 )
-                / nDP1 * nDP0 * (double)(dlog(MIN(tAD0, nAD0 ), 1.25) + eps) / (double)(MIN(tAD0, nAD0 ) + eps);
-        auto upper_alt    = (10.0 / log(10.0)) * (8.0/3.0) * log((tAD1 / tDP1) / (nAD1  / nDP1));
+                / nDP1 * nDP0; // * (double)(dlog(MIN(tAD0, nAD0 ), 1.25) + eps) / (double)(MIN(tAD0, nAD0 ) + eps);
+        auto upper_alt    = (10.0 / log(10.0)) * fa_pl_pow * log(((double)(tAD0 + 1.0) / (double)(tDP0 + 2.0)) / ((double)(nAD0  + 1.0) / (double)(nDP0 + 2.0))); // log((tAD1 / tDP1) / (nAD1  / nDP1));
         tnlike_alt    = MAX(0.0, MIN(tnlike_alt   , upper_alt   ));
         
         // const bool normal_has_nonref = (tAD1 / tDP1 / 2.0 < nNRD1 / nDP1);
         double tnlike_nonref = (10.0/log(10.0)) * calc_directional_likeratio(tAD1 / tDP1, nNRD1, nDP1 - nNRD1)
-                / nDP1 * nDP0 * (double)(dlog(MIN(tAD0, nNRD0), 1.25) + eps) / (double)(MIN(tAD0, nNRD0) + eps);
+                / nDP1 * nDP0; // * (double)(dlog(MIN(tAD0, nNRD0), 1.25) + eps) / (double)(MIN(tAD0, nNRD0) + eps);
         
-        auto upper_nonref = (10.0 / log(10.0)) * (8.0/3.0) * log((tAD1 / tDP1) / (nNRD1 / nDP1));
+        auto upper_nonref = (10.0 / log(10.0)) * fa_pl_pow * log(((double)(tAD0 + 1.0) / (double)(tDP0 + 2.0)) / ((double)(nNRD0 + 1.0) / (double)(nDP0 + 2.0)));
         tnlike_nonref = MAX(0.0, MIN(tnlike_nonref, upper_nonref));
         
         assert(tki.autoBestAllBQ >= tki.autoBestRefBQ + tki.autoBestAltBQ);
@@ -2345,9 +2346,9 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         
         double tn_diffq = MIN(tnlike_alt, tnlike_nonref);
         
-        double tn_tfrac = (tAD1 / (tDP1 + eps));
-        double tn_nfrac = (nAD1 / (nDP1 + eps));
-        double tn_mcoef = MIN(1.0, (tn_tfrac + eps) / (tn_tfrac + tn_nfrac + eps) + eps);
+        double tn_tor = (tAD1 / MAX(tDP1 - tAD1 + 1.0, 0.25 * tAD1));
+        double tn_nor = (nAD1 / MAX(nDP1 - nAD1 + 1.0, 0.25 * nAD1));
+        double tn_mcoef = MIN(1.0, (tn_tor) / (tn_tor + tn_nor) + eps);
         double tn_var_q = (tn_mcoef * t_nonorm_q) + tn_diffq;
         vcfqual = MIN(tn_var_q * t_ess_frac, phred_non_germ);
         //vcfqual = MIN(tn_tvarq + tn_diffq - MIN(15.0, tn_nvarq), phred_non_germ);
