@@ -2102,7 +2102,7 @@ generateVcfHeader(const char *ref_fasta_fname, const char *platform,
      * */ 
     ret += "##INFO=<ID=ANY_VAR,Number=0,Type=Flag,Description=\"Any type of variant which may be caused by germline polymorphism and/or experimental artifact\">\n";
     ret += "##INFO=<ID=SOMATIC,Number=0,Type=Flag,Description=\"Somatic variant\">\n";
-    ret += "##INFO=<ID=TNQ,Number=3,Type=Float,Description=\"Normal-adjusted variant quality (VQ), tumor-adjusted VQ coefficient, and non-germline quality\">\n";
+    ret += "##INFO=<ID=TNQ,Number=4,Type=Float,Description=\"Normal-adjusted variant quality (VQ), tumor-adjusted VQ coefficient, normal sampling quality, and non-germline quality\">\n";
     ret += "##INFO=<ID=TNNQ,Number=4,Type=Float,Description=\"Tumor normalized variant quality (VQ), normal-adjusted VQ coefficient, tumor-vs-normal (TVN) VQ, and TVN VQ with NON_REF as ALT for normal\">\n";
     ret += "##INFO=<ID=TNTQ,Number=3,Type=Float,Description=\"Tumor sampling quality, allele-fraction quality, and VAQ\">\n";
     ret += "##INFO=<ID=tDP,Number=1,Type=Integer,Description=\"Tumor-sample DP\">\n";
@@ -2311,10 +2311,11 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
                 nfreqmult /= 2.0; // this is heuristically found
             }
         }
-        const double fa100qual = 75.0; // 90
+        const double fa100qual = (isInDel ? 85.0 : 75.0); // 90
         const double fa_pl_pow = 2.0; // 2.667
         double t_ess_frac = (double)tAD0 / ((double)tAD0 + 1.0);
         double t_sample_q = (10.0 / log(10.0)) * (log((double)(tDP0 + tAD0 + 2.0) / (double)(tAD0 + 1.0)) / log(2.0)) * tAD0;
+        double n_sample_q = (10.0 / log(10.0)) * (log((double)(nDP0 + nAD0 + 2.0) / (double)(nAD0 + 1.0)) / log(2.0)) * nAD0;
         double t_powlaw_q = (10.0 / log(10.0)) * log((double)(tAD0 + 1.0) / (double)(tDP0 + 2.0)) * fa_pl_pow + fa100qual;
         double t_nonorm_q = MIN((double)tki.VAQ, MIN(t_sample_q, t_powlaw_q));
         
@@ -2325,15 +2326,19 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         // const bool normal_has_alt = (tAD1 / tDP1 / 2.0 < nAD1 / nDP1);
         double tnlike_alt    =  (10.0/log(10.0)) * calc_directional_likeratio(tAD1 / tDP1, nAD1, nDP1 - nAD1 )
                 / nDP1 * nDP0; // * (double)(dlog(MIN(tAD0, nAD0 ), 1.25) + eps) / (double)(MIN(tAD0, nAD0 ) + eps);
+        //if (tAD1 / tDP1 < nAD1  / nDP1) { tnlike_alt = -tnlike_alt; }
         auto upper_alt    = (10.0 / log(10.0)) * fa_pl_pow * log(((double)(tAD0 + 1.0) / (double)(tDP0 + 2.0)) / ((double)(nAD0  + 1.0) / (double)(nDP0 + 2.0))); // log((tAD1 / tDP1) / (nAD1  / nDP1));
-        tnlike_alt    = MAX(0.0, MIN(tnlike_alt   , upper_alt   ));
-        
+        // tnlike_alt    = MAX(-upper_alt   , MIN(tnlike_alt   , upper_alt   ));
+        tnlike_alt    = MIN(tnlike_alt   , upper_alt   );
+       
         // const bool normal_has_nonref = (tAD1 / tDP1 / 2.0 < nNRD1 / nDP1);
         double tnlike_nonref = (10.0/log(10.0)) * calc_directional_likeratio(tAD1 / tDP1, nNRD1, nDP1 - nNRD1)
                 / nDP1 * nDP0; // * (double)(dlog(MIN(tAD0, nNRD0), 1.25) + eps) / (double)(MIN(tAD0, nNRD0) + eps);
         
+        //if (tAD1 / tDP1 < nNRD1 / nDP1) { tnlike_nonref = -tnlike_nonref; }
         auto upper_nonref = (10.0 / log(10.0)) * fa_pl_pow * log(((double)(tAD0 + 1.0) / (double)(tDP0 + 2.0)) / ((double)(nNRD0 + 1.0) / (double)(nDP0 + 2.0)));
-        tnlike_nonref = MAX(0.0, MIN(tnlike_nonref, upper_nonref));
+        // tnlike_nonref = MAX(-upper_nonref, MIN(tnlike_nonref, upper_nonref));
+        tnlike_nonref = MIN(tnlike_nonref, upper_nonref);
         
         assert(tki.autoBestAllBQ >= tki.autoBestRefBQ + tki.autoBestAltBQ);
         
@@ -2346,10 +2351,10 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         
         double tn_diffq = MIN(tnlike_alt, tnlike_nonref);
         
-        double tn_tor = (tAD1 / MAX(tDP1 - tAD1 + 1.0, 0.25 * tAD1));
+        double tn_tor = (tAD1 / MAX(tDP1 - tAD1 + 1.0, 0.25 * tAD1)); // 1.0 is not a pseudo-count here, 1.0 is used to maintain epsilon
         double tn_nor = (nAD1 / MAX(nDP1 - nAD1 + 1.0, 0.25 * nAD1));
         double tn_mcoef = MIN(1.0, (tn_tor) / (tn_tor + tn_nor) + eps);
-        double tn_var_q = (tn_mcoef * t_nonorm_q) + tn_diffq;
+        double tn_var_q = MAX((tn_mcoef * t_nonorm_q), t_nonorm_q - n_sample_q)  + tn_diffq;
         vcfqual = MIN(tn_var_q * t_ess_frac, phred_non_germ);
         //vcfqual = MIN(tn_tvarq + tn_diffq - MIN(15.0, tn_nvarq), phred_non_germ);
         
@@ -2358,7 +2363,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         //double tnq_val = tnq_onlyT - (0.5 / MAX(10.0, (double)tvn_vaq)); // + MIN(20.0, tvn_vaq) / 10; // + (tnq_TandN * tnq_mult);
         // vcfqual = MIN(tnq_val, phred_non_germ);
         
-        infostring += std::string(";TNQ=")  + std::to_string(tn_var_q)   + "," + std::to_string(t_ess_frac) + "," + std::to_string(phred_non_germ);
+        infostring += std::string(";TNQ=")  + std::to_string(tn_var_q)   + "," + std::to_string(t_ess_frac) + "," + std::to_string(n_sample_q) + "," + std::to_string(phred_non_germ);
         infostring += std::string(";TNNQ=") + std::to_string(t_nonorm_q) + "," + std::to_string(tn_mcoef)   + "," + std::to_string(tnlike_alt) + "," + std::to_string(tnlike_nonref);
         infostring += std::string(";TNTQ=") + std::to_string(t_sample_q) + "," + std::to_string(t_powlaw_q) + "," + std::to_string(tki.VAQ);
         infostring += std::string(";tDP=") + std::to_string(tki.DP);
@@ -2446,9 +2451,9 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
             
             if (vcfqual > ldi_tier_qual) {
                 // penalize low-allele-depth indels.
-                double tAD = (prev_is_tumor ? (tki.FA * (double)tki.DP) : (fmt.FA * (double)fmt.DP));
-                auto ldi_tier_cnt = (tUseHD ? ldi_tier2cnt : ldi_tier1cnt);
-                vcfqual = ldi_tier_qual + ((vcfqual - ldi_tier_qual) * ((double)tAD) / (((double)tAD) + (((double)ldi_tier_cnt)/100.0)));
+                // double tAD = (prev_is_tumor ? (tki.FA * (double)tki.DP) : (fmt.FA * (double)fmt.DP));
+                // auto ldi_tier_cnt = (tUseHD ? ldi_tier2cnt : ldi_tier1cnt);
+                // vcfqual = ldi_tier_qual + ((vcfqual - ldi_tier_qual) * ((double)tAD) / (((double)tAD) + (((double)ldi_tier_cnt)/100.0)));
             }
         }
         // apply to only SNVs excluding InDels
