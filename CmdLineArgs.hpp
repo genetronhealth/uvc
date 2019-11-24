@@ -91,6 +91,9 @@ struct CommandLineArgs {
     uint32_t    str_tier1len  = 15;  //     disabled // = 16; // critical STR region size at which polymerase slippage error reaches a plateau
     uint32_t    str_tier2len  = 15;  //     disabled // enabled 
     
+    double      contam_ratio = 0.0; // can be estimated by bootstrapping
+    double      sys_to_nonsys_err_ratio = 1.0; // can be estimated by bootstrapping
+    
     int 
     initFromArgCV(int & parsing_result_flag, SequencingPlatform & inferred_sequencing_platform, int argc, const char *const* argv);
     

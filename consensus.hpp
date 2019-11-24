@@ -2197,12 +2197,14 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         , const double       str_tier_qual // = 50;
         , const unsigned int str_tier1len // = 16;
         , const unsigned int str_tier2len // = 16;
-       , const unsigned int uni_bias_thres
+        , const unsigned int uni_bias_thres
         , const bcf_hdr_t *g_bcf_hdr, const bool is_tumor_format_retrieved
         , const unsigned int highqual_thres
         , const double highqual_min_ratio
         , const double diffVAQfrac
         , const double phred_sys_artifact
+        , const double contam_ratio
+        , const double sys_to_nonsys_err_ratio
         //, unsigned int highqual_min_vardep
         //, unsigned int highqual_min_totdep
         ) {
@@ -2404,11 +2406,12 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         
         double tn_diffq = MIN(tnlike_alt, tnlike_nonref);
         
-        double epsor = (10.0/log(10.0)) * log(1.0 + tDP0);
+        // double contam_ratio = 0.0;
+        double epsor = 0.0; // (10.0/log(10.0)) * log(1.0 + tDP0);
         double tADor = tAD1 + epsor;
         double tn_tor = (tADor / MAX((tDP1+epsor) - tADor + 1.0, 0.25 * tADor)); // 1.0 is not a pseudo-count here, 1.0 is used to maintain epsilon
         double tn_nor = (nAD1  / MAX( nDP1        - nAD1  + 1.0, 0.25 * nAD1 ));
-        double tn_mcoef = MIN(1.0, (tn_tor) / (tn_tor + tn_nor) + eps);
+        double tn_mcoef = MIN(1.0, (tn_tor) / (tn_tor + sys_to_nonsys_err_ratio * MAX(0.0, tn_nor - contam_ratio * tn_tor)) + eps);
         double tn_var_q = MAX((tn_mcoef * t_nonorm_q), t_nonorm_q - n_sample_q)  + tn_diffq;
         vcfqual = MIN(tn_var_q * t_ess_frac, phred_non_germ);
         auto tAD = (double)tki.FA * (double)tki.DP;

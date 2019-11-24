@@ -242,7 +242,10 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     app.add_option("--str-tier-qual",        str_tier_qual,               "InDel variant quality above this is subject to diminushing effect due to short tandem repeats STR", true);
     app.add_option("--str-tier1len",         str_tier1len,                "Additive smooth factor for STR with diminushing-return formula 1/(num-bases-in-STR-region)", true); 
     app.add_option("--str-tier2len",         str_tier2len,                "--str-tier1len for UMI data", true); 
-
+    
+    app.add_option("--contam-ratio",         contam_ratio,                "Fraction of variant signal in the normal caused by contamination from tumor", true); 
+    app.add_option("--sys-to-nonsys-err-ratio", sys_to_nonsys_err_ratio,  "Ratio of systematic component (which is conserved between samples) to non-systematic component in the generation of noise in NGS. This is an advanced option.", true); 
+    
     app.add_flag("--Should-add-note",        should_add_note,             "Flag indicating if the program generates more detail in the VCF result file.");
     
     app.add_option("--is-tumor-format-retrieved", is_tumor_format_retrieved, "Boolean (0: false, 1: true) indicating if the format from the tumor VCF should be retrieved in the tumor-normal comparison. This boolean is only useful if tumor VCF is provided. Notice that a true value for this boolean disables the generation of genomic block so that the output is no longer gvcf.", true);
