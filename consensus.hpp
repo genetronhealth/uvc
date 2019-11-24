@@ -28,11 +28,12 @@
 // #define bam_phredi(b, i) (phred2bucket(bam_get_qual((b))[(i)]))
 #define bam_phredi(b, i) (bam_get_qual((b))[(i)])
 
+// WARNING: although this is extracted from the literature, it work poorly on real data, presumably because of high correlation of errors at high repeat number in STR
 // https://www.researchgate.net/figure/Error-rate-biases-in-homopolymers-of-varying-lengths-and-due-to-different-local-GC_fig2_277405835
 // https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4417121/
 const std::array<unsigned int, 20> HP_TRACK_LEN_TO_PHRED_ERR_RATE = {
-//  1   2   3   4   5   6   7   8   9   10  11  12  13  14  15  16  17  18  19  20
-    40, 39, 38, 37, 35, 33, 31, 29, 27, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15
+//  1   2   3   4   5   6   7   8   9   10  11  12  13  14  15     16  17  18  19  20
+    40, 39, 38, 37, 35, 33, 31, 29, 27, 25, 24, 23, 22, 21, 20 //, 19, 18, 17, 16, 15
 }; // no indel anchors
 
 enum ValueType {
@@ -664,6 +665,7 @@ indelpos_to_context(
     return 0;
 }
 
+template <bool TReturnMaxPhred = true>
 unsigned int 
 bam_to_decvalue(const bam1_t *b, unsigned int qpos) {
     unsigned int max_repeatnum = 0;
@@ -680,8 +682,12 @@ bam_to_decvalue(const bam1_t *b, unsigned int qpos) {
         }
     }
     auto eff_track_len = (max_repeatnum > 2 ? (max_repeatnum - 2) * repeatsize_at_max_repeatnum : 0);
-    return HP_TRACK_LEN_TO_PHRED_ERR_RATE[MIN(HP_TRACK_LEN_TO_PHRED_ERR_RATE.size() - 1, eff_track_len)]; 
-    // return prob2phred((1.0 - DBL_EPSILON) / (double)max_repeatnum);
+    if (TReturnMaxPhred) { 
+        // return HP_TRACK_LEN_TO_PHRED_ERR_RATE[MIN(HP_TRACK_LEN_TO_PHRED_ERR_RATE.size() - 1, eff_track_len)]; 
+        return 40 - MIN(20, eff_track_len);
+    } else { 
+        return prob2phred((1.0 - DBL_EPSILON) / (double)max_repeatnum); 
+    }
     // return (repeatsize_at_max_repeatnum * max_repeatnum); // one base in MSI reduces phred-indel-quality by 1, TODO: the one is arbitrary, justify it.
 }
 
@@ -2178,7 +2184,12 @@ int
 appendVcfRecord(std::string & out_string, std::string & out_string_pass, const Symbol2CountCoverageSet & symbol2CountCoverageSet, 
         const char *tname, unsigned int refpos, 
         const AlignmentSymbol symbol, bcfrec::BcfFormat & fmtvar, 
-        const std::string & refstring,
+        const std::string & refstring
+        , unsigned int & contam_tDP
+        , unsigned int & contam_nDP
+        , unsigned int & contam_tAD
+        , unsigned int & contam_nAD
+        , const double contam_est_qual_thres,
         const unsigned int extended_inclu_beg_pos, 
         const double vcfqual_thres,
         const bool should_output_all, const bool should_let_all_pass,
@@ -2261,9 +2272,6 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         vcfalt = altsymbolname;
     }
     
-    float vcfqual = fmt.VAQ; // TODO: investigate whether to use VAQ or VAQ2
-    //float vcfqual = fmt.VAQ2; // here we assume the matched normal is not available (yet)
-    
     bool is_novar = (symbol == LINK_M || (isSymbolSubstitution(symbol) && vcfref == vcfalt));
     std::string vcffilter;
     if (is_novar) {
@@ -2277,10 +2285,13 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
     std::string repeatunit = "";
     indelpos_to_context(repeatunit, repeatnum, refstring, regionpos);
     // auto context_len = repeatunit.size() * repeatnum;
-    
+    auto eff_track_len = repeatunit.size() * (MAX(repeatnum, 2) - 2);
     //  infostring += ";RU=" + repeatunit + ";RC=" + std::to_string(repeatnum);
     // const bool tUseHD = (prev_is_tumor ? (tki.bDP > tki.DP * highqual_min_ratio) : (fmt.bDP > fmt.DP * highqual_min_ratio));
-
+    
+    double prior_qual = (double)(isInDel ? 1.5 * (double)MIN(eff_track_len, 10) : 0.0);
+    float vcfqual = fmt.VAQ + prior_qual; // TODO: investigate whether to use VAQ or VAQ2
+    //float vcfqual = fmt.VAQ2; // here we assume the matched normal is not available (yet)
 
     std::string ref_alt;
     std::string infostring = (prev_is_tumor ? "SOMATIC" : "ANY_VAR");
@@ -2294,7 +2305,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         const bool tUseHD =  (tki.bDP > tki.DP * highqual_min_ratio);
         const bool nUseHD = ((fmt.bDP > fmt.DP * highqual_min_ratio) && tUseHD); 
         
-        double tki_VAQ = tki.VAQ;
+        double tki_VAQ = tki.VAQ + prior_qual;
         
         double nAltBQ = SUM2(fmt.cAltBQ);
         double nAllBQ = SUM2(fmt.cAllBQ);
@@ -2366,7 +2377,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
                 nfreqmult /= 2.0; // this is heuristically found
             }
         }
-        const double fa100qual = (isInDel ? (85.0 - 0.5 * (double)MIN(20, repeatunit.size() * (MAX(repeatnum, 2) - 2))) : 80.0); // 90
+        const double fa100qual = (isInDel ? (85.0 - 0.5 * (double)MIN(20, eff_track_len)) : 80.0); // 90
         const double fa_pl_pow = 2.0; // 2.667
         double t_ess_frac = (double)tAD0 / ((double)tAD0 + 1.0);
         double t_sample_q = (10.0 / log(10.0)) * (log((double)(tDP0 + tAD0 + 2.0) / (double)(tAD0 + 1.0)) / log(2.0)) * tAD0;
@@ -2477,10 +2488,18 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
             // vcfqual = MIN(MIN(tnq1, diffVAQ), fmt.GQ + phred_germline); // (germline + sys error) freq of 10^(-25/10) ?
         }
         */
+        vcfqual = calc_upper_bounded(calc_non_negative(vcfqual));
+        if (vcfqual > contam_est_qual_thres) {
+            contam_tDP += tDP0;
+            contam_nDP += nDP0;
+            contam_tAD += tAD0;
+            contam_nAD += nAD0;
+        }
     } else {
         ref_alt = vcfref + "\t" + vcfalt;
+        vcfqual = calc_non_negative(vcfqual);
+        //vcfqual = calc_upper_bounded(calc_non_negative(vcfqual));
     }
-
      
     if ((!is_novar && vcfqual >= vcfqual_thres) || should_output_all || should_let_all_pass) {
  #if 0
@@ -2550,9 +2569,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         }
         fmtvar.VAQAB = vcfqual * 100.0 / maxbias;
     }
-    
-    vcfqual = calc_upper_bounded(calc_non_negative(vcfqual));
-    
+        
     if (0 == vcffilter.size()) {
         if (vcfqual < 10) {
             vcffilter += (std::string(bcfrec::FILTER_IDS[bcfrec::Q10]) + ";");

@@ -85,12 +85,13 @@ struct CommandLineArgs {
     uint32_t    ldi_tier1cnt  = 150; //     disabled 300;  
     uint32_t    ldi_tier2cnt  = 100; //     disabled weakly enabled with add-one smoothing
     double      mai_tier_qual = 20;  // enabled // 40; // 40; // = 40; // probability of germline indel
-    uint32_t    mai_tier1abq  = 1.0; //     highly enabled // 40; // = 40; // approximately one extra indel is added as a pseudocount
+    uint32_t    mai_tier1abq  = 0.1; //     highly enabled // 40; // = 40; // approximately one extra indel is added as a pseudocount
     uint32_t    mai_tier2abq  = 0.0; //     always disabled // 1024*1024*1024; // disabled
     double      str_tier_qual = 1e9; // always disabled 50; // 50; // 45; // = 50; // is approximately the same as phred_sys_artifact_indel
     uint32_t    str_tier1len  = 15;  //     disabled // = 16; // critical STR region size at which polymerase slippage error reaches a plateau
     uint32_t    str_tier2len  = 15;  //     disabled // enabled 
     
+    double      contam_est_qual_thres = 50.0; // used for bootstrapping
     double      contam_ratio = 0.0; // can be estimated by bootstrapping
     double      sys_to_nonsys_err_ratio = 1.0; // can be estimated by bootstrapping
     
