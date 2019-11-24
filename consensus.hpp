@@ -2336,9 +2336,9 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
                 auto tAltBQ = (double)(prev_is_tumor ? tki.autoBestAltBQ : SUM2(fmt.cAltBQ));
                 auto tAllBQ = (double)(prev_is_tumor ? tki.autoBestAllBQ : SUM2(fmt.cAllBQ));
                 auto tRefBQ = (double)(prev_is_tumor ? tki.autoBestRefBQ : SUM2(fmt.cRefBQ));
-                auto tOthBQ= MAX(tAltBQ - tRefBQ, tAltBQ);
+                auto tOthBQ= MAX(tAllBQ - tRefBQ, tAltBQ);
                 auto mai_tier_abq = (double)(tUseHD ? mai_tier2abq : mai_tier1abq); 
-                tki_VAQ = mai_tier_qual + ((vcfqual - mai_tier_qual) * (tAltBQ) / ((tOthBQ - tAltBQ) * mai_tier_abq + tAltBQ));
+                tki_VAQ = mai_tier_qual + ((tki_VAQ - mai_tier_qual) * (tAltBQ) / ((tOthBQ - tAltBQ) * mai_tier_abq + tAltBQ));
             }
             
             if (vcfqual > ldi_tier_qual) {
@@ -2404,8 +2404,10 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         
         double tn_diffq = MIN(tnlike_alt, tnlike_nonref);
         
-        double tn_tor = (tAD1 / MAX(tDP1 - tAD1 + 1.0, 0.25 * tAD1)); // 1.0 is not a pseudo-count here, 1.0 is used to maintain epsilon
-        double tn_nor = (nAD1 / MAX(nDP1 - nAD1 + 1.0, 0.25 * nAD1));
+        double epsor = (10.0/log(10.0)) * log(1.0 + tDP0);
+        double tADor = tAD1 + epsor;
+        double tn_tor = (tADor / MAX((tDP1+epsor) - tADor + 1.0, 0.25 * tADor)); // 1.0 is not a pseudo-count here, 1.0 is used to maintain epsilon
+        double tn_nor = (nAD1  / MAX( nDP1        - nAD1  + 1.0, 0.25 * nAD1 ));
         double tn_mcoef = MIN(1.0, (tn_tor) / (tn_tor + tn_nor) + eps);
         double tn_var_q = MAX((tn_mcoef * t_nonorm_q), t_nonorm_q - n_sample_q)  + tn_diffq;
         vcfqual = MIN(tn_var_q * t_ess_frac, phred_non_germ);
@@ -2431,6 +2433,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         infostring += std::string(";tRefBQ=") + std::to_string(tki.autoBestRefBQ);
         infostring += std::string(";tAltHD=") + std::to_string(tki.autoBestAltHD);
         infostring += std::string(";tAllHD=") + std::to_string(tki.autoBestAllHD);
+        infostring += std::string(";RU=") + repeatunit + ";RC=" + std::to_string(repeatnum);
+        
         // infostring += std::string(";TNQA=") + std::to_string(phred_non_germ);
         
         // auto finalGQ = (("1/0" == fmt.GT) ? fmt.GQ : 0); // is probably redundant?
@@ -2480,8 +2484,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
          //unsigned int repeatnum = 0;
         //std::string repeatunit = "";
         //indelpos_to_context(repeatunit, repeatnum, refstring, regionpos);
-        infostring += ";RU=" + repeatunit + ";RC=" + std::to_string(repeatnum);
-        // const bool tUseHD = (prev_is_tumor ? (tki.bDP > tki.DP * highqual_min_ratio) : (fmt.bDP > fmt.DP * highqual_min_ratio));
+        //// const bool tUseHD = (prev_is_tumor ? (tki.bDP > tki.DP * highqual_min_ratio) : (fmt.bDP > fmt.DP * highqual_min_ratio));
                 // apply to only SNVs excluding InDels
         // else
         {
