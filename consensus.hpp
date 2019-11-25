@@ -2334,6 +2334,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         double tDP1 = (tUseHD ? (highqual_thres * tAllHD) : tAllBQ) + depth_pseudocount;
         double nRD1 = (nUseHD ? (highqual_thres * nRefHD) : nRefBQ) + depth_pseudocount / 2.0;
         
+        double penalFAphred = 0;
         if (isInDel) {
             
             //if (tki_VAQ > str_tier_qual) {
@@ -2357,10 +2358,13 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
                 auto mai_tier_abq = (double)(tUseHD ? mai_tier2abq : mai_tier1abq); 
                 // 20 is the PHRED-scale probability that the indel locus is noisy
                 // 30 is the PHRED-scale probability that the indel locus is inherently multi-allelic 
+                /*
                 tki_VAQ = MAX(tki_VAQ - 30.0, MIN(tki_VAQ, 20.0 + 
                     10.0/log(10.0) * (tAltBQ / (tOthBQ - tAltBQ + eps))
                     // (tki_VAQ * (tAltBQ) / ((tOthBQ - tAltBQ) * mai_tier_abq + tAltB))
                     ));
+                */
+                penalFAphred = log(tOthBQ / tAltBQ) / log(2) * 15.0;
             }
             
             if (vcfqual > ldi_tier_qual) {
@@ -2386,12 +2390,12 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
                 nfreqmult /= 2.0; // this is heuristically found
             }
         }
-        const double fa100qual = (isInDel ? (80.0 - (1.0/3.0) * (double)MIN(15, eff_track_len)) : 80.0); // 90
+        const double fa100qual = (isInDel ? (80.0 - (0.0/3.0) * (double)MIN(15, eff_track_len)) : 80.0); // 90
         const double fa_pl_pow = 2.0; // 2.667
         // double t_ess_frac = (double)tAD0 / ((double)tAD0 + (isInDel ? 1.5 : 1.0));
         double t_sample_q = (10.0 / log(10.0)) * (log((double)(tDP0 + tAD0 + 2.0) / (double)(tAD0 + 1.0)) / log(2.0)) * tAD0;
         double n_sample_q = (10.0 / log(10.0)) * (log((double)(nDP0 + nAD0 + 2.0) / (double)(nAD0 + 1.0)) / log(2.0)) * nAD0;
-        double t_powlaw_q = (10.0 / log(10.0)) * log((double)(tAD0 + 1.0) / (double)(tDP0 + 2.0)) * fa_pl_pow + fa100qual;
+        double t_powlaw_q = (10.0 / log(10.0)) * log((double)(tAD0 + 1.0) / (double)(tDP0 + 2.0)) * fa_pl_pow + fa100qual - penalFAphred;
         double t_nonorm_q = MIN((double)tki_VAQ, MIN(t_sample_q, t_powlaw_q));
         
         auto nonref_to_alt_frac = (isInDel ? nonref_to_alt_frac_indel : nonref_to_alt_frac_snv); 
