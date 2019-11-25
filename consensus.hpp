@@ -2393,8 +2393,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         const double fa100qual = (isInDel ? (80.0 - (0.0/3.0) * (double)MIN(15, eff_track_len)) : 80.0); // 90
         const double fa_pl_pow = 2.0; // 2.667
         // double t_ess_frac = (double)tAD0 / ((double)tAD0 + (isInDel ? 1.5 : 1.0));
-        double t_sample_q = (10.0 / log(10.0)) * (log((double)(tDP0 + tAD0 + 2.0) / (double)(tAD0 + 1.0)) / log(2.0)) * tAD0;
-        double n_sample_q = (10.0 / log(10.0)) * (log((double)(nDP0 + nAD0 + 2.0) / (double)(nAD0 + 1.0)) / log(2.0)) * nAD0;
+        double t_sample_q = (10.0 / log(10.0)) * (log((double)(tDP0 + tAD0 + 2.0 + eps) / (double)(tAD0 + 1.0 + eps)) / log(2.0)) * tAD0;
+        double n_sample_q = (10.0 / log(10.0)) * (log((double)(nDP0 + nAD0 + 2.0 + eps) / (double)(nAD0 + 1.0 + eps)) / log(2.0)) * nAD0;
         double t_powlaw_q = (10.0 / log(10.0)) * log((double)(tAD0 + 1.0) / (double)(tDP0 + 2.0)) * fa_pl_pow + fa100qual - penalFAphred;
         double t_nonorm_q = MIN((double)tki_VAQ, MIN(t_sample_q, t_powlaw_q));
         
