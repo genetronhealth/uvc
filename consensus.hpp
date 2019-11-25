@@ -2345,7 +2345,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
             }
         }
         if (repeatunit.size() == 2 && isSymbolDel(symbol)) {
-            qual -= 5.0;
+            post_qual -= 5.0;
         }
     }
     
