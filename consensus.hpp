@@ -2293,6 +2293,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
      
     auto n_units = ((indelstring.size() > repeatunit.size() && repeatunit.size() > 0) ? (indelstring.size() / repeatunit.size()) : 1); 
     double prior_qual = (double)0; // (double)(isInDel ? 1.0 * (double)MIN(eff_track_len,15) / n_units : 0.0);
+    double post_qual = (double)0;
     if (isInDel) {
         prior_qual += (double)MIN(eff_track_len,15) / n_units;
         /*
@@ -2300,18 +2301,16 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
             prior_qual += 10.0;
         }
         */
-        double prior_qual_add = (double)0;
         if (indelstring.size() + 1 >= repeatunit.size() * repeatnum) {
-            prior_qual_add = 4.0 * (double)(indelstring.size());
+            post_qual = 4.0 * (double)(indelstring.size());
         } else {
             for (unsigned int i = 0; i < indelstring.size(); i++) {
                 unsigned int j = i % repeatunit.size();
                 if (indelstring[i] != repeatunit[j]) {
-                    prior_qual_add += 4.0;
+                    post_qual += 4.0;
                 }
             }
         }
-        prior_qual += MIN(prior_qual_add, 20.0);
     }
     
     float vcfqual = fmt.VAQ + prior_qual; // TODO: investigate whether to use VAQ or VAQ2
@@ -2459,7 +2458,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         double tn_mcoef = MIN(1.0, (tn_tor) / (tn_tor + sys_to_nonsys_err_ratio * MAX(0.0, tn_nor - contam_ratio * tn_tor)) + eps);
         double tn_var_q = MAX((tn_mcoef * t_nonorm_q), t_nonorm_q - n_sample_q)  + tn_diffq;
         double lowAD_penal = (isInDel ? 12.0 : 8.0) / MAX(1.0, (double)tAD0); 
-        vcfqual = MIN(tn_var_q - lowAD_penal, phred_non_germ);
+        vcfqual = MIN(tn_var_q - lowAD_penal, phred_non_germ) + MIN(post_qual, 20.0);
         auto tAD = (double)tki.FA * (double)tki.DP;
         // if (tAD < 1.5) { vcfqual *= (tAD / 1.5); }
         //vcfqual = MIN(tn_tvarq + tn_diffq - MIN(15.0, tn_nvarq), phred_non_germ);
