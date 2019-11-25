@@ -2484,7 +2484,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         double tn_mcoef = MIN(1.0, (tn_tor) / (tn_tor + sys_to_nonsys_err_ratio * MAX(0.0, tn_nor - contam_ratio * tn_tor)) + eps);
         double tn_var_q = MAX((tn_mcoef * t_nonorm_q), t_nonorm_q - n_sample_q)  + tn_diffq;
         double lowAD_penal = (isInDel ? 12.0 : 8.0) / MAX(1.0, (double)tAD0); 
-        vcfqual = MIN(tn_var_q - lowAD_penal, phred_non_germ) + MIN(post_qual, 20.0);
+        vcfqual = MIN(tn_var_q - lowAD_penal, phred_non_germ) + MIN(post_qual * tn_mcoef / (2.0 - tn_mcoef), 20.0);
         auto tAD = (double)tki.FA * (double)tki.DP;
         // if (tAD < 1.5) { vcfqual *= (tAD / 1.5); }
         //vcfqual = MIN(tn_tvarq + tn_diffq - MIN(15.0, tn_nvarq), phred_non_germ);
