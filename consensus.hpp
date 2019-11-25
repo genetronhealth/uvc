@@ -2290,9 +2290,30 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
     auto eff_track_len = (repeatunit.size() + 1) * (MAX(repeatnum, 1) - 1);
     //  infostring += ";RU=" + repeatunit + ";RC=" + std::to_string(repeatnum);
     // const bool tUseHD = (prev_is_tumor ? (tki.bDP > tki.DP * highqual_min_ratio) : (fmt.bDP > fmt.DP * highqual_min_ratio));
-    
+     
     auto n_units = ((indelstring.size() > repeatunit.size() && repeatunit.size() > 0) ? (indelstring.size() / repeatunit.size()) : 1); 
-    double prior_qual = (double)(isInDel ? 1.0 * (double)MIN(eff_track_len,15) / n_units : 0.0);
+    double prior_qual = (double)0; // (double)(isInDel ? 1.0 * (double)MIN(eff_track_len,15) / n_units : 0.0);
+    if (isInDel) {
+        prior_qual += (double)MIN(eff_track_len,15) / n_units;
+        /*
+        if (eff_track_len < 8) {
+            prior_qual += 10.0;
+        }
+        */
+        double prior_qual_add = (double)0;
+        if (indelstring.size() + 1 >= repeatunit.size() * repeatnum) {
+            prior_qual_add = 4.0 * (double)(indelstring.size());
+        } else {
+            for (unsigned int i = 0; i < indelstring.size(); i++) {
+                unsigned int j = i % repeatunit.size();
+                if (indelstring[i] != repeatunit[j]) {
+                    prior_qual_add += 4.0;
+                }
+            }
+        }
+        prior_qual += MIN(prior_qual_add, 20.0):
+    }
+    
     float vcfqual = fmt.VAQ + prior_qual; // TODO: investigate whether to use VAQ or VAQ2
     //float vcfqual = fmt.VAQ2; // here we assume the matched normal is not available (yet)
     
