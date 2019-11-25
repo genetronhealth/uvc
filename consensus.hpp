@@ -2471,8 +2471,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         const bool is_nonref_indel_excluded = false;
         const bool is_nonref_germline_excluded = (isInDel ? is_nonref_snp_excluded : is_nonref_indel_excluded);
         double phred_non_germ = (double)((fmt.FA > 0.2 || (is_nonref_germline_excluded && fmt.FR < 0.8))
-                ? ((double)((int)phred_germline - (int)fmt.GQ))
-                : ((double)(     phred_germline +      fmt.GQ)));
+                ? ((double)((int)phred_germline + (isInDel ? 10 : 0) - (int)fmt.GQ))
+                : ((double)(     phred_germline + (isInDel ? 10 : 0)        fmt.GQ)));
         
         double tn_diffq = MIN(tnlike_alt, tnlike_nonref);
         
@@ -2481,10 +2481,10 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         double tADor = tAD1 + epsor;
         double tn_tor = (tADor / MAX((tDP1+epsor) - tADor + 1.0, 0.25 * tADor)); // 1.0 is not a pseudo-count here, 1.0 is used to maintain epsilon
         double tn_nor = (nAD1  / MAX( nDP1        - nAD1  + 1.0, 0.25 * nAD1 ));
-        double tn_mcoef = MIN(1.0, (tn_tor) / (tn_tor + sys_to_nonsys_err_ratio * MAX(0.0, tn_nor - contam_ratio * tn_tor)) + eps);
+        double tn_mcoef = MIN(1.0, (tn_tor) / (tn_tor + sys_to_nonsys_err_ratio * (isInDel ? 2.0 : 1.0) * MAX(0.0, tn_nor - contam_ratio * tn_tor)) + eps);
         double tn_var_q = MAX((tn_mcoef * t_nonorm_q), t_nonorm_q - n_sample_q)  + tn_diffq;
         double lowAD_penal = (isInDel ? 12.0 : 8.0) / MAX(1.0, (double)tAD0); 
-        vcfqual = MIN(tn_var_q - lowAD_penal, phred_non_germ) + MIN(post_qual, 15.0) * tn_mcoef / (2.0 - tn_mcoef);
+        vcfqual = MIN(tn_var_q - lowAD_penal, phred_non_germ) + MIN(post_qual, 15.0) * tn_mcoef; // / (2.0 - tn_mcoef);
         auto tAD = (double)tki.FA * (double)tki.DP;
         // if (tAD < 1.5) { vcfqual *= (tAD / 1.5); }
         //vcfqual = MIN(tn_tvarq + tn_diffq - MIN(15.0, tn_nvarq), phred_non_germ);
