@@ -2329,7 +2329,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
     double post_qual = (double)0;
     if (isInDel) {
         // auto n_units = ((indelstring2.size() > repeatunit.size() && repeatunit.size() > 0) ? (indelstring2.size() / repeatunit.size()) : 1); 
-        prior_qual += (4.0/4.0) * (double)MIN(eff_track_len,20); // / (double)n_units;
+        post_qual += (8.0/4.0) * (double)MIN(eff_track_len,20); // / (double)n_units;
         bool is_str_unit = true;
         for (unsigned int i = 0; i < indelstring2.size(); i++) {
             unsigned int j = i % MAX(1, repeatunit.size());
@@ -2345,7 +2345,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
             }
         }
         if (repeatunit.size() == 2 && isSymbolDel(symbol)) {
-            post_qual -= 5.0;
+            post_qual -= 10.0;
         }
     }
     
