@@ -2472,7 +2472,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         const bool is_nonref_germline_excluded = (isInDel ? is_nonref_snp_excluded : is_nonref_indel_excluded);
         double phred_non_germ = (double)((fmt.FA > 0.2 || (is_nonref_germline_excluded && fmt.FR < 0.8))
                 ? ((double)((int)phred_germline + (isInDel ? 10 : 0) - (int)fmt.GQ))
-                : ((double)(     phred_germline + (isInDel ? 10 : 0)        fmt.GQ)));
+                : ((double)(     phred_germline + (isInDel ? 10 : 0) +      fmt.GQ)));
         
         double tn_diffq = MIN(tnlike_alt, tnlike_nonref);
         
