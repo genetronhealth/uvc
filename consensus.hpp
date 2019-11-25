@@ -2328,13 +2328,24 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
     double prior_qual = (double)0; // (double)(isInDel ? 1.0 * (double)MIN(eff_track_len,15) / n_units : 0.0);
     double post_qual = (double)0;
     if (isInDel) {
-        auto n_units = ((indelstring2.size() > repeatunit.size() && repeatunit.size() > 0) ? (indelstring2.size() / repeatunit.size()) : 1); 
-        prior_qual += (double)MIN(eff_track_len,15) / (double)n_units;
+        // auto n_units = ((indelstring2.size() > repeatunit.size() && repeatunit.size() > 0) ? (indelstring2.size() / repeatunit.size()) : 1); 
+        prior_qual += (4.0/4.0) * (double)MIN(eff_track_len,20); // / (double)n_units;
+        bool is_str_unit = true;
         for (unsigned int i = 0; i < indelstring2.size(); i++) {
-            unsigned int j = i % repeatunit.size();
+            unsigned int j = i % MAX(1, repeatunit.size());
             if (indelstring2[i] != repeatunit[j]) {
-                post_qual += (15.0 - post_qual) / 3.0;
+                post_qual += (10.0 - post_qual) / 4.0;
+                is_str_unit = false;
             }
+            if (repeatunit.size() == j + 1) {
+                if (is_str_unit) {
+                    post_qual += (10.0 - MIN(post_qual, 10.0)) / 10.0;
+                }
+                is_str_unit = true;
+            }
+        }
+        if (repeatunit.size() == 2 && isSymbolDel(symbol)) {
+            qual -= 5.0;
         }
     }
     
@@ -2484,7 +2495,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         double tn_mcoef = MIN(1.0, (tn_tor) / (tn_tor + sys_to_nonsys_err_ratio * (isInDel ? 2.0 : 1.0) * MAX(0.0, tn_nor - contam_ratio * tn_tor)) + eps);
         double tn_var_q = MAX((tn_mcoef * t_nonorm_q), t_nonorm_q - n_sample_q)  + tn_diffq;
         double lowAD_penal = (isInDel ? 12.0 : 8.0) / MAX(1.0, (double)tAD0); 
-        vcfqual = MIN(tn_var_q - lowAD_penal, phred_non_germ) + MIN(post_qual, 15.0) * tn_mcoef; // / (2.0 - tn_mcoef);
+        vcfqual = MIN(tn_var_q - lowAD_penal, phred_non_germ) + MIN(post_qual, 20.0) * tn_mcoef; // / (2.0 - tn_mcoef);
         auto tAD = (double)tki.FA * (double)tki.DP;
         // if (tAD < 1.5) { vcfqual *= (tAD / 1.5); }
         //vcfqual = MIN(tn_tvarq + tn_diffq - MIN(15.0, tn_nvarq), phred_non_germ);
