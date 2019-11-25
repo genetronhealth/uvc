@@ -1159,7 +1159,7 @@ main(int argc, char **argv) {
     }
     if (paramset.vcf_tumor_fname.size() > 0) {
         double est_contam_ratio = (((double)contam_tADtot + 1.0) / ((double)contam_tDPtot + 2.0)) / (((double)contam_nADtot + 1.0) / ((double)contam_nDPtot + 2.0));
-        std::cerr << "EstimatedContaminationRatioFromTumorToNormal=" << est_contam_ratio << " with " 
+        std::cerr << "EstimatedContaminationRatioFromTumorToNormal=" << (1.0/est_contam_ratio) << " with " 
                   << ",tumorDPsum=" << contam_tDPtot
                   << ",normalDPsum="  << contam_nDPtot 
                   << ",tumorADsum=" << contam_tADtot
