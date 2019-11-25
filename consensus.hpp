@@ -2290,25 +2290,50 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
     auto eff_track_len = (repeatunit.size() + 1) * (MAX(repeatnum, 1) - 1);
     //  infostring += ";RU=" + repeatunit + ";RC=" + std::to_string(repeatnum);
     // const bool tUseHD = (prev_is_tumor ? (tki.bDP > tki.DP * highqual_min_ratio) : (fmt.bDP > fmt.DP * highqual_min_ratio));
-     
-    auto n_units = ((indelstring.size() > repeatunit.size() && repeatunit.size() > 0) ? (indelstring.size() / repeatunit.size()) : 1); 
+    
+    auto indelstring2 = indelstring;
+    if (prev_is_tumor) {
+        const auto ref_alt = (tki.ref_alt != "." ? tki.ref_alt : vcfref + "\t" + vcfalt);
+        // start computing indel string backward from the tumor ref+alt
+        assert(ref_alt.size() >= 4);
+        unsigned int ref_end = ref_alt.size();
+        unsigned int alt_end = ref_alt.size();
+        for (unsigned int i = 0; i < ref_alt.size(); i++) {
+            if ('\t' == ref_alt[i]) {
+                ref_end = i;
+            }
+            if (',' == ref_alt[i]) {
+                alt_end = i;
+                break;
+            }
+        }
+        assert(ref_end < alt_end);
+        unsigned int ins_size = alt_end - ref_end - 1;
+        unsigned int del_size = ref_end;
+        if (ref_alt[ref_end+1] != '<' && ref_alt[ref_end+1] != '[') {
+            unsigned int indel_beg, indel_end;
+            if (ins_size > del_size) {
+                indel_beg = ref_end + 1 + 1;
+                indel_end = alt_end;
+            } else {
+                assert(ins_size < del_size);
+                indel_beg = 1;
+                indel_end = ref_end;
+            }
+            indelstring2 = ref_alt.substr(indel_beg, indel_end - indel_beg);
+        }
+        // end computing
+    }
+
     double prior_qual = (double)0; // (double)(isInDel ? 1.0 * (double)MIN(eff_track_len,15) / n_units : 0.0);
     double post_qual = (double)0;
     if (isInDel) {
-        prior_qual += (double)MIN(eff_track_len,15) / n_units;
-        /*
-        if (eff_track_len < 8) {
-            prior_qual += 10.0;
-        }
-        */
-        if (indelstring.size() + 1 >= repeatunit.size() * repeatnum) {
-            post_qual = 4.0 * (double)(indelstring.size());
-        } else {
-            for (unsigned int i = 0; i < indelstring.size(); i++) {
-                unsigned int j = i % repeatunit.size();
-                if (indelstring[i] != repeatunit[j]) {
-                    post_qual += 4.0;
-                }
+        auto n_units = ((indelstring2.size() > repeatunit.size() && repeatunit.size() > 0) ? (indelstring2.size() / repeatunit.size()) : 1); 
+        prior_qual += (double)MIN(eff_track_len,15) / (double)n_units;
+        for (unsigned int i = 0; i < indelstring2.size(); i++) {
+            unsigned int j = i % repeatunit.size();
+            if (indelstring2[i] != repeatunit[j]) {
+                post_qual += 4.0;
             }
         }
     }
@@ -2355,6 +2380,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         double nRD1 = (nUseHD ? (highqual_thres * nRefHD) : nRefBQ) + depth_pseudocount / 2.0;
         
         double penalFAphred = 0;
+        
         if (isInDel) {
             
             //if (tki_VAQ > str_tier_qual) {
