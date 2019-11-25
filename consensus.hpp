@@ -2329,23 +2329,28 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
     double post_qual = (double)0;
     if (isInDel) {
         // auto n_units = ((indelstring2.size() > repeatunit.size() && repeatunit.size() > 0) ? (indelstring2.size() / repeatunit.size()) : 1); 
-        post_qual += (8.0/4.0) * (double)MIN(eff_track_len,20); // / (double)n_units;
+        prior_qual += (4.0/4.0) * (double)MIN(eff_track_len,20); // / (double)n_units;
         bool is_str_unit = true;
         for (unsigned int i = 0; i < indelstring2.size(); i++) {
             unsigned int j = i % MAX(1, repeatunit.size());
             if (indelstring2[i] != repeatunit[j]) {
-                post_qual += (10.0 - post_qual) / 4.0;
+                post_qual += (0.0 - post_qual) / 4.0;
                 is_str_unit = false;
             }
             if (repeatunit.size() == j + 1) {
                 if (is_str_unit) {
-                    post_qual += (10.0 - MIN(post_qual, 10.0)) / 10.0;
+                    post_qual += (0.0 - MIN(post_qual, 0.0)) / 10.0;
                 }
                 is_str_unit = true;
             }
         }
-        if (repeatunit.size() == 2 && isSymbolDel(symbol)) {
-            post_qual -= 10.0;
+        if (isSymbolDel(symbol)) {
+            if (indelstring2.size() == 2) {
+                post_qual -= 8.0;
+            }
+            if (indelstring2.size() == 1) {
+                post_qual -= 3.0;
+            }
         }
     }
     
