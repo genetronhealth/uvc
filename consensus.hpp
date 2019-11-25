@@ -31,9 +31,10 @@
 // WARNING: although this is extracted from the literature, it work poorly on real data, presumably because of high correlation of errors at high repeat number in STR
 // https://www.researchgate.net/figure/Error-rate-biases-in-homopolymers-of-varying-lengths-and-due-to-different-local-GC_fig2_277405835
 // https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4417121/
+// https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6412005/
 const std::array<unsigned int, 20> HP_TRACK_LEN_TO_PHRED_ERR_RATE = {
-//  1   2   3   4   5   6   7   8   9   10  11  12  13  14  15     16  17  18  19  20
-    40, 39, 38, 37, 35, 33, 31, 29, 27, 25, 24, 23, 22, 21, 20 //, 19, 18, 17, 16, 15
+//  1   2   3   4   5   6   7   8   9   10 //  11  12  13  14  15     16  17  18  19  20
+    40, 39, 38, 37, 35, 33, 31, 29, 27, 25 //, 24, 23, 22, 21, 20 //, 19, 18, 17, 16, 15
 }; // no indel anchors
 
 enum ValueType {
@@ -681,8 +682,8 @@ bam_to_decvalue(const bam1_t *b, unsigned int qpos) {
             repeatsize_at_max_repeatnum = repeatsize;
         }
     }
-    auto eff_track_len = (max_repeatnum > 2 ? (max_repeatnum - 2) * repeatsize_at_max_repeatnum : 0);
-    if (TReturnMaxPhred) { 
+    unsigned int eff_track_len = (max_repeatnum > 1 ? (max_repeatnum - 1) * (repeatsize_at_max_repeatnum + 1) : 0);
+    if (TReturnMaxPhred) {
         // return HP_TRACK_LEN_TO_PHRED_ERR_RATE[MIN(HP_TRACK_LEN_TO_PHRED_ERR_RATE.size() - 1, eff_track_len)]; 
         return 40 - MIN(20, eff_track_len);
     } else { 
@@ -2285,11 +2286,11 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
     std::string repeatunit = "";
     indelpos_to_context(repeatunit, repeatnum, refstring, regionpos);
     // auto context_len = repeatunit.size() * repeatnum;
-    auto eff_track_len = repeatunit.size() * (MAX(repeatnum, 2) - 2);
+    auto eff_track_len = (repeatunit.size() + 1) * (MAX(repeatnum, 1) - 1);
     //  infostring += ";RU=" + repeatunit + ";RC=" + std::to_string(repeatnum);
     // const bool tUseHD = (prev_is_tumor ? (tki.bDP > tki.DP * highqual_min_ratio) : (fmt.bDP > fmt.DP * highqual_min_ratio));
     
-    double prior_qual = (double)(isInDel ? 1.5 * (double)MIN(eff_track_len, 10) : 0.0);
+    double prior_qual = (double)(isInDel ? 1.0 * (double)MIN(eff_track_len,15) : 0.0);
     float vcfqual = fmt.VAQ + prior_qual; // TODO: investigate whether to use VAQ or VAQ2
     //float vcfqual = fmt.VAQ2; // here we assume the matched normal is not available (yet)
 
@@ -2344,14 +2345,20 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
                 //tki_VAQ = str_tier_qual + ((vcfqual - str_tier_qual) * (double)(str_tier_len) / (double)(str_tier_len + context_len));
             //}
             
-            if (tki_VAQ > mai_tier_qual) {
+            // if (tki_VAQ > mai_tier_qual) 
+            {
                 // penalize multi-allelic indels.
                 auto tAltBQ = (double)(prev_is_tumor ? tki.autoBestAltBQ : SUM2(fmt.cAltBQ));
                 auto tAllBQ = (double)(prev_is_tumor ? tki.autoBestAllBQ : SUM2(fmt.cAllBQ));
                 auto tRefBQ = (double)(prev_is_tumor ? tki.autoBestRefBQ : SUM2(fmt.cRefBQ));
                 auto tOthBQ= MAX(tAllBQ - tRefBQ, tAltBQ);
                 auto mai_tier_abq = (double)(tUseHD ? mai_tier2abq : mai_tier1abq); 
-                tki_VAQ = mai_tier_qual + ((tki_VAQ - mai_tier_qual) * (tAltBQ) / ((tOthBQ - tAltBQ) * mai_tier_abq + tAltBQ));
+                // 20 is the PHRED-scale probability that the indel locus is noisy
+                // 30 is the PHRED-scale probability that the indel locus is inherently multi-allelic 
+                tki_VAQ = MAX(tki_VAQ - 30.0, MIN(tki_VAQ, 20.0 + 
+                    10.0/log(10.0) * (tAltBQ / (tOthBQ - tAltBQ + eps))
+                    // (tki_VAQ * (tAltBQ) / ((tOthBQ - tAltBQ) * mai_tier_abq + tAltB))
+                    ));
             }
             
             if (vcfqual > ldi_tier_qual) {
@@ -2377,9 +2384,9 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
                 nfreqmult /= 2.0; // this is heuristically found
             }
         }
-        const double fa100qual = (isInDel ? (85.0 - 0.5 * (double)MIN(20, eff_track_len)) : 80.0); // 90
+        const double fa100qual = (isInDel ? (80.0 - (1.0/3.0) * (double)MIN(15, eff_track_len)) : 80.0); // 90
         const double fa_pl_pow = 2.0; // 2.667
-        double t_ess_frac = (double)tAD0 / ((double)tAD0 + 1.0);
+        double t_ess_frac = (double)tAD0 / ((double)tAD0 + (isInDel ? 1.5 : 1.0));
         double t_sample_q = (10.0 / log(10.0)) * (log((double)(tDP0 + tAD0 + 2.0) / (double)(tAD0 + 1.0)) / log(2.0)) * tAD0;
         double n_sample_q = (10.0 / log(10.0)) * (log((double)(nDP0 + nAD0 + 2.0) / (double)(nAD0 + 1.0)) / log(2.0)) * nAD0;
         double t_powlaw_q = (10.0 / log(10.0)) * log((double)(tAD0 + 1.0) / (double)(tDP0 + 2.0)) * fa_pl_pow + fa100qual;
