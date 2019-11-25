@@ -2311,7 +2311,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
                 }
             }
         }
-        prior_qual += MIN(prior_qual_add, 20.0):
+        prior_qual += MIN(prior_qual_add, 20.0);
     }
     
     float vcfqual = fmt.VAQ + prior_qual; // TODO: investigate whether to use VAQ or VAQ2
