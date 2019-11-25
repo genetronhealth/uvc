@@ -668,7 +668,7 @@ indelpos_to_context(
 
 template <bool TReturnMaxPhred = true>
 unsigned int 
-bam_to_decvalue(const bam1_t *b, unsigned int qpos, unsigned int cigar_op, unsigned int cigar_len) {
+bam_to_decvalue(const bam1_t *b, unsigned int qpos, unsigned int cigar_op, unsigned int cigar_oplen) {
     unsigned int max_repeatnum = 0;
     unsigned int repeatsize_at_max_repeatnum = 0;
     for (unsigned int repeatsize = 1; repeatsize < 6; repeatsize++) {
@@ -685,8 +685,8 @@ bam_to_decvalue(const bam1_t *b, unsigned int qpos, unsigned int cigar_op, unsig
     unsigned int eff_track_len = (max_repeatnum > 1 ? (max_repeatnum - 1) * (repeatsize_at_max_repeatnum + 1) : 0);
     if (TReturnMaxPhred) {
         // return HP_TRACK_LEN_TO_PHRED_ERR_RATE[MIN(HP_TRACK_LEN_TO_PHRED_ERR_RATE.size() - 1, eff_track_len)]; 
-        auto n_units = cigar_len / repeatsize_at_max_repeatnum;
-        return 40 - MIN(20, eff_track_len) + ((n_units > 2) ? 7 : (n_units > 1 : 5 : 0));
+        auto n_units = cigar_oplen / repeatsize_at_max_repeatnum;
+        return 40 - MIN(20, eff_track_len) + ((n_units > 2) ? 7 : (n_units > 1 ? 5 : 0));
     } else { 
         return prob2phred((1.0 - DBL_EPSILON) / (double)max_repeatnum); 
     }
@@ -872,7 +872,7 @@ public:
                                 ((qpos + cigar_oplen < SIGN2UNSIGN(b->core.l_qseq)) ? 
                                 bam_phredi(b, qpos + SIGN2UNSIGN(cigar_oplen)) : 1)) + addidq; // + symb_type_to_added_phred[LINK_SYMBOL];
                     } else {
-                        unsigned int decvalue = (THasDups ? 0 : bam_to_decvalue(b, qpos, cigar_op, cigar_len));
+                        unsigned int decvalue = (THasDups ? 0 : bam_to_decvalue(b, qpos, cigar_op, cigar_oplen));
                         incvalue = MIN(MIN(bam_phredi(b, qpos - 1), bam_phredi(b, qpos + cigar_oplen)), decvalue) + addidq;
                         //incvalue = MIN(MIN(bam_phredi(b, qpos-1), bam_phredi(b, qpos + cigar_oplen)), 
                         //        frag_indel_basemax - MIN(frag_indel_basemax, decvalue)) + addidq; // + symb_type_to_added_phred[LINK_SYMBOL];
@@ -898,7 +898,7 @@ public:
                     if (TIndelAddPhred) {
                         incvalue = TIndelAddPhred + addidq;
                     } else {
-                        unsigned int decvalue = (THasDups ? 0 : bam_to_decvalue(b, qpos, cigar_op, cigar_len));
+                        unsigned int decvalue = (THasDups ? 0 : bam_to_decvalue(b, qpos, cigar_op, cigar_oplen));
                         incvalue = MIN(MIN(bam_phredi(b, qpos), bam_phredi(b, qpos+1)), decvalue) + addidq;
                         // incvalue = MIN(MIN(bam_phredi(b, qpos), bam_phredi(b, qpos+1)), 
                         //        frag_indel_basemax - MIN(frag_indel_basemax, decvalue)) + addidq; 
@@ -2235,13 +2235,13 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
     std::string vcfref;
     std::string vcfalt;
     unsigned int vcfpos;
-    
+
+    std::string indelstring;
     const bool isInDel = (isSymbolIns(symbol) || isSymbolDel(symbol));
     if (isInDel) {
         vcfpos = refpos; // refpos > 0?
         vcfref = (regionpos > 0 ? refstring.substr(regionpos-1, 1) : "n");
         vcfalt = vcfref;
-        std::string indelstring;
         if (fmt.gapNum[0] <= 0 && fmt.gapNum[1] <= 0) {
             if (!is_rescued) {
                 std::cerr << "Invalid indel detected (invalid mutation) : " << tname << ", " << refpos << ", " << SYMBOL_TO_DESC_ARR[symbol] << std::endl;
