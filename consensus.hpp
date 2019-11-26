@@ -2502,7 +2502,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         double tn_tor = (tADor / MAX((tDP1+epsor) - tADor + 1.0, 0.25 * tADor)); // 1.0 is not a pseudo-count here, 1.0 is used to maintain epsilon
         double tn_nor = (nAD1  / MAX( nDP1        - nAD1  + 1.0, 0.25 * nAD1 ));
         double nor_mult = 1.0;
-        if (inInDel) {
+        if (isInDel) {
             if (indelstring == indelstring2) {
                 nor_mult = 2.0 + MIN(((double)indelstring.size()), 2.0);
             } else if (indelstring.size() == indelstring2.size()) {
