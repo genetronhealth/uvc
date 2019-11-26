@@ -687,7 +687,7 @@ bam_to_decvalue(const bam1_t *b, unsigned int qpos, unsigned int cigar_op, unsig
         // return HP_TRACK_LEN_TO_PHRED_ERR_RATE[MIN(HP_TRACK_LEN_TO_PHRED_ERR_RATE.size() - 1, eff_track_len)]; 
         auto n_units = cigar_oplen / repeatsize_at_max_repeatnum;
         auto n_slips = repeatsize_at_max_repeatnum * (max_repeatnum - 1) * max_repeatnum + 1;
-        return MAX(35 + ((n_units > 2) ? 7 : (n_units > 1 ? 5 : 0)) - (int)prob2phred(1.0/n_slips), 2);
+        return MAX(35 + ((n_units > 2) ? 7 : (n_units > 1 ? 5 : 0)) - (int)prob2phred(1.0/(double)n_slips), 0);
         // return 40 - MIN(20, eff_track_len) + ((n_units > 2) ? 7 : (n_units > 1 ? 5 : 0));
     } else {
         return prob2phred((1.0 - DBL_EPSILON) / (double)max_repeatnum); 
@@ -2332,7 +2332,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
     if (isInDel) {
         auto n_units = ((indelstring2.size() > repeatunit.size() && repeatunit.size() > 0) ? (indelstring2.size() / repeatunit.size()) : 1); 
         auto n_slips = repeatunit.size() * (repeatnum - 1) * repeatnum + 1;
-        prior_qual += 20.0 - (((n_units > 2) ? 7 : (n_units > 1 ? 5 : 0)) + prob2phred(1.0/n_slips)) * 1.5;
+        prior_qual += 20.0 - (((n_units > 2) ? 7 : (n_units > 1 ? 5 : 0))*1.5 + prob2phred(1.0/n_slips)) * 1.5;
         // prior_qual += (4.0/4.0) * (double)MIN(eff_track_len,20); // / (double)n_units;
         bool is_str_unit = true;
         for (unsigned int i = 0; i < indelstring2.size(); i++) {
@@ -2496,21 +2496,34 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         
         double tn_diffq = MIN(tnlike_alt, tnlike_nonref);
         
+        unsigned int minsize = 1;
+        unsigned int maxsize = 1;
+        double nAD0_pc = (double)0;
+        double nAD1_pc = (double)0;
+        if (isInDel) {
+            auto in1 = indelstring.find(indelstring2);
+            auto in2 = indelstring2.find(indelstring);
+            if (in1 != std::string::npos || in2 != std::string::npos) {
+                minsize = MIN(indelstring.size(), indelstring2.size());
+                maxsize = MAX(indelstring.size(), indelstring2.size());
+                nAD0_pc = (double)(minsize * minsize) / (double)maxsize;
+                nAD1_pc = nAD0_pc * (nAD1 / (nAD0 + eps));
+                n_sample_q = (10.0 / log(10.0)) * (log((double)(nDP0 + nAD0 + 2.0 + nAD0_pc * 2.0) / (double)(nAD0 + 1.0 + nAD0_pc)) / log(2.0)) * (nAD0 + nAD0_pc);
+                // double sratio = (double)(minsize + 1) / (double)(maxsize + 1);
+                // nor_mult = 1.0 + MIN(maxsize * 2, 3.0) * sratio;
+                // n_sample_q += 10.0/log(10.0) * MAX((double)minsize * log(4.0-1.0), (double)nAD0);
+            }
+        }
+        
         // double contam_ratio = 0.0;
         double epsor = 0.0; // (10.0/log(10.0)) * log(1.0 + tDP0);
         double tADor = tAD1 + epsor;
-        double tn_tor = (tADor / MAX((tDP1+epsor) - tADor + 1.0, 0.25 * tADor)); // 1.0 is not a pseudo-count here, 1.0 is used to maintain epsilon
-        double tn_nor = (nAD1  / MAX( nDP1        - nAD1  + 1.0, 0.25 * nAD1 ));
+        double tn_tor = ((tADor         ) / MAX((tDP1+epsor) - tADor + 1.0, 0.25 *  tADor)); // 1.0 is not a pseudo-count here, 1.0 is used to maintain epsilon
+        double tn_nor = ((nAD1 + nAD1_pc) / MAX( nDP1        - nAD1  + 1.0, 0.25 * (nAD1 + nAD1_pc)));
         double nor_mult = 1.0;
-        if (isInDel) {
-            if (indelstring == indelstring2) {
-                nor_mult = 2.0 + MIN(((double)indelstring.size()), 2.0);
-            } else if (indelstring.size() == indelstring2.size()) {
-                nor_mult = 2.0;
-            }
-        }
+        
         double tn_mcoef = MIN(1.0, (tn_tor) / (tn_tor + sys_to_nonsys_err_ratio * nor_mult * MAX(0.0, tn_nor - contam_ratio * tn_tor)) + eps);
-        double tn_var_q = MAX((tn_mcoef * t_nonorm_q), t_nonorm_q - n_sample_q)  + tn_diffq;
+        double tn_var_q = MAX((tn_mcoef * t_nonorm_q), t_nonorm_q - n_sample_q) + tn_diffq;
         double lowAD_penal = (isInDel ? 12.0 : 8.0) / MAX(1.0, (double)tAD0);
         vcfqual = MIN(tn_var_q - lowAD_penal, phred_non_germ) + MIN(post_qual, 20.0) * tn_mcoef; // / (2.0 - tn_mcoef);
         auto tAD = (double)tki.FA * (double)tki.DP;
