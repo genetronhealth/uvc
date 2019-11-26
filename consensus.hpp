@@ -651,7 +651,7 @@ indelpos_to_context(
         return -1;
     }
     unsigned int repeatsize_at_max_repeatnum = 0;
-    for (unsigned int repeatsize = 1; repeatsize < 6*2; repeatsize++) {
+    for (unsigned int repeatsize = 1; repeatsize < 6; repeatsize++) {
         unsigned int qidx = refpos;
         while (qidx + repeatsize < refstring.size() && refstring[qidx] == refstring[qidx+repeatsize]) {
             qidx++;
@@ -682,12 +682,14 @@ bam_to_decvalue(const bam1_t *b, unsigned int qpos, unsigned int cigar_op, unsig
             repeatsize_at_max_repeatnum = repeatsize;
         }
     }
-    unsigned int eff_track_len = (max_repeatnum > 1 ? (max_repeatnum - 1) * (repeatsize_at_max_repeatnum + 1) : 0);
+    // unsigned int eff_track_len = (max_repeatnum > 1 ? (max_repeatnum - 1) * (repeatsize_at_max_repeatnum + 1) : 0);
     if (TReturnMaxPhred) {
         // return HP_TRACK_LEN_TO_PHRED_ERR_RATE[MIN(HP_TRACK_LEN_TO_PHRED_ERR_RATE.size() - 1, eff_track_len)]; 
         auto n_units = cigar_oplen / repeatsize_at_max_repeatnum;
-        return 40 - MIN(20, eff_track_len) + ((n_units > 2) ? 7 : (n_units > 1 ? 5 : 0));
-    } else { 
+        auto n_slips = repeatsize_at_max_repeatnum * (max_repeatnum - 1) * max_repeatnum + 1;
+        return MIN(35 + ((n_units > 2) ? 7 : (n_units > 1 ? 5 : 0)) - (int)prob2phred(1.0/n_slips), 2);
+        // return 40 - MIN(20, eff_track_len) + ((n_units > 2) ? 7 : (n_units > 1 ? 5 : 0));
+    } else {
         return prob2phred((1.0 - DBL_EPSILON) / (double)max_repeatnum); 
     }
     // return (repeatsize_at_max_repeatnum * max_repeatnum); // one base in MSI reduces phred-indel-quality by 1, TODO: the one is arbitrary, justify it.
@@ -2328,8 +2330,10 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
     double prior_qual = (double)0; // (double)(isInDel ? 1.0 * (double)MIN(eff_track_len,15) / n_units : 0.0);
     double post_qual = (double)0;
     if (isInDel) {
-        // auto n_units = ((indelstring2.size() > repeatunit.size() && repeatunit.size() > 0) ? (indelstring2.size() / repeatunit.size()) : 1); 
-        prior_qual += (4.0/4.0) * (double)MIN(eff_track_len,20); // / (double)n_units;
+        auto n_units = ((indelstring2.size() > repeatunit.size() && repeatunit.size() > 0) ? (indelstring2.size() / repeatunit.size()) : 1); 
+        auto n_slips = repeatunit.size() * (repeatnum - 1) * repeatnum + 1;
+        prior_qual += -((n_units > 2) ? 7 : (n_units > 1 ? 5 : 0)) + prob2phred(1.0/n_slips);
+        // prior_qual += (4.0/4.0) * (double)MIN(eff_track_len,20); // / (double)n_units;
         bool is_str_unit = true;
         for (unsigned int i = 0; i < indelstring2.size(); i++) {
             unsigned int j = i % MAX(1, repeatunit.size());
