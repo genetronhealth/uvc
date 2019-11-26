@@ -2332,7 +2332,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
     if (isInDel) {
         auto n_units = ((indelstring2.size() > repeatunit.size() && repeatunit.size() > 0) ? (indelstring2.size() / repeatunit.size()) : 1); 
         auto n_slips = repeatunit.size() * (repeatnum - 1) * repeatnum + 1;
-        prior_qual += -((n_units > 2) ? 7 : (n_units > 1 ? 5 : 0)) + prob2phred(1.0/n_slips);
+        prior_qual += 20.0 - (((n_units > 2) ? 7 : (n_units > 1 ? 5 : 0)) + prob2phred(1.0/n_slips)) * 1.5;
         // prior_qual += (4.0/4.0) * (double)MIN(eff_track_len,20); // / (double)n_units;
         bool is_str_unit = true;
         for (unsigned int i = 0; i < indelstring2.size(); i++) {
@@ -2501,9 +2501,17 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         double tADor = tAD1 + epsor;
         double tn_tor = (tADor / MAX((tDP1+epsor) - tADor + 1.0, 0.25 * tADor)); // 1.0 is not a pseudo-count here, 1.0 is used to maintain epsilon
         double tn_nor = (nAD1  / MAX( nDP1        - nAD1  + 1.0, 0.25 * nAD1 ));
-        double tn_mcoef = MIN(1.0, (tn_tor) / (tn_tor + sys_to_nonsys_err_ratio * (isInDel ? 2.0 : 1.0) * MAX(0.0, tn_nor - contam_ratio * tn_tor)) + eps);
+        double nor_mult = 1.0;
+        if (inInDel) {
+            if (indelstring == indelstring2) {
+                nor_mult = 2.0 + MIN(((double)indelstring.size()), 2.0);
+            } else if (indelstring.size() == indelstring2.size()) {
+                nor_mult = 2.0;
+            }
+        }
+        double tn_mcoef = MIN(1.0, (tn_tor) / (tn_tor + sys_to_nonsys_err_ratio * nor_mult * MAX(0.0, tn_nor - contam_ratio * tn_tor)) + eps);
         double tn_var_q = MAX((tn_mcoef * t_nonorm_q), t_nonorm_q - n_sample_q)  + tn_diffq;
-        double lowAD_penal = (isInDel ? 12.0 : 8.0) / MAX(1.0, (double)tAD0); 
+        double lowAD_penal = (isInDel ? 12.0 : 8.0) / MAX(1.0, (double)tAD0);
         vcfqual = MIN(tn_var_q - lowAD_penal, phred_non_germ) + MIN(post_qual, 20.0) * tn_mcoef; // / (2.0 - tn_mcoef);
         auto tAD = (double)tki.FA * (double)tki.DP;
         // if (tAD < 1.5) { vcfqual *= (tAD / 1.5); }
