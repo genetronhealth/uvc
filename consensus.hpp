@@ -687,7 +687,7 @@ bam_to_decvalue(const bam1_t *b, unsigned int qpos, unsigned int cigar_op, unsig
         // return HP_TRACK_LEN_TO_PHRED_ERR_RATE[MIN(HP_TRACK_LEN_TO_PHRED_ERR_RATE.size() - 1, eff_track_len)]; 
         auto n_units = cigar_oplen / repeatsize_at_max_repeatnum;
         auto n_slips = repeatsize_at_max_repeatnum * (max_repeatnum - 1) * max_repeatnum + 1;
-        return MIN(35 + ((n_units > 2) ? 7 : (n_units > 1 ? 5 : 0)) - (int)prob2phred(1.0/n_slips), 2);
+        return MAX(35 + ((n_units > 2) ? 7 : (n_units > 1 ? 5 : 0)) - (int)prob2phred(1.0/n_slips), 2);
         // return 40 - MIN(20, eff_track_len) + ((n_units > 2) ? 7 : (n_units > 1 ? 5 : 0));
     } else {
         return prob2phred((1.0 - DBL_EPSILON) / (double)max_repeatnum); 
