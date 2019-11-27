@@ -2345,19 +2345,19 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         auto tnlike_all = MIN(tnlike, tnlike_nonref);
         ensure_positive_1(tnlike_all);
         
-        double tFA01 = tAD1 / (tDP1 + 1.0);
-        double nFA01 = nAD1 / (nDP1 + 1.0);
+        double tFA01 = (tAD1 + DBL_EPSILON) / (tDP1 + DBL_EPSILON);
+        double nFA01 = (nAD1              ) / (nDP1 + DBL_EPSILON + tAD1);
         
-        double qFA01  = tFA01 / (tFA01 + nFA01 + DBL_EPSILON) * 40.0;
+        double tnFA01  = tFA01 / (tFA01 + nFA01 + DBL_EPSILON);
         // auto diffVAQ = MAX(tki.VAQ - fmt.VAQ, tki.VAQ / (fmt.VAQ + tki.VAQ + DBL_MIN)); // diffVAQ makes sense but can lead to false negatives.
         if (isInDel) {
             // Usually, InDels is charaterized by less stringent filter threshold than SNVs. For example,
             // - GATK recommended SOR threshold of 4 for SNVs and 7 for InDels. 
             // - IonTorrent variantCaller has less stringent bias filter for InDels than for SNVs with its default parameters.
             // Therefore, the false positive filter for InDels is more lenient here too.
-            vcfqual = MIN(MIN(tnlike_all * tnq_mult_indel + MIN(qFA01, phred_non_germline), diffVAQ), fmt.GQ + phred_germline); // 5.00 is too high, 1.50 is too low
+            vcfqual = MIN(MIN(tnlike_all * tnq_mult_indel + phred_non_germline), tnFA01 * diffVAQ), fmt.GQ + phred_germline); // 5.00 is too high, 1.50 is too low
         } else {
-            vcfqual = MIN(MIN(tnlike_all * tnq_mult_snv   + MIN(qFA01, phred_non_germline), diffVAQ), fmt.GQ + phred_germline); // (germline + sys error) freq of 10^(-25/10) ?
+            vcfqual = MIN(MIN(tnlike_all * tnq_mult_snv   + phred_non_germline), tnFA01 * diffVAQ), fmt.GQ + phred_germline); // (germline + sys error) freq of 10^(-25/10) ?
         }
     } else {
         ref_alt = vcfref + "\t" + vcfalt;
