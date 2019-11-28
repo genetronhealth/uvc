@@ -2373,7 +2373,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         // double tn_tva2q = tn_mcoef * (tn_tvarq + tn_diffq);
         // vcfqual = MIN(tn_tva2q, phred_non_germ);
         double reduction_coef = (double)tAD0 / ((double)tAD0 + 0*1.0 
-            + 2.0 * (abs(fmt.MQ - tki.MQ) / (MAX(fmt.MQ,tki.MQ) +  DBL_EPSILON))
+            + 2.0 * (MAX(0.0, fmt.MQ - tki.MQ) / (MAX(fmt.MQ,tki.MQ) +  DBL_EPSILON))
             + 0.0 * (1.0 - tAD1 / MAX(tDP1 - tRD1, tAD1)));
         vcfqual = reduction_coef * MIN(tn_tvarq + tn_diffq - tn_nvarq // * (double)nAD0 / (double)(nAD0 + 1), 
                 , phred_non_germ);
