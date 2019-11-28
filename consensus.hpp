@@ -2099,9 +2099,9 @@ generateVcfHeader(const char *ref_fasta_fname, const char *platform,
     
     ret += "##INFO=<ID=ANY_VAR,Number=0,Type=Flag,Description=\"Any type of variant which may be caused by germline polymorphism and/or experimental artifact\">\n";
     ret += "##INFO=<ID=SOMATIC,Number=0,Type=Flag,Description=\"Somatic variant\">\n";
-    ret += "##INFO=<ID=TNQ,Number=.,Type=Float,Description=\"Tumor-only variant quality (VQ), normal-adjusted VQ coefficient, tumor-vs-normal (TVN) VQ, and TVN VQ with NON_REF as ALT for normal\">\n";
-    ret += "##INFO=<ID=TNNQ,Number=.,Type=Float,Description=\"PHRED-scaled probability of non-germline event\">\n";
-    ret += "##INFO=<ID=TNTQ,Number=.,Type=Float,Description=\"Tumor-sample VAQ\">\n";
+    ret += "##INFO=<ID=TNQ,Number=.,Type=Float,Description=\"Tumor-only variant quality (VQ), normal-only VQ, tumor-vs-normal (TVN) VQ, and germline-exclusion quality\">\n";
+    ret += "##INFO=<ID=TNNQ,Number=.,Type=Float,Description=\"Normal-only sample quality, allele-fraction quality, and raw variant quality\">\n";
+    ret += "##INFO=<ID=TNTQ,Number=.,Type=Float,Description=\" Tumor-only sample quality, allele-fraction quality, and raw variant quality\">\n";
     ret += "##INFO=<ID=tDP,Number=1,Type=Integer,Description=\"Tumor-sample DP\">\n";
     ret += "##INFO=<ID=tFA,Number=1,Type=Float,Description=\"Tumor-sample FA\">\n";
     ret += "##INFO=<ID=tFR,Number=1,Type=Float,Description=\"Tumor-sample FR\">\n";
@@ -2144,10 +2144,10 @@ fmtFTupdate(auto & maxval, std::string & ft, std::vector<unsigned int> & ftv, co
 }
 
 std::string 
-string_join(auto container, std::string sep = ",") {
+string_join(auto container, std::string sep = std::string(",")) {
     std::string ret = "";
     for (auto e : container) {
-        ret += e;
+        ret += e + sep;
     }
     ret.pop_back();
     return ret;
@@ -2348,7 +2348,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         
         const bool is_nonref_snp_excluded = true; // false;
         const bool is_nonref_indel_excluded = false;
-        const bool is_nonref_germline_excluded = (isInDel ? is_nonref_snp_excluded : is_nonref_indel_excluded);
+        const bool is_nonref_germline_excluded = (isInDel ? is_nonref_indel_excluded : is_nonref_snp_excluded);
         double phred_non_germ = (double)((fmt.FA > 0.2 || (is_nonref_germline_excluded && fmt.FR < 0.8))
                 ? ((double)((int)phred_germline - (int)fmt.GQ))
                 : ((double)(     phred_germline +      fmt.GQ)));
@@ -2376,8 +2376,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         
         infostring += std::string(";TNQ=") + string_join(std::array<std::string, 4>({std::to_string(tn_tvarq), std::to_string(tn_nvarq),
                 std::to_string(tn_diffq), std::to_string(phred_non_germ)}));
-        infostring += std::string(";TNNQ=") + string_join(std::array<std::string, 3>({std::to_string(tn_tsamq), std::to_string(tn_npowq), std::to_string(fmt.VAQ)}));
-        infostring += std::string(";TNTQ=") + string_join(std::array<std::string, 3>({std::to_string(tn_nsamq), std::to_string(tn_tpowq), std::to_string(tki.VAQ)}));
+        infostring += std::string(";TNNQ=") + string_join(std::array<std::string, 3>({std::to_string(tn_nsamq), std::to_string(tn_npowq), std::to_string(fmt.VAQ)}));
+        infostring += std::string(";TNTQ=") + string_join(std::array<std::string, 3>({std::to_string(tn_tsamq), std::to_string(tn_tpowq), std::to_string(tki.VAQ)}));
         infostring += std::string(";tDP=") + std::to_string(tki.DP);
         infostring += std::string(";tFA=") + std::to_string(tki.FA);
         infostring += std::string(";tFR=") + std::to_string(tki.FR);
