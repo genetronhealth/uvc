@@ -2099,9 +2099,9 @@ generateVcfHeader(const char *ref_fasta_fname, const char *platform,
     
     ret += "##INFO=<ID=ANY_VAR,Number=0,Type=Flag,Description=\"Any type of variant which may be caused by germline polymorphism and/or experimental artifact\">\n";
     ret += "##INFO=<ID=SOMATIC,Number=0,Type=Flag,Description=\"Somatic variant\">\n";
-    ret += "##INFO=<ID=TNQ,Number=4,Type=Float,Description=\"Tumor-only variant quality (VQ), normal-adjusted VQ coefficient, tumor-vs-normal (TVN) VQ, and TVN VQ with NON_REF as ALT for normal\">\n";
-    ret += "##INFO=<ID=NGQ,Number=1,Type=Float,Description=\"PHRED-scaled probability of non-germline event\">\n";
-    ret += "##INFO=<ID=tVAQ,Number=1,Type=Float,Description=\"Tumor-sample VAQ\">\n";
+    ret += "##INFO=<ID=TNQ,Number=.,Type=Float,Description=\"Tumor-only variant quality (VQ), normal-adjusted VQ coefficient, tumor-vs-normal (TVN) VQ, and TVN VQ with NON_REF as ALT for normal\">\n";
+    ret += "##INFO=<ID=TNNQ,Number=.,Type=Float,Description=\"PHRED-scaled probability of non-germline event\">\n";
+    ret += "##INFO=<ID=TNTQ,Number=.,Type=Float,Description=\"Tumor-sample VAQ\">\n";
     ret += "##INFO=<ID=tDP,Number=1,Type=Integer,Description=\"Tumor-sample DP\">\n";
     ret += "##INFO=<ID=tFA,Number=1,Type=Float,Description=\"Tumor-sample FA\">\n";
     ret += "##INFO=<ID=tFR,Number=1,Type=Float,Description=\"Tumor-sample FR\">\n";
@@ -2141,6 +2141,16 @@ fmtFTupdate(auto & maxval, std::string & ft, std::vector<unsigned int> & ftv, co
         ftv.push_back((unsigned int)fval);
     }
     return 0;
+}
+
+std::string 
+string_join(auto container, std::string sep = ",") {
+    std::string ret = "";
+    for (auto e : container) {
+        ret += e;
+    }
+    ret.pop_back();
+    return ret;
 }
 
 std::string
@@ -2266,13 +2276,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         
         const bool tUseHD =  (tki.bDP > tki.DP * highqual_min_ratio);
         const bool nUseHD = ((fmt.bDP > fmt.DP * highqual_min_ratio) && tUseHD); 
-
-        /*
-        double tnlike = h01_to_phredlike<false>(
-                nAD + depth_pseudocount, nDP + depth_pseudocount, 
-                tAD + depth_pseudocount, tDP + depth_pseudocount, 
-                DBL_EPSILON, (1+1e-4)); // TODO: check if pseudocount should be 0.5 or 1.0 ?
-        */
+                
         double nAltBQ = SUM2(fmt.cAltBQ);
         double nAllBQ = SUM2(fmt.cAllBQ);
         double tAltBQ = tki.autoBestAltBQ;
@@ -2310,51 +2314,70 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         auto nonref_to_alt_frac = (isInDel ? nonref_to_alt_frac_indel : nonref_to_alt_frac_snv); 
         double nNRD0 = nonref_to_alt_frac * (nDP0 - nRD0);
         double nNRD1 = nonref_to_alt_frac * (nDP1 - nRD1);
-       
+        
         const double eps = (double)sqrt(FLT_EPSILON);
+        
+        double tnlike_argmin = 0;
+        double tnlike_alt = sumBQ4_to_phredlike(tnlike_argmin, nDP1, nAD1, tDP1, tAD1);
+        // Any4Value bq4((nDP1 - nRD1) * (isInDel ? nonref_to_alt_frac_indel : nonref_to_alt_frac_snv) * nfreqmult + 1, nDP1 + 1, tAD1 + 1, tDP1 + 1);
+        // double tnlike_nonref = bq4.to_phredlike(1)
+        
+        /*
+        double tnlike = h01_to_phredlike<false>(
+                nAD1 + DBL_EPSILON, nDP1 + DBL_EPSILON, 
+                tAD1 + DBL_EPSILON, tDP1 + DBL_EPSILON, 
+                DBL_EPSILON, (1+1e-4)); // TODO: check if pseudocount should be 0.5 or 1.0 ?
+        */
+        
         // const bool normal_has_alt = (tAD1 / tDP1 / 2.0 < nAD1 / nDP1);
-        double tnlike_alt    = calc_directional_likeratio(tAD1 / tDP1, nAD1, nDP1 - nAD1 )
-                / nDP1 * nDP0 * (double)(dlog(MIN(tAD0, nAD0 ), 1.25) + eps)
-                / (double)(MIN(tAD0, nAD0 ) + eps) * (10.0/log(10.0));
+        //double tnlike_alt    = calc_directional_likeratio(tAD1 / tDP1, nAD1, nDP1 - nAD1 )
+        //        / nDP1 * nDP0 * (double)(dlog(MIN(tAD0, nAD0 ), 1.25) + eps)
+        //        / (double)(MIN(tAD0, nAD0 ) + eps) * (10.0/log(10.0));
         auto upper_alt    = MIN(2.0 * MIN(tDP0, nDP0), 2.5 * 10.0 / log(10.0) * log((tAD1 / tDP1) / (nAD1  / nDP1)));
         tnlike_alt    = MAX(0.0, MIN(tnlike_alt   , upper_alt   ));
         
         // const bool normal_has_nonref = (tAD1 / tDP1 / 2.0 < nNRD1 / nDP1);
-        double tnlike_nonref = calc_directional_likeratio(tAD1 / tDP1, nNRD1, nDP1 - nNRD1)
-                / nDP1 * nDP0 * (double)(dlog(MIN(tAD0, nNRD0), 1.25) + eps)
-                / (double)(MIN(tAD0, nNRD0) + eps) * (10.0/log(10.0));
+        //double tnlike_nonref = calc_directional_likeratio(tAD1 / tDP1, nNRD1, nDP1 - nNRD1)
+        //        / nDP1 * nDP0 * (double)(dlog(MIN(tAD0, nNRD0), 1.25) + eps)
+        //        / (double)(MIN(tAD0, nNRD0) + eps) * (10.0/log(10.0));
         
-        auto upper_nonref = MIN(2.0 * MIN(tDP0, nDP0), 2.5 * 10.0 / log(10.0) * log((tAD1 / tDP1) / (nNRD1 / nDP1)));
-        tnlike_nonref = MAX(0.0, MIN(tnlike_nonref, upper_nonref));
+        //auto upper_nonref = MIN(2.0 * MIN(tDP0, nDP0), 2.5 * 10.0 / log(10.0) * log((tAD1 / tDP1) / (nNRD1 / nDP1)));
+        //tnlike_nonref = MAX(0.0, MIN(tnlike_nonref, upper_nonref));
         
         assert(tki.autoBestAllBQ >= tki.autoBestRefBQ + tki.autoBestAltBQ);
         
-        const bool is_nonref_snp_excluded = false;
+        const bool is_nonref_snp_excluded = true; // false;
         const bool is_nonref_indel_excluded = false;
         const bool is_nonref_germline_excluded = (isInDel ? is_nonref_snp_excluded : is_nonref_indel_excluded);
         double phred_non_germ = (double)((fmt.FA > 0.2 || (is_nonref_germline_excluded && fmt.FR < 0.8))
                 ? ((double)((int)phred_germline - (int)fmt.GQ))
                 : ((double)(     phred_germline +      fmt.GQ)));
         
-        double tn_diffq = MIN(tnlike_alt, tnlike_nonref);
+        double tn_diffq = tnlike_alt;
+        // double tn_diffq = MIN(tnlike_alt, tnlike_nonref);
         
-        double tn_tvarq = MIN(MIN((double)tki.VAQ, log(tki.FA + DBL_EPSILON) / log(10.0) * (10.0 * 2.5) + 80.0), (2.0 * tki.FA * (double)tki.DP) + (double)60);
-        // double tn_nvarq = MIN(MIN((double)fmt.VAQ, log(fmt.FA + DBL_EPSILON) / log(10.0) * (10.0 * 2.5) + 80.0), (2.0 * fmt.FA * (double)fmt.DP) + (double)60);
-        double tn_tfrac = (tAD1 / (tDP1 + eps));
-        double tn_nfrac = (nAD1 / (nDP1 + eps));
-        double tn_mcoef = tn_tfrac / (tn_tfrac + tn_nfrac + eps);
-        double tn_tva2q = tn_mcoef * (tn_tvarq + tn_diffq);
-        vcfqual = MIN(tn_tva2q, phred_non_germ);
-        //vcfqual = MIN(tn_tvarq + tn_diffq - MIN(15.0, tn_nvarq), phred_non_germ);
+        double tn_tsamq = 10.0 / log(10.0) * log((double)(tDP1 + tAD1 + DBL_EPSILON) / (double)(tAD1 + DBL_EPSILON)) / log(2.0) * tAD0;
+        double tn_nsamq = 10.0 / log(10.0) * log((double)(nDP1 + nAD1 + DBL_EPSILON) / (double)(nAD1 + DBL_EPSILON)) / log(2.0) * nAD0;
+        double tn_tpowq = 10.0 / log(10.0) * log((double)(tAD0 + 1.0) / (tDP0 + 1.0)) * 2.0 + 80.0;
+        double tn_npowq = 10.0 / log(10.0) * log((double)(nAD0 + 1.0) / (nDP0 + 1.0)) * 2.0 + 80.0;
+        double tn_tvarq = MIN(MIN((double)tki.VAQ, tn_tsamq), tn_tpowq);
+        double tn_nvarq = MIN(MIN((double)fmt.VAQ, tn_nsamq), tn_npowq);
+        //double tn_tfrac = (tAD1 / (tDP1 + eps));
+        //double tn_nfrac = (nAD1 / (nDP1 + eps));
+        //double tn_mcoef = tn_tfrac / (tn_tfrac + tn_nfrac + eps);
+        // double tn_tva2q = tn_mcoef * (tn_tvarq + tn_diffq);
+        // vcfqual = MIN(tn_tva2q, phred_non_germ);
+        vcfqual = MIN(tn_tvarq + tn_diffq - tn_nvarq * (double)nAD0 / (double)(nAD0 + 1), phred_non_germ);
         
         //double vaq_ubmax = MIN(log(tki.FA + DBL_EPSILON) / log(10.0) * (10.0 * 2.5) + 80.0, (2.0 * tki.FA * (double)tki.DP) + (double)60) + (tvn_vaq * tvn_ubmax_frac);
         //double tnq_onlyT = MIN((double)tki.VAQ + (tvn_vaq >= 0 ? 0 : tvn_vaq), vaq_ubmax) - (1.0 / MAX(10.0, (double)tki.VAQ)); // truncate tumor VAQ
         //double tnq_val = tnq_onlyT - (0.5 / MAX(10.0, (double)tvn_vaq)); // + MIN(20.0, tvn_vaq) / 10; // + (tnq_TandN * tnq_mult);
         // vcfqual = MIN(tnq_val, phred_non_germ);
         
-        infostring += std::string(";TNQ=") + std::to_string(tn_tvarq) + "," + std::to_string(tn_mcoef) + "," +  std::to_string(tnlike_alt) + "," + std::to_string(tnlike_nonref);
-        infostring += std::string(";NGQ=") + std::to_string(phred_non_germ);
-        infostring += std::string(";tVAQ=") + std::to_string(tki.VAQ);
+        infostring += std::string(";TNQ=") + string_join(std::array<std::string, 4>({std::to_string(tn_tvarq), std::to_string(tn_nvarq),
+                std::to_string(tn_diffq), std::to_string(phred_non_germ)}));
+        infostring += std::string(";TNNQ=") + string_join(std::array<std::string, 3>({std::to_string(tn_tsamq), std::to_string(tn_npowq), std::to_string(fmt.VAQ)}));
+        infostring += std::string(";TNTQ=") + string_join(std::array<std::string, 3>({std::to_string(tn_nsamq), std::to_string(tn_tpowq), std::to_string(tki.VAQ)}));
         infostring += std::string(";tDP=") + std::to_string(tki.DP);
         infostring += std::string(";tFA=") + std::to_string(tki.FA);
         infostring += std::string(";tFR=") + std::to_string(tki.FR);
@@ -2365,11 +2388,11 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         infostring += std::string(";tRefBQ=") + std::to_string(tki.autoBestRefBQ);
         infostring += std::string(";tAltHD=") + std::to_string(tki.autoBestAltHD);
         infostring += std::string(";tAllHD=") + std::to_string(tki.autoBestAllHD);
-        infostring += std::string(";TNQA=") + std::to_string(phred_non_germ);
+        infostring += std::string(";TNQA=") + std::to_string(tnlike_argmin);
         
         // auto finalGQ = (("1/0" == fmt.GT) ? fmt.GQ : 0); // is probably redundant?
         /*
-        auto diffVAQ = tki.VAQ;
+        auto diffVAQ = tki.VAQ;/
         if (diffVAQfrac) {
             diffVAQ = MAX(tki.VAQ - (fmt.VAQ * diffVAQfrac), tki.VAQ / ((fmt.VAQ * diffVAQfrac) + tki.VAQ + DBL_MIN));
         }
