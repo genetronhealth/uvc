@@ -251,6 +251,7 @@ struct TumorKeyInfo {
     int32_t DP = 0;
     float FA = 0;
     float FR = 0;
+    float MQ = 0;
     int32_t bDP = 0;
     float bFA = 0;
     int32_t autoBestAllBQ = 0;
@@ -258,6 +259,8 @@ struct TumorKeyInfo {
     int32_t autoBestRefBQ = 0;
     int32_t autoBestAllHD = 0;
     int32_t autoBestAltHD = 0;
+    int32_t autoBestRefHD = 0;
+
     bcf1_t *bcf1_record = NULL;
     /*
     ~TumorKeyInfo() {
@@ -389,6 +392,11 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         tki.FR = bcffloats[0];
         
         ndst_val = 0;
+        valsize = bcf_get_format_float(bcf_hdr, line,  "MQ", &bcffloats,  &ndst_val);
+        assert((1 == ndst_val && 1 == valsize) || !fprintf(stderr, "1 == %d && 1 == %d failed for MQ!\n", ndst_val, valsize)); 
+        tki.MQ = bcffloats[0];
+        
+        ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line,  "DP", &bcfints,  &ndst_val);
         assert((1 == ndst_val && 1 == valsize) || !fprintf(stderr, "1 == %d && 1 == %d failed for DP!\n", ndst_val, valsize));
         tki.DP = bcfints[0];
@@ -415,13 +423,18 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line,  "cAllHD", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cAllBQ!\n", ndst_val, valsize));
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cAllHD!\n", ndst_val, valsize));
         tki.autoBestAllHD = bcfints[0] + bcfints[1];
 
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line,  "cAltHD", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cAltBQ!\n", ndst_val, valsize));
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cAltHD!\n", ndst_val, valsize));
         tki.autoBestAltHD = bcfints[0] + bcfints[1];
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "cRefHD", &bcfints, &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cRefHD!\n", ndst_val, valsize));
+        tki.autoBestRefHD = bcfints[0] + bcfints[1];
         
         ndst_val = 0;
         valsize = bcf_get_format_char(bcf_hdr, line, "FT", &bcfstring, &ndst_val);

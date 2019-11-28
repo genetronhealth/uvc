@@ -2114,7 +2114,8 @@ generateVcfHeader(const char *ref_fasta_fname, const char *platform,
     ret += "##INFO=<ID=tAltHD,Number=1,Type=Integer,Description=\"Tumor-sample cAltHD or bAltHD, depending on command-line option\">\n";
     ret += "##INFO=<ID=tAllHD,Number=1,Type=Integer,Description=\"Tumor-sample cAllHD or bAllHD, depending on command-line option\">\n";
     ret += "##INFO=<ID=tRefHD,Number=1,Type=Integer,Description=\"Tumor-sample cRefHD or bRefHD, depending on command-line option\">\n";
-    // ret += "##INFO=<ID=TNQA,Number=.,Type=Float,Description=\"Tumor-only variant quality (VQ), normal-only VQ, tumor-vs-normal VQ, and optionally some other VQs.\">\n";
+    ret += "##INFO=<ID=tMQ,Number=.,Type=Float,Description=\"Tumor-sample MQ\">\n"; 
+    ret += "##INFO=<ID=TNQA,Number=.,Type=Float,Description=\"Argmin for TVN VQ and TNQ coefficient.\">\n";
     ret += "##INFO=<ID=RU,Number=1,Type=String,Description=\"The shortest repeating unit in the reference\">\n";
     ret += "##INFO=<ID=RC,Number=1,Type=Integer,Description=\"The number of non-interrupted RUs in the reference\">\n"; 
     
@@ -2282,13 +2283,15 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         double tAltBQ = tki.autoBestAltBQ;
         double tAllBQ = tki.autoBestAllBQ;
         double nRefBQ = SUM2(fmt.cRefBQ);
-        
+        double tRefBQ = tki.autoBestRefBQ;
+ 
         double nAltHD = SUM2(fmt.cAltHD);
         double nAllHD = SUM2(fmt.cAllHD);
         double tAltHD = tki.autoBestAltHD;
         double tAllHD = tki.autoBestAllHD;
         double nRefHD = SUM2(fmt.cRefHD);
-        
+        double tRefHD = tki.autoBestRefHD;
+
         double nDP0 = (double)(nUseHD ? (nAllHD) :          (double)fmt.DP);
         double nAD0 = (double)(nUseHD ? (nAltHD) : fmt.FA * (double)fmt.DP);
         double nRD0 = (double)(nUseHD ? (nRefHD) : fmt.FR * (double)fmt.DP);
@@ -2300,6 +2303,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         double tAD1 = (tUseHD ? (highqual_thres * tAltHD) : tAltBQ) + depth_pseudocount / 2.0;
         double tDP1 = (tUseHD ? (highqual_thres * tAllHD) : tAllBQ) + depth_pseudocount;
         double nRD1 = (nUseHD ? (highqual_thres * nRefHD) : nRefBQ) + depth_pseudocount / 2.0;
+        double tRD1 = (tUseHD ? (highqual_thres * tRefHD) : tRefBQ) + depth_pseudocount / 2.0; 
         
         double nfreqmult = 1.0;
         if (tUseHD && (!nUseHD)) {
@@ -2367,7 +2371,10 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         //double tn_mcoef = tn_tfrac / (tn_tfrac + tn_nfrac + eps);
         // double tn_tva2q = tn_mcoef * (tn_tvarq + tn_diffq);
         // vcfqual = MIN(tn_tva2q, phred_non_germ);
-        vcfqual = MIN(tn_tvarq + tn_diffq - tn_nvarq * (double)nAD0 / (double)(nAD0 + 1), phred_non_germ);
+        double reduction_coef = (double)tAD0 / ((double)tAD0 + 1.0 
+            + (abs(fmt.MQ - tki.MQ) / (MAX(fmt.MQ,tki.MQ) +  DBL_EPSILON))
+            + (1.0 - tAD1 / MAX(tDP1 - tRD1, tAD1)));
+        vcfqual = reduction_coef * MIN(tn_tvarq + tn_diffq - tn_nvarq * (double)nAD0 / (double)(nAD0 + 1), phred_non_germ);
         
         //double vaq_ubmax = MIN(log(tki.FA + DBL_EPSILON) / log(10.0) * (10.0 * 2.5) + 80.0, (2.0 * tki.FA * (double)tki.DP) + (double)60) + (tvn_vaq * tvn_ubmax_frac);
         //double tnq_onlyT = MIN((double)tki.VAQ + (tvn_vaq >= 0 ? 0 : tvn_vaq), vaq_ubmax) - (1.0 / MAX(10.0, (double)tki.VAQ)); // truncate tumor VAQ
@@ -2388,7 +2395,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         infostring += std::string(";tRefBQ=") + std::to_string(tki.autoBestRefBQ);
         infostring += std::string(";tAltHD=") + std::to_string(tki.autoBestAltHD);
         infostring += std::string(";tAllHD=") + std::to_string(tki.autoBestAllHD);
-        infostring += std::string(";TNQA=") + std::to_string(tnlike_argmin);
+        infostring += std::string(";tMQ=") + std::to_string(tki.MQ);
+        infostring += std::string(";TNQA=") + string_join(std::array<std::string, 2>({std::to_string(tnlike_argmin), std::to_string(reduction_coef)}));
         
         // auto finalGQ = (("1/0" == fmt.GT) ? fmt.GQ : 0); // is probably redundant?
         /*
