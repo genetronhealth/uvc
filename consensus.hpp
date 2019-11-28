@@ -2360,8 +2360,9 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         double tn_diffq = tnlike_alt;
         // double tn_diffq = MIN(tnlike_alt, tnlike_nonref);
         
-        double tn_tsamq = 10.0 / log(10.0) * log((double)(tDP1 + tAD1 + DBL_EPSILON) / (double)(tAD1 + DBL_EPSILON)) / log(2.0) * tAD0;
-        double tn_nsamq = 10.0 / log(10.0) * log((double)(nDP1 + nAD1 + DBL_EPSILON) / (double)(nAD1 + DBL_EPSILON)) / log(2.0) * nAD0;
+        double eps_qual = 10.0/log(10.0) * log((double)tDP0 + 2.0);
+        double tn_tsamq = 10.0 / log(10.0) * log((double)(tDP1 + tAD1 + eps_qual) / (double)(tAD1 + eps_qual)) * tAD0 / 1.25;
+        double tn_nsamq = 10.0 / log(10.0) * log((double)(nDP1 + nAD1 + eps_qual) / (double)(nAD1 + eps_qual)) * nAD0 / 1.25;
         double tn_tpowq = 10.0 / log(10.0) * log((double)(tAD0 + 1.0) / (tDP0 + 1.0)) * 2.0 + 80.0;
         double tn_npowq = 10.0 / log(10.0) * log((double)(nAD0 + 1.0) / (nDP0 + 1.0)) * 2.0 + 80.0;
         double tn_tvarq = MIN(MIN((double)tki.VAQ, tn_tsamq), tn_tpowq);
@@ -2371,10 +2372,11 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         //double tn_mcoef = tn_tfrac / (tn_tfrac + tn_nfrac + eps);
         // double tn_tva2q = tn_mcoef * (tn_tvarq + tn_diffq);
         // vcfqual = MIN(tn_tva2q, phred_non_germ);
-        double reduction_coef = (double)tAD0 / ((double)tAD0 + 1.0 
-            + (abs(fmt.MQ - tki.MQ) / (MAX(fmt.MQ,tki.MQ) +  DBL_EPSILON))
-            + 0.0*(1.0 - tAD1 / MAX(tDP1 - tRD1, tAD1)));
-        vcfqual = reduction_coef * MIN(tn_tvarq + tn_diffq - tn_nvarq * (double)nAD0 / (double)(nAD0 + 1), phred_non_germ);
+        double reduction_coef = (double)tAD0 / ((double)tAD0 + 0*1.0 
+            + 2.0 * (abs(fmt.MQ - tki.MQ) / (MAX(fmt.MQ,tki.MQ) +  DBL_EPSILON))
+            + 0.0 * (1.0 - tAD1 / MAX(tDP1 - tRD1, tAD1)));
+        vcfqual = reduction_coef * MIN(tn_tvarq + tn_diffq - tn_nvarq // * (double)nAD0 / (double)(nAD0 + 1), 
+                , phred_non_germ);
         
         //double vaq_ubmax = MIN(log(tki.FA + DBL_EPSILON) / log(10.0) * (10.0 * 2.5) + 80.0, (2.0 * tki.FA * (double)tki.DP) + (double)60) + (tvn_vaq * tvn_ubmax_frac);
         //double tnq_onlyT = MIN((double)tki.VAQ + (tvn_vaq >= 0 ? 0 : tvn_vaq), vaq_ubmax) - (1.0 / MAX(10.0, (double)tki.VAQ)); // truncate tumor VAQ
