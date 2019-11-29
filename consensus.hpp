@@ -2360,11 +2360,11 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         double tn_diffq = tnlike_alt;
         // double tn_diffq = MIN(tnlike_alt, tnlike_nonref);
         
-        double eps_qual = 10.0/log(10.0) * log((double)tDP0 + 2.0);
-        double tn_tsamq = 10.0 / log(10.0) * log((double)(tDP1 + tAD1 + eps_qual) / (double)(tAD1 + eps_qual)) * tAD0 / 1.25;
-        double tn_nsamq = 10.0 / log(10.0) * log((double)(nDP1 + nAD1 + eps_qual) / (double)(nAD1 + eps_qual)) * nAD0 / 1.25;
+        // double eps_qual = 10.0/log(10.0) * log((double)tDP0 + 2.0);
         double tn_tpowq = 10.0 / log(10.0) * log((double)(tAD0 + 1.0) / (tDP0 + 1.0)) * 2.0 + 80.0;
         double tn_npowq = 10.0 / log(10.0) * log((double)(nAD0 + 1.0) / (nDP0 + 1.0)) * 2.0 + 80.0;
+        double tn_tsamq = MAX(0.0, tn_tpowq - 16.0 * pow(2.0, (double)tAD0 - 1.0)); // 10.0 / log(10.0) * log((double)(tDP1 + tAD1 + eps_qual) / (double)(tAD1 + eps_qual)) * tAD0 / 1.25;
+        double tn_nsamq = MAX(0.0, tn_npowq - 16.0 * pow(2.0, (double)nAD0 - 1.0)); // 10.0 / log(10.0) * log((double)(nDP1 + nAD1 + eps_qual) / (double)(nAD1 + eps_qual)) * nAD0 / 1.25;
         double tn_tvarq = MIN(MIN((double)tki.VAQ, tn_tsamq), tn_tpowq);
         double tn_nvarq = MIN(MIN((double)fmt.VAQ, tn_nsamq), tn_npowq);
         //double tn_tfrac = (tAD1 / (tDP1 + eps));
