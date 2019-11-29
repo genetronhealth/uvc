@@ -2322,7 +2322,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         const double eps = (double)sqrt(FLT_EPSILON);
         
         double tnlike_argmin = 0;
-        double tnlike_alt = sumBQ4_to_phredlike(tnlike_argmin, nDP1, nAD1, tDP1, tAD1);
+        double tnlike_alt1 = sumBQ4_to_phredlike(tnlike_argmin, nDP1, nAD1, tDP1, tAD1);
         // Any4Value bq4((nDP1 - nRD1) * (isInDel ? nonref_to_alt_frac_indel : nonref_to_alt_frac_snv) * nfreqmult + 1, nDP1 + 1, tAD1 + 1, tDP1 + 1);
         // double tnlike_nonref = bq4.to_phredlike(1)
         
@@ -2337,9 +2337,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         //double tnlike_alt    = calc_directional_likeratio(tAD1 / tDP1, nAD1, nDP1 - nAD1 )
         //        / nDP1 * nDP0 * (double)(dlog(MIN(tAD0, nAD0 ), 1.25) + eps)
         //        / (double)(MIN(tAD0, nAD0 ) + eps) * (10.0/log(10.0));
-        auto upper_alt    = MIN(2.0 * MIN(tDP0, nDP0), 2.5 * 10.0 / log(10.0) * log((tAD1 / tDP1) / (nAD1  / nDP1)));
-        tnlike_alt    = MAX(0.0, MIN(tnlike_alt   , upper_alt   ));
-        
+        auto upper_alt    = MIN(2.0 * MIN(tDP0, nDP0), 2.0 * 10.0 / log(10.0) * log(((double)(tAD0+1) / (double)(tDP0+1)) / ((double)(nAD0+1)  / (double)(nDP0+1))));
+                
         // const bool normal_has_nonref = (tAD1 / tDP1 / 2.0 < nNRD1 / nDP1);
         //double tnlike_nonref = calc_directional_likeratio(tAD1 / tDP1, nNRD1, nDP1 - nNRD1)
         //        / nDP1 * nDP0 * (double)(dlog(MIN(tAD0, nNRD0), 1.25) + eps)
@@ -2357,27 +2356,30 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
                 ? ((double)((int)phred_germline - (int)fmt.GQ))
                 : ((double)(     phred_germline +      fmt.GQ)));
         
-        double tn_diffq = tnlike_alt;
+
         // double tn_diffq = MIN(tnlike_alt, tnlike_nonref);
         
         // double eps_qual = 10.0/log(10.0) * log((double)tDP0 + 2.0);
         double tn_tpowq = 10.0 / log(10.0) * log((double)(tAD0 + 1.0) / (tDP0 + 1.0)) * 2.0 + 80.0;
         double tn_npowq = 10.0 / log(10.0) * log((double)(nAD0 + 1.0) / (nDP0 + 1.0)) * 2.0 + 80.0;
-        double tn_tsamq = MAX(0.0, tn_tpowq - (tAD0 <= 2 ? 10.0 : 0.0));
+        double tn_tsamq = (tAD0 <= 2 ? 8.0 : 0.0);
         // MAX(0.0, tn_tpowq - 16.0 * pow(0.5, (double)tAD0 - 1.0)); // 10.0 / log(10.0) * log((double)(tDP1 + tAD1 + eps_qual) / (double)(tAD1 + eps_qual)) * tAD0 / 1.25;
-        double tn_nsamq = MAX(0.0, tn_npowq - (nAD0 <= 2 ? 10.0 : 0.0));
+        double tn_nsamq = (nAD0 <= 2 ? 8.0 : 0.0);
         // MAX(0.0, tn_npowq - 16.0 * pow(0.5, (double)nAD0 - 1.0)); // 10.0 / log(10.0) * log((double)(nDP1 + nAD1 + eps_qual) / (double)(nAD1 + eps_qual)) * nAD0 / 1.25;
-        double tn_tvarq = MIN(MIN((double)tki.VAQ, tn_tsamq), tn_tpowq);
-        double tn_nvarq = MIN(MIN((double)fmt.VAQ, tn_nsamq), tn_npowq);
+        double tn_tvarq = MIN(MAX((double)tki.VAQ - tn_tsamq, 0.0), tn_tpowq);
+        double tn_nvarq = MIN(MAX((double)fmt.VAQ - tn_nsamq, 0.0), tn_npowq);
         //double tn_tfrac = (tAD1 / (tDP1 + eps));
         //double tn_nfrac = (nAD1 / (nDP1 + eps));
         //double tn_mcoef = tn_tfrac / (tn_tfrac + tn_nfrac + eps);
         // double tn_tva2q = tn_mcoef * (tn_tvarq + tn_diffq);
         // vcfqual = MIN(tn_tva2q, phred_non_germ);
+        
+        double tn_diffq = MIN(tnlike_alt1 - tn_nsamq, upper_alt);
+        
         double reduction_coef = (double)tAD0 / ((double)tAD0 + 0*1.0 
             + 2.0 * (MAX(0.0, fmt.MQ - tki.MQ) / (MAX(fmt.MQ,tki.MQ) +  DBL_EPSILON))
             + 0.0 * (1.0 - tAD1 / MAX(tDP1 - tRD1, tAD1)));
-        vcfqual = reduction_coef * MIN(tn_tvarq + tn_diffq - tn_nvarq // * (double)nAD0 / (double)(nAD0 + 1), 
+        vcfqual = reduction_coef * MIN(tn_tvarq + tn_diffq // - tn_nvarq // * (double)nAD0 / (double)(nAD0 + 1), 
                 , phred_non_germ);
         
         //double vaq_ubmax = MIN(log(tki.FA + DBL_EPSILON) / log(10.0) * (10.0 * 2.5) + 80.0, (2.0 * tki.FA * (double)tki.DP) + (double)60) + (tvn_vaq * tvn_ubmax_frac);
@@ -2400,7 +2402,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         infostring += std::string(";tAltHD=") + std::to_string(tki.autoBestAltHD);
         infostring += std::string(";tAllHD=") + std::to_string(tki.autoBestAllHD);
         infostring += std::string(";tMQ=") + std::to_string(tki.MQ);
-        infostring += std::string(";TNQA=") + string_join(std::array<std::string, 2>({std::to_string(tnlike_argmin), std::to_string(reduction_coef)}));
+        infostring += std::string(";TNQA=") + string_join(std::array<std::string, 3>({std::to_string(tnlike_alt1), std::to_string(tnlike_argmin), std::to_string(reduction_coef)}));
         
         // auto finalGQ = (("1/0" == fmt.GT) ? fmt.GQ : 0); // is probably redundant?
         /*
