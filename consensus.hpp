@@ -2099,9 +2099,9 @@ generateVcfHeader(const char *ref_fasta_fname, const char *platform,
     
     ret += "##INFO=<ID=ANY_VAR,Number=0,Type=Flag,Description=\"Any type of variant which may be caused by germline polymorphism and/or experimental artifact\">\n";
     ret += "##INFO=<ID=SOMATIC,Number=0,Type=Flag,Description=\"Somatic variant\">\n";
-    ret += "##INFO=<ID=TNQ,Number=.,Type=Float,Description=\"Tumor-only variant quality (VQ), normal-only VQ, tumor-vs-normal (TVN) VQ, and germline-exclusion quality\">\n";
-    ret += "##INFO=<ID=TNNQ,Number=.,Type=Float,Description=\"Normal-only sample quality, allele-fraction quality, and raw variant quality\">\n";
-    ret += "##INFO=<ID=TNTQ,Number=.,Type=Float,Description=\" Tumor-only sample quality, allele-fraction quality, and raw variant quality\">\n";
+    ret += "##INFO=<ID=TNQ,Number=.,Type=Float,Description=\"Fixed-effect variant (VQ), random-effect VQ, contamination-aware VQ, and germline-exclusion quality\">\n";
+    ret += "##INFO=<ID=TNNQ,Number=.,Type=Float,Description=\"For only tumor  sample: normalized variant quality (VQ), raw VQ, raw adjustment quality, and allele-fraction-based cap for max VQ\">\n";
+    ret += "##INFO=<ID=TNTQ,Number=.,Type=Float,Description=\"For only normal sample: normalized variant quality (VQ), raw VQ, raw adjustment quality, and allele-fraction-based cap for max VQ\">\n";
     ret += "##INFO=<ID=tDP,Number=1,Type=Integer,Description=\"Tumor-sample DP\">\n";
     ret += "##INFO=<ID=tFA,Number=1,Type=Float,Description=\"Tumor-sample FA\">\n";
     ret += "##INFO=<ID=tFR,Number=1,Type=Float,Description=\"Tumor-sample FR\">\n";
@@ -2115,7 +2115,7 @@ generateVcfHeader(const char *ref_fasta_fname, const char *platform,
     ret += "##INFO=<ID=tAllHD,Number=1,Type=Integer,Description=\"Tumor-sample cAllHD or bAllHD, depending on command-line option\">\n";
     ret += "##INFO=<ID=tRefHD,Number=1,Type=Integer,Description=\"Tumor-sample cRefHD or bRefHD, depending on command-line option\">\n";
     ret += "##INFO=<ID=tMQ,Number=.,Type=Float,Description=\"Tumor-sample MQ\">\n"; 
-    ret += "##INFO=<ID=TNQA,Number=.,Type=Float,Description=\"Argmin for TVN VQ and TNQ coefficient.\">\n";
+    ret += "##INFO=<ID=TNQA,Number=.,Type=Float,Description=\"Tumor-vs-normal (TVN) quality, argmin for TVN quality, allele-fraction-based cap for max TVN quality, and TNQ coefficient.\">\n";
     ret += "##INFO=<ID=RU,Number=1,Type=String,Description=\"The shortest repeating unit in the reference\">\n";
     ret += "##INFO=<ID=RC,Number=1,Type=Integer,Description=\"The number of non-interrupted RUs in the reference\">\n"; 
     
@@ -2354,17 +2354,16 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         const bool is_nonref_germline_excluded = (isInDel ? is_nonref_indel_excluded : is_nonref_snp_excluded);
         double phred_non_germ = (double)((fmt.FA > 0.2 || (is_nonref_germline_excluded && fmt.FR < 0.8))
                 ? ((double)((int)phred_germline - (int)fmt.GQ))
-                : ((double)(     phred_germline +      fmt.GQ)));
+                : ((double)(     phred_germline +      fmt.GQ))); 
         
-
         // double tn_diffq = MIN(tnlike_alt, tnlike_nonref);
         
         // double eps_qual = 10.0/log(10.0) * log((double)tDP0 + 2.0);
         double tn_tpowq = 10.0 / log(10.0) * log((double)(tAD0 + 1.0) / (tDP0 + 1.0)) * 2.0 + 80.0;
         double tn_npowq = 10.0 / log(10.0) * log((double)(nAD0 + 1.0) / (nDP0 + 1.0)) * 2.0 + 80.0;
-        double tn_tsamq = (tAD0 <= 2 ? 8.0 : 0.0);
+        double tn_tsamq = 40.0 * pow(0.5, (double)tAD0);// (tAD0 <= 2 ? 8.0 : 0.0);
         // MAX(0.0, tn_tpowq - 16.0 * pow(0.5, (double)tAD0 - 1.0)); // 10.0 / log(10.0) * log((double)(tDP1 + tAD1 + eps_qual) / (double)(tAD1 + eps_qual)) * tAD0 / 1.25;
-        double tn_nsamq = (nAD0 <= 2 ? 8.0 : 0.0);
+        double tn_nsamq = 40.0 * pow(0.5, (double)nAD0); // (nAD0 <= 2 ? 8.0 : 0.0);
         // MAX(0.0, tn_npowq - 16.0 * pow(0.5, (double)nAD0 - 1.0)); // 10.0 / log(10.0) * log((double)(nDP1 + nAD1 + eps_qual) / (double)(nAD1 + eps_qual)) * nAD0 / 1.25;
         double tn_tvarq = MIN(MAX((double)tki.VAQ - tn_tsamq, 0.0), tn_tpowq);
         double tn_nvarq = MIN(MAX((double)fmt.VAQ - tn_nsamq, 0.0), tn_npowq);
@@ -2374,23 +2373,39 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         // double tn_tva2q = tn_mcoef * (tn_tvarq + tn_diffq);
         // vcfqual = MIN(tn_tva2q, phred_non_germ);
         
-        double tn_diffq = MIN(tnlike_alt1 - tn_nsamq, upper_alt);
+        double tn_cont_nor = MIN(2.0, ((double)(nAD0 + 1) / (double)(nDP0 - nAD0 + 1)));
+        double tn_cont_tor = MIN(2.0, ((double)(tAD0 + 1) / (double)(tDP0 - tAD0 + 1)));
+        
+        double tn_cont_exp = 0.1; // 5; // by default
+        double tn_cont_obs = tn_cont_nor / tn_cont_tor;
+        double tn_cont_rat = (tn_cont_obs / tn_cont_exp);
+        double tn_cont_powlawq = 10.0 / log(10.0) * log(MAX(tn_cont_rat, 1.0)) * 2.0;
         
         double reduction_coef = (double)tAD0 / ((double)tAD0 + 0*1.0 
             + 2.0 * (MAX(0.0, fmt.MQ - tki.MQ) / (MAX(fmt.MQ,tki.MQ) +  DBL_EPSILON))
             + 0.0 * (1.0 - tAD1 / MAX(tDP1 - tRD1, tAD1)));
-        vcfqual = reduction_coef * MIN(tn_tvarq + tn_diffq // - tn_nvarq // * (double)nAD0 / (double)(nAD0 + 1), 
-                , phred_non_germ);
+        
+        double tn_diffq = MIN(tnlike_alt1, upper_alt);
+        
+        double tn_systq = MIN(tnlike_alt1, tn_tpowq + upper_alt);
+        double tn_randq = tn_tvarq + tn_diffq - tn_nvarq;
+        double tn_contq = tn_tvarq + tn_diffq - tn_cont_powlawq;
+        
+        vcfqual = reduction_coef * MIN(MAX(MAX(
+                  tn_systq // tumor has signal and random noise, normal has random noise // * (double)nAD0 / (double)(nAD0 + 1), 
+                , tn_randq) // tumor has signal and systematic noise, normal has systematic noise
+                , tn_contq) // tumor has signal and contamination, norml has contaminnation
+                , phred_non_germ); // tumor has whatever, normal has germline event
         
         //double vaq_ubmax = MIN(log(tki.FA + DBL_EPSILON) / log(10.0) * (10.0 * 2.5) + 80.0, (2.0 * tki.FA * (double)tki.DP) + (double)60) + (tvn_vaq * tvn_ubmax_frac);
         //double tnq_onlyT = MIN((double)tki.VAQ + (tvn_vaq >= 0 ? 0 : tvn_vaq), vaq_ubmax) - (1.0 / MAX(10.0, (double)tki.VAQ)); // truncate tumor VAQ
         //double tnq_val = tnq_onlyT - (0.5 / MAX(10.0, (double)tvn_vaq)); // + MIN(20.0, tvn_vaq) / 10; // + (tnq_TandN * tnq_mult);
         // vcfqual = MIN(tnq_val, phred_non_germ);
         
-        infostring += std::string(";TNQ=") + string_join(std::array<std::string, 4>({std::to_string(tn_tvarq), std::to_string(tn_nvarq),
-                std::to_string(tn_diffq), std::to_string(phred_non_germ)}));
-        infostring += std::string(";TNNQ=") + string_join(std::array<std::string, 3>({std::to_string(tn_nsamq), std::to_string(tn_npowq), std::to_string(fmt.VAQ)}));
-        infostring += std::string(";TNTQ=") + string_join(std::array<std::string, 3>({std::to_string(tn_tsamq), std::to_string(tn_tpowq), std::to_string(tki.VAQ)}));
+        infostring += std::string(";TNQ=") + string_join(std::array<std::string, 4>({std::to_string(tn_systq), std::to_string(tn_randq),
+                std::to_string(tn_contq), std::to_string(phred_non_germ)}));
+        infostring += std::string(";TNNQ=") + string_join(std::array<std::string, 4>({std::to_string(tn_nvarq), std::to_string(tn_npowq), std::to_string(tn_nsamq), std::to_string(fmt.VAQ)}));
+        infostring += std::string(";TNTQ=") + string_join(std::array<std::string, 4>({std::to_string(tn_tvarq), std::to_string(tn_tpowq), std::to_string(tn_tsamq), std::to_string(tki.VAQ)}));
         infostring += std::string(";tDP=") + std::to_string(tki.DP);
         infostring += std::string(";tFA=") + std::to_string(tki.FA);
         infostring += std::string(";tFR=") + std::to_string(tki.FR);
@@ -2402,7 +2417,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         infostring += std::string(";tAltHD=") + std::to_string(tki.autoBestAltHD);
         infostring += std::string(";tAllHD=") + std::to_string(tki.autoBestAllHD);
         infostring += std::string(";tMQ=") + std::to_string(tki.MQ);
-        infostring += std::string(";TNQA=") + string_join(std::array<std::string, 3>({std::to_string(tnlike_alt1), std::to_string(tnlike_argmin), std::to_string(reduction_coef)}));
+        infostring += std::string(";TNQA=") + string_join(std::array<std::string, 4>({std::to_string(tnlike_alt1), std::to_string(upper_alt), std::to_string(tnlike_argmin), std::to_string(reduction_coef)}));
         
         // auto finalGQ = (("1/0" == fmt.GT) ? fmt.GQ : 0); // is probably redundant?
         /*
