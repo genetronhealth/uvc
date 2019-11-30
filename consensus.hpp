@@ -2365,8 +2365,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         // MAX(0.0, tn_tpowq - 16.0 * pow(0.5, (double)tAD0 - 1.0)); // 10.0 / log(10.0) * log((double)(tDP1 + tAD1 + eps_qual) / (double)(tAD1 + eps_qual)) * tAD0 / 1.25;
         double tn_nsamq = 40.0 * pow(0.5, (double)nAD0); // (nAD0 <= 2 ? 8.0 : 0.0);
         // MAX(0.0, tn_npowq - 16.0 * pow(0.5, (double)nAD0 - 1.0)); // 10.0 / log(10.0) * log((double)(nDP1 + nAD1 + eps_qual) / (double)(nAD1 + eps_qual)) * nAD0 / 1.25;
-        double tn_tvarq = MIN(MAX((double)tki.VAQ - tn_tsamq, 0.0), tn_tpowq);
-        double tn_nvarq = MIN(MAX((double)fmt.VAQ - tn_nsamq, 0.0), tn_npowq);
+        double tn_tvarq = MIN(MAX((double)tki.VAQ - tn_tsamq * 1, 0.0), tn_tpowq);
+        double tn_nvarq = MIN(MAX((double)fmt.VAQ - tn_nsamq * 0, 0.0), tn_npowq);
         //double tn_tfrac = (tAD1 / (tDP1 + eps));
         //double tn_nfrac = (nAD1 / (nDP1 + eps));
         //double tn_mcoef = tn_tfrac / (tn_tfrac + tn_nfrac + eps);
@@ -2379,7 +2379,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         double tn_cont_exp = 0.1; // 5; // by default
         double tn_cont_obs = tn_cont_nor / tn_cont_tor;
         double tn_cont_rat = (tn_cont_obs / tn_cont_exp);
-        double tn_cont_powlawq = 10.0 / log(10.0) * log(MAX(tn_cont_rat, 1.0)) * 2.0;
+        double tn_cont_powlawq = 10.0 / log(10.0) * log(MAX(tn_cont_rat, 1.0)) * 2.0 * 4.0 * MIN(1.0, tn_cont_obs * tn_cont_obs); // bigger implies less quality
         
         double reduction_coef = (double)tAD0 / ((double)tAD0 + 0*1.0 
             + 2.0 * (MAX(0.0, fmt.MQ - tki.MQ) / (MAX(fmt.MQ,tki.MQ) +  DBL_EPSILON))
