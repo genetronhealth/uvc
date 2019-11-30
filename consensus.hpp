@@ -2270,6 +2270,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
     
     std::string ref_alt;
     std::string infostring = (prev_is_tumor ? "SOMATIC" : "ANY_VAR");
+    const double pl_exponent = 2.5;
     if (prev_is_tumor) {
         vcfpos = (tki.ref_alt != "." ? (tki.pos + 1) : vcfpos);
         ref_alt = (tki.ref_alt != "." ? tki.ref_alt : vcfref + "\t" + vcfalt);
@@ -2337,7 +2338,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         //double tnlike_alt    = calc_directional_likeratio(tAD1 / tDP1, nAD1, nDP1 - nAD1 )
         //        / nDP1 * nDP0 * (double)(dlog(MIN(tAD0, nAD0 ), 1.25) + eps)
         //        / (double)(MIN(tAD0, nAD0 ) + eps) * (10.0/log(10.0));
-        auto upper_alt    = MIN(2.0 * MIN(tDP0, nDP0), 2.0 * 10.0 / log(10.0) * log(((double)(tAD0+1) / (double)(tDP0+1)) / ((double)(nAD0+1)  / (double)(nDP0+1))));
+        auto upper_alt    = MIN(2.0 * MIN(tDP0, nDP0), pl_exponent * 10.0 / log(10.0) * log(((double)(tAD0+1) / (double)(tDP0+1)) / ((double)(nAD0+1)  / (double)(nDP0+1))));
                 
         // const bool normal_has_nonref = (tAD1 / tDP1 / 2.0 < nNRD1 / nDP1);
         //double tnlike_nonref = calc_directional_likeratio(tAD1 / tDP1, nNRD1, nDP1 - nNRD1)
@@ -2359,8 +2360,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         // double tn_diffq = MIN(tnlike_alt, tnlike_nonref);
         
         // double eps_qual = 10.0/log(10.0) * log((double)tDP0 + 2.0);
-        double tn_tpowq = 10.0 / log(10.0) * log((double)(tAD0 + 1.0) / (tDP0 + 1.0)) * 2.0 + 80.0;
-        double tn_npowq = 10.0 / log(10.0) * log((double)(nAD0 + 1.0) / (nDP0 + 1.0)) * 2.0 + 80.0;
+        double tn_tpowq = 10.0 / log(10.0) * log((double)(tAD0 + 1.0) / (tDP0 + 1.0)) * pl_exponent + 80.0;
+        double tn_npowq = 10.0 / log(10.0) * log((double)(nAD0 + 1.0) / (nDP0 + 1.0)) * pl_exponent + 80.0;
         double tn_tsamq = 40.0 * pow(0.5, (double)tAD0);// (tAD0 <= 2 ? 8.0 : 0.0);
         // MAX(0.0, tn_tpowq - 16.0 * pow(0.5, (double)tAD0 - 1.0)); // 10.0 / log(10.0) * log((double)(tDP1 + tAD1 + eps_qual) / (double)(tAD1 + eps_qual)) * tAD0 / 1.25;
         double tn_nsamq = 40.0 * pow(0.5, (double)nAD0); // (nAD0 <= 2 ? 8.0 : 0.0);
@@ -2373,30 +2374,30 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         // double tn_tva2q = tn_mcoef * (tn_tvarq + tn_diffq);
         // vcfqual = MIN(tn_tva2q, phred_non_germ);
         
-        double tn_cont_nor = MIN(2.0, ((double)(nAD0 + 1) / (double)(nDP0 - nAD0 + 1)));
-        double tn_cont_tor = MIN(2.0, ((double)(tAD0 + 1) / (double)(tDP0 - tAD0 + 1)));
+        // double tn_cont_nor = MIN(2.0, ((double)(nAD0 + 1) / (double)(nDP0 - nAD0 + 1)));
+        // double tn_cont_tor = MIN(2.0, ((double)(tAD0 + 1) / (double)(tDP0 - tAD0 + 1)));
         
         //double tn_cont_exp = 0.1; // 5; // by default
-        double tn_cont_obs = tn_cont_nor / tn_cont_tor;
+        // double tn_cont_obs = tn_cont_nor / tn_cont_tor;
         //double tn_cont_rat = (tn_cont_obs / tn_cont_exp);
         //double tn_cont_powlawq = 10.0 / log(10.0) * log(MAX(tn_cont_rat, 1.0)) * 2.0 * 4.0 * MIN(1.0, tn_cont_obs * tn_cont_obs); // bigger implies less quality
         
-        double reduction_coef = (double)tAD0 / ((double)tAD0 + 0*1.0 
-            + 2.0 * (MAX(0.0, fmt.MQ - tki.MQ) / (MAX(fmt.MQ,tki.MQ) +  DBL_EPSILON))
+        double reduction_coef = (double)tAD0 / ((double)tAD0 + DBL_EPSILON + 0*1.0 
+            + 2.0 * (MAX(0.0, 60.0 - tki.MQ) / (MAX(60.0 ,tki.MQ) +  DBL_EPSILON))
             + 0.0 * (1.0 - tAD1 / MAX(tDP1 - tRD1, tAD1)));
         
         double tn_diffq = MIN(tnlike_alt1, upper_alt);
         
-        //double tn_systq = MIN(tnlike_alt1, tn_tpowq + upper_alt);
+        double tn_systq = MIN(tnlike_alt1, tn_tpowq + upper_alt);// TODO: check if this is needed.
         //double tn_randq = tn_tvarq + tn_diffq - tn_nvarq;
         //double tn_contq = tn_tvarq + tn_diffq - tn_cont_powlawq;
         
-        double vq1time = 10.0 / MIN(1.0, tn_cont_obs * tn_cont_obs) - 10.0;
-        double vq1plus = tn_tvarq - tn_nvarq;
-        double vq2succ = tn_tvarq + tn_diffq;
+        //double vq1time = 10.0 / MIN(1.0, tn_cont_obs * tn_cont_obs) - 10.0;
+        //double vq1plus = tn_tvarq - tn_nvarq;
+        //double vq2succ = tn_tvarq + tn_diffq;
         
-        vcfqual = reduction_coef * MIN(MIN(MAX(vq1time, vq1plus), vq2succ), phred_non_germ);
-        
+        // vcfqual = reduction_coef * MIN(MIN(MAX(vq1time, vq1plus), vq2succ), phred_non_germ);
+        vcfqual = reduction_coef * MIN(tn_tvarq + MIN(10.0 * pl_exponent, tn_diffq) - MIN(10.0 * pl_exponent, tn_nvarq), phred_non_germ);
         /*
         vcfqual = reduction_coef * MIN(MAX(MAX(
                   tn_systq // tumor has signal and random noise, normal has random noise // * (double)nAD0 / (double)(nAD0 + 1), 
@@ -2409,12 +2410,14 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         //double tnq_val = tnq_onlyT - (0.5 / MAX(10.0, (double)tvn_vaq)); // + MIN(20.0, tvn_vaq) / 10; // + (tnq_TandN * tnq_mult);
         // vcfqual = MIN(tnq_val, phred_non_germ);
         
-        infostring += std::string(";TNQ=") + string_join(std::array<std::string, 4>({std::to_string(vq1time), std::to_string(vq1plus), std::to_string(vq2succ), std::to_string(phred_non_germ)}));
+        // infostring += std::string(";TNQ=") + string_join(std::array<std::string, 4>({std::to_string(vq1time), std::to_string(vq1plus), std::to_string(vq2succ), std::to_string(phred_non_germ)}));
 
         //infostring += std::string(";TNQ=") + string_join(std::array<std::string, 4>({std::to_string(tn_systq), std::to_string(tn_randq),
         //        std::to_string(tn_contq), std::to_string(phred_non_germ)}));
-        infostring += std::string(";TNNQ=") + string_join(std::array<std::string, 4>({std::to_string(tn_nvarq), std::to_string(tn_npowq), std::to_string(tn_nsamq), std::to_string(fmt.VAQ)}));
-        infostring += std::string(";TNTQ=") + string_join(std::array<std::string, 4>({std::to_string(tn_tvarq), std::to_string(tn_tpowq), std::to_string(tn_tsamq), std::to_string(tki.VAQ)}));
+        
+        infostring += std::string(";TNQ=") + string_join(std::array<std::string, 4>({std::to_string(tn_diffq), std::to_string(upper_alt), std::to_string(tnlike_alt1), std::to_string(phred_non_germ)}));
+        infostring += std::string(";TNNQ=") + string_join(std::array<std::string, 4>({std::to_string(tn_nvarq), std::to_string(tn_npowq), std::to_string(fmt.VAQ), std::to_string(tn_tsamq)}));
+        infostring += std::string(";TNTQ=") + string_join(std::array<std::string, 4>({std::to_string(tn_tvarq), std::to_string(tn_tpowq), std::to_string(tki.VAQ), std::to_string(tn_nsamq)}));
         infostring += std::string(";tDP=") + std::to_string(tki.DP);
         infostring += std::string(";tFA=") + std::to_string(tki.FA);
         infostring += std::string(";tFR=") + std::to_string(tki.FR);
@@ -2426,7 +2429,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         infostring += std::string(";tAltHD=") + std::to_string(tki.autoBestAltHD);
         infostring += std::string(";tAllHD=") + std::to_string(tki.autoBestAllHD);
         infostring += std::string(";tMQ=") + std::to_string(tki.MQ);
-        infostring += std::string(";TNQA=") + string_join(std::array<std::string, 4>({std::to_string(tnlike_alt1), std::to_string(upper_alt), std::to_string(tnlike_argmin), std::to_string(reduction_coef)}));
+        infostring += std::string(";TNQA=") + string_join(std::array<std::string, 4>({std::to_string(tn_systq), std::to_string(upper_alt), std::to_string(tnlike_argmin), std::to_string(reduction_coef)}));
         
         // auto finalGQ = (("1/0" == fmt.GT) ? fmt.GQ : 0); // is probably redundant?
         /*
