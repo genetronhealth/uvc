@@ -2281,7 +2281,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         
         vcfpos = (tki.ref_alt != "." ? (tki.pos + 1) : vcfpos);
         ref_alt = (tki.ref_alt != "." ? tki.ref_alt : vcfref + "\t" + vcfalt);
-        const double depth_pseudocount = highqual_thres; // 1.0;
+        const double depth_pseudocount = (double)FLT_EPSILON; // highqual_thres; // 1.0;
         
         const bool tUseHD =  (tki.bDP > tki.DP * highqual_min_ratio);
         const bool nUseHD = ((fmt.bDP > fmt.DP * highqual_min_ratio) && tUseHD); 
