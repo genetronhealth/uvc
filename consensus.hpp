@@ -2104,7 +2104,7 @@ generateVcfHeader(const char *ref_fasta_fname, const char *platform,
         // ret += std::string(";TQ") + std::to_string(i) + "=" + std::to_string(testquals[i]); 
         ret += "##INFO=<ID=TQ" + std::to_string(i) +",Number=1,Type=Float,Description=\"Variant quality computed by the model " + std::to_string(i) +"\">\n";
     }
-    ret += "##INFO=<ID=TNQ,Number=.,Type=Float,Description=\"For t-vs-n: allele-fraction variant quality (VQ), raw VQ, and contamination VQ\">\n";
+    ret += "##INFO=<ID=TNQ,Number=.,Type=Float,Description=\"For t-vs-n: allele-fraction variant quality (VQ), raw VQ, contamination VQ, and statistical noise VQ\">\n";
     ret += "##INFO=<ID=TNQA,Number=.,Type=Float,Description=\"Germline-exclusion quality, argmin for t-vs-n raw VQ, and coefficient for final variant call.\">\n";
     ret += "##INFO=<ID=TNNQ,Number=.,Type=Float,Description=\"For only tumor  sample: allele-fraction variant quality (VQ), raw VQ, and raw adjustment quality\">\n";
     ret += "##INFO=<ID=TNTQ,Number=.,Type=Float,Description=\"For only normal sample: allele-fraction variant quality (VQ), raw VQ, and raw adjustment quality\">\n";
@@ -2440,7 +2440,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         for (int i = 0; i < N_MODELS; i++) {
             infostring += std::string(";TQ") + std::to_string(i) + "=" + std::to_string(testquals[i]); 
         }
-        infostring += std::string(";TNQ=")  + string_join(std::array<std::string, 3>({std::to_string(tvn_powq), std::to_string(tvn_rawq), std::to_string(tvn_or_q)}));
+        infostring += std::string(";TNQ=")  + string_join(std::array<std::string, 4>({std::to_string(tvn_powq), std::to_string(tvn_rawq), std::to_string(tvn_or_q), std::to_string(tvn_st_q)}));
         infostring += std::string(";TNQA=") + string_join(std::array<std::string, 3>({std::to_string(phred_non_germ), std::to_string(tnlike_argmin), std::to_string(reduction_coef)}));
         infostring += std::string(";TNNQ=") + string_join(std::array<std::string, 3>({std::to_string(tn_npowq), std::to_string(fmt.VAQ), std::to_string(tn_tsamq)}));
         infostring += std::string(";TNTQ=") + string_join(std::array<std::string, 3>({std::to_string(tn_tpowq), std::to_string(tki.VAQ), std::to_string(tn_nsamq)}));
