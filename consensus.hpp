@@ -2471,8 +2471,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         infostring += std::string(";TNQ=")  + string_join(std::array<std::string, 4>({std::to_string(tvn_powq), std::to_string(tvn_rawq), std::to_string(tvn_or_q), std::to_string(tvn_st_q)}));
         infostring += std::string(";TNQA=") + string_join(std::array<std::string, 5>({std::to_string(phred_non_germ), std::to_string(tnlike_argmin), std::to_string(reduction_coef)
                 , std::to_string(add_contam_phred), std::to_string(mul_contam_phred)}));
-        infostring += std::string(";TNNQ=") + string_join(std::array<std::string, 3>({std::to_string(tn_npowq), std::to_string(fmt.VAQ), std::to_string(tn_tsamq)}));
-        infostring += std::string(";TNTQ=") + string_join(std::array<std::string, 3>({std::to_string(tn_tpowq), std::to_string(tki.VAQ), std::to_string(tn_nsamq)}));
+        infostring += std::string(";TNNQ=") + string_join(std::array<std::string, 3>({std::to_string(tn_npowq), std::to_string(fmt.VAQ), std::to_string(tn_nsamq)}));
+        infostring += std::string(";TNTQ=") + string_join(std::array<std::string, 3>({std::to_string(tn_tpowq), std::to_string(tki.VAQ), std::to_string(tn_tsamq)}));
         infostring += std::string(";tDP=") + std::to_string(tki.DP);
         infostring += std::string(";tFA=") + std::to_string(tki.FA);
         infostring += std::string(";tFR=") + std::to_string(tki.FR);
