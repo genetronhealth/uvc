@@ -127,13 +127,13 @@ calc_uninomial_10log10_likeratio(double prob, double a, double b) {
 }
 
 template <bool TIsBiDirectional = false>
-double
+constexpr double
 calc_binom_10log10_likeratio(double prob, double a, double b) {
     assert(prob > 0 && prob < 1);
     a += DBL_EPSILON;
     b += DBL_EPSILON;
-    double A =  prob       * (a + b);
-    double B = (prob -1.0) * (a + b);
+    double A = (      prob) * (a + b);
+    double B = (1.0 - prob) * (a + b);
     if (TIsBiDirectional || a > A) {
         // likeratio = pow(a / A, a) * pow(b / B, b);
         return 10.0 / log(10.0) * (a * log(a / A) + b * log(b / B));
@@ -141,6 +141,11 @@ calc_binom_10log10_likeratio(double prob, double a, double b) {
         return 0.0;
     }
 }
+
+static_assert(abs(calc_binom_10log10_likeratio(0.1, 10, 90)) < 1e-4);
+static_assert(calc_binom_10log10_likeratio(0.1, 90, 10) > 763); // 10/log(10) * (90*log(9)+10*log(1/9))
+static_assert(calc_binom_10log10_likeratio(0.1, 90, 10) < 764); // 10/log(10) * (90*log(9)+10*log(1/9))
+static_assert(abs(calc_binom_10log10_likeratio(0.1, 1, 99)) < 1e-4); // 10/log(10) * (90*log(9)+10*log(1/9))
 
 auto 
 calc_phred10_likeratio(auto prob, auto a, auto b) {
