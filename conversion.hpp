@@ -126,7 +126,7 @@ calc_uninomial_10log10_likeratio(double prob, double a, double b) {
     return 10.0/log(10.0) * MIN(a, b) * log((a + DBL_EPSILON) / (b + DBL_EPSILON) / (prob + DBL_EPSILON));
 }
 
-template <TIsBiDirectional = false>
+template <bool TIsBiDirectional = false>
 double
 calc_binom_10log10_likeratio(double prob, double a, double b) {
     assert(prob > 0 && prob < 1);
