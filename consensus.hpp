@@ -2105,7 +2105,7 @@ generateVcfHeader(const char *ref_fasta_fname, const char *platform,
         ret += "##INFO=<ID=TQ" + std::to_string(i) +",Number=1,Type=Float,Description=\"Variant quality computed by the model " + std::to_string(i) +"\">\n";
     }
     ret += "##INFO=<ID=TNQ,Number=.,Type=Float,Description=\"For t-vs-n: allele-fraction variant quality (VQ), raw VQ, contamination VQ, and statistical noise VQ\">\n";
-    ret += "##INFO=<ID=TNQA,Number=.,Type=Float,Description=\"Germline-exclusion quality, argmin for t-vs-n raw VQ, and coefficient for final variant call.\">\n";
+    ret += "##INFO=<ID=TNQA,Number=.,Type=Float,Description=\"Germline-exclusion quality, argmin for t-vs-n raw VQ, coefficient for final variant call, additive contamination score, and multiplicative contamination score.\">\n";
     ret += "##INFO=<ID=TNNQ,Number=.,Type=Float,Description=\"For only tumor  sample: allele-fraction variant quality (VQ), raw VQ, and raw adjustment quality\">\n";
     ret += "##INFO=<ID=TNTQ,Number=.,Type=Float,Description=\"For only normal sample: allele-fraction variant quality (VQ), raw VQ, and raw adjustment quality\">\n";
     ret += "##INFO=<ID=tDP,Number=1,Type=Integer,Description=\"Tumor-sample DP\">\n";
@@ -2386,8 +2386,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         double tvn_or_q = 15.0 / MIN(1.0, tn_cont_obs * tn_cont_obs) - 15.0;
         double tvn_st_q = 10.0/log(10.0) * log((tAD1/tDP1) / (nAD1/nDP1)) * tAD0;
         
-        double add_contam_phred = MAX(0.0, calc_uninomial_10log10_likeratio(add_contam_rate, nAD0, tAD0)); // 0.2 max 0.02 min
-        double mul_contam_phred = MAX(0.0, calc_uninomial_10log10_likeratio(mul_contam_rate, nAD0, tAD0 * (double)(nDP0 + 1) / (double)(tDP0 + 1))); 
+        double add_contam_phred = MAX(0.0, calc_uninomial_10log10_likeratio(add_contam_rate, (double)nAD0, (double)tAD0)); // 0.2 max 0.02 min
+        double mul_contam_phred = MAX(0.0, calc_uninomial_10log10_likeratio(mul_contam_rate, (double)nAD0, (double)tAD0 * (double)(nDP0 + 1) / (double)(tDP0 + 1))); 
         // TODO: fill // mul_contam_rate < add_contam_rate
         double contam_phred = MIN(add_contam_phred, mul_contam_phred); // select most likely contam model
         
@@ -2469,7 +2469,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
             infostring += std::string(";TQ") + std::to_string(i) + "=" + std::to_string(testquals[i]); 
         }
         infostring += std::string(";TNQ=")  + string_join(std::array<std::string, 4>({std::to_string(tvn_powq), std::to_string(tvn_rawq), std::to_string(tvn_or_q), std::to_string(tvn_st_q)}));
-        infostring += std::string(";TNQA=") + string_join(std::array<std::string, 3>({std::to_string(phred_non_germ), std::to_string(tnlike_argmin), std::to_string(reduction_coef)}));
+        infostring += std::string(";TNQA=") + string_join(std::array<std::string, 5>({std::to_string(phred_non_germ), std::to_string(tnlike_argmin), std::to_string(reduction_coef)
+                , std::to_string(add_contam_phred), std::to_string(mul_contam_phred)}));
         infostring += std::string(";TNNQ=") + string_join(std::array<std::string, 3>({std::to_string(tn_npowq), std::to_string(fmt.VAQ), std::to_string(tn_tsamq)}));
         infostring += std::string(";TNTQ=") + string_join(std::array<std::string, 3>({std::to_string(tn_tpowq), std::to_string(tki.VAQ), std::to_string(tn_nsamq)}));
         infostring += std::string(";tDP=") + std::to_string(tki.DP);
