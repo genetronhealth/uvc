@@ -122,7 +122,7 @@ calc_directional_likeratio(double prob, double a, double b) {
 auto 
 calc_uninomial_10log10_likeratio(double prob, double a, double b) {
     // 10*log_10(pow((a / b) / prob, MIN(a, b)));
-    return 10.0/log(10.0) * MIN(a, b) * log(a / (b + DBL_EPSILON) / (prob + DBL_EPSILON));
+    return 10.0/log(10.0) * MIN(a, b) * log((a + DBL_EPSILON) / (b + DBL_EPSILON) / (prob + DBL_EPSILON));
 }
 
 auto 
