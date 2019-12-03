@@ -119,6 +119,11 @@ auto
 calc_directional_likeratio(double prob, double a, double b) {
     return a * (log((double)a / (double)(a+b)) - log(prob))  + b * (log((double)b / (double)(a+b)) - log(1.0-prob));
 }
+auto 
+calc_uninomial_10log10_likeratio(double prob, double a, double b) {
+    // 10*log_10(pow((a / b) / prob, MIN(a, b)));
+    return 10.0/log(10.0) * MIN(a, b) * log(a / (b + DBL_EPSILON) / (prob + DBL_EPSILON));
+}
 
 auto 
 calc_phred10_likeratio(auto prob, auto a, auto b) {

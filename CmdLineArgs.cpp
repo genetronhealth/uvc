@@ -242,6 +242,9 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     app.add_option("--str-tier-qual",        str_tier_qual,               "InDel variant quality above this is subject to diminushing effect due to short tandem repeats STR", true);
     app.add_option("--str-tier1len",         str_tier1len,                "Additive smooth factor for STR with diminushing-return formula 1/(num-bases-in-STR-region)", true); 
     app.add_option("--str-tier2len",         str_tier2len,                "--str-tier1len for UMI data", true); 
+    
+    app.add_option("--add-contam-rate",      add_contam_rate,             "Additive contamination rate", true);
+    app.add_option("--mul-contam-rate",      mul_contam_rate,             "Multiplicative contamination rate", true); 
 
     app.add_flag("--Should-add-note",        should_add_note,             "Flag indicating if the program generates more detail in the VCF result file.");
     

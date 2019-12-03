@@ -2099,7 +2099,7 @@ generateVcfHeader(const char *ref_fasta_fname, const char *platform,
     
     ret += "##INFO=<ID=ANY_VAR,Number=0,Type=Flag,Description=\"Any type of variant which may be caused by germline polymorphism and/or experimental artifact\">\n";
     ret += "##INFO=<ID=SOMATIC,Number=0,Type=Flag,Description=\"Somatic variant\">\n";
-#define N_MODELS 11
+#define N_MODELS 23 // 11
     for (int i = 0; i < N_MODELS; i++) {
         // ret += std::string(";TQ") + std::to_string(i) + "=" + std::to_string(testquals[i]); 
         ret += "##INFO=<ID=TQ" + std::to_string(i) +",Number=1,Type=Float,Description=\"Variant quality computed by the model " + std::to_string(i) +"\">\n";
@@ -2199,12 +2199,14 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         , const double       str_tier_qual // = 50;
         , const unsigned int str_tier1len // = 16;
         , const unsigned int str_tier2len // = 16;
-       , const unsigned int uni_bias_thres
+        , const unsigned int uni_bias_thres
         , const bcf_hdr_t *g_bcf_hdr, const bool is_tumor_format_retrieved
         , const unsigned int highqual_thres
         , const double highqual_min_ratio
         , const double diffVAQfrac
         , const double phred_sys_artifact
+        , const double add_contam_rate
+        , const double mul_contam_rate
         //, unsigned int highqual_min_vardep
         //, unsigned int highqual_min_totdep
         ) {
@@ -2378,12 +2380,17 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         // MAX(0.0, tn_npowq - 16.0 * pow(0.5, (double)nAD0 - 1.0)); // 10.0 / log(10.0) * log((double)(nDP1 + nAD1 + eps_qual) / (double)(nAD1 + eps_qual)) * nAD0 / 1.25;
         double tn_trawq = (double)tki.VAQ; //MIN(MAX((double)tki.VAQ - tn_tsamq * 0, 0.0), tn_tpowq);
         double tn_nrawq = (double)fmt.VAQ; //MIN(MAX((double)fmt.VAQ - tn_nsamq * 0, 0.0), tn_npowq);
-                double tn_cont_nor = MIN(2.0, ((double)(nAD0 + 1) / (double)(nDP0 - nAD0 + 1)));
+        double tn_cont_nor = MIN(2.0, ((double)(nAD0 + 1) / (double)(nDP0 - nAD0 + 1)));
         double tn_cont_tor = MIN(2.0, ((double)(tAD0 + 1) / (double)(tDP0 - tAD0 + 1)));
         double tn_cont_obs = tn_cont_nor / tn_cont_tor;
         double tvn_or_q = 15.0 / MIN(1.0, tn_cont_obs * tn_cont_obs) - 15.0;
         double tvn_st_q = 10.0/log(10.0) * log((tAD1/tDP1) / (nAD1/nDP1)) * tAD0;
-
+        
+        double add_contam_phred = MAX(0.0, calc_uninomial_10log10_likeratio(add_contam_rate, nAD0, tAD0)); // 0.2 max 0.02 min
+        double mul_contam_phred = MAX(0.0, calc_uninomial_10log10_likeratio(mul_contam_rate, nAD0, tAD0 * (double)(nDP0 + 1) / (double)(tDP0 + 1))); 
+        // TODO: fill // mul_contam_rate < add_contam_rate
+        double contam_phred = MIN(add_contam_phred, mul_contam_phred); // select most likely contam model
+        
         //double tn_tfrac = (tAD1 / (tDP1 + eps));
         //double tn_nfrac = (nAD1 / (nDP1 + eps));
         //double tn_mcoef = tn_tfrac / (tn_tfrac + tn_nfrac + eps);
@@ -2400,20 +2407,41 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         //double vq1time = 10.0 / MIN(1.0, tn_cont_obs * tn_cont_obs) - 10.0;
         //double vq1plus = tn_trawq - tn_nrawq;
         //double vq2succ = tn_trawq + tn_diffq;
-
+        
 // #define N_MODELS 8
-        std::array<double, N_MODELS> testquals = {0, 0, 0, 0, 0, 0, 0, 0};
-        testquals[0] = MIN(tn_trawq, tn_tpowq + tvn_powq) - MIN(tn_nrawq, MAX(0.0, tn_npowq - tvn_or_q));
-        testquals[1] = MIN(tn_trawq, tvn_rawq * 2 + 30);
-        testquals[2] = MIN(tn_trawq, tvn_rawq     + tn_tpowq);
-        testquals[3] = MIN(tn_trawq - tn_nrawq + 0       , tn_tpowq - MAX(0.0, tn_npowq - tvn_or_q) + tvn_powq);
-        testquals[4] = MIN(tn_trawq - tn_nrawq + tvn_rawq, tn_tpowq - MAX(0.0, tn_npowq - tvn_or_q) + tvn_powq);
-        testquals[5] = MIN(tn_trawq, tn_tpowq) + MIN(tvn_rawq, tvn_powq) - MIN(30.0, MIN(tn_nrawq, tn_npowq));
-        testquals[6] = MIN(tn_trawq, tn_tpowq) + MIN(tvn_rawq, tvn_powq) - MAX(0.0 , MIN(tn_nrawq, tn_npowq) - tvn_or_q);
-        testquals[7] = MAX(MIN(tn_trawq, tn_tpowq) + MIN(tvn_rawq, tvn_powq) - MIN(tn_nrawq, tn_npowq), MIN(MIN(tn_trawq, tn_tpowq) + MIN(tvn_rawq, tvn_powq), tvn_or_q)); 
-        testquals[8] = MIN(tn_trawq - tn_nrawq, tn_tpowq + tvn_powq);
-        testquals[9] = MIN(MIN(MIN(tn_trawq, tn_tpowq + tvn_powq), tvn_or_q), tvn_st_q);
-        testquals[10]= MIN(MIN(MIN(tn_trawq, tn_tpowq + tvn_powq), tvn_or_q), tvn_st_q + 30.0);
+        std::array<double, N_MODELS> testquals = {0};
+        unsigned int tqi = 0;
+        // 0
+        testquals[tqi++] = MIN(tn_trawq, tn_tpowq + tvn_powq) - MIN(tn_nrawq, MAX(0.0, tn_npowq - tvn_or_q));
+        testquals[tqi++] = MIN(tn_trawq, tvn_rawq * 2 + 30);
+        testquals[tqi++] = MIN(tn_trawq, tvn_rawq     + tn_tpowq);
+        testquals[tqi++] = MIN(tn_trawq - tn_nrawq + 0       , tn_tpowq - MAX(0.0, tn_npowq - tvn_or_q) + tvn_powq);
+        testquals[tqi++] = MIN(tn_trawq - tn_nrawq + tvn_rawq, tn_tpowq - MAX(0.0, tn_npowq - tvn_or_q) + tvn_powq);
+        // 5
+        testquals[tqi++] = MIN(tn_trawq, tn_tpowq) + MIN(tvn_rawq, tvn_powq) - MIN(30.0, MIN(tn_nrawq, tn_npowq));
+        testquals[tqi++] = MIN(tn_trawq, tn_tpowq) + MIN(tvn_rawq, tvn_powq) - MAX(0.0 , MIN(tn_nrawq, tn_npowq) - tvn_or_q);
+        testquals[tqi++] = MAX(MIN(tn_trawq, tn_tpowq) + MIN(tvn_rawq, tvn_powq) - MIN(tn_nrawq, tn_npowq), MIN(MIN(tn_trawq, tn_tpowq) + MIN(tvn_rawq, tvn_powq), tvn_or_q)); 
+        testquals[tqi++] = MIN(tn_trawq - tn_nrawq, tn_tpowq + tvn_powq);
+        testquals[tqi++] = MIN(MIN(MIN(tn_trawq, tn_tpowq + tvn_powq), tvn_or_q), tvn_st_q);
+        // 10
+        testquals[tqi++]= MIN(MIN(MIN(tn_trawq, tn_tpowq + tvn_powq), tvn_or_q), tvn_st_q + 30.0);
+        
+        testquals[tqi++] = MIN(tn_trawq, tn_tpowq) + tvn_powq  - MAX(0.0, MIN(tn_nrawq, tn_npowq           ) - tvn_or_q);
+        testquals[tqi++] = MIN(tn_trawq, tn_tpowq) + tvn_powq  - MAX(0.0, MIN(tn_nrawq, tn_npowq - tvn_powq) - tvn_or_q);
+        testquals[tqi++] = MIN(tn_trawq, tn_tpowq  + tvn_powq) - MAX(0.0, MIN(tn_nrawq, tn_npowq           ) - tvn_or_q);
+        testquals[tqi++] = MIN(tn_trawq, tn_tpowq  + tvn_powq) - MAX(0.0, MIN(tn_nrawq, tn_npowq - tvn_powq) - tvn_or_q);
+        // 15
+        testquals[tqi++] = MIN(tn_trawq, tn_tpowq) + MIN(tvn_rawq, tvn_powq) - MIN(MIN(tn_nrawq, tn_npowq           ), add_contam_phred);
+        testquals[tqi++] = MIN(tn_trawq, tn_tpowq) +               tvn_powq  - MIN(MIN(tn_nrawq, tn_npowq           ), add_contam_phred);
+        testquals[tqi++] = MIN(tn_trawq, tn_tpowq                + tvn_powq) - MIN(MIN(tn_nrawq, tn_npowq           ), add_contam_phred);
+        testquals[tqi++] = MIN(tn_trawq, tn_tpowq                + tvn_powq) - MIN(MIN(tn_nrawq, tn_npowq - tvn_powq), add_contam_phred);
+        
+        testquals[tqi++] = MIN(tn_trawq, tn_tpowq) + MIN(tvn_rawq, tvn_powq) - MIN(MIN(tn_nrawq, tn_npowq           ), contam_phred);
+        // 20
+        testquals[tqi++] = MIN(tn_trawq, tn_tpowq) +               tvn_powq  - MIN(MIN(tn_nrawq, tn_npowq           ), contam_phred);
+        testquals[tqi++] = MIN(tn_trawq, tn_tpowq                + tvn_powq) - MIN(MIN(tn_nrawq, tn_npowq           ), contam_phred);
+        testquals[tqi++] = MIN(tn_trawq, tn_tpowq                + tvn_powq) - MIN(MIN(tn_nrawq, tn_npowq - tvn_powq), contam_phred);
+        
         for (int i = 0; i < N_MODELS; i++) {
             testquals[i] = MIN(reduction_coef * testquals[i], phred_non_germ);
         }
