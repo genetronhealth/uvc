@@ -2385,10 +2385,17 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         double tn_cont_obs = tn_cont_nor / tn_cont_tor;
         double tvn_or_q = 15.0 / MIN(1.0, tn_cont_obs * tn_cont_obs) - 15.0;
         double tvn_st_q = 10.0/log(10.0) * log((tAD1/tDP1) / (nAD1/nDP1)) * tAD0;
-        
-        double add_contam_phred = MAX(0.0, calc_uninomial_10log10_likeratio(add_contam_rate, (double)nAD0, (double)tAD0)); // 0.2 max 0.02 min
-        double mul_contam_phred = MAX(0.0, calc_uninomial_10log10_likeratio(mul_contam_rate, (double)nAD0, (double)tAD0 * (double)(nDP0 + 1) / (double)(tDP0 + 1))); 
+       
+        //double add_contam_phred = MAX(0.0, calc_uninomial_10log10_likeratio(add_contam_rate, (double)nAD0, (double)tAD0)); // 0.2 max 0.02 min
+        //double mul_contam_phred = MAX(0.0, calc_uninomial_10log10_likeratio(mul_contam_rate, (double)nAD0, (double)tAD0 * (double)(nDP0 + 1) / (double)(tDP0 + 1))); 
         // TODO: fill // mul_contam_rate < add_contam_rate
+        double ntfrac = (double)(nDP0 + 1) / (double)(tDP0 + 1);
+        
+        double add_contam_phred = calc_binom_10log10_likeratio(add_contam_rate, (double)nAD0, (double)tAD0); // 0.2 max 0.02 min
+        double mul_contam_phred = (nDP0 < tDP0 
+            ? calc_binom_10log10_likeratio(mul_contam_rate, (double)nAD0         , (double)tAD0 * ntfrac)
+            : calc_binom_10log10_likeratio(mul_contam_rate, (double)nAD0 / ntfrac, (double)tAD0)
+        );
         double contam_phred = MIN(add_contam_phred, mul_contam_phred); // select most likely contam model
         
         //double tn_tfrac = (tAD1 / (tDP1 + eps));

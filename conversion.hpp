@@ -119,10 +119,27 @@ auto
 calc_directional_likeratio(double prob, double a, double b) {
     return a * (log((double)a / (double)(a+b)) - log(prob))  + b * (log((double)b / (double)(a+b)) - log(1.0-prob));
 }
+
 auto 
 calc_uninomial_10log10_likeratio(double prob, double a, double b) {
     // 10*log_10(pow((a / b) / prob, MIN(a, b)));
     return 10.0/log(10.0) * MIN(a, b) * log((a + DBL_EPSILON) / (b + DBL_EPSILON) / (prob + DBL_EPSILON));
+}
+
+template <TIsBiDirectional = false>
+double
+calc_binom_10log10_likeratio(double prob, double a, double b) {
+    assert(prob > 0 && prob < 1);
+    a += DBL_EPSILON;
+    b += DBL_EPSILON;
+    double A =  prob       * (a + b);
+    double B = (prob -1.0) * (a + b);
+    if (TIsBiDirectional || a > A) {
+        // likeratio = pow(a / A, a) * pow(b / B, b);
+        return 10.0 / log(10.0) * (a * log(a / A) + b * log(b / B));
+    } else {
+        return 0.0;
+    }
 }
 
 auto 
