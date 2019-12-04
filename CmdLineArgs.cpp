@@ -155,7 +155,8 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     app.add_option("--mapqual",      min_mapqual,       "Minimum mapping  quality below which the alignment is filtered out (如果比对质量低于此值则过滤掉一行的比对结果).", true);
     app.add_option("--fixedthresBQ", fixedthresBQ,      "Base quality cutoff. This parameter is only for generating statistics and therefore does not affect variant quality (碱基质量阈值，只用于统计，不影响变异质量).", true);
     app.add_option("--nogap-phred",  nogap_phred,       "Base quality for the symbol denoting non-InDel, can solve disconcordant alignment problem in the overlap between R1 and R2, This parameter is now obsolete because the current R1-R2 merge considers symbols to be merged so that InDels dominate over non-Indels. (合并 R1 和 R2 有可能遇到没有InDel和有InDel这种不一致情况，因此没有InDel的质量有这个上限，目前已废除).", true);
-
+    app.add_option("--vc-stats-fname", vc_stats_fname  ,"Output TSV file containing variant-call statistics. The default is the standard error stream. (含有检测变异统计信息的TSV文件，默认为标准错误输出).", true);
+    
     app.add_option("--uni-bias-thres", uni_bias_thres,  "Unified-bias threshold for generating the filter strings in FORMAT/FT. This parameter is only for generating statistics and therefore does not affect variant quality. Downstream hard filtering with FORMAT/FT is possible (统一偏好性的阈值，用于生成FORMAT/FT信息，只用于统计，不影响变异质量，FORMAT/FT可用于下游硬过滤). ", true);
     app.add_option("--uni-bias-r-max", uni_bias_r_max,  "Maximum unified-bias threshold used for reducing variant read support. This parameter does affect variant quality. (统一偏好性的最大值，用于减少变异支持，会影响变异质量). ", true);
     app.add_option("--diffVAQfrac",    diffVAQfrac,     "Experimental real-numbered parameter that should be set to either zero or one (实验性的实数参数，理论值要么是零要么是一). ", true);

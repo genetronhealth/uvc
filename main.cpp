@@ -150,6 +150,7 @@ bgzip_string(std::string & compressed_outstring, const std::string & uncompresse
 struct BatchArg {
     std::string outstring_allp;
     std::string outstring_pass;
+    VcStats vc_stats;
     unsigned int thread_id;
     hts_idx_t *hts_idx;
     faidx_t *ref_faidx;
@@ -610,6 +611,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
     
     std::string buf_out_string;
     std::string buf_out_string_pass;
+    
     const std::set<size_t> empty_size_t_set;
     const unsigned int capDP = 10*1000*1000;
     
@@ -732,7 +734,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                     if (is_rescued || pass_thres) {
                         fmt.CType = SYMBOL_TO_DESC_ARR[most_confident_symbol];
                         fmt.CAQ = most_confident_qual;
-                        appendVcfRecord(buf_out_string, buf_out_string_pass, symbolToCountCoverageSet12,
+                        appendVcfRecord(buf_out_string, buf_out_string_pass, arg.vc_stats 
+                                , symbolToCountCoverageSet12,
                                 std::get<0>(tname_tseqlen_tuple).c_str(), refpos, symbol, fmt,
                                 refstring, extended_inclu_beg_pos, paramset.vqual, should_output_all, should_let_all_pass,
                                 tki, paramset.vcf_tumor_fname.size() != 0, 
@@ -903,6 +906,8 @@ main(int argc, char **argv) {
         }
     }
     
+    VcStats all_vc_stats;
+
     bam_hdr_t * samheader = sam_hdr_read(samfiles[0]);
     std::string header_outstring = generateVcfHeader(paramset.fasta_ref_fname.c_str(), SEQUENCING_PLATFORM_TO_DESC.at(inferred_sequencing_platform).c_str(), 
             paramset.minABQ_pcr_snv, paramset.minABQ_pcr_indel, paramset.minABQ_cap_snv, paramset.minABQ_cap_indel, argc, argv, 
@@ -910,7 +915,7 @@ main(int argc, char **argv) {
             paramset.sample_name.c_str(), g_sample, paramset.is_tumor_format_retrieved);
     clearstring<false>(fp_allp, header_outstring);
     clearstring<false>(fp_pass, header_outstring, is_vcf_out_pass_to_stdout);
-    
+
     std::vector<std::tuple<unsigned int, unsigned int, unsigned int, bool, unsigned int>> tid_beg_end_e2e_tuple_vec1;
     std::vector<std::tuple<unsigned int, unsigned int, unsigned int, bool, unsigned int>> tid_beg_end_e2e_tuple_vec2;
     std::map<std::tuple<unsigned int, unsigned int, AlignmentSymbol>, TumorKeyInfo> tid_pos_symb_to_tki1; 
@@ -1009,6 +1014,7 @@ main(int argc, char **argv) {
             struct BatchArg a = {
                     outstring_allp : "",
                     outstring_pass : "",
+                    vc_stats : VcStats(),
                     thread_id : 0,
                     hts_idx : NULL, 
                     ref_faidx : NULL,
@@ -1088,6 +1094,7 @@ main(int argc, char **argv) {
             if (batchargs[beg_end_pair_idx].outstring_pass.size() > 0) {
                 clearstring<true>(fp_pass, batchargs[beg_end_pair_idx].outstring_pass); // empty string means end of file
             }
+            all_vc_stats.update(batchargs[beg_end_pair_idx].vc_stats);
         }
         read_bam_thread.join(); // end this iter
         for (auto tid_pos_symb_to_tki1_pair: tid_pos_symb_to_tki1) {
@@ -1097,6 +1104,12 @@ main(int argc, char **argv) {
         }
         autoswap(tid_beg_end_e2e_tuple_vec1, tid_beg_end_e2e_tuple_vec2);
         autoswap(tid_pos_symb_to_tki1, tid_pos_symb_to_tki2);
+    }
+    if (NOT_PROVIDED != paramset.vc_stats_fname) {
+        std::ofstream vc_stats_ofstream(paramset.vc_stats_fname.c_str());
+        all_vc_stats.write_tsv(vc_stats_ofstream);
+    } else {
+        all_vc_stats.write_tsv(std::cerr);
     }
     clearstring<true>(fp_allp, std::string("")); // write end of file
     clearstring<true>(fp_pass, std::string(""), is_vcf_out_pass_to_stdout);

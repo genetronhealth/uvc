@@ -1,10 +1,14 @@
 #ifndef common_INCLUDED
 #define common_INCLUDED
+
+#include <array>
 #include <string>
 #include <vector>
 
 #define NUM_BUCKETS (64+8)
 #define SIGN2UNSIGN(a) ((unsigned int)(a))
+
+#define VCFQUAL_NUM_BINS 100
 
 const char *const NOT_PROVIDED = "";
 
@@ -63,6 +67,47 @@ enum PairEndMerge {
 const std::vector<std::string> PAIR_END_MERGE_TO_MSG = {
     [PAIR_END_MERGE_YES] = "paired-end sequenced segments are merged (合并R1和R2)",
     [PAIR_END_MERGE_NO]  = "paired-end sequenced segments are not merged (不合并R1和R2)",
+};
+
+struct TnDP4 {
+    unsigned int nvars= 0;
+    unsigned int tuAD = 0;
+    unsigned int noAD = 0;
+    unsigned int tuDP = 0;
+    unsigned int noDP = 0;
+    TnDP4() {}
+};
+
+struct VcStats {
+    std::array<TnDP4, VCFQUAL_NUM_BINS> vcfqual_to_count = {TnDP4()};
+    
+    VcStats() {}
+    
+    void 
+    update(const VcStats & other) {
+        for (unsigned int i = 0; i < VCFQUAL_NUM_BINS; i++) { 
+            this->vcfqual_to_count[i].nvars+= other.vcfqual_to_count[i].nvars;
+            this->vcfqual_to_count[i].tuAD += other.vcfqual_to_count[i].tuAD;
+            this->vcfqual_to_count[i].noAD += other.vcfqual_to_count[i].noAD;
+            this->vcfqual_to_count[i].tuDP += other.vcfqual_to_count[i].tuDP;
+            this->vcfqual_to_count[i].noDP += other.vcfqual_to_count[i].noDP;
+        }
+    };
+    
+    int
+    write_tsv(auto & ostream) {
+        ostream <<"#Variant-quality\tnumber-of-calls\ttumor-AD\tnormal-AD\ttumor-DP\tnormal-DP\n";
+        for (unsigned int i = 0; i < VCFQUAL_NUM_BINS; i++) { 
+            ostream << i << "\t"; 
+            ostream << this->vcfqual_to_count[i].nvars<< "\t";
+            ostream << this->vcfqual_to_count[i].tuAD << "\t";
+            ostream << this->vcfqual_to_count[i].noAD << "\t";
+            ostream << this->vcfqual_to_count[i].tuDP << "\t";
+            ostream << this->vcfqual_to_count[i].noDP << "\n";
+        }
+        return 0;
+    }
+
 };
 
 /*

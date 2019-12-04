@@ -14,6 +14,7 @@ struct CommandLineArgs {
     std::string bed_region_fname = NOT_PROVIDED;    // bcftools view -R
     std::string vcf_tumor_fname = NOT_PROVIDED;
     std::string sample_name = "-";
+    std::string vc_stats_fname = NOT_PROVIDED;
     std::string tsv_primer_fname = NOT_PROVIDED;
     
     bool is_tumor_format_retrieved = false;

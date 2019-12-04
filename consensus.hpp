@@ -2177,7 +2177,8 @@ bcf1_to_string(const bcf_hdr_t *tki_bcf1_hdr, const bcf1_t *bcf1_record) {
 }
 
 int
-appendVcfRecord(std::string & out_string, std::string & out_string_pass, const Symbol2CountCoverageSet & symbol2CountCoverageSet, 
+appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats & vc_stats,
+        const Symbol2CountCoverageSet & symbol2CountCoverageSet, 
         const char *tname, unsigned int refpos, 
         const AlignmentSymbol symbol, bcfrec::BcfFormat & fmtvar, 
         const std::string & refstring,
@@ -2267,6 +2268,9 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
     //float vcfqual = fmt.VAQ2; // here we assume the matched normal is not available (yet)
     
     bool is_novar = (symbol == LINK_M || (isSymbolSubstitution(symbol) && vcfref == vcfalt));
+    if (is_novar && (!should_let_all_pass) && (!should_output_all)) {
+        return -1;
+    }
     std::string vcffilter;
     if (is_novar) {
         vcffilter += (std::string(bcfrec::FILTER_IDS[bcfrec::noVar]) + ";");
@@ -2341,7 +2345,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         double reduction_coef = (double)tAD0 / ((double)tAD0 + DBL_EPSILON + 0*1.0 
             + 2.0 * (MAX(0.0, 60.0 - tki.MQ) / (MAX(60.0 ,tki.MQ) +  DBL_EPSILON))
             + 0.0 * (1.0 - tAD1 / MAX(tDP1 - tRD1, tAD1)));
-
+        
         double tnlike_argmin = 0;
         // Any4Value bq4((nDP1 - nRD1) * (isInDel ? nonref_to_alt_frac_indel : nonref_to_alt_frac_snv) * nfreqmult + 1, nDP1 + 1, tAD1 + 1, tDP1 + 1);
         // double tnlike_nonref = bq4.to_phredlike(1)
@@ -2454,6 +2458,14 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
             testquals[i] = MIN(reduction_coef * testquals[i], phred_non_germ);
             vcfqual = MAX(vcfqual, testquals[i]);
         }
+        double median_qual = MEDIAN(std::array<double, N_MODELS>(testquals));
+        unsigned int median_intq = (unsigned int)MIN(MAX(0, (int)median_qual), VCFQUAL_NUM_BINS - 1);
+        vc_stats.vcfqual_to_count[median_intq].nvars+= 1;
+        vc_stats.vcfqual_to_count[median_intq].tuDP += tDP0;
+        vc_stats.vcfqual_to_count[median_intq].tuAD += tAD0;
+        vc_stats.vcfqual_to_count[median_intq].noDP += nDP0;
+        vc_stats.vcfqual_to_count[median_intq].noAD += nAD0;
+        
         // vcfqual = testquals[0];
         // vcfqual = reduction_coef * MIN(MIN(MAX(vq1time, vq1plus), vq2succ), phred_non_germ);
         // vcfqual = reduction_coef * MIN(tn_trawq + MIN(10.0 * pl_exponent, tn_diffq) - MIN(10.0 * pl_exponent, tn_nrawq), phred_non_germ);
@@ -2477,7 +2489,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         for (int i = 0; i < N_MODELS; i++) {
             infostring += std::string(";TQ") + std::to_string(i) + "=" + std::to_string(testquals[i]); 
         }
-        infostring += std::string(";TNQ=")  + string_join(std::array<std::string, 4>({std::to_string(tvn_powq), std::to_string(tvn_rawq), std::to_string(tvn_or_q), std::to_string(tvn_st_q)}));
+        infostring += std::string(";TNQ=")  + string_join(std::array<std::string, 5>({std::to_string(median_qual), std::to_string(tvn_powq), std::to_string(tvn_rawq), std::to_string(tvn_or_q), std::to_string(tvn_st_q)}));
         infostring += std::string(";TNQA=") + string_join(std::array<std::string, 5>({std::to_string(phred_non_germ), std::to_string(tnlike_argmin), std::to_string(reduction_coef)
                 , std::to_string(add_contam_phred), std::to_string(mul_contam_phred)}));
         infostring += std::string(";TNNQ=") + string_join(std::array<std::string, 3>({std::to_string(tn_npowq), std::to_string(fmt.VAQ), std::to_string(tn_nsamq)}));
