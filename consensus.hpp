@@ -2449,10 +2449,12 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, const S
         testquals[tqi++] = MIN(tn_trawq, tn_tpowq                + tvn_powq) - MIN(MIN(tn_nrawq, tn_npowq           ), contam_phred);
         testquals[tqi++] = MIN(tn_trawq, tn_tpowq                + tvn_powq) - MIN(MIN(tn_nrawq, tn_npowq - tvn_powq), contam_phred);
         
+        vcfqual = 0;
         for (int i = 0; i < N_MODELS; i++) {
             testquals[i] = MIN(reduction_coef * testquals[i], phred_non_germ);
+            vcfqual = MAX(vcfqual, testquals[i]);
         }
-        vcfqual = testquals[0];
+        // vcfqual = testquals[0];
         // vcfqual = reduction_coef * MIN(MIN(MAX(vq1time, vq1plus), vq2succ), phred_non_germ);
         // vcfqual = reduction_coef * MIN(tn_trawq + MIN(10.0 * pl_exponent, tn_diffq) - MIN(10.0 * pl_exponent, tn_nrawq), phred_non_germ);
         /*
