@@ -89,12 +89,12 @@ CommandLineArgs::selfUpdateByPlatform() {
         if (0 == highqual_thres_indel) { highqual_thres_indel = highqual_thres_snv - 4; }
     }
     if (SEQUENCING_PLATFORM_ILLUMINA == inferred_sequencing_platform && SEQUENCING_PLATFORM_OTHER != this->sequencing_platform) {
-        bq_phred_added_indel += 6; //10;
+        bq_phred_added_indel += 0; // 6; //10;
         bq_phred_added_misma += 0;
         minABQ_pcr_snv += 25;
         minABQ_pcr_indel += 18;
         minABQ_cap_snv += 20;
-        minABQ_cap_indel += 13;
+        minABQ_cap_indel += 5; // 13;
         if (0 == highqual_thres_indel) { highqual_thres_indel = highqual_thres_snv + 6; }
     }
     return inferred_sequencing_platform;
