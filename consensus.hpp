@@ -2237,8 +2237,8 @@ penal_indel(double qual, double ad, double od, const std::string & ru, const uns
         vcfqual = str_tier_qual + ((vcfqual - str_tier_qual) * str_tier_len / (str_tier_len + context_len));
     }
     vcfqual *= ad / (ad + 1.0);
-    auto od2 = MAX(ad, od);
-    vcfqual += 20.0 * log((ad + 1.0) / (od2 + 1.0)) / log(2.0);
+    auto od2 = MIN(ad* 3.0, MAX(ad, od));
+    vcfqual += 15.0 * log((ad + 1.0) / (od2 + 1.0)) / log(2.0);
     //vcfqual += MIN(15.0, (ru.size() * rc));
     return vcfqual;
 }
@@ -2332,8 +2332,9 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         vcfalt = altsymbolname;
     }
     
-    double indel_prior = ((0 == indelstring.size() || 0 == repeatunit.size() || 0 == repeatnum) ? 0.0 : (15.0 + indel_phred(2.0, indelstring.size(), repeatunit.size(), repeatnum)));
-    if (isInDel) {
+    const double indel_pp = 15.0; // probability of systematic indel error
+    double indel_prior = ((0 == indelstring.size() || 0 == repeatunit.size() || 0 == repeatnum) ? 0.0 : (indel_phred(2.0, indelstring.size(), repeatunit.size(), repeatnum)));
+    if (isInDel && (!prev_is_tumor)) {
         fmtvar.VAQ += indel_prior;
     }
     float vcfqual = fmt.VAQ; // TODO: investigate whether to use VAQ or VAQ2
@@ -2443,33 +2444,34 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         
         //auto upper_nonref = MIN(2.0 * MIN(tDP0, nDP0), 2.5 * 10.0 / log(10.0) * log((tAD1 / tDP1) / (nNRD1 / nDP1)));
         //tnlike_nonref = MAX(0.0, MIN(tnlike_nonref, upper_nonref));
-        
+        double tnDP0ratio = (double)(tDP0 + 1) / (double)(nDP0 + 1);
+
         double tvn_rawq = sumBQ4_to_phredlike(tnlike_argmin, nDP1, nAD1, tDP1, tAD1);
-        double tvn_powq = MIN(2.0 * MIN(tDP0, nDP0), pl_exponent * 10.0 / log(10.0) * log(((double)(tAD0+1) / (double)(tDP0+1)) / ((double)(nAD0+1)  / (double)(nDP0+1)))); 
-                
+        double tvn_powq = MIN(2.0 * MIN(tDP0, nDP0), pl_exponent * 10.0 / log(10.0) * log(((double)(tAD0 + tnDP0ratio) / (double)(tDP0 + tnDP0ratio)) / ((double)(nAD0 + 1)  / (double)(nDP0 + 1)))); 
+       
         // double tn_diffq = MIN(tnlike_alt, tnlike_nonref);
         
         // double eps_qual = 10.0/log(10.0) * log((double)tDP0 + 2.0);
-        double tn_tpo1q = 10.0 / log(10.0) * log((double)(tAD0 + 1.0) / (tDP0 + 1.0)) * pl_exponent + 80.0;
-        double tn_npo1q = 10.0 / log(10.0) * log((double)(nAD0 + 1.0) / (nDP0 + 1.0)) * pl_exponent + 80.0;
+        double tn_tpo1q = 10.0 / log(10.0) * log((double)(tAD0 + 1.0) / (tDP0 + 1.0)) * (isInDel ? 1.5 : pl_exponent) + (isInDel ? 55.0 : 80.0);
+        double tn_npo1q = 10.0 / log(10.0) * log((double)(nAD0 + 1.0) / (nDP0 + 1.0)) * (isInDel ? 1.5 : pl_exponent) + (isInDel ? 55.0 : 80.0);
         double tn_tsamq = 40.0 * pow(0.5, (double)tAD0);// (tAD0 <= 2 ? 8.0 : 0.0);
         // MAX(0.0, tn_tpowq - 16.0 * pow(0.5, (double)tAD0 - 1.0)); // 10.0 / log(10.0) * log((double)(tDP1 + tAD1 + eps_qual) / (double)(tAD1 + eps_qual)) * tAD0 / 1.25;
         double tn_nsamq = 40.0 * pow(0.5, (double)nAD0); // (nAD0 <= 2 ? 8.0 : 0.0);
         // MAX(0.0, tn_npowq - 16.0 * pow(0.5, (double)nAD0 - 1.0)); // 10.0 / log(10.0) * log((double)(nDP1 + nAD1 + eps_qual) / (double)(nAD1 + eps_qual)) * nAD0 / 1.25;
         double tn_tra1q = (double)tki.VAQ; //MIN(MAX((double)tki.VAQ - tn_tsamq * 0, 0.0), tn_tpowq);
         double tn_nra1q = (double)fmt.VAQ; //MIN(MAX((double)fmt.VAQ - tn_nsamq * 0, 0.0), tn_npowq);
-        
-        double tn_tpowq = tn_tpo1q;
-        double tn_npowq = tn_npo1q;
         double tn_trawq = tn_tra1q;
-        double tn_nrawq = tn_nra1q; 
-        
+        double tn_nrawq = tn_nra1q;
+
+        double tn_tpowq = tn_tpo1q;
+        double tn_npo2q = tn_npo1q; 
         if (isInDel) {
-            tn_tpowq = penal_indel(tn_tpo1q, (double)tAD0, (double)(tDP0 - tRD0), repeatunit, repeatnum);
-            tn_npowq = penal_indel(tn_npo1q, (double)nAD0, (double)(nDP0 - nRD0), repeatunit, repeatnum);
             //tn_trawq = tn_tra1q + indel_prior;
             //tn_nrawq = tn_nra1q + indel_prior;
+            tn_tpowq = penal_indel(tn_tpo1q, (double)(tAD0), (double)(tDP0 - tRD0), repeatunit, repeatnum);
+            tn_npo2q = penal_indel(tn_npo1q, (double)(nAD0), (double)(nDP0 - nRD0), repeatunit, repeatnum);
         }
+        double tn_npowq = MAX(0.0, tn_npo2q);
         
         double tn_cont_nor = MIN(2.0, ((double)(nAD0 + 1) / (double)(nDP0 - nAD0 + 1)));
         double tn_cont_tor = MIN(2.0, ((double)(tAD0 + 1) / (double)(tDP0 - tAD0 + 1)));
@@ -2542,7 +2544,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         
         vcfqual = 0;
         for (int i = 0; i < N_MODELS; i++) {
-            testquals[i] = MIN(reduction_coef * testquals[i], phred_non_germ);
+            testquals[i] = MIN(reduction_coef * testquals[i] + (isInDel ? indel_pp : 0.0), ((double)phred_non_germ) + (isInDel ? 10.0 : 0.0));
             vcfqual = MAX(vcfqual, testquals[i]);
         }
         double median_qual = MEDIAN(std::array<double, N_MODELS>(testquals));
@@ -2584,8 +2586,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         infostring += std::string(";TNQ=")  + string_join(std::array<std::string, 5>({std::to_string(median_qual), std::to_string(tvn_powq), std::to_string(tvn_rawq), std::to_string(tvn_or_q), std::to_string(tvn_st_q)}));
         infostring += std::string(";TNQA=") + string_join(std::array<std::string, 5>({std::to_string(phred_non_germ), std::to_string(tnlike_argmin), std::to_string(reduction_coef)
                 , std::to_string(add_contam_phred), std::to_string(mul_contam_phred)}));
-        infostring += std::string(";TNNQ=") + string_join(std::array<std::string, 5>({std::to_string(tn_npowq), std::to_string(tn_nrawq), std::to_string(indel_prior), std::to_string(tn_nra1q), std::to_string(tn_nsamq)}));
-        infostring += std::string(";TNTQ=") + string_join(std::array<std::string, 5>({std::to_string(tn_tpowq), std::to_string(tn_trawq), std::to_string(indel_prior), std::to_string(tn_tra1q), std::to_string(tn_tsamq)}));
+        infostring += std::string(";TNNQ=") + string_join(std::array<std::string, 5>({std::to_string(tn_npo2q), std::to_string(tn_nrawq), std::to_string(indel_prior), std::to_string(tn_npo1q), std::to_string(tn_nsamq)}));
+        infostring += std::string(";TNTQ=") + string_join(std::array<std::string, 5>({std::to_string(tn_tpowq), std::to_string(tn_trawq), std::to_string(indel_prior), std::to_string(tn_tpo1q), std::to_string(tn_tsamq)}));
         infostring += std::string(";tDP=") + std::to_string(tki.DP);
         infostring += std::string(";tFA=") + std::to_string(tki.FA);
         infostring += std::string(";tFR=") + std::to_string(tki.FR);
@@ -2645,7 +2647,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
             double tDP0 = (double)(tUseHD ? ((double)SUM2(fmt.cAllHD)) :    1.0 * (double)fmt.DP);
             double tAD0 = (double)(tUseHD ? ((double)SUM2(fmt.cAltHD)) : fmt.FA * (double)fmt.DP);
             double tRD0 = (double)(tUseHD ? ((double)SUM2(fmt.cRefHD)) : fmt.FR * (double)fmt.DP);
-            vcfqual = penal_indel(vcfqual, (double)tAD0, (double)(tDP0 - tRD0), repeatunit, repeatnum); //  + indel_prior;
+            vcfqual = penal_indel(vcfqual, (double)(tAD0), (double)(tDP0 - tRD0), repeatunit, repeatnum); //  + indel_prior;
         }
     }
     infostring += std::string(";RU=") + repeatunit + ";RC=" + std::to_string(repeatnum);
