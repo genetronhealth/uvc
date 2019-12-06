@@ -2210,7 +2210,7 @@ bcf1_to_string(const bcf_hdr_t *tki_bcf1_hdr, const bcf1_t *bcf1_record) {
 
 double
 penal_indel(double qual, double ad, double od, const std::string & ru, const unsigned int rc) {
-    const double str_tier_qual = 30.0;
+    const double str_tier_qual = 3e6; // disabled
     const double str_tier_len  = 30.0; // 15.0;
     double vcfqual = qual;
     if (vcfqual > str_tier_qual) {
@@ -2220,7 +2220,7 @@ penal_indel(double qual, double ad, double od, const std::string & ru, const uns
     vcfqual *= ad / (ad + 1.0);
     auto od2 = MAX(ad, od);
     vcfqual += 20.0 * log((ad + 1.0) / (od2 + 1.0)) / log(2.0);
-    vcfqual += MIN(15.0, (ru.size() * rc));
+    //vcfqual += MIN(15.0, (ru.size() * rc));
     return vcfqual;
 }
 
@@ -2427,20 +2427,20 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         // double tn_diffq = MIN(tnlike_alt, tnlike_nonref);
         
         // double eps_qual = 10.0/log(10.0) * log((double)tDP0 + 2.0);
-        double tn_tpowq = 10.0 / log(10.0) * log((double)(tAD0 + 1.0) / (tDP0 + 1.0)) * pl_exponent + 80.0;
-        double tn_npowq = 10.0 / log(10.0) * log((double)(nAD0 + 1.0) / (nDP0 + 1.0)) * pl_exponent + 80.0;
+        double tn_tpo1q = 10.0 / log(10.0) * log((double)(tAD0 + 1.0) / (tDP0 + 1.0)) * pl_exponent + 80.0;
+        double tn_npo1q = 10.0 / log(10.0) * log((double)(nAD0 + 1.0) / (nDP0 + 1.0)) * pl_exponent + 80.0;
         double tn_tsamq = 40.0 * pow(0.5, (double)tAD0);// (tAD0 <= 2 ? 8.0 : 0.0);
         // MAX(0.0, tn_tpowq - 16.0 * pow(0.5, (double)tAD0 - 1.0)); // 10.0 / log(10.0) * log((double)(tDP1 + tAD1 + eps_qual) / (double)(tAD1 + eps_qual)) * tAD0 / 1.25;
         double tn_nsamq = 40.0 * pow(0.5, (double)nAD0); // (nAD0 <= 2 ? 8.0 : 0.0);
         // MAX(0.0, tn_npowq - 16.0 * pow(0.5, (double)nAD0 - 1.0)); // 10.0 / log(10.0) * log((double)(nDP1 + nAD1 + eps_qual) / (double)(nAD1 + eps_qual)) * nAD0 / 1.25;
-        double tn_traw1 = (double)tki.VAQ; //MIN(MAX((double)tki.VAQ - tn_tsamq * 0, 0.0), tn_tpowq);
-        double tn_nraw1 = (double)fmt.VAQ; //MIN(MAX((double)fmt.VAQ - tn_nsamq * 0, 0.0), tn_npowq);
+        double tn_trawq = (double)tki.VAQ; //MIN(MAX((double)tki.VAQ - tn_tsamq * 0, 0.0), tn_tpowq);
+        double tn_nrawq = (double)fmt.VAQ; //MIN(MAX((double)fmt.VAQ - tn_nsamq * 0, 0.0), tn_npowq);
         
-        double tn_trawq = tn_traw1; 
-        double tn_nrawq = tn_nraw1;
+        double tn_tpowq = tn_tpo1q;
+        double tn_npowq = tn_npo1q;
         if (isInDel) {
-            tn_trawq = penal_indel(tn_traw1, (double)tAD0, (double)(tDP0 - tRD0), repeatunit, repeatnum);
-            tn_nrawq = penal_indel(tn_nraw1, (double)nAD0, (double)(nDP0 - nRD0), repeatunit, repeatnum);
+            tn_tpowq = penal_indel(tn_tpo1q, (double)tAD0, (double)(tDP0 - tRD0), repeatunit, repeatnum);
+            tn_npowq = penal_indel(tn_npo1q, (double)nAD0, (double)(nDP0 - nRD0), repeatunit, repeatnum);
         }
         
         double tn_cont_nor = MIN(2.0, ((double)(nAD0 + 1) / (double)(nDP0 - nAD0 + 1)));
@@ -2556,8 +2556,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         infostring += std::string(";TNQ=")  + string_join(std::array<std::string, 5>({std::to_string(median_qual), std::to_string(tvn_powq), std::to_string(tvn_rawq), std::to_string(tvn_or_q), std::to_string(tvn_st_q)}));
         infostring += std::string(";TNQA=") + string_join(std::array<std::string, 5>({std::to_string(phred_non_germ), std::to_string(tnlike_argmin), std::to_string(reduction_coef)
                 , std::to_string(add_contam_phred), std::to_string(mul_contam_phred)}));
-        infostring += std::string(";TNNQ=") + string_join(std::array<std::string, 4>({std::to_string(tn_npowq), std::to_string(tn_nrawq), std::to_string(tn_nraw1), std::to_string(tn_nsamq)}));
-        infostring += std::string(";TNTQ=") + string_join(std::array<std::string, 4>({std::to_string(tn_tpowq), std::to_string(tn_trawq), std::to_string(tn_traw1), std::to_string(tn_tsamq)}));
+        infostring += std::string(";TNNQ=") + string_join(std::array<std::string, 4>({std::to_string(tn_npowq), std::to_string(tn_nrawq), std::to_string(tn_npo1q), std::to_string(tn_nsamq)}));
+        infostring += std::string(";TNTQ=") + string_join(std::array<std::string, 4>({std::to_string(tn_tpowq), std::to_string(tn_trawq), std::to_string(tn_tpo1q), std::to_string(tn_tsamq)}));
         infostring += std::string(";tDP=") + std::to_string(tki.DP);
         infostring += std::string(";tFA=") + std::to_string(tki.FA);
         infostring += std::string(";tFR=") + std::to_string(tki.FR);
