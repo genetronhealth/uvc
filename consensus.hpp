@@ -58,6 +58,12 @@ enum AlignmentSymbol {
     END_ALIGNMENT_SYMBOLS,
 };
 
+#define NUM_INS_SYMBOLS 3
+const std::array<AlignmentSymbol, NUM_INS_SYMBOLS> INS_SYMBOLS = {LINK_I1, LINK_I2, LINK_I3P};
+
+#define NUM_DEL_SYMBOLS 3
+const std::array<AlignmentSymbol, NUM_DEL_SYMBOLS> DEL_SYMBOLS = {LINK_D1, LINK_D2, LINK_D3P};
+
 struct PhredMutationTable {
     const unsigned int transition_CG_TA;
     const unsigned int transition_TA_CG;
@@ -499,8 +505,8 @@ class CoveredRegion {
          
 protected:
     std::vector<T> idx2symbol2data;
-    std::map<uint32_t, std::map<uint32_t   , uint32_t>> pos2dlen2data;
-    std::map<uint32_t, std::map<std::string, uint32_t>> pos2iseq2data;
+    std::array<std::map<uint32_t, std::map<uint32_t   , uint32_t>>, NUM_INS_SYMBOLS> pos2dlen2data;
+    std::array<std::map<uint32_t, std::map<std::string, uint32_t>>, NUM_DEL_SYMBOLS> pos2iseq2data;
     
     const size_t 
     _extern2intern4pos(size_t extern_ref_pos) {
@@ -544,31 +550,35 @@ public:
     };
     
     const std::map<uint32_t, std::map<uint32_t   , uint32_t>> & 
-    getPosToDlenToData() const {
-        return pos2dlen2data;
+    getPosToDlenToData(const AlignmentSymbol s) const { 
+        unsigned int idx = (LINK_D1 == s ? 0 : ((LINK_D2 == s) ? 1: 2));
+        return pos2dlen2data[idx];
     };
     const std::map<uint32_t, std::map<std::string, uint32_t>> & 
-    getPosToIseqToData() const {
-        return pos2iseq2data;
+    getPosToIseqToData(const AlignmentSymbol s) const {
+        unsigned int idx = (LINK_I1 == s ? 0 : ((LINK_I2 == s) ? 1: 2));
+        return pos2iseq2data[idx];
     };
     
     std::map<uint32_t, std::map<uint32_t   , uint32_t>> & 
-    getRefPosToDlenToData() {
-        return pos2dlen2data;
+    getRefPosToDlenToData(const AlignmentSymbol s) {
+        unsigned int idx = (LINK_D1 == s ? 0 : ((LINK_D2 == s) ? 1: 2));
+        return pos2dlen2data[idx];
     };
     std::map<uint32_t, std::map<std::string, uint32_t>> & 
-    getRefPosToIseqToData() {
-        return pos2iseq2data;
+    getRefPosToIseqToData(const AlignmentSymbol s) {
+        unsigned int idx = (LINK_I1 == s ? 0 : ((LINK_I2 == s) ? 1: 2));
+        return pos2iseq2data[idx];
     };
     
     template <LinkType TLinkType>
     const auto &
-    getPosToIndelToData() const {
+    getPosToIndelToData(const AlignmentSymbol s) const {
         static_assert(INS_LINK == TLinkType || DEL_LINK == TLinkType);
         if (TLinkType == INS_LINK) {
-            return pos2iseq2data;
+            return getRefPosToIseqToData(s);
         } else {
-            return pos2dlen2data;
+            return getRefPosToDlenToData(s);
         }
     };
 };
@@ -658,7 +668,7 @@ indelpos_to_context(
 }
 
 unsigned int
-indel_phred(double ampfact, unsigned int cigar_oplen, unsigned int repeatsize_at_nax_repeatnum, unsigned int max_repeatnum) {
+indel_phred(double ampfact, unsigned int cigar_oplen, unsigned int repeatsize_at_max_repeatnum, unsigned int max_repeatnum) {
     unsigned int region_size = repeatsize_at_max_repeatnum * max_repeatnum;
     unsigned int indel_n_units = 0;
     if (0 == (cigar_oplen % repeatsize_at_max_repeatnum)) {
@@ -687,7 +697,7 @@ bam_to_phredvalue(unsigned int & max_repeatnum, const bam1_t *b, unsigned int qp
         }
     }
     // Because of a lower number of PCR cycles, it is higher than the one set in Fig. 3 at https://www.ncbi.nlm.nih.gov/pmc/articles/PMC149199/
-    unsigned int decphred = indel_phred(ampfact, cigar_oplen, repeatsize_at_nax_repeatnum, max_repeatnum);
+    unsigned int decphred = indel_phred(ampfact, cigar_oplen, repeatsize_at_max_repeatnum, max_repeatnum);
     return max_phred - MIN(max_phred, decphred); 
     #if 0
     if (region_size < 8) {
@@ -722,20 +732,22 @@ public:
     std::vector<unsigned int> 
     computeZeroBasedPosToInsLenVec(unsigned int & totInsLen) {
         std::vector<unsigned int> ret(this->getExcluEndPosition() - this->getIncluBegPosition(), 0);
-        for (auto & refPosToIseqToData : this->getRefPosToIseqToData()) {
-            uint32_t refPos = refPosToIseqToData.first;
-            std::map<std::string, uint32_t> iseqToData = refPosToIseqToData.second;
-            uint32_t insCount = 0;
-            uint32_t insSumSize = 0; 
-            for (auto iseqToDataPair : iseqToData) {
-                std::string iseq = iseqToDataPair.first;
-                uint32_t count = iseqToDataPair.second;
-                insCount += count;
-                insSumSize = iseq.size() * count;
-            }
-            if (insCount > this->getByPos(refPos).getSymbolCount(LINK_M)) {
-                ret[refPos-this->getIncluBegPosition()] = insSumSize / insCount;
-                totInsLen += insSumSize / insCount;
+        for (AlignmentSymbol s : INS_SYMBOLS) {
+            for (auto & refPosToIseqToData : this->getRefPosToIseqToData(s)) {
+                uint32_t refPos = refPosToIseqToData.first;
+                std::map<std::string, uint32_t> iseqToData = refPosToIseqToData.second;
+                uint32_t insCount = 0;
+                uint32_t insSumSize = 0; 
+                for (auto iseqToDataPair : iseqToData) {
+                    std::string iseq = iseqToDataPair.first;
+                    uint32_t count = iseqToDataPair.second;
+                    insCount += count;
+                    insSumSize = iseq.size() * count;
+                }
+                if (insCount > this->getByPos(refPos).getSymbolCount(LINK_M)) {
+                    ret[refPos-this->getIncluBegPosition()] = insSumSize / insCount;
+                    totInsLen += insSumSize / insCount;
+                }
             }
         }
         return ret;
@@ -753,9 +765,9 @@ public:
                 AlignmentSymbol consymbol = this->getRefByPos(epos).updateByRepresentative<TIsIncVariable>(other.getByPos(epos), incvalue);
                 if (update_pos2indel2count) {
                     if (isSymbolIns(consymbol)) {
-                        posToIndelToCount_updateByRepresentative<TIsIncVariable>(this->pos2iseq2data, other.getPosToIseqToData(), epos, incvalue);
+                        posToIndelToCount_updateByRepresentative<TIsIncVariable>(this->getRefPosToIseqToData(consymbol), other.getPosToIseqToData(consymbol), epos, incvalue);
                     } else if (isSymbolDel(consymbol)) {
-                        posToIndelToCount_updateByRepresentative<TIsIncVariable>(this->pos2dlen2data, other.getPosToDlenToData(), epos, incvalue);
+                        posToIndelToCount_updateByRepresentative<TIsIncVariable>(this->getRefPosToDlenToData(consymbol), other.getPosToDlenToData(consymbol), epos, incvalue);
                     }
                 }
             }
@@ -774,9 +786,9 @@ public:
                 const std::array<AlignmentSymbol, NUM_SYMBOL_TYPES> consymbols = this->getRefByPos(epos).updateByConsensus<T_ConsensusType, TIndelIsMajor>(other.getByPos(epos), incvalue);
                 if (update_pos2indel2count) {
                     if (isSymbolIns(consymbols[1])) {
-                        posToIndelToCount_updateByConsensus(this->pos2iseq2data, other.getPosToIseqToData(), epos, incvalue);
+                        posToIndelToCount_updateByConsensus(this->getRefPosToIseqToData(consymbols[1]), other.getPosToIseqToData(consymbols[1]), epos, incvalue);
                     } else if (isSymbolDel(consymbols[1])) {
-                        posToIndelToCount_updateByConsensus(this->pos2dlen2data, other.getPosToDlenToData(), epos, incvalue);
+                        posToIndelToCount_updateByConsensus(this->getRefPosToDlenToData(consymbols[1]), other.getPosToDlenToData(consymbols[1]), epos, incvalue);
                     }
                 }
             }
@@ -797,9 +809,9 @@ public:
             int updateresult = this->getRefByPos(epos).updateByFiltering(consymbols, other.getByPos(epos), thres.getByPos(epos), incvalue, epos, TStrand);
             if (update_pos2indel2count) {
                 if (isSymbolIns(consymbols[1])) {
-                    posToIndelToCount_updateByConsensus(this->pos2iseq2data, other.getPosToIseqToData(), epos, incvalue);
+                    posToIndelToCount_updateByConsensus(this->getRefPosToIseqToData(consymbols[1]), other.getPosToIseqToData(consymbols[1]), epos, incvalue);
                 } else if (isSymbolDel(consymbols[1])) {
-                    posToIndelToCount_updateByConsensus(this->pos2dlen2data, other.getPosToDlenToData(), epos, incvalue);
+                    posToIndelToCount_updateByConsensus(this->getRefPosToDlenToData(consymbols[1]), other.getPosToDlenToData(consymbols[1]), epos, incvalue);
                 }
             }
             if (updateresult) { num_updated_pos++; }
@@ -816,19 +828,19 @@ public:
     };
 
     void // GenericSymbol2CountCoverage<TSymbol2Count>::
-    incIns(const unsigned int epos, const std::string & iseq, const uint32_t incvalue = 1) {
+    incIns(const unsigned int epos, const std::string & iseq, const AlignmentSymbol symbol, const uint32_t incvalue = 1) {
         assert (incvalue > 0); 
         assert (iseq.size() > 0);
         size_t ipos = epos; //  _extern2intern4pos(epos);
-        posToIndelToCount_inc(this->pos2iseq2data, ipos, iseq, incvalue);
+        posToIndelToCount_inc(this->getRefPosToIseqToData(symbol), ipos, iseq, incvalue);
     };
 
     void // GenericSymbol2CountCoverage<TSymbol2Count>::
-    incDel(const unsigned int epos, const uint32_t dlen, const uint32_t incvalue = 1) {
+    incDel(const unsigned int epos, const uint32_t dlen, const AlignmentSymbol symbol, const uint32_t incvalue = 1) {
         assert (incvalue > 0);
         assert (dlen > 0);
         size_t ipos = epos; // _extern2intern4pos(epos);
-        posToIndelToCount_inc(this->pos2dlen2data, ipos, dlen, incvalue);
+        posToIndelToCount_inc(this->getRefPosToDlenToData(symbol), ipos, dlen, incvalue);
     };
     
     template<ValueType TUpdateType, bool THasDups, unsigned int TIndelAddPhred = 0*29>
@@ -904,7 +916,7 @@ public:
                         incvalue2 = MIN(incvalue2, SIGN2UNSIGN(bam_seqi(bseq, qpos+i2))); // + symbolType2addPhred[LINK_SYMBOL];
                     }
                 }
-                this->incIns(rpos, iseq, MAX(SIGN2UNSIGN(1), incvalue2));
+                this->incIns(rpos, iseq, insLenToSymbol(inslen), MAX(SIGN2UNSIGN(1), incvalue2));
                 qpos += cigar_oplen;
             } else if (cigar_op == BAM_CDEL) {
                 unsigned int dellen = SIGN2UNSIGN(cigar_oplen);
@@ -919,7 +931,7 @@ public:
                     }
                 }
                 this->inc<TUpdateType>(rpos, delLenToSymbol(dellen), MAX(SIGN2UNSIGN(1), incvalue), b);
-                this->incDel(rpos, cigar_oplen, MAX(SIGN2UNSIGN(1), incvalue));
+                this->incDel(rpos, cigar_oplen, delLenToSymbol(dellen), MAX(SIGN2UNSIGN(1), incvalue));
                 rpos += cigar_oplen;
             } else if (cigar_op == BAM_CREF_SKIP) {
                 rpos += cigar_oplen;
@@ -1446,10 +1458,10 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                             assert (pbucket < NUM_BUCKETS || !fprintf(stderr, "%u < %u failed at position %lu and con_symbol %u symboltype %u plusbucket %u\n", 
                                     pbucket,  NUM_BUCKETS, epos, con_symbol, symbolType, SIGN2UNSIGN(symbolType2addPhred[symbolType])));
                             if (isSymbolIns(con_symbol)) {
-                                posToIndelToCount_updateByConsensus(this->bq_tsum_depth[strand].getRefPosToIseqToData(), read_ampBQerr_fragWithR1R2.getPosToIseqToData(), epos, 1);
+                                posToIndelToCount_updateByConsensus(this->bq_tsum_depth[strand].getRefPosToIseqToData(con_symbol), read_ampBQerr_fragWithR1R2.getPosToIseqToData(con_symbol), epos, 1);
                             }
                             if (isSymbolDel(con_symbol)) {
-                                posToIndelToCount_updateByConsensus(this->bq_tsum_depth[strand].getRefPosToDlenToData(), read_ampBQerr_fragWithR1R2.getPosToDlenToData(), epos, 1);
+                                posToIndelToCount_updateByConsensus(this->bq_tsum_depth[strand].getRefPosToDlenToData(con_symbol), read_ampBQerr_fragWithR1R2.getPosToDlenToData(con_symbol), epos, 1);
                             }
                             AlignmentSymbol refsymbol = region_symbolvec[epos-this->dedup_ampDistr.at(strand).getIncluBegPosition()]; 
                             if (areSymbolsMutated(refsymbol, con_symbol)) {
@@ -1651,10 +1663,10 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         assert (pbucket < NUM_BUCKETS || !fprintf(stderr, "%u < %u failed at position %lu and con_symbol %u symboltype %u plusbucket %u\n", 
                                  pbucket,  NUM_BUCKETS, epos, con_symbol, symbolType, symbolType2addPhred[symbolType]));
                         if (isSymbolIns(con_symbol)) {
-                            posToIndelToCount_updateByConsensus(this->fq_tsum_depth[strand].getRefPosToIseqToData(), read_family_amplicon.getPosToIseqToData(), epos, 1);
+                            posToIndelToCount_updateByConsensus(this->fq_tsum_depth[strand].getRefPosToIseqToData(con_symbol), read_family_amplicon.getPosToIseqToData(con_symbol), epos, 1);
                         }
                         if (isSymbolDel(con_symbol)) {
-                            posToIndelToCount_updateByConsensus(this->fq_tsum_depth[strand].getRefPosToDlenToData(), read_family_amplicon.getPosToDlenToData(), epos, 1);
+                            posToIndelToCount_updateByConsensus(this->fq_tsum_depth[strand].getRefPosToDlenToData(con_symbol), read_family_amplicon.getPosToDlenToData(con_symbol), epos, 1);
                         }
                         AlignmentSymbol refsymbol = region_symbolvec[epos - this->dedup_ampDistr.at(strand).getIncluBegPosition()]; 
                         if (areSymbolsMutated(refsymbol, con_symbol)) {
@@ -1846,13 +1858,13 @@ fill_by_indel_info(bcfrec::BcfFormat & fmt,
     assert(isSymbolIns(symbol) || isSymbolDel(symbol));
     if (isSymbolIns(symbol)) {
         return fill_by_indel_info2_1(fmt, symbol2CountCoverageSet, strand, refpos, symbol,
-                symbol2CountCoverageSet.bq_tsum_depth.at(strand).getPosToIseqToData(),
-                symbol2CountCoverageSet.fq_tsum_depth.at(strand).getPosToIseqToData(),
+                symbol2CountCoverageSet.bq_tsum_depth.at(strand).getPosToIseqToData(symbol),
+                symbol2CountCoverageSet.fq_tsum_depth.at(strand).getPosToIseqToData(symbol),
                 refstring, repeatunit, repeatnum);
     } else {
         return fill_by_indel_info2_2(fmt, symbol2CountCoverageSet, strand, refpos, symbol,
-                symbol2CountCoverageSet.bq_tsum_depth.at(strand).getPosToDlenToData(),
-                symbol2CountCoverageSet.fq_tsum_depth.at(strand).getPosToDlenToData(),
+                symbol2CountCoverageSet.bq_tsum_depth.at(strand).getPosToDlenToData(symbol),
+                symbol2CountCoverageSet.fq_tsum_depth.at(strand).getPosToDlenToData(symbol),
                 refstring, repeatunit, repeatnum);
     }
 };
@@ -2281,13 +2293,13 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
     std::string vcfref;
     std::string vcfalt;
     unsigned int vcfpos;
-    
+
+    std::string indelstring;
     const bool isInDel = (isSymbolIns(symbol) || isSymbolDel(symbol));
     if (isInDel) {
         vcfpos = refpos; // refpos > 0?
         vcfref = (regionpos > 0 ? refstring.substr(regionpos-1, 1) : "n");
         vcfalt = vcfref;
-        std::string indelstring;
         if (fmt.gapNum[0] <= 0 && fmt.gapNum[1] <= 0) {
             if (!is_rescued) {
                 std::cerr << "Invalid indel detected (invalid mutation) : " << tname << ", " << refpos << ", " << SYMBOL_TO_DESC_ARR[symbol] << std::endl;

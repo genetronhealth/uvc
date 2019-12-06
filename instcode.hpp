@@ -53,11 +53,11 @@ fill_by_indel_info2_2
         const uint32_t bqdata = posToIndelToData_get(bq_tsum_depth, refpos, indel);
         const uint32_t fqdata = posToIndelToData_get(fq_tsum_depth, refpos, indel);
         assert(bqdata > 0);
-        const unsigned int repeatmore = indelstring.size() % repeatunit.size();
-        const unsigned int n_units = (repeatmore ? repeatnum : indelstring.size() / repeatunit.size());
-        if ((link1 == symbol && 1 == n_units) || (link2 == symbol && 2 == n_units) || (link3p == symbol && 3 <= n_units)) {
-            bqfq_depth_mutform_tuples.push_back(std::make_tuple(fqdata, bqdata, indelstring));
-        }
+        //const unsigned int repeatmore = indelstring.size() % repeatunit.size();
+        //const unsigned int n_units = (repeatmore ? repeatnum : indelstring.size() / repeatunit.size());
+        //if ((link1 == symbol && 1 == n_units) || (link2 == symbol && 2 == n_units) || (link3p == symbol && 3 <= n_units)) {
+        bqfq_depth_mutform_tuples.push_back(std::make_tuple(fqdata, bqdata, indelstring));
+        //}
     }
     unsigned int gapbAD1sum = 0;
     unsigned int gapcAD1sum = 0;
