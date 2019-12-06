@@ -627,6 +627,9 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
     SymbolType prevSymbolType = NUM_SYMBOL_TYPES;
     for (unsigned int refpos = rpos_inclu_beg; refpos <= rpos_exclu_end; refpos++) {        
         // while (tki_it != tki_end && std::get<1>(*tki_it) < refpos) { tki_it++; }
+        std::string repeatunit;
+        unsigned int repeatnum = 0;
+        indelpos_to_context(repeatunit, repeatnum, refstring, refpos - extended_inclu_beg_pos); 
         const std::array<SymbolType, 2> allSymbolTypes = {LINK_SYMBOL, BASE_SYMBOL};
         const std::array<SymbolType, 2> stype_to_immediate_prev = {LINK_SYMBOL, BASE_SYMBOL};
         for (unsigned int stidx = 0; stidx < 2; stidx++) {
@@ -658,7 +661,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                             phred_max_sscs, paramset.phred_dscs_minus_sscs + phred_max_sscs,
                             // ErrorCorrectionType(paramset.seq_data_type), 
                             !paramset.disable_dup_read_merge, !paramset.enable_dup_read_vqual,
-                            is_rescued);
+                            is_rescued
+                            , repeatunit, repeatnum);
                 }
                 for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; symbol = AlignmentSymbol(1+(unsigned int)symbol)) {
                     float vaq = fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]].VAQ;
@@ -760,6 +764,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                                 , ((BASE_SYMBOL == symbolType) ? paramset.phred_sys_artifact_snv : (LINK_SYMBOL == symbolType ? paramset.phred_sys_artifact_indel : 0))
                                 , paramset.add_contam_rate
                                 , paramset.mul_contam_rate
+                                , repeatunit, repeatnum 
                                 // paramset.phred_sys_artifact
                                 // , paramset.highqual_min_vardep, paramset.highqual_min_totdep
                                 );

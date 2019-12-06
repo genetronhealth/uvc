@@ -658,8 +658,8 @@ indelpos_to_context(
 }
 
 unsigned int 
-bam_to_phredvalue(const bam1_t *b, unsigned int qpos, unsigned int max_phred, bool is_ins, unsigned int cigar_oplen) {
-    unsigned int max_repeatnum = 0;
+bam_to_phredvalue(unsigned int & max_repeatnum, const bam1_t *b, unsigned int qpos, unsigned int max_phred, bool is_del, unsigned int cigar_oplen) {
+    max_repeatnum = 0;
     unsigned int repeatsize_at_max_repeatnum = 0;
     for (unsigned int repeatsize = 1; repeatsize < 6; repeatsize++) {
         unsigned int qidx = qpos;
@@ -680,7 +680,7 @@ bam_to_phredvalue(const bam1_t *b, unsigned int qpos, unsigned int max_phred, bo
     } else {
         indel_n_units = max_repeatnum;
     }
-    double num_slips = (region_size > 64 ? (double)(region_size - 8) : log1p(exp((double)region_size - (double)8))) * (double)(is_ins ? 10 : 20) / (double)repeatsize_at_max_repeatnum / indel_n_units;
+    double num_slips = (region_size > 64 ? (double)(region_size - 8) : log1p(exp((double)region_size - (double)8))) * (double)(is_del ? 20 : 10) / (double)repeatsize_at_max_repeatnum / indel_n_units;
     return max_phred - MIN(max_phred, prob2phred((1.0 - DBL_EPSILON) / (num_slips + 1.0)));
 #if 0
     if (region_size < 8) {
@@ -867,6 +867,7 @@ public:
                     qpos += 1;
                 }
             } else if (cigar_op == BAM_CINS) {
+                unsigned int inslen = SIGN2UNSIGN(cigar_oplen);
                 if (TUpdateType == BASE_QUALITY_MAX) {
                     auto addidq = (THasDups ? 0 : (MIN(cigar_oplen - 1, SIGN2UNSIGN(3 - 1)) * frag_indel_ext));
                     if (TIndelAddPhred) {
@@ -878,13 +879,13 @@ public:
                                 ((qpos + cigar_oplen < SIGN2UNSIGN(b->core.l_qseq)) ? 
                                 bam_phredi(b, qpos + SIGN2UNSIGN(cigar_oplen)) : 1)) + addidq; // + symbolType2addPhred[LINK_SYMBOL];
                     } else {
-                        unsigned int phredvalue = (THasDups ? 0 : bam_to_phredvalue(b, qpos, frag_indel_basemax, false, cigar_oplen));
+                        unsigned int phredvalue = (THasDups ? 0 : bam_to_phredvalue(inslen, b, qpos, frag_indel_basemax, false, cigar_oplen));
                         // auto min_adj_BQ = MIN(bam_phredi(b, qpos-1), bam_phredi(b, qpos + cigar_oplen);
                         incvalue = phredvalue; // + addidq; // MIN(MIN(bam_phredi(b, qpos-1), bam_phredi(b, qpos + cigar_oplen)), phredvalue) + addidq; 
                         // + symbolType2addPhred[LINK_SYMBOL];
                     }
                 }
-                this->inc<TUpdateType>(rpos, insLenToSymbol(SIGN2UNSIGN(cigar_oplen)), MAX(SIGN2UNSIGN(1), incvalue), b);
+                this->inc<TUpdateType>(rpos, insLenToSymbol(inslen), MAX(SIGN2UNSIGN(1), incvalue), b);
                 std::string iseq;
                 iseq.reserve(cigar_oplen);
                 unsigned int incvalue2 = incvalue;
@@ -899,17 +900,18 @@ public:
                 this->incIns(rpos, iseq, MAX(SIGN2UNSIGN(1), incvalue2));
                 qpos += cigar_oplen;
             } else if (cigar_op == BAM_CDEL) {
+                unsigned int dellen = SIGN2UNSIGN(cigar_oplen);
                 if (TUpdateType == BASE_QUALITY_MAX) {
                     unsigned int addidq = (THasDups ? 0 : SIGN2UNSIGN(MIN(cigar_oplen - 1, SIGN2UNSIGN(3 - 1)) * frag_indel_ext));
                     if (TIndelAddPhred) {
                         incvalue = TIndelAddPhred + addidq;
                     } else {
-                        unsigned int phredvalue = (THasDups ? 0 : bam_to_phredvalue(b, qpos, frag_indel_basemax, true, cigar_oplen));
+                        unsigned int phredvalue = (THasDups ? 0 : bam_to_phredvalue(dellen, b, qpos, frag_indel_basemax, true, cigar_oplen));
                         incvalue = phredvalue; // MIN(MIN(bam_phredi(b, qpos), bam_phredi(b, qpos+1)), phredvalue) + addidq; 
                         // + symbolType2addPhred[LINK_SYMBOL];
                     }
                 }
-                this->inc<TUpdateType>(rpos, delLenToSymbol(cigar_oplen), MAX(SIGN2UNSIGN(1), incvalue), b);
+                this->inc<TUpdateType>(rpos, delLenToSymbol(dellen), MAX(SIGN2UNSIGN(1), incvalue), b);
                 this->incDel(rpos, cigar_oplen, MAX(SIGN2UNSIGN(1), incvalue));
                 rpos += cigar_oplen;
             } else if (cigar_op == BAM_CREF_SKIP) {
@@ -1777,8 +1779,13 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
 };
 
 std::array<unsigned int, 2>
-BcfFormat_init(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbolDistrSets12, unsigned int refpos, SymbolType symbolType, bool use_deduplicated_reads, 
+BcfFormat_init(bcfrec::BcfFormat & fmt, 
+        const Symbol2CountCoverageSet & symbolDistrSets12, 
+        unsigned int refpos, 
+        SymbolType symbolType, 
+        bool use_deduplicated_reads, 
         const AlignmentSymbol refsymbol) {
+    
     for (unsigned int strand = 0; strand < 2; strand++) {
         fmt.bAllBQ[strand] = symbolDistrSets12.bq_qual_phsum.at(strand).getByPos(refpos).sumBySymbolType(symbolType); 
         if (use_deduplicated_reads) {
@@ -1828,18 +1835,18 @@ std::array<unsigned int, 2>
 fill_by_indel_info(bcfrec::BcfFormat & fmt,
         const Symbol2CountCoverageSet & symbol2CountCoverageSet, 
         const unsigned int strand, const unsigned int refpos, const AlignmentSymbol symbol, 
-        const std::string & refstring) {
+        const std::string & refstring, const std::string & repeatunit, unsigned int repeatnum) {
     assert(isSymbolIns(symbol) || isSymbolDel(symbol));
     if (isSymbolIns(symbol)) {
         return fill_by_indel_info2_1(fmt, symbol2CountCoverageSet, strand, refpos, symbol,
                 symbol2CountCoverageSet.bq_tsum_depth.at(strand).getPosToIseqToData(),
                 symbol2CountCoverageSet.fq_tsum_depth.at(strand).getPosToIseqToData(),
-                refstring);
+                refstring, repeatunit, repeatnum);
     } else {
         return fill_by_indel_info2_2(fmt, symbol2CountCoverageSet, strand, refpos, symbol,
                 symbol2CountCoverageSet.bq_tsum_depth.at(strand).getPosToDlenToData(),
                 symbol2CountCoverageSet.fq_tsum_depth.at(strand).getPosToDlenToData(),
-                refstring);
+                refstring, repeatunit, repeatnum);
     }
 };
 
@@ -1886,7 +1893,9 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
         unsigned int phred_max_sscs,
         unsigned int phred_max_dscs,
         bool use_deduplicated_reads, bool use_only_deduplicated_reads,
-        bool is_rescued) {
+        bool is_rescued
+        , const std::string & repeatunit, const unsigned int repeatnum 
+        ) {
     fmt.note = symbol2CountCoverageSet12.additional_note.getByPos(refpos).at(symbol);
     uint64_t bq_qsum_sqrMQ_tot = 0; 
     for (unsigned int strand = 0; strand < 2; strand++) {
@@ -1962,7 +1971,7 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
         
         fmt.gapNum[strand] = 0;
         if ((0 < fmt.bAD1[strand]) && (isSymbolIns(symbol) || isSymbolDel(symbol))) {
-            auto cADdiff_cADtotal = fill_by_indel_info(fmt, symbol2CountCoverageSet12, strand, refpos, symbol, refstring);
+            auto cADdiff_cADtotal = fill_by_indel_info(fmt, symbol2CountCoverageSet12, strand, refpos, symbol, refstring, repeatunit, repeatnum);
             fmt.gapcADD[strand] = cADdiff_cADtotal[0]; // diff
             fmt.gapcADT[strand] = cADdiff_cADtotal[1];
         }
@@ -1986,14 +1995,14 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
     auto fmtbRD = fmt.bRD1[0] + fmt.bRD1[1];
     fmt.bFR = (double)(fmtbRD) / (double)(fmt.bDP);
     fmt.bFO = 1.0 - fmt.bFA - fmt.bFR;
-
+    
     fmt.cDP = fmt.cDPTT[0] + fmt.cDPTT[1];
     auto fmtcAD = fmt.cADTT[0] + fmt.cADTT[1];
     fmt.cFA = (double)(fmtcAD) / (double)(fmt.cDP);
     auto fmtcRD = fmt.cRDTT[0] + fmt.cRDTT[1];
     fmt.cFR = (double)(fmtcRD) / (double)(fmt.cDP);
     fmt.cFO = 1.0 - fmt.cFA - fmt.cFR;
-
+    
     auto fmtAD = SIGN2UNSIGN(0);
     if (use_deduplicated_reads) {
         fmt.DP = fmt.cDP;
@@ -2241,12 +2250,13 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         , const unsigned int str_tier2len // = 16;
         , const unsigned int uni_bias_thres
         , const bcf_hdr_t *g_bcf_hdr, const bool is_tumor_format_retrieved
-        , const unsigned int highqual_thres
-        , const double highqual_min_ratio
+        , const unsigned int highqual_thres 
+        , double highqual_min_ratio
         , const double diffVAQfrac
         , const double phred_sys_artifact
         , const double add_contam_rate
         , const double mul_contam_rate
+        , const std::string & repeatunit, const unsigned int repeatnum
         //, unsigned int highqual_min_vardep
         //, unsigned int highqual_min_totdep
         ) {
@@ -2321,10 +2331,6 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
     std::string ref_alt;
     std::string infostring = (prev_is_tumor ? "SOMATIC" : "ANY_VAR");
     const double pl_exponent = 2.5;
-    
-    unsigned int repeatnum = 0;
-    std::string repeatunit = "";
-    indelpos_to_context(repeatunit, repeatnum, refstring, regionpos);
     
     if (prev_is_tumor) {
         assert(tki.autoBestAllBQ >= tki.autoBestRefBQ + tki.autoBestAltBQ);

@@ -24,7 +24,7 @@ fill_by_indel_info2_2
         //const std::map<std::uint32_t, std::map<INDELTYPE, uint32_t>> & size1_amplicon_pos2indel2data, 
         const std::map<std::uint32_t, std::map<INDELTYPE, uint32_t>> & bq_tsum_depth, //  _ amplicon_pos2indel2data,
         const std::map<std::uint32_t, std::map<INDELTYPE, uint32_t>> & fq_tsum_depth, // size1_amplicon_pos2indel2data, 
-        const std::string & refchars) {
+        const std::string & refchars, const std::string & repeatunit, unsigned int repeatnum) {
     
     assert(isSymbolIns(symbol) || isSymbolDel(symbol));
     AlignmentSymbol link1  = (isSymbolIns(symbol) ? LINK_I1  : LINK_D1 ); // , AlignmentSymbol link2, AlignmentSymbol link3p;
@@ -53,7 +53,10 @@ fill_by_indel_info2_2
         const uint32_t bqdata = posToIndelToData_get(bq_tsum_depth, refpos, indel);
         const uint32_t fqdata = posToIndelToData_get(fq_tsum_depth, refpos, indel);
         assert(bqdata > 0);
-        if ((link1 == symbol && indelstring.size() == 1) || (link2 == symbol && indelstring.size() == 2) || (link3p == symbol && indelstring.size() >= 3)) {
+        const unsigned int repeatmore = indelstring.size() % repeatunit.size();
+        const unsigned int n_units = indelstring.size() / repeatunit.size();
+        if (repeatmore) { n_units = repeatnum; }
+        if ((link1 == symbol && 1 == n_units) || (link2 == symbol && 2 == n_units) || (link3p == symbol && 3 <= n_units)) {
             bqfq_depth_mutform_tuples.push_back(std::make_tuple(fqdata, bqdata, indelstring));
         }
     }
@@ -90,7 +93,6 @@ fill_by_indel_info2_2
         std::cerr << msg << "\n";
     }
     */
-
     // "/4+16" is a probabilistic check in the following code
     /*
     assert(fmt.AD2[strand] >= gapAD2sum && (fmt.AD2[strand] <= gapAD2sum * 5 / 4 + 16) ||
