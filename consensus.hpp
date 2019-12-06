@@ -898,7 +898,7 @@ public:
                                 ((qpos + cigar_oplen < SIGN2UNSIGN(b->core.l_qseq)) ? 
                                 bam_phredi(b, qpos + SIGN2UNSIGN(cigar_oplen)) : 1)) + addidq; // + symbolType2addPhred[LINK_SYMBOL];
                     } else {
-                        unsigned int phredvalue = (THasDups ? 0 : bam_to_phredvalue(inslen, b, qpos, frag_indel_basemax, 10.0, cigar_oplen));
+                        unsigned int phredvalue = (THasDups ? 0 : bam_to_phredvalue(inslen, b, qpos, frag_indel_basemax, 1.0, cigar_oplen));
                         // auto min_adj_BQ = MIN(bam_phredi(b, qpos-1), bam_phredi(b, qpos + cigar_oplen);
                         incvalue = phredvalue; // + addidq; // MIN(MIN(bam_phredi(b, qpos-1), bam_phredi(b, qpos + cigar_oplen)), phredvalue) + addidq; 
                         // + symbolType2addPhred[LINK_SYMBOL];
@@ -925,7 +925,7 @@ public:
                     if (TIndelAddPhred) {
                         incvalue = TIndelAddPhred + addidq;
                     } else {
-                        unsigned int phredvalue = (THasDups ? 0 : bam_to_phredvalue(dellen, b, qpos, frag_indel_basemax, 20.0, cigar_oplen));
+                        unsigned int phredvalue = (THasDups ? 0 : bam_to_phredvalue(dellen, b, qpos, frag_indel_basemax, 2.0, cigar_oplen));
                         incvalue = phredvalue; // MIN(MIN(bam_phredi(b, qpos), bam_phredi(b, qpos+1)), phredvalue) + addidq; 
                         // + symbolType2addPhred[LINK_SYMBOL];
                     }
@@ -2332,6 +2332,10 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         vcfalt = altsymbolname;
     }
     
+    double indel_prior = ((0 == indelstring.size() || 0 == repeatunit.size() || 0 == repeatnum) ? 0.0 : (15.0 + indel_phred(2.0, indelstring.size(), repeatunit.size(), repeatnum)));
+    if (isInDel) {
+        fmtvar.VAQ += indel_prior;
+    }
     float vcfqual = fmt.VAQ; // TODO: investigate whether to use VAQ or VAQ2
     //float vcfqual = fmt.VAQ2; // here we assume the matched normal is not available (yet)
     
@@ -2350,7 +2354,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
     std::string ref_alt;
     std::string infostring = (prev_is_tumor ? "SOMATIC" : "ANY_VAR");
     const double pl_exponent = 2.5;
-    
+        
     if (prev_is_tumor) {
         assert(tki.autoBestAllBQ >= tki.autoBestRefBQ + tki.autoBestAltBQ);
         
@@ -2463,9 +2467,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         if (isInDel) {
             tn_tpowq = penal_indel(tn_tpo1q, (double)tAD0, (double)(tDP0 - tRD0), repeatunit, repeatnum);
             tn_npowq = penal_indel(tn_npo1q, (double)nAD0, (double)(nDP0 - nRD0), repeatunit, repeatnum);
-            double indel_prior = indel_phred(20.0, indelstring.size(), repeatunit.size(), repeatnum);
-            tn_trawq = tn_tra1q + indel_prior;
-            tn_nrawq = tn_nra1q + indel_prior;
+            //tn_trawq = tn_tra1q + indel_prior;
+            //tn_nrawq = tn_nra1q + indel_prior;
         }
         
         double tn_cont_nor = MIN(2.0, ((double)(nAD0 + 1) / (double)(nDP0 - nAD0 + 1)));
@@ -2581,8 +2584,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         infostring += std::string(";TNQ=")  + string_join(std::array<std::string, 5>({std::to_string(median_qual), std::to_string(tvn_powq), std::to_string(tvn_rawq), std::to_string(tvn_or_q), std::to_string(tvn_st_q)}));
         infostring += std::string(";TNQA=") + string_join(std::array<std::string, 5>({std::to_string(phred_non_germ), std::to_string(tnlike_argmin), std::to_string(reduction_coef)
                 , std::to_string(add_contam_phred), std::to_string(mul_contam_phred)}));
-        infostring += std::string(";TNNQ=") + string_join(std::array<std::string, 5>({std::to_string(tn_npowq), std::to_string(tn_nrawq), std::to_string(tn_npo1q), std::to_string(tn_nra1q), std::to_string(tn_nsamq)}));
-        infostring += std::string(";TNTQ=") + string_join(std::array<std::string, 5>({std::to_string(tn_tpowq), std::to_string(tn_trawq), std::to_string(tn_tpo1q), std::to_string(tn_tra1q), std::to_string(tn_tsamq)}));
+        infostring += std::string(";TNNQ=") + string_join(std::array<std::string, 5>({std::to_string(tn_npowq), std::to_string(tn_nrawq), std::to_string(indel_prior), std::to_string(tn_nra1q), std::to_string(tn_nsamq)}));
+        infostring += std::string(";TNTQ=") + string_join(std::array<std::string, 5>({std::to_string(tn_tpowq), std::to_string(tn_trawq), std::to_string(indel_prior), std::to_string(tn_tra1q), std::to_string(tn_tsamq)}));
         infostring += std::string(";tDP=") + std::to_string(tki.DP);
         infostring += std::string(";tFA=") + std::to_string(tki.FA);
         infostring += std::string(";tFR=") + std::to_string(tki.FR);
@@ -2642,7 +2645,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
             double tDP0 = (double)(tUseHD ? ((double)SUM2(fmt.cAllHD)) :    1.0 * (double)fmt.DP);
             double tAD0 = (double)(tUseHD ? ((double)SUM2(fmt.cAltHD)) : fmt.FA * (double)fmt.DP);
             double tRD0 = (double)(tUseHD ? ((double)SUM2(fmt.cRefHD)) : fmt.FR * (double)fmt.DP);
-            vcfqual = penal_indel(vcfqual, (double)tAD0, (double)(tDP0 - tRD0), repeatunit, repeatnum);
+            vcfqual = penal_indel(vcfqual, (double)tAD0, (double)(tDP0 - tRD0), repeatunit, repeatnum); //  + indel_prior;
         }
     }
     infostring += std::string(";RU=") + repeatunit + ";RC=" + std::to_string(repeatnum);
