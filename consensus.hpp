@@ -926,7 +926,8 @@ public:
                     if (TIndelAddPhred) {
                         incvalue = TIndelAddPhred + addidq;
                     } else {
-                        unsigned int phredvalue = (THasDups ? 0 : bam_to_phredvalue(dellen, b, qpos, frag_indel_basemax, 8.0, cigar_oplen));
+                        double afa = ((cigar_oplen <= 2) ? 12.0 : 4.0);
+                        unsigned int phredvalue = (THasDups ? 0 : bam_to_phredvalue(dellen, b, qpos, frag_indel_basemax, afa, cigar_oplen));
                         incvalue = phredvalue; // MIN(MIN(bam_phredi(b, qpos), bam_phredi(b, qpos+1)), phredvalue) + addidq; 
                         // + symbolType2addPhred[LINK_SYMBOL];
                     }
@@ -2364,7 +2365,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         vcfalt = altsymbolname;
     }
     
-    const double indel_pp = 10.0; // probability of systematic indel error
+    const double indel_pp = 10.0 + MIN(7.5, 0.5*(double)indelstring.size()); // probability of systematic indel error
     double indel_prior = ((0 == indelstring.size() || 0 == repeatunit.size() || 0 == repeatnum) ? 0.0 : (indel_phred(2.0, indelstring.size(), repeatunit.size(), repeatnum)));
     if (isInDel && (!prev_is_tumor)) {
         fmtvar.VAQ += indel_prior;
