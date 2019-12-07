@@ -682,8 +682,8 @@ indel_phred(double ampfact, unsigned int cigar_oplen, unsigned int repeatsize_at
 }
 
 unsigned int 
-bam_to_phredvalue(unsigned int & max_repeatnum, const bam1_t *b, unsigned int qpos, unsigned int max_phred, double ampfact, unsigned int cigar_oplen) {
-    max_repeatnum = 0;
+bam_to_phredvalue(unsigned int & n_units, const bam1_t *b, unsigned int qpos, unsigned int max_phred, double ampfact, unsigned int cigar_oplen) {
+    unsigned int max_repeatnum = 0;
     unsigned int repeatsize_at_max_repeatnum = 0;
     for (unsigned int repeatsize = 1; repeatsize < 6; repeatsize++) {
         unsigned int qidx = qpos;
@@ -698,6 +698,7 @@ bam_to_phredvalue(unsigned int & max_repeatnum, const bam1_t *b, unsigned int qp
     }
     // Because of a lower number of PCR cycles, it is higher than the one set in Fig. 3 at https://www.ncbi.nlm.nih.gov/pmc/articles/PMC149199/
     unsigned int decphred = indel_phred(ampfact, cigar_oplen, repeatsize_at_max_repeatnum, max_repeatnum);
+    n_units = ((0 == cigar_oplen % repeatsize_at_max_repeatnum) ? (cigar_oplen / repeatsize_at_max_repeatnum) : 0);
     return max_phred - MIN(max_phred, decphred); 
     #if 0
     if (region_size < 8) {
@@ -2413,9 +2414,15 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         const bool is_nonref_snp_excluded = true; // false;
         const bool is_nonref_indel_excluded = false;
         const bool is_nonref_germline_excluded = (isInDel ? is_nonref_indel_excluded : is_nonref_snp_excluded);
-        double phred_non_germ = (double)((fmt.FA > 0.2 || (is_nonref_germline_excluded && fmt.FR < 0.8))
-                ? ((double)((int)phred_germline - (int)fmt.GQ))
-                : ((double)(     phred_germline +      fmt.GQ))); 
+        const bool b_is_germ = ((fmt.bFA > 0.2) || (fmt.bFR < (1.0 - 0.2) && is_nonref_germline_excluded));
+        const bool c_is_germ = ((fmt.cFA > 0.2) || (fmt.cFR < (1.0 - 0.2) && is_nonref_germline_excluded));
+        double phred_non_germ = (double)(
+                (  b_is_germ   &&  c_is_germ ) ?
+                    ((double)((int)phred_germline - (int)fmt.GQ)) : (
+                ((!b_is_germ) && (!c_is_germ)) ?
+                    ((double)(     phred_germline +      fmt.GQ)) : 
+                     (double)(     phred_germline              )
+                    )); 
 
         double reduction_coef = (double)tAD0 / ((double)tAD0 + DBL_EPSILON + 0*1.0 
             + 2.0 * (MAX(0.0, 60.0 - tki.MQ) / (MAX(60.0 ,tki.MQ) +  DBL_EPSILON))
@@ -2478,18 +2485,19 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         double tn_cont_obs = tn_cont_nor / tn_cont_tor;
         double tvn_or_q = 15.0 / MIN(1.0, tn_cont_obs * tn_cont_obs) - 15.0;
         double tvn_st_q = 10.0/log(10.0) * log((tAD1/tDP1) / (nAD1/nDP1)) * tAD0;
-       
+        
         //double add_contam_phred = MAX(0.0, calc_uninomial_10log10_likeratio(add_contam_rate, (double)nAD0, (double)tAD0)); // 0.2 max 0.02 min
         //double mul_contam_phred = MAX(0.0, calc_uninomial_10log10_likeratio(mul_contam_rate, (double)nAD0, (double)tAD0 * (double)(nDP0 + 1) / (double)(tDP0 + 1))); 
         // TODO: fill // mul_contam_rate < add_contam_rate
         double ntfrac = (double)(nDP0 + 1) / (double)(tDP0 + 1);
         
-        double add_contam_phred = calc_binom_10log10_likeratio((double)add_contam_rate, (double)nAD0, (double)tAD0); // 0.2 max 0.02 min
-        double mul_contam_phred = (nDP0 < tDP0 
+        double base_contam = (double)(isInDel ? : 10, 0);
+        double add_contam_phred = base_contam + calc_binom_10log10_likeratio((double)add_contam_rate, (double)nAD0 * MIN(1.0, 2.0 / nfrac), (double)tAD0); // 0.2 max 0.02 min
+        double mul_contam_phred = base_contam + (nDP0 < tDP0 
             ? calc_binom_10log10_likeratio((double)mul_contam_rate, (double)nAD0         , (double)tAD0 * ntfrac)
             : calc_binom_10log10_likeratio((double)mul_contam_rate, (double)nAD0 / ntfrac, (double)tAD0)
         );
-        double contam_phred = MIN(add_contam_phred, mul_contam_phred); // select most likely contam model
+        double contam_phred = MAX(add_contam_phred, mul_contam_phred); // select most likely contam model
         
         //double tn_tfrac = (tAD1 / (tDP1 + eps));
         //double tn_nfrac = (nAD1 / (nDP1 + eps));
