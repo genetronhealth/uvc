@@ -2239,7 +2239,7 @@ penal_indel(double qual, double ad, double od, const std::string & ru, const uns
     }
     vcfqual *= ad / (ad + 1.0);
     auto od2 = MIN(ad* 3.0, MAX(ad, od));
-    vcfqual += 15.0 * log((ad + 1.0) / (od2 + 1.0)) / log(2.0);
+    vcfqual += 30.0 * log((ad + 1.0) / (od2 + 1.0)) / log(2.0);
     //vcfqual += MIN(15.0, (ru.size() * rc));
     return vcfqual;
 }
@@ -2412,7 +2412,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         const double eps = (double)sqrt(FLT_EPSILON);
         
         const bool is_nonref_snp_excluded = true; // false;
-        const bool is_nonref_indel_excluded = false;
+        const bool is_nonref_indel_excluded = true; // false;
         const bool is_nonref_germline_excluded = (isInDel ? is_nonref_indel_excluded : is_nonref_snp_excluded);
         const bool b_is_germ = ((fmt.bFA > 0.2) || (fmt.bFR < (1.0 - 0.2) && is_nonref_germline_excluded));
         const bool c_is_germ = ((fmt.cFA > 0.2) || (fmt.cFR < (1.0 - 0.2) && is_nonref_germline_excluded));
@@ -2452,15 +2452,15 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         //auto upper_nonref = MIN(2.0 * MIN(tDP0, nDP0), 2.5 * 10.0 / log(10.0) * log((tAD1 / tDP1) / (nNRD1 / nDP1)));
         //tnlike_nonref = MAX(0.0, MIN(tnlike_nonref, upper_nonref));
         double tnDP0ratio = (double)(tDP0 + 1) / (double)(nDP0 + 1);
-
+        
         double tvn_rawq = sumBQ4_to_phredlike(tnlike_argmin, nDP1, nAD1, tDP1, tAD1);
         double tvn_powq = MIN(2.0 * MIN(tDP0, nDP0), pl_exponent * 10.0 / log(10.0) * log(((double)(tAD0 + tnDP0ratio) / (double)(tDP0 + tnDP0ratio)) / ((double)(nAD0 + 1)  / (double)(nDP0 + 1)))); 
        
         // double tn_diffq = MIN(tnlike_alt, tnlike_nonref);
         
         // double eps_qual = 10.0/log(10.0) * log((double)tDP0 + 2.0);
-        double tn_tpo1q = 10.0 / log(10.0) * log((double)(tAD0 + 1.0) / (tDP0 + 1.0)) * (isInDel ? 1.5 : pl_exponent) + (isInDel ? 60.0 : 80.0);
-        double tn_npo1q = 10.0 / log(10.0) * log((double)(nAD0 + 1.0) / (nDP0 + 1.0)) * (isInDel ? 1.5 : pl_exponent) + (isInDel ? 60.0 : 80.0);
+        double tn_tpo1q = 10.0 / log(10.0) * log((double)(tAD0 + 1.0) / (tDP0 + 1.0)) * (isInDel ? 2.5 : pl_exponent) + (isInDel ? 80.0 : 80.0);
+        double tn_npo1q = 10.0 / log(10.0) * log((double)(nAD0 + 1.0) / (nDP0 + 1.0)) * (isInDel ? 2.5 : pl_exponent) + (isInDel ? 80.0 : 80.0);
         double tn_tsamq = 40.0 * pow(0.5, (double)tAD0);// (tAD0 <= 2 ? 8.0 : 0.0);
         // MAX(0.0, tn_tpowq - 16.0 * pow(0.5, (double)tAD0 - 1.0)); // 10.0 / log(10.0) * log((double)(tDP1 + tAD1 + eps_qual) / (double)(tAD1 + eps_qual)) * tAD0 / 1.25;
         double tn_nsamq = 40.0 * pow(0.5, (double)nAD0); // (nAD0 <= 2 ? 8.0 : 0.0);
