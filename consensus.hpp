@@ -2492,7 +2492,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         double ntfrac = (double)(nDP0 + 1) / (double)(tDP0 + 1);
         
         double base_contam = (double)(isInDel ? : 10, 0);
-        double add_contam_phred = base_contam + calc_binom_10log10_likeratio((double)add_contam_rate, (double)nAD0 * MIN(1.0, 2.0 / nfrac), (double)tAD0); // 0.2 max 0.02 min
+        double add_contam_phred = base_contam + calc_binom_10log10_likeratio((double)add_contam_rate, (double)nAD0 * MIN(1.0, 2.0 / ntfrac), (double)tAD0); // 0.2 max 0.02 min
         double mul_contam_phred = base_contam + (nDP0 < tDP0 
             ? calc_binom_10log10_likeratio((double)mul_contam_rate, (double)nAD0         , (double)tAD0 * ntfrac)
             : calc_binom_10log10_likeratio((double)mul_contam_rate, (double)nAD0 / ntfrac, (double)tAD0)
