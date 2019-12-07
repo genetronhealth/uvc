@@ -899,7 +899,7 @@ public:
                                 ((qpos + cigar_oplen < SIGN2UNSIGN(b->core.l_qseq)) ? 
                                 bam_phredi(b, qpos + SIGN2UNSIGN(cigar_oplen)) : 1)) + addidq; // + symbolType2addPhred[LINK_SYMBOL];
                     } else {
-                        unsigned int phredvalue = (THasDups ? 0 : bam_to_phredvalue(inslen, b, qpos, frag_indel_basemax, 1.0, cigar_oplen));
+                        unsigned int phredvalue = (THasDups ? 0 : bam_to_phredvalue(inslen, b, qpos, frag_indel_basemax, 4.0, cigar_oplen));
                         // auto min_adj_BQ = MIN(bam_phredi(b, qpos-1), bam_phredi(b, qpos + cigar_oplen);
                         incvalue = phredvalue; // + addidq; // MIN(MIN(bam_phredi(b, qpos-1), bam_phredi(b, qpos + cigar_oplen)), phredvalue) + addidq; 
                         // + symbolType2addPhred[LINK_SYMBOL];
@@ -926,7 +926,7 @@ public:
                     if (TIndelAddPhred) {
                         incvalue = TIndelAddPhred + addidq;
                     } else {
-                        unsigned int phredvalue = (THasDups ? 0 : bam_to_phredvalue(dellen, b, qpos, frag_indel_basemax, 2.0, cigar_oplen));
+                        unsigned int phredvalue = (THasDups ? 0 : bam_to_phredvalue(dellen, b, qpos, frag_indel_basemax, 8.0, cigar_oplen));
                         incvalue = phredvalue; // MIN(MIN(bam_phredi(b, qpos), bam_phredi(b, qpos+1)), phredvalue) + addidq; 
                         // + symbolType2addPhred[LINK_SYMBOL];
                     }
@@ -2333,7 +2333,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         vcfalt = altsymbolname;
     }
     
-    const double indel_pp = 15.0; // probability of systematic indel error
+    const double indel_pp = 10.0; // probability of systematic indel error
     double indel_prior = ((0 == indelstring.size() || 0 == repeatunit.size() || 0 == repeatnum) ? 0.0 : (indel_phred(2.0, indelstring.size(), repeatunit.size(), repeatnum)));
     if (isInDel && (!prev_is_tumor)) {
         fmtvar.VAQ += indel_prior;
@@ -2459,8 +2459,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         // double tn_diffq = MIN(tnlike_alt, tnlike_nonref);
         
         // double eps_qual = 10.0/log(10.0) * log((double)tDP0 + 2.0);
-        double tn_tpo1q = 10.0 / log(10.0) * log((double)(tAD0 + 1.0) / (tDP0 + 1.0)) * (isInDel ? 1.5 : pl_exponent) + (isInDel ? 55.0 : 80.0);
-        double tn_npo1q = 10.0 / log(10.0) * log((double)(nAD0 + 1.0) / (nDP0 + 1.0)) * (isInDel ? 1.5 : pl_exponent) + (isInDel ? 55.0 : 80.0);
+        double tn_tpo1q = 10.0 / log(10.0) * log((double)(tAD0 + 1.0) / (tDP0 + 1.0)) * (isInDel ? 1.5 : pl_exponent) + (isInDel ? 60.0 : 80.0);
+        double tn_npo1q = 10.0 / log(10.0) * log((double)(nAD0 + 1.0) / (nDP0 + 1.0)) * (isInDel ? 1.5 : pl_exponent) + (isInDel ? 60.0 : 80.0);
         double tn_tsamq = 40.0 * pow(0.5, (double)tAD0);// (tAD0 <= 2 ? 8.0 : 0.0);
         // MAX(0.0, tn_tpowq - 16.0 * pow(0.5, (double)tAD0 - 1.0)); // 10.0 / log(10.0) * log((double)(tDP1 + tAD1 + eps_qual) / (double)(tAD1 + eps_qual)) * tAD0 / 1.25;
         double tn_nsamq = 40.0 * pow(0.5, (double)nAD0); // (nAD0 <= 2 ? 8.0 : 0.0);
@@ -2491,7 +2491,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         // TODO: fill // mul_contam_rate < add_contam_rate
         double ntfrac = (double)(nDP0 + 1) / (double)(tDP0 + 1);
         
-        double base_contam = (double)(isInDel ? : 10, 0);
+        double base_contam = (double)(isInDel ? 10 : 0);
         double add_contam_phred = base_contam + calc_binom_10log10_likeratio((double)add_contam_rate, (double)nAD0 * MIN(1.0, 2.0 / ntfrac), (double)tAD0); // 0.2 max 0.02 min
         double mul_contam_phred = base_contam + (nDP0 < tDP0 
             ? calc_binom_10log10_likeratio((double)mul_contam_rate, (double)nAD0         , (double)tAD0 * ntfrac)
