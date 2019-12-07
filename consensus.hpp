@@ -2173,6 +2173,7 @@ generateVcfHeader(const char *ref_fasta_fname, const char *platform,
     ret += "##INFO=<ID=tAllHD,Number=1,Type=Integer,Description=\"Tumor-sample cAllHD or bAllHD, depending on command-line option\">\n";
     ret += "##INFO=<ID=tRefHD,Number=1,Type=Integer,Description=\"Tumor-sample cRefHD or bRefHD, depending on command-line option\">\n";
     ret += "##INFO=<ID=tMQ,Number=.,Type=Float,Description=\"Tumor-sample MQ\">\n"; 
+    ret += "##INFO=<ID=tgapDP4,Number=4,Type=Integer,Description=\"Tumor-sample gapDP4\">\n"; 
     ret += "##INFO=<ID=RU,Number=1,Type=String,Description=\"The shortest repeating unit in the reference\">\n";
     ret += "##INFO=<ID=RC,Number=1,Type=Integer,Description=\"The number of non-interrupted RUs in the reference\">\n"; 
     
@@ -2206,6 +2207,16 @@ string_join(auto container, std::string sep = std::string(",")) {
     std::string ret = "";
     for (auto e : container) {
         ret += e + sep;
+    }
+    ret.pop_back();
+    return ret;
+}
+
+std::string 
+other_join(auto container, std::string sep = std::string(",")) {
+    std::string ret = "";
+    for (auto e : container) {
+        ret += std::to_string(e) + sep;
     }
     ret.pop_back();
     return ret;
@@ -2301,7 +2312,17 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         vcfpos = refpos; // refpos > 0?
         vcfref = (regionpos > 0 ? refstring.substr(regionpos-1, 1) : "n");
         vcfalt = vcfref;
-        if (fmt.gapNum[0] <= 0 && fmt.gapNum[1] <= 0) {
+        if (prev_is_tumor && tki.ref_alt.size() > 3) {
+            size_t midtry = tki.ref_alt.size() - 2;
+            if ('\t' == tki.ref_alt[1] && tki.ref_alt[0] == tki.ref_alt[2]) {
+                indelstring = tki.ref_alt.substr(3, tki.ref_alt.size() - 3);
+            } else if ('\t' == tki.ref_alt[midtry] && tki.ref_alt[0] == tki.ref_alt[midtry+1]) {
+                indelstring = tki.ref_alt.substr(1, tki.ref_alt.size() - 3);
+            } else {
+                fprintf(stderr, "The ref_alt %s is not valid!\n", tki.ref_alt.c_str());
+                abort();
+            }
+        } else if (fmt.gapNum[0] <= 0 && fmt.gapNum[1] <= 0) {
             if (!is_rescued) {
                 std::cerr << "Invalid indel detected (invalid mutation) : " << tname << ", " << refpos << ", " << SYMBOL_TO_DESC_ARR[symbol] << std::endl;
                 std::string msg;
@@ -2313,6 +2334,15 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
             indelstring = fmt.gapSeq[0];
         } else {
             indelstring = (fmt.gapbAD1[0] > fmt.gapbAD1[fmt.gapNum[0]] ? fmt.gapSeq[0] : fmt.gapSeq.at(fmt.gapNum[0]));
+        }
+        fmtvar.gapDP4 = {0, 0, 0, 0};
+        for (size_t si = 0; si < fmt.gapSeq.size(); si++) {
+            if (fmt.gapSeq[si] == indelstring) {
+                fmtvar.gapDP4[2] += fmt.gapbAD1[si];
+                fmtvar.gapDP4[3] += fmt.gapcAD1[si];
+            }
+            fmtvar.gapDP4[0] += fmt.gapbAD1[si];
+            fmtvar.gapDP4[1] += fmt.gapcAD1[si];
         }
         //editdist = MAX(SIGN2UNSIGN(1), indelstring.size());
         if (indelstring.size() == 0) {
@@ -2387,7 +2417,10 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         double tDP0 = (double)(tUseHD ? (tAllHD) :          (double)tki.DP);
         double tAD0 = (double)(tUseHD ? (tAltHD) : tki.FA * (double)tki.DP);
         double tRD0 = (double)(tUseHD ? (tRefHD) : tki.FR * (double)tki.DP);
- 
+        
+        double nAD0a = nAD0 * (isInDel ? ((double)(fmt.gapDP4[2] + 1) / (double)(fmt.gapDP4[0] + 1)) : 1.0);
+        double tAD0a = tAD0 * (isInDel ? ((double)(tki.gapDP4[2] + 1) / (double)(tki.gapDP4[0] + 1)) : 1.0);
+        
         double nAD1 = (nUseHD ? (highqual_thres * nAltHD) : nAltBQ) + depth_pseudocount / 2.0;
         double nDP1 = (nUseHD ? (highqual_thres * nAllHD) : nAllBQ) + depth_pseudocount;
         double tAD1 = (tUseHD ? (highqual_thres * tAltHD) : tAltBQ) + depth_pseudocount / 2.0;
@@ -2475,8 +2508,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         if (isInDel) {
             //tn_trawq = tn_tra1q + indel_prior;
             //tn_nrawq = tn_nra1q + indel_prior;
-            tn_tpowq = penal_indel(tn_tpo1q, (double)(tAD0), (double)(tDP0 - tRD0), repeatunit, repeatnum);
-            tn_npo2q = penal_indel(tn_npo1q, (double)(nAD0), (double)(nDP0 - nRD0), repeatunit, repeatnum);
+            tn_tpowq = penal_indel(tn_tpo1q, (double)(tAD0a), (double)(tDP0 - tRD0), repeatunit, repeatnum);
+            tn_npo2q = penal_indel(tn_npo1q, (double)(nAD0a), (double)(nDP0 - nRD0), repeatunit, repeatnum);
         }
         double tn_npowq = MAX(0.0, tn_npo2q);
         
@@ -2607,6 +2640,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         infostring += std::string(";tAltHD=") + std::to_string(tki.autoBestAltHD);
         infostring += std::string(";tAllHD=") + std::to_string(tki.autoBestAllHD);
         infostring += std::string(";tMQ=") + std::to_string(tki.MQ);
+        infostring += std::string(";tgapDP4=") + other_join(tki.gapDP4);
         
         // infostring += std::string(";TNQA=") + string_join(std::array<std::string, 4>({std::to_string(tn_systq), std::to_string(tvn_powq), std::to_string(tnlike_argmin), std::to_string(reduction_coef)}));
         

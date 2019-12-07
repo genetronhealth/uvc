@@ -261,7 +261,7 @@ struct TumorKeyInfo {
     int32_t autoBestAllHD = 0;
     int32_t autoBestAltHD = 0;
     int32_t autoBestRefHD = 0;
-
+    std::array<int32_t, 4> gapDP4 = {0};
     bcf1_t *bcf1_record = NULL;
     /*
     ~TumorKeyInfo() {
@@ -446,6 +446,11 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
             }
         }
         tki.FT = std::string(bcfstring, valsize-1);
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "gapDP4", &bcfints, &ndst_val);
+        assert((4 == ndst_val && 4 == valsize) || !fprintf(stderr, "4 == %d && 4 == %d failed for gapDP4!\n", ndst_val, valsize));
+        tki.gapDP4 = {bcfints[0], bcfints[1], bcfints[2], bcfints[3]};
         
         ndst_val = 0;
         valsize = bcf_get_format_char(bcf_hdr, line, "cHap", &bcfstring, &ndst_val);
