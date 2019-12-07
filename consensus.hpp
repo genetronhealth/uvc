@@ -2418,8 +2418,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         double tAD0 = (double)(tUseHD ? (tAltHD) : tki.FA * (double)tki.DP);
         double tRD0 = (double)(tUseHD ? (tRefHD) : tki.FR * (double)tki.DP);
         
-        double nAD0a = nAD0 * (isInDel ? ((double)(fmt.gapDP4[2] + 1) / (double)(fmt.gapDP4[0] + 1)) : 1.0);
-        double tAD0a = tAD0 * (isInDel ? ((double)(tki.gapDP4[2] + 1) / (double)(tki.gapDP4[0] + 1)) : 1.0);
+        double nAD0a = nAD0 * ((isInDel && !nUseHD) ? ((double)(fmt.gapDP4[2] + 1) / (double)(fmt.gapDP4[0] + 1)) : 1.0);
+        double tAD0a = tAD0 * ((isInDel && !tUseHD) ? ((double)(tki.gapDP4[2] + 1) / (double)(tki.gapDP4[0] + 1)) : 1.0);
         
         double nAD1 = (nUseHD ? (highqual_thres * nAltHD) : nAltBQ) + depth_pseudocount / 2.0;
         double nDP1 = (nUseHD ? (highqual_thres * nAllHD) : nAllBQ) + depth_pseudocount;
