@@ -2244,15 +2244,16 @@ bcf1_to_string(const bcf_hdr_t *tki_bcf1_hdr, const bcf1_t *bcf1_record) {
 }
 
 double
-penal_indel(double qual, double ad, double od, const std::string & ru, const unsigned int rc) {
+penal_indel(double vcfqual, double ad, double od, const std::string & ru, const unsigned int rc) {
+    /*
     const double str_tier_qual = 3e6; // disabled
     const double str_tier_len  = 30.0; // 15.0;
-    double vcfqual = qual;
     if (vcfqual > str_tier_qual) {
         double context_len = (double)(ru.size() * rc);
         vcfqual = str_tier_qual + ((vcfqual - str_tier_qual) * str_tier_len / (str_tier_len + context_len));
     }
-    vcfqual *= ad / (ad + 1.0);
+    */
+    // vcfqual *= ad / (ad + 1.0);
     auto od2 = MIN(ad* 3.0, MAX(ad, od));
     vcfqual += 30.0 * log((ad + 1.0) / (od2 + 1.0)) / log(2.0);
     //vcfqual += MIN(15.0, (ru.size() * rc));
@@ -2367,7 +2368,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         vcfalt = altsymbolname;
     }
     
-    const double indel_pp = 8.0 + MIN(8.0, 0.5*(double)indelstring.size()); // probability of systematic indel error (gapOpeningPenalty=16 and gapExtensionPenalty=1)
+    const double indel_pp = MIN(8.0, 0.5*(double)indelstring.size()); // probability of systematic indel error (gapOpeningPenalty=16 and gapExtensionPenalty=1)
     double indel_prior = ((0 == indelstring.size() || 0 == repeatunit.size() || 0 == repeatnum) ? 0.0 : (indel_phred(2.0, indelstring.size(), repeatunit.size(), repeatnum)));
     if (isInDel && (!prev_is_tumor)) {
         fmtvar.VAQ += indel_prior;
@@ -2529,7 +2530,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         // TODO: fill // mul_contam_rate < add_contam_rate
         double ntfrac = (double)(nDP0 + 1) / (double)(tDP0 + 1);
         
-        double base_contam = 0.0; // (double)(isInDel ? indel_pp : 0.0); // TODO: FIXME: justify this zero assignment?
+        double base_contam = (double)(isInDel ? indel_pp : 0.0); // TODO: FIXME: justify this zero assignment?
         double add_contam_phred = base_contam + calc_binom_10log10_likeratio((double)add_contam_rate, (double)nAD0 * MIN(1.0, 2.0 / ntfrac), (double)tAD0); // 0.2 max 0.02 min
         double mul_contam_phred = base_contam + (nDP0 < tDP0 
             ? calc_binom_10log10_likeratio((double)mul_contam_rate, (double)nAD0         , (double)tAD0 * ntfrac)
@@ -2593,7 +2594,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
             // FIXME: probabilities of germline polymorphism and somatic mutation at a locus are both strongly correlated with the STR pattern for InDels
             //        here we assumed that the likelihood of germline polymorphism is proportional to the likelihood of somatic mutation.
             //        however, in practice the two likelihoods may be different from each other.
-            testquals[i] = MIN(reduction_coef * testquals[i] + (isInDel ? indel_pp : 0.0), MAX(phred_non_germ, tumor_non_germ) + (double)phred_germline + (isInDel ? (10.0 - indel_prior) : 0.0));
+            testquals[i] = MIN(reduction_coef * testquals[i] + (isInDel ? (8.0 + indel_pp) : 0.0), MAX(phred_non_germ, tumor_non_germ) + (double)phred_germline + (isInDel ? (10.0 - indel_prior) : 0.0));
             vcfqual = MAX(vcfqual, testquals[i]);
         }
         double median_qual = MEDIAN(std::array<double, N_MODELS>(testquals));
