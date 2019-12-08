@@ -2529,7 +2529,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         // TODO: fill // mul_contam_rate < add_contam_rate
         double ntfrac = (double)(nDP0 + 1) / (double)(tDP0 + 1);
         
-        double base_contam = (double)(isInDel ? indel_pp : 0.0);
+        double base_contam = 0.0; // (double)(isInDel ? indel_pp : 0.0); // TODO: FIXME: justify this zero assignment?
         double add_contam_phred = base_contam + calc_binom_10log10_likeratio((double)add_contam_rate, (double)nAD0 * MIN(1.0, 2.0 / ntfrac), (double)tAD0); // 0.2 max 0.02 min
         double mul_contam_phred = base_contam + (nDP0 < tDP0 
             ? calc_binom_10log10_likeratio((double)mul_contam_rate, (double)nAD0         , (double)tAD0 * ntfrac)
