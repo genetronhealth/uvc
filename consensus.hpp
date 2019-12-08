@@ -2369,6 +2369,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
     }
     
     const double indel_pp = MIN(8.0, 0.5*(double)indelstring.size()); // probability of systematic indel error (gapOpeningPenalty=16 and gapExtensionPenalty=1)
+    const double indel_p2 = MIN(tki.FA * 100, 5.0) + MIN(tki.FA * (double)tki.DP, 4.0);
     double indel_prior = ((0 == indelstring.size() || 0 == repeatunit.size() || 0 == repeatnum) ? 0.0 : (indel_phred(2.0, indelstring.size(), repeatunit.size(), repeatnum)));
     if (isInDel && (!prev_is_tumor)) {
         fmtvar.VAQ += indel_prior;
@@ -2452,14 +2453,32 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         const bool is_nonref_snp_excluded = true; // false;
         const bool is_nonref_indel_excluded = true; // false;
         const bool is_nonref_germline_excluded = (isInDel ? is_nonref_indel_excluded : is_nonref_snp_excluded);
-        const bool b_is_germ = ((fmt.bFA > 0.2) || (fmt.bFR < (1.0 - 0.2) && is_nonref_germline_excluded));
-        const bool c_is_germ = ((fmt.cFA > 0.2) || (fmt.cFR < (1.0 - 0.2) && is_nonref_germline_excluded));
+        const bool   is_germ = ((fmt.FA  > 0.2) || (1.0 - fmt.FR  - fmt.FA  > 0.2 && is_nonref_germline_excluded));
+        const bool b_is_germ = ((fmt.bFA > 0.2) || (1.0 - fmt.bFR - fmt.bFA > 0.2 && is_nonref_germline_excluded));
+        const bool c_is_germ = ((fmt.cFA > 0.2) || (1.0 - fmt.cFR - fmt.cFA > 0.2 && is_nonref_germline_excluded));
+        double _phred_non_germ = 0.0;
+        if (is_germ) {
+            if (is_germ == b_is_germ && is_germ == c_is_germ) {
+                _phred_non_germ = (-(double)fmt.GQ);
+            } else {
+                _phred_non_germ = (-(double)fmt.GQ); //  / 2.0; // TODO: check if the division by two makes sense
+            }
+        } else {
+            if (is_germ == b_is_germ && is_germ == c_is_germ) {
+                _phred_non_germ = ( (double)fmt.GQ);
+            } else {
+                _phred_non_germ = ( (double)fmt.GQ); // / 2.0;
+            } 
+        }
+        const double phred_non_germ = _phred_non_germ;
+        /*
         const double phred_non_germ = (double)
                 (  (  b_is_germ  &&   c_is_germ ) ? (-(double)fmt.GQ) :
                   (((!b_is_germ) && (!c_is_germ)) ? ( (double)fmt.GQ) : 
                                                     ( (double)0     )
                   )
                 ); 
+        */
         const double t_germFA = 1.0 / 6.0;
         const double tumor_non_germ = (tki.FA >= t_germFA ? (1000.0 * (t_germFA - tki.FA)) : calc_phred10_likeratio(t_germFA, tki.FA * (double)tki.DP, (1.0 - tki.FA) * (double)tki.DP));
         
@@ -2506,9 +2525,9 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         // MAX(0.0, tn_npowq - 16.0 * pow(0.5, (double)nAD0 - 1.0)); // 10.0 / log(10.0) * log((double)(nDP1 + nAD1 + eps_qual) / (double)(nAD1 + eps_qual)) * nAD0 / 1.25;
         double tn_tra1q = (double)tki.VAQ; //MIN(MAX((double)tki.VAQ - tn_tsamq * 0, 0.0), tn_tpowq);
         double tn_nra1q = (double)fmt.VAQ; //MIN(MAX((double)fmt.VAQ - tn_nsamq * 0, 0.0), tn_npowq);
-        double tn_trawq = tn_tra1q;
-        double tn_nrawq = tn_nra1q;
-
+        double tn_trawq = MAX(0.0, tn_tra1q - tn_tsamq      ); // tumor  base quality bias is stronger as raw    variant (which is biased to have high base qualities) is called from every genomic base
+        double tn_nrawq = MAX(0.0, tn_nra1q - tn_nsamq / 4.0); // normal base quality bias is weaker   as result variant (which is biased to have high base qualities) is filtered from each called variant
+        
         double tn_tpowq = tn_tpo1q;
         double tn_npo2q = tn_npo1q; 
         if (isInDel) {
@@ -2594,7 +2613,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
             // FIXME: probabilities of germline polymorphism and somatic mutation at a locus are both strongly correlated with the STR pattern for InDels
             //        here we assumed that the likelihood of germline polymorphism is proportional to the likelihood of somatic mutation.
             //        however, in practice the two likelihoods may be different from each other.
-            testquals[i] = MIN(reduction_coef * testquals[i] + (isInDel ? (8.0 + indel_pp) : 0.0), MAX(phred_non_germ, tumor_non_germ) + (double)phred_germline + (isInDel ? (10.0 - indel_prior) : 0.0));
+            testquals[i] = MIN(reduction_coef * testquals[i] + (isInDel ? (indel_pp + indel_p2) : 0.0), MAX(phred_non_germ, tumor_non_germ) + (double)phred_germline + (isInDel ? (10.0 - indel_prior) : 0.0));
             vcfqual = MAX(vcfqual, testquals[i]);
         }
         double median_qual = MEDIAN(std::array<double, N_MODELS>(testquals));
@@ -2633,11 +2652,14 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         for (int i = 0; i < N_MODELS; i++) {
             infostring += std::string(";TQ") + std::to_string(i) + "=" + std::to_string(testquals[i]); 
         }
-        infostring += std::string(";TNQ=")  + string_join(std::array<std::string, 5>({std::to_string(median_qual), std::to_string(tvn_powq), std::to_string(tvn_rawq), std::to_string(tvn_or_q), std::to_string(tvn_st_q)}));
+        infostring += std::string(";TNQ=")  + string_join(std::array<std::string, 5>({std::to_string(median_qual), std::to_string(tvn_powq)
+                , std::to_string(tvn_rawq), std::to_string(tvn_or_q), std::to_string(tvn_st_q)}));
         infostring += std::string(";TNQA=") + string_join(std::array<std::string, 6>({std::to_string(phred_non_germ), std::to_string(tumor_non_germ)
                 , std::to_string(tnlike_argmin), std::to_string(reduction_coef), std::to_string(add_contam_phred), std::to_string(mul_contam_phred)}));
-        infostring += std::string(";TNNQ=") + string_join(std::array<std::string, 5>({std::to_string(tn_npo2q), std::to_string(tn_nrawq), std::to_string(indel_prior), std::to_string(tn_npo1q), std::to_string(tn_nsamq)}));
-        infostring += std::string(";TNTQ=") + string_join(std::array<std::string, 5>({std::to_string(tn_tpowq), std::to_string(tn_trawq), std::to_string(indel_prior), std::to_string(tn_tpo1q), std::to_string(tn_tsamq)}));
+        infostring += std::string(";TNNQ=") + string_join(std::array<std::string, 5>({std::to_string(tn_npo2q), std::to_string(tn_nra1q - tn_nsamq)
+                , std::to_string(indel_prior), std::to_string(tn_npo1q), std::to_string(tn_nsamq)}));
+        infostring += std::string(";TNTQ=") + string_join(std::array<std::string, 5>({std::to_string(tn_tpowq), std::to_string(tn_tra1q - tn_tsamq)
+                , std::to_string(indel_prior), std::to_string(tn_tpo1q), std::to_string(tn_tsamq)}));
         infostring += std::string(";tDP=") + std::to_string(tki.DP);
         infostring += std::string(";tFA=") + std::to_string(tki.FA);
         infostring += std::string(";tFR=") + std::to_string(tki.FR);
