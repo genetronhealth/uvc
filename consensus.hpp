@@ -2046,15 +2046,17 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
     if (fmtAD > 0 || is_rescued) {
         assert(fmt.FA >= 0);
         if (fmt.FA > (0.8 - DBL_EPSILON)) {
+            // expFA = 0.2 + (fmt.FA - 0.8)
             fmt.GT = (is_novar ? "0/0" : "1/1");
-            fmt.GQ = (unsigned int)calc_phred10_likeratio(0.2 + (fmt.FA - 0.8), fmtAD, fmt.DP - fmtAD); // homo, so assume hetero is the alternative
+            fmt.GQ = (unsigned int)calc_phred10_likeratio(0.5, fmtAD, fmt.DP - fmtAD); // homo, so assume hetero is the alternative
         } else if (fmt.FA < (0.2 + DBL_EPSILON)) {
+            // expFA = 0.2 + (0.2 - fmt.FA)
             fmt.GT = (is_novar ? "1/1" : "1/0");
-            fmt.GQ = (unsigned int)calc_phred10_likeratio(0.2 + (0.2 - fmt.FA), fmtAD, fmt.DP - fmtAD); // homo, so assume hetero is the alternative
+            fmt.GQ = (unsigned int)calc_phred10_likeratio(0.5, fmtAD, fmt.DP - fmtAD); // homo, so assume hetero is the alternative
         } else {
-            const double diffFA = (MIN(fmt.FA, 1.0-fmt.FA) - 0.2) / 2.0;
+            // const double expFA = 0.2 - (MIN(fmt.FA, 1.0-fmt.FA) - 0.2) / 2.0;
             fmt.GT = (is_novar ? "0/1" : "0/1");
-            fmt.GQ = (unsigned int)calc_phred10_likeratio(0.2 - diffFA,         fmtAD, fmt.DP - fmtAD); // hetero, so assume homo is the alternative
+            fmt.GQ = (unsigned int)calc_phred10_likeratio(0.1, fmtAD, fmt.DP - fmtAD); // hetero, so assume homo is the alternative
         }
     } else {
         fmt.GT = "./.";
@@ -2159,7 +2161,7 @@ generateVcfHeader(const char *ref_fasta_fname, const char *platform,
         ret += "##INFO=<ID=TQ" + std::to_string(i) +",Number=1,Type=Float,Description=\"Variant quality computed by the model " + std::to_string(i) +"\">\n";
     }
     ret += "##INFO=<ID=TNQ,Number=.,Type=Float,Description=\"For t-vs-n: allele-fraction variant quality (VQ), raw VQ, contamination VQ, and statistical noise VQ\">\n";
-    ret += "##INFO=<ID=TNQA,Number=.,Type=Float,Description=\"Germline-exclusion quality, argmin for t-vs-n raw VQ, coefficient for final variant call, additive contamination score, and multiplicative contamination score.\">\n";
+    ret += "##INFO=<ID=TNQA,Number=.,Type=Float,Description=\"Normal germline-exclusion quality, tumor germline-exclusion quality, argmin for t-vs-n raw VQ, coefficient for final variant call, additive contamination score, and multiplicative contamination score.\">\n";
     ret += "##INFO=<ID=TNNQ,Number=.,Type=Float,Description=\"For only tumor  sample: allele-fraction variant quality (VQ), raw VQ, and raw adjustment quality\">\n";
     ret += "##INFO=<ID=TNTQ,Number=.,Type=Float,Description=\"For only normal sample: allele-fraction variant quality (VQ), raw VQ, and raw adjustment quality\">\n";
     ret += "##INFO=<ID=tDP,Number=1,Type=Integer,Description=\"Tumor-sample DP\">\n";
@@ -2365,7 +2367,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         vcfalt = altsymbolname;
     }
     
-    const double indel_pp = 10.0 + MIN(7.5, 0.5*(double)indelstring.size()); // probability of systematic indel error
+    const double indel_pp = 8.0 + MIN(8.0, 0.5*(double)indelstring.size()); // probability of systematic indel error (gapOpeningPenalty=16 and gapExtensionPenalty=1)
     double indel_prior = ((0 == indelstring.size() || 0 == repeatunit.size() || 0 == repeatnum) ? 0.0 : (indel_phred(2.0, indelstring.size(), repeatunit.size(), repeatnum)));
     if (isInDel && (!prev_is_tumor)) {
         fmtvar.VAQ += indel_prior;
@@ -2451,14 +2453,15 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         const bool is_nonref_germline_excluded = (isInDel ? is_nonref_indel_excluded : is_nonref_snp_excluded);
         const bool b_is_germ = ((fmt.bFA > 0.2) || (fmt.bFR < (1.0 - 0.2) && is_nonref_germline_excluded));
         const bool c_is_germ = ((fmt.cFA > 0.2) || (fmt.cFR < (1.0 - 0.2) && is_nonref_germline_excluded));
-        double phred_non_germ = (double)(
-                (  b_is_germ   &&  c_is_germ ) ?
-                    ((double)((int)phred_germline - (int)fmt.GQ)) : (
-                ((!b_is_germ) && (!c_is_germ)) ?
-                    ((double)(     phred_germline +      fmt.GQ)) : 
-                     (double)(     phred_germline              )
-                    )); 
-
+        const double phred_non_germ = (double)
+                (  (  b_is_germ  &&   c_is_germ ) ? (-(double)fmt.GQ) :
+                  (((!b_is_germ) && (!c_is_germ)) ? ( (double)fmt.GQ) : 
+                                                    ( (double)0     )
+                  )
+                ); 
+        const double t_germFA = 1.0 / 6.0;
+        const double tumor_non_germ = (tki.FA >= t_germFA ? (1000.0 * (t_germFA - tki.FA)) : calc_phred10_likeratio(t_germFA, tki.FA * (double)tki.DP, (1.0 - tki.FA) * (double)tki.DP));
+        
         double reduction_coef = (double)tAD0 / ((double)tAD0 + DBL_EPSILON + 0*1.0 
             + 2.0 * (MAX(0.0, 60.0 - tki.MQ) / (MAX(60.0 ,tki.MQ) +  DBL_EPSILON))
             + 0.0 * (1.0 - tAD1 / MAX(tDP1 - tRD1, tAD1)));
@@ -2526,7 +2529,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         // TODO: fill // mul_contam_rate < add_contam_rate
         double ntfrac = (double)(nDP0 + 1) / (double)(tDP0 + 1);
         
-        double base_contam = (double)(isInDel ? 10 : 0);
+        double base_contam = (double)(isInDel ? indel_pp : 0.0);
         double add_contam_phred = base_contam + calc_binom_10log10_likeratio((double)add_contam_rate, (double)nAD0 * MIN(1.0, 2.0 / ntfrac), (double)tAD0); // 0.2 max 0.02 min
         double mul_contam_phred = base_contam + (nDP0 < tDP0 
             ? calc_binom_10log10_likeratio((double)mul_contam_rate, (double)nAD0         , (double)tAD0 * ntfrac)
@@ -2587,7 +2590,10 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         
         vcfqual = 0;
         for (int i = 0; i < N_MODELS; i++) {
-            testquals[i] = MIN(reduction_coef * testquals[i] + (isInDel ? indel_pp : 0.0), ((double)phred_non_germ) + (isInDel ? 10.0 : 0.0));
+            // FIXME: probabilities of germline polymorphism and somatic mutation at a locus are both strongly correlated with the STR pattern for InDels
+            //        here we assumed that the likelihood of germline polymorphism is proportional to the likelihood of somatic mutation.
+            //        however, in practice the two likelihoods may be different from each other.
+            testquals[i] = MIN(reduction_coef * testquals[i] + (isInDel ? indel_pp : 0.0), MAX(phred_non_germ, tumor_non_germ) + (double)phred_germline + (isInDel ? (10.0 - indel_prior) : 0.0));
             vcfqual = MAX(vcfqual, testquals[i]);
         }
         double median_qual = MEDIAN(std::array<double, N_MODELS>(testquals));
@@ -2627,8 +2633,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
             infostring += std::string(";TQ") + std::to_string(i) + "=" + std::to_string(testquals[i]); 
         }
         infostring += std::string(";TNQ=")  + string_join(std::array<std::string, 5>({std::to_string(median_qual), std::to_string(tvn_powq), std::to_string(tvn_rawq), std::to_string(tvn_or_q), std::to_string(tvn_st_q)}));
-        infostring += std::string(";TNQA=") + string_join(std::array<std::string, 5>({std::to_string(phred_non_germ), std::to_string(tnlike_argmin), std::to_string(reduction_coef)
-                , std::to_string(add_contam_phred), std::to_string(mul_contam_phred)}));
+        infostring += std::string(";TNQA=") + string_join(std::array<std::string, 6>({std::to_string(phred_non_germ), std::to_string(tumor_non_germ)
+                , std::to_string(tnlike_argmin), std::to_string(reduction_coef), std::to_string(add_contam_phred), std::to_string(mul_contam_phred)}));
         infostring += std::string(";TNNQ=") + string_join(std::array<std::string, 5>({std::to_string(tn_npo2q), std::to_string(tn_nrawq), std::to_string(indel_prior), std::to_string(tn_npo1q), std::to_string(tn_nsamq)}));
         infostring += std::string(";TNTQ=") + string_join(std::array<std::string, 5>({std::to_string(tn_tpowq), std::to_string(tn_trawq), std::to_string(indel_prior), std::to_string(tn_tpo1q), std::to_string(tn_tsamq)}));
         infostring += std::string(";tDP=") + std::to_string(tki.DP);
