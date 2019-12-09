@@ -591,7 +591,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
             (is_by_capture ? paramset.ess_georatio_dedup_cap : paramset.ess_georatio_dedup_pcr), paramset.ess_georatio_duped_pcr,
             !paramset.disable_dup_read_merge, 
             is_loginfo_enabled, thread_id, paramset.fixedthresBQ, paramset.nogap_phred
-            , paramset.highqual_thres_snv, paramset.highqual_thres_indel, paramset.uni_bias_r_max);
+            , paramset.highqual_thres_snv, paramset.highqual_thres_indel, paramset.uni_bias_r_max
+            , SEQUENCING_PLATFORM_IONTORRENT == paramset.sequencing_platform);
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts analyzing phasing info"; }
     auto mutform2count4vec_bq = map2vector(mutform2count4map_bq);
     auto simplemut2indices_bq = mutform2count4vec_to_simplemut2indices(mutform2count4vec_bq);

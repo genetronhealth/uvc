@@ -844,7 +844,7 @@ public:
         posToIndelToCount_inc(this->getRefPosToDlenToData(symbol), ipos, dlen, incvalue);
     };
     
-    template<ValueType TUpdateType, bool THasDups, unsigned int TIndelAddPhred = 0*29>
+    template<ValueType TUpdateType, bool TIsProton, bool THasDups, unsigned int TIndelAddPhred = 0*29>
     int // GenericSymbol2CountCoverage<TSymbol2Count>::
     updateByAln(const bam1_t *const b, unsigned int frag_indel_ext, 
             const std::array<unsigned int, NUM_SYMBOL_TYPES> & symbolType2addPhredArg, 
@@ -889,8 +889,8 @@ public:
             } else if (cigar_op == BAM_CINS) {
                 unsigned int inslen = SIGN2UNSIGN(cigar_oplen);
                 if (TUpdateType == BASE_QUALITY_MAX) {
-                    auto addidq = (THasDups ? 0 : (MIN(cigar_oplen - 1, SIGN2UNSIGN(3 - 1)) * frag_indel_ext));
                     if (TIndelAddPhred) {
+                        auto addidq = (THasDups ? 0 : (MIN(cigar_oplen - 1, SIGN2UNSIGN(3 - 1)) * frag_indel_ext));
                         incvalue = TIndelAddPhred + addidq;
                     } else if (0 == qpos || qpos + SIGN2UNSIGN(cigar_oplen) >= SIGN2UNSIGN(b->core.l_qseq)) {
                         LOG(logWARNING) << "Query " << bam_get_qname(b) << " has insertion of legnth " << cigar_oplen << " at " << qpos
@@ -899,9 +899,9 @@ public:
                                 ((qpos + cigar_oplen < SIGN2UNSIGN(b->core.l_qseq)) ? 
                                 bam_phredi(b, qpos + SIGN2UNSIGN(cigar_oplen)) : 1)); // + addidq; // + symbolType2addPhred[LINK_SYMBOL];
                     } else {
-                        unsigned int phredvalue = (THasDups ? 0 : bam_to_phredvalue(inslen, b, qpos, frag_indel_basemax, 4.0, cigar_oplen));
+                        unsigned int phredvalue = bam_to_phredvalue(inslen, b, qpos, frag_indel_basemax, 4.0, cigar_oplen); // THasDups is not used here
                         // auto min_adj_BQ = MIN(bam_phredi(b, qpos-1), bam_phredi(b, qpos + cigar_oplen);
-                        incvalue = MIN(MIN(bam_phredi(b, qpos-1), bam_phredi(b, qpos + cigar_oplen)), phredvalue); // + addidq; 
+                        incvalue = (TIsProton ? MIN(MIN(bam_phredi(b, qpos-1), bam_phredi(b, qpos + cigar_oplen)), phredvalue) : phredvalue); // + addidq; 
                         // + symbolType2addPhred[LINK_SYMBOL];
                     }
                 }
@@ -922,8 +922,8 @@ public:
             } else if (cigar_op == BAM_CDEL) {
                 unsigned int dellen = SIGN2UNSIGN(cigar_oplen);
                 if (TUpdateType == BASE_QUALITY_MAX) {
-                    unsigned int addidq = (THasDups ? 0 : SIGN2UNSIGN(MIN(cigar_oplen - 1, SIGN2UNSIGN(3 - 1)) * frag_indel_ext));
                     if (TIndelAddPhred) {
+                        unsigned int addidq = (THasDups ? 0 : SIGN2UNSIGN(MIN(cigar_oplen - 1, SIGN2UNSIGN(3 - 1)) * frag_indel_ext));
                         incvalue = TIndelAddPhred + addidq;
                     } else if (0 == qpos || qpos + SIGN2UNSIGN(cigar_oplen) >= SIGN2UNSIGN(b->core.l_qseq)) {
                         LOG(logWARNING) << "Query " << bam_get_qname(b) << " has deletion of legnth " << cigar_oplen << " at " << qpos
@@ -933,8 +933,8 @@ public:
                                 bam_phredi(b, qpos + SIGN2UNSIGN(cigar_oplen)) : 1)); // + addidq;
                     } else {
                         double afa = ((cigar_oplen <= 2) ? 12.0 : 4.0);
-                        unsigned int phredvalue = (THasDups ? 0 : bam_to_phredvalue(dellen, b, qpos, frag_indel_basemax, afa, cigar_oplen));
-                        incvalue = MIN(MIN(bam_phredi(b, qpos), bam_phredi(b, qpos-1)), phredvalue); // + addidq; 
+                        unsigned int phredvalue = bam_to_phredvalue(dellen, b, qpos, frag_indel_basemax, afa, cigar_oplen); // THasDups is not used here
+                        incvalue = (TIsProton ? MIN(MIN(bam_phredi(b, qpos), bam_phredi(b, qpos-1)), phredvalue) : phredvalue); // + addidq; 
                         // + symbolType2addPhred[LINK_SYMBOL];
                     }
                 }
@@ -962,12 +962,20 @@ public:
     int // GenericSymbol2CountCoverage<TSymbol2Count>::
     updateByRead1Aln(std::vector<bam1_t *> aln_vec, unsigned int frag_indel_ext, 
             const std::array<unsigned int, NUM_SYMBOL_TYPES> & symbolType2addPhred, const unsigned int alns2size, 
-            const unsigned int frag_indel_basemax, unsigned int dflag, unsigned int nogap_phred) {
+            const unsigned int frag_indel_basemax, unsigned int dflag, unsigned int nogap_phred, const bool is_proton) {
         for (bam1_t *aln : aln_vec) {
             if (alns2size > 1 && dflag > 0) { // is barcoded and not singleton
-                this->updateByAln<TUpdateType, true>(aln, frag_indel_ext, symbolType2addPhred, frag_indel_basemax, nogap_phred);
+                if (is_proton) {
+                    this->updateByAln<TUpdateType, true , true >(aln, frag_indel_ext, symbolType2addPhred, frag_indel_basemax, nogap_phred);
+                } else {
+                    this->updateByAln<TUpdateType, false, true >(aln, frag_indel_ext, symbolType2addPhred, frag_indel_basemax, nogap_phred);
+                }
             } else {
-                this->updateByAln<TUpdateType, false>(aln, frag_indel_ext, symbolType2addPhred, frag_indel_basemax, nogap_phred);
+                if (is_proton) {
+                    this->updateByAln<TUpdateType, true , false>(aln, frag_indel_ext, symbolType2addPhred, frag_indel_basemax, nogap_phred);
+                } else {
+                    this->updateByAln<TUpdateType, false, false>(aln, frag_indel_ext, symbolType2addPhred, frag_indel_basemax, nogap_phred);
+                } 
             }
         }
         return 0;
@@ -1403,7 +1411,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
         }
         return 0;
     };
-
+    
     int 
     updateByAlns3UsingBQ(
             std::map<std::basic_string<std::pair<unsigned int, AlignmentSymbol>>, std::array<unsigned int, 2>> & mutform2count4map,
@@ -1414,6 +1422,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
             const PhredMutationTable & phred_max_table, unsigned int phred_thres
             , double ess_georatio_dedup, double ess_georatio_duped_pcr
             , unsigned int fixedthresBQ, unsigned int nogap_phred, unsigned int uni_bias_r_max
+            , const bool is_proton
             ) {
         for (const auto & alns2pair2dflag : alns3) {
             const auto & alns2pair = alns2pair2dflag.first;
@@ -1424,7 +1433,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                     fillTidBegEndFromAlns1(tid2, beg2, end2, alns1);
                     Symbol2CountCoverage read_ampBQerr_fragWithR1R2(tid, beg2, end2);
                     read_ampBQerr_fragWithR1R2.updateByRead1Aln<BASE_QUALITY_MAX>(alns1, frag_indel_ext, symbolType2addPhred, alns2.size(), 
-                            frag_indel_basemax, alns2pair2dflag.second, nogap_phred);
+                            frag_indel_basemax, alns2pair2dflag.second, nogap_phred, is_proton);
                     unsigned int normMQ = 0;
                     for (const bam1_t * b : alns1) {
                         normMQ = MAX(normMQ, b->core.qual);
@@ -1531,7 +1540,8 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
             const PhredMutationTable & phred_max_table, unsigned int phred_thres, 
             const double ess_georatio_dedup, const double ess_georatio_duped_pcr,
             bool is_loginfo_enabled, unsigned int thread_id, unsigned int nogap_phred
-            , unsigned int highqual_thres_snv, unsigned int highqual_thres_indel, unsigned int uni_bias_r_max) {
+            , unsigned int highqual_thres_snv, unsigned int highqual_thres_indel, unsigned int uni_bias_r_max
+            , const bool is_proton) {
         unsigned int niters = 0;
         for (const auto & alns2pair2dflag : alns3) {
             const auto & alns2pair = alns2pair2dflag.first;
@@ -1556,7 +1566,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                     fillTidBegEndFromAlns1(tid1, beg1, end1, alns1);
                     Symbol2CountCoverage read_ampBQerr_fragWithR1R2(tid1, beg1, end1);
                     read_ampBQerr_fragWithR1R2.updateByRead1Aln<BASE_QUALITY_MAX>(alns1, frag_indel_ext, symbolType2addPhred, alns2.size(), 
-                            frag_indel_basemax, alns2pair2dflag.second, nogap_phred);
+                            frag_indel_basemax, alns2pair2dflag.second, nogap_phred, is_proton);
                     read_family_con_ampl.updateByConsensus<SYMBOL_COUNT_SUM, true>(read_ampBQerr_fragWithR1R2);
                     read_family_amplicon.updateByFiltering(read_ampBQerr_fragWithR1R2, this->bq_pass_thres[strand], 1, true, strand);
                     if (log_alns2) {
@@ -1621,7 +1631,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                     fillTidBegEndFromAlns1(tid1, beg1, end1, aln_vec);
                     Symbol2CountCoverage read_ampBQerr_fragWithR1R2(tid1, beg1, end1);
                     read_ampBQerr_fragWithR1R2.updateByRead1Aln<BASE_QUALITY_MAX>(aln_vec, frag_indel_ext, symbolType2addPhred, alns2.size(), 
-                            frag_indel_basemax, alns2pair2dflag.second, nogap_phred);
+                            frag_indel_basemax, alns2pair2dflag.second, nogap_phred, is_proton);
                     // read_family_amplicon.updateByConsensus<SYMBOL_COUNT_SUM>(read_ampBQerr_fragWithR1R2);
                     read_family_amplicon.updateByFiltering(read_ampBQerr_fragWithR1R2, this->bq_pass_thres[strand], 1, true, strand);
                     if (log_alns2) {
@@ -1785,12 +1795,14 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
             const double ess_georatio_dedup, const double ess_georatio_duped_pcr,
             bool use_deduplicated_reads, bool is_loginfo_enabled, unsigned int thread_id, unsigned int fixedthresBQ, unsigned int nogap_phred
             , unsigned int highqual_thres_snv, unsigned int highqual_thres_indel, unsigned int uni_bias_r_max
+            , const bool is_proton
             ) {
         const std::array<unsigned int, NUM_SYMBOL_TYPES> symbolType2addPhred = {bq_phred_added_misma, bq_phred_added_indel};
         std::basic_string<AlignmentSymbol> ref_symbol_string = string2symbolseq(refstring);
         updateByAlns3UsingBQ(mutform2count4map_bq, alns3, ref_symbol_string, symbolType2addPhred, should_add_note, frag_indel_ext, frag_indel_basemax, 
                 phred_max_sscs_table, phred_thres
-                , ess_georatio_dedup, ess_georatio_duped_pcr, fixedthresBQ, nogap_phred, uni_bias_r_max); // base qualities
+                , ess_georatio_dedup, ess_georatio_duped_pcr, fixedthresBQ, nogap_phred, uni_bias_r_max
+                , is_proton); // base qualities
         updateHapMap(mutform2count4map_bq, this->bq_tsum_depth);
         if (use_deduplicated_reads) {
             updateByAlns3UsingFQ(mutform2count4map_fq, alns3, ref_symbol_string, symbolType2addPhred, should_add_note, frag_indel_ext, frag_indel_basemax, 
@@ -1798,7 +1810,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                     , ess_georatio_dedup, ess_georatio_duped_pcr
                     , is_loginfo_enabled, thread_id, nogap_phred
                     , highqual_thres_snv, highqual_thres_indel, uni_bias_r_max
-                    ); // family qualities
+                    , is_proton); // family qualities
             updateHapMap(mutform2count4map_fq, this->fq_tsum_depth);
         }
         return 0;
