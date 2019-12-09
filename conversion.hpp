@@ -85,8 +85,9 @@ geomean2(double a, double b) {
 template <class V, class W>
 V
 hmean(V v1, W w1, V v2, W w2) {
+    const auto f = (1024UL * 64UL);
     // return 1/(w1 + w2) * (w1 * 1/v1 + w2 * 1/v2);
-    return 1000UL * (w1 + w2) / (1000UL *w1/v1 + 1000UL *w2/v2);
+    return  f * (w1 + w2) / (f * w1 / (v1+1UL) + f * w2 / (v2+1UL) + 1UL);
 }
 
 // 1e-6 is the somatic mutation rate
