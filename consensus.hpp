@@ -2045,22 +2045,50 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
     
     if (fmtAD > 0 || is_rescued) {
         assert(fmt.FA >= 0);
+        unsigned int ref_bias = 0;
+        if (isSymbolIns(symbol) || isSymbolDel(symbol)) {
+            uint64_t totsize_cnt = 0;
+            uint64_t totsize_sum = 0;
+            for (unsigned int k = 0; k < fmt.gapSeq.size(); k++) {
+                totsize_cnt += fmt.gapcAD1[k]; 
+                totsize_sum += fmt.gapSeq[k].size() * fmt.gapcAD1[k];
+            }
+            ref_bias = MAX((totsize_sum * 100UL) / (totsize_cnt * 100UL + 1UL), repeatunit.size() * repeatnum);
+        }
+        fmt.RefBias = ref_bias;
+        double ref_mulfact = 50.0 / (double)(ref_bias + 50);
         if (fmt.FA > (0.8 - DBL_EPSILON)) {
             // expFA = 0.2 + (fmt.FA - 0.8)
             fmt.GT = (is_novar ? "0/0" : "1/1");
-            fmt.GQ = (unsigned int)calc_phred10_likeratio(0.5, fmtAD, fmt.DP - fmtAD); // homo, so assume hetero is the alternative
-        } else if (fmt.FA < (0.2 + DBL_EPSILON)) {
+            fmt.GQ = (unsigned int)calc_phred10_likeratio(0.5              , fmtAD, fmt.DP - fmtAD); // homo, so assume hetero is the alternative
+        } else if (fmt.FA < (0.2 * ref_mulfact + DBL_EPSILON)) {
             // expFA = 0.2 + (0.2 - fmt.FA)
             fmt.GT = (is_novar ? "1/1" : "1/0");
-            fmt.GQ = (unsigned int)calc_phred10_likeratio(0.5, fmtAD, fmt.DP - fmtAD); // homo, so assume hetero is the alternative
+            fmt.GQ = (unsigned int)calc_phred10_likeratio(0.5 * ref_mulfact, fmtAD, fmt.DP - fmtAD); // homo, so assume hetero is the alternative
         } else {
             // const double expFA = 0.2 - (MIN(fmt.FA, 1.0-fmt.FA) - 0.2) / 2.0;
-            fmt.GT = (is_novar ? "0/1" : "0/1");
-            fmt.GQ = (unsigned int)calc_phred10_likeratio(0.1, fmtAD, fmt.DP - fmtAD); // hetero, so assume homo is the alternative
+            fmt.GT = GT_REF; // (is_novar ? "0/1" : "0/1");
+            fmt.GQ = (unsigned int)calc_phred10_likeratio(0.1 * ref_mulfact, fmtAD, fmt.DP - fmtAD); // hetero, so assume homo is the alternative
         }
+        
+        unsigned int fmtOD = (unsigned int)((1.0 - fmt.FR) * fmt.DP + 0.5);
+        if (1.0 - fmt.FR > (0.75 - DBL_EPSILON)) {
+            fmt.NRGT = "./.";
+            fmt.NRGQ = (unsigned int)calc_phred10_likeratio(0.5              , fmtOD, fmt.DP - fmtOD); // homo, so assume hetero is the alternative
+        } else if (1.0 - fmt.FR < (0.25 * ref_mulfact + DBL_EPSILON)) {
+            fmt.NRGT = "./0";
+            fmt.NRGQ = (unsigned int)calc_phred10_likeratio(0.5 * ref_mulfact, fmtOD, fmt.DP - fmtOD); // homo, so assume hetero is the alternative
+        } else {
+            fmt.NRGT = NRGT_REF; // "0/.";
+            fmt.NRGQ = (unsigned int)calc_phred10_likeratio(0.1 * ref_mulfact, fmtOD, fmt.DP - fmtOD); // hetero, so assume homo is the alternative
+        }
+
     } else {
         fmt.GT = "./.";
         fmt.GQ = 0;
+        fmt.RefBias = 0;
+        fmt.NRGT = ".";
+        fmt.NRGQ = 0;
     }
     // fmt.GQ = (); // 0;
     fmt.HQ[0] = 0; 
@@ -2453,10 +2481,23 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         const bool is_nonref_snp_excluded = true; // false;
         const bool is_nonref_indel_excluded = true; // false;
         const bool is_nonref_germline_excluded = (isInDel ? is_nonref_indel_excluded : is_nonref_snp_excluded);
-        const bool   is_germ = ((fmt.FA  > 0.2) || (1.0 - fmt.FR  - fmt.FA  > 0.2 && is_nonref_germline_excluded));
+        const bool alt_is_germ = (GT_REF == fmt.GT);
+        const bool nonref_is_germ = (NRGT_REF == fmt.NRGT && is_nonref_germline_excluded);
+        double _phred_non_germ = 0.0;
+        if (alt_is_germ || nonref_is_germ) {
+            if (alt_is_germ) {
+                _phred_non_germ = MIN(_phred_non_germ, -(double)fmt.GQ);
+            }
+            if (nonref_is_germ) {
+                _phred_non_germ = MIN(_phred_non_germ, -(double)fmt.NRGQ);
+            }
+        } else {
+            _phred_non_germ = (double)fmt.GQ;
+        }
+        /*
+        // ((fmt.FA  > 0.2) || (1.0 - fmt.FR  - fmt.FA  > 0.2 && is_nonref_germline_excluded));
         const bool b_is_germ = ((fmt.bFA > 0.2) || (1.0 - fmt.bFR - fmt.bFA > 0.2 && is_nonref_germline_excluded));
         const bool c_is_germ = ((fmt.cFA > 0.2) || (1.0 - fmt.cFR - fmt.cFA > 0.2 && is_nonref_germline_excluded));
-        double _phred_non_germ = 0.0;
         if (is_germ) {
             if (is_germ == b_is_germ && is_germ == c_is_germ) {
                 _phred_non_germ = (-(double)fmt.GQ);
@@ -2470,6 +2511,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
                 _phred_non_germ = ( (double)fmt.GQ); // / 2.0;
             } 
         }
+        */
         const double phred_non_germ = _phred_non_germ;
         /*
         const double phred_non_germ = (double)
