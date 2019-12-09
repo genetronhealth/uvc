@@ -897,11 +897,11 @@ public:
                                 << " which is not exclusively between 0 and " << b->core.l_qseq << " aligned to tid " << b->core.tid << " and position " << rpos;
                         incvalue = (0 != qpos ? bam_phredi(b, qpos-1) : 
                                 ((qpos + cigar_oplen < SIGN2UNSIGN(b->core.l_qseq)) ? 
-                                bam_phredi(b, qpos + SIGN2UNSIGN(cigar_oplen)) : 1)) + addidq; // + symbolType2addPhred[LINK_SYMBOL];
+                                bam_phredi(b, qpos + SIGN2UNSIGN(cigar_oplen)) : 1)); // + addidq; // + symbolType2addPhred[LINK_SYMBOL];
                     } else {
                         unsigned int phredvalue = (THasDups ? 0 : bam_to_phredvalue(inslen, b, qpos, frag_indel_basemax, 4.0, cigar_oplen));
                         // auto min_adj_BQ = MIN(bam_phredi(b, qpos-1), bam_phredi(b, qpos + cigar_oplen);
-                        incvalue = phredvalue; // + addidq; // MIN(MIN(bam_phredi(b, qpos-1), bam_phredi(b, qpos + cigar_oplen)), phredvalue) + addidq; 
+                        incvalue = MIN(MIN(bam_phredi(b, qpos-1), bam_phredi(b, qpos + cigar_oplen)), phredvalue); // + addidq; 
                         // + symbolType2addPhred[LINK_SYMBOL];
                     }
                 }
@@ -925,10 +925,16 @@ public:
                     unsigned int addidq = (THasDups ? 0 : SIGN2UNSIGN(MIN(cigar_oplen - 1, SIGN2UNSIGN(3 - 1)) * frag_indel_ext));
                     if (TIndelAddPhred) {
                         incvalue = TIndelAddPhred + addidq;
+                    } else if (0 == qpos || qpos + SIGN2UNSIGN(cigar_oplen) >= SIGN2UNSIGN(b->core.l_qseq)) {
+                        LOG(logWARNING) << "Query " << bam_get_qname(b) << " has deletion of legnth " << cigar_oplen << " at " << qpos
+                                << " which is not exclusively between 0 and " << b->core.l_qseq << " aligned to tid " << b->core.tid << " and position " << rpos; 
+                        incvalue = (0 != qpos ? bam_phredi(b, qpos-1) : 
+                                ((qpos + cigar_oplen < SIGN2UNSIGN(b->core.l_qseq)) ? 
+                                bam_phredi(b, qpos + SIGN2UNSIGN(cigar_oplen)) : 1)); // + addidq;
                     } else {
                         double afa = ((cigar_oplen <= 2) ? 12.0 : 4.0);
                         unsigned int phredvalue = (THasDups ? 0 : bam_to_phredvalue(dellen, b, qpos, frag_indel_basemax, afa, cigar_oplen));
-                        incvalue = phredvalue; // MIN(MIN(bam_phredi(b, qpos), bam_phredi(b, qpos+1)), phredvalue) + addidq; 
+                        incvalue = MIN(MIN(bam_phredi(b, qpos), bam_phredi(b, qpos-1)), phredvalue); // + addidq; 
                         // + symbolType2addPhred[LINK_SYMBOL];
                     }
                 }
