@@ -82,6 +82,13 @@ geomean2(double a, double b) {
     return sqrt(a * b);
 }
 
+template <class V, class W>
+V
+hmean(V v1, W w1, V v2, W w2) {
+    // return 1/(w1 + w2) * (w1 * 1/v1 + w2 * 1/v2);
+    return 1000UL * (w1 + w2) / (1000UL *w1/v1 + 1000UL *w2/v2);
+}
+
 // 1e-6 is the somatic mutation rate
 template <class T>
 T
