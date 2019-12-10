@@ -2099,31 +2099,37 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
             // const double nfref = MAX(0.5, fref);
             
             // Uni-directional deviation from its theoretical distribution is translated into a phred-scaled error probability.
-            int hetREF_likelim = (int)(10.0/log(10.0) * 2.5 * MIN(log(0.5 * ref_mulfact / fref), 1.0)); // het-ref to ALT mul error phred
-            int hetALT_likelim = (int)(10.0/log(10.0) * 2.5 * MIN(log(0.5 * ref_mulfact / fa  ), 1.0)); // het-alt to REF mul error phred 
-            int homref_likelim = (int)(10.0/log(10.0) * 2.5 *     log(1.0               / fref));       // hom-alt to REF mul error phred
-            int homalt_likelim = (int)(10.0/log(10.0) * 2.5 *     log(1.0               / fa  ));       // hom-ref to ALT mul error phred
+            int hetREF_likelim = -(int)(10.0/log(10.0) * 2.5 * MAX(log(0.500 * ref_mulfact / fref), 0.0));       // het-ref to ALT mul error phred
+            int hetALT_likelim = -(int)(10.0/log(10.0) * 2.5 * MAX(log(0.500 * ref_mulfact / fa  ), 0.0));       // het-alt to REF mul error phred 
+            int homref_likelim = -(int)(10.0/log(10.0) * 2.5 * log(MAX(fa   / 0.005,  1.0 / fref)));             // hom-alt to REF mul error phred
+            int homalt_likelim = -(int)(10.0/log(10.0) * 2.5 * log(MAX(fref / 0.005,  1.0 / fa  )));             // hom-ref to ALT mul error phred
             
             const double dref  = fmt.DP * fref;
             //const double nad   = fmt.DP * nfa;
             //const double ndref = fmt.DP * nfref;
             
             // assuming statistical independence of reads, kl-divergence is translated into a phred-scaled error probability.
-            int hetALT_likeval = -(int)calc_binom_10log10_likeratio(0.50 * ref_mulfact, dref, da   );  // het-alt to REF add error phred
-            int hetREF_likeval = -(int)calc_binom_10log10_likeratio(0.50 * ref_mulfact, da,   dref );  // het-ref to ALT add error phred
-            int homref_likeval = -(int)calc_binom_10log10_likeratio(0.05              , da,   dref );  // hom-alt to REF add error phred by contamination
-            int homalt_likeval = -(int)calc_binom_10log10_likeratio(0.05              , dref, da   );  // hom-ref to ALT add error phred by contamination
+            int hetREF_likeval = -(int)calc_binom_10log10_likeratio(0.500 * ref_mulfact, da,   dref );           // het-ref to ALT add error phred
+            int hetALT_likeval = -(int)calc_binom_10log10_likeratio(0.500 * ref_mulfact, dref, da   );           // het-alt to REF add error phred
+            int homref_likeval = -(int)calc_binom_10log10_likeratio(0.005              , da,   dref );           // hom-alt to REF add error phred by contamination
+            int homalt_likeval = -(int)calc_binom_10log10_likeratio(0.005              , dref, da   );           // hom-ref to ALT add error phred by contamination
             
             fmtG8 = {
-                     homref_likelim,  hetREF_likelim,  hetALT_likelim,  homalt_likelim,
+                    -homref_likelim, -hetREF_likelim, -hetALT_likelim, -homalt_likelim,
                     -homref_likeval, -hetREF_likeval, -hetALT_likeval, -homalt_likeval
             };
+            // 0/1 : 204 :  -196,8,-296 : 6,0,1,8,-197,-0,-1,-296
+            // 0,-7,10,33, 0,0,187,987
             
             // An important note: two models must generate different alleles to perform model selection
-            fmtGL[0] = MIN(MIN(homref_likeval - hetALT_likeval, hetALT_likelim), MIN(homref_likeval - homalt_likeval, homalt_likelim));
-            fmtGL[1] = MAX(MIN(hetALT_likeval - homref_likeval, homref_likelim), MIN(hetREF_likeval - homalt_likeval, homalt_likelim));
+            fmtGL[0] =     MAX(homref_likelim, homref_likeval);
+            fmtGL[1] = MIN(MAX(hetREF_likelim, hetREF_likeval), MAX(hetALT_likelim, hetALT_likeval));
+            fmtGL[2] =     MAX(homalt_likelim, homalt_likeval);
+ 
+            //fmtGL[0] = MIN(BTW(MAX(homref_likeval - hetALT_likeval, -hetALT_likelim, homref_likelim), MAX(homref_likeval - homalt_likeval, homalt_likelim));
+            //fmtGL[1] = MAX(BTW(hetALT_likeval - homref_likeval, homref_likelim), MIN(hetREF_likeval - homalt_likeval, homalt_likelim));
             //MIN(MIN(hetALT_likeval, hetREF_likeval) - MIN(homref_likeval, homalt_likeval), MIN(homref_likelim, homalt_likelim));
-            fmtGL[2] = MIN(MIN(homalt_likeval - homref_likeval, homref_likelim), MIN(homalt_likeval - hetREF_likeval, hetREF_likelim));
+            //fmtGL[2] = MIN(MAX(homalt_likeval - homref_likeval, homref_likelim), MAX(homalt_likeval - hetREF_likeval, hetREF_likelim));
            
             std::array<int, 3> likes = { fmtGL[0], fmtGL[1], fmtGL[2] };
             std::sort(likes.rbegin(), likes.rend());
