@@ -1,6 +1,7 @@
 #ifndef conversion_hpp_INCLUDED
 #define conversion_hpp_INCLUDED
 
+#include <algorithm>
 #include <assert.h>
 #include <float.h>
 #include <math.h>
@@ -159,6 +160,15 @@ calc_binom_10log10_likeratio(double prob, double a, double b) {
         return 0.0;
     }
 }
+
+#ifdef TEST_calc_binom
+int main(int argc, char **argv) {
+    double prob = atof(argv[1]);
+    double a = atof(argv[2]);
+    double b = atof(argv[3]);
+    printf("calc_binom_10log10_likeratio(%f, %f, %f) = %f\n", prob, a, b, calc_binom_10log10_likeratio(prob, a, b));
+}
+#endif
 
 static_assert(abs(calc_binom_10log10_likeratio(0.1, 10, 90)) < 1e-4);
 static_assert(calc_binom_10log10_likeratio(0.1, 90, 10) > 763); // 10/log(10) * (90*log(9)+10*log(1/9))

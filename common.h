@@ -69,8 +69,17 @@ const std::vector<std::string> PAIR_END_MERGE_TO_MSG = {
     [PAIR_END_MERGE_NO]  = "paired-end sequenced segments are not merged (不合并R1和R2)",
 };
 
-const std::string   GT_REF = "0/1";
-const std::string NRGT_REF = "0/.";
+const std::array<std::string, 2> GT_TUMREF = {"1/0", "./0"};
+const std::array<std::string, 2> GT_HETERO = {"0/1", "0/."};
+const std::array<std::string, 2> GT_HOMREF = {"0/0", "0/0"};
+const std::array<std::string, 2> GT_HOMALT = {"1/1", "./."};
+
+/*
+const std::string NRGT_TUMREF = "./0";
+const std::string NRGT_HET    = "0/.";
+const std::string NRGT_HOMREF = "0/0";
+const std::string NRGT_HOMALT = "./.";
+*/
 
 struct TnDP4 {
     unsigned int nvars= 0;

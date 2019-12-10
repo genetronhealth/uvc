@@ -14,6 +14,7 @@
 enum BCF_DATA_TYPE {
     BCF_STRING,
     BCF_INTEGER,
+    BCF_SIG_INT,
     BCF_FLOAT,
     BCF_SEP,
     NUM_BCF_DATA_TYPES
@@ -22,6 +23,7 @@ enum BCF_DATA_TYPE {
 const char * CPP_DATA_STRING[] = {
     "std::string",
     "uint32_t",
+    "int32_t",
     "float",
     "bool",
     NULL
@@ -31,12 +33,14 @@ const char * CPP_DATA_VALUES[] = {
     "\"\"",
     "0",
     "0",
+    "0",
     "false",
     NULL,
 };
 
 const char * BCF_DATA_STRING[] = {
     "String",
+    "Integer",
     "Integer",
     "Float",
     "String",
@@ -107,15 +111,20 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
                                                  "No white-space or semi-colons permitted."),
     BcfFormatStruct("FTV"      , BCF_NUM_D, BCF_INTEGER, "Percent bias values for the FT strings"),
    
-    BcfFormatStruct("a_a"      , 1, BCF_SEP,     "Separator. The description of each associated FORMAT is shown below"),
-    BcfFormatStruct("NRGT"     , 1, BCF_STRING,  "Genotype considering all NON_REF alleles as one allele"),
-    BcfFormatStruct("NRGQ"     , 1, BCF_INTEGER, "Genotype Quality considering all NON_REF alleles as one allele"),
-    BcfFormatStruct("RefBias"  , 1, BCF_INTEGER, "Reference bias (on average, the read supporting the ALT is shorter than the read supporting the REF by this many bases)"),
- 
     BcfFormatStruct("DPHQ"     , 1, BCF_INTEGER, "Fragment depth supporting any allele if low-quality bases are ignored which means only high quality (HQ) bases are used [base read, duped]"),
     BcfFormatStruct("ADHQ"     , 1, BCF_INTEGER, "Fragment depth supporting the ALT allele if low-quality bases are ignored which means only high quality (HQ) bases are used [base read, duped]"),
     BcfFormatStruct("MQ"       , 1, BCF_FLOAT,   "Root mean square (RMS) mapping quality [base read, duped]"), 
     
+    BcfFormatStruct("a_a"      , 1, BCF_SEP,     "Dummy header (separator) for genotype-related FORMAT fields. The description of each associated FORMAT is shown below"),
+    BcfFormatStruct("RefBias"  , 1, BCF_INTEGER, "Reference bias (on average, the read supporting the ALT is shorter than the read supporting the REF by this many bases)"),
+    BcfFormatStruct("GTa"      , 1, BCF_STRING,  "Genotype of this alelle"),
+    BcfFormatStruct("GQa"      , 1, BCF_INTEGER, "Genotype Quality of this allele"),
+    BcfFormatStruct("GLa"      , 3, BCF_SIG_INT, "Genotype Likelihood of this allele"),
+    BcfFormatStruct("G8a"      , 8, BCF_SIG_INT, "Genotype Likelihood Precursor of this allele"),
+    BcfFormatStruct("GTb"      , 1, BCF_STRING,  "Genotype of other alelles"),
+    BcfFormatStruct("GQb"      , 1, BCF_INTEGER, "Genotype Quality of other alleles"),
+    BcfFormatStruct("GLb"      , 3, BCF_SIG_INT, "Genotype Likelihood of other alleles"),
+    BcfFormatStruct("G8b"      , 8, BCF_SIG_INT, "Genotype Likelihood Precursor of other alleles"),
     BcfFormatStruct("a_b"      , 1, BCF_SEP,     "Depth and REF/ALT allele frequency for base read and consensus family"),  
     BcfFormatStruct("bDP"      , 1, BCF_INTEGER, "Fragment depth supporting any allele [base read, duped]"),
     BcfFormatStruct("bFA"      , 1, BCF_FLOAT,   "Frequency of the ALT allele [base read, duped]"),
