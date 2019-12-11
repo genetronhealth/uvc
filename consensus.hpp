@@ -2692,14 +2692,14 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         const double nAD1pc0 = 0.5 * tnE1 + 0.5 * tnE1                    ;
         const double nDP1pc0 = 1.0 * tnE1 + 0.5 * tnE1              / tnFA1;
         // const double tnMFpc0 = 1.0 / MIN(MIN(MIN(tAD1pc0, tDP1pc0), nAD1pc0), nDP1pc0);
-        
-        const double t2n_or = ((double)(tAD1 + sqrt(10.0) * tAD1pc0) / (double)(tDP1 - tAD1 + sqrt(10.0) * (tDP1pc0 - tAD1pc0))) 
+        double symfrac = 1.0; // sqrt(10); 
+        const double t2n_or = ((double)(tAD1 + symfrac * tAD1pc0) / (double)(tDP1 - tAD1 + symfrac * (tDP1pc0 - tAD1pc0))) 
                 / ((double)(nAD1 + nAD1pc0)  / (double)(nDP1 - nAD1 + nDP1pc0 - nAD1pc0));
         
         const double t2n_rawq = ((true || nDP0 <= tDP0) // TODO: check if the symmetry makes sense?
             ? calc_binom_10log10_likeratio((tDP1 - tAD1) / tDP1, (nDP1 - nAD1) / nDP1 * nDP0,         nAD1  / nDP1 * nDP0)
             : calc_binom_10log10_likeratio(       (nAD1) / nDP1,         tAD1  / tDP1 * tDP0, (tDP1 - tAD1) / tDP1 * tDP0)); 
-        const double t2n_powq = MIN(MAX(-25.0, 2.0 * pl_exponent * 10.0 / log(10.0) * log(t2n_or / sqrt(10.0))), 25.0);
+        const double t2n_powq = MIN(MAX(-25.0, 10.0/log(10.0) * (1.0+log(symfrac*symfrac)/10.0) * pl_exponent * log(t2n_or /symfrac)), 25.0);
         const double t2t_powq = 25.0;
         
         double tvn_rawq = sumBQ4_to_phredlike(tnlike_argmin, nDP1, nAD1, tDP1, tAD1);
