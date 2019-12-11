@@ -2532,7 +2532,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         
         vcfpos = (tki.ref_alt != "." ? (tki.pos + 1) : vcfpos);
         ref_alt = (tki.ref_alt != "." ? tki.ref_alt : vcfref + "\t" + vcfalt);
-        const double depth_pseudocount = (double)FLT_EPSILON; // highqual_thres; // 1.0;
+        const double eps_dblflt = (double)FLT_EPSILON; // highqual_thres; // 1.0;
         
         const bool tUseHD =  (tki.bDP > tki.DP * highqual_min_ratio);
         const bool nUseHD = ((fmt.bDP > fmt.DP * highqual_min_ratio) && tUseHD); 
@@ -2561,12 +2561,12 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         double nAD0a = nAD0 * ((isInDel && !nUseHD) ? ((double)(fmt.gapDP4[2] + 1) / (double)(fmt.gapDP4[0] + 1)) : 1.0);
         double tAD0a = tAD0 * ((isInDel && !tUseHD) ? ((double)(tki.gapDP4[2] + 1) / (double)(tki.gapDP4[0] + 1)) : 1.0);
         
-        double nAD1 = (nUseHD ? (highqual_thres * nAltHD) : nAltBQ) + depth_pseudocount / 2.0;
-        double nDP1 = (nUseHD ? (highqual_thres * nAllHD) : nAllBQ) + depth_pseudocount;
-        double tAD1 = (tUseHD ? (highqual_thres * tAltHD) : tAltBQ) + depth_pseudocount / 2.0;
-        double tDP1 = (tUseHD ? (highqual_thres * tAllHD) : tAllBQ) + depth_pseudocount;
-        double nRD1 = (nUseHD ? (highqual_thres * nRefHD) : nRefBQ) + depth_pseudocount / 2.0;
-        double tRD1 = (tUseHD ? (highqual_thres * tRefHD) : tRefBQ) + depth_pseudocount / 2.0; 
+        double nAD1 = (nUseHD ? (highqual_thres * nAltHD) : nAltBQ) + eps_dblflt / 2.0;
+        double nDP1 = (nUseHD ? (highqual_thres * nAllHD) : nAllBQ) + eps_dblflt;
+        double tAD1 = (tUseHD ? (highqual_thres * tAltHD) : tAltBQ) + eps_dblflt / 2.0;
+        double tDP1 = (tUseHD ? (highqual_thres * tAllHD) : tAllBQ) + eps_dblflt;
+        double nRD1 = (nUseHD ? (highqual_thres * nRefHD) : nRefBQ) + eps_dblflt / 2.0;
+        double tRD1 = (tUseHD ? (highqual_thres * tRefHD) : tRefBQ) + eps_dblflt / 2.0; 
         
         double nfreqmult = 1.0;
         if (tUseHD && (!nUseHD)) {
@@ -2669,25 +2669,47 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         
         //auto upper_nonref = MIN(2.0 * MIN(tDP0, nDP0), 2.5 * 10.0 / log(10.0) * log((tAD1 / tDP1) / (nNRD1 / nDP1)));
         //tnlike_nonref = MAX(0.0, MIN(tnlike_nonref, upper_nonref));
-        
-        const double t2t_powq = 25.0;
+        /*
         const double tnDP0ratio = (double)(tDP0 + 1) / (double)(nDP0 + 1);
-        double t2n_or = ((double)(tAD0 + tnDP0ratio) / (double)(tDP0 + 2.0 * tnDP0ratio - tAD0)) / ((double)(nAD0 + 1)  / (double)(nDP0 + 2 - nAD0));
-        double tvn_rawq = sumBQ4_to_phredlike(tnlike_argmin, nDP1, nAD1, tDP1, tAD1);
+        const double tFA0 = (double)(tAD0 + 1) / (double)(tDP0 + 2);
+        const double tAD0pc0 = 1.0 * tnDP0ratio;
+        const double tDP0pc0 = 1.0 * tnDP0ratio/tFA0;
+        const double nAD0pc0 = 1.0;
+        const double nDP0pc0 = 1.0 / tFA0;
+        const double tnMFpc0 = 1.0 / MIN(MIN(MIN(tAD0pc0, tDP0pc0), nAD0pc0), nDP0pc0);
+        */
+        //double tEPS = 10.0/log(10.0) * log((double(tDP0 + 1));
+        //double nEPS = 10.0/log(10.0) * log((double(nDP0 + 1));
+        double tE1 = 10.0/log(10.0) * log((double)(tDP0 + 2));
+        double nE1 = 10.0/log(10.0) * log((double)(nDP0 + 2));
+        double tnE1 = 10.0/log(10.0) * log((double)(tDP0 + nDP0 + 2));
+        const double tnDP0ratio = (double)(tDP0 + 1) / (double)(nDP0 + 1);
+        const double tnFA1 = (double)(tAD1 + nAD1 + tnE1) / (double)(tDP1 + nDP1 + tnE1 * 2.0);
+        const double tAD1pc0 = 0.5 * tnE1 + 0.5 * tnE1 * tnDP0ratio       ;
+        const double tDP1pc0 = 1.0 * tnE1 + 0.5 * tnE1 * tnDP0ratio / tnFA1;
+        const double nAD1pc0 = 0.5 * tnE1 + 0.5 * tnE1                    ;
+        const double nDP1pc0 = 1.0 * tnE1 + 0.5 * tnE1              / tnFA1;
+        // const double tnMFpc0 = 1.0 / MIN(MIN(MIN(tAD1pc0, tDP1pc0), nAD1pc0), nDP1pc0);
         
+        const double t2n_or = ((double)(tAD1 + sqrt(10.0) * tAD1pc0) / (double)(tDP1 - tAD1 + sqrt(10.0) * (tDP1pc0 - tAD1pc0))) 
+                / ((double)(nAD1 + nAD1pc0)  / (double)(nDP1 - nAD1 + nDP1pc0 - nAD1pc0));
+        
+        const double t2n_rawq = ((true || nDP0 <= tDP0) // TODO: check if the symmetry makes sense?
+            ? calc_binom_10log10_likeratio((tDP1 - tAD1) / tDP1, (nDP1 - nAD1) / nDP1 * nDP0,         nAD1  / nDP1 * nDP0)
+            : calc_binom_10log10_likeratio(       (nAD1) / nDP1,         tAD1  / tDP1 * tDP0, (tDP1 - tAD1) / tDP1 * tDP0)); 
+        const double t2n_powq = MIN(MAX(-25.0, 2.0 * pl_exponent * 10.0 / log(10.0) * log(t2n_or / sqrt(10.0))), 25.0);
+        const double t2t_powq = 25.0;
+        
+        double tvn_rawq = sumBQ4_to_phredlike(tnlike_argmin, nDP1, nAD1, tDP1, tAD1);
         double tvn_powq = MIN(MAX(
                 -2.0 * MIN(tDP0, nDP0),
                  1.0 * pl_exponent * 10.0 / log(10.0) * log(MIN(MAX(1.0 /    (10.0), t2n_or /         1.0),      10.0))),
                  2.0 * MIN(tDP0, nDP0));
-
-        double t2n_powq = MIN(MAX(
-                -2.0 * MIN(tDP0, nDP0),
-                 2.0 * pl_exponent * 10.0 / log(10.0) * log(MIN(MAX(1.0 / sqrt(10.0), t2n_or / sqrt(10.0)), sqrt(10.0)))),
-                 2.0 * MIN(tDP0, nDP0));
         
         // double eps_qual = 10.0/log(10.0) * log((double)tDP0 + 2.0);
-        double tn_tpo1q = 10.0 / log(10.0) * log((double)(tAD0 + 1.0) / (tDP0 + 1.0)) * (isInDel ? 2.5 : pl_exponent) + (isInDel ? 80.0 : 80.0);
-        double tn_npo1q = 10.0 / log(10.0) * log((double)(nAD0 + 1.0) / (nDP0 + 1.0)) * (isInDel ? 2.5 : pl_exponent) + (isInDel ? 80.0 : 80.0);
+        double tn_tpo1q = 10.0 / log(10.0) * log((double)(tAD1 + tE1) / (tDP1 + 2.0 * tE1)) * (isInDel ? 2.5 : pl_exponent) + (isInDel ? 80.0 : 80.0);
+        double tn_npo1q = 10.0 / log(10.0) * log((double)(nAD1 + nE1) / (nDP1 + 2.0 * nE1)) * (isInDel ? 2.5 : pl_exponent) + (isInDel ? 80.0 : 80.0);
+        // QUESTION: why BQ-bias generations are discrete? Because of the noise with each observation of BQ?
         double tn_tsamq = 40.0 * pow(0.5, (double)tAD0);// (tAD0 <= 2 ? 8.0 : 0.0);
         double tn_nsamq = 40.0 * pow(0.5, (double)nAD0); // (nAD0 <= 2 ? 8.0 : 0.0);
         double tn_tra1q = (double)tki.VAQ; //MIN(MAX((double)tki.VAQ - tn_tsamq * 0, 0.0), tn_tpowq);
@@ -2699,6 +2721,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         double tn_npo2q = tn_npo1q;
         if (isInDel) {
             //tn_nrawq = tn_nra1q + indel_prior;
+            // QUESTION: why indel generations are discrete?
             tn_tpowq = penal_indel(tn_tpo1q, (double)(tAD0a), (double)(tDP0 - tRD0), repeatunit, repeatnum);
             tn_npo2q = penal_indel(tn_npo1q, (double)(nAD0a), (double)(nDP0 - nRD0), repeatunit, repeatnum);
         }
@@ -2712,13 +2735,18 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         
         //double add_contam_phred = MAX(0.0, calc_uninomial_10log10_likeratio(add_contam_rate, (double)nAD0, (double)tAD0)); // 0.2 max 0.02 min
         //double mul_contam_phred = MAX(0.0, calc_uninomial_10log10_likeratio(mul_contam_rate, (double)nAD0, (double)tAD0 * (double)(nDP0 + 1) / (double)(tDP0 + 1))); 
-        double ntfrac = (double)(nDP0 + 1) / (double)(tDP0 + 1);
+        // double ntfrac = (double)(nDP0 + 1) / (double)(tDP0 + 1);
         
         double base_contam = 0; // (double)(isInDel ? indel_pp : 0.0); // TODO: FIXME: justify this zero assignment?
-        double add_contam_phred = base_contam + calc_binom_10log10_likeratio((double)add_contam_rate, (double)nAD0 * MIN(1.0, 2.0 / ntfrac), (double)tAD0); // 0.2 max 0.02 min
-        double mul_contam_phred = base_contam + (nDP0 < tDP0 
-            ? calc_binom_10log10_likeratio((double)mul_contam_rate, (double)nAD0         , (double)tAD0 * ntfrac)
-            : calc_binom_10log10_likeratio((double)mul_contam_rate, (double)nAD0 / ntfrac, (double)tAD0)
+        // QUESTION: why contamination generations are discrete?
+        double nAD0normByTN1 = (nAD1 + DBL_EPSILON) / (nAD1 + tAD1 + 2.0 * DBL_EPSILON) * (nAD0 + tAD0 + 2.0 * DBL_EPSILON);
+        double tAD0normByTN1 = (tAD1 + DBL_EPSILON) / (nAD1 + tAD1 + 2.0 * DBL_EPSILON) * (nAD0 + tAD0 + 2.0 * DBL_EPSILON);
+ 
+        double add_contam_phred = base_contam + 
+              calc_binom_10log10_likeratio((double)add_contam_rate, (double)nAD0normByTN1 * MIN(1.0, 2.0 * tnDP0ratio), (double)tAD0normByTN1); // 0.2 max 0.02 min
+        double mul_contam_phred = base_contam + (nDP0 < tDP0
+            ? calc_binom_10log10_likeratio((double)mul_contam_rate, (double)nAD0normByTN1             , (double)tAD0normByTN1 / tnDP0ratio)
+            : calc_binom_10log10_likeratio((double)mul_contam_rate, (double)nAD0normByTN1 * tnDP0ratio, (double)tAD0normByTN1)
         );
         double contam_phred = MAX(add_contam_phred, mul_contam_phred); // select worst-case contam model because tumor and normal depths are highly variable
         const double t2n_contam_q = contam_phred;
@@ -2726,7 +2754,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         std::array<double, N_MODELS> testquals = {0};
         unsigned int tqi = 0;
         // 0 // n_nogerm_q and t2n_powq should have already bee normalized with contam
-        testquals[tqi++] = max_min01_sub02(MIN(tn_trawq, tn_tpowq), n_nogerm_q, t2n_contam_q) + max_min01_sub02(t2t_powq, t2n_powq, t2n_contam_q);
+        testquals[tqi++] = max_min01_sub02(MIN(tn_trawq, tn_tpowq), n_nogerm_q, t2n_contam_q) + max_min01_sub02(MIN(t2n_rawq, t2t_powq), MIN(t2n_rawq, t2n_powq), t2n_contam_q);
         //testquals[tqi++] = MIN(tn_trawq, tn_tpowq + tvn_powq) - MIN(tn_nrawq, MAX(0.0, tn_npowq - tvn_or_q));
         testquals[tqi++] = MIN(tn_trawq, tvn_rawq * 2 + 30);
         testquals[tqi++] = MIN(tn_trawq, tvn_rawq     + tn_tpowq);
@@ -2807,14 +2835,19 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         for (int i = 0; i < N_MODELS; i++) {
             infostring += std::string(";TQ") + std::to_string(i) + "=" + std::to_string(testquals[i]); 
         }
-        infostring += std::string(";TNQ=")  + string_join(std::array<std::string, 5>({std::to_string(median_qual), std::to_string(tvn_powq)
-                , std::to_string(tvn_rawq), std::to_string(tvn_or_q), std::to_string(tvn_st_q)}));
-        infostring += std::string(";TNQA=") + string_join(std::array<std::string, 6>({std::to_string(phred_non_germ), std::to_string(tumor_non_germ_reward)
-                , std::to_string(tnlike_argmin), std::to_string(reduction_coef), std::to_string(add_contam_phred), std::to_string(mul_contam_phred)}));
-        infostring += std::string(";TNNQ=") + string_join(std::array<std::string, 5>({std::to_string(tn_npo2q), std::to_string(tn_nra1q - tn_nsamq)
-                , std::to_string(indel_prior), std::to_string(tn_npo1q), std::to_string(tn_nsamq)}));
-        infostring += std::string(";TNTQ=") + string_join(std::array<std::string, 5>({std::to_string(tn_tpowq), std::to_string(tn_tra1q - tn_tsamq)
-                , std::to_string(indel_prior), std::to_string(tn_tpo1q), std::to_string(tn_tsamq)}));
+        infostring += std::string(";TNQ=")  + string_join(std::array<std::string, 7>({
+                  std::to_string(median_qual)      , std::to_string(t2n_powq)           , std::to_string(t2n_rawq),      
+                  std::to_string(tvn_powq)         , std::to_string(tvn_rawq)           , std::to_string(tvn_or_q), 
+                  std::to_string(tvn_st_q)}));
+        infostring += std::string(";TNQA=") + string_join(std::array<std::string, 6>({
+                  std::to_string(n_nogerm_q)       , std::to_string(phred_non_germ)     , std::to_string(tnlike_argmin),    
+                  std::to_string(reduction_coef)   , std::to_string(add_contam_phred)   , std::to_string(mul_contam_phred)}));
+        infostring += std::string(";TNNQ=") + string_join(std::array<std::string, 5>({
+                  std::to_string(tn_npo2q)         , std::to_string(tn_nra1q - tn_nsamq)
+                , std::to_string(indel_prior)      , std::to_string(tn_npo1q)           , std::to_string(tn_nsamq)}));
+        infostring += std::string(";TNTQ=") + string_join(std::array<std::string, 5>({
+                std::to_string(tn_tpowq)           , std::to_string(tn_tra1q - tn_tsamq), std::to_string(indel_prior), 
+                std::to_string(tn_tpo1q)           , std::to_string(tn_tsamq)}));
         infostring += std::string(";tDP=") + std::to_string(tki.DP);
         infostring += std::string(";tFA=") + std::to_string(tki.FA);
         infostring += std::string(";tFR=") + std::to_string(tki.FR);
