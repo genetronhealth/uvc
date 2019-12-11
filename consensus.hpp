@@ -2737,7 +2737,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         //double mul_contam_phred = MAX(0.0, calc_uninomial_10log10_likeratio(mul_contam_rate, (double)nAD0, (double)tAD0 * (double)(nDP0 + 1) / (double)(tDP0 + 1))); 
         // double ntfrac = (double)(nDP0 + 1) / (double)(tDP0 + 1);
         
-        double base_contam = 0; // (double)(isInDel ? indel_pp : 0.0); // TODO: FIXME: justify this zero assignment?
+        double base_contam = 1000; // (double)(isInDel ? indel_pp : 0.0); // TODO: FIXME: justify this zero assignment?
         // QUESTION: why contamination generations are discrete?
         double nAD0normByTN1 = (nAD1 + DBL_EPSILON) / (nAD1 + tAD1 + 2.0 * DBL_EPSILON) * (nAD0 + tAD0 + 2.0 * DBL_EPSILON);
         double tAD0normByTN1 = (tAD1 + DBL_EPSILON) / (nAD1 + tAD1 + 2.0 * DBL_EPSILON) * (nAD0 + tAD0 + 2.0 * DBL_EPSILON);
