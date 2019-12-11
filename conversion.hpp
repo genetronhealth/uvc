@@ -161,6 +161,15 @@ calc_binom_10log10_likeratio(double prob, double a, double b) {
     }
 }
 
+// h0 and h1 are two explanations, while h2 is responsible for the absence of h1 
+// (e.g., h0 is tumor var quality, h1 is germline polymorphism, and h2 is contamination)
+// h0 and h1 are two possible causes of the outcome, while h2 inhibits h1
+template <class T>
+constexpr T
+max_min01_sub02(T h0, T h1, T h2) {
+    return MAX(MIN(h0, h1), h0 - h2);
+}
+
 #ifdef TEST_calc_binom
 int main(int argc, char **argv) {
     double prob = atof(argv[1]);
