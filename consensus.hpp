@@ -2507,8 +2507,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         vcfalt = altsymbolname;
     }
     
-    const double indel_pp = MIN(8.0, 0.5*(double)indelstring.size()); // probability of systematic indel error (gapOpeningPenalty=16 and gapExtensionPenalty=1)
-    const double indel_p2 = MIN(tki.FA * 100, 5.0) + MIN(tki.FA * (double)tki.DP, 4.0);
+    const double indel_pp = 0; // MIN(8.0, 0.5*(double)indelstring.size()); // probability of systematic indel error (gapOpeningPenalty=16 and gapExtensionPenalty=1)
+    const double indel_p2 = 0; // MIN(tki.FA * 100, 5.0) + MIN(tki.FA * (double)tki.DP, 4.0);
     double indel_prior = ((0 == indelstring.size() || 0 == repeatunit.size() || 0 == repeatnum) ? 0.0 : (indel_phred(2.0, indelstring.size(), repeatunit.size(), repeatnum)));
     if (isInDel && (!prev_is_tumor)) {
         fmtvar.VAQ += indel_prior;
@@ -2595,8 +2595,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         
         // the genotype likelihoods here are special in that they can somehow normalized for the purpose of computing nonref probabilities
         // HOWEVER, no prior can be given to the raw genotype likelihoods.
-        int32_t nonalt_qual = fmt.GLa[0] - MAX(fmt.GLa[1], fmt.GLa[2]) + (int)homref_gt_phred + (isInDel ? -10 : 0);
-        int32_t excalt_qual = fmt.GLb[0] - MAX(fmt.GLb[1], fmt.GLb[2]) + (int)homref_gt_phred + (isInDel ? -10 : 0);;
+        int32_t nonalt_qual = fmt.GLa[0] - MAX(fmt.GLa[1], fmt.GLa[2]) + (int)homref_gt_phred + (isInDel ? -15 : 0);
+        int32_t excalt_qual = fmt.GLb[0] - MAX(fmt.GLb[1], fmt.GLb[2]) + (int)homref_gt_phred + (isInDel ? -15 : 0);
         
         // testquals[tqi++] = max_min01_sub02(MIN(tn_trawq, tn_tpowq), n_nogerm_q, t2n_contam_q) + max_min01_sub02_(t2t_powq, t2n_powq, t2n_contam_q);
         const int32_t n_nogerm_q = (is_nonref_germline_excluded ? MIN(nonalt_qual, excalt_qual) : nonalt_qual);
@@ -2798,7 +2798,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
             // FIXME: probabilities of germline polymorphism and somatic mutation at a locus are both strongly correlated with the STR pattern for InDels
             //        here we assumed that the likelihood of germline polymorphism is proportional to the likelihood of somatic mutation.
             //        however, in practice the two likelihoods may be different from each other.
-            testquals[i] = reduction_coef * testquals[i] + + (isInDel ? (indel_pp + indel_p2) : 0.0);
+            testquals[i] = reduction_coef * testquals[i]; // + (isInDel ? (indel_pp + indel_p2) : 0.0);
             vcfqual = MAX(vcfqual, testquals[i]);
         }
         for (int i = MODEL_SEP_1; i < N_MODELS; i++) {
