@@ -965,13 +965,13 @@ public:
             const unsigned int frag_indel_basemax, unsigned int dflag, unsigned int nogap_phred, const bool is_proton) {
         for (bam1_t *aln : aln_vec) {
             if (alns2size > 1 && dflag > 0) { // is barcoded and not singleton
-                if (is_proton || true) {
+                if (is_proton || false) {
                     this->updateByAln<TUpdateType, true , true >(aln, frag_indel_ext, symbolType2addPhred, frag_indel_basemax, nogap_phred);
                 } else {
                     this->updateByAln<TUpdateType, false, true >(aln, frag_indel_ext, symbolType2addPhred, frag_indel_basemax, nogap_phred);
                 }
             } else {
-                if (is_proton || true) {
+                if (is_proton || false) {
                     this->updateByAln<TUpdateType, true , false>(aln, frag_indel_ext, symbolType2addPhred, frag_indel_basemax, nogap_phred);
                 } else {
                     this->updateByAln<TUpdateType, false, false>(aln, frag_indel_ext, symbolType2addPhred, frag_indel_basemax, nogap_phred);
@@ -2382,6 +2382,7 @@ bcf1_to_string(const bcf_hdr_t *tki_bcf1_hdr, const bcf1_t *bcf1_record) {
     return ret;
 }
 
+// IMPORTANT: TODO: rewrite this piece of code which currently has no theoretical justification!
 double
 penal_indel(double vcfqual, double ad, double od, const std::string & ru, const unsigned int rc) {
     /*
@@ -2394,7 +2395,7 @@ penal_indel(double vcfqual, double ad, double od, const std::string & ru, const 
     */
     // vcfqual *= ad / (ad + 1.0);
     auto od2 = MIN(ad* 3.0, MAX(ad, od));
-    vcfqual += 30.0 * log((ad + 1.0) / (od2 + 1.0)) / log(2.0);
+    vcfqual += 15.0 * log((ad + 1.0) / (od2 + 1.0)) / log(2.0);
     //vcfqual += MIN(15.0, (ru.size() * rc));
     return vcfqual;
 }
