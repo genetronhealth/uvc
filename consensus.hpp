@@ -2757,7 +2757,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         std::array<double, N_MODELS> testquals = {0};
         unsigned int tqi = 0;
         // 0 // n_nogerm_q and t2n_powq should have already bee normalized with contam
-        testquals[tqi++] = max_min01_sub02(MIN(tn_trawq, tn_tpowq), n_nogerm_q, t2n_contam_q) + max_min01_sub02(MIN(t2n_rawq, t2t_powq), MIN(t2n_rawq, t2n_powq), t2n_contam_q);
+        testquals[tqi++] = max_min01_sub02(MIN(tn_trawq, tn_tpowq), (double)n_nogerm_q, t2n_contam_q) + max_min01_sub02(MIN(t2n_rawq, t2t_powq), MIN(t2n_rawq, t2n_powq), t2n_contam_q);
         //testquals[tqi++] = MIN(tn_trawq, tn_tpowq + tvn_powq) - MIN(tn_nrawq, MAX(0.0, tn_npowq - tvn_or_q));
         testquals[tqi++] = MIN(tn_trawq, tvn_rawq * 2 + 30);
         testquals[tqi++] = MIN(tn_trawq, tvn_rawq     + tn_tpowq);
