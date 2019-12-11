@@ -2591,11 +2591,11 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         
         // the genotype likelihoods here are special in that they can somehow normalized for the purpose of computing nonref probabilities
         // HOWEVER, no prior can be given to the raw genotype likelihoods.
-        auto nonalt_qual = fmt.GLa[0] - MAX(fmt.GLa[1], fmt.GLa[2]) + homref_gt_phred;
-        auto excalt_qual = fmt.GLb[0] - MAX(fmt.GLb[1], fmt.GLb[2]) + homref_gt_phred;
+        int32_t nonalt_qual = fmt.GLa[0] - MAX(fmt.GLa[1], fmt.GLa[2]) + (int)homref_gt_phred;
+        int32_t excalt_qual = fmt.GLb[0] - MAX(fmt.GLb[1], fmt.GLb[2]) + (int)homref_gt_phred;
         
         // testquals[tqi++] = max_min01_sub02(MIN(tn_trawq, tn_tpowq), n_nogerm_q, t2n_contam_q) + max_min01_sub02_(t2t_powq, t2n_powq, t2n_contam_q);
-        const double n_nogerm_q = (is_nonref_germline_excluded ? MIN(nonalt_qual, excalt_qual) : nonalt_qual);
+        const int32_t n_nogerm_q = (is_nonref_germline_excluded ? MIN(nonalt_qual, excalt_qual) : nonalt_qual);
         
         // const double phred_non_germ = (is_nonref_germline_excluded ? MIN(nonalt_qual, excalt_qual) : nonalt_qual);
 #if 1
