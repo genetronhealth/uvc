@@ -71,7 +71,7 @@ struct CommandLineArgs {
     uint32_t    bq_phred_added_indel = 0;
     uint32_t    bq_phred_added_misma = 0;
     bool        should_add_note = false;
-    uint32_t    phred_germline_polymorphism = 30; // probablity of germline polymorphism is between 1/500 and 1/1kb
+    uint32_t    phred_germline_polymorphism = 30+3; // probablity of germline polymorphism is between 1/500 and 1/1kb
     //uint32_t    phred_sys_bias = 0;
     uint32_t    phred_sys_artifact_snv   = phred_germline_polymorphism * 2; // or 55; // PMC4271055: probablity of germline call error is between 1/100kb and 1/200kb
     uint32_t    phred_sys_artifact_indel = phred_germline_polymorphism * 2; // 3 / 2;

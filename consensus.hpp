@@ -2404,7 +2404,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         const double vcfqual_thres,
         const bool should_output_all, const bool should_let_all_pass,
         const auto & tki, const bool prev_is_tumor, // , unsigned int rank
-        unsigned int phred_germline,
+        unsigned int homref_gt_phred,
         double nonref_to_alt_frac_snv,
         double nonref_to_alt_frac_indel
         , double tnq_mult_snv,        double tnq_mult_indel
@@ -2592,7 +2592,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         auto excalt_qual = fmt.GLb[0] - MAX(fmt.GLb[1], fmt.GLb[2]);
         
         // testquals[tqi++] = max_min01_sub02(MIN(tn_trawq, tn_tpowq), n_nogerm_q, t2n_contam_q) + max_min01_sub02_(t2t_powq, t2n_powq, t2n_contam_q);
-        const double n_nogerm_q = (is_nonref_germline_excluded ? MIN(nonalt_qual, excalt_qual) : nonalt_qual);
+        const double n_nogerm_q = (is_nonref_germline_excluded ? MIN(nonalt_qual, excalt_qual) : nonalt_qual) + homref_gt_phred;
         
         // const double phred_non_germ = (is_nonref_germline_excluded ? MIN(nonalt_qual, excalt_qual) : nonalt_qual);
 #if 1
@@ -2796,7 +2796,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         }
         for (int i = MODEL_SEP_1; i < N_MODELS; i++) {
             testquals[i] = MIN(reduction_coef * testquals[i] + (isInDel ? (indel_pp + indel_p2) : 0.0), 
-                    phred_non_germ + tumor_non_germ_reward + (double)phred_germline + 0.0 * (isInDel ? (10.0 - indel_prior) : 0.0));
+                    phred_non_germ + tumor_non_germ_reward + (double)homref_gt_phred + 0.0 * (isInDel ? (10.0 - indel_prior) : 0.0));
             vcfqual = MAX(vcfqual, testquals[i]);
         }
         double median_qual = MEDIAN(std::array<double, N_MODELS>(testquals));
@@ -2871,7 +2871,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         }
         */
         // auto diffVAQ = MAX(tki.VAQ - fmt.VAQ, tki.VAQ / (fmt.VAQ + tki.VAQ + DBL_MIN)); // diffVAQ makes sense but can lead to false negatives.
-        // double tnq_base = phred_non_germline; // MIN(MAX((double)0, tki.VAQ - (double)phred_germline), (double)phred_non_germline);
+        // double tnq_base = phred_non_germline; // MIN(MAX((double)0, tki.VAQ - (double)homref_gt_phred), (double)phred_non_germline);
         /* 
         // this needs more theoretical justification if used
         double tnq_mult_ad = (isInDel ? tnq_mult_tADadd_indel : tnq_mult_tADadd_snv);
@@ -2893,11 +2893,11 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
             // Therefore, the false positive filter for InDels is more lenient here too.
             //double tnq_eff_tAD = tnq_mult_tADadd_indel * (tki.FA * (double)tki.DP); 
             //double tnq_mult = tnq_mult_indel + tnq_eff_tAD / (tnq_eff_tAD + fmt.DP);
-            // vcfqual = MIN(MIN(tnq1, diffVAQ), fmt.GQ + phred_germline); // 5.00 is too high, 1.50 is too low
+            // vcfqual = MIN(MIN(tnq1, diffVAQ), fmt.GQ + homref_gt_phred); // 5.00 is too high, 1.50 is too low
         } else {
             //double tnq_eff_tAD = tnq_mult_tADadd_snv   * (tki.FA * (double)tki.DP);
             //double tnq_mult = tnq_mult_snv   + tnq_eff_tAD / (tnq_eff_tAD + fmt.DP);
-            // vcfqual = MIN(MIN(tnq1, diffVAQ), fmt.GQ + phred_germline); // (germline + sys error) freq of 10^(-25/10) ?
+            // vcfqual = MIN(MIN(tnq1, diffVAQ), fmt.GQ + homref_gt_phred); // (germline + sys error) freq of 10^(-25/10) ?
         }
         */
     } else {
