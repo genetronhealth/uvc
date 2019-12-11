@@ -311,7 +311,7 @@ const std::map<std::tuple<unsigned int, unsigned int, AlignmentSymbol>, TumorKey
 rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_tname_tlen_tuple_vec, const std::string & vcf_tumor_fname, const auto *bcf_hdr, 
         const bool is_tumor_format_retrieved) {
     std::map<std::tuple<unsigned int, unsigned int, AlignmentSymbol>, TumorKeyInfo> ret;
-    if (vcf_tumor_fname.size() == 0) {
+    if (NOT_PROVIDED == vcf_tumor_fname) {
         return ret;
     }
     std::string regionstring;
@@ -667,7 +667,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                             phred_max_sscs, paramset.phred_dscs_minus_sscs + phred_max_sscs,
                             // ErrorCorrectionType(paramset.seq_data_type), 
                             !paramset.disable_dup_read_merge, !paramset.enable_dup_read_vqual,
-                            is_rescued
+                            is_rescued, (NOT_PROVIDED != paramset.vcf_tumor_fname)
                             , repeatunit, repeatnum);
                 }
                 for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; symbol = AlignmentSymbol(1+(unsigned int)symbol)) {
@@ -748,7 +748,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                                 , symbolToCountCoverageSet12,
                                 std::get<0>(tname_tseqlen_tuple).c_str(), refpos, symbol, fmt,
                                 refstring, extended_inclu_beg_pos, paramset.vqual, should_output_all, should_let_all_pass,
-                                tki, paramset.vcf_tumor_fname.size() != 0, 
+                                tki, (NOT_PROVIDED != paramset.vcf_tumor_fname), 
                                 paramset.phred_germline_polymorphism,
                                 paramset.nonref_to_alt_frac_snv, paramset.nonref_to_alt_frac_indel
                                 , paramset.tnq_mult_snv, paramset.tnq_mult_indel
@@ -867,7 +867,7 @@ main(int argc, char **argv) {
     
     bcf_hdr_t *g_bcf_hdr = NULL;
     const char *g_sample = NULL;
-    if (paramset.vcf_tumor_fname.size() > 0) {
+    if (NOT_PROVIDED != paramset.vcf_tumor_fname) {
         htsFile *infile = hts_open(paramset.vcf_tumor_fname.c_str(), "r");
         g_bcf_hdr = bcf_hdr_read(infile);
         g_sample = "";
@@ -898,7 +898,7 @@ main(int argc, char **argv) {
                 exit(-5);
             }
         }
-        if (paramset.vcf_tumor_fname.size() > 0) {
+        if (NOT_PROVIDED != paramset.vcf_tumor_fname) {
             /*
             srs[i] = bcf_sr_init();
             if (NULL == srs[i]) {

@@ -1932,7 +1932,7 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
         unsigned int phred_max_sscs,
         unsigned int phred_max_dscs,
         bool use_deduplicated_reads, bool use_only_deduplicated_reads,
-        bool is_rescued
+        bool is_rescued, const bool prev_is_tumor
         , const std::string & repeatunit, const unsigned int repeatnum 
         ) {
     fmt.note = symbol2CountCoverageSet12.additional_note.getByPos(refpos).at(symbol);
@@ -2134,14 +2134,17 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
            
             std::array<int, 3> likes = { fmtGL[0], fmtGL[1], fmtGL[2] };
             std::sort(likes.rbegin(), likes.rend());
+            const auto & gt_homref = (prev_is_tumor ? GT_HOMREF : TT_HOMREF);
+            const auto & gt_homalt = (prev_is_tumor ? GT_HOMALT : TT_HOMALT);
+            const auto & gt_hetero = (prev_is_tumor ? GT_HETERO : TT_HETERO); 
             if        (likes[0] == fmtGL[0]) {
-                fmtGT = (is_novar ? GT_HOMALT[t] : GT_TUMREF[t]);
+                fmtGT = (is_novar ? gt_homalt[t] : gt_homref[t]);
                 prank = (is_novar ? 2 : 0);
             } else if (likes[0] == fmtGL[1]) {
-                fmtGT = (is_novar ? GT_HETERO[t] : GT_HETERO[t]);
+                fmtGT = (is_novar ? gt_hetero[t] : gt_hetero[t]);
                 prank = (is_novar ? 1 : 1);
             } else if (likes[0] == fmtGL[2]) {
-                fmtGT = (is_novar ? GT_HOMREF[t] : GT_HOMALT[t]);
+                fmtGT = (is_novar ? gt_homref[t] : gt_homalt[t]);
                 prank = (is_novar ? 0 : 2);
             } else {
                 abort(); // should not happen
