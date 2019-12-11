@@ -2097,12 +2097,13 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
             const double fref  = 1.0 - fa;
             // const double nfa   = MAX(0.5, fa);
             // const double nfref = MAX(0.5, fref);
+            const double t2n_contam_rate = 0.02;
             
             // Uni-directional deviation from its theoretical distribution is translated into a phred-scaled error probability.
-            int hetREF_likelim = -(int)(10.0/log(10.0) * 2.5 * MAX(log(0.500 * ref_mulfact / fref), 0.0));       // het-ref to ALT mul error phred
-            int hetALT_likelim = -(int)(10.0/log(10.0) * 2.5 * MAX(log(0.500 * ref_mulfact / fa  ), 0.0));       // het-alt to REF mul error phred 
-            int homref_likelim = -(int)(10.0/log(10.0) * 2.5 * log(MAX(fa   / 0.005,  1.0 / fref)));             // hom-alt to REF mul error phred
-            int homalt_likelim = -(int)(10.0/log(10.0) * 2.5 * log(MAX(fref / 0.005,  1.0 / fa  )));             // hom-ref to ALT mul error phred
+            int hetREF_likelim = -(int)(10.0/log(10.00)*2.5*sqrt(2.0) * MAX(log(0.500 * ref_mulfact / fref), 0.0));       // het-ref to ALT mul error phred
+            int hetALT_likelim = -(int)(10.0/log(10.00)*2.5*sqrt(2.0) * MAX(log(0.500 * ref_mulfact / fa  ), 0.0));       // het-alt to REF mul error phred 
+            int homref_likelim = -(int)(10.0/log(10.00)*2.5*sqrt(2.0) * log(MAX(fa   / t2n_contam_rate,  1.0 / fref)));   // hom-alt to REF mul error phred
+            int homalt_likelim = -(int)(10.0/log(10.00)*2.5*sqrt(2.0) * log(MAX(fref / t2n_contam_rate,  1.0 / fa  )));   // hom-ref to ALT mul error phred
             
             const double dref  = fmt.DP * fref;
             //const double nad   = fmt.DP * nfa;
@@ -2111,8 +2112,8 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
             // assuming statistical independence of reads, kl-divergence is translated into a phred-scaled error probability.
             int hetREF_likeval = -(int)calc_binom_10log10_likeratio(0.500 * ref_mulfact, da,   dref );           // het-ref to ALT add error phred
             int hetALT_likeval = -(int)calc_binom_10log10_likeratio(0.500 * ref_mulfact, dref, da   );           // het-alt to REF add error phred
-            int homref_likeval = -(int)calc_binom_10log10_likeratio(0.005              , da,   dref );           // hom-alt to REF add error phred by contamination
-            int homalt_likeval = -(int)calc_binom_10log10_likeratio(0.005              , dref, da   );           // hom-ref to ALT add error phred by contamination
+            int homref_likeval = -(int)calc_binom_10log10_likeratio(t2n_contam_rate    , da,   dref );           // hom-alt to REF add error phred by contamination
+            int homalt_likeval = -(int)calc_binom_10log10_likeratio(t2n_contam_rate    , dref, da   );           // hom-ref to ALT add error phred by contamination
             
             fmtG8 = {
                     -homref_likelim, -hetREF_likelim, -hetALT_likelim, -homalt_likelim,
@@ -2588,8 +2589,9 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         const bool is_nonref_indel_excluded = true; // false;
         const bool is_nonref_germline_excluded = (isInDel ? is_nonref_indel_excluded : is_nonref_snp_excluded);
         
-        auto nonalt_qual = fmt.GLa[0] - MAX(fmt.GLa[1], fmt.GLa[2]);
-        auto excalt_qual = fmt.GLb[0] - MAX(fmt.GLb[1], fmt.GLb[2]);
+        // the genotype likelihoods here are special in that they can somehow normalized for the purpose of computing nonref probabilities
+        auto nonalt_qual = -MAX(fmt.GLa[1], fmt.GLa[2]); // fmt.GLa[0] - MAX(fmt.GLa[1], fmt.GLa[2]);
+        auto excalt_qual = -MAX(fmt.GLb[1], fmt.GLb[2]); // fmt.GLb[0] - MAX(fmt.GLb[1], fmt.GLb[2]);
         
         // testquals[tqi++] = max_min01_sub02(MIN(tn_trawq, tn_tpowq), n_nogerm_q, t2n_contam_q) + max_min01_sub02_(t2t_powq, t2n_powq, t2n_contam_q);
         const double n_nogerm_q = (is_nonref_germline_excluded ? MIN(nonalt_qual, excalt_qual) : nonalt_qual) + homref_gt_phred;
