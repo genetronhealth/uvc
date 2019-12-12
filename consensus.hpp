@@ -679,13 +679,38 @@ indel_phred(double ampfact, unsigned int cigar_oplen, unsigned int repeatsize_at
         indel_n_units = max_repeatnum;
     }
     double num_slips = (region_size > 64 ? (double)(region_size - 8) : log1p(exp((double)region_size - (double)8))) 
-            * ampfact / (double)repeatsize_at_max_repeatnum; // / indel_n_units;
+            * ampfact / ((double)(repeatsize_at_max_repeatnum * repeatsize_at_max_repeatnum))  / indel_n_units;
     return prob2phred((1.0 - DBL_EPSILON) / (num_slips + 1.0));
     // AC AC AC : repeatsize_at_max_repeatnum = 2, indel_n_units = 3
 }
 
+unsigned int
+ref_to_phredvalue(unsigned int & n_units, const auto & refstring, const size_t refpos, 
+        const unsigned int max_phred, double ampfact, const unsigned int cigar_oplen, const auto cigar_op) {
+    unsigned int max_repeatnum = 0;
+    unsigned int repeatsize_at_max_repeatnum = 0;
+    for (unsigned int repeatsize = 1; repeatsize <= 6; repeatsize++) {
+        unsigned int qidx = refpos;
+        while (qidx + repeatsize < refstring.size() && refstring[qidx] == refstring[qidx+repeatsize]) {
+            qidx++;
+        }
+        unsigned int repeatnum = (qidx - refpos) / repeatsize + 1;
+        if (repeatnum > max_repeatnum) {
+            max_repeatnum = repeatnum;
+            repeatsize_at_max_repeatnum = repeatsize;
+        }
+    }
+    if (cigar_oplen == repeatsize_at_max_repeatnum && cigar_op == BAM_CDEL) {
+        ampfact *= 2.5;
+    }
+    // Because of a lower number of PCR cycles, it is higher than the one set in Fig. 3 at https://www.ncbi.nlm.nih.gov/pmc/articles/PMC149199/
+    unsigned int decphred = indel_phred(ampfact, cigar_oplen, repeatsize_at_max_repeatnum, max_repeatnum);
+    n_units = ((0 == cigar_oplen % repeatsize_at_max_repeatnum) ? (cigar_oplen / repeatsize_at_max_repeatnum) : 0);
+    return max_phred - MIN(max_phred, decphred); 
+}
+
 unsigned int 
-bam_to_phredvalue(unsigned int & n_units, const bam1_t *b, unsigned int qpos, unsigned int max_phred, double ampfact, unsigned int cigar_oplen) {
+bam_to_phredvalue(unsigned int & n_units, const bam1_t *b, unsigned int qpos, unsigned int max_phred, double ampfact, const unsigned int cigar_oplen, const auto cigar_op) {
     unsigned int max_repeatnum = 0;
     unsigned int repeatsize_at_max_repeatnum = 0;
     for (unsigned int repeatsize = 1; repeatsize <= 6; repeatsize++) {
@@ -698,6 +723,9 @@ bam_to_phredvalue(unsigned int & n_units, const bam1_t *b, unsigned int qpos, un
             max_repeatnum = repeatnum;
             repeatsize_at_max_repeatnum = repeatsize;
         }
+    }
+    if (cigar_oplen == repeatsize_at_max_repeatnum && cigar_op == BAM_CDEL) {
+        ampfact *= 2.5;
     }
     // Because of a lower number of PCR cycles, it is higher than the one set in Fig. 3 at https://www.ncbi.nlm.nih.gov/pmc/articles/PMC149199/
     unsigned int decphred = indel_phred(ampfact, cigar_oplen, repeatsize_at_max_repeatnum, max_repeatnum);
@@ -853,6 +881,7 @@ public:
             const std::array<unsigned int, NUM_SYMBOL_TYPES> & symbolType2addPhredArg, 
             unsigned int frag_indel_basemax, 
             unsigned int nogap_phred, // this is obsolete
+            const auto & region_symbolvec, const unsigned int region_offset,
             uint32_t primerlen = 0) {
         static_assert(BASE_QUALITY_MAX == TUpdateType || SYMBOL_COUNT_SUM == TUpdateType);
         assert(this->tid == SIGN2UNSIGN(b->core.tid));
@@ -902,10 +931,13 @@ public:
                                 ((qpos + cigar_oplen < SIGN2UNSIGN(b->core.l_qseq)) ? 
                                 bam_phredi(b, qpos + SIGN2UNSIGN(cigar_oplen)) : 1)); // + addidq; // + symbolType2addPhred[LINK_SYMBOL];
                     } else {
-                        unsigned int phredvalue = bam_to_phredvalue(inslen, b, qpos, frag_indel_basemax, 4.0, cigar_oplen); // THasDups is not used here
+                        unsigned int phredvalue = ref_to_phredvalue(inslen, region_symbolvec, rpos - region_offset,
+                                frag_indel_basemax, 6.0, cigar_oplen, cigar_op);
+                        // unsigned int phredvalue = bam_to_phredvalue(inslen, , qpos, frag_indel_basemax, 6.0, cigar_oplen, cigar_op); // THasDups is not used here
                         // auto min_adj_BQ = MIN(bam_phredi(b, qpos-1), bam_phredi(b, qpos + cigar_oplen);
                         incvalue = (TIsProton ? MIN(MIN(bam_phredi(b, qpos-1), bam_phredi(b, qpos + cigar_oplen)), phredvalue) : phredvalue); // + addidq; 
                         // + symbolType2addPhred[LINK_SYMBOL];
+                        // this->dedup_ampDistr.at(strand).getIncluBegPosition()
                     }
                 }
                 this->inc<TUpdateType>(rpos, insLenToSymbol(inslen), MAX(SIGN2UNSIGN(1), incvalue), b);
@@ -935,8 +967,10 @@ public:
                                 ((qpos + cigar_oplen < SIGN2UNSIGN(b->core.l_qseq)) ? 
                                 bam_phredi(b, qpos + SIGN2UNSIGN(cigar_oplen)) : 1)); // + addidq;
                     } else {
-                        double afa = ((cigar_oplen <= 2) ? 12.0 : 4.0);
-                        unsigned int phredvalue = bam_to_phredvalue(dellen, b, qpos, frag_indel_basemax, afa, cigar_oplen); // THasDups is not used here
+                        // double afa = ((cigar_oplen <= 2) ? 18.0 : 6.0);
+                        unsigned int phredvalue = ref_to_phredvalue(dellen, region_symbolvec, rpos - region_offset, 
+                                frag_indel_basemax, 6.0, cigar_oplen, cigar_op);
+                        // unsigned int phredvalue = bam_to_phredvalue(dellen, b, qpos, frag_indel_basemax, 6.0, cigar_oplen, cigar_op); // THasDups is not used here
                         incvalue = (TIsProton ? MIN(MIN(bam_phredi(b, qpos), bam_phredi(b, qpos-1)), phredvalue) : phredvalue); // + addidq; 
                         // + symbolType2addPhred[LINK_SYMBOL];
                     }
@@ -965,19 +999,19 @@ public:
     int // GenericSymbol2CountCoverage<TSymbol2Count>::
     updateByRead1Aln(std::vector<bam1_t *> aln_vec, unsigned int frag_indel_ext, 
             const std::array<unsigned int, NUM_SYMBOL_TYPES> & symbolType2addPhred, const unsigned int alns2size, 
-            const unsigned int frag_indel_basemax, unsigned int dflag, unsigned int nogap_phred, const bool is_proton) {
+            const unsigned int frag_indel_basemax, unsigned int dflag, unsigned int nogap_phred, const bool is_proton, const auto & region_symbolvec, const unsigned int region_offset) {
         for (bam1_t *aln : aln_vec) {
             if (alns2size > 1 && dflag > 0) { // is barcoded and not singleton
                 if (is_proton || false) {
-                    this->updateByAln<TUpdateType, true , true >(aln, frag_indel_ext, symbolType2addPhred, frag_indel_basemax, nogap_phred);
+                    this->updateByAln<TUpdateType, true , true >(aln, frag_indel_ext, symbolType2addPhred, frag_indel_basemax, nogap_phred, region_symbolvec, region_offset);
                 } else {
-                    this->updateByAln<TUpdateType, false, true >(aln, frag_indel_ext, symbolType2addPhred, frag_indel_basemax, nogap_phred);
+                    this->updateByAln<TUpdateType, false, true >(aln, frag_indel_ext, symbolType2addPhred, frag_indel_basemax, nogap_phred, region_symbolvec, region_offset);
                 }
             } else {
                 if (is_proton || false) {
-                    this->updateByAln<TUpdateType, true , false>(aln, frag_indel_ext, symbolType2addPhred, frag_indel_basemax, nogap_phred);
+                    this->updateByAln<TUpdateType, true , false>(aln, frag_indel_ext, symbolType2addPhred, frag_indel_basemax, nogap_phred, region_symbolvec, region_offset);
                 } else {
-                    this->updateByAln<TUpdateType, false, false>(aln, frag_indel_ext, symbolType2addPhred, frag_indel_basemax, nogap_phred);
+                    this->updateByAln<TUpdateType, false, false>(aln, frag_indel_ext, symbolType2addPhred, frag_indel_basemax, nogap_phred, region_symbolvec, region_offset);
                 } 
             }
         }
@@ -1436,7 +1470,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                     fillTidBegEndFromAlns1(tid2, beg2, end2, alns1);
                     Symbol2CountCoverage read_ampBQerr_fragWithR1R2(tid, beg2, end2);
                     read_ampBQerr_fragWithR1R2.updateByRead1Aln<BASE_QUALITY_MAX>(alns1, frag_indel_ext, symbolType2addPhred, alns2.size(), 
-                            frag_indel_basemax, alns2pair2dflag.second, nogap_phred, is_proton);
+                            frag_indel_basemax, alns2pair2dflag.second, nogap_phred, is_proton, region_symbolvec, this->dedup_ampDistr.at(strand).getIncluBegPosition());
                     unsigned int normMQ = 0;
                     for (const bam1_t * b : alns1) {
                         normMQ = MAX(normMQ, b->core.qual);
@@ -1569,7 +1603,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                     fillTidBegEndFromAlns1(tid1, beg1, end1, alns1);
                     Symbol2CountCoverage read_ampBQerr_fragWithR1R2(tid1, beg1, end1);
                     read_ampBQerr_fragWithR1R2.updateByRead1Aln<BASE_QUALITY_MAX>(alns1, frag_indel_ext, symbolType2addPhred, alns2.size(), 
-                            frag_indel_basemax, alns2pair2dflag.second, nogap_phred, is_proton);
+                            frag_indel_basemax, alns2pair2dflag.second, nogap_phred, is_proton, region_symbolvec, this->dedup_ampDistr.at(strand).getIncluBegPosition());
                     read_family_con_ampl.updateByConsensus<SYMBOL_COUNT_SUM, true>(read_ampBQerr_fragWithR1R2);
                     read_family_amplicon.updateByFiltering(read_ampBQerr_fragWithR1R2, this->bq_pass_thres[strand], 1, true, strand);
                     if (log_alns2) {
@@ -1634,7 +1668,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                     fillTidBegEndFromAlns1(tid1, beg1, end1, aln_vec);
                     Symbol2CountCoverage read_ampBQerr_fragWithR1R2(tid1, beg1, end1);
                     read_ampBQerr_fragWithR1R2.updateByRead1Aln<BASE_QUALITY_MAX>(aln_vec, frag_indel_ext, symbolType2addPhred, alns2.size(), 
-                            frag_indel_basemax, alns2pair2dflag.second, nogap_phred, is_proton);
+                            frag_indel_basemax, alns2pair2dflag.second, nogap_phred, is_proton, region_symbolvec, this->dedup_ampDistr.at(strand).getIncluBegPosition());
                     // read_family_amplicon.updateByConsensus<SYMBOL_COUNT_SUM>(read_ampBQerr_fragWithR1R2);
                     read_family_amplicon.updateByFiltering(read_ampBQerr_fragWithR1R2, this->bq_pass_thres[strand], 1, true, strand);
                     if (log_alns2) {
@@ -2175,7 +2209,7 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
                 totsize_cnt += fmt.gapcAD1[k]; 
                 totsize_sum += fmt.gapSeq[k].size() * fmt.gapcAD1[k];
             }
-            ref_bias = MAX((totsize_sum * 100UL) / (totsize_cnt * 100UL + 1UL), repeatunit.size() * repeatnum);
+            ref_bias = (totsize_sum * 100UL) / (totsize_cnt * 100UL + 1UL) + repeatunit.size() * repeatnum + 6; // 6=gap_open/match
         }
         fmt.RefBias = ref_bias;
         const double altmul = (double)(75 - MIN(50, ref_bias)) / (double)75; // 50.0 / (double)(ref_bias + 50);
@@ -2558,7 +2592,7 @@ penal_indel_2(double AD0a, int n_str_units, const auto & RCC) {
         }
         max_peak_infl = MAX(max_peak_infl, peak_infl);
     }
-    return 10.0/log(10.0) * 2.5 * log((AD0a + DBL_EPSILON) / (AD0a + max_peak_infl + DBL_EPSILON));
+    return 10.0/log(2.0) * 2.5 * log((AD0a + DBL_EPSILON) / (AD0a + max_peak_infl + DBL_EPSILON));
 }
 
 int
@@ -2653,7 +2687,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
     // 5% of STR (about 0.25% of InDel genomic regions) has about 75% of InDels, so max at around 20
     // Bayesian prior probability of observing germline and somatic indels relative to SNV in PHRED scale
     double indel_prior = ((0 == indelstring.size() || 0 == repeatunit.size() || 0 == repeatnum)
-            ? 0.0 : (MIN(indel_phred(2.0, indelstring.size(), repeatunit.size(), repeatnum) / 2.0, 20.0) - 10.0));
+            ? 0.0 : (MIN(indel_phred(0.5, indelstring.size(), repeatunit.size(), repeatnum), 20.0) - 10.0));
     if (isInDel && (!prev_is_tumor)) {
         // fmtvar.VAQ += indel_prior;
     }
@@ -2988,21 +3022,26 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         //infostring += std::string(";TNQ=") + string_join(std::array<std::string, 4>({std::to_string(tn_systq), std::to_string(tn_randq),
         //        std::to_string(tn_contq), std::to_string(phred_non_germ)}));
         
-        for (int i = 0; i < N_MODELS; i++) {
+        for (int i = 0; i < MIN(1,N_MODELS); i++) {
             infostring += std::string(";TQ") + std::to_string(i) + "=" + std::to_string(testquals[i]); 
         }
-        infostring += std::string(";TNQ=")  + string_join(std::array<std::string, 7>({
-                  std::to_string(median_qual)      , std::to_string(t2n_powq)           , std::to_string(t2n_rawq),      
-                  std::to_string(tvn_powq)         , std::to_string(tvn_rawq)           , std::to_string(tvn_or_q), 
-                  std::to_string(tvn_st_q)}));
-        infostring += std::string(";TNQA=") + string_join(std::array<std::string, 6>({
-                  std::to_string(n_nogerm_q)       , std::to_string(phred_non_germ)     , std::to_string(tnlike_argmin),    
-                  std::to_string(reduction_coef)   , std::to_string(add_contam_phred)   , std::to_string(mul_contam_phred)}));
-        infostring += std::string(";TNNQ=") + string_join(std::array<std::string, 5>({
-                  std::to_string(tn_npo2q)         , std::to_string(tn_nra1q - tn_nsamq)
-                , std::to_string(indel_prior)      , std::to_string(tn_npo1q)           , std::to_string(tn_nsamq)}));
-        infostring += std::string(";TNTQ=") + string_join(std::array<std::string, 5>({
-                std::to_string(tn_tpowq)           , std::to_string(tn_tra1q - tn_tsamq), std::to_string(indel_prior), 
+        infostring += std::string(";TNQ=")  + string_join(std::array<std::string, 7-5>({
+                  // std::to_string(median_qual)      , 
+                  std::to_string(t2n_powq)         , std::to_string(t2n_rawq)      
+                  // ,std::to_string(tvn_powq)         , std::to_string(tvn_rawq)           , std::to_string(tvn_or_q), 
+                  // std::to_string(tvn_st_q)
+                  }));
+        infostring += std::string(";TNQA=") + string_join(std::array<std::string, 6-4+1>({
+                  std::to_string(n_nogerm_q),       // , std::to_string(phred_non_germ)     , std::to_string(tnlike_argmin),    
+                  std::to_string(reduction_coef),   // , std::to_string(add_contam_phred)   , std::to_string(mul_contam_phred)
+                  std::to_string(indel_prior)
+                  }));
+        infostring += std::string(";TNNQ=") + string_join(std::array<std::string, 5-1>({
+                  std::to_string(tn_npo2q)         , std::to_string(tn_nra1q - tn_nsamq),
+                  // std::to_string(indel_prior)      , 
+                  std::to_string(tn_npo1q)           , std::to_string(tn_nsamq)}));
+        infostring += std::string(";TNTQ=") + string_join(std::array<std::string, 5-1>({
+                std::to_string(tn_tpowq)           , std::to_string(tn_tra1q - tn_tsamq), //, std::to_string(indel_prior), 
                 std::to_string(tn_tpo1q)           , std::to_string(tn_tsamq)}));
         infostring += std::string(";tDP=") + std::to_string(tki.DP);
         infostring += std::string(";tFA=") + std::to_string(tki.FA);
