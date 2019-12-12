@@ -2687,7 +2687,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
     // 5% of STR (about 0.25% of InDel genomic regions) has about 75% of InDels, so max at around 20
     // Bayesian prior probability of observing germline and somatic indels relative to SNV in PHRED scale
     double indel_prior = ((0 == indelstring.size() || 0 == repeatunit.size() || 0 == repeatnum)
-            ? 0.0 : (MIN(indel_phred(0.5, indelstring.size(), repeatunit.size(), repeatnum), 20.0) - 10.0));
+            ? 0.0 : (MIN(indel_phred(6.0, indelstring.size(), repeatunit.size(), repeatnum) / 2.0, 20.0) - 10.0));
     if (isInDel && (!prev_is_tumor)) {
         // fmtvar.VAQ += indel_prior;
     }
@@ -2943,8 +2943,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         std::array<double, N_MODELS> testquals = {0};
         unsigned int tqi = 0;
         // 0 // n_nogerm_q and t2n_powq should have already bee normalized with contam
-        testquals[tqi++] = max_min01_sub02(MIN(tn_trawq, tn_tpowq) + indel_prior, (double)n_nogerm_q,      t2n_contam_q) 
-                         + max_min01_sub02(MIN(t2n_rawq, t2t_powq),               MIN(t2n_rawq, t2n_powq), t2n_contam_q);
+        testquals[tqi++] = max_min01_sub02(MIN(tn_trawq, tn_tpowq) + indel_prior + 13.0, (double)n_nogerm_q,      t2n_contam_q) 
+                         + max_min01_sub02(MIN(t2n_rawq, t2t_powq),                      MIN(t2n_rawq, t2n_powq), t2n_contam_q);
         //testquals[tqi++] = MIN(tn_trawq, tn_tpowq + tvn_powq) - MIN(tn_nrawq, MAX(0.0, tn_npowq - tvn_or_q));
         testquals[tqi++] = MIN(tn_trawq, tvn_rawq * 2 + 30);
         testquals[tqi++] = MIN(tn_trawq, tvn_rawq     + tn_tpowq);
