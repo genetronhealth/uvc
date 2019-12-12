@@ -1923,6 +1923,36 @@ mutform2count4map_to_phase(const auto & mutform2count4vec, const auto & indices,
     return phase_string;
 }
 
+const std::string 
+indel_get_majority(const bcfrec::BcfFormat & fmt, const bool prev_is_tumor, const auto & tki, 
+        bool is_rescued, const char *tname, unsigned int refpos, const AlignmentSymbol symbol) {
+    std::string indelstring = "";
+    if (prev_is_tumor && tki.ref_alt.size() > 3) {
+        size_t midtry = tki.ref_alt.size() - 2;
+        if ('\t' == tki.ref_alt[1] && tki.ref_alt[0] == tki.ref_alt[2]) {
+            indelstring = tki.ref_alt.substr(3, tki.ref_alt.size() - 3);
+        } else if ('\t' == tki.ref_alt[midtry] && tki.ref_alt[0] == tki.ref_alt[midtry+1]) {
+            indelstring = tki.ref_alt.substr(1, tki.ref_alt.size() - 3);
+        } else {
+            fprintf(stderr, "The ref_alt %s is not valid!\n", tki.ref_alt.c_str());
+            abort();
+        }
+    } else if (fmt.gapNum[0] <= 0 && fmt.gapNum[1] <= 0) {
+        if (!is_rescued) {
+            std::cerr << "Invalid indel detected (invalid mutation) : " << tname << ", " << refpos << ", " << SYMBOL_TO_DESC_ARR[symbol] << std::endl;
+            std::string msg;
+            bcfrec::streamAppendBcfFormat(msg, fmt);
+            std::cerr << msg << "\n";
+            assert(false);
+        }
+    } else if (fmt.gapNum[0] <= 0 || fmt.gapNum[1] <= 0) {
+        indelstring = fmt.gapSeq[0];
+    } else {
+        indelstring = (fmt.gapbAD1[0] > fmt.gapbAD1[fmt.gapNum[0]] ? fmt.gapSeq[0] : fmt.gapSeq.at(fmt.gapNum[0]));
+    }
+    return indelstring;
+}
+
 template <class T = int>
 struct RepNumCluster {
     T mode;
@@ -1949,13 +1979,13 @@ indel_fill_rep_num_clusters(std::array<RepNumCluster<int>, 2> & rep_num_clusters
     unsigned int max_ilen = 0;
     for (auto & iseq2cnt : iseq2cnt_vec) { 
         for (auto & iseq_cnt : iseq2cnt) {
-            max_ilen = MAX(max_ilen, iseq_cnt.first.size() / repeatunit.size()) + 1; 
+            max_ilen = MAX(max_ilen, iseq_cnt.first.size() / repeatunit.size());
         }
     }
     unsigned int max_dlen = 0;
     for (auto & dlen2cnt : dlen2cnt_vec) { 
         for (auto & dlen_cnt : dlen2cnt) {
-            max_dlen = MAX(max_dlen, dlen_cnt.first        / repeatunit.size()) + 1; 
+            max_dlen = MAX(max_dlen, dlen_cnt.first        / repeatunit.size());
         }
     }
     
@@ -1963,13 +1993,13 @@ indel_fill_rep_num_clusters(std::array<RepNumCluster<int>, 2> & rep_num_clusters
     std::vector<unsigned int> idx2cnt(max_dlen + max_ilen + 1, 0);
     for (auto & iseq2cnt : iseq2cnt_vec) {
         for (auto & iseq_cnt : iseq2cnt) {
-            auto idx = max_dlen + 1 + iseq_cnt.first.size() / repeatunit.size();
+            auto idx = max_dlen + iseq_cnt.first.size() / repeatunit.size();
             idx2cnt[idx] += iseq_cnt.second;
         }
     }
     for (auto & dlen2cnt : dlen2cnt_vec) {
         for (auto & dlen_cnt : dlen2cnt) {
-            auto idx = max_dlen - 1 - dlen_cnt.first       / repeatunit.size();
+            auto idx = max_dlen - dlen_cnt.first       / repeatunit.size();
             idx2cnt[idx] += dlen_cnt.second;
         }
     }
@@ -2303,9 +2333,11 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
             }
         }
     }
+    
     indel_fill_rep_num_clusters(rep_num_clusters, 
              fmtcRD, repeatunit, iseq2cnt_vec, dlen2cnt_vec);
     
+    // std::string indelstring = indel_get_majority(fmt, prev_is_tumor, tki); 
     for (unsigned int i = 0; i < 2; i++) {
         fmt.RCC[i*4  ] = (int)rep_num_clusters[i].mode;
         fmt.RCC[i*4+1] = (int)rep_num_clusters[i].cnt0;
@@ -2510,6 +2542,25 @@ penal_indel(double vcfqual, double ad, double od, const std::string & ru, const 
     return vcfqual;
 }
 
+double
+penal_indel_2(double AD0a, int n_str_units, const auto & RCC) {
+    const double altv_diff = (double)n_str_units;
+    double max_peak_infl = 0.0;
+    for (int c = 0; c < 2; c++) {
+        int peakidx = c*4;
+        double peak_diff = (double)RCC[peakidx];
+        double peak_height1 = (double)RCC[peakidx+1]; //  = (int)rep_num_clusters[i].cnt0;
+        double peak_height2 = (double)MIN(RCC[peakidx+2], RCC[peakidx+3]);
+        double peak_infl = pow(MIN(peak_height1 / 2.0, peak_height2) / (peak_height1 + DBL_EPSILON), abs(peak_diff - altv_diff));
+        // less penalty for insertion of one unit with respect to the ref
+        if (1 == n_str_units && 0 == RCC[peakidx]) {
+            peak_infl /= 2.0;
+        }
+        max_peak_infl = MAX(max_peak_infl, peak_infl);
+    }
+    return 10.0/log(10.0) * 2.5 * log((AD0a + DBL_EPSILON) / (AD0a + max_peak_infl + DBL_EPSILON));
+}
+
 int
 appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats & vc_stats,
         const Symbol2CountCoverageSet & symbol2CountCoverageSet, 
@@ -2567,29 +2618,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         vcfpos = refpos; // refpos > 0?
         vcfref = (regionpos > 0 ? refstring.substr(regionpos-1, 1) : "n");
         vcfalt = vcfref;
-        if (prev_is_tumor && tki.ref_alt.size() > 3) {
-            size_t midtry = tki.ref_alt.size() - 2;
-            if ('\t' == tki.ref_alt[1] && tki.ref_alt[0] == tki.ref_alt[2]) {
-                indelstring = tki.ref_alt.substr(3, tki.ref_alt.size() - 3);
-            } else if ('\t' == tki.ref_alt[midtry] && tki.ref_alt[0] == tki.ref_alt[midtry+1]) {
-                indelstring = tki.ref_alt.substr(1, tki.ref_alt.size() - 3);
-            } else {
-                fprintf(stderr, "The ref_alt %s is not valid!\n", tki.ref_alt.c_str());
-                abort();
-            }
-        } else if (fmt.gapNum[0] <= 0 && fmt.gapNum[1] <= 0) {
-            if (!is_rescued) {
-                std::cerr << "Invalid indel detected (invalid mutation) : " << tname << ", " << refpos << ", " << SYMBOL_TO_DESC_ARR[symbol] << std::endl;
-                std::string msg;
-                bcfrec::streamAppendBcfFormat(msg, fmt);
-                std::cerr << msg << "\n";
-                assert(false);
-            }
-        } else if (fmt.gapNum[0] <= 0 || fmt.gapNum[1] <= 0) {
-            indelstring = fmt.gapSeq[0];
-        } else {
-            indelstring = (fmt.gapbAD1[0] > fmt.gapbAD1[fmt.gapNum[0]] ? fmt.gapSeq[0] : fmt.gapSeq.at(fmt.gapNum[0]));
-        }
+        indelstring = indel_get_majority(fmt, prev_is_tumor, tki, 
+            is_rescued, tname, refpos, symbol); 
         fmtvar.gapDP4 = {0, 0, 0, 0};
         for (size_t si = 0; si < fmt.gapSeq.size(); si++) {
             if (fmt.gapSeq[si] == indelstring) {
@@ -2843,8 +2873,12 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         if (isInDel) {
             //tn_nrawq = tn_nra1q + indel_prior;
             // QUESTION: why indel generations are discrete?
-            tn_tpowq = penal_indel(tn_tpo1q, (double)(tAD0a), (double)(tDP0 - tRD0), repeatunit, repeatnum);
-            tn_npo2q = penal_indel(tn_npo1q, (double)(nAD0a), (double)(nDP0 - nRD0), repeatunit, repeatnum);
+            //tn_tpowq = penal_indel(tn_tpo1q, (double)(tAD0a), (double)(tDP0 - tRD0), repeatunit, repeatnum);
+            //tn_npo2q = penal_indel(tn_npo1q, (double)(nAD0a), (double)(nDP0 - nRD0), repeatunit, repeatnum);
+            // tki.RCC[c*4  ] = (int)rep_num_clusters[i].mode;
+            int n_str_units = (isSymbolIns(symbol) ? 1 : (-1)) * (int)(indelstring.size() / repeatunit.size());
+            tn_tpowq = tn_tpo1q + penal_indel_2(tAD0a, n_str_units, tki.RCC);
+            tn_npo2q = tn_npo1q + penal_indel_2(nAD0a, n_str_units, fmt.RCC);
         }
         double tn_npowq = MAX(0.0, tn_npo2q);
         
