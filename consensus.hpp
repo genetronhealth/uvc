@@ -161,13 +161,13 @@ isSymbolDel(const AlignmentSymbol symbol) {
 
 const AlignmentSymbol 
 insLenToSymbol(unsigned int len) {
-    assert(len > 0);
+    //assert(len > 0);
     return 1 == len ? LINK_I1 : (2 == len ? LINK_I2 : LINK_I3P);
 }
 
 const AlignmentSymbol 
 delLenToSymbol(unsigned int len) {
-    assert(len > 0);
+    //assert(len > 0);
     return 1 == len ? LINK_D1 : (2 == len ? LINK_D2 : LINK_D3P);
 }
 
@@ -1977,7 +1977,7 @@ indel_fill_rep_num_clusters(std::array<RepNumCluster<int>, 2> & rep_num_clusters
 
     std::vector<std::pair<unsigned int, unsigned int>> cnt_len_vec; 
     for (size_t idx = 0; idx < idx2cnt.size(); idx++) {
-        if (idx2cnt[idx] > 0) {
+        if (idx2cnt[idx] > 0 || max_dlen == idx) {
             cnt_len_vec.push_back(std::make_pair(idx2cnt[idx], idx));
         }
     }
