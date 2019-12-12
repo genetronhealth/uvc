@@ -1949,32 +1949,32 @@ indel_fill_rep_num_clusters(std::array<RepNumCluster<int>, 2> & rep_num_clusters
     unsigned int max_ilen = 0;
     for (auto & iseq2cnt : iseq2cnt_vec) { 
         for (auto & iseq_cnt : iseq2cnt) {
-            max_ilen = MAX(max_ilen, iseq_cnt.first.size() / repeatunit.size()); 
+            max_ilen = MAX(max_ilen, iseq_cnt.first.size() / repeatunit.size()) + 1; 
         }
     }
     unsigned int max_dlen = 0;
     for (auto & dlen2cnt : dlen2cnt_vec) { 
         for (auto & dlen_cnt : dlen2cnt) {
-            max_dlen = MAX(max_dlen, dlen_cnt.first        / repeatunit.size()); 
+            max_dlen = MAX(max_dlen, dlen_cnt.first        / repeatunit.size()) + 1; 
         }
     }
     
-    // at index max_dlen is the ref non-indel
+    // at index max_dlen is the ref non-indel // ... (STR-2,STR-1] (STR-1,REF) REF (REF,STR+1) [STR+1,STR+2) ...
     std::vector<unsigned int> idx2cnt(max_dlen + max_ilen + 1, 0);
-    for (auto & iseq2cnt : iseq2cnt_vec) { 
+    for (auto & iseq2cnt : iseq2cnt_vec) {
         for (auto & iseq_cnt : iseq2cnt) {
-            auto idx = iseq_cnt.first.size() / repeatunit.size() + max_dlen;
+            auto idx = max_dlen + 1 + iseq_cnt.first.size() / repeatunit.size();
             idx2cnt[idx] += iseq_cnt.second;
         }
     }
     for (auto & dlen2cnt : dlen2cnt_vec) {
         for (auto & dlen_cnt : dlen2cnt) {
-            auto idx = dlen_cnt.first / repeatunit.size();
+            auto idx = max_dlen - 1 - dlen_cnt.first       / repeatunit.size();
             idx2cnt[idx] += dlen_cnt.second;
         }
     }
     idx2cnt[max_dlen] += refcnt;
-
+    
     std::vector<std::pair<unsigned int, unsigned int>> cnt_len_vec; 
     for (size_t idx = 0; idx < idx2cnt.size(); idx++) {
         if (idx2cnt[idx] > 0 || max_dlen == idx) {
@@ -2304,7 +2304,7 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
         }
     }
     indel_fill_rep_num_clusters(rep_num_clusters, 
-             fmtcAD, repeatunit, iseq2cnt_vec, dlen2cnt_vec);
+             fmtcRD, repeatunit, iseq2cnt_vec, dlen2cnt_vec);
     
     for (unsigned int i = 0; i < 2; i++) {
         fmt.RCC[i*4  ] = (int)rep_num_clusters[i].mode;
