@@ -16,6 +16,8 @@
 //#define MIN(a, b) ((a) < (b) ? (a) : (b))
 //#define MAX(a, b) ((a) > (b) ? (a) : (b))
 
+#define DBLFLT_EPS ((double)FLT_EPSILON)
+
 auto 
 MIN(auto a, auto b) {
     return (a < b ? a :b);
