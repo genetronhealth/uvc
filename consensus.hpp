@@ -2265,7 +2265,7 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
             // const double fref  = 1.0 - fa;
             // const double nfa   = MAX(0.5, fa);
             // const double nfref = MAX(0.5, fref);
-            const double t2n_contam_rate = 0.05 - (0.25/3.0)*(double)SYMBOL_TO_INDEL_N_UNITS[symbol];
+            const double t2n_contam_rate = 0.05 - (0.025/3.0)*(double)SYMBOL_TO_INDEL_N_UNITS[symbol];
             
             // Uni-directional deviation from its theoretical distribution is translated into a phred-scaled error probability. TODO: check the effect of sqrt?
             int hetREF_likelim = -(int)(10.0/log(10.00)*2.5*2.0 * MAX(log(0.500 * refmul / fr_l), 0.0));                       // het-ref to ALT mul error phred
