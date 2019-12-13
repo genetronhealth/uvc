@@ -2265,7 +2265,7 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
             // const double fref  = 1.0 - fa;
             // const double nfa   = MAX(0.5, fa);
             // const double nfref = MAX(0.5, fref);
-            const double t2n_contam_rate = 0.05 - (0.025/3.0)*(double)SYMBOL_TO_INDEL_N_UNITS[symbol];
+            const double t2n_contam_rate = 0.05 - (0.01/3.0)*(double)SYMBOL_TO_INDEL_N_UNITS[symbol];
             
             // Uni-directional deviation from its theoretical distribution is translated into a phred-scaled error probability. TODO: check the effect of sqrt?
             int hetREF_likelim = -(int)(10.0/log(10.00)*2.5*2.0 * MAX(log(0.500 * refmul / fr_l), 0.0));                       // het-ref to ALT mul error phred
@@ -2969,9 +2969,9 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         std::array<double, N_MODELS> testquals = {0};
         unsigned int tqi = 0;
         double t2n_rawq2 = t2n_rawq + MAX((int)indel_prior, -3);
-        double t2n_finq  = max_min01_sub02(MIN(t2n_rawq2, t2t_powq),            MIN(t2n_rawq2, t2n_powq), t2n_contam_q);
+        double t2n_finq  = max_min01_sub02(MIN(t2n_rawq2, t2t_powq),               MIN(t2n_rawq2, t2n_powq), t2n_contam_q);
         // 0 // n_nogerm_q and t2n_powq should have already bee normalized with contam
-        testquals[tqi++] = max_min01_sub02(MIN(tn_trawq, tn_tpowq) + t2n_finq,  (double)n_nogerm_q      , t2n_contam_q) + (isInDel ? 10.0 : 0.0);
+        testquals[tqi++] = max_min01_sub02(MIN(tn_trawq, tn_tpowq) + 0.0*t2n_finq, (double)n_nogerm_q      , t2n_contam_q) + 1.0*t2n_finq + (isInDel ? 10.0 : 0.0);
         //testquals[tqi++] = MIN(tn_trawq, tn_tpowq + tvn_powq) - MIN(tn_nrawq, MAX(0.0, tn_npowq - tvn_or_q));
         testquals[tqi++] = MIN(tn_trawq, tvn_rawq * 2 + 30);
         testquals[tqi++] = MIN(tn_trawq, tvn_rawq     + tn_tpowq);
