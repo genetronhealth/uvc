@@ -682,12 +682,12 @@ indelpos_to_context(
 unsigned int
 indel_len_rusize_phred(unsigned int indel_len, unsigned int repeatunit_size) {
     assert (indel_len > 0 && repeatunit_size > 0);
-    const std::array<unsigned int, 5> n_units_to_phred = {0, 0, 4, 7};
+    const std::array<unsigned int, 5> n_units_to_phred = {0, 0, 4, 6};
     if (0 == (indel_len % repeatunit_size)) {
         auto n_units = indel_len / repeatunit_size;
         return n_units_to_phred[MIN(n_units, n_units_to_phred.size()-1)];
     } else {
-        return 7+2;
+        return 7;
     }
 }
 
@@ -2514,6 +2514,8 @@ generateVcfHeader(const char *ref_fasta_fname, const char *platform,
     ret += "##INFO=<ID=tMQ,Number=.,Type=Float,Description=\"Tumor-sample MQ\">\n"; 
     ret += "##INFO=<ID=tgapDP4,Number=4,Type=Integer,Description=\"Tumor-sample gapDP4\">\n"; 
     ret += "##INFO=<ID=tRCC,Number=8,Type=Integer,Description=\"Tumor-sample RCC\">\n";
+    ret += "##INFO=<ID=tGQa,Number=3,Type=Integer,Description=\"Tumor-sample GQa\">\n";
+    ret += "##INFO=<ID=tGQb,Number=3,Type=Integer,Description=\"Tumor-sample GQb\">\n";
     ret += "##INFO=<ID=RU,Number=1,Type=String,Description=\"The shortest repeating unit in the reference\">\n";
     ret += "##INFO=<ID=RC,Number=1,Type=Integer,Description=\"The number of non-interrupted RUs in the reference\">\n"; 
     
@@ -2711,7 +2713,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
     // 5% of STR (about 0.25% of InDel genomic regions) has about 75% of InDels, so max at around 20
     // Bayesian prior probability of observing germline and somatic indels relative to SNV in PHRED scale
     double indel_prior = ((0 == indelstring.size() || 0 == repeatunit.size() || 0 == repeatnum) ? 0.0 : 
-            (+(double)MIN(indel_phred(6.0, indelstring.size(), repeatunit.size(), repeatnum), 12.0)
+            (+(double)MIN(indel_phred(6.0, indelstring.size(), repeatunit.size(), repeatnum), 10.0) - 5.0
              -(double)indel_len_rusize_phred(indelstring.size(), repeatunit.size())));
     if (isInDel && (!prev_is_tumor)) {
         // fmtvar.VAQ += indel_prior;
@@ -2798,12 +2800,16 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         
         // the genotype likelihoods here are special in that they can somehow normalized for the purpose of computing nonref probabilities
         // HOWEVER, no prior can be given to the raw genotype likelihoods.
-        int32_t nonalt_qual = fmt.GLa[0] - MAX(fmt.GLa[1], fmt.GLa[2]) + (int)homref_gt_phred - MAX((int)indel_prior, -3);
-        int32_t excalt_qual = fmt.GLb[0] - MAX(fmt.GLb[1], fmt.GLb[2]) + (int)homref_gt_phred - MAX((int)indel_prior, -3);
+        int32_t nonalt_qual = fmt.GLa[0] - MAX(fmt.GLa[1], fmt.GLa[2]) + (int)homref_gt_phred - (int)indel_prior;
+        int32_t excalt_qual = fmt.GLb[0] - MAX(fmt.GLb[1], fmt.GLb[2]) + (int)homref_gt_phred - (int)indel_prior;
         
-        // testquals[tqi++] = max_min01_sub02(MIN(tn_trawq, tn_tpowq), n_nogerm_q, t2n_contam_q) + max_min01_sub02_(t2t_powq, t2n_powq, t2n_contam_q);
         const int32_t n_nogerm_q = (is_nonref_germline_excluded ? MIN(nonalt_qual, excalt_qual) : nonalt_qual);
         
+        int32_t nonalt_tu_q = tki.GLa[0] - MAX(tki.GLa[1], tki.GLa[2]);
+        int32_t excalt_tu_q = tki.GLb[0] - MAX(tki.GLb[1], tki.GLb[2]);
+        
+        const int32_t t_nogerm_q = (is_nonref_germline_excluded ? MIN(nonalt_tu_q, excalt_tu_q) : nonalt_tu_q);
+
         // const double phred_non_germ = (is_nonref_germline_excluded ? MIN(nonalt_qual, excalt_qual) : nonalt_qual);
 #if 1
         const bool alt_is_germ = (GT_HOMREF[0] == fmt.GTa);
@@ -2968,10 +2974,10 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         // const double tn_tadjq = indel_prior; // (isInDel ? 10.0*0.0 : 0.0) - indel_prior;
         std::array<double, N_MODELS> testquals = {0};
         unsigned int tqi = 0;
-        double t2n_rawq2 = t2n_rawq + MAX((int)indel_prior, -3);
-        double t2n_finq  = max_min01_sub02(MIN(t2n_rawq2, t2t_powq),               MIN(t2n_rawq2, t2n_powq), t2n_contam_q);
+        const double a_nogerm_q = (double)(n_nogerm_q + 0.0*MIN(MAX(0, t_nogerm_q),25));
+        double t2n_finq  = max_min01_sub02(MIN(t2n_rawq              , t2t_powq              ),                MIN(t2n_rawq2, t2n_powq), t2n_contam_q);
         // 0 // n_nogerm_q and t2n_powq should have already bee normalized with contam
-        testquals[tqi++] = max_min01_sub02(MIN(tn_trawq, tn_tpowq) + 0.0*t2n_finq, (double)n_nogerm_q      , t2n_contam_q) + 1.0*t2n_finq + (isInDel ? 10.0 : 0.0);
+        testquals[tqi++] = max_min01_sub02(MIN(tn_trawq + indel_prior, tn_tpowq - indel_prior) + 0.0*t2n_finq, a_nogerm_q              , t2n_contam_q) + 1.0*t2n_finq + (isInDel ? 10.0 : 0.0);
         //testquals[tqi++] = MIN(tn_trawq, tn_tpowq + tvn_powq) - MIN(tn_nrawq, MAX(0.0, tn_npowq - tvn_or_q));
         testquals[tqi++] = MIN(tn_trawq, tvn_rawq * 2 + 30);
         testquals[tqi++] = MIN(tn_trawq, tvn_rawq     + tn_tpowq);
@@ -3083,7 +3089,9 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         infostring += std::string(";tMQ=") + std::to_string(tki.MQ);
         infostring += std::string(";tgapDP4=") + other_join(tki.gapDP4);
         infostring += std::string(";tRCC=") + other_join(tki.RCC);
-        
+        infostring += std::string(";tGQa=") + other_join(tki.GQa);
+        infostring += std::string(";tGQb=") + other_join(tki.GQb);
+ 
         // infostring += std::string(";TNQA=") + string_join(std::array<std::string, 4>({std::to_string(tn_systq), std::to_string(tvn_powq), std::to_string(tnlike_argmin), std::to_string(reduction_coef)}));
         
         // auto finalGQ = (("1/0" == fmt.GT) ? fmt.GQ : 0); // is probably redundant?
