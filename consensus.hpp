@@ -701,7 +701,7 @@ indel_phred(double ampfact, unsigned int cigar_oplen, unsigned int repeatsize_at
         indel_n_units = max_repeatnum;
     }
     double num_slips = (region_size > 64 ? (double)(region_size - 8) : log1p(exp((double)region_size - (double)8))) 
-            * ampfact / ((double)(repeatsize_at_max_repeatnum * repeatsize_at_max_repeatnum))  / indel_n_units;
+            * ampfact / ((double)(repeatsize_at_max_repeatnum * repeatsize_at_max_repeatnum)); //  / indel_n_units;
     return prob2phred((1.0 - DBL_EPSILON) / (num_slips + 1.0));
     // AC AC AC : repeatsize_at_max_repeatnum = 2, indel_n_units = 3
 }
