@@ -2514,8 +2514,8 @@ generateVcfHeader(const char *ref_fasta_fname, const char *platform,
     ret += "##INFO=<ID=tMQ,Number=.,Type=Float,Description=\"Tumor-sample MQ\">\n"; 
     ret += "##INFO=<ID=tgapDP4,Number=4,Type=Integer,Description=\"Tumor-sample gapDP4\">\n"; 
     ret += "##INFO=<ID=tRCC,Number=8,Type=Integer,Description=\"Tumor-sample RCC\">\n";
-    ret += "##INFO=<ID=tGQa,Number=3,Type=Integer,Description=\"Tumor-sample GQa\">\n";
-    ret += "##INFO=<ID=tGQb,Number=3,Type=Integer,Description=\"Tumor-sample GQb\">\n";
+    ret += "##INFO=<ID=tGLa,Number=3,Type=Integer,Description=\"Tumor-sample GLa\">\n";
+    ret += "##INFO=<ID=tGLb,Number=3,Type=Integer,Description=\"Tumor-sample GLb\">\n";
     ret += "##INFO=<ID=RU,Number=1,Type=String,Description=\"The shortest repeating unit in the reference\">\n";
     ret += "##INFO=<ID=RC,Number=1,Type=Integer,Description=\"The number of non-interrupted RUs in the reference\">\n"; 
     
@@ -2975,9 +2975,9 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         std::array<double, N_MODELS> testquals = {0};
         unsigned int tqi = 0;
         const double a_nogerm_q = (double)(n_nogerm_q + 0.0*MIN(MAX(0, t_nogerm_q),25));
-        double t2n_finq  = max_min01_sub02(MIN(t2n_rawq              , t2t_powq              ),                MIN(t2n_rawq2, t2n_powq), t2n_contam_q);
+        double t2n_finq  = max_min01_sub02(MIN(t2n_rawq              , t2t_powq              ),                MIN(t2n_rawq, t2n_powq), t2n_contam_q);
         // 0 // n_nogerm_q and t2n_powq should have already bee normalized with contam
-        testquals[tqi++] = max_min01_sub02(MIN(tn_trawq + indel_prior, tn_tpowq - indel_prior) + 0.0*t2n_finq, a_nogerm_q              , t2n_contam_q) + 1.0*t2n_finq + (isInDel ? 10.0 : 0.0);
+        testquals[tqi++] = max_min01_sub02(MIN(tn_trawq + indel_prior, tn_tpowq - indel_prior) + 0.0*t2n_finq, a_nogerm_q             , t2n_contam_q) + 1.0*t2n_finq + (isInDel ? 10.0 : 0.0);
         //testquals[tqi++] = MIN(tn_trawq, tn_tpowq + tvn_powq) - MIN(tn_nrawq, MAX(0.0, tn_npowq - tvn_or_q));
         testquals[tqi++] = MIN(tn_trawq, tvn_rawq * 2 + 30);
         testquals[tqi++] = MIN(tn_trawq, tvn_rawq     + tn_tpowq);
@@ -3089,8 +3089,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         infostring += std::string(";tMQ=") + std::to_string(tki.MQ);
         infostring += std::string(";tgapDP4=") + other_join(tki.gapDP4);
         infostring += std::string(";tRCC=") + other_join(tki.RCC);
-        infostring += std::string(";tGQa=") + other_join(tki.GQa);
-        infostring += std::string(";tGQb=") + other_join(tki.GQb);
+        infostring += std::string(";tGLa=") + other_join(tki.GLa);
+        infostring += std::string(";tGLb=") + other_join(tki.GLb);
  
         // infostring += std::string(";TNQA=") + string_join(std::array<std::string, 4>({std::to_string(tn_systq), std::to_string(tvn_powq), std::to_string(tnlike_argmin), std::to_string(reduction_coef)}));
         
