@@ -2491,6 +2491,7 @@ generateVcfHeader(const char *ref_fasta_fname, const char *platform,
     ret += "##INFO=<ID=tRefHD,Number=1,Type=Integer,Description=\"Tumor-sample cRefHD or bRefHD, depending on command-line option\">\n";
     ret += "##INFO=<ID=tMQ,Number=.,Type=Float,Description=\"Tumor-sample MQ\">\n"; 
     ret += "##INFO=<ID=tgapDP4,Number=4,Type=Integer,Description=\"Tumor-sample gapDP4\">\n"; 
+    ret += "##INFO=<ID=tRCC,Number=8,Type=Integer,Description=\"Tumor-sample RCC\">\n";
     ret += "##INFO=<ID=RU,Number=1,Type=String,Description=\"The shortest repeating unit in the reference\">\n";
     ret += "##INFO=<ID=RC,Number=1,Type=Integer,Description=\"The number of non-interrupted RUs in the reference\">\n"; 
     
@@ -2583,6 +2584,7 @@ penal_indel_2(double AD0a, int n_str_units, const auto & RCC) {
     for (int c = 0; c < 2; c++) {
         int peakidx = c*4;
         double peak_diff = (double)RCC[peakidx];
+        if (peak_diff == altv_diff) { continue; }
         double peak_height1 = (double)RCC[peakidx+1]; //  = (int)rep_num_clusters[i].cnt0;
         double peak_height2 = (double)MIN(RCC[peakidx+2], RCC[peakidx+3]);
         double peak_infl = pow(MIN(peak_height1 / 2.0, peak_height2) / (peak_height1 + DBL_EPSILON), abs(peak_diff - altv_diff));
@@ -2940,11 +2942,12 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         double contam_phred = MAX(add_contam_phred, mul_contam_phred); // select worst-case contam model because tumor and normal depths are highly variable
         const double t2n_contam_q = contam_phred;
         
+        const double tn_tadjq = indel_prior + (isInDel ? 13.0 : 0.0);
         std::array<double, N_MODELS> testquals = {0};
         unsigned int tqi = 0;
         // 0 // n_nogerm_q and t2n_powq should have already bee normalized with contam
-        testquals[tqi++] = max_min01_sub02(MIN(tn_trawq, tn_tpowq) + indel_prior + 13.0, (double)n_nogerm_q,      t2n_contam_q) 
-                         + max_min01_sub02(MIN(t2n_rawq, t2t_powq),                      MIN(t2n_rawq, t2n_powq), t2n_contam_q);
+        testquals[tqi++] = max_min01_sub02(MIN(tn_trawq, tn_tpowq) + tn_tadjq, (double)n_nogerm_q,      t2n_contam_q) 
+                         + max_min01_sub02(MIN(t2n_rawq, t2t_powq),            MIN(t2n_rawq, t2n_powq), t2n_contam_q);
         //testquals[tqi++] = MIN(tn_trawq, tn_tpowq + tvn_powq) - MIN(tn_nrawq, MAX(0.0, tn_npowq - tvn_or_q));
         testquals[tqi++] = MIN(tn_trawq, tvn_rawq * 2 + 30);
         testquals[tqi++] = MIN(tn_trawq, tvn_rawq     + tn_tpowq);
@@ -3055,6 +3058,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         infostring += std::string(";tAllHD=") + std::to_string(tki.autoBestAllHD);
         infostring += std::string(";tMQ=") + std::to_string(tki.MQ);
         infostring += std::string(";tgapDP4=") + other_join(tki.gapDP4);
+        infostring += std::string(";tRCC=") + other_join(tki.RCC);
         
         // infostring += std::string(";TNQA=") + string_join(std::array<std::string, 4>({std::to_string(tn_systq), std::to_string(tvn_powq), std::to_string(tnlike_argmin), std::to_string(reduction_coef)}));
         
