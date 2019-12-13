@@ -263,8 +263,8 @@ struct TumorKeyInfo {
     int32_t autoBestRefHD = 0;
     std::array<int32_t, 4> gapDP4 = {0};
     std::array<int32_t, 8> RCC = {0};
-    std::array<int32_t, 3> GQa = {0};
-    std::array<int32_t, 3> GQb = {0};
+    std::array<int32_t, 3> GLa = {0};
+    std::array<int32_t, 3> GLb = {0};
     bcf1_t *bcf1_record = NULL;
     /*
     ~TumorKeyInfo() {
