@@ -463,14 +463,14 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         }
         
         ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line,  "tGQa", &bcfints, &ndst_val);
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "GLa", &bcfints, &ndst_val);
         assert((3 == ndst_val && 3 == valsize) || !fprintf(stderr, "3 == %d && 3 == %d failed for GQa!\n", ndst_val, valsize));
         for (int i = 0; i < 3; i++) {
             tki.GLa[i] = bcfints[i];
         }
         
         ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line,  "tGQb", &bcfints, &ndst_val);
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "GLb", &bcfints, &ndst_val);
         assert((3 == ndst_val && 3 == valsize) || !fprintf(stderr, "3 == %d && 3 == %d failed for GQb!\n", ndst_val, valsize));
         for (int i = 0; i < 3; i++) {
             tki.GLb[i] = bcfints[i];
