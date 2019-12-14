@@ -2265,13 +2265,13 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
             // const double fref  = 1.0 - fa;
             // const double nfa   = MAX(0.5, fa);
             // const double nfref = MAX(0.5, fref);
-            const double t2n_contam_rate = 5e-3 - (1e-3/3.0)*(double)SYMBOL_TO_INDEL_N_UNITS[symbol];
+            const double t2n_contam_rate = 2e-2 - (2e-3/3.0)*(double)SYMBOL_TO_INDEL_N_UNITS[symbol];
             
             // Uni-directional deviation from its theoretical distribution is translated into a phred-scaled error probability. TODO: check the effect of sqrt?
-            int hetREF_likelim = -(int)(10.0/log(10.00)*2.5*1.0 * MAX(log(0.500 * refmul / fr_l), 0.0));                       // het-ref to ALT mul error phred
-            int hetALT_likelim = -(int)(10.0/log(10.00)*2.5*1.0 * MAX(log(0.500 * altmul / fa_l ), 0.0));                      // het-alt to REF mul error phred 
-            int homref_likelim = -(int)(10.0/log(10.00)*2.5*1.0 * log(MAX(fa_l / (t2n_contam_rate * altmul), 1.0 / fr_l)));    // hom-alt to REF mul error phred
-            int homalt_likelim = -(int)(10.0/log(10.00)*2.5*1.0 * log(MAX(fr_l / (t2n_contam_rate * refmul), 1.0 / fa_l)));    // hom-ref to ALT mul error phred
+            int hetREF_likelim = -(int)(10.0/log(10.00)*3.5*1.00 * MAX(log(0.500 * refmul / fr_l), 0.0));                       // het-ref to ALT mul error phred
+            int hetALT_likelim = -(int)(10.0/log(10.00)*3.5*1.00 * MAX(log(0.500 * altmul / fa_l ), 0.0));                      // het-alt to REF mul error phred 
+            int homref_likelim = -(int)(10.0/log(10.00)*3.5*1.00 * log(MAX(fa_l / (t2n_contam_rate * altmul), 1.0 / fr_l)));    // hom-alt to REF mul error phred
+            int homalt_likelim = -(int)(10.0/log(10.00)*3.5*1.00 * log(MAX(fr_l / (t2n_contam_rate * refmul), 1.0 / fa_l)));    // hom-ref to ALT mul error phred
             
             // const double dref  = fmt.DP * fref;
             //const double nad   = fmt.DP * nfa;
@@ -3016,13 +3016,15 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
             testquals[i] = reduction_coef * testquals[i]; // + (isInDel ? (indel_pp + indel_p2) : 0.0);
             vcfqual = MAX(vcfqual, testquals[i]);
         }
+        /*
         for (int i = MODEL_SEP_1; i < N_MODELS; i++) {
             testquals[i] = MIN(reduction_coef * testquals[i] + (isInDel ? (indel_pp + indel_p2) : 0.0), 
                     phred_non_germ + tumor_non_germ_reward + (double)homref_gt_phred + 0.0 * (isInDel ? (indel_pq- 10.0) : 0.0));
             vcfqual = MAX(vcfqual, testquals[i]);
         }
+        */
         double median_qual = MEDIAN(std::array<double, N_MODELS>(testquals));
-        unsigned int median_intq = (unsigned int)MIN(MAX(0, (int)median_qual), VCFQUAL_NUM_BINS - 1);
+        unsigned int median_intq = testquals[0]; //(unsigned int)MIN(MAX(0, (int)median_qual), VCFQUAL_NUM_BINS - 1);
         vc_stats.vcfqual_to_count[median_intq].nvars+= 1;
         vc_stats.vcfqual_to_count[median_intq].tuDP += tDP0;
         vc_stats.vcfqual_to_count[median_intq].tuAD += tAD0;
