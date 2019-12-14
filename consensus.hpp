@@ -1000,7 +1000,7 @@ public:
                 this->inc<TUpdateType>(rpos, delLenToSymbol(dellen), MAX(SIGN2UNSIGN(1), incvalue), b);
                 this->incDel(rpos, cigar_oplen, delLenToSymbol(dellen), MAX(SIGN2UNSIGN(1), incvalue));
                 unsigned int endpos = SIGN2UNSIGN(bam_endpos(b));
-                for (unsigned int p = rpos+1, p < MIN(rpos + cigar_len + 1, endpos); p++) {
+                for (unsigned int p = rpos+1; p < MIN(rpos + cigar_oplen + 1, endpos); p++) {
                     this->inc<TUpdateType>(p, LINK_NN, MAX(SIGN2UNSIGN(1), incvalue), b);
                 }
                 rpos += cigar_oplen;
@@ -2674,7 +2674,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
     const bcfrec::BcfFormat & fmt = fmtvar; 
     
     assert(repeatunit.size() > 0);
-    assert(repeatnum > 0)
+    assert(repeatnum > 0);
     assert(refpos >= extended_inclu_beg_pos);
     assert(refpos - extended_inclu_beg_pos < refstring.size());
     
