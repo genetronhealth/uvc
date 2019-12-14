@@ -2806,7 +2806,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         int32_t excalt_tu_q = 0 - MAX(tki.GLb[1], tki.GLb[2]);
         
         // const int32_t t_nogerm_q = (is_nonref_germline_excluded ? MIN(nonalt_tu_q, excalt_tu_q) : nonalt_tu_q);
-        const int32_t a_nogerm_q = (is_nonref_germline_excluded ? MIN(nonalt_qual + MAX(0, nonalt_tu_q), excalt_qual + MAX(0, excalt_tu_q)) : (nonalt_qual + MAX(0, nonalt_tu_q))) + nogerm;
+        const int32_t a_nogerm_q = (is_nonref_germline_excluded ? MIN(nonalt_qual + MAX(0, nonalt_tu_q), excalt_qual + MAX(0, excalt_tu_q)) : (nonalt_qual + MAX(0, nonalt_tu_q))); // + nogerm;
 
         // const double phred_non_germ = (is_nonref_germline_excluded ? MIN(nonalt_qual, excalt_qual) : nonalt_qual);
 #if 1
@@ -3068,7 +3068,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
                 std::to_string(nonalt_qual),
                 std::to_string(nonalt_tu_q),
                 std::to_string(excalt_qual), 
-                std::to_string(excalt_tu_q), 
+                std::to_string(excalt_tu_q) 
         }));
         infostring += std::string(";TNQA=") + string_join(std::array<std::string, 6-4>({
                 // std::to_string(a_nogerm_q),       // , std::to_string(phred_non_germ)     , std::to_string(tnlike_argmin),    
