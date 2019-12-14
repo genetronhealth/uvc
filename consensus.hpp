@@ -723,7 +723,7 @@ ref_to_phredvalue(unsigned int & n_units, const auto & refstring, const size_t r
         }
     }
     if (cigar_oplen == repeatsize_at_max_repeatnum && cigar_op == BAM_CDEL) {
-        ampfact *= 2.5;
+        ampfact *= 3.0;
     }
     // Because of a lower number of PCR cycles, it is higher than the one set in Fig. 3 at https://www.ncbi.nlm.nih.gov/pmc/articles/PMC149199/
     unsigned int decphred = indel_phred(ampfact, cigar_oplen, repeatsize_at_max_repeatnum, max_repeatnum);
@@ -954,7 +954,7 @@ public:
                                 bam_phredi(b, qpos + SIGN2UNSIGN(cigar_oplen)) : 1)); // + addidq; // + symbolType2addPhred[LINK_SYMBOL];
                     } else {
                         unsigned int phredvalue = ref_to_phredvalue(inslen, region_symbolvec, rpos - region_offset,
-                                frag_indel_basemax, 6.0, cigar_oplen, cigar_op);
+                                frag_indel_basemax, 8.0, cigar_oplen, cigar_op);
                         // unsigned int phredvalue = bam_to_phredvalue(inslen, , qpos, frag_indel_basemax, 6.0, cigar_oplen, cigar_op); // THasDups is not used here
                         // auto min_adj_BQ = MIN(bam_phredi(b, qpos-1), bam_phredi(b, qpos + cigar_oplen);
                         incvalue = (TIsProton ? MIN(MIN(bam_phredi(b, qpos-1), bam_phredi(b, qpos + cigar_oplen)), phredvalue) : phredvalue); // + addidq; 
@@ -991,7 +991,7 @@ public:
                     } else {
                         // double afa = ((cigar_oplen <= 2) ? 18.0 : 6.0);
                         unsigned int phredvalue = ref_to_phredvalue(dellen, region_symbolvec, rpos - region_offset, 
-                                frag_indel_basemax, 6.0, cigar_oplen, cigar_op);
+                                frag_indel_basemax, 8.0, cigar_oplen, cigar_op);
                         // unsigned int phredvalue = bam_to_phredvalue(dellen, b, qpos, frag_indel_basemax, 6.0, cigar_oplen, cigar_op); // THasDups is not used here
                         incvalue = (TIsProton ? MIN(MIN(bam_phredi(b, qpos), bam_phredi(b, qpos-1)), phredvalue) : phredvalue); // + addidq; 
                         // + symbolType2addPhred[LINK_SYMBOL];
@@ -2265,13 +2265,13 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
             // const double fref  = 1.0 - fa;
             // const double nfa   = MAX(0.5, fa);
             // const double nfref = MAX(0.5, fref);
-            const double t2n_contam_rate = 0.05 - (0.01/3.0)*(double)SYMBOL_TO_INDEL_N_UNITS[symbol];
+            const double t2n_contam_rate = 5e-3 - (1e-3/3.0)*(double)SYMBOL_TO_INDEL_N_UNITS[symbol];
             
             // Uni-directional deviation from its theoretical distribution is translated into a phred-scaled error probability. TODO: check the effect of sqrt?
-            int hetREF_likelim = -(int)(10.0/log(10.00)*2.5*2.0 * MAX(log(0.500 * refmul / fr_l), 0.0));                       // het-ref to ALT mul error phred
-            int hetALT_likelim = -(int)(10.0/log(10.00)*2.5*2.0 * MAX(log(0.500 * altmul / fa_l ), 0.0));                      // het-alt to REF mul error phred 
-            int homref_likelim = -(int)(10.0/log(10.00)*2.5*2.0 * log(MAX(fa_l / (t2n_contam_rate * altmul), 1.0 / fr_l)));    // hom-alt to REF mul error phred
-            int homalt_likelim = -(int)(10.0/log(10.00)*2.5*2.0 * log(MAX(fr_l / (t2n_contam_rate * refmul), 1.0 / fa_l)));    // hom-ref to ALT mul error phred
+            int hetREF_likelim = -(int)(10.0/log(10.00)*2.5*1.0 * MAX(log(0.500 * refmul / fr_l), 0.0));                       // het-ref to ALT mul error phred
+            int hetALT_likelim = -(int)(10.0/log(10.00)*2.5*1.0 * MAX(log(0.500 * altmul / fa_l ), 0.0));                      // het-alt to REF mul error phred 
+            int homref_likelim = -(int)(10.0/log(10.00)*2.5*1.0 * log(MAX(fa_l / (t2n_contam_rate * altmul), 1.0 / fr_l)));    // hom-alt to REF mul error phred
+            int homalt_likelim = -(int)(10.0/log(10.00)*2.5*1.0 * log(MAX(fr_l / (t2n_contam_rate * refmul), 1.0 / fa_l)));    // hom-ref to ALT mul error phred
             
             // const double dref  = fmt.DP * fref;
             //const double nad   = fmt.DP * nfa;
@@ -2496,6 +2496,7 @@ generateVcfHeader(const char *ref_fasta_fname, const char *platform,
         ret += "##INFO=<ID=TQ" + std::to_string(i) +",Number=1,Type=Float,Description=\"Variant quality computed by the model " + std::to_string(i) +"\">\n";
     }
     ret += "##INFO=<ID=TNQ,Number=.,Type=Float,Description=\"For t-vs-n: allele-fraction variant quality (VQ), raw VQ, contamination VQ, and statistical noise VQ\">\n";
+    ret += "##INFO=<ID=NGQ,Number=.,Type=Float,Description=\"Non-germline qualities: overall, normal-alt, tumor-alt, normal-nonref, tumor-nonref\">\n";
     ret += "##INFO=<ID=TNQA,Number=.,Type=Float,Description=\"Normal germline-exclusion quality, tumor germline-exclusion quality, argmin for t-vs-n raw VQ, coefficient for final variant call, additive contamination score, and multiplicative contamination score.\">\n";
     ret += "##INFO=<ID=TNNQ,Number=.,Type=Float,Description=\"For only tumor  sample: allele-fraction variant quality (VQ), raw VQ, and raw adjustment quality\">\n";
     ret += "##INFO=<ID=TNTQ,Number=.,Type=Float,Description=\"For only normal sample: allele-fraction variant quality (VQ), raw VQ, and raw adjustment quality\">\n";
@@ -2618,7 +2619,7 @@ penal_indel_2(double AD0a, int n_str_units, const auto & RCC) {
         }
         max_peak_infl = MAX(max_peak_infl, peak_infl);
     }
-    return 10.0/log(2.0) * 2.5 * log((AD0a + DBL_EPSILON) / (AD0a + max_peak_infl + DBL_EPSILON));
+    return 10.0/log(2.0) * (2.5 + 1.5) * log((AD0a + DBL_EPSILON) / (AD0a + max_peak_infl + DBL_EPSILON));
 }
 
 int
@@ -2712,12 +2713,9 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
     const double indel_p2 = 0; // MIN(tki.FA * 100, 5.0) + MIN(tki.FA * (double)tki.DP, 4.0);
     // 5% of STR (about 0.25% of InDel genomic regions) has about 75% of InDels, so max at around 20
     // Bayesian prior probability of observing germline and somatic indels relative to SNV in PHRED scale
-    double indel_prior = ((0 == indelstring.size() || 0 == repeatunit.size() || 0 == repeatnum) ? 0.0 : 
-            (+(double)MIN(indel_phred(6.0, indelstring.size(), repeatunit.size(), repeatnum), 10.0) - 5.0
-             -(double)indel_len_rusize_phred(indelstring.size(), repeatunit.size())));
-    if (isInDel && (!prev_is_tumor)) {
-        // fmtvar.VAQ += indel_prior;
-    }
+    
+    const double indel_ic = (!isInDel) ? 0.0 : indel_len_rusize_phred(indelstring.size(), repeatunit.size());
+    const double indel_pq = (!isInDel) ? 0.0 : ((double)MIN(indel_phred(64.0, indelstring.size(), repeatunit.size(), repeatnum), 35.0));
     float vcfqual = fmt.VAQ; // TODO: investigate whether to use VAQ or VAQ2
     //float vcfqual = fmt.VAQ2; // here we assume the matched normal is not available (yet)
     
@@ -2800,15 +2798,15 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         
         // the genotype likelihoods here are special in that they can somehow normalized for the purpose of computing nonref probabilities
         // HOWEVER, no prior can be given to the raw genotype likelihoods.
-        int32_t nonalt_qual = fmt.GLa[0] - MAX(fmt.GLa[1], fmt.GLa[2]) + (int)homref_gt_phred - (int)indel_prior;
-        int32_t excalt_qual = fmt.GLb[0] - MAX(fmt.GLb[1], fmt.GLb[2]) + (int)homref_gt_phred - (int)indel_prior;
+        int32_t nonalt_qual = fmt.GLa[0] - MAX(fmt.GLa[1], fmt.GLa[2]) + (int)homref_gt_phred - (int)indel_pq;
+        int32_t excalt_qual = fmt.GLb[0] - MAX(fmt.GLb[1], fmt.GLb[2]) + (int)homref_gt_phred - (int)indel_pq;
         
-        const int32_t n_nogerm_q = (is_nonref_germline_excluded ? MIN(nonalt_qual, excalt_qual) : nonalt_qual);
+        // const int32_t n_nogerm_q = (is_nonref_germline_excluded ? MIN(nonalt_qual, excalt_qual) : nonalt_qual);
+        int32_t nonalt_tu_q = 0 - MAX(tki.GLa[1], tki.GLa[2]);
+        int32_t excalt_tu_q = 0 - MAX(tki.GLb[1], tki.GLb[2]);
         
-        int32_t nonalt_tu_q = tki.GLa[0] - MAX(tki.GLa[1], tki.GLa[2]);
-        int32_t excalt_tu_q = tki.GLb[0] - MAX(tki.GLb[1], tki.GLb[2]);
-        
-        const int32_t t_nogerm_q = (is_nonref_germline_excluded ? MIN(nonalt_tu_q, excalt_tu_q) : nonalt_tu_q);
+        // const int32_t t_nogerm_q = (is_nonref_germline_excluded ? MIN(nonalt_tu_q, excalt_tu_q) : nonalt_tu_q);
+        const int32_t a_nogerm_q = (is_nonref_germline_excluded ? MIN(nonalt_qual + MAX(0, nonalt_tu_q), excalt_qual + MAX(0, excalt_tu_q)) : (nonalt_qual + MAX(0, nonalt_tu_q)));
 
         // const double phred_non_germ = (is_nonref_germline_excluded ? MIN(nonalt_qual, excalt_qual) : nonalt_qual);
 #if 1
@@ -2885,7 +2883,9 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         
         //auto upper_nonref = MIN(2.0 * MIN(tDP0, nDP0), 2.5 * 10.0 / log(10.0) * log((tAD1 / tDP1) / (nNRD1 / nDP1)));
         //tnlike_nonref = MAX(0.0, MIN(tnlike_nonref, upper_nonref));
-        /*
+        
+        const unsigned int tE0 = 0;
+        const unsigned int nE0 = 0;
         const double tnDP0ratio = (double)(tDP0 + 1) / (double)(nDP0 + 1);
         const double tFA0 = (double)(tAD0 + 1) / (double)(tDP0 + 2);
         const double tAD0pc0 = 1.0 * tnDP0ratio;
@@ -2893,13 +2893,13 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         const double nAD0pc0 = 1.0;
         const double nDP0pc0 = 1.0 / tFA0;
         const double tnMFpc0 = 1.0 / MIN(MIN(MIN(tAD0pc0, tDP0pc0), nAD0pc0), nDP0pc0);
-        */
+        
         //double tEPS = 10.0/log(10.0) * log((double(tDP0 + 1));
         //double nEPS = 10.0/log(10.0) * log((double(nDP0 + 1));
         double tE1 = 10.0/log(10.0) * log((double)(tDP0 + 2));
         double nE1 = 10.0/log(10.0) * log((double)(nDP0 + 2));
         double tnE1 = 10.0/log(10.0) * log((double)(tDP0 + nDP0 + 2));
-        const double tnDP0ratio = (double)(tDP0 + 1) / (double)(nDP0 + 1);
+        // const double tnDP0ratio = (double)(tDP0 + 1) / (double)(nDP0 + 1);
         const double tnFA1 = (double)(tAD1 + nAD1 + tnE1) / (double)(tDP1 + nDP1 + tnE1 * 2.0);
         const double tAD1pc0 = 0.5 * tnE1 + 0.5 * tnE1 * tnDP0ratio       ;
         const double tDP1pc0 = 1.0 * tnE1 + 0.5 * tnE1 * tnDP0ratio / tnFA1;
@@ -2923,8 +2923,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
                  2.0 * MIN(tDP0, nDP0));
         
         // double eps_qual = 10.0/log(10.0) * log((double)tDP0 + 2.0);
-        double tn_tpo1q = 10.0 / log(10.0) * log((double)(tAD1 + tE1) / (tDP1 + 2.0 * tE1)) * (isInDel ? 2.5 : pl_exponent) + (isInDel ? 80.0 : 80.0);
-        double tn_npo1q = 10.0 / log(10.0) * log((double)(nAD1 + nE1) / (nDP1 + 2.0 * nE1)) * (isInDel ? 2.5 : pl_exponent) + (isInDel ? 80.0 : 80.0);
+        double tn_tpo1q = 10.0 / log(10.0) * log((double)(tAD0 + tE0) / (tDP0 + 2.0 * tE0)) * (isInDel ? 2.5 : pl_exponent) + (isInDel ? 80.0 : 80.0);
+        double tn_npo1q = 10.0 / log(10.0) * log((double)(nAD0 + nE0) / (nDP0 + 2.0 * nE0)) * (isInDel ? 2.5 : pl_exponent) + (isInDel ? 80.0 : 80.0);
         // QUESTION: why BQ-bias generations are discrete? Because of the noise with each observation of BQ?
         double tn_tsamq = 40.0 * pow(0.5, (double)tAD0);// (tAD0 <= 2 ? 8.0 : 0.0);
         double tn_nsamq = 40.0 * pow(0.5, (double)nAD0); // (nAD0 <= 2 ? 8.0 : 0.0);
@@ -2936,7 +2936,6 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         double tn_tpowq = tn_tpo1q;
         double tn_npo2q = tn_npo1q;
         if (isInDel) {
-            //tn_nrawq = tn_nra1q + indel_prior;
             // QUESTION: why indel generations are discrete?
             //tn_tpowq = penal_indel(tn_tpo1q, (double)(tAD0a), (double)(tDP0 - tRD0), repeatunit, repeatnum);
             //tn_npo2q = penal_indel(tn_npo1q, (double)(nAD0a), (double)(nDP0 - nRD0), repeatunit, repeatnum);
@@ -2971,13 +2970,13 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         double contam_phred = MAX(add_contam_phred, mul_contam_phred); // select worst-case contam model because tumor and normal depths are highly variable
         const double t2n_contam_q = contam_phred;
         
-        // const double tn_tadjq = indel_prior; // (isInDel ? 10.0*0.0 : 0.0) - indel_prior;
+        const double indel_aq = (isInDel ? 10.0 : 0.0);
         std::array<double, N_MODELS> testquals = {0};
         unsigned int tqi = 0;
-        const double a_nogerm_q = (double)(n_nogerm_q + 0.0*MIN(MAX(0, t_nogerm_q),25));
-        double t2n_finq  = max_min01_sub02(MIN(t2n_rawq              , t2t_powq              ),                MIN(t2n_rawq, t2n_powq), t2n_contam_q);
+        // const double a_nogerm_q = (double)(n_nogerm_q + 0.0*MIN(MAX(0, t_nogerm_q),25));
+        double t2n_finq  = max_min01_sub02(MIN(t2n_rawq           , t2t_powq                      ),                MIN(t2n_rawq, t2n_powq), t2n_contam_q);
         // 0 // n_nogerm_q and t2n_powq should have already bee normalized with contam
-        testquals[tqi++] = max_min01_sub02(MIN(tn_trawq + indel_prior, tn_tpowq - indel_prior) + 0.0*t2n_finq, a_nogerm_q             , t2n_contam_q) + 1.0*t2n_finq + (isInDel ? 10.0 : 0.0);
+        testquals[tqi++] = max_min01_sub02(MIN(tn_trawq + indel_pq, tn_tpowq + indel_aq + indel_ic) + 1.0*t2n_finq, a_nogerm_q + indel_aq  , t2n_contam_q) + 0.0*t2n_finq;
         //testquals[tqi++] = MIN(tn_trawq, tn_tpowq + tvn_powq) - MIN(tn_nrawq, MAX(0.0, tn_npowq - tvn_or_q));
         testquals[tqi++] = MIN(tn_trawq, tvn_rawq * 2 + 30);
         testquals[tqi++] = MIN(tn_trawq, tvn_rawq     + tn_tpowq);
@@ -3019,7 +3018,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         }
         for (int i = MODEL_SEP_1; i < N_MODELS; i++) {
             testquals[i] = MIN(reduction_coef * testquals[i] + (isInDel ? (indel_pp + indel_p2) : 0.0), 
-                    phred_non_germ + tumor_non_germ_reward + (double)homref_gt_phred + 0.0 * (isInDel ? (indel_prior- 10.0) : 0.0));
+                    phred_non_germ + tumor_non_germ_reward + (double)homref_gt_phred + 0.0 * (isInDel ? (indel_pq- 10.0) : 0.0));
             vcfqual = MAX(vcfqual, testquals[i]);
         }
         double median_qual = MEDIAN(std::array<double, N_MODELS>(testquals));
@@ -3063,18 +3062,24 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
                   std::to_string(t2n_powq)         , std::to_string(t2n_rawq)      
                   // ,std::to_string(tvn_powq)         , std::to_string(tvn_rawq)           , std::to_string(tvn_or_q), 
                   // std::to_string(tvn_st_q)
-                  }));
-        infostring += std::string(";TNQA=") + string_join(std::array<std::string, 6-4+1>({
-                  std::to_string(n_nogerm_q),       // , std::to_string(phred_non_germ)     , std::to_string(tnlike_argmin),    
-                  std::to_string(reduction_coef),   // , std::to_string(add_contam_phred)   , std::to_string(mul_contam_phred)
-                  std::to_string(indel_prior)
-                  }));
+        }));
+        infostring += std::string(";NGQ=") + string_join(std::array<std::string, 5>({
+                std::to_string(a_nogerm_q), 
+                std::to_string(nonalt_qual),
+                std::to_string(nonalt_tu_q),
+                std::to_string(excalt_qual), 
+                std::to_string(excalt_tu_q), 
+        }));
+        infostring += std::string(";TNQA=") + string_join(std::array<std::string, 6-4>({
+                // std::to_string(a_nogerm_q),       // , std::to_string(phred_non_germ)     , std::to_string(tnlike_argmin),    
+                std::to_string(reduction_coef),   // , std::to_string(add_contam_phred)   , std::to_string(mul_contam_phred)
+                std::to_string(indel_pq)
+        }));
         infostring += std::string(";TNNQ=") + string_join(std::array<std::string, 5-1>({
-                  std::to_string(tn_npo2q)         , std::to_string(tn_nra1q - tn_nsamq),
-                  // std::to_string(indel_prior)      , 
-                  std::to_string(tn_npo1q)           , std::to_string(tn_nsamq)}));
+                std::to_string(tn_npo2q)         , std::to_string(tn_nra1q - tn_nsamq),
+                std::to_string(tn_npo1q)           , std::to_string(tn_nsamq)}));
         infostring += std::string(";TNTQ=") + string_join(std::array<std::string, 5-1>({
-                std::to_string(tn_tpowq)           , std::to_string(tn_tra1q - tn_tsamq), //, std::to_string(indel_prior), 
+                std::to_string(tn_tpowq)           , std::to_string(tn_tra1q - tn_tsamq),
                 std::to_string(tn_tpo1q)           , std::to_string(tn_tsamq)}));
         infostring += std::string(";tDP=") + std::to_string(tki.DP);
         infostring += std::string(";tFA=") + std::to_string(tki.FA);
@@ -3139,7 +3144,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
             double tDP0 = (double)(tUseHD ? ((double)SUM2(fmt.cAllHD)) :    1.0 * (double)fmt.DP);
             double tAD0 = (double)(tUseHD ? ((double)SUM2(fmt.cAltHD)) : fmt.FA * (double)fmt.DP);
             double tRD0 = (double)(tUseHD ? ((double)SUM2(fmt.cRefHD)) : fmt.FR * (double)fmt.DP);
-            vcfqual = penal_indel(vcfqual, (double)(tAD0), (double)(tDP0 - tRD0), repeatunit, repeatnum); //  + indel_prior;
+            vcfqual = penal_indel(vcfqual, (double)(tAD0), (double)(tDP0 - tRD0), repeatunit, repeatnum);
         }
     }
     infostring += std::string(";RU=") + repeatunit + ";RC=" + std::to_string(repeatnum);
