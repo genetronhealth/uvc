@@ -135,6 +135,22 @@ mathsquare(auto x) {
     return x * x; 
 }
 
+const double
+prob2odds(double p) {
+    assert(0.0 < p && p < 1.0);
+    return p /  (1.0 - p);
+}
+
+const double
+logit(double p) {
+    return log(prob2odds(p));
+}
+
+const double
+logit2(double a, double b) {
+    return logit(a/(a+b));
+}
+
 // non-negative, with prob compared with a/(a+b)
 auto 
 calc_directional_likeratio(double prob, double a, double b) {
