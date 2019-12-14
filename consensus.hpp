@@ -2223,7 +2223,7 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
     
     if (fmtAD > 0 || is_rescued) {
         assert(fmt.FA >= 0);
-        unsigned int ref_bias = 0;
+        unsigned int ref_bias = 4*2;
         if (isSymbolIns(symbol) || isSymbolDel(symbol)) {
             uint64_t totsize_cnt = 0;
             uint64_t totsize_sum = 0;
