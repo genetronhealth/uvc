@@ -3023,8 +3023,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
             vcfqual = MAX(vcfqual, testquals[i]);
         }
         */
-        double median_qual = MEDIAN(std::array<double, N_MODELS>(testquals));
-        unsigned int median_intq = testquals[0]; //(unsigned int)MIN(MAX(0, (int)median_qual), VCFQUAL_NUM_BINS - 1);
+        double median_qual = testquals[0]; // MEDIAN(std::array<double, N_MODELS>(testquals));
+        unsigned int median_intq = (unsigned int)MIN(MAX(0, (int)median_qual), VCFQUAL_NUM_BINS - 1);
         vc_stats.vcfqual_to_count[median_intq].nvars+= 1;
         vc_stats.vcfqual_to_count[median_intq].tuDP += tDP0;
         vc_stats.vcfqual_to_count[median_intq].tuAD += tAD0;
