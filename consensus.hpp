@@ -999,10 +999,14 @@ public:
                 }
                 this->inc<TUpdateType>(rpos, delLenToSymbol(dellen), MAX(SIGN2UNSIGN(1), incvalue), b);
                 this->incDel(rpos, cigar_oplen, delLenToSymbol(dellen), MAX(SIGN2UNSIGN(1), incvalue));
+#if 0 
+// The definition of non-ref for indel is not clearly defined, this piece of code can result in germline risk that is not in the ground truth, so it it commented out.
+// However, if we consider any position covered by the boundary of a germline indel to be non-ref, then this code should be enabled.
                 unsigned int endpos = SIGN2UNSIGN(bam_endpos(b));
                 for (unsigned int p = rpos+1; p < MIN(rpos + cigar_oplen + 1, endpos); p++) {
                     this->inc<TUpdateType>(p, LINK_NN, MAX(SIGN2UNSIGN(1), incvalue), b);
                 }
+#endif
                 rpos += cigar_oplen;
             } else if (cigar_op == BAM_CREF_SKIP) {
                 rpos += cigar_oplen;
