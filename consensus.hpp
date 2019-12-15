@@ -2274,7 +2274,7 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
             const double fr_l = 1.0 - fa_l;
             const double dr_l = fr_l * fmt.DP;
             
-            const double fa_v = (fa1 * (double)fmt.DP + 1.0 / DBLFLT_EPS / altmul) / (double)(fmt.DP + 2.0 * DBLFLT_EPS / altmul);
+            const double fa_v = (fa1 * (double)fmt.DP + 1.0 / altmul * DBL_EPSILON) / (double)(fmt.DP + 2.0 / altmul * DBL_EPSILON);
             const double da_v = fa_v * fmt.DP;
             const double fr_v = 1.0 - fa_v;
             const double dr_v = fr_v * fmt.DP;
