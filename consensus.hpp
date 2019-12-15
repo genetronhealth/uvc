@@ -2790,7 +2790,10 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         vcfpos = (tki.ref_alt != "." ? (tki.pos + 1) : vcfpos);
         ref_alt = (tki.ref_alt != "." ? tki.ref_alt : vcfref + "\t" + vcfalt);
         // const double DBLFLT_EPS = (double)FLT_EPSILON; // highqual_thres; // 1.0;
-        
+        auto ref_bias = fmt.RefBias; // * 150 / (150-30); // 30 is the min alignment score
+        const double altmul = (double)(150 - MIN(120, ref_bias)) / (double)150; // 50.0 / (double)(ref_bias + 50);
+        const double refmul = 2.0 - altmul;
+
         const bool tUseHD =  (tki.bDP > tki.DP * highqual_min_ratio);
         const bool nUseHD = ((fmt.bDP > fmt.DP * highqual_min_ratio) && tUseHD); 
                 
@@ -2953,7 +2956,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         const double tDP1pc0 = 0.5 * tnE1 * tnDP0ratio / tnFA1;
         const double nAD1pc0 = 0.5 * tnE1;
         const double nDP1pc0 = 0.5 * tnE1 / tnFA1;
-
+        
         double symfrac = 1.0; // sqrt(10); 
         
         const double t2n_or0 = ((double)(tAD0 + symfrac * tAD0pc0) / (double)(tDP0 - tAD0 + symfrac * (tDP0pc0 - tAD0pc0))) 
@@ -2983,15 +2986,15 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
                  2.0 * MIN(tDP0, nDP0));
         
         // double eps_qual = 10.0/log(10.0) * log((double)tDP0 + 2.0);
-        double tn_tpo1q = 10.0 / log(10.0) * log((double)(tAD0 + tE0) / (tDP0 + 2.0 * tE0)) * (isInDel ? pl_exponent : pl_exponent) + (isInDel ? 90.0 : 90.0);
-        double tn_npo1q = 10.0 / log(10.0) * log((double)(nAD0 + nE0) / (nDP0 + 2.0 * nE0)) * (isInDel ? pl_exponent : pl_exponent) + (isInDel ? 90.0 : 90.0);
+        double tn_tpo1q = 10.0 / log(10.0) * log((double)(tAD0 / altmul + tE0) / ((tDP0 - tAD0) / refmul + tAD0 / altmul + 2.0 * tE0)) * (isInDel ? pl_exponent : pl_exponent) + (isInDel ? 90.0 : 90.0);
+        double tn_npo1q = 10.0 / log(10.0) * log((double)(nAD0 / altmul + nE0) / ((nDP0 - tAD0) / refmul + tAD0 / altmul + 2.0 * nE0)) * (isInDel ? pl_exponent : pl_exponent) + (isInDel ? 90.0 : 90.0);
         // QUESTION: why BQ-bias generations are discrete? Because of the noise with each observation of BQ?
         double tn_tsamq = 40.0 * pow(0.5, (double)tAD0);// (tAD0 <= 2 ? 8.0 : 0.0);
         double tn_nsamq = 40.0 * pow(0.5, (double)nAD0); // (nAD0 <= 2 ? 8.0 : 0.0);
         double tn_tra1q = (double)tki.VAQ; //MIN(MAX((double)tki.VAQ - tn_tsamq * 0, 0.0), tn_tpowq);
         double tn_nra1q = (double)fmt.VAQ; //MIN(MAX((double)fmt.VAQ - tn_nsamq * 0, 0.0), tn_npowq);
-        double tn_trawq = MAX(0.0, tn_tra1q - tn_tsamq      ); // tumor  BQ bias is stronger as raw    variant (biased to high BQ) is called   from every genomic base
-        double tn_nrawq = MAX(0.0, tn_nra1q - tn_nsamq / 4.0); // normal BQ bias is weaker   as result variant (biased to high BQ) is filtered from each  called  variant
+        double tn_trawq = MAX(0.0, tn_tra1q / altmul - tn_tsamq      ); // tumor  BQ bias is stronger as raw    variant (biased to high BQ) is called   from every genomic base
+        double tn_nrawq = MAX(0.0, tn_nra1q / altmul - tn_nsamq / 4.0); // normal BQ bias is weaker   as result variant (biased to high BQ) is filtered from each  called  variant
         
         double tn_tpowq = tn_tpo1q;
         double tn_npo2q = tn_npo1q;
@@ -3143,10 +3146,10 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
                 std::to_string(indel_pq),    std::to_string(reduction_coef),  
         }));
         infostring += std::string(";TNNQ=") + string_join(std::array<std::string, 5-1>({
-                std::to_string(tn_npo2q)   , std::to_string(tn_nra1q - tn_nsamq),
+                std::to_string(tn_npo2q)   , std::to_string(tn_nrawq),
                 std::to_string(tn_npo1q)   , std::to_string(tn_nsamq)}));
         infostring += std::string(";TNTQ=") + string_join(std::array<std::string, 5-1>({
-                std::to_string(tn_tpowq)   , std::to_string(tn_tra1q - tn_tsamq),
+                std::to_string(tn_tpowq)   , std::to_string(tn_trawq),
                 std::to_string(tn_tpo1q)   , std::to_string(tn_tsamq)}));
         infostring += std::string(";tDP=") + std::to_string(tki.DP);
         infostring += std::string(";tFA=") + std::to_string(tki.FA);
