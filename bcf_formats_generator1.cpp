@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 
+#include "common.h"
+
 #define BCF_NUM_A (-1)
 #define BCF_NUM_R (-2)
 #define BCF_NUM_G (-3)
@@ -238,7 +240,7 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("gapbAD1"  , BCF_NUM_D, BCF_INTEGER, "see above"),
     BcfFormatStruct("gapcAD1"  , BCF_NUM_D, BCF_INTEGER, "see above"),
     BcfFormatStruct("gapDP4"   , 4, BCF_INTEGER, "see above"),
-    BcfFormatStruct("RCC"      , 8, BCF_INTEGER, "The mode, mode count, mode-left count, mode-right count of first and second modes of repeat counts, respectively"),
+    BcfFormatStruct("RCC"      , 6*RCC_NUM, BCF_INTEGER, "STR-unit position of the mode, two indel counts of -2 and -1 STR units, mode count, two ins counts of +1 and +2 STR units with respect to the mode"),
     BcfFormatStruct("bHap"     , 1, BCF_STRING,  "Duped forward&reverse linkage in the format of ((position&variantType)...depth)... "
                                                  "where ()... means more elements following the format in the preceding parenthesis. "),
     BcfFormatStruct("cHap"     , 1, BCF_STRING,  "Dedup forward&reverse linkage in the format of ((position&variantType)...depth)... "

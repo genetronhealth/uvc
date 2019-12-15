@@ -670,7 +670,7 @@ indelpos_to_context(
             qidx++;
         }
         unsigned int repeatnum = (qidx - refpos) / repeatsize + 1;
-        if (repeatnum > max_repeatnum) {
+        if ((repeatnum - 1) * repeatsize >= max_repeatnum) {
             max_repeatnum = repeatnum;
             repeatsize_at_max_repeatnum = repeatsize;
         }
@@ -2016,14 +2016,16 @@ indel_get_majority(const bcfrec::BcfFormat & fmt, const bool prev_is_tumor, cons
 template <class T = int>
 struct RepNumCluster {
     T mode;
-    unsigned int cnt1m; // left count
     unsigned int cnt0;  // centroid count
-    unsigned int cnt1p; // right count
+    unsigned int cnt1m; // 1st left count
+    unsigned int cnt1p; // 1st right count
+    unsigned int cnt2m; // 2nd left count
+    unsigned int cnt2p; // 2nd right count
 };
 
 // 
 int
-indel_fill_rep_num_clusters(std::array<RepNumCluster<int>, 2> & rep_num_clusters, 
+indel_fill_rep_num_clusters(std::array<RepNumCluster<int>, RCC_NUM> & rep_num_clusters, 
         const unsigned int refcnt,
         const std::string & repeatunit,
         const std::vector<std::map<std::string, uint32_t>> & iseq2cnt_vec,
@@ -2031,9 +2033,12 @@ indel_fill_rep_num_clusters(std::array<RepNumCluster<int>, 2> & rep_num_clusters
     
     for (size_t i = 0; i < rep_num_clusters.size(); i++) {
         rep_num_clusters[i].mode = 0;
-        rep_num_clusters[i].cnt1m = 0;
         rep_num_clusters[i].cnt0 = 0;
+        rep_num_clusters[i].cnt1m = 0;
         rep_num_clusters[i].cnt1p = 0;
+        rep_num_clusters[i].cnt2m = 0;
+        rep_num_clusters[i].cnt2p = 0;
+
     }
     
     unsigned int max_ilen = 0;
@@ -2077,8 +2082,10 @@ indel_fill_rep_num_clusters(std::array<RepNumCluster<int>, 2> & rep_num_clusters
         size_t idx = cnt_len_vec[MIN(i, cnt_len_vec.size()-1)].second;
         rep_num_clusters[i].mode  = (int)idx - (int)max_dlen;
         rep_num_clusters[i].cnt0  = idx2cnt[idx]; // (int)cnt_len_vec[0].first;
-        rep_num_clusters[i].cnt1m = ((             0 == idx  ) ? 0 : idx2cnt[idx-1]);
-        rep_num_clusters[i].cnt1p = ((idx2cnt.size() == idx+1) ? 0 : idx2cnt[idx+1]);
+        rep_num_clusters[i].cnt1m = ((                  idx<1) ? 0 : idx2cnt[idx-1]);
+        rep_num_clusters[i].cnt1p = ((idx2cnt.size() <= idx+1) ? 0 : idx2cnt[idx+1]);
+        rep_num_clusters[i].cnt2m = ((                  idx<2) ? 0 : idx2cnt[idx-2]);
+        rep_num_clusters[i].cnt2p = ((idx2cnt.size() <= idx+2) ? 0 : idx2cnt[idx+2]);
     }
 
     return 0;
@@ -2235,7 +2242,19 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
                 totsize_cnt += fmt.gapcAD1[k]; 
                 totsize_sum += fmt.gapSeq[k].size() * fmt.gapcAD1[k];
             }
-            ref_bias = ((totsize_sum * 100UL) / (totsize_cnt * 100UL + 1UL)) * 2 + (repeatunit.size() * repeatnum) + 6 * 2 + 5 * 2; // 6=gap_open/match
+            /* Schematics of the alignment hierarchy of reads
+             * (012345R-89abcd) is the reference and R is the repeated sequence.
+             *  012345
+             *   12345R reject, not-realignable
+             *    2345RR reject, (partially) re-alignable, clipped
+             *     345RR8 accept
+             *      45RR89 accept
+             *       5RR89a accept
+             *        RR89ab accept 
+             *         R89abc reject, (partially) re-alignable, clipped
+             *          89abcd reject, not re-alignable
+             */
+            ref_bias = ((totsize_sum * 100UL) / (totsize_cnt * 100UL + 1UL)) * 3 + (repeatunit.size() * repeatnum) + 6 * 2 + 5 * 2; // 6=gap_open/match
         }
         fmt.RefBias = ref_bias; // * 150 / (150-30); // 30 is the min alignment score
         const double altmul = (double)(150 - MIN(120, ref_bias)) / (double)150; // 50.0 / (double)(ref_bias + 50);
@@ -2250,12 +2269,12 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
             auto & prank = pranks[t];
             const double fa1 = MAX(0.0, ((0 == t) ? (fmt.FA) : (1.0 - fmt.FA - fmt.FR)));
              
-            const double fa_l = (fa1 * (double)fmt.DP + altmul * (double)1 ) / (double)(fmt.DP + 2);
+            const double fa_l = (fa1 * (double)fmt.DP + 1.0 / altmul) / (double)(fmt.DP + 2.0 / altmul);
             const double da_l = fa_l * fmt.DP;
             const double fr_l = 1.0 - fa_l;
             const double dr_l = fr_l * fmt.DP;
             
-            const double fa_v = (fa1 * (double)fmt.DP + altmul * DBLFLT_EPS) / (double)(fmt.DP + 2.0 * DBLFLT_EPS);
+            const double fa_v = (fa1 * (double)fmt.DP + 1.0 / DBLFLT_EPS / altmul) / (double)(fmt.DP + 2.0 * DBLFLT_EPS / altmul);
             const double da_v = fa_v * fmt.DP;
             const double fr_v = 1.0 - fa_v;
             const double dr_v = fr_v * fmt.DP;
@@ -2383,7 +2402,7 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
     fmt.HQ[0] = 0; 
     fmt.HQ[1] = 0;
     
-    std::array<RepNumCluster<int>, 2> rep_num_clusters;
+    std::array<RepNumCluster<int>, RCC_NUM> rep_num_clusters;
     std::vector<std::map<std::string, uint32_t>> iseq2cnt_vec;
     std::vector<std::map<uint32_t,    uint32_t>> dlen2cnt_vec;
     for (size_t strand = 0; strand < 2; strand++) {
@@ -2405,11 +2424,13 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
              fmtcRD, repeatunit, iseq2cnt_vec, dlen2cnt_vec);
     
     // std::string indelstring = indel_get_majority(fmt, prev_is_tumor, tki); 
-    for (unsigned int i = 0; i < 2; i++) {
+    for (unsigned int i = 0; i < RCC_NUM; i++) {
         fmt.RCC[i*4  ] = (int)rep_num_clusters[i].mode;
-        fmt.RCC[i*4+1] = (int)rep_num_clusters[i].cnt0;
+        fmt.RCC[i*4+1] = (int)rep_num_clusters[i].cnt2m; // indel of two units
         fmt.RCC[i*4+2] = (int)rep_num_clusters[i].cnt1m;
-        fmt.RCC[i*4+3] = (int)rep_num_clusters[i].cnt1p;
+        fmt.RCC[i*4+3] = (int)rep_num_clusters[i].cnt0;
+        fmt.RCC[i*4+4] = (int)rep_num_clusters[i].cnt1p;
+        fmt.RCC[i*4+5] = (int)rep_num_clusters[i].cnt2p;
     } // fmt.cFR;
     
     fmt.VType = SYMBOL_TO_DESC_ARR[symbol];
@@ -2525,7 +2546,7 @@ generateVcfHeader(const char *ref_fasta_fname, const char *platform,
     ret += "##INFO=<ID=tRefHD,Number=1,Type=Integer,Description=\"Tumor-sample cRefHD or bRefHD, depending on command-line option\">\n";
     ret += "##INFO=<ID=tMQ,Number=.,Type=Float,Description=\"Tumor-sample MQ\">\n"; 
     ret += "##INFO=<ID=tgapDP4,Number=4,Type=Integer,Description=\"Tumor-sample gapDP4\">\n"; 
-    ret += "##INFO=<ID=tRCC,Number=8,Type=Integer,Description=\"Tumor-sample RCC\">\n";
+    ret += "##INFO=<ID=tRCC,Number=" + std::to_string(6*RCC_NUM) + ",Type=Integer,Description=\"Tumor-sample RCC\">\n";
     ret += "##INFO=<ID=tGLa,Number=3,Type=Integer,Description=\"Tumor-sample GLa\">\n";
     ret += "##INFO=<ID=tGLb,Number=3,Type=Integer,Description=\"Tumor-sample GLb\">\n";
     ret += "##INFO=<ID=RU,Number=1,Type=String,Description=\"The shortest repeating unit in the reference\">\n";
@@ -2614,25 +2635,35 @@ penal_indel(double vcfqual, double ad, double od, const std::string & ru, const 
 }
 
 double
-penal_indel_2(double AD0a, int n_str_units, const auto & RCC) {
-    const double altv_diff = (double)n_str_units;
-    double max_peak_infl = 0.0;
-    for (int c = 0; c < 2; c++) {
+penal_indel_2(double AD0a, int dst_str_units, const auto & RCC, const double max_slip_err_rate = 0.25) {
+    const double snr_ratio = 1.0 / max_slip_err_rate;
+    double max_noise = 0.0;
+    for (int c = 0; c < RCC_NUM; c++) {
         int peakidx = c*4;
-        double peak_diff = (double)RCC[peakidx];
-        if (peak_diff == altv_diff) { continue; }
-        double peak_height1 = (double)RCC[peakidx+1]; //  = (int)rep_num_clusters[i].cnt0;
-        double peak_height2 = (double)MIN(RCC[peakidx+2], RCC[peakidx+3]);
-        double peak_infl = pow(MIN(peak_height1 / 2.0, peak_height2) / (peak_height1 + DBL_EPSILON), abs(peak_diff - altv_diff));
-        // less penalty for insertion of one unit with respect to the ref
-        if (1 == n_str_units && 0 == RCC[peakidx]) {
-            peak_infl /= 4.0;
-        } else if (-1 == n_str_units && 0 == RCC[peakidx]) {
-            peak_infl *= 2.0;
+        double src_str_units = RCC[peakidx];
+        if (dst_str_units == src_str_units) { continue; }
+        const double peak_height1 = (double)RCC[peakidx+3]; //  = (int)rep_num_clusters[i].cnt0;
+        const double deldev2 = (double)RCC[peakidx+1] * (snr_ratio * snr_ratio); // peak_height1;
+        const double deldev1 = (double)RCC[peakidx+2] * (snr_ratio); // peak_height1;
+        const double insdev1 = (double)RCC[peakidx+4] * (snr_ratio); // peak_height1;
+        const double insdev2 = (double)RCC[peakidx+5] * (snr_ratio * snr_ratio); // peak_height1;
+        double _noise = 1.0;
+        if        (src_str_units + 2 == dst_str_units) { // ins of two units wrt to peak
+            _noise = MAX3(deldev2 / 1.5, deldev1 / 4.0, insdev1                     ) / (snr_ratio * snr_ratio);;
+        } else if (src_str_units + 1 == dst_str_units) {
+            _noise = MAX3(deldev2 / 1.5, deldev1 / 4.0,                insdev2      ) / (snr_ratio); 
+        } else if (src_str_units - 1 == dst_str_units) {
+            _noise = MAX3(deldev2      ,                insdev1 * 2.0, insdev2 * 1.3) / (snr_ratio);
+        } else if (src_str_units - 2 == dst_str_units) {
+            _noise = MAX3(               deldev1,       insdev1 * 2.0, insdev2 * 1.3) / (snr_ratio * snr_ratio);;
+        } else if (src_str_units      < dst_str_units) { // is other types of ins
+            _noise = MAX4(deldev2 / 1.5, deldev1 / 4.0, insdev1,       insdev2      ) / pow(snr_ratio, dst_str_units - src_str_units);
+        } else {
+            _noise = MAX4(deldev2,       deldev1,       insdev1 * 2.0, insdev2 * 1.3) / pow(snr_ratio, src_str_units - dst_str_units);
         }
-        max_peak_infl = MAX(max_peak_infl, peak_infl);
+        max_noise = MAX(max_noise, _noise);
     }
-    return 10.0/log(2.0) * (2.5 + 1.5) * log((AD0a + DBL_EPSILON) / (AD0a + max_peak_infl + DBL_EPSILON));
+    return 10.0/log(2.0) * (3.0) * log((AD0a + DBL_EPSILON) / (AD0a + max_noise + DBL_EPSILON));
 }
 
 int
@@ -2817,12 +2848,11 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         int32_t excalt_qual = fmt.GLb[0] - MAX(fmt.GLb[1], fmt.GLb[2]) + (int)homref_gt_phred - (int)indel_pq;
         
         // const int32_t n_nogerm_q = (is_nonref_germline_excluded ? MIN(nonalt_qual, excalt_qual) : nonalt_qual);
-        int32_t nonalt_tu_q = 0 - MAX(tki.GLa[1], tki.GLa[2]);
-        int32_t excalt_tu_q = 0 - MAX(tki.GLb[1], tki.GLb[2]);
+        int32_t nonalt_tu_q = ((tki.GLa[0] >= tki.GLa[2]) ? (0 - MAX(tki.GLa[1], tki.GLa[2])) : 0);
+        int32_t excalt_tu_q = ((tki.GLb[0] >= tki.GLb[2]) ? (0 - MAX(tki.GLb[1], tki.GLb[2])) : 0);
         
         // const int32_t t_nogerm_q = (is_nonref_germline_excluded ? MIN(nonalt_tu_q, excalt_tu_q) : nonalt_tu_q);
-        const int32_t a_nogerm_q = (is_nonref_germline_excluded ? MIN(nonalt_qual + MAX(0, nonalt_tu_q), excalt_qual + MAX(0, excalt_tu_q)) : (nonalt_qual + MAX(0, nonalt_tu_q))); // + nogerm;
-
+        
         // const double phred_non_germ = (is_nonref_germline_excluded ? MIN(nonalt_qual, excalt_qual) : nonalt_qual);
 #if 1
         const bool alt_is_germ = (GT_HOMREF[0] == fmt.GTa);
@@ -2986,6 +3016,11 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         const double t2n_contam_q = contam_phred;
         
         const double indel_aq = (isInDel ? 10.0 : 0.0);
+        
+        const int32_t a_nogerm_q = (is_nonref_germline_excluded ? 
+                MIN(nonalt_qual + MIN(MAX(0, nonalt_tu_q), MIN(t2n_rawq, t2n_powq)), excalt_qual + MAX(0, excalt_tu_q)) : 
+                   (nonalt_qual + MIN(MAX(0, nonalt_tu_q), MIN(t2n_rawq, t2n_powq)))); // + nogerm;
+        
         std::array<double, N_MODELS> testquals = {0};
         unsigned int tqi = 0;
         // const double a_nogerm_q = (double)(n_nogerm_q + 0.0*MIN(MAX(0, t_nogerm_q),25));

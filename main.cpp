@@ -262,7 +262,7 @@ struct TumorKeyInfo {
     int32_t autoBestAltHD = 0;
     int32_t autoBestRefHD = 0;
     std::array<int32_t, 4> gapDP4 = {0};
-    std::array<int32_t, 8> RCC = {0};
+    std::array<int32_t, 6*RCC_NUM> RCC = {0};
     std::array<int32_t, 3> GLa = {0};
     std::array<int32_t, 3> GLb = {0};
     bcf1_t *bcf1_record = NULL;
@@ -455,9 +455,11 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         assert((4 == ndst_val && 4 == valsize) || !fprintf(stderr, "4 == %d && 4 == %d failed for gapDP4!\n", ndst_val, valsize));
         tki.gapDP4 = {bcfints[0], bcfints[1], bcfints[2], bcfints[3]};
         
+        const unsigned int n = 6*RCC_NUM;
+        
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line,  "RCC", &bcfints, &ndst_val);
-        assert((8 == ndst_val && 8 == valsize) || !fprintf(stderr, "8 == %d && 8 == %d failed for RCC!\n", ndst_val, valsize));
+        assert((n == ndst_val && n == valsize) || !fprintf(stderr, "%d == %d && %d == %d failed for RCC!\n", n, ndst_val, n, valsize));
         for (int i = 0; i < 8; i++) {
             tki.RCC[i] = bcfints[i];
         }

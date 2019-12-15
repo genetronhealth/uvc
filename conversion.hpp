@@ -28,6 +28,16 @@ MAX(auto a, auto b) {
     return (a > b ? a :b);
 }
 
+auto 
+MAX3(auto a, auto b, auto c) {
+    return MAX(MAX(a, b), c);
+}
+
+auto 
+MAX4(auto a, auto b, auto c, auto d) {
+    return MAX(MAX3(a, b, c), d);
+}
+
 void 
 UPDATE_MIN(auto & a, const auto & b) {
     a = MIN(a, b);

@@ -9,6 +9,7 @@
 #define SIGN2UNSIGN(a) ((unsigned int)(a))
 
 #define VCFQUAL_NUM_BINS 100
+#define RCC_NUM 2
 
 const char *const NOT_PROVIDED = "";
 
