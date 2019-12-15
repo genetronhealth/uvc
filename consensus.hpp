@@ -3032,9 +3032,10 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         
         const double indel_aq = (isInDel ? 10.0 : 0.0);
         
+        const int32_t nonalt_tu_maxq = t2n_powq; // MIN(t2n_rawq, t2n_powq);
         const int32_t a_nogerm_q = (is_nonref_germline_excluded ? 
-                MIN(nonalt_qual + MIN(MAX(0, nonalt_tu_q), MIN(t2n_rawq, t2n_powq)), excalt_qual + MAX(0, excalt_tu_q)) : 
-                   (nonalt_qual + MIN(MAX(0, nonalt_tu_q), MIN(t2n_rawq, t2n_powq)))); // + nogerm;
+                MIN(nonalt_qual + MIN(MAX(0, nonalt_tu_q), nonalt_tu_maxq), 5 + excalt_qual + MAX(0, excalt_tu_q)) : 
+                   (nonalt_qual + MIN(MAX(0, nonalt_tu_q), nonalt_tu_maxq))); // + nogerm;
         
         std::array<double, N_MODELS> testquals = {0};
         unsigned int tqi = 0;
