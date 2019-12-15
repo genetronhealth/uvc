@@ -2635,31 +2635,30 @@ penal_indel(double vcfqual, double ad, double od, const std::string & ru, const 
 }
 
 double
-penal_indel_2(double AD0a, int dst_str_units, const auto & RCC, const double max_slip_err_rate = 0.25) {
-    const double snr_ratio = 1.0 / max_slip_err_rate;
+penal_indel_2(double AD0a, int dst_str_units, const auto & RCC, const double snr_data2model = 2.0, const double snr_model2data = 4.0) {
     double max_noise = 0.0;
     for (int c = 0; c < RCC_NUM; c++) {
         int peakidx = c*RCC_NFS;
         double src_str_units = RCC[peakidx];
         if (dst_str_units == src_str_units) { continue; }
         const double peak_height1 = (double)RCC[peakidx+3]; //  = (int)rep_num_clusters[i].cnt0;
-        const double deldev2 = (double)RCC[peakidx+1] * (snr_ratio * snr_ratio); // peak_height1;
-        const double deldev1 = (double)RCC[peakidx+2] * (snr_ratio); // peak_height1;
-        const double insdev1 = (double)RCC[peakidx+4] * (snr_ratio); // peak_height1;
-        const double insdev2 = (double)RCC[peakidx+5] * (snr_ratio * snr_ratio); // peak_height1;
+        const double deldev2 = (double)RCC[peakidx+1] * (snr_data2model * snr_data2model); // peak_height1;
+        const double deldev1 = (double)RCC[peakidx+2] * (snr_data2model); // peak_height1;
+        const double insdev1 = (double)RCC[peakidx+4] * (snr_data2model); // peak_height1;
+        const double insdev2 = (double)RCC[peakidx+5] * (snr_data2model * snr_data2model); // peak_height1;
         double _noise = 1.0;
         if        (src_str_units + 2 == dst_str_units) { // ins of two units wrt to peak
-            _noise = MAX3(deldev2 / 1.5, deldev1 / 4.0, insdev1                     ) / (snr_ratio * snr_ratio);;
+            _noise = MAX3(deldev2 / 2.0, deldev1 / 4.0, insdev1 / 2.0                ) / (snr_model2data * snr_model2data);
         } else if (src_str_units + 1 == dst_str_units) {
-            _noise = MAX3(deldev2 / 1.5, deldev1 / 4.0,                insdev2      ) / (snr_ratio); 
+            _noise = MAX3(deldev2 / 2.0, deldev1 / 4.0,                insdev2 / 2.0 ) / (snr_model2data);
         } else if (src_str_units - 1 == dst_str_units) {
-            _noise = MAX3(deldev2      ,                insdev1 * 2.0, insdev2 * 1.3) / (snr_ratio);
+            _noise = MAX3(deldev2      ,                insdev1 * 2.0, insdev2       ) / (snr_model2data);
         } else if (src_str_units - 2 == dst_str_units) {
-            _noise = MAX3(               deldev1,       insdev1 * 2.0, insdev2 * 1.3) / (snr_ratio * snr_ratio);;
+            _noise = MAX3(               deldev1,       insdev1 * 2.0, insdev2       ) / (snr_model2data * snr_model2data);
         } else if (src_str_units      < dst_str_units) { // is other types of ins
-            _noise = MAX4(deldev2 / 1.5, deldev1 / 4.0, insdev1,       insdev2      ) / pow(snr_ratio, dst_str_units - src_str_units);
+            _noise = MAX4(deldev2 / 2.0, deldev1 / 4.0, insdev1 / 2.0, insdev2 / 2.0 ) / pow(snr_model2data, dst_str_units - src_str_units);
         } else {
-            _noise = MAX4(deldev2,       deldev1,       insdev1 * 2.0, insdev2 * 1.3) / pow(snr_ratio, src_str_units - dst_str_units);
+            _noise = MAX4(deldev2,       deldev1,       insdev1 * 2.0, insdev2       ) / pow(snr_model2data, src_str_units - dst_str_units);
         }
         max_noise = MAX(max_noise, _noise);
     }
@@ -2929,36 +2928,48 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         //auto upper_nonref = MIN(2.0 * MIN(tDP0, nDP0), 2.5 * 10.0 / log(10.0) * log((tAD1 / tDP1) / (nNRD1 / nDP1)));
         //tnlike_nonref = MAX(0.0, MIN(tnlike_nonref, upper_nonref));
         
-        const unsigned int tE0 = 0;
-        const unsigned int nE0 = 0;
-        const double tnDP0ratio = (double)(tDP0 + 1) / (double)(nDP0 + 1);
-        const double tFA0 = (double)(tAD0 + 1) / (double)(tDP0 + 2);
-        const double tAD0pc0 = 1.0 * tnDP0ratio;
-        const double tDP0pc0 = 1.0 * tnDP0ratio/tFA0;
-        const double nAD0pc0 = 1.0;
-        const double nDP0pc0 = 1.0 / tFA0;
-        const double tnMFpc0 = 1.0 / MIN(MIN(MIN(tAD0pc0, tDP0pc0), nAD0pc0), nDP0pc0);
+        const double tE0 = 1.0;
+        const double nE0 = 1.0;
+        const double tnE0 = 1.0;
+        const double tnDP0ratio = (double)(tDP0 +           1) / (double)(nDP0 + 1);
+        const double tnFA0 =      (double)(tAD0 + nAD0 + tnE0) / (double)(tDP0 + nDP0 + tnE0 * 2  );
+        // const double tFA0 = (double)(tAD0 + 1) / (double)(tDP0 + 2);
+        const double tAD0pc0 = 0.5        * tnDP0ratio;
+        const double tDP0pc0 = 0.5        * tnDP0ratio / tnFA0;
+        const double nAD0pc0 = 0.5       ;
+        const double nDP0pc0 = 0.5        / tnFA0;
+        // const double tnMFpc0 = 1.0 / MIN(MIN(MIN(tAD0pc0, tDP0pc0), nAD0pc0), nDP0pc0);
         
-        //double tEPS = 10.0/log(10.0) * log((double(tDP0 + 1));
-        //double nEPS = 10.0/log(10.0) * log((double(nDP0 + 1));
-        double tE1 = 10.0/log(10.0) * log((double)(tDP0 + 2));
-        double nE1 = 10.0/log(10.0) * log((double)(nDP0 + 2));
-        double tnE1 = 10.0/log(10.0) * log((double)(tDP0 + nDP0 + 2));
-        // const double tnDP0ratio = (double)(tDP0 + 1) / (double)(nDP0 + 1);
-        const double tnFA1 = (double)(tAD1 + nAD1 + tnE1) / (double)(tDP1 + nDP1 + tnE1 * 2.0);
-        const double tAD1pc0 = 0.5 * tnE1 + 0.5 * tnE1 * tnDP0ratio       ;
-        const double tDP1pc0 = 1.0 * tnE1 + 0.5 * tnE1 * tnDP0ratio / tnFA1;
-        const double nAD1pc0 = 0.5 * tnE1 + 0.5 * tnE1                    ;
-        const double nDP1pc0 = 1.0 * tnE1 + 0.5 * tnE1              / tnFA1;
-        // const double tnMFpc0 = 1.0 / MIN(MIN(MIN(tAD1pc0, tDP1pc0), nAD1pc0), nDP1pc0);
+        const double tE1 = 10.0/log(10.0) * log((double)(tDP0 + 2));
+        const double nE1 = 10.0/log(10.0) * log((double)(nDP0 + 2));
+        const double tnE1 = 10.0/log(10.0) * log((double)(tDP0 + nDP0 + 2));
+        const double tnDP1ratio = (double)(tDP1 + tE1        ) / (double)(nDP1 + nE1);
+        const double tnFA1 =      (double)(tAD1 + nAD1 + tnE1) / (double)(tDP1 + nDP1 + tnE1 * 2.0);
+        const double tAD1pc0 = 0.5 * tnE1 * tnDP0ratio       ;
+        const double tDP1pc0 = 0.5 * tnE1 * tnDP0ratio / tnFA1;
+        const double nAD1pc0 = 0.5 * tnE1;
+        const double nDP1pc0 = 0.5 * tnE1 / tnFA1;
+
         double symfrac = 1.0; // sqrt(10); 
-        const double t2n_or = ((double)(tAD1 + symfrac * tAD1pc0) / (double)(tDP1 - tAD1 + symfrac * (tDP1pc0 - tAD1pc0))) 
-                / ((double)(nAD1 + nAD1pc0)  / (double)(nDP1 - nAD1 + nDP1pc0 - nAD1pc0));
         
-        const double t2n_rawq = ((true || nDP0 <= tDP0) // TODO: check if the symmetry makes sense?
-            ? calc_binom_10log10_likeratio((tDP1 - tAD1) / tDP1, (nDP1 - nAD1) / nDP1 * nDP0,         nAD1  / nDP1 * nDP0)
-            : calc_binom_10log10_likeratio(       (nAD1) / nDP1,         tAD1  / tDP1 * tDP0, (tDP1 - tAD1) / tDP1 * tDP0)); 
-        const double t2n_powq = MIN(MAX(-30.0, 10.0/log(10.0) * (1.0+log(symfrac*symfrac)/10.0) * pl_exponent * log(t2n_or /symfrac)), 30.0);
+        const double t2n_or0 = ((double)(tAD0 + symfrac * tAD0pc0) / (double)(tDP0 - tAD0 + symfrac * (tDP0pc0 - tAD0pc0))) 
+                             / ((double)(nAD0 +           nAD0pc0) / (double)(nDP0 - nAD0 +           (nDP0pc0 - nAD0pc0)));
+        const double t2n_or1 = ((double)(tAD1 + symfrac * tAD1pc0) / (double)(tDP1 - tAD1 + symfrac * (tDP1pc0 - tAD1pc0))) 
+                             / ((double)(nAD1 +           nAD1pc0) / (double)(nDP1 - nAD1 +           (nDP1pc0 - nAD1pc0))); 
+        const double t2n_or = MAX(t2n_or0, t2n_or1);
+        
+        const double t2n_rawq0 = ((true || nDP0 <= tDP0) // TODO: check if the symmetry makes sense?
+            ? calc_binom_10log10_likeratio((double)(tDP0 - tAD0) / (double)tDP0, (double)(nDP0 - nAD0),                (double)(nAD0)                      )
+            : calc_binom_10log10_likeratio((double)       (nAD0) / (double)nDP0, (double)(nAD0),                       (double)(nDP0 - nAD0)               )); 
+        const double t2n_rawq1 = ((true || nDP0 <= tDP0) // TODO: check if the symmetry makes sense?
+            ? calc_binom_10log10_likeratio(        (tDP1 - tAD1) /         tDP1,         (nDP1 - nAD1) / nDP1 * nDP0,          (nAD1 / nDP1) * nDP0)
+            : calc_binom_10log10_likeratio(               (nAD1) /         nDP1,         (tAD1 / tDP1) * tDP0,                 (tDP1 - tAD1) / tDP1 * tDP0)); 
+        const double t2n_rawq = MAX(t2n_rawq0, t2n_rawq1);
+
+        const double t2n_powq0 = MIN(MAX(-30.0, 10.0/log(10.0) * (1.0+log(symfrac*symfrac)/10.0) * pl_exponent * log(t2n_or0 /symfrac)), 30.0);
+        const double t2n_powq1 = MIN(MAX(-30.0, 10.0/log(10.0) * (1.0+log(symfrac*symfrac)/10.0) * pl_exponent * log(t2n_or1 /symfrac)), 30.0);
+        const double t2n_powq = MAX(t2n_powq0, t2n_powq1);
+        
         const double t2t_powq = 30.0;
         
         double tvn_rawq = sumBQ4_to_phredlike(tnlike_argmin, nDP1, nAD1, tDP1, tAD1);
@@ -3109,30 +3120,29 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         for (int i = 0; i < MIN(1,N_MODELS); i++) {
             infostring += std::string(";TQ") + std::to_string(i) + "=" + std::to_string(testquals[i]); 
         }
-        infostring += std::string(";TNQ=")  + string_join(std::array<std::string, 7-5>({
+        infostring += std::string(";TNQ=")  + string_join(std::array<std::string, 4>({
                   // std::to_string(median_qual)      , 
-                  std::to_string(t2n_powq)         , std::to_string(t2n_rawq)      
+                std::to_string(t2n_powq0)  , std::to_string(t2n_powq1),    
+                std::to_string(t2n_rawq0)  , std::to_string(t2n_rawq1)      
                   // ,std::to_string(tvn_powq)         , std::to_string(tvn_rawq)           , std::to_string(tvn_or_q), 
                   // std::to_string(tvn_st_q)
         }));
         infostring += std::string(";NGQ=") + string_join(std::array<std::string, 5>({
                 std::to_string(a_nogerm_q), 
-                std::to_string(nonalt_qual),
-                std::to_string(nonalt_tu_q),
-                std::to_string(excalt_qual), 
-                std::to_string(excalt_tu_q) 
+                std::to_string(nonalt_qual), std::to_string(nonalt_tu_q),
+                std::to_string(excalt_qual), std::to_string(excalt_tu_q) 
         }));
         infostring += std::string(";TNQA=") + string_join(std::array<std::string, 6-4>({
                 // std::to_string(a_nogerm_q),       // , std::to_string(phred_non_germ)     , std::to_string(tnlike_argmin),    
-                std::to_string(reduction_coef),   // , std::to_string(add_contam_phred)   , std::to_string(mul_contam_phred)
-                std::to_string(indel_pq)
+                // , std::to_string(add_contam_phred)   , std::to_string(mul_contam_phred)
+                std::to_string(indel_pq),    std::to_string(reduction_coef),  
         }));
         infostring += std::string(";TNNQ=") + string_join(std::array<std::string, 5-1>({
-                std::to_string(tn_npo2q)         , std::to_string(tn_nra1q - tn_nsamq),
-                std::to_string(tn_npo1q)           , std::to_string(tn_nsamq)}));
+                std::to_string(tn_npo2q)   , std::to_string(tn_nra1q - tn_nsamq),
+                std::to_string(tn_npo1q)   , std::to_string(tn_nsamq)}));
         infostring += std::string(";TNTQ=") + string_join(std::array<std::string, 5-1>({
-                std::to_string(tn_tpowq)           , std::to_string(tn_tra1q - tn_tsamq),
-                std::to_string(tn_tpo1q)           , std::to_string(tn_tsamq)}));
+                std::to_string(tn_tpowq)   , std::to_string(tn_tra1q - tn_tsamq),
+                std::to_string(tn_tpo1q)   , std::to_string(tn_tsamq)}));
         infostring += std::string(";tDP=") + std::to_string(tki.DP);
         infostring += std::string(";tFA=") + std::to_string(tki.FA);
         infostring += std::string(";tFR=") + std::to_string(tki.FR);
