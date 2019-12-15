@@ -2425,12 +2425,12 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
     
     // std::string indelstring = indel_get_majority(fmt, prev_is_tumor, tki); 
     for (unsigned int i = 0; i < RCC_NUM; i++) {
-        fmt.RCC[i*4  ] = (int)rep_num_clusters[i].mode;
-        fmt.RCC[i*4+1] = (int)rep_num_clusters[i].cnt2m; // indel of two units
-        fmt.RCC[i*4+2] = (int)rep_num_clusters[i].cnt1m;
-        fmt.RCC[i*4+3] = (int)rep_num_clusters[i].cnt0;
-        fmt.RCC[i*4+4] = (int)rep_num_clusters[i].cnt1p;
-        fmt.RCC[i*4+5] = (int)rep_num_clusters[i].cnt2p;
+        fmt.RCC[i*RCC_NFS  ] = (int)rep_num_clusters[i].mode;
+        fmt.RCC[i*RCC_NFS+1] = (int)rep_num_clusters[i].cnt2m; // indel of two units
+        fmt.RCC[i*RCC_NFS+2] = (int)rep_num_clusters[i].cnt1m;
+        fmt.RCC[i*RCC_NFS+3] = (int)rep_num_clusters[i].cnt0;
+        fmt.RCC[i*RCC_NFS+4] = (int)rep_num_clusters[i].cnt1p;
+        fmt.RCC[i*RCC_NFS+5] = (int)rep_num_clusters[i].cnt2p;
     } // fmt.cFR;
     
     fmt.VType = SYMBOL_TO_DESC_ARR[symbol];
@@ -2546,7 +2546,7 @@ generateVcfHeader(const char *ref_fasta_fname, const char *platform,
     ret += "##INFO=<ID=tRefHD,Number=1,Type=Integer,Description=\"Tumor-sample cRefHD or bRefHD, depending on command-line option\">\n";
     ret += "##INFO=<ID=tMQ,Number=.,Type=Float,Description=\"Tumor-sample MQ\">\n"; 
     ret += "##INFO=<ID=tgapDP4,Number=4,Type=Integer,Description=\"Tumor-sample gapDP4\">\n"; 
-    ret += "##INFO=<ID=tRCC,Number=" + std::to_string(6*RCC_NUM) + ",Type=Integer,Description=\"Tumor-sample RCC\">\n";
+    ret += "##INFO=<ID=tRCC,Number=" + std::to_string(RCC_NFS*RCC_NUM) + ",Type=Integer,Description=\"Tumor-sample RCC\">\n";
     ret += "##INFO=<ID=tGLa,Number=3,Type=Integer,Description=\"Tumor-sample GLa\">\n";
     ret += "##INFO=<ID=tGLb,Number=3,Type=Integer,Description=\"Tumor-sample GLb\">\n";
     ret += "##INFO=<ID=RU,Number=1,Type=String,Description=\"The shortest repeating unit in the reference\">\n";
@@ -2639,7 +2639,7 @@ penal_indel_2(double AD0a, int dst_str_units, const auto & RCC, const double max
     const double snr_ratio = 1.0 / max_slip_err_rate;
     double max_noise = 0.0;
     for (int c = 0; c < RCC_NUM; c++) {
-        int peakidx = c*4;
+        int peakidx = c*RCC_NFS;
         double src_str_units = RCC[peakidx];
         if (dst_str_units == src_str_units) { continue; }
         const double peak_height1 = (double)RCC[peakidx+3]; //  = (int)rep_num_clusters[i].cnt0;

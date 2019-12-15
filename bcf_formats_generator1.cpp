@@ -240,7 +240,8 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("gapbAD1"  , BCF_NUM_D, BCF_INTEGER, "see above"),
     BcfFormatStruct("gapcAD1"  , BCF_NUM_D, BCF_INTEGER, "see above"),
     BcfFormatStruct("gapDP4"   , 4, BCF_INTEGER, "see above"),
-    BcfFormatStruct("RCC"      , 6*RCC_NUM, BCF_INTEGER, "STR-unit position of the mode, two indel counts of -2 and -1 STR units, mode count, two ins counts of +1 and +2 STR units with respect to the mode"),
+    BcfFormatStruct("RCC"      , RCC_NFS*RCC_NUM, BCF_INTEGER, 
+                                "STR-unit position of the mode, two indel counts of -2 and -1 STR units, mode count, two ins counts of +1 and +2 STR units with respect to the mode"),
     BcfFormatStruct("bHap"     , 1, BCF_STRING,  "Duped forward&reverse linkage in the format of ((position&variantType)...depth)... "
                                                  "where ()... means more elements following the format in the preceding parenthesis. "),
     BcfFormatStruct("cHap"     , 1, BCF_STRING,  "Dedup forward&reverse linkage in the format of ((position&variantType)...depth)... "

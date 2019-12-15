@@ -10,6 +10,7 @@
 
 #define VCFQUAL_NUM_BINS 100
 #define RCC_NUM 2
+#define RCC_NFS 6
 
 const char *const NOT_PROVIDED = "";
 
