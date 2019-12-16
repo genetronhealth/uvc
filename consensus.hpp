@@ -682,12 +682,34 @@ indelpos_to_context(
 unsigned int
 indel_len_rusize_phred(unsigned int indel_len, unsigned int repeatunit_size) {
     assert (indel_len > 0 && repeatunit_size > 0);
-    const std::array<unsigned int, 5> n_units_to_phred = {0, 0, 4, 6};
+    // for i in range(1, 20): print("{}  {}".format(  int( round(10.0/log(10.0)*log(i)) ) , i  )) 
+    const std::array<unsigned int, 18+1> n_units_to_phred = {
+        0 , 
+        0 , // 1
+        3 , // 2
+        5 , // 3
+        6 , // 4
+        7 , // 5
+        8 , // 6
+        8 , // 7
+        9 , // 8
+        10 , // 9
+        10 , // 10
+        10 , // 11
+        11 , // 12
+        11 , // 13
+        11 , // 14
+        12 , // 15
+        12 , // 16
+        12 , // 17
+        13 , // 18
+    };
     if (0 == (indel_len % repeatunit_size)) {
         auto n_units = indel_len / repeatunit_size;
-        return n_units_to_phred[MIN(n_units, n_units_to_phred.size()-1)];
+        return n_units_to_phred[MIN(n_units   , n_units_to_phred.size()-1)];
     } else {
-        return 7;
+        return n_units_to_phred[MIN(indel_len, n_units_to_phred.size()-1)];
+        // return 7;
     }
 }
 
@@ -3040,7 +3062,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         // Pr[soma | signal is from either germ or soma] * (1 - Pr[exp-error]) = Pr[soma | signal is from either germ, soma, or exp-error]
         // If Pr[exp-error] is approx 0, then Pr[soma | signal is from either germ or soma] is approx Pr[soma | signal is from either germ, soma, or exp-error]
         // If Pr[germ]      is approx 0, then Pr[soma] is approx (1 - Pr[exp-error])
-         const int32_t a_nogerm_q = 0 // (int)(isInDel ? MIN(3, (int)homoref_gt_phred - indel_pq) : (int)homref_gt_phred)
+         const int32_t a_nogerm_q = homref_gt_phred // (int)(isInDel ? MIN(3, (int)homref_gt_phred - indel_pq) : (int)homref_gt_phred)
                 // - (int)(10.0/log(10.0) * log((double)MAX(indelstring.size(), 1))))
                 + (is_nonref_germline_excluded ? 
                    MIN(nonalt_qual + MIN(MAX(0, nonalt_tu_q), nonalt_tu_maxq), 5 + excalt_qual + MAX(0, excalt_tu_q)) : 
