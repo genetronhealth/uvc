@@ -2850,8 +2850,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         
         // the genotype likelihoods here are special in that they can somehow normalized for the purpose of computing nonref probabilities
         // HOWEVER, no prior can be given to the raw genotype likelihoods.
-        int32_t nonalt_qual = fmt.GLa[0] - MAX(fmt.GLa[1], fmt.GLa[2]) + (int)homref_gt_phred - (int)indel_pq;
-        int32_t excalt_qual = fmt.GLb[0] - MAX(fmt.GLb[1], fmt.GLb[2]) + (int)homref_gt_phred - (int)indel_pq;
+        int32_t nonalt_qual = fmt.GLa[0] - MAX(fmt.GLa[1], fmt.GLa[2]);// indel_pq
+        int32_t excalt_qual = fmt.GLb[0] - MAX(fmt.GLb[1], fmt.GLb[2]);// + (int)homref_gt_phred - (int)indel_pq;
         
         // const int32_t n_nogerm_q = (is_nonref_germline_excluded ? MIN(nonalt_qual, excalt_qual) : nonalt_qual);
         int32_t nonalt_tu_q = ((tki.GLa[0] >= tki.GLa[2]) ? (0 - MAX(tki.GLa[1], tki.GLa[2])) : 0);
@@ -3036,16 +3036,22 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         const double indel_aq = (isInDel ? 10.0 : 0.0);
         
         const int32_t nonalt_tu_maxq = t2n_powq; // MIN(t2n_rawq, t2n_powq);
-        const int32_t a_nogerm_q = (is_nonref_germline_excluded ? 
-                MIN(nonalt_qual + MIN(MAX(0, nonalt_tu_q), nonalt_tu_maxq), 5 + excalt_qual + MAX(0, excalt_tu_q)) : 
-                   (nonalt_qual + MIN(MAX(0, nonalt_tu_q), nonalt_tu_maxq))); // + nogerm;
+        // Pr[soma] + Pr[germ] = 1 - Pr[exp-error]
+        // Pr[soma | signal is from either germ or soma] * (1 - Pr[exp-error]) = Pr[soma | signal is from either germ, soma, or exp-error]
+        // If Pr[exp-error] is approx 0, then Pr[soma | signal is from either germ or soma] is approx Pr[soma | signal is from either germ, soma, or exp-error]
+        // If Pr[germ]      is approx 0, then Pr[soma] is approx (1 - Pr[exp-error])
+         const int32_t a_nogerm_q = 0 // (int)(isInDel ? MIN(3, (int)homoref_gt_phred - indel_pq) : (int)homref_gt_phred)
+                // - (int)(10.0/log(10.0) * log((double)MAX(indelstring.size(), 1))))
+                + (is_nonref_germline_excluded ? 
+                   MIN(nonalt_qual + MIN(MAX(0, nonalt_tu_q), nonalt_tu_maxq), 5 + excalt_qual + MAX(0, excalt_tu_q)) : 
+                      (nonalt_qual + MIN(MAX(0, nonalt_tu_q), nonalt_tu_maxq))); // + nogerm;
         
         std::array<double, N_MODELS> testquals = {0};
         unsigned int tqi = 0;
         // const double a_nogerm_q = (double)(n_nogerm_q + 0.0*MIN(MAX(0, t_nogerm_q),25));
-        double t2n_finq  = max_min01_sub02(MIN(t2n_rawq           , t2t_powq                      ),                MIN(t2n_rawq, t2n_powq), t2n_contam_q);
+        double t2n_finq  = max_min01_sub02(MIN(t2n_rawq           , t2t_powq           )    , MIN(t2n_rawq, t2n_powq), t2n_contam_q);
         // 0 // n_nogerm_q and t2n_powq should have already bee normalized with contam
-        testquals[tqi++] = max_min01_sub02(MIN(tn_trawq + indel_pq, tn_tpowq + indel_aq + indel_ic) + 1.0*t2n_finq, a_nogerm_q + indel_aq  , t2n_contam_q) + 0.0*t2n_finq;
+        testquals[tqi++] = max_min01_sub02(MIN(tn_trawq, tn_tpowq + indel_ic) + 1.0*t2n_finq, a_nogerm_q,              t2n_contam_q) + 0.0*t2n_finq + indel_aq;
         //testquals[tqi++] = MIN(tn_trawq, tn_tpowq + tvn_powq) - MIN(tn_nrawq, MAX(0.0, tn_npowq - tvn_or_q));
         testquals[tqi++] = MIN(tn_trawq, tvn_rawq * 2 + 30);
         testquals[tqi++] = MIN(tn_trawq, tvn_rawq     + tn_tpowq);
