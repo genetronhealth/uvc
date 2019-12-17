@@ -654,6 +654,20 @@ fillTidBegEndFromAlns3(uint32_t & tid, uint32_t & inc_beg, uint32_t & exc_end, c
     return 0;
 };
 
+bool 
+is_indel_context_more_STR(unsigned int rulen1, unsigned int rc1, unsigned int rulen2, unsigned int rc2) {
+    if (rulen1 > 6 || rulen2 > 6) {
+        return ((rulen1 < rulen2 || (rulen1 == rulen2 && rc1 > rc2))  ? true : false);
+    }
+    const unsigned int rank_STR[6+1] = {0, 65, 32, 33, 34, 35, 36}; // monomer is ranked first, followed by 2xdimer, hexamer, pentamer, ..., dimer, and zero
+    // (rulen1 * (rc1 - 1) + rulen1 + rulen2 > rulen2 * (rc2 - 1) + rulen1 + rulen2) 
+    if (rank_STR[rulen1] * rc1 > rank_STR[rulen2] * rc2) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
 int 
 indelpos_to_context(
         std::string & repeatunit, unsigned int & max_repeatnum,
@@ -670,7 +684,8 @@ indelpos_to_context(
             qidx++;
         }
         unsigned int repeatnum = (qidx - refpos) / repeatsize + 1;
-        if ((repeatnum - 1) * repeatsize >= max_repeatnum) {
+        // if ((repeatnum - 1) * repeatsize >= max_repeatnum) {
+        if (is_indel_context_more_STR(repeatsize, repeatnum, repeatsize_at_max_repeatnum, max_repeatnum)) {
             max_repeatnum = repeatnum;
             repeatsize_at_max_repeatnum = repeatsize;
         }
@@ -739,7 +754,7 @@ ref_to_phredvalue(unsigned int & n_units, const auto & refstring, const size_t r
             qidx++;
         }
         unsigned int repeatnum = (qidx - refpos) / repeatsize + 1;
-        if (repeatnum > max_repeatnum) {
+        if (is_indel_context_more_STR(repeatsize, repeatnum, repeatsize_at_max_repeatnum, max_repeatnum)) {
             max_repeatnum = repeatnum;
             repeatsize_at_max_repeatnum = repeatsize;
         }
