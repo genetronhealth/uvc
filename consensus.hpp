@@ -25,6 +25,7 @@
 
 #include "bcf_formats.step1.c"
 
+#define QUAL_PRE_ADD 1
 // #define bam_phredi(b, i) (phred2bucket(bam_get_qual((b))[(i)]))
 #define bam_phredi(b, i) (bam_get_qual((b))[(i)])
 
@@ -790,7 +791,7 @@ bam_to_phredvalue(unsigned int & n_units, const bam1_t *b, unsigned int qpos, un
     unsigned int decphred = indel_phred(ampfact, cigar_oplen, repeatsize_at_max_repeatnum, max_repeatnum);
     n_units = ((0 == cigar_oplen % repeatsize_at_max_repeatnum) ? (cigar_oplen / repeatsize_at_max_repeatnum) : 0);
     return max_phred - MIN(max_phred, decphred); 
-    #if 0
+#if 0
     if (region_size < 8) {
         return max_phred;
     } else {
@@ -946,7 +947,7 @@ public:
         assert(this->tid == SIGN2UNSIGN(b->core.tid));
         assert(this->getIncluBegPosition() <= SIGN2UNSIGN(b->core.pos)   || !fprintf(stderr, "%lu <= %d failed", this->getIncluBegPosition(), b->core.pos));
         assert(this->getExcluEndPosition() >= SIGN2UNSIGN(bam_endpos(b)) || !fprintf(stderr, "%lu >= %d failed", this->getExcluEndPosition(), bam_endpos(b)));
-        // const auto symbolType2addPhred = symbolType2addPhredArg; // std::array({0, 0});
+        const auto symbolType2addPhred = symbolType2addPhredArg; // std::array({0, 0});
         
         unsigned int qpos = 0;
         unsigned int rpos = b->core.pos;
@@ -971,7 +972,8 @@ public:
                     unsigned int base4bit = bam_seqi(bseq, qpos);
                     unsigned int base3bit = seq_nt16_int[base4bit];
                     if (TUpdateType == BASE_QUALITY_MAX) {
-                        incvalue = bam_phredi(b, qpos); // + symbolType2addPhred[BASE_SYMBOL];
+                        incvalue = bam_phredi(b, qpos) 
+                                + (QUAL_PRE_ADD ? symbolType2addPhred[BASE_SYMBOL] : 0);
                     }
                     this->inc<TUpdateType>(rpos, AlignmentSymbol(base3bit), incvalue, b);
                     rpos += 1;
@@ -988,13 +990,15 @@ public:
                                 << " which is not exclusively between 0 and " << b->core.l_qseq << " aligned to tid " << b->core.tid << " and position " << rpos;
                         incvalue = (0 != qpos ? bam_phredi(b, qpos-1) : 
                                 ((qpos + cigar_oplen < SIGN2UNSIGN(b->core.l_qseq)) ? 
-                                bam_phredi(b, qpos + SIGN2UNSIGN(cigar_oplen)) : 1)); // + addidq; // + symbolType2addPhred[LINK_SYMBOL];
+                                bam_phredi(b, qpos + SIGN2UNSIGN(cigar_oplen)) : 1)) 
+                                + (QUAL_PRE_ADD ? symbolType2addPhred[LINK_SYMBOL] : 0); // + addidq; // 
                     } else {
                         unsigned int phredvalue = ref_to_phredvalue(inslen, region_symbolvec, rpos - region_offset,
                                 frag_indel_basemax, 8.0, cigar_oplen, cigar_op);
                         // unsigned int phredvalue = bam_to_phredvalue(inslen, , qpos, frag_indel_basemax, 6.0, cigar_oplen, cigar_op); // THasDups is not used here
                         // auto min_adj_BQ = MIN(bam_phredi(b, qpos-1), bam_phredi(b, qpos + cigar_oplen);
-                        incvalue = (TIsProton ? MIN(MIN(bam_phredi(b, qpos-1), bam_phredi(b, qpos + cigar_oplen)), phredvalue) : phredvalue); // + addidq; 
+                        incvalue = (TIsProton ? MIN(MIN(bam_phredi(b, qpos-1), bam_phredi(b, qpos + cigar_oplen)), phredvalue) : phredvalue)
+                                + (QUAL_PRE_ADD ? symbolType2addPhred[LINK_SYMBOL] : 0); // + addidq; 
                         // + symbolType2addPhred[LINK_SYMBOL];
                         // this->dedup_ampDistr.at(strand).getIncluBegPosition()
                     }
@@ -1008,7 +1012,8 @@ public:
                     const char base8bit = seq_nt16_str[base4bit];
                     iseq.push_back(base8bit);
                     if (TUpdateType == BASE_QUALITY_MAX) {
-                        incvalue2 = MIN(incvalue2, SIGN2UNSIGN(bam_seqi(bseq, qpos+i2))); // + symbolType2addPhred[LINK_SYMBOL];
+                        incvalue2 = MIN(incvalue2, SIGN2UNSIGN(bam_seqi(bseq, qpos+i2)))
+                                + (QUAL_PRE_ADD ? symbolType2addPhred[LINK_SYMBOL] : 0); // + symbolType2addPhred[LINK_SYMBOL];
                     }
                 }
                 this->incIns(rpos, iseq, insLenToSymbol(inslen), MAX(SIGN2UNSIGN(1), incvalue2));
@@ -1024,13 +1029,15 @@ public:
                                 << " which is not exclusively between 0 and " << b->core.l_qseq << " aligned to tid " << b->core.tid << " and position " << rpos; 
                         incvalue = (0 != qpos ? bam_phredi(b, qpos-1) : 
                                 ((qpos + cigar_oplen < SIGN2UNSIGN(b->core.l_qseq)) ? 
-                                bam_phredi(b, qpos + SIGN2UNSIGN(cigar_oplen)) : 1)); // + addidq;
+                                bam_phredi(b, qpos + SIGN2UNSIGN(cigar_oplen)) : 1))
+                                + (QUAL_PRE_ADD ? symbolType2addPhred[LINK_SYMBOL] : 0); // + addidq;
                     } else {
                         // double afa = ((cigar_oplen <= 2) ? 18.0 : 6.0);
                         unsigned int phredvalue = ref_to_phredvalue(dellen, region_symbolvec, rpos - region_offset, 
                                 frag_indel_basemax, 8.0, cigar_oplen, cigar_op);
                         // unsigned int phredvalue = bam_to_phredvalue(dellen, b, qpos, frag_indel_basemax, 6.0, cigar_oplen, cigar_op); // THasDups is not used here
-                        incvalue = (TIsProton ? MIN(MIN(bam_phredi(b, qpos), bam_phredi(b, qpos-1)), phredvalue) : phredvalue); // + addidq; 
+                        incvalue = (TIsProton ? MIN(MIN(bam_phredi(b, qpos), bam_phredi(b, qpos-1)), phredvalue) : phredvalue) // + addidq; 
+                                + (QUAL_PRE_ADD ? symbolType2addPhred[LINK_SYMBOL] : 0); 
                         // + symbolType2addPhred[LINK_SYMBOL];
                     }
                 }
@@ -1244,7 +1251,7 @@ struct Symbol2CountCoverageSet {
     getbest( // auto & qual_psum, 
             auto & max_pqual, auto & best_phred, auto & best_count,
             const auto & ampDistrByPos, const double symbolTypeSum, const AlignmentSymbol symbol, const unsigned int bias_adjusted_mincount, 
-            const unsigned int phred_max, const unsigned int addPhred, double ess_georatio_dedup, const double homogeneity = 0) const {
+            const unsigned int phred_max, const unsigned int add_phred, double ess_georatio_dedup, const double homogeneity = 0) const {
         max_pqual = 0;
         best_phred = 0;
         best_count = 0;
@@ -1259,7 +1266,9 @@ struct Symbol2CountCoverageSet {
             if (0 < count) {
                 if (TIsFilterStrong) {
                     if (tot_count - count <= (bias_adjusted_mincount)) {
-                        tot_pqual = h01_to_phredlike<false>(phred2prob(phred + addPhred), 1 + DBL_EPSILON, MIN(tot_count, bias_adjusted_mincount), symbolTypeSum, 1.0, ess_georatio_dedup);
+                        // NOTE: add_phred (addPhred) is disabled here, it should be enabled when reading bam
+                        tot_pqual = h01_to_phredlike<false>(phred2prob(phred + (QUAL_PRE_ADD ? 0 : add_phred)), 1 + DBL_EPSILON, 
+                                MIN(tot_count, bias_adjusted_mincount), symbolTypeSum, 1.0, ess_georatio_dedup);
                     }
                 } else {
                     tot_pqual = tot_count * phred;
@@ -1864,7 +1873,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
     
     int 
     updateHapMap(std::map<std::basic_string<std::pair<unsigned int, AlignmentSymbol>>, std::array<unsigned int, 2>> & mutform2count4map, 
-            const auto & tsum_depth, unsigned int max_ploidy = 4) {
+            const auto & tsum_depth, unsigned int max_ploidy = 2) {
         for (auto it = mutform2count4map.begin(); it != mutform2count4map.end();) {
             std::basic_string<std::pair<unsigned int, AlignmentSymbol>> mutform = it->first;
             auto counts = it->second;
@@ -1875,7 +1884,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                     minAD[strand] = MIN(minAD[strand], ad);
                 }
             }
-            if (counts[0] * max_ploidy <= minAD[0] && counts[1] * max_ploidy <= minAD[1]) {
+            if (counts[0] * (max_ploidy + mutform.size()) <= minAD[0] && counts[1] * (max_ploidy + mutform.size()) <= minAD[1]) {
                 mutform2count4map.erase(it++);
             } else {
                 it++;
@@ -3023,28 +3032,36 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
                  2.0 * MIN(tDP0, nDP0));
         
         // double eps_qual = 10.0/log(10.0) * log((double)tDP0 + 2.0);
-        double tn_tpo1q = 10.0 / log(10.0) * log((double)(tAD0 / altmul + tE0) / ((tDP0 - tAD0) / refmul + tAD0 / altmul + 2.0 * tE0)) * (isInDel ? pl_exponent : pl_exponent) + (isInDel ? 90.0 : 90.0);
-        double tn_npo1q = 10.0 / log(10.0) * log((double)(nAD0 / altmul + nE0) / ((nDP0 - tAD0) / refmul + tAD0 / altmul + 2.0 * nE0)) * (isInDel ? pl_exponent : pl_exponent) + (isInDel ? 90.0 : 90.0);
+        const double tn_tpo1q = 10.0 / log(10.0) * log((double)(tAD0 / altmul + tE0) / ((tDP0 - tAD0) / refmul + tAD0 / altmul + 2.0 * tE0)) * (isInDel ? pl_exponent : pl_exponent) + (isInDel ? 90.0 : 90.0);
+        const double tn_npo1q = 10.0 / log(10.0) * log((double)(nAD0 / altmul + nE0) / ((nDP0 - tAD0) / refmul + tAD0 / altmul + 2.0 * nE0)) * (isInDel ? pl_exponent : pl_exponent) + (isInDel ? 90.0 : 90.0);
         // QUESTION: why BQ-bias generations are discrete? Because of the noise with each observation of BQ?
-        double tn_tsamq = 40.0 * pow(0.5, (double)tAD0);// (tAD0 <= 2 ? 8.0 : 0.0);
-        double tn_nsamq = 40.0 * pow(0.5, (double)nAD0); // (nAD0 <= 2 ? 8.0 : 0.0);
-        double tn_tra1q = (double)tki.VAQ; //MIN(MAX((double)tki.VAQ - tn_tsamq * 0, 0.0), tn_tpowq);
-        double tn_nra1q = (double)fmt.VAQ; //MIN(MAX((double)fmt.VAQ - tn_nsamq * 0, 0.0), tn_npowq);
-        double tn_trawq = MAX(0.0, tn_tra1q / altmul - tn_tsamq      ); // tumor  BQ bias is stronger as raw    variant (biased to high BQ) is called   from every genomic base
-        double tn_nrawq = MAX(0.0, tn_nra1q / altmul - tn_nsamq / 4.0); // normal BQ bias is weaker   as result variant (biased to high BQ) is filtered from each  called  variant
+        const double tn_tsamq = 40.0 * pow(0.5, (double)tAD0);// (tAD0 <= 2 ? 8.0 : 0.0);
+        const double tn_nsamq = 40.0 * pow(0.5, (double)nAD0); // (nAD0 <= 2 ? 8.0 : 0.0);
+        const double tn_tra1q = (double)tki.VAQ; //MIN(MAX((double)tki.VAQ - tn_tsamq * 0, 0.0), tn_tpowq);
+        const double tn_nra1q = (double)fmt.VAQ; //MIN(MAX((double)fmt.VAQ - tn_nsamq * 0, 0.0), tn_npowq);
         
-        double tn_tpowq = tn_tpo1q;
-        double tn_npo2q = tn_npo1q;
+        double _tn_tra2q = MAX(0.0, tn_tra1q / altmul - tn_tsamq      ); // tumor  BQ bias is stronger as raw    variant (biased to high BQ) is called   from every genomic base
+        double _tn_nra2q = MAX(0.0, tn_nra1q / altmul - tn_nsamq / 4.0); // normal BQ bias is weaker   as result variant (biased to high BQ) is filtered from each  called  variant
+        if (isInDel) {
+            _tn_tra2q *= ((double)tAD0a + (double)indelstring.size()/8.0) / ((double)tAD0 + (double)indelstring.size()/8.0); // ad-hoc adjustment
+            _tn_nra2q *= ((double)tAD0a + (double)indelstring.size()/8.0) / ((double)tAD0 + (double)indelstring.size()/8.0);
+        }
+        const double tn_trawq = _tn_tra2q;
+        const double tn_nrawq = _tn_nra2q;
+        
+        double _tn_tpo2q = tn_tpo1q;
+        double _tn_npo2q = tn_npo1q;
         if (isInDel) {
             // QUESTION: why indel generations are discrete?
             //tn_tpowq = penal_indel(tn_tpo1q, (double)(tAD0a), (double)(tDP0 - tRD0), repeatunit, repeatnum);
             //tn_npo2q = penal_indel(tn_npo1q, (double)(nAD0a), (double)(nDP0 - nRD0), repeatunit, repeatnum);
             // tki.RCC[c*4  ] = (int)rep_num_clusters[i].mode;
             int n_str_units = (isSymbolIns(symbol) ? 1 : (-1)) * (int)(indelstring.size() / repeatunit.size());
-            tn_tpowq = tn_tpo1q + penal_indel_2(tAD0a, n_str_units, tki.RCC);
-            tn_npo2q = tn_npo1q + penal_indel_2(nAD0a, n_str_units, fmt.RCC);
+            _tn_tpo2q += penal_indel_2(tAD0a, n_str_units, tki.RCC);
+            _tn_npo2q += penal_indel_2(nAD0a, n_str_units, fmt.RCC);
         }
-        double tn_npowq = MAX(0.0, tn_npo2q);
+        const double tn_tpowq = _tn_tpo2q;
+        const double tn_npowq = MAX(0.0, _tn_npo2q);
         
         double tn_cont_nor = MIN(2.0, ((double)(nAD0 + 1) / (double)(nDP0 - nAD0 + 1)));
         double tn_cont_tor = MIN(2.0, ((double)(tAD0 + 1) / (double)(tDP0 - tAD0 + 1)));
@@ -3060,7 +3077,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         // QUESTION: why contamination generations are discrete?
         double nAD0normByTN1 = (nAD1 + DBL_EPSILON) / (nAD1 + tAD1 + 2.0 * DBL_EPSILON) * (nAD0 + tAD0 + 2.0 * DBL_EPSILON);
         double tAD0normByTN1 = (tAD1 + DBL_EPSILON) / (nAD1 + tAD1 + 2.0 * DBL_EPSILON) * (nAD0 + tAD0 + 2.0 * DBL_EPSILON);
- 
+        
         double add_contam_phred = base_contam + 
               calc_binom_10log10_likeratio((double)add_contam_rate, (double)nAD0normByTN1 * MIN(1.0, 2.0 * tnDP0ratio), (double)tAD0normByTN1); // 0.2 max 0.02 min
         double mul_contam_phred = base_contam + (nDP0 < tDP0
@@ -3077,10 +3094,11 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         // Pr[soma | signal is from either germ or soma] * (1 - Pr[exp-error]) = Pr[soma | signal is from either germ, soma, or exp-error]
         // If Pr[exp-error] is approx 0, then Pr[soma | signal is from either germ or soma] is approx Pr[soma | signal is from either germ, soma, or exp-error]
         // If Pr[germ]      is approx 0, then Pr[soma] is approx (1 - Pr[exp-error])
-         const int32_t a_nogerm_q = homref_gt_phred // (int)(isInDel ? MIN(3, (int)homref_gt_phred - indel_pq) : (int)homref_gt_phred)
+        const int32_t noisy_germ_phred = 5; // probability that tumor is alt1/alt2 hetero and normal is ref/alt1 hetero, this is quite low
+        const int32_t a_nogerm_q = homref_gt_phred // (int)(isInDel ? MIN(3, (int)homref_gt_phred - indel_pq) : (int)homref_gt_phred)
                 // - (int)(10.0/log(10.0) * log((double)MAX(indelstring.size(), 1))))
                 + (is_nonref_germline_excluded ? 
-                   MIN(nonalt_qual + MIN(MAX(0, nonalt_tu_q), nonalt_tu_maxq), 5 + excalt_qual + MAX(0, excalt_tu_q)) : 
+                   MIN(nonalt_qual + MIN(MAX(0, nonalt_tu_q), nonalt_tu_maxq), noisy_germ_phred + excalt_qual + MAX(0, excalt_tu_q)) : 
                       (nonalt_qual + MIN(MAX(0, nonalt_tu_q), nonalt_tu_maxq))); // + nogerm;
         
         std::array<double, N_MODELS> testquals = {0};
@@ -3188,12 +3206,13 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
                 // , std::to_string(add_contam_phred)   , std::to_string(mul_contam_phred)
                 std::to_string(indel_pq),    std::to_string(reduction_coef),  
         }));
-        infostring += std::string(";TNNQ=") + string_join(std::array<std::string, 5-1>({
-                std::to_string(tn_npo2q)   , std::to_string(tn_nrawq),
-                std::to_string(tn_npo1q)   , std::to_string(tn_nsamq)}));
-        infostring += std::string(";TNTQ=") + string_join(std::array<std::string, 5-1>({
-                std::to_string(tn_tpowq)   , std::to_string(tn_trawq),
-                std::to_string(tn_tpo1q)   , std::to_string(tn_tsamq)}));
+        infostring += std::string(";TNTQ=") + string_join(std::array<std::string, 5>({
+                std::to_string(_tn_tpo2q)  , std::to_string(tn_trawq),
+                std::to_string(tn_tpo1q)   , std::to_string(tn_tra1q), std::to_string(tn_tsamq)
+        }));
+        infostring += std::string(";TNNQ=") + string_join(std::array<std::string, 5>({
+                std::to_string(_tn_npo2q)  , std::to_string(tn_nrawq),
+                std::to_string(tn_npo1q)   , std::to_string(tn_nra1q), std::to_string(tn_nsamq)}));
         infostring += std::string(";tDP=") + std::to_string(tki.DP);
         infostring += std::string(";tFA=") + std::to_string(tki.FA);
         infostring += std::string(";tFR=") + std::to_string(tki.FR);
