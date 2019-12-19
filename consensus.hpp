@@ -3234,11 +3234,11 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
                 std::to_string(nonalt_qual), std::to_string(nonalt_tu_q),
                 std::to_string(excalt_qual), std::to_string(excalt_tu_q) 
         }));
-        infostring += std::string(";TNQA=") + string_join(std::array<std::string, 6-4+1>({
+        infostring += std::string(";TNQA=") + string_join(std::array<std::string, 6-4+2>({
                 // std::to_string(a_nogerm_q),       // , std::to_string(phred_non_germ)     , std::to_string(tnlike_argmin),    
                 // , std::to_string(add_contam_phred)   , std::to_string(mul_contam_phred)
                 std::to_string(indel_pq),    std::to_string(reduction_coef),  
-                std::to_string(t2n_syserr_q)
+                std::to_string(t2n_syserr_q),std::to_string(t2n_contam_q)
         }));
         infostring += std::string(";TNTQ=") + string_join(std::array<std::string, 5>({
                 std::to_string(_tn_tpo2q)  , std::to_string(tn_trawq),
