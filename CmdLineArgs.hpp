@@ -75,6 +75,7 @@ struct CommandLineArgs {
     //uint32_t    phred_sys_bias = 0;
     uint32_t    phred_sys_artifact_snv   = phred_germline_polymorphism * 2; // or 55; // PMC4271055: probablity of germline call error is between 1/100kb and 1/200kb
     uint32_t    phred_sys_artifact_indel = phred_germline_polymorphism * 2; // 3 / 2;
+        
     double      nonref_to_alt_frac_snv   = 0.50; // 0.50 for practically removing tri-allelic sites.
     double      nonref_to_alt_frac_indel = 0.20;
     double      tnq_mult_snv   = 1.0; // 2.5; // 0.05;
@@ -92,6 +93,7 @@ struct CommandLineArgs {
     uint32_t    str_tier1len  = 15; // = 16; // critical STR region size at which polymerase slippage error reaches a plateau
     uint32_t    str_tier2len  = 15; // enabled 
     
+    double      t2n_sys_err_frac = (1.0/3.0); // 0.25; 
     double      add_contam_rate = 0.025; // 0.04; // 0.125*1.5;
     double      mul_contam_rate = 0.050; // 0.04 * 2.0; // ;
     

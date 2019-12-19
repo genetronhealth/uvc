@@ -599,6 +599,13 @@ struct _PhredToErrorProbability {
 
 const _PhredToErrorProbability THE_PHRED_TO_ERROR_PROBABILITY;
 
+double
+to_exp_contam_fa(double t2n_add_contam_frac, double tFA, double tDP, double nFA, double nDP) {
+    double totAD =  tFA * tDP + nFA * nDP;
+    double exp_contam_AD = t2n_add_contam_frac * totAD;
+    return exp_contam_AD / (exp_contam_AD + nDP - nFA * nDP);
+}
+
 //// conversion of data structures and file formats
 
 #if 0

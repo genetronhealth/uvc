@@ -618,7 +618,9 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
             !paramset.disable_dup_read_merge, 
             is_loginfo_enabled, thread_id, paramset.fixedthresBQ, paramset.nogap_phred
             , paramset.highqual_thres_snv, paramset.highqual_thres_indel, paramset.uni_bias_r_max
-            , SEQUENCING_PLATFORM_IONTORRENT == paramset.sequencing_platform);
+            , SEQUENCING_PLATFORM_IONTORRENT == paramset.sequencing_platform
+            // , paramset.t2n_sys_err_frac
+            );
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts analyzing phasing info"; }
     auto mutform2count4vec_bq = map2vector(mutform2count4map_bq);
     auto simplemut2indices_bq = mutform2count4vec_to_simplemut2indices(mutform2count4vec_bq);
@@ -680,12 +682,17 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                     const auto simplemut = std::make_pair(refpos, symbol);
                     auto indices_bq = (simplemut2indices_bq.find(simplemut) != simplemut2indices_bq.end() ? simplemut2indices_bq[simplemut] : empty_size_t_set); 
                     auto indices_fq = (simplemut2indices_fq.find(simplemut) != simplemut2indices_fq.end() ? simplemut2indices_fq[simplemut] : empty_size_t_set);
+                    const auto & tki_it = tid_pos_symb_to_tki.find(std::make_tuple(tid, refpos, symbol));
                     const bool is_rescued = (
                             extended_posidx_to_is_rescued[refpos - extended_inclu_beg_pos] &&
-                            (tid_pos_symb_to_tki.end() != tid_pos_symb_to_tki.find(std::make_tuple(tid, refpos, symbol)))); 
+                            (tid_pos_symb_to_tki.end() != tki_it)); 
                             //(extended_posidx_to_symbol_to_tkinfo[refpos-extended_inclu_beg_pos][symbol].DP > 0); 
                     unsigned int phred_max_sscs = sscs_mut_table.toPhredErrRate(refsymbol, symbol);
                     // int altdepth = 
+                    TumorKeyInfo tki;
+                    if (is_rescued) {
+                        tki = tki_it->second; 
+                    }
                     fillBySymbol(fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]], symbolToCountCoverageSet12, 
                             refpos, symbol, refstring, extended_inclu_beg_pos, mutform2count4vec_bq, indices_bq, mutform2count4vec_fq, indices_fq, 
                             ((BASE_SYMBOL == symbolType) ? minABQ_snv : minABQ_indel),
@@ -694,7 +701,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                             // ErrorCorrectionType(paramset.seq_data_type), 
                             !paramset.disable_dup_read_merge, !paramset.enable_dup_read_vqual,
                             is_rescued, (NOT_PROVIDED != paramset.vcf_tumor_fname)
-                            , repeatunit, repeatnum);
+                            , repeatunit, repeatnum, tki, paramset.add_contam_rate);
                 }
                 for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; symbol = AlignmentSymbol(1+(unsigned int)symbol)) {
                     float vaq = fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]].VAQ;
@@ -772,8 +779,10 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                         fmt.CAQ = most_confident_qual;
                         appendVcfRecord(buf_out_string, buf_out_string_pass, arg.vc_stats 
                                 , symbolToCountCoverageSet12,
-                                std::get<0>(tname_tseqlen_tuple).c_str(), refpos, symbol, fmt,
-                                refstring, extended_inclu_beg_pos, paramset.vqual, should_output_all, should_let_all_pass,
+                                std::get<0>(tname_tseqlen_tuple).c_str(), refpos, 
+                                symbol, fmt,
+                                refstring, extended_inclu_beg_pos, paramset.vqual, 
+                                should_output_all, should_let_all_pass,
                                 tki, (NOT_PROVIDED != paramset.vcf_tumor_fname), 
                                 paramset.phred_germline_polymorphism,
                                 paramset.nonref_to_alt_frac_snv, paramset.nonref_to_alt_frac_indel
@@ -797,6 +806,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                                 , paramset.add_contam_rate
                                 , paramset.mul_contam_rate
                                 , repeatunit, repeatnum 
+                                , paramset.t2n_sys_err_frac
                                 // paramset.phred_sys_artifact
                                 // , paramset.highqual_min_vardep, paramset.highqual_min_totdep
                                 );
