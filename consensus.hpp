@@ -2324,10 +2324,10 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
             int homref_likecon1 = -200; // t2n_contam_alt_q    = -200;
             int homalt_likecon1 = -200; // t2n_contam_nonref_q = -200;
             if (prev_is_tumor) {
-                double tki_FO = 1.0 - tki.FA - tki.FR;
-                double fmt_FO = 1.0 - fmt.FA - fmt.FR;
-                homref_likecon1 = -(int)calc_binom_10log10_likeratio(t2n_add_contam_frac, fmt.FA * fmt.DP,        tki.FA  * tki.DP);
-                homalt_likecon1 = -(int)calc_binom_10log10_likeratio(t2n_add_contam_frac, fmt_FO * fmt.DP,        tki_FO  * tki.DP);
+                // double tki_FO = 1.0 - tki.FA - tki.FR;
+                // double fmt_FO = 1.0 - fmt.FA - fmt.FR;
+                homref_likecon1 = -(int)calc_binom_10log10_likeratio(t2n_add_contam_frac,        fmt.FA  * fmt.DP,        tki.FA  * tki.DP);
+                homalt_likecon1 = -(int)calc_binom_10log10_likeratio(t2n_add_contam_frac, (1.0 - fmt.FA) * fmt.DP, (1.0 - tki.FA) * tki.DP);
             }
             
             const double fa1 = MAX(0.0, ((0 == t) ? (fmt.FA) : (1.0 - fmt.FA - fmt.FR)));
@@ -2376,8 +2376,8 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
             int homref_likeval1 = -(int)calc_binom_10log10_likeratio(any_contam_rate * altmul, da_v, dr_v);      // hom-alt to REF add error phred by contamination
             int homalt_likeval1 = -(int)calc_binom_10log10_likeratio(any_contam_rate * refmul, dr_v, da_v);      // hom-ref to ALT add error phred by contamination
             
-            //int homref_likecon1 = -(int)calc_binom_10log10_likeratio(exp_contam_fa * altmul, da_v, dr_v);      // hom-alt to REF add error phred by contamination
-            //int homalt_likecon1 = -(int)calc_binom_10log10_likeratio(exp_contam_fr * refmul, dr_v, da_v);      // hom-ref to ALT add error phred by contamination
+            // int homref_likecon1 = -(int)calc_binom_10log10_likeratio(exp_contam_fa * altmul, da_v, dr_v);      // hom-alt to REF add error phred by contamination
+            // int homalt_likecon1 = -(int)calc_binom_10log10_likeratio(exp_contam_fr * refmul, dr_v, da_v);      // hom-ref to ALT add error phred by contamination
             
             int homref_likelim2 = MAX(homref_likelim1, homref_likecon1);
             int homref_likeval2 = MAX(homref_likeval1, homref_likecon1);
@@ -3115,8 +3115,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         
         // t2n_sys_err_frac should be somewhat higher than t2n_add_contam_frac
         // double exp_contam_fa = MIN(0.5, to_exp_contam_fa(t2n_add_contam_frac, tki.FA, (double)tki.DP, fmt.FA, (double)fmt.DP));
-        double t2n_contam_q = MIN(60.0, calc_binom_10log10_likeratio(add_contam_rate           , fmt.FA * fmt.DP,        tki.FA  * tki.DP));
-        double t2n_syserr_q = MIN(60.0, calc_binom_10log10_likeratio(t2n_sys_err_frac * tki.FA , fmt.FA * fmt.DP, (1.0 - fmt.FA) * fmt.DP));
+        double t2n_contam_q = MIN(60.0, calc_binom_10log10_likeratio(add_contam_rate          , fmt.FA * fmt.DP,        tki.FA  * tki.DP));
+        double t2n_syserr_q = MIN(60.0, calc_binom_10log10_likeratio(t2n_sys_err_frac * tki.FA, fmt.FA * fmt.DP, (1.0 - fmt.FA) * fmt.DP));
         //                                                    expected fraction,          observed this count,    observed other count
         // part: germline
         // const double indel_aq = (isInDel ? 10.0 : 0.0);
