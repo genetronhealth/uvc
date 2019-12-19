@@ -93,7 +93,9 @@ struct CommandLineArgs {
     uint32_t    str_tier1len  = 15; // = 16; // critical STR region size at which polymerase slippage error reaches a plateau
     uint32_t    str_tier2len  = 15; // enabled 
     
-    double      t2n_sys_err_frac = (1.0/3.0); // 0.25; 
+    double      t2n_sys_err_frac_snv = (1.0/3.0); // 0.25;
+    double      t2n_sys_err_frac_indel = (1.0); // 0.25; // disabled
+    
     double      add_contam_rate = 1e-10; // 0.025; // 0.04; // 0.125*1.5;
     double      mul_contam_rate = 1e-10; // 0.050; // 0.04 * 2.0; // ;
     

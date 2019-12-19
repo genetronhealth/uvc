@@ -805,8 +805,9 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                                 , ((BASE_SYMBOL == symbolType) ? paramset.phred_sys_artifact_snv : (LINK_SYMBOL == symbolType ? paramset.phred_sys_artifact_indel : 0))
                                 , paramset.add_contam_rate
                                 , paramset.mul_contam_rate
-                                , repeatunit, repeatnum 
-                                , paramset.t2n_sys_err_frac
+                                , repeatunit, repeatnum
+                                , paramset.t2n_sys_err_frac_snv
+                                , paramset.t2n_sys_err_frac_indel
                                 // paramset.phred_sys_artifact
                                 // , paramset.highqual_min_vardep, paramset.highqual_min_totdep
                                 );

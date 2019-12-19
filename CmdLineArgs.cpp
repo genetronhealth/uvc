@@ -223,7 +223,8 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
                    "Must be greater than phred-germline. Increasing this value increases sensitivity", true);
     app.add_option("--phred-sys-err-indel",  phred_sys_artifact_indel,    "Phred-scale prior probability of systematic InDel error at a loci. "
                    "Must be greater than phred-germline. Increasing this value increases sensitivity", true);
-    app.add_option("--t2n-sys-err-frac",     t2n_sys_err_frac,            "Maximum tumor-to-normal fraction of systematic error above which a binomial distribution is applied.", true); 
+    app.add_option("--tn-sys-err-frac-snv",  t2n_sys_err_frac_snv,        "Maximum tumor-to-normal fraction of SNV   systematic error above which is fit to a binomial model.", true); 
+    app.add_option("--tn-sys-err-frac-indel",t2n_sys_err_frac_indel,      "Maximum tumor-to-normal fraction of InDel systematic error above which is fit to a binomial model.", true); 
     app.add_option("--nonref-alt-frac-snv",  nonref_to_alt_frac_snv,      "Fraction of NON-REF bases in normal that supports the ALT of interest for SNVs.", true);
     app.add_option("--nonref-alt-frac-indel",nonref_to_alt_frac_indel,    "Fraction of NON-REF bases in normal that supports the ALT of interest for InDels.", true);
     app.add_option("--tnq-mult-snv",         tnq_mult_snv,                "Multiplicative factor by which TNQ (tumor-normal quality) is amplified for computing QUAL for SNVs.", true);

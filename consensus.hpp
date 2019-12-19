@@ -2773,7 +2773,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         , const double mul_contam_rate
         , const std::string & repeatunit, const unsigned int repeatnum
         // , const double t2n_add_contam_frac
-        , const double t2n_sys_err_frac
+        , const double t2n_sys_err_frac_snv
+        , const double t2n_sys_err_frac_indel
         //, unsigned int highqual_min_vardep
         //, unsigned int highqual_min_totdep
         ) { 
@@ -3116,7 +3117,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         // t2n_sys_err_frac should be somewhat higher than t2n_add_contam_frac
         // double exp_contam_fa = MIN(0.5, to_exp_contam_fa(t2n_add_contam_frac, tki.FA, (double)tki.DP, fmt.FA, (double)fmt.DP));
         double t2n_contam_q = MIN(60.0, calc_binom_10log10_likeratio(add_contam_rate          , fmt.FA * fmt.DP,        tki.FA  * tki.DP));
-        double t2n_syserr_q = MIN(60.0, calc_binom_10log10_likeratio(t2n_sys_err_frac * tki.FA, fmt.FA * fmt.DP, (1.0 - fmt.FA) * fmt.DP));
+        double t2n_syserr_q = MIN(60.0, calc_binom_10log10_likeratio((isInDel ? t2n_sys_err_frac_indel : t2n_sys_err_frac_snv) * tki.FA, fmt.FA * fmt.DP, (1.0 - fmt.FA) * fmt.DP));
         //                                                    expected fraction,          observed this count,    observed other count
         // part: germline
         // const double indel_aq = (isInDel ? 10.0 : 0.0);
