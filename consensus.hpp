@@ -3044,11 +3044,11 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         const double t2n_rawq1 = ((true || nDP0 <= tDP0) // TODO: check if the symmetry makes sense?
             ? calc_binom_10log10_likeratio(        (tDP1 - tAD1) /         tDP1,         (nDP1 - nAD1) / nDP1 * nDP0,          (nAD1 / nDP1) * nDP0)
             : calc_binom_10log10_likeratio(               (nAD1) /         nDP1,         (tAD1 / tDP1) * tDP0,                 (tDP1 - tAD1) / tDP1 * tDP0)); 
-        const double t2n_rawq = MAX(t2n_rawq0, t2n_rawq1);
-
+        const double t2n_rawq = (isInDel ? MAX(t2n_rawq0, t2n_rawq1) : t2n_rawq1);
+        
         const double t2n_powq0 = MIN(MAX(-30.0, 10.0/log(10.0) * (1.0+log(symfrac*symfrac)/10.0) * pl_exponent * log(t2n_or0 /symfrac)), 30.0);
         const double t2n_powq1 = MIN(MAX(-30.0, 10.0/log(10.0) * (1.0+log(symfrac*symfrac)/10.0) * pl_exponent * log(t2n_or1 /symfrac)), 30.0);
-        const double t2n_powq = MAX(t2n_powq0, t2n_powq1);
+        const double t2n_powq = (isInDel ? MAX(t2n_powq0, t2n_powq1) : t2n_powq1);
         
         const double t2t_powq = 30.0;
         
@@ -3116,7 +3116,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         
         // t2n_sys_err_frac should be somewhat higher than t2n_add_contam_frac
         // double exp_contam_fa = MIN(0.5, to_exp_contam_fa(t2n_add_contam_frac, tki.FA, (double)tki.DP, fmt.FA, (double)fmt.DP));
-        double t2n_contam_q = MIN(60.0, calc_binom_10log10_likeratio(add_contam_rate          , fmt.FA * fmt.DP,        tki.FA  * tki.DP));
+        double t2n_contam_q = MIN(60.0, calc_binom_10log10_likeratio(add_contam_rate                                                   , fmt.FA * fmt.DP,        tki.FA  * tki.DP));
         double t2n_syserr_q = MIN(60.0, calc_binom_10log10_likeratio((isInDel ? t2n_sys_err_frac_indel : t2n_sys_err_frac_snv) * tki.FA, fmt.FA * fmt.DP, (1.0 - fmt.FA) * fmt.DP));
         //                                                    expected fraction,          observed this count,    observed other count
         // part: germline
@@ -3137,9 +3137,9 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         std::array<double, N_MODELS> testquals = {0};
         unsigned int tqi = 0;
         // const double a_nogerm_q = (double)(n_nogerm_q + 0.0*MIN(MAX(0, t_nogerm_q),25));
-        double t2n_finq  = max_min01_sub02(MIN(t2n_rawq           , t2t_powq        )              , MIN(t2n_rawq, t2n_powq), t2n_contam_q);
+        double t2n_finq  = max_min01_sub02(MIN(t2n_rawq           , t2t_powq        )               , MIN(t2n_rawq, t2n_powq), t2n_contam_q);
         // 0 // n_nogerm_q and t2n_powq should have already bee normalized with contam
-        testquals[tqi++] = max_min01_sub02(MIN(tn_trawq, tn_tpowq + (double)indel_ic) + 1.0*t2n_finq, (double)a_nogerm_q,     t2n_contam_q) - t2n_syserr_q
+        testquals[tqi++] = max_min01_sub02(MIN(tn_trawq, tn_tpowq + (double)indel_ic) + 1.0*t2n_finq, (double)a_nogerm_q,      t2n_contam_q) - t2n_syserr_q
                 ; // + 0.0*t2n_finq; // ; + indel_aq;
         //testquals[tqi++] = MIN(tn_trawq, tn_tpowq + tvn_powq) - MIN(tn_nrawq, MAX(0.0, tn_npowq - tvn_or_q));
         testquals[tqi++] = MIN(tn_trawq, tvn_rawq * 2 + 30);
@@ -3225,8 +3225,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         }
         infostring += std::string(";TNQ=")  + string_join(std::array<std::string, 4>({
                   // std::to_string(median_qual)      , 
-                std::to_string(t2n_powq0)  , std::to_string(t2n_powq1),    
-                std::to_string(t2n_rawq0)  , std::to_string(t2n_rawq1)      
+                std::to_string(t2n_powq0), std::to_string(t2n_rawq0), 
+                std::to_string(t2n_powq1), std::to_string(t2n_rawq1)      
                   // ,std::to_string(tvn_powq)         , std::to_string(tvn_rawq)           , std::to_string(tvn_or_q), 
                   // std::to_string(tvn_st_q)
         }));
@@ -3238,7 +3238,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         infostring += std::string(";TNQA=") + string_join(std::array<std::string, 6-4+2>({
                 // std::to_string(a_nogerm_q),       // , std::to_string(phred_non_germ)     , std::to_string(tnlike_argmin),    
                 // , std::to_string(add_contam_phred)   , std::to_string(mul_contam_phred)
-                std::to_string(indel_pq),    std::to_string(reduction_coef),  
+                std::to_string(indel_pq),    std::to_string(reduction_coef),
                 std::to_string(t2n_syserr_q),std::to_string(t2n_contam_q)
         }));
         infostring += std::string(";TNTQ=") + string_join(std::array<std::string, 5>({
