@@ -3121,7 +3121,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         // double n_reads_obs = (fmt.FA * fmt.DP);
         double t2n_sys_err_frac = (isInDel ? t2n_sys_err_frac_indel : t2n_sys_err_frac_snv); 
         double t2n_contam_q = MIN(calc_binom_10log10_likeratio(add_contam_rate, fmt.FA * fmt.DP, tki.FA * tki.DP), 60.0);
-        double t2n_syserr_q = MAX(0.0, MIN(10.0/log(10.0) * MAX(10.0/log(10.0)*log(2.0), log((nAD1/nDP1) / (tAD1/tDP1 * t2n_sys_err_frac))) * MIN(tAD0, nAD0)), 60.0);
+        double t2n_syserr_q = MIN(MAX(0.0, 10.0/log(10.0) * MAX(10.0/log(10.0)*log(2.0), log((nAD1/nDP1) / (tAD1/tDP1 * t2n_sys_err_frac))) * MIN(tAD0, nAD0)), 60.0);
         
         double n2t_red_qual = MIN(tn_npowq, tn_nrawq + (double)indel_ic) / (t2n_or1 * t2n_or1);
         // calc_binom_10log10_likeratio((isInDel ? t2n_sys_err_frac_indel : t2n_sys_err_frac_snv) * tki.FA, fmt.FA * fmt.DP, (1.0 - fmt.FA) * fmt.DP)
