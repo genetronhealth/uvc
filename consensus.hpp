@@ -1283,7 +1283,7 @@ struct Symbol2CountCoverageSet {
         return 0;
     };
     
-    template <bool TBiggerIsOutlier>
+    template <bool TSmallerIsOutlier>
     std::pair<unsigned int, unsigned int>
     adabias(const auto & t0v, const auto & t1v, const double pseudocount, unsigned int gapdist) {
         static_assert(t0v.size() == t1v.size());
@@ -1305,7 +1305,7 @@ struct Symbol2CountCoverageSet {
         for (size_t i = 0; i < usize - 1; i++) {
             cur0 += (double)t0v[i];
             cur1 += (double)t1v[i];
-            unsigned int curr_biasfact100 = (TBiggerIsOutlier
+            unsigned int curr_biasfact100 = (TSmallerIsOutlier
                     ? any4_to_biasfact100(sum0 - cur0, cur0, sum1 - cur1, cur1, false, pseudocount) // position bias
                     : any4_to_biasfact100(cur0, sum0 - cur0, cur1, sum1 - cur1, false, pseudocount)); // mismatch bias
             // LOG(logINFO) << "At " << i << " : " << cur0 << " , " << sum0 - cur0 << " , " << cur1 << " , " << sum1 - cur1;
@@ -1401,17 +1401,17 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         }
                         
                         // compute positional bias
-                        auto pb_ldist_pair = adabias<false>(vsum_pb_dist_lpart, pb_dist_lpart[strand].getByPos(pos).getSymbolCounts(symbol), pseudocount / 2, 2);
+                        auto pb_ldist_pair = adabias<true >(vsum_pb_dist_lpart, pb_dist_lpart[strand].getByPos(pos).getSymbolCounts(symbol), pseudocount / 2, 2);
                         amax_ldist[strand].getRefByPos(pos).incSymbolCount(symbol, edbuck2pos(pb_ldist_pair.first));
                         bias_ldist[strand].getRefByPos(pos).incSymbolCount(symbol, pb_ldist_pair.second);
                         auto pb_ldist_imba = biasfact100_to_imba(bias_ldist[strand].getRefByPos(pos).getSymbolCount(symbol));
 
-                        auto pb_rdist_pair = adabias<false>(vsum_pb_dist_rpart, pb_dist_rpart[strand].getByPos(pos).getSymbolCounts(symbol), pseudocount / 2, 2);
+                        auto pb_rdist_pair = adabias<true >(vsum_pb_dist_rpart, pb_dist_rpart[strand].getByPos(pos).getSymbolCounts(symbol), pseudocount / 2, 2);
                         amax_rdist[strand].getRefByPos(pos).incSymbolCount(symbol, edbuck2pos(pb_rdist_pair.first));
                         bias_rdist[strand].getRefByPos(pos).incSymbolCount(symbol, pb_rdist_pair.second);
                         auto pb_rdist_imba = biasfact100_to_imba(bias_rdist[strand].getRefByPos(pos).getSymbolCount(symbol));
                         
-                        auto pb_nvars_pair = adabias<true> (vsum_pb_dist_nvars, pb_dist_nvars[strand].getByPos(pos).getSymbolCounts(symbol), pseudocount / 2, 4);
+                        auto pb_nvars_pair = adabias<false>(vsum_pb_dist_nvars, pb_dist_nvars[strand].getByPos(pos).getSymbolCounts(symbol), pseudocount / 2, 4);
                         amax_nvars[strand].getRefByPos(pos).incSymbolCount(symbol, pb_nvars_pair.first);
                         bias_nvars[strand].getRefByPos(pos).incSymbolCount(symbol, pb_nvars_pair.second);
                         auto pb_nvars_imba = biasfact100_to_imba(bias_nvars[strand].getRefByPos(pos).getSymbolCount(symbol));
