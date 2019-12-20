@@ -3239,7 +3239,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         //infostring += std::string(";TNQ=") + string_join(std::array<std::string, 4>({std::to_string(tn_systq), std::to_string(tn_randq),
         //        std::to_string(tn_contq), std::to_string(phred_non_germ)}));
         
-        for (int i = 0; i < MIN(1,N_MODELS); i++) {
+        for (int i = 0; i < MIN(MODEL_SEP_1, N_MODELS); i++) {
             infostring += std::string(";TQ") + std::to_string(i) + "=" + std::to_string(testquals[i]); 
         }
         infostring += std::string(";TNQ=")  + string_join(std::array<std::string, 4>({
