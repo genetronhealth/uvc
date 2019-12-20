@@ -2604,6 +2604,7 @@ generateVcfHeader(const char *ref_fasta_fname, const char *platform,
     ret += "##INFO=<ID=TNQ,Number=.,Type=Float,Description=\"For t-vs-n: allele-fraction variant quality (VQ), raw VQ, contamination VQ, and statistical noise VQ\">\n";
     ret += "##INFO=<ID=NGQ,Number=.,Type=Float,Description=\"Non-germline qualities: overall, normal-alt, tumor-alt, normal-nonref, tumor-nonref\">\n";
     ret += "##INFO=<ID=TNQA,Number=.,Type=Float,Description=\"Normal germline-exclusion quality, tumor germline-exclusion quality, argmin for t-vs-n raw VQ, coefficient for final variant call, additive contamination score, and multiplicative contamination score.\">\n";
+    ret += "##INFO=<ID=TNOR,Number=.,Type=Float,Description=\"Tumor-to-normal signal odds ratio of odds ratio using read counts and base qualities.\">\n";
     ret += "##INFO=<ID=TNNQ,Number=.,Type=Float,Description=\"For only tumor  sample: allele-fraction variant quality (VQ), raw VQ, and raw adjustment quality\">\n";
     ret += "##INFO=<ID=TNTQ,Number=.,Type=Float,Description=\"For only normal sample: allele-fraction variant quality (VQ), raw VQ, and raw adjustment quality\">\n";
     ret += "##INFO=<ID=tDP,Number=1,Type=Integer,Description=\"Tumor-sample DP\">\n";
@@ -3116,8 +3117,14 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         
         // t2n_sys_err_frac should be somewhat higher than t2n_add_contam_frac
         // double exp_contam_fa = MIN(0.5, to_exp_contam_fa(t2n_add_contam_frac, tki.FA, (double)tki.DP, fmt.FA, (double)fmt.DP));
-        double t2n_contam_q = MIN(60.0, calc_binom_10log10_likeratio(add_contam_rate                                                   , fmt.FA * fmt.DP,        tki.FA  * tki.DP));
-        double t2n_syserr_q = MIN(60.0, calc_binom_10log10_likeratio((isInDel ? t2n_sys_err_frac_indel : t2n_sys_err_frac_snv) * tki.FA, fmt.FA * fmt.DP, (1.0 - fmt.FA) * fmt.DP));
+        // double n_reads_exp = (isInDel ? t2n_sys_err_frac_indel : t2n_sys_err_frac_snv) * (tki.FA * tki.DP + 1.0);
+        // double n_reads_obs = (fmt.FA * fmt.DP);
+        double t2n_sys_err_frac = (isInDel ? t2n_sys_err_frac_indel : t2n_sys_err_frac_snv); 
+        double t2n_contam_q = MIN(calc_binom_10log10_likeratio(add_contam_rate, fmt.FA * fmt.DP, tki.FA * tki.DP), 60.0);
+        double t2n_syserr_q = MAX(0.0, MIN(10.0/log(10.0) * MAX(10.0/log(10.0)*log(2.0), log((nAD1/nDP1) / (tAD1/tDP1 * t2n_sys_err_frac))) * MIN(tAD0, nAD0)), 60.0);
+        
+        double n2t_red_qual = MIN(tn_npowq, tn_nrawq + (double)indel_ic) / (t2n_or1 * t2n_or1);
+        // calc_binom_10log10_likeratio((isInDel ? t2n_sys_err_frac_indel : t2n_sys_err_frac_snv) * tki.FA, fmt.FA * fmt.DP, (1.0 - fmt.FA) * fmt.DP)
         //                                                    expected fraction,          observed this count,    observed other count
         // part: germline
         // const double indel_aq = (isInDel ? 10.0 : 0.0);
@@ -3128,21 +3135,30 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         // If Pr[exp-error] is approx 0, then Pr[soma | signal is from either germ or soma] is approx Pr[soma | signal is from either germ, soma, or exp-error]
         // If Pr[germ]      is approx 0, then Pr[soma] is approx (1 - Pr[exp-error])
         const int32_t noisy_germ_phred = 5; // probability that tumor is alt1/alt2 hetero and normal is ref/alt1 hetero, this is quite low
-        const int32_t a_nogerm_q = homref_gt_phred // (int)(isInDel ? MIN(3, (int)homref_gt_phred - indel_pq) : (int)homref_gt_phred)
-                // - (int)(10.0/log(10.0) * log((double)MAX(indelstring.size(), 1))))
-                + (is_nonref_germline_excluded ? 
-                   MIN(nonalt_qual + MIN(MAX(0, nonalt_tu_q), nonalt_tu_maxq), noisy_germ_phred + excalt_qual + MAX(0, excalt_tu_q)) : 
-                      (nonalt_qual + MIN(MAX(0, nonalt_tu_q), nonalt_tu_maxq))); // + nogerm;
         
         std::array<double, N_MODELS> testquals = {0};
         unsigned int tqi = 0;
         // const double a_nogerm_q = (double)(n_nogerm_q + 0.0*MIN(MAX(0, t_nogerm_q),25));
-        double t2n_finq  = max_min01_sub02(MIN(t2n_rawq           , t2t_powq        )               , MIN(t2n_rawq, t2n_powq), t2n_contam_q);
+        double t2n_finq  = max_min01_sub02(MIN(t2n_rawq, t2t_powq), MIN(t2n_rawq, t2n_powq), t2n_contam_q);
+        double t_base_q = MIN(tn_trawq, tn_tpowq + (double)indel_ic) + t2n_finq;
+        
+        double a_no_alt_qual = MAX(
+                nonalt_qual + MIN(MAX(0, nonalt_tu_q), nonalt_tu_maxq), // quality of non-germline event
+                t_base_q - t2n_contam_q                                 // likelihood of signal minus the likelihood of contamination. Note: this has already been considered in GQ
+        );
+        const int32_t a_nogerm_q = homref_gt_phred // (int)(isInDel ? MIN(3, (int)homref_gt_phred - indel_pq) : (int)homref_gt_phred)
+                // - (int)(10.0/log(10.0) * log((double)MAX(indelstring.size(), 1))))
+                + (is_nonref_germline_excluded ? 
+                   MIN(a_no_alt_qual, noisy_germ_phred + excalt_qual + MAX(0, excalt_tu_q)) : 
+                       a_no_alt_qual); // + nogerm;
+        
         // 0 // n_nogerm_q and t2n_powq should have already bee normalized with contam
-        testquals[tqi++] = max_min01_sub02(MIN(tn_trawq, tn_tpowq + (double)indel_ic) + 1.0*t2n_finq, (double)a_nogerm_q,      t2n_contam_q) - t2n_syserr_q
+        testquals[tqi++] = MIN(t_base_q, (double)a_nogerm_q) - t2n_syserr_q
+        //testquals[tqi++] = max_min01_sub02(t_base_q, (double)a_nogerm_q,      t2n_contam_q) - t2n_syserr_q
                 ; // + 0.0*t2n_finq; // ; + indel_aq;
         //testquals[tqi++] = MIN(tn_trawq, tn_tpowq + tvn_powq) - MIN(tn_nrawq, MAX(0.0, tn_npowq - tvn_or_q));
-        testquals[tqi++] = MIN(tn_trawq, tvn_rawq * 2 + 30);
+        testquals[tqi++] = MIN(t_base_q, (double)a_nogerm_q) - n2t_red_qual;
+        //testquals[tqi++] = MIN(tn_trawq, tvn_rawq * 2 + 30);
         testquals[tqi++] = MIN(tn_trawq, tvn_rawq     + tn_tpowq);
         testquals[tqi++] = MIN(tn_trawq - tn_nrawq + 0       , tn_tpowq - MAX(0.0, tn_npowq - tvn_or_q) + tvn_powq);
         testquals[tqi++] = MIN(tn_trawq - tn_nrawq + tvn_rawq, tn_tpowq - MAX(0.0, tn_npowq - tvn_or_q) + tvn_powq);
@@ -3171,7 +3187,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         testquals[tqi++] = MIN(tn_trawq, tn_tpowq                + tvn_powq) - MIN(MIN(tn_nrawq, tn_npowq           ), contam_phred);
         testquals[tqi++] = MIN(tn_trawq, tn_tpowq                + tvn_powq) - MIN(MIN(tn_nrawq, tn_npowq - tvn_powq), contam_phred);
         
-        const int MODEL_SEP_1 = 1;
+        const int MODEL_SEP_1 = 2;
         vcfqual = 0;
         for (int i = 0; i < MIN(MODEL_SEP_1, N_MODELS); i++) {
             // FIXME: probabilities of germline polymorphism and somatic mutation at a locus are both strongly correlated with the STR pattern for InDels
@@ -3235,11 +3251,17 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
                 std::to_string(nonalt_qual), std::to_string(nonalt_tu_q),
                 std::to_string(excalt_qual), std::to_string(excalt_tu_q) 
         }));
-        infostring += std::string(";TNQA=") + string_join(std::array<std::string, 6-4+2>({
+        infostring += std::string(";TNQA=") + string_join(std::array<std::string, 6-4+2+1+1>({
                 // std::to_string(a_nogerm_q),       // , std::to_string(phred_non_germ)     , std::to_string(tnlike_argmin),    
                 // , std::to_string(add_contam_phred)   , std::to_string(mul_contam_phred)
+                std::to_string(t_base_q),    std::to_string(t2n_syserr_q),
+                std::to_string(n2t_red_qual),
                 std::to_string(indel_pq),    std::to_string(reduction_coef),
-                std::to_string(t2n_syserr_q),std::to_string(t2n_contam_q)
+                std::to_string(t2n_contam_q)
+        }));
+        // t2n_or1 * t2n_or1
+        infostring += std::string(";TNOR=") + string_join(std::array<std::string, 2>({
+                std::to_string(t2n_or0),     std::to_string(t2n_or1)
         }));
         infostring += std::string(";TNTQ=") + string_join(std::array<std::string, 5>({
                 std::to_string(_tn_tpo2q)  , std::to_string(tn_trawq),
