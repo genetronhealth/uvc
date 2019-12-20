@@ -1283,6 +1283,7 @@ struct Symbol2CountCoverageSet {
         return 0;
     };
     
+    template <bool TBiggerIsOutlier>
     std::pair<unsigned int, unsigned int>
     adabias(const auto & t0v, const auto & t1v, const double pseudocount, unsigned int gapdist) {
         static_assert(t0v.size() == t1v.size());
@@ -1304,7 +1305,9 @@ struct Symbol2CountCoverageSet {
         for (size_t i = 0; i < usize - 1; i++) {
             cur0 += (double)t0v[i];
             cur1 += (double)t1v[i];
-            unsigned int curr_biasfact100 = any4_to_biasfact100(sum0 - cur0, cur0, sum1 - cur1, cur1, false, pseudocount);
+            unsigned int curr_biasfact100 = (TBiggerIsOutlier
+                    ? any4_to_biasfact100(sum0 - cur0, cur0, sum1 - cur1, cur1, false, pseudocount) // position bias
+                    : any4_to_biasfact100(cur0, sum0 - cur0, cur1, sum1 - cur1, false, pseudocount)); // mismatch bias
             // LOG(logINFO) << "At " << i << " : " << cur0 << " , " << sum0 - cur0 << " , " << cur1 << " , " << sum1 - cur1;
             // unsigned int norm_biasfact100 = MIN(curr_biasfact100, MIN(prev_biasfact100, pre2_biasfact100));
             unsigned int norm_biasfact100 = curr_biasfact100;
@@ -1398,18 +1401,18 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         }
                         
                         // compute positional bias
-                        auto pb_ldist_pair = adabias(vsum_pb_dist_lpart, pb_dist_lpart[strand].getByPos(pos).getSymbolCounts(symbol), pseudocount / 2, 2);
+                        auto pb_ldist_pair = adabias<false>(vsum_pb_dist_lpart, pb_dist_lpart[strand].getByPos(pos).getSymbolCounts(symbol), pseudocount / 2, 2);
                         amax_ldist[strand].getRefByPos(pos).incSymbolCount(symbol, edbuck2pos(pb_ldist_pair.first));
                         bias_ldist[strand].getRefByPos(pos).incSymbolCount(symbol, pb_ldist_pair.second);
                         auto pb_ldist_imba = biasfact100_to_imba(bias_ldist[strand].getRefByPos(pos).getSymbolCount(symbol));
 
-                        auto pb_rdist_pair = adabias(vsum_pb_dist_rpart, pb_dist_rpart[strand].getByPos(pos).getSymbolCounts(symbol), pseudocount / 2, 2);
+                        auto pb_rdist_pair = adabias<false>(vsum_pb_dist_rpart, pb_dist_rpart[strand].getByPos(pos).getSymbolCounts(symbol), pseudocount / 2, 2);
                         amax_rdist[strand].getRefByPos(pos).incSymbolCount(symbol, edbuck2pos(pb_rdist_pair.first));
                         bias_rdist[strand].getRefByPos(pos).incSymbolCount(symbol, pb_rdist_pair.second);
                         auto pb_rdist_imba = biasfact100_to_imba(bias_rdist[strand].getRefByPos(pos).getSymbolCount(symbol));
                         
-                        auto pb_nvars_pair = adabias(vsum_pb_dist_nvars, pb_dist_nvars[strand].getByPos(pos).getSymbolCounts(symbol), pseudocount / 2, 4);
-                        amax_nvars[strand].getRefByPos(pos).incSymbolCount(symbol, NUM_NMBUCKS - pb_nvars_pair.first - 1);
+                        auto pb_nvars_pair = adabias<true> (vsum_pb_dist_nvars, pb_dist_nvars[strand].getByPos(pos).getSymbolCounts(symbol), pseudocount / 2, 4);
+                        amax_nvars[strand].getRefByPos(pos).incSymbolCount(symbol, pb_nvars_pair.first);
                         bias_nvars[strand].getRefByPos(pos).incSymbolCount(symbol, pb_nvars_pair.second);
                         auto pb_nvars_imba = biasfact100_to_imba(bias_nvars[strand].getRefByPos(pos).getSymbolCount(symbol));
                         
@@ -1618,7 +1621,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         for (SymbolType symbolType = SymbolType(0); symbolType < NUM_SYMBOL_TYPES; symbolType = SymbolType(1+((unsigned int)symbolType))) {
                             auto con_symbol = con_symbols_vec.at(epos - read_ampBQerr_fragWithR1R2.getIncluBegPosition()).at(symbolType);
                             if (END_ALIGNMENT_SYMBOLS != con_symbol) {
-                                this->pb_dist_nvars[strand].getRefByPos(epos).incSymbolBucketCount(con_symbol, NUM_NMBUCKS - 1 - n_vars, 1);
+                                this->pb_dist_nvars[strand].getRefByPos(epos).incSymbolBucketCount(con_symbol, n_vars, 1);
                             }
                         }
                     }
@@ -1820,7 +1823,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                     for (SymbolType symbolType = SymbolType(0); symbolType < NUM_SYMBOL_TYPES; symbolType = SymbolType(1+((unsigned int)symbolType))) {
                         auto con_symbol = con_symbols_vec.at(epos - read_family_amplicon.getIncluBegPosition()).at(symbolType);
                         if (END_ALIGNMENT_SYMBOLS != con_symbol) {
-                            this->pb_dist_nvars[strand].getRefByPos(epos).incSymbolBucketCount(con_symbol, NUM_NMBUCKS - 1 - n_vars, 1);
+                            this->pb_dist_nvars[strand].getRefByPos(epos).incSymbolBucketCount(con_symbol, n_vars, 1);
                         }
                     }
                 }
@@ -2320,16 +2323,6 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
             auto & fmtGST = (0 == t ? fmt.GSTa : fmt.GSTb);
             auto & prank = pranks[t];
             
-            // normalize contam with t2n_contam, 
-            int homref_likecon1 = -200; // t2n_contam_alt_q    = -200;
-            int homalt_likecon1 = -200; // t2n_contam_nonref_q = -200;
-            if (prev_is_tumor) {
-                // double tki_FO = 1.0 - tki.FA - tki.FR;
-                // double fmt_FO = 1.0 - fmt.FA - fmt.FR;
-                homref_likecon1 = -(int)calc_binom_10log10_likeratio(t2n_add_contam_frac,        fmt.FA  * fmt.DP,        tki.FA  * tki.DP);
-                homalt_likecon1 = -(int)calc_binom_10log10_likeratio(t2n_add_contam_frac, (1.0 - fmt.FA) * fmt.DP, (1.0 - tki.FA) * tki.DP);
-            }
-            
             const double fa1 = MAX(0.0, ((0 == t) ? (fmt.FA) : (1.0 - fmt.FA - fmt.FR)));
             
             const double fa_l = (fa1 * (double)fmt.DP + 1.0 / altmul) / (double)(fmt.DP + 2.0 / altmul);
@@ -2341,6 +2334,16 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
             const double da_v = fa_v * fmt.DP;
             const double fr_v = 1.0 - fa_v;
             const double dr_v = fr_v * fmt.DP;
+            
+            // normalize contam with t2n_contam, 
+            int homref_likecon1 = -200; // t2n_contam_alt_q    = -200;
+            int homalt_likecon1 = -200; // t2n_contam_nonref_q = -200;
+            if (prev_is_tumor) {
+                // double tki_FO = 1.0 - tki.FA - tki.FR;
+                // double fmt_FO = 1.0 - fmt.FA - fmt.FR;
+                homref_likecon1 = -(int)calc_binom_10log10_likeratio(t2n_add_contam_frac,        fa1  * fmt.DP,        fa1  * tki.DP);
+                homalt_likecon1 = -(int)calc_binom_10log10_likeratio(t2n_add_contam_frac, (1.0 - fa1) * fmt.DP, (1.0 - fa1) * tki.DP);
+            }
             
             // two models (additive and multiplicative)
             // two alleles (REF and ALT)
