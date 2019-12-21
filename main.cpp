@@ -265,6 +265,8 @@ struct TumorKeyInfo {
     std::array<int32_t, 6*RCC_NUM> RCC = {0};
     std::array<int32_t, 3> GLa = {0};
     std::array<int32_t, 3> GLb = {0};
+    std::array<int32_t, 4> B4 = {0};
+
     bcf1_t *bcf1_record = NULL;
     /*
     ~TumorKeyInfo() {
@@ -477,6 +479,13 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         for (int i = 0; i < 3; i++) {
             tki.GLb[i] = bcfints[i];
         }
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "B4",  &bcfints, &ndst_val);
+        assert((4 == ndst_val && 4 == valsize) || !fprintf(stderr, "4 == %d && 4 == %d failed for B4!\n", ndst_val, valsize));
+        for (int i = 0; i < 4; i++) {
+            tki.B4[i] = bcfints[i];
+        } 
         
         ndst_val = 0;
         valsize = bcf_get_format_char(bcf_hdr, line, "cHap", &bcfstring, &ndst_val);
