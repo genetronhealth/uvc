@@ -2984,7 +2984,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         // const double tumor_non_germ = 0; // (tki.FA >= t_germFA ? (1000.0 * (t_germFA - tki.FA)) : calc_phred10_likeratio(t_germFA, tki.FA * (double)tki.DP, (1.0 - tki.FA) * (double)tki.DP));
         const double tumor_non_germ_reward = MAX(0.0, 0.2 - MAX(tki.FA, (1.0-tki.FA-tki.FR))) * 10;
 #endif
-        double reduction_coef = (double)tAD0 / ((double)tAD0 + DBL_EPSILON + MIN(MAX(0.0, tki.B4[3]/100.0-1.0), 2.0) + //0*1.0 // tki.B4[3] is the mismatch bias
+        double reduct_coef = (double)tAD0 / ((double)tAD0 + DBL_EPSILON + MIN(MAX(0.0, tki.B4[3]/100.0-1.0), 2.0) + //0*1.0 // tki.B4[3] is the mismatch bias
             + 2.0 * (MAX(0.0, 60.0 - tki.MQ) / (MAX(60.0 ,tki.MQ) +  DBL_EPSILON))
             + 0.0 * (1.0 - tAD1 / MAX(tDP1 - tRD1, tAD1)));
         
@@ -3042,6 +3042,11 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
                              / ((double)(nAD1 +           nAD1pc0) / (double)(nDP1 - nAD1 +           (nDP1pc0 - nAD1pc0))); 
         const double t2n_or = MAX(t2n_or0, t2n_or1);
         
+        const double n2t_or0 = ((double)(nAD0 +     0.0 * nAD0pc0) / (double)(nDP0 - nAD0 +     0.0 * (nDP0pc0 - nAD0pc0))) 
+                             / ((double)(tAD0 +           tAD0pc0) / (double)(tDP0 - tAD0 +           (tDP0pc0 - tAD0pc0)));
+        const double n2t_or1 = ((double)(nAD1 +     0.0 * nAD1pc0) / (double)(nDP1 - nAD1 +     0.0 * (nDP1pc0 - nAD1pc0))) 
+                             / ((double)(tAD1 +           tAD1pc0) / (double)(tDP1 - tAD1 +           (tDP1pc0 - tAD1pc0))); 
+
         const double t2n_rawq0 = ((true || nDP0 <= tDP0) // TODO: check if the symmetry makes sense?
             ? calc_binom_10log10_likeratio((double)(tDP0 - tAD0) / (double)tDP0, (double)(nDP0 - nAD0),                (double)(nAD0)                      )
             : calc_binom_10log10_likeratio((double)       (nAD0) / (double)nDP0, (double)(nAD0),                       (double)(nDP0 - nAD0)               )); 
@@ -3126,7 +3131,10 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         double t2n_contam_q = MIN(calc_binom_10log10_likeratio(add_contam_rate, fmt.FA * fmt.DP, tki.FA * tki.DP), 60.0);
         double t2n_syserr_q = MIN(MAX(0.0, 10.0/log(10.0) * MAX(10.0/log(10.0)*log(2.0), log((nAD1/nDP1) / (tAD1/tDP1 * t2n_sys_err_frac))) * MIN(tAD0, nAD0)), 60.0);
         
-        double n2t_red_qual = MIN(tn_npowq, tn_nrawq + (double)indel_ic) / (t2n_or1 * t2n_or1);
+        double n2t_red_qual = MIN(tn_npowq, tn_nrawq + (double)indel_ic) * MIN(1.0, n2t_or1) * MIN(1.0, n2t_or1); // / (t2n_or1 * t2n_or1);
+        double n2t_orr_qual = MIN(tn_npowq, tn_nrawq + (double)indel_ic) * MIN(1.0, n2t_or1);
+        double n2t_or2_qual = MIN(tn_npowq, tn_nrawq + (double)indel_ic) * MIN(1.0, n2t_or1/2.0);
+        
         // calc_binom_10log10_likeratio((isInDel ? t2n_sys_err_frac_indel : t2n_sys_err_frac_snv) * tki.FA, fmt.FA * fmt.DP, (1.0 - fmt.FA) * fmt.DP)
         //                                                    expected fraction,          observed this count,    observed other count
         // part: germline
@@ -3160,11 +3168,16 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         //testquals[tqi++] = max_min01_sub02(t_base_q, (double)a_nogerm_q,      t2n_contam_q) - t2n_syserr_q
                 ; // + 0.0*t2n_finq; // ; + indel_aq;
         //testquals[tqi++] = MIN(tn_trawq, tn_tpowq + tvn_powq) - MIN(tn_nrawq, MAX(0.0, tn_npowq - tvn_or_q));
-        testquals[tqi++] = MIN(t_base_q, (double)a_nogerm_q) - n2t_red_qual;
+        testquals[tqi++] = MIN(t_base_q - n2t_red_qual, (double)a_nogerm_q);
         //testquals[tqi++] = MIN(tn_trawq, tvn_rawq * 2 + 30);
-        testquals[tqi++] = MIN(tn_trawq, tvn_rawq     + tn_tpowq);
-        testquals[tqi++] = MIN(tn_trawq - tn_nrawq + 0       , tn_tpowq - MAX(0.0, tn_npowq - tvn_or_q) + tvn_powq);
+        //testquals[tqi++] = MIN(tn_trawq, tvn_rawq     + tn_tpowq);
+        // testquals[tqi++] = MIN(t_base_q - n_norm_q, (double)a_nogerm_q);
+        testquals[tqi++] = MIN(t_base_q - n2t_orr_qual, (double)a_nogerm_q);
+        testquals[tqi++] = MIN(t_base_q - n2t_or2_qual, (double)a_nogerm_q);
+
+        // testquals[tqi++] = MIN(tn_trawq - tn_nrawq + 0       , tn_tpowq - MAX(0.0, tn_npowq - tvn_or_q) + tvn_powq);
         testquals[tqi++] = MIN(tn_trawq - tn_nrawq + tvn_rawq, tn_tpowq - MAX(0.0, tn_npowq - tvn_or_q) + tvn_powq);
+
         // 5
         testquals[tqi++] = MIN(tn_trawq, tn_tpowq) + MIN(tvn_rawq, tvn_powq) - MIN(30.0, MIN(tn_nrawq, tn_npowq));
         testquals[tqi++] = MIN(tn_trawq, tn_tpowq) + MIN(tvn_rawq, tvn_powq) - MAX(0.0 , MIN(tn_nrawq, tn_npowq) - tvn_or_q);
@@ -3196,12 +3209,12 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
             // FIXME: probabilities of germline polymorphism and somatic mutation at a locus are both strongly correlated with the STR pattern for InDels
             //        here we assumed that the likelihood of germline polymorphism is proportional to the likelihood of somatic mutation.
             //        however, in practice the two likelihoods may be different from each other.
-            testquals[i] = reduction_coef * testquals[i]; // + (isInDel ? (indel_pp + indel_p2) : 0.0);
+            testquals[i] = reduct_coef * testquals[i]; // + (isInDel ? (indel_pp + indel_p2) : 0.0);
             vcfqual = MAX(vcfqual, testquals[i]);
         }
         /*
         for (int i = MODEL_SEP_1; i < N_MODELS; i++) {
-            testquals[i] = MIN(reduction_coef * testquals[i] + (isInDel ? (indel_pp + indel_p2) : 0.0), 
+            testquals[i] = MIN(reduct_coef * testquals[i] + (isInDel ? (indel_pp + indel_p2) : 0.0), 
                     phred_non_germ + tumor_non_germ_reward + (double)homref_gt_phred + 0.0 * (isInDel ? (indel_pq- 10.0) : 0.0));
             vcfqual = MAX(vcfqual, testquals[i]);
         }
@@ -3220,10 +3233,10 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         }
         
         // vcfqual = testquals[0];
-        // vcfqual = reduction_coef * MIN(MIN(MAX(vq1time, vq1plus), vq2succ), phred_non_germ);
-        // vcfqual = reduction_coef * MIN(tn_trawq + MIN(10.0 * pl_exponent, tn_diffq) - MIN(10.0 * pl_exponent, tn_nrawq), phred_non_germ);
+        // vcfqual = reduct_coef * MIN(MIN(MAX(vq1time, vq1plus), vq2succ), phred_non_germ);
+        // vcfqual = reduct_coef * MIN(tn_trawq + MIN(10.0 * pl_exponent, tn_diffq) - MIN(10.0 * pl_exponent, tn_nrawq), phred_non_germ);
         /*
-        vcfqual = reduction_coef * MIN(MAX(MAX(
+        vcfqual = reduct_coef * MIN(MAX(MAX(
                   tn_systq // tumor has signal and random noise, normal has random noise // * (double)nAD0 / (double)(nAD0 + 1), 
                 , tn_randq) // tumor has signal and systematic noise, normal has systematic noise
                 , tn_contq) // tumor has signal and contamination, norml has contaminnation
@@ -3254,17 +3267,18 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
                 std::to_string(nonalt_qual), std::to_string(nonalt_tu_q),
                 std::to_string(excalt_qual), std::to_string(excalt_tu_q) 
         }));
-        infostring += std::string(";TNQA=") + string_join(std::array<std::string, 6-4+2+1+1>({
+        infostring += std::string(";TNQA=") + string_join(std::array<std::string, 8>({
                 // std::to_string(a_nogerm_q),       // , std::to_string(phred_non_germ)     , std::to_string(tnlike_argmin),    
                 // , std::to_string(add_contam_phred)   , std::to_string(mul_contam_phred)
                 std::to_string(t_base_q),    std::to_string(t2n_syserr_q),
-                std::to_string(n2t_red_qual),
-                std::to_string(indel_pq),    std::to_string(reduction_coef),
-                std::to_string(t2n_contam_q)
+                std::to_string(n2t_red_qual),std::to_string(n2t_orr_qual),
+                std::to_string(n2t_or2_qual),std::to_string(indel_pq),    
+                std::to_string(reduct_coef), std::to_string(t2n_contam_q)
         }));
         // t2n_or1 * t2n_or1
-        infostring += std::string(";TNOR=") + string_join(std::array<std::string, 2>({
-                std::to_string(t2n_or0),     std::to_string(t2n_or1)
+        infostring += std::string(";TNOR=") + string_join(std::array<std::string, 2+2>({
+                std::to_string(t2n_or0),     std::to_string(t2n_or1),
+                std::to_string(n2t_or0),     std::to_string(n2t_or1)
         }));
         infostring += std::string(";TNTQ=") + string_join(std::array<std::string, 5>({
                 std::to_string(_tn_tpo2q)  , std::to_string(tn_trawq),
@@ -3290,7 +3304,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         infostring += std::string(";tGLa=") + other_join(tki.GLa);
         infostring += std::string(";tGLb=") + other_join(tki.GLb);
  
-        // infostring += std::string(";TNQA=") + string_join(std::array<std::string, 4>({std::to_string(tn_systq), std::to_string(tvn_powq), std::to_string(tnlike_argmin), std::to_string(reduction_coef)}));
+        // infostring += std::string(";TNQA=") + string_join(std::array<std::string, 4>({std::to_string(tn_systq), std::to_string(tvn_powq), std::to_string(tnlike_argmin), std::to_string(reduct_coef)}));
         
         // auto finalGQ = (("1/0" == fmt.GT) ? fmt.GQ : 0); // is probably redundant?
         /*
