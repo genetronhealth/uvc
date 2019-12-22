@@ -1418,12 +1418,13 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         
                         if (should_add_note) {
                             unsigned int allcurr, altcurr, allrest, altrest;
+                            this->additional_note.getRefByPos(pos).at(symbol) += "//(";
+                            
                             allcurr = altcurr = allrest = altrest = 0;
                             for (unsigned int i = 0; i < vsum_pb_dist_lpart.size(); i++) {
                                 allrest += vsum_pb_dist_lpart[i];
                                 altrest += pb_dist_lpart[strand].getByPos(pos).getSymbolCounts(symbol)[i];
                             }
-                            this->additional_note.getRefByPos(pos).at(symbol) += "//(";
                             for (unsigned int i = 0; i < vsum_pb_dist_lpart.size(); i++) {
                                 allcurr += vsum_pb_dist_lpart[i];
                                 altcurr += pb_dist_lpart[strand].getByPos(pos).getSymbolCounts(symbol)[i];
@@ -1444,6 +1445,20 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                                         + std::to_string(allrest-allcurr) + "/" + std::to_string(allcurr) + "/" + std::to_string(altrest-altcurr) + "/" + std::to_string(altcurr)  + ")";
                                         // + std::to_string(altcurr) + "/" + std::to_string(altrest-altcurr) + "/" + std::to_string(allcurr) + "/" + std::to_string(allrest-allcurr)  + ")";
                             }
+                            
+                            allcurr = altcurr = allrest = altrest = 0;
+                            for (unsigned int i = 0; i < vsum_pb_dist_nvars.size(); i++) {
+                                allrest += vsum_pb_dist_nvars[i];
+                                altrest += pb_dist_nvars[strand].getByPos(pos).getSymbolCounts(symbol)[i];
+                            }
+                            for (unsigned int i = 0; i < vsum_pb_dist_nvars.size(); i++) {
+                                allcurr += vsum_pb_dist_nvars[i];
+                                altcurr += pb_dist_nvars[strand].getByPos(pos).getSymbolCounts(symbol)[i];
+                                this->additional_note.getRefByPos(pos).at(symbol) += std::to_string(i) + "(" + std::to_string((i)) + "/" 
+                                        + std::to_string(allrest-allcurr) + "/" + std::to_string(allcurr) + "/" + std::to_string(altrest-altcurr) + "/" + std::to_string(altcurr)  + ")";
+                                        // + std::to_string(altcurr) + "/" + std::to_string(altrest-altcurr) + "/" + std::to_string(allcurr) + "/" + std::to_string(allrest-allcurr)  + ")";
+                            }
+
                             this->additional_note.getRefByPos(pos).at(symbol) += ")//";
                         }
 
@@ -3177,7 +3192,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
 
         // testquals[tqi++] = MIN(tn_trawq - tn_nrawq + 0       , tn_tpowq - MAX(0.0, tn_npowq - tvn_or_q) + tvn_powq);
         testquals[tqi++] = MIN(tn_trawq - tn_nrawq + tvn_rawq, tn_tpowq - MAX(0.0, tn_npowq - tvn_or_q) + tvn_powq);
-
+        
         // 5
         testquals[tqi++] = MIN(tn_trawq, tn_tpowq) + MIN(tvn_rawq, tvn_powq) - MIN(30.0, MIN(tn_nrawq, tn_npowq));
         testquals[tqi++] = MIN(tn_trawq, tn_tpowq) + MIN(tvn_rawq, tvn_powq) - MAX(0.0 , MIN(tn_nrawq, tn_npowq) - tvn_or_q);
