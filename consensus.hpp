@@ -3086,8 +3086,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         const double tn_tpo1q = 10.0 / log(10.0) * log((double)(tAD0 / altmul + tE0) / ((tDP0 - tAD0) / refmul + tAD0 / altmul + 2.0 * tE0)) * (isInDel ? pl_exponent : pl_exponent) + (isInDel ? 90.0 : 90.0);
         const double tn_npo1q = 10.0 / log(10.0) * log((double)(nAD0 / altmul + nE0) / ((nDP0 - tAD0) / refmul + tAD0 / altmul + 2.0 * nE0)) * (isInDel ? pl_exponent : pl_exponent) + (isInDel ? 90.0 : 90.0);
         // QUESTION: why BQ-bias generations are discrete? Because of the noise with each observation of BQ?
-        const double tn_tsamq = 40.0 * pow(0.5, (double)tAD0);// (tAD0 <= 2 ? 8.0 : 0.0);
-        const double tn_nsamq = 40.0 * pow(0.5, (double)nAD0); // (nAD0 <= 2 ? 8.0 : 0.0);
+        const double tn_tsamq = 60.0 * pow(0.5, tAD1 / (double)tDP1 * (double)tDP0); // 40.0 * pow(0.5, (double)tAD0); // (tAD0 <= 2 ? 8.0 : 0.0);
+        const double tn_nsamq = 60.0 * pow(0.5, nAD1 / (double)nDP1 * (double)nDP0); // 40.0 * pow(0.5, (double)nAD0); // (nAD0 <= 2 ? 8.0 : 0.0);
         const double tn_tra1q = (double)tki.VAQ; //MIN(MAX((double)tki.VAQ - tn_tsamq * 0, 0.0), tn_tpowq);
         const double tn_nra1q = (double)fmt.VAQ; //MIN(MAX((double)fmt.VAQ - tn_nsamq * 0, 0.0), tn_npowq);
         
