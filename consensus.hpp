@@ -1394,24 +1394,24 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                                     curr_depth_typesum, 
                                     MAX(prev_depth_symbsum, curr_depth_symbsum) - curr_depth_symbsum + add1count,
                                     curr_depth_symbsum, 
-                                    false, pseudocount / 2);
+                                    false, pseudocount / 1);
                             
                             du_bias_dedup[strand].getRefByPos(pos).incSymbolCount(symbol, db100);
                             dup_imba = biasfact100_to_imba(db100);
                         }
                         
                         // compute positional bias
-                        auto pb_ldist_pair = adabias<true >(vsum_pb_dist_lpart, pb_dist_lpart[strand].getByPos(pos).getSymbolCounts(symbol), pseudocount / 2, 2);
+                        auto pb_ldist_pair = adabias<true >(vsum_pb_dist_lpart, pb_dist_lpart[strand].getByPos(pos).getSymbolCounts(symbol), pseudocount / 1, 2);
                         amax_ldist[strand].getRefByPos(pos).incSymbolCount(symbol, edbuck2pos(pb_ldist_pair.first));
                         bias_ldist[strand].getRefByPos(pos).incSymbolCount(symbol, pb_ldist_pair.second);
                         auto pb_ldist_imba = biasfact100_to_imba(bias_ldist[strand].getRefByPos(pos).getSymbolCount(symbol));
 
-                        auto pb_rdist_pair = adabias<true >(vsum_pb_dist_rpart, pb_dist_rpart[strand].getByPos(pos).getSymbolCounts(symbol), pseudocount / 2, 2);
+                        auto pb_rdist_pair = adabias<true >(vsum_pb_dist_rpart, pb_dist_rpart[strand].getByPos(pos).getSymbolCounts(symbol), pseudocount / 1, 2);
                         amax_rdist[strand].getRefByPos(pos).incSymbolCount(symbol, edbuck2pos(pb_rdist_pair.first));
                         bias_rdist[strand].getRefByPos(pos).incSymbolCount(symbol, pb_rdist_pair.second);
                         auto pb_rdist_imba = biasfact100_to_imba(bias_rdist[strand].getRefByPos(pos).getSymbolCount(symbol));
                         
-                        auto pb_nvars_pair = adabias<false>(vsum_pb_dist_nvars, pb_dist_nvars[strand].getByPos(pos).getSymbolCounts(symbol), pseudocount / 2, 4);
+                        auto pb_nvars_pair = adabias<false>(vsum_pb_dist_nvars, pb_dist_nvars[strand].getByPos(pos).getSymbolCounts(symbol), pseudocount / 1, 4);
                         amax_nvars[strand].getRefByPos(pos).incSymbolCount(symbol, pb_nvars_pair.first);
                         bias_nvars[strand].getRefByPos(pos).incSymbolCount(symbol, pb_nvars_pair.second);
                         auto pb_nvars_imba = biasfact100_to_imba(bias_nvars[strand].getRefByPos(pos).getSymbolCount(symbol));
@@ -1476,7 +1476,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         auto bsum_dist_imba0 = ((bsum_ldist_v1 + 1) / (double)(ad1 + 1)) / ((typebsum_rdist_v0 + 1) / (double)(dp0 + 1));
                         auto bsum_dist_imba1 = ((bsum_rdist_v1 + 1) / (double)(ad1 + 1)) / ((typebsum_ldist_v0 + 1) / (double)(dp0 + 1));
                         
-                        auto sb100raw = any4_to_biasfact100((double)dp0, (double)dp1, (double)ad0, (double)ad1, false , pseudocount);
+                        auto sb100raw = any4_to_biasfact100((double)dp0, (double)dp1, (double)ad0, (double)ad1, false , pseudocount * 2.0);
                         bias_1stra[strand].getRefByPos(pos).incSymbolCount(symbol, sb100raw);
                         assert(bsum_dist_imba0 + bsum_dist_imba1 > 0 || !fprintf(stderr, "%g + %g > 0 failed! (will encounter division by zero)\n", bsum_dist_imba0, bsum_dist_imba1));
                         
