@@ -1248,9 +1248,8 @@ struct Symbol2CountCoverageSet {
    
     template <bool TIsFilterStrong=false>
     int 
-    getbest( // auto & qual_psum, 
-            auto & max_pqual, auto & best_phred, auto & best_count,
-            const auto & ampDistrByPos, const double symbolTypeSum, const AlignmentSymbol symbol, const unsigned int bias_adjusted_mincount, 
+    getbest(auto & max_pqual, auto & best_phred, auto & best_count,
+            const auto & amp_distr_by_pos, const double symb_type_sum, const AlignmentSymbol symbol, const double bias_adjusted_mincount, 
             const unsigned int phred_max, const unsigned int add_phred, double ess_georatio_dedup, const double homogeneity = 0) const {
         max_pqual = 0;
         best_phred = 0;
@@ -1258,17 +1257,17 @@ struct Symbol2CountCoverageSet {
         unsigned int tot_count = 0;
         for (unsigned int rev_buc_idx = 0; rev_buc_idx < NUM_BUCKETS; rev_buc_idx++) {
             unsigned int bucket = NUM_BUCKETS - 1 - rev_buc_idx;
-            unsigned int count = ampDistrByPos.getSymbolBucketCount(symbol, bucket);
+            unsigned int count = amp_distr_by_pos.getSymbolBucketCount(symbol, bucket);
             tot_count += count;
             unsigned int phred = MIN(bucket2phred(bucket), phred_max);
             auto tot_pqual = 0;
-            assert(tot_count <= symbolTypeSum || !fprintf(stderr, "%d <= %f failed for symbol %d and bucket %d !!!\n", tot_count, symbolTypeSum, symbol, bucket));
+            assert(tot_count <= symb_type_sum || !fprintf(stderr, "%d <= %f failed for symbol %d and bucket %d !!!\n", tot_count, symb_type_sum, symbol, bucket));
             if (0 < count) {
                 if (TIsFilterStrong) {
-                    if (tot_count - count <= (bias_adjusted_mincount)) {
+                    if (tot_count - count < (1+bias_adjusted_mincount)) {
                         // NOTE: add_phred (addPhred) is disabled here, it should be enabled when reading bam
                         tot_pqual = h01_to_phredlike<false>(phred2prob(phred + (QUAL_PRE_ADD ? 0 : add_phred)), 1 + DBL_EPSILON, 
-                                MIN(tot_count, bias_adjusted_mincount), symbolTypeSum, 1.0, ess_georatio_dedup);
+                                MIN(tot_count, bias_adjusted_mincount), symb_type_sum, 1.0, ess_georatio_dedup);
                     }
                 } else {
                     tot_pqual = tot_count * phred;
@@ -1374,7 +1373,7 @@ struct Symbol2CountCoverageSet {
                             symbol = AlignmentSymbol(1+((unsigned int)symbol))) {
                         auto curr_depth_symbsum = curr_tsum_depth[0+strand].getByPos(pos).getSymbolCount(symbol);
                         auto curr_deprv_symbsum = curr_tsum_depth[1-strand].getByPos(pos).getSymbolCount(symbol);
-                        unsigned int max_imba_depth = (100100100); // magic number meaning no limit on imba depth
+                        unsigned int max_imba_depth = (1001001000); // magic number meaning no limit on imba depth
 if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol 
         && ((curr_depth_symbsum * 5 < curr_depth_typesum * 4 && curr_depth_symbsum > 0)
          || (curr_deprv_symbsum * 5 < curr_deprv_typesum * 4 && curr_deprv_symbsum > 0))) {
@@ -1484,9 +1483,13 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         bias_2stra[strand].getRefByPos(pos).incSymbolCount(symbol, sb100fin);
                         auto str_imba = biasfact100_to_imba(sb100fin);
                         
-                        max_imba_depth = (unsigned int)ceil(curr_depth_symbsum / 
-                                MIN(((double)uni_bias_r_max) / 100.0, MAX(dup_imba, MAX(MAX(MAX(pb_ldist_imba, pb_rdist_imba), str_imba), pb_nvars_imba)))
-                                / (1 + DBL_EPSILON));
+                        // NOTE: maybe fractional read count is better?
+                        //max_imba_depth = (unsigned int)ceil(curr_depth_symbsum / 
+                        //        MIN(((double)uni_bias_r_max) / 100.0, MAX(dup_imba, MAX(MAX(MAX(pb_ldist_imba, pb_rdist_imba), str_imba), pb_nvars_imba)))
+                        //        / (1 + DBL_EPSILON));
+                        max_imba_depth = (unsigned int)ceil(10.0 * curr_depth_symbsum / 
+                                MIN(((double)uni_bias_r_max) / 100.0, 
+                                    MAX4(dup_imba, MAX(pb_ldist_imba, pb_rdist_imba), str_imba, pb_nvars_imba)));
                         if (should_add_note) {
                             this->additional_note.getRefByPos(pos).at(symbol) += "//(" +
                                     std::to_string(uqual_avg_imba) + "/" + 
@@ -1511,7 +1514,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         if (curr_depth_symbsum > 0) {
                             getbest<false>( //qual_phsum_val, 
                                     max_pqual, best_phred, best_count,
-                                    dedup_ampDistr[strand].getRefByPos(pos), curr_depth_typesum, symbol, max_imba_depth, phred_max, 0, ess_georatio_dedup);
+                                    dedup_ampDistr[strand].getRefByPos(pos), curr_depth_typesum, symbol, (double)max_imba_depth/10.0, phred_max, 0, ess_georatio_dedup);
                         } else {
                             best_phred = 0;
                             best_count = 0;
@@ -1522,7 +1525,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         if (curr_depth_symbsum > 0) {
                             getbest<true> ( //qual_phsum_val,
                                     max_pqual, best_phred, best_count,
-                                    dedup_ampDistr[strand].getRefByPos(pos), curr_depth_typesum, symbol, max_imba_depth, phred_max, symbolType2addPhred[symbolType], ess_georatio_dedup);
+                                    dedup_ampDistr[strand].getRefByPos(pos), curr_depth_typesum, symbol, (double)max_imba_depth/10.0, phred_max, symbolType2addPhred[symbolType], ess_georatio_dedup);
                         } else {
                             max_pqual = 0;
                             best_phred = 0;
