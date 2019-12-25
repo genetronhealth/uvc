@@ -1250,7 +1250,7 @@ struct Symbol2CountCoverageSet {
     int 
     getbest( // auto & qual_psum, 
             auto & max_pqual, auto & best_phred, auto & best_count,
-            const auto & ampDistrByPos, const double symbolTypeSum, const AlignmentSymbol symbol, const unsigned int bias_adjusted_mincount, 
+            const auto & ampDistrByPos, const double symbolTypeSum, const AlignmentSymbol symbol, const unsigned int bias_adjusted_mincount, double imba_fact,
             const unsigned int phred_max, const unsigned int add_phred, double ess_georatio_dedup, const double homogeneity = 0) const {
         max_pqual = 0;
         best_phred = 0;
@@ -1267,8 +1267,18 @@ struct Symbol2CountCoverageSet {
                 if (TIsFilterStrong) {
                     if (tot_count - count <= (bias_adjusted_mincount)) {
                         // NOTE: add_phred (addPhred) is disabled here, it should be enabled when reading bam
-                        tot_pqual = h01_to_phredlike<false>(phred2prob(phred + (QUAL_PRE_ADD ? 0 : add_phred)), 1 + DBL_EPSILON, 
-                                MIN(tot_count, bias_adjusted_mincount), symbolTypeSum, 1.0, ess_georatio_dedup);
+                        double pr = phred2prob(phred + (QUAL_PRE_ADD ? 0 : add_phred));
+                        if (pr > 0) {
+                            tot_pqual = h01_to_phredlike<false>(pr, 1 + DBL_EPSILON, 
+                                    MIN(tot_count, bias_adjusted_mincount), symbolTypeSum, 1.0, ess_georatio_dedup);
+                        }
+                    } else {
+                        double pen = (tot_count - count - bias_adjusted_mincount) * log(MAX(1.0, imba_fact));
+                        double pr = phred2prob(phred + (QUAL_PRE_ADD ? 0 : add_phred)) - pen;
+                        if (pr > 0) {
+                            tot_pqual = h01_to_phredlike<false>(pr, 1 + DBL_EPSILON, 
+                                    tot_count, symbolTypeSum, 1.0, ess_georatio_dedup);
+                        }
                     }
                 } else {
                     tot_pqual = tot_count * phred;
@@ -1375,6 +1385,7 @@ struct Symbol2CountCoverageSet {
                         auto curr_depth_symbsum = curr_tsum_depth[0+strand].getByPos(pos).getSymbolCount(symbol);
                         auto curr_deprv_symbsum = curr_tsum_depth[1-strand].getByPos(pos).getSymbolCount(symbol);
                         unsigned int max_imba_depth = (100100100); // magic number meaning no limit on imba depth
+                        double imba_fact = 1.0;
 if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol 
         && ((curr_depth_symbsum * 5 < curr_depth_typesum * 4 && curr_depth_symbsum > 0)
          || (curr_deprv_symbsum * 5 < curr_deprv_typesum * 4 && curr_deprv_symbsum > 0))) {
@@ -1394,7 +1405,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                                     curr_depth_typesum, 
                                     MAX(prev_depth_symbsum, curr_depth_symbsum) - curr_depth_symbsum + add1count,
                                     curr_depth_symbsum, 
-                                    false, pseudocount / 1);
+                                    false, pseudocount / 2.0);
                             
                             du_bias_dedup[strand].getRefByPos(pos).incSymbolCount(symbol, db100);
                             dup_imba = biasfact100_to_imba(db100);
@@ -1407,17 +1418,17 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         unsigned int nvars_gapdist = (fa < 0.05 ? 4 : (fa < 0.10 ? 5 : 6));
                         // unsigned int nvars_gapdist = (unsigned int)floor(pow(fa*100, 1.0/3.0)) + 2; // 1% -> 3, 8% -> 5, 16% -> 5,
                         // compute positional bias
-                        auto pb_ldist_pair = adabias<true >(vsum_pb_dist_lpart, pb_dist_lpart[strand].getByPos(pos).getSymbolCounts(symbol), pseudocount / 1, 2);
+                        auto pb_ldist_pair = adabias<true >(vsum_pb_dist_lpart, pb_dist_lpart[strand].getByPos(pos).getSymbolCounts(symbol), pseudocount / 2.0, 2);
                         amax_ldist[strand].getRefByPos(pos).incSymbolCount(symbol, edbuck2pos(pb_ldist_pair.first));
                         bias_ldist[strand].getRefByPos(pos).incSymbolCount(symbol, pb_ldist_pair.second);
                         auto pb_ldist_imba = biasfact100_to_imba(bias_ldist[strand].getRefByPos(pos).getSymbolCount(symbol));
                         
-                        auto pb_rdist_pair = adabias<true >(vsum_pb_dist_rpart, pb_dist_rpart[strand].getByPos(pos).getSymbolCounts(symbol), pseudocount / 1, 2);
+                        auto pb_rdist_pair = adabias<true >(vsum_pb_dist_rpart, pb_dist_rpart[strand].getByPos(pos).getSymbolCounts(symbol), pseudocount / 2.0, 2);
                         amax_rdist[strand].getRefByPos(pos).incSymbolCount(symbol, edbuck2pos(pb_rdist_pair.first));
                         bias_rdist[strand].getRefByPos(pos).incSymbolCount(symbol, pb_rdist_pair.second);
                         auto pb_rdist_imba = biasfact100_to_imba(bias_rdist[strand].getRefByPos(pos).getSymbolCount(symbol));
                         
-                        auto pb_nvars_pair = adabias<false>(vsum_pb_dist_nvars, pb_dist_nvars[strand].getByPos(pos).getSymbolCounts(symbol), pseudocount / 1, nvars_gapdist);
+                        auto pb_nvars_pair = adabias<false>(vsum_pb_dist_nvars, pb_dist_nvars[strand].getByPos(pos).getSymbolCounts(symbol), pseudocount / 2.0, nvars_gapdist);
                         amax_nvars[strand].getRefByPos(pos).incSymbolCount(symbol, pb_nvars_pair.first);
                         bias_nvars[strand].getRefByPos(pos).incSymbolCount(symbol, pb_nvars_pair.second);
                         auto pb_nvars_imba = biasfact100_to_imba(bias_nvars[strand].getRefByPos(pos).getSymbolCount(symbol));
@@ -1479,7 +1490,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         auto bsum_dist_imba0 = ((bsum_ldist_v1 + 1) / (double)(ad1 + 1)) / ((typebsum_rdist_v0 + 1) / (double)(dp0 + 1));
                         auto bsum_dist_imba1 = ((bsum_rdist_v1 + 1) / (double)(ad1 + 1)) / ((typebsum_ldist_v0 + 1) / (double)(dp0 + 1));
                         
-                        auto sb100raw = any4_to_biasfact100((double)dp0, (double)dp1, (double)ad0, (double)ad1, false , pseudocount * 2.0);
+                        auto sb100raw = any4_to_biasfact100((double)dp0, (double)dp1, (double)ad0, (double)ad1, false , pseudocount);
                         bias_1stra[strand].getRefByPos(pos).incSymbolCount(symbol, sb100raw);
                         assert(bsum_dist_imba0 + bsum_dist_imba1 > 0 || !fprintf(stderr, "%g + %g > 0 failed! (will encounter division by zero)\n", bsum_dist_imba0, bsum_dist_imba1));
                         
@@ -1487,9 +1498,10 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         bias_2stra[strand].getRefByPos(pos).incSymbolCount(symbol, sb100fin);
                         auto str_imba = biasfact100_to_imba(sb100fin);
                         
+                        imba_fact = MAX(dup_imba, MAX(MAX(MAX(pb_ldist_imba, pb_rdist_imba), str_imba), pb_nvars_imba));
                         max_imba_depth = (unsigned int)ceil(curr_depth_symbsum / 
-                                MIN(((double)uni_bias_r_max) / 100.0, MAX(dup_imba, MAX(MAX(MAX(pb_ldist_imba, pb_rdist_imba), str_imba), pb_nvars_imba)))
-                                / (1 + DBL_EPSILON));
+                                MIN(((double)uni_bias_r_max) / 100.0, imba_fact) / (1 + DBL_EPSILON));
+                        
                         if (should_add_note) {
                             this->additional_note.getRefByPos(pos).at(symbol) += "//(" +
                                     std::to_string(uqual_avg_imba) + "/" + 
@@ -1514,7 +1526,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         if (curr_depth_symbsum > 0) {
                             getbest<false>( //qual_phsum_val, 
                                     max_pqual, best_phred, best_count,
-                                    dedup_ampDistr[strand].getRefByPos(pos), curr_depth_typesum, symbol, max_imba_depth, phred_max, 0, ess_georatio_dedup);
+                                    dedup_ampDistr[strand].getRefByPos(pos), curr_depth_typesum, symbol, max_imba_depth, imba_fact, phred_max, 0, ess_georatio_dedup);
                         } else {
                             best_phred = 0;
                             best_count = 0;
@@ -1525,7 +1537,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         if (curr_depth_symbsum > 0) {
                             getbest<true> ( //qual_phsum_val,
                                     max_pqual, best_phred, best_count,
-                                    dedup_ampDistr[strand].getRefByPos(pos), curr_depth_typesum, symbol, max_imba_depth, phred_max, symbolType2addPhred[symbolType], ess_georatio_dedup);
+                                    dedup_ampDistr[strand].getRefByPos(pos), curr_depth_typesum, symbol, max_imba_depth, imba_fact, phred_max, symbolType2addPhred[symbolType], ess_georatio_dedup);
                         } else {
                             max_pqual = 0;
                             best_phred = 0;
