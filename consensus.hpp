@@ -2353,7 +2353,10 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
             auto & fmtGST = (0 == t ? fmt.GSTa : fmt.GSTb);
             auto & prank = pranks[t];
             
-            const double fa1 = MAX(0.0, ((0 == t) ? (fmt.FA) : (1.0 - fmt.FA - fmt.FR)));
+            double fmtFA = (isSymbolSubstitution(symbol) ? ((double)SUM2(fmt.cAltBQ) / (DBL_EPSILON+(double)SUM2(fmt.cAllBQ))) : fmt.FA);
+            double fmtFR = (isSymbolSubstitution(symbol) ? ((double)SUM2(fmt.cRefBQ) / (DBL_EPSILON+(double)SUM2(fmt.cAllBQ))) : fmt.FR);
+            
+            const double fa1 = MAX(0.0, ((0 == t) ? (fmtFA) : (1.0 - fmtFA - fmtFR)));
             
             const double fa_l = (fa1 * (double)fmt.DP + 1.0 / altmul) / (double)(fmt.DP + 2.0 / altmul);
             const double da_l = fa_l * fmt.DP;
@@ -2436,12 +2439,12 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
             //fmtGL[1] = MAX(BTW(hetALT_likeval - homref_likeval, homref_likelim), MIN(hetREF_likeval - homalt_likeval, homalt_likelim));
             //MIN(MIN(hetALT_likeval, hetREF_likeval) - MIN(homref_likeval, homalt_likeval), MIN(homref_likelim, homalt_likelim));
             //fmtGL[2] = MIN(MAX(homalt_likeval - homref_likeval, homref_likelim), MAX(homalt_likeval - hetREF_likeval, hetREF_likelim));
-           
+            
             std::array<int, 3> likes = { fmtGL[0], fmtGL[1], fmtGL[2] };
             std::sort(likes.rbegin(), likes.rend());
             const auto & gt_homref = (prev_is_tumor ? GT_HOMREF : TT_HOMREF);
             const auto & gt_homalt = (prev_is_tumor ? GT_HOMALT : TT_HOMALT);
-            const auto & gt_hetero = (prev_is_tumor ? GT_HETERO : TT_HETERO); 
+            const auto & gt_hetero = (prev_is_tumor ? GT_HETERO : TT_HETERO);
             if        (likes[0] == fmtGL[0]) {
                 fmtGT = (is_novar ? gt_homalt[t] : gt_homref[t]);
                 prank = (is_novar ? 2 : 0);
@@ -2869,9 +2872,9 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
     // 5% of STR (about 0.25% of InDel genomic regions) has about 75% of InDels, so max at around 20
     // Bayesian prior probability of observing germline and somatic indels relative to SNV in PHRED scale
     
-    const double indel_ic = (!isInDel) ? 0.0 : //(double)indel_len_rusize_phred(indelstring.size(), repeatunit.size() 
-            (10.0/log(10.0) * log((double)MAX(indelstring.size(), 1) / (double)(repeatunit.size() * (repeatnum - 1) + 1)));
-    const double indel_pq = (!isInDel) ? 0.0 : ((double)MIN(indel_phred(64.0, indelstring.size(), repeatunit.size(), repeatnum), 35.0));
+    const double indel_ic = ((!isInDel) ? 0.0 : //(double)indel_len_rusize_phred(indelstring.size(), repeatunit.size() 
+            (10.0/log(10.0) * log((double)MAX(indelstring.size(), 1) / (double)(repeatunit.size() * (repeatnum - 1) + 1))));
+    const double indel_pq = ((!isInDel) ? 0.0 : ((double)MIN(indel_phred(64.0, indelstring.size(), repeatunit.size(), repeatnum), 35.0)));
     float vcfqual = fmt.VAQ; // TODO: investigate whether to use VAQ or VAQ2
     //float vcfqual = fmt.VAQ2; // here we assume the matched normal is not available (yet)
     
@@ -3083,11 +3086,13 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         const double t2n_rawq1 = ((true || nDP0 <= tDP0) // TODO: check if the symmetry makes sense?
             ? calc_binom_10log10_likeratio(        (tDP1 - tAD1) /         tDP1,         (nDP1 - nAD1) / nDP1 * nDP0,          (nAD1 / nDP1) * nDP0)
             : calc_binom_10log10_likeratio(               (nAD1) /         nDP1,         (tAD1 / tDP1) * tDP0,                 (tDP1 - tAD1) / tDP1 * tDP0)); 
-        const double t2n_rawq = (isInDel ? MAX(t2n_rawq0, t2n_rawq1) : t2n_rawq1);
+        // const double t2n_rawq = (isInDel ? MAX(t2n_rawq0, t2n_rawq1) : t2n_rawq1);
+        const double t2n_rawq = (isInDel ? t2n_rawq0 : t2n_rawq1);
         
         const double t2n_powq0 = MIN(MAX(-30.0, 10.0/log(10.0) * (1.0+log(symfrac*symfrac)/10.0) * pl_exponent * log(t2n_or0 /symfrac)), 30.0);
         const double t2n_powq1 = MIN(MAX(-30.0, 10.0/log(10.0) * (1.0+log(symfrac*symfrac)/10.0) * pl_exponent * log(t2n_or1 /symfrac)), 30.0);
-        const double t2n_powq = (isInDel ? MAX(t2n_powq0, t2n_powq1) : t2n_powq1);
+        // const double t2n_powq = (isInDel ? MAX(t2n_powq0, t2n_powq1) : t2n_powq1);
+        const double t2n_powq = (isInDel ? t2n_powq0 : t2n_powq1);
         
         const double t2t_powq = 30.0;
         
@@ -3185,6 +3190,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         double t2n_finq  = max_min01_sub02(MIN(t2n_rawq, t2t_powq), MIN(t2n_rawq, t2n_powq), t2n_contam_q);
         double t_base_q = MIN(tn_trawq, tn_tpowq + (double)indel_ic) + t2n_finq;
         
+        // double noalt_adjust_from_tumor = (isInDel ? MIN(MAX(0, nonalt_tu_q), nonalt_tu_maxq) :  ); // not depending on whether the var is indel or not
         double a_no_alt_qual = MAX(
                 nonalt_qual + MIN(MAX(0, nonalt_tu_q), nonalt_tu_maxq), // quality of non-germline event
                 t_base_q - t2n_contam_q                                 // likelihood of signal minus the likelihood of contamination. Note: this has already been considered in GQ
