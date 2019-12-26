@@ -2353,8 +2353,12 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
             auto & fmtGST = (0 == t ? fmt.GSTa : fmt.GSTb);
             auto & prank = pranks[t];
             
-            double fmtFA = (isSymbolSubstitution(symbol) ? ((double)SUM2(fmt.cAltBQ) / (DBL_EPSILON+(double)SUM2(fmt.cAllBQ))) : fmt.FA);
-            double fmtFR = (isSymbolSubstitution(symbol) ? ((double)SUM2(fmt.cRefBQ) / (DBL_EPSILON+(double)SUM2(fmt.cAllBQ))) : fmt.FR);
+            double fmtFA = (isSymbolSubstitution(symbol) ? 
+                    (((double)SUM2(fmt.cAltBQ) / (fmt.FA + DBL_EPSILON) * (double)SUM2(fmt.cAllBQ))
+                    * (double)SUM2(fmt.cAltBQ) / (DBL_EPSILON+(double)SUM2(fmt.cAllBQ))) : fmt.FA);
+            double fmtFR = (isSymbolSubstitution(symbol) ? 
+                    (((double)SUM2(fmt.cRefBQ) / (fmt.FR + DBL_EPSILON) * (double)SUM2(fmt.cAllBQ))
+                    * (double)SUM2(fmt.cRefBQ) / (DBL_EPSILON+(double)SUM2(fmt.cAllBQ))) : fmt.FR);
             
             const double fa1 = MAX(0.0, ((0 == t) ? (fmtFA) : (1.0 - fmtFA - fmtFR)));
             
