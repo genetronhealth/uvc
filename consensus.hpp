@@ -2189,7 +2189,7 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
         bool is_rescued, const bool prev_is_tumor
         , const std::string & repeatunit, const unsigned int repeatnum 
         , const auto & tki
-        , const double t2n_add_contam_frac 
+        , const double t2n_add_contam_frac
         ) {
     fmt.note = symbol2CountCoverageSet12.additional_note.getByPos(refpos).at(symbol);
     uint64_t bq_qsum_sqrMQ_tot = 0; 
@@ -2636,7 +2636,7 @@ generateVcfHeader(const char *ref_fasta_fname, const char *platform,
     
     ret += "##INFO=<ID=ANY_VAR,Number=0,Type=Flag,Description=\"Any type of variant which may be caused by germline polymorphism and/or experimental artifact\">\n";
     ret += "##INFO=<ID=SOMATIC,Number=0,Type=Flag,Description=\"Somatic variant\">\n";
-#define N_MODELS 23 // 11
+#define N_MODELS 1 // 23 // 11
     for (int i = 0; i < N_MODELS; i++) {
         // ret += std::string(";TQ") + std::to_string(i) + "=" + std::to_string(testquals[i]); 
         ret += "##INFO=<ID=TQ" + std::to_string(i) +",Number=1,Type=Float,Description=\"Variant quality computed by the model " + std::to_string(i) +"\">\n";
@@ -2810,10 +2810,10 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         , double highqual_min_ratio
         , const double diffVAQfrac
         , const double phred_sys_artifact
-        , const double add_contam_rate
+        , const double t2n_add_contam_frac
+        // , const double add_contam_rate
         , const double mul_contam_rate
         , const std::string & repeatunit, const unsigned int repeatnum
-        // , const double t2n_add_contam_frac
         , const double t2n_sys_err_frac_snv
         , const double t2n_sys_err_frac_indel
         //, unsigned int highqual_min_vardep
@@ -3154,20 +3154,15 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         double tAD0normByTN1 = (tAD1 + DBL_EPSILON) / (nAD1 + tAD1 + 2.0 * DBL_EPSILON) * (nAD0 + tAD0 + 2.0 * DBL_EPSILON);
         
         double add_contam_phred = base_contam + 
-              calc_binom_10log10_likeratio((double)add_contam_rate, (double)nAD0normByTN1 * MIN(1.0, 2.0 * tnDP0ratio), (double)tAD0normByTN1); // 0.2 max 0.02 min
+              calc_binom_10log10_likeratio((double)t2n_add_contam_frac, (double)nAD0normByTN1 * MIN(1.0, 2.0 * tnDP0ratio), (double)tAD0normByTN1); // 0.2 max 0.02 min
         double mul_contam_phred = base_contam + (nDP0 < tDP0
             ? calc_binom_10log10_likeratio((double)mul_contam_rate, (double)nAD0normByTN1             , (double)tAD0normByTN1 / tnDP0ratio)
             : calc_binom_10log10_likeratio((double)mul_contam_rate, (double)nAD0normByTN1 * tnDP0ratio, (double)tAD0normByTN1)
         );
         double contam_phred = MAX(add_contam_phred, mul_contam_phred); // select worst-case contam model because tumor and normal depths are highly variable
-        // const double t2n_contam_q = contam_phred;
         
-        // t2n_sys_err_frac should be somewhat higher than t2n_add_contam_frac
-        // double exp_contam_fa = MIN(0.5, to_exp_contam_fa(t2n_add_contam_frac, tki.FA, (double)tki.DP, fmt.FA, (double)fmt.DP));
-        // double n_reads_exp = (isInDel ? t2n_sys_err_frac_indel : t2n_sys_err_frac_snv) * (tki.FA * tki.DP + 1.0);
-        // double n_reads_obs = (fmt.FA * fmt.DP);
         double t2n_sys_err_frac = (isInDel ? t2n_sys_err_frac_indel : t2n_sys_err_frac_snv); 
-        double t2n_contam_q = MIN(calc_binom_10log10_likeratio(add_contam_rate, fmt.FA * fmt.DP, tki.FA * tki.DP), 200.0);
+        double t2n_contam_q = MIN(calc_binom_10log10_likeratio(t2n_add_contam_frac, fmt.FA * fmt.DP, tki.FA * tki.DP), 200.0);
         double t2n_syserr_q = MIN(MAX(0.0, 
                 10.0/log(10.0) * log(MIN(1.0 / t2n_sys_err_frac, (nAD1/nDP1) / (tAD1/tDP1) / t2n_sys_err_frac)) * MIN(tAD0, nAD0)), 
                 60.0);
@@ -3190,60 +3185,23 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         
         std::array<double, N_MODELS> testquals = {0};
         unsigned int tqi = 0;
-        // const double a_nogerm_q = (double)(n_nogerm_q + 0.0*MIN(MAX(0, t_nogerm_q),25));
         double t2n_finq  = max_min01_sub02(MIN(t2n_rawq, t2t_powq), MIN(t2n_rawq, t2n_powq), t2n_contam_q);
         double t_base_q = MIN(tn_trawq, tn_tpowq + (double)indel_ic) + t2n_finq;
         
-        // double noalt_adjust_from_tumor = (isInDel ? MIN(MAX(0, nonalt_tu_q), nonalt_tu_maxq) :  ); // not depending on whether the var is indel or not
         double a_no_alt_qual = MAX(
                 nonalt_qual + MIN(MAX(0, nonalt_tu_q), nonalt_tu_maxq), // quality of non-germline event
                 t_base_q - t2n_contam_q                                 // likelihood of signal minus the likelihood of contamination. Note: this has already been considered in GQ
         );
-        const int32_t a_nogerm_q = homref_gt_phred // (int)(isInDel ? MIN(3, (int)homref_gt_phred - indel_pq) : (int)homref_gt_phred)
-                // - (int)(10.0/log(10.0) * log((double)MAX(indelstring.size(), 1))))
-                + (is_nonref_germline_excluded ? 
-                   MIN(a_no_alt_qual, noisy_germ_phred + excalt_qual + MAX(0, excalt_tu_q)) : 
-                       a_no_alt_qual); // + nogerm;
+        const int32_t a_nogerm_q = homref_gt_phred + (is_nonref_germline_excluded ? 
+                MIN(a_no_alt_qual, noisy_germ_phred + excalt_qual + MAX(0, excalt_tu_q)) : 
+                a_no_alt_qual);
         
-        // 0 // n_nogerm_q and t2n_powq should have already bee normalized with contam
-        testquals[tqi++] = MIN(t_base_q, (double)a_nogerm_q) - t2n_syserr_q
-        //testquals[tqi++] = max_min01_sub02(t_base_q, (double)a_nogerm_q,      t2n_contam_q) - t2n_syserr_q
-                ; // + 0.0*t2n_finq; // ; + indel_aq;
-        //testquals[tqi++] = MIN(tn_trawq, tn_tpowq + tvn_powq) - MIN(tn_nrawq, MAX(0.0, tn_npowq - tvn_or_q));
-        testquals[tqi++] = MIN(t_base_q - n2t_red_qual, (double)a_nogerm_q);
-        //testquals[tqi++] = MIN(tn_trawq, tvn_rawq * 2 + 30);
-        //testquals[tqi++] = MIN(tn_trawq, tvn_rawq     + tn_tpowq);
-        // testquals[tqi++] = MIN(t_base_q - n_norm_q, (double)a_nogerm_q);
-        testquals[tqi++] = MIN(t_base_q - n2t_orr_qual, (double)a_nogerm_q);
-        testquals[tqi++] = MIN(t_base_q - n2t_or2_qual, (double)a_nogerm_q);
+        testquals[tqi++] = MIN(t_base_q, (double)a_nogerm_q) - MIN(t2n_contam_q, t2n_syserr_q);
         
         // testquals[tqi++] = MIN(tn_trawq - tn_nrawq + 0       , tn_tpowq - MAX(0.0, tn_npowq - tvn_or_q) + tvn_powq);
-        testquals[tqi++] = MIN(tn_trawq - tn_nrawq + tvn_rawq, tn_tpowq - MAX(0.0, tn_npowq - tvn_or_q) + tvn_powq);
-        
-        // 5
-        testquals[tqi++] = MIN(tn_trawq, tn_tpowq) + MIN(tvn_rawq, tvn_powq) - MIN(30.0, MIN(tn_nrawq, tn_npowq));
-        testquals[tqi++] = MIN(tn_trawq, tn_tpowq) + MIN(tvn_rawq, tvn_powq) - MAX(0.0 , MIN(tn_nrawq, tn_npowq) - tvn_or_q);
-        testquals[tqi++] = MAX(MIN(tn_trawq, tn_tpowq) + MIN(tvn_rawq, tvn_powq) - MIN(tn_nrawq, tn_npowq), MIN(MIN(tn_trawq, tn_tpowq) + MIN(tvn_rawq, tvn_powq), tvn_or_q)); 
-        testquals[tqi++] = MIN(tn_trawq - tn_nrawq, tn_tpowq + tvn_powq);
-        testquals[tqi++] = MIN(MIN(MIN(tn_trawq, tn_tpowq + tvn_powq), tvn_or_q), tvn_st_q);
-        // 10
-        testquals[tqi++]= MIN(MIN(MIN(tn_trawq, tn_tpowq + tvn_powq), tvn_or_q), tvn_st_q + 30.0);
-        
-        testquals[tqi++] = MIN(tn_trawq, tn_tpowq) + tvn_powq  - MAX(0.0, MIN(tn_nrawq, tn_npowq           ) - tvn_or_q);
-        testquals[tqi++] = MIN(tn_trawq, tn_tpowq) + tvn_powq  - MAX(0.0, MIN(tn_nrawq, tn_npowq - tvn_powq) - tvn_or_q);
-        testquals[tqi++] = MIN(tn_trawq, tn_tpowq  + tvn_powq) - MAX(0.0, MIN(tn_nrawq, tn_npowq           ) - tvn_or_q);
-        testquals[tqi++] = MIN(tn_trawq, tn_tpowq  + tvn_powq) - MAX(0.0, MIN(tn_nrawq, tn_npowq - tvn_powq) - tvn_or_q);
-        // 15
-        testquals[tqi++] = MIN(tn_trawq, tn_tpowq) + MIN(tvn_rawq, tvn_powq) - MIN(MIN(tn_nrawq, tn_npowq           ), add_contam_phred);
-        testquals[tqi++] = MIN(tn_trawq, tn_tpowq) +               tvn_powq  - MIN(MIN(tn_nrawq, tn_npowq           ), add_contam_phred);
-        testquals[tqi++] = MIN(tn_trawq, tn_tpowq                + tvn_powq) - MIN(MIN(tn_nrawq, tn_npowq           ), add_contam_phred);
-        testquals[tqi++] = MIN(tn_trawq, tn_tpowq                + tvn_powq) - MIN(MIN(tn_nrawq, tn_npowq - tvn_powq), add_contam_phred);
-        
-        testquals[tqi++] = MIN(tn_trawq, tn_tpowq) + MIN(tvn_rawq, tvn_powq) - MIN(MIN(tn_nrawq, tn_npowq           ), contam_phred);
-        // 20
-        testquals[tqi++] = MIN(tn_trawq, tn_tpowq)               + tvn_powq  - MIN(MIN(tn_nrawq, tn_npowq           ), contam_phred);
-        testquals[tqi++] = MIN(tn_trawq, tn_tpowq                + tvn_powq) - MIN(MIN(tn_nrawq, tn_npowq           ), contam_phred);
-        testquals[tqi++] = MIN(tn_trawq, tn_tpowq                + tvn_powq) - MIN(MIN(tn_nrawq, tn_npowq - tvn_powq), contam_phred);
+        // testquals[tqi++] = MIN(tn_trawq - tn_nrawq + tvn_rawq, tn_tpowq - MAX(0.0, tn_npowq - tvn_or_q) + tvn_powq); 
+        // testquals[tqi++] = MIN(tn_trawq, tn_tpowq) + MIN(tvn_rawq, tvn_powq) - MAX(0.0 , MIN(tn_nrawq, tn_npowq) - tvn_or_q); // 6
+        // testquals[tqi++] = MIN(tn_trawq, tn_tpowq)               + tvn_powq  - MIN(MIN(tn_nrawq, tn_npowq           ), contam_phred); // 20
         
         const int MODEL_SEP_1 = 2;
         vcfqual = 0;
@@ -3254,13 +3212,6 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
             testquals[i] = reduct_coef * testquals[i]; // + (isInDel ? (indel_pp + indel_p2) : 0.0);
             vcfqual = MAX(vcfqual, testquals[i]);
         }
-        /*
-        for (int i = MODEL_SEP_1; i < N_MODELS; i++) {
-            testquals[i] = MIN(reduct_coef * testquals[i] + (isInDel ? (indel_pp + indel_p2) : 0.0), 
-                    phred_non_germ + tumor_non_germ_reward + (double)homref_gt_phred + 0.0 * (isInDel ? (indel_pq- 10.0) : 0.0));
-            vcfqual = MAX(vcfqual, testquals[i]);
-        }
-        */
         double median_qual = testquals[0]; // MEDIAN(std::array<double, N_MODELS>(testquals));
         unsigned int median_intq = (unsigned int)MIN(MAX(0, (int)median_qual), VCFQUAL_NUM_BINS - 1);
         vc_stats.vcfqual_to_count[median_intq].nvars+= 1;
@@ -3274,50 +3225,26 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
             return -2;
         }
         
-        // vcfqual = testquals[0];
-        // vcfqual = reduct_coef * MIN(MIN(MAX(vq1time, vq1plus), vq2succ), phred_non_germ);
-        // vcfqual = reduct_coef * MIN(tn_trawq + MIN(10.0 * pl_exponent, tn_diffq) - MIN(10.0 * pl_exponent, tn_nrawq), phred_non_germ);
-        /*
-        vcfqual = reduct_coef * MIN(MAX(MAX(
-                  tn_systq // tumor has signal and random noise, normal has random noise // * (double)nAD0 / (double)(nAD0 + 1), 
-                , tn_randq) // tumor has signal and systematic noise, normal has systematic noise
-                , tn_contq) // tumor has signal and contamination, norml has contaminnation
-                , phred_non_germ); // tumor has whatever, normal has germline event
-        */
-        //double vaq_ubmax = MIN(log(tki.FA + DBL_EPSILON) / log(10.0) * (10.0 * 2.5) + 80.0, (2.0 * tki.FA * (double)tki.DP) + (double)60) + (tvn_vaq * tvn_ubmax_frac);
-        //double tnq_onlyT = MIN((double)tki.VAQ + (tvn_vaq >= 0 ? 0 : tvn_vaq), vaq_ubmax) - (1.0 / MAX(10.0, (double)tki.VAQ)); // truncate tumor VAQ
-        //double tnq_val = tnq_onlyT - (0.5 / MAX(10.0, (double)tvn_vaq)); // + MIN(20.0, tvn_vaq) / 10; // + (tnq_TandN * tnq_mult);
-        // vcfqual = MIN(tnq_val, phred_non_germ);
-        
-        // infostring += std::string(";TNQ=") + string_join(std::array<std::string, 4>({std::to_string(vq1time), std::to_string(vq1plus), std::to_string(vq2succ), std::to_string(phred_non_germ)}));
-
-        //infostring += std::string(";TNQ=") + string_join(std::array<std::string, 4>({std::to_string(tn_systq), std::to_string(tn_randq),
-        //        std::to_string(tn_contq), std::to_string(phred_non_germ)}));
-        
         for (int i = 0; i < MIN(MODEL_SEP_1, N_MODELS); i++) {
             infostring += std::string(";TQ") + std::to_string(i) + "=" + std::to_string(testquals[i]); 
         }
         infostring += std::string(";TNQ=")  + string_join(std::array<std::string, 4>({
-                  // std::to_string(median_qual)      , 
                 std::to_string(t2n_powq0), std::to_string(t2n_rawq0), 
                 std::to_string(t2n_powq1), std::to_string(t2n_rawq1)      
-                  // ,std::to_string(tvn_powq)         , std::to_string(tvn_rawq)           , std::to_string(tvn_or_q), 
-                  // std::to_string(tvn_st_q)
         }));
         infostring += std::string(";NGQ=") + string_join(std::array<std::string, 5>({
                 std::to_string(a_nogerm_q), 
                 std::to_string(nonalt_qual), std::to_string(nonalt_tu_q),
                 std::to_string(excalt_qual), std::to_string(excalt_tu_q) 
         }));
-        infostring += std::string(";TNQA=") + string_join(std::array<std::string, 8>({
-                // std::to_string(a_nogerm_q),       // , std::to_string(phred_non_germ)     , std::to_string(tnlike_argmin),    
-                // , std::to_string(add_contam_phred)   , std::to_string(mul_contam_phred)
+        infostring += std::string(";TNQA=") + string_join(std::array<std::string, 8-3>({
                 std::to_string(t_base_q),    std::to_string(t2n_syserr_q),
-                std::to_string(n2t_red_qual),std::to_string(n2t_orr_qual),
-                std::to_string(n2t_or2_qual),std::to_string(indel_pq),    
+                //std::to_string(n2t_red_qual),
+                //std::to_string(n2t_orr_qual),
+                //std::to_string(n2t_or2_qual),
+                std::to_string(indel_pq),    
                 std::to_string(reduct_coef), std::to_string(t2n_contam_q)
         }));
-        // t2n_or1 * t2n_or1
         infostring += std::string(";TNOR=") + string_join(std::array<std::string, 2+2>({
                 std::to_string(t2n_or0),     std::to_string(t2n_or1),
                 std::to_string(n2t_or0),     std::to_string(n2t_or1)
@@ -3345,16 +3272,9 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         infostring += std::string(";tRCC=") + other_join(tki.RCC);
         infostring += std::string(";tGLa=") + other_join(tki.GLa);
         infostring += std::string(";tGLb=") + other_join(tki.GLb);
- 
+        
         // infostring += std::string(";TNQA=") + string_join(std::array<std::string, 4>({std::to_string(tn_systq), std::to_string(tvn_powq), std::to_string(tnlike_argmin), std::to_string(reduct_coef)}));
         
-        // auto finalGQ = (("1/0" == fmt.GT) ? fmt.GQ : 0); // is probably redundant?
-        /*
-        auto diffVAQ = tki.VAQ;/
-        if (diffVAQfrac) {
-            diffVAQ = MAX(tki.VAQ - (fmt.VAQ * diffVAQfrac), tki.VAQ / ((fmt.VAQ * diffVAQfrac) + tki.VAQ + DBL_MIN));
-        }
-        */
         // auto diffVAQ = MAX(tki.VAQ - fmt.VAQ, tki.VAQ / (fmt.VAQ + tki.VAQ + DBL_MIN)); // diffVAQ makes sense but can lead to false negatives.
         // double tnq_base = phred_non_germline; // MIN(MAX((double)0, tki.VAQ - (double)homref_gt_phred), (double)phred_non_germline);
         /* 
