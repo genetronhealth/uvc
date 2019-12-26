@@ -2353,12 +2353,12 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
             auto & fmtGST = (0 == t ? fmt.GSTa : fmt.GSTb);
             auto & prank = pranks[t];
             
-            double fmtFA = (isSymbolSubstitution(symbol) ? 
-                    (((double)SUM2(fmt.cAltBQ) / (fmt.FA + DBL_EPSILON) * (double)SUM2(fmt.cAllBQ))
-                    * (double)SUM2(fmt.cAltBQ) / (DBL_EPSILON+(double)SUM2(fmt.cAllBQ))) : fmt.FA);
-            double fmtFR = (isSymbolSubstitution(symbol) ? 
-                    (((double)SUM2(fmt.cRefBQ) / (fmt.FR + DBL_EPSILON) * (double)SUM2(fmt.cAllBQ))
-                    * (double)SUM2(fmt.cRefBQ) / (DBL_EPSILON+(double)SUM2(fmt.cAllBQ))) : fmt.FR);
+            double fmtFA = ((!isSymbolSubstitution(symbol)) ? fmt.FA : (
+                    MIN(1.0, (double)SUM2(fmt.cAltBQ) / (fmt.FA * (double)SUM2(fmt.cAllBQ) + DBL_EPSILON)) * 
+                             (double)SUM2(fmt.cAltBQ) / (         (double)SUM2(fmt.cAllBQ) + DBL_EPSILON)));
+            double fmtFR = ((!isSymbolSubstitution(symbol)) ? fmt.FR : (
+                    MIN(1.0, (double)SUM2(fmt.cRefBQ) / (fmt.FR * (double)SUM2(fmt.cAllBQ) + DBL_EPSILON)) * 
+                             (double)SUM2(fmt.cRefBQ) / (         (double)SUM2(fmt.cAllBQ) + DBL_EPSILON)));
             
             const double fa1 = MAX(0.0, ((0 == t) ? (fmtFA) : (1.0 - fmtFA - fmtFR)));
             
@@ -2897,7 +2897,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
     std::string ref_alt;
     std::string infostring = (prev_is_tumor ? "SOMATIC" : "ANY_VAR");
     const double pl_exponent = 3.0;
-        
+    
     if (prev_is_tumor) {
         assert(tki.autoBestAllBQ >= tki.autoBestRefBQ + tki.autoBestAltBQ);
         
@@ -3190,7 +3190,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         
         double a_no_alt_qual = MAX(
                 nonalt_qual + MIN(MAX(0, nonalt_tu_q), nonalt_tu_maxq), // quality of non-germline event
-                t_base_q - t2n_contam_q                                 // likelihood of signal minus the likelihood of contamination. Note: this has already been considered in GQ
+                t_base_q - t2n_contam_q - 200*2                         // likelihood of signal minus the likelihood of contamination. Note: this has already been considered in GQ
         );
         const int32_t a_nogerm_q = homref_gt_phred + (is_nonref_germline_excluded ? 
                 MIN(a_no_alt_qual, noisy_germ_phred + excalt_qual + MAX(0, excalt_tu_q)) : 
