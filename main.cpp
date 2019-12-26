@@ -710,7 +710,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                             // ErrorCorrectionType(paramset.seq_data_type), 
                             !paramset.disable_dup_read_merge, !paramset.enable_dup_read_vqual,
                             is_rescued, (NOT_PROVIDED != paramset.vcf_tumor_fname)
-                            , repeatunit, repeatnum, tki, paramset.add_contam_rate);
+                            , repeatunit, repeatnum, tki, paramset.t2n_add_contam_frac);
                 }
                 for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; symbol = AlignmentSymbol(1+(unsigned int)symbol)) {
                     float vaq = fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]].VAQ;
@@ -812,8 +812,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                                 , paramset.highqual_min_ratio
                                 , paramset.diffVAQfrac
                                 , ((BASE_SYMBOL == symbolType) ? paramset.phred_sys_artifact_snv : (LINK_SYMBOL == symbolType ? paramset.phred_sys_artifact_indel : 0))
-                                , paramset.add_contam_rate
-                                , paramset.mul_contam_rate
+                                , paramset.t2n_add_contam_frac
+                                , paramset.t2n_mul_contam_frac
                                 , repeatunit, repeatnum
                                 , paramset.t2n_sys_err_frac_snv
                                 , paramset.t2n_sys_err_frac_indel

@@ -3162,7 +3162,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         double contam_phred = MAX(add_contam_phred, mul_contam_phred); // select worst-case contam model because tumor and normal depths are highly variable
         
         double t2n_sys_err_frac = (isInDel ? t2n_sys_err_frac_indel : t2n_sys_err_frac_snv); 
-        double t2n_contam_q = MIN(calc_binom_10log10_likeratio(t2n_add_contam_frac, fmt.FA * fmt.DP, tki.FA * tki.DP), 200.0);
+        double t2n_contam_q = MIN(calc_binom_10log10_likeratio(t2n_add_contam_frac, fmt.FA * (double)fmt.DP, tki.FA * (double)tki.DP), 200.0);
         double t2n_syserr_q = MIN(MAX(0.0, 
                 10.0/log(10.0) * log(MIN(1.0 / t2n_sys_err_frac, (nAD1/nDP1) / (tAD1/tDP1) / t2n_sys_err_frac)) * MIN(tAD0, nAD0)), 
                 60.0);
