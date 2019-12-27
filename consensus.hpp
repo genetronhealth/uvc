@@ -1265,15 +1265,15 @@ struct Symbol2CountCoverageSet {
             assert(tot_count <= symbolTypeSum || !fprintf(stderr, "%d <= %f failed for symbol %d and bucket %d !!!\n", tot_count, symbolTypeSum, symbol, bucket));
             if (0 < count) {
                 if (TIsFilterStrong) {
-                    if (tot_count - count <= (bias_adjusted_mincount)) {
+                    if (tot_count - count <= (bias_adjusted_mincount / 10.0)) {
                         // NOTE: add_phred (addPhred) is disabled here, it should be enabled when reading bam
                         double pr = phred2prob(phred + (QUAL_PRE_ADD ? 0 : add_phred));
                         if (pr > 0) {
                             tot_pqual = h01_to_phredlike<false>(pr, 1 + DBL_EPSILON, 
-                                    MIN(tot_count, bias_adjusted_mincount), symbolTypeSum, 1.0, ess_georatio_dedup);
+                                    MIN((double)tot_count, bias_adjusted_mincount / 10.0), symbolTypeSum, 1.0, ess_georatio_dedup);
                         }
                     } else {
-                        double pen = (tot_count - count - bias_adjusted_mincount) * log(MAX(1.0, imba_fact));
+                        double pen = (tot_count - count - bias_adjusted_mincount / 10.0) * log(MAX(1.0, imba_fact));
                         double pr = phred2prob(phred + (QUAL_PRE_ADD ? 0 : add_phred)) - pen;
                         if (pr > 0) {
                             tot_pqual = h01_to_phredlike<false>(pr, 1 + DBL_EPSILON, 
@@ -1499,7 +1499,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         auto str_imba = biasfact100_to_imba(sb100fin);
                         
                         imba_fact = MAX(dup_imba, MAX(MAX(MAX(pb_ldist_imba, pb_rdist_imba), str_imba), pb_nvars_imba));
-                        max_imba_depth = (unsigned int)ceil(curr_depth_symbsum / 
+                        max_imba_depth = (unsigned int)ceil(10.0 * curr_depth_symbsum / 
                                 MIN(((double)uni_bias_r_max) / 100.0, imba_fact) / (1 + DBL_EPSILON));
                         
                         if (should_add_note) {
@@ -3162,10 +3162,12 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         double contam_phred = MAX(add_contam_phred, mul_contam_phred); // select worst-case contam model because tumor and normal depths are highly variable
         
         double t2n_sys_err_frac = (isInDel ? t2n_sys_err_frac_indel : t2n_sys_err_frac_snv); 
-        double t2n_contam_q = MIN(calc_binom_10log10_likeratio(t2n_add_contam_frac, fmt.FA * (double)fmt.DP, tki.FA * (double)tki.DP), 200.0);
-        double t2n_syserr_q = MIN(MAX(0.0, 
+        double t2n_contam_q = MIN(calc_binom_10log10_likeratio(t2n_add_contam_frac, fmt.FA * (double)fmt.DP, tki.FA * (double)tki.DP)      , 200.0);
+        double min_doubleDP = (double)MIN(fmt.DP, tki.DP);
+        double t2n_syserr_q = MIN(calc_binom_10log10_likeratio(t2n_sys_err_frac/2.0,fmt.FA * min_doubleDP,   tki.FA * min_doubleDP  ) * 2.0, 200.0);
+        /* double t2n_syserr_q = MIN(MAX(0.0, 
                 10.0/log(10.0) * log(MIN(1.0 / t2n_sys_err_frac, (nAD1/nDP1) / (tAD1/tDP1) / t2n_sys_err_frac)) * MIN(tAD0, nAD0)), 
-                60.0);
+                60.0); */
         
         double n2t_red_qual = MIN(tn_npowq, tn_nrawq + (double)indel_ic) * MIN(1.0, n2t_or1) * MIN(1.0, n2t_or1); // / (t2n_or1 * t2n_or1);
         double n2t_orr_qual = MIN(tn_npowq, tn_nrawq + (double)indel_ic) * MIN(1.0, n2t_or1);
@@ -3196,7 +3198,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
                 MIN(a_no_alt_qual, noisy_germ_phred + excalt_qual + MAX(0, excalt_tu_q)) : 
                 a_no_alt_qual);
         
-        testquals[tqi++] = MIN(t_base_q, (double)a_nogerm_q) - MIN(t2n_contam_q, t2n_syserr_q);
+        testquals[tqi++] = MIN(t_base_q - MIN(t2n_contam_q, t2n_syserr_q), (double)a_nogerm_q);
         
         // testquals[tqi++] = MIN(tn_trawq - tn_nrawq + 0       , tn_tpowq - MAX(0.0, tn_npowq - tvn_or_q) + tvn_powq);
         // testquals[tqi++] = MIN(tn_trawq - tn_nrawq + tvn_rawq, tn_tpowq - MAX(0.0, tn_npowq - tvn_or_q) + tvn_powq); 
@@ -3238,12 +3240,14 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
                 std::to_string(excalt_qual), std::to_string(excalt_tu_q) 
         }));
         infostring += std::string(";TNQA=") + string_join(std::array<std::string, 8-3>({
-                std::to_string(t_base_q),    std::to_string(t2n_syserr_q),
+                std::to_string(t_base_q),
+                std::to_string(t2n_contam_q),
+                std::to_string(t2n_syserr_q),
                 //std::to_string(n2t_red_qual),
                 //std::to_string(n2t_orr_qual),
                 //std::to_string(n2t_or2_qual),
-                std::to_string(indel_pq),    
-                std::to_string(reduct_coef), std::to_string(t2n_contam_q)
+                std::to_string(indel_pq),
+                std::to_string(reduct_coef)
         }));
         infostring += std::string(";TNOR=") + string_join(std::array<std::string, 2+2>({
                 std::to_string(t2n_or0),     std::to_string(t2n_or1),
