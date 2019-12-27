@@ -2389,7 +2389,7 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
                 const double fa_ns = MAX(0.0, ((0 == t) ? (fmt.FA) : (1.0 - fmt.FA - fmt.FR)));
                 const double fa_ts = MAX(0.0, ((0 == t) ? (tki.FA) : (1.0 - tki.FA - tki.FR)));
                 const double fr_ns = 1.0 - fa_ns;
-                const double fr_ts = 1.0 - fa_t;
+                const double fr_ts = 1.0 - fa_ts;
                 homref_likecon1 = -(int)calc_binom_10log10_likeratio(t2n_add_contam_frac, fa_ns * fmt.DP, fa_ts * tki.DP);
                 homalt_likecon1 = -(int)calc_binom_10log10_likeratio(t2n_add_contam_frac, fr_ns * fmt.DP, fr_ts * tki.DP);
             }
@@ -2906,15 +2906,49 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         vcffilter.pop_back();
     }
     
+    // This hard-filtering can be done by bcftools but much more slowly
+    int64_t bDP1_0 = (int64_t) fmt.bDP1[0];
+    int64_t bDP1_1 = (int64_t) fmt.bDP1[1];
+    int64_t cDP1_0 = (int64_t) fmt.cDP1[0];
+    int64_t cDP1_1 = (int64_t) fmt.cDP1[1];
+    fmtvar.FT = "";
+    fmtvar.FTV.clear();
+    unsigned int maxbias = 100;
+                fmtFTupdate(maxbias, fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::DB1],    uni_bias_thres, hmean(fmt.aDB [0], bDP1_0, fmt.aDB [1], bDP1_1));
+    auto db2  = fmtFTupdate(maxbias, fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::DB2],    uni_bias_thres, hmean(fmt.aDB [0], cDP1_0, fmt.aDB [1], cDP1_1));
+                fmtFTupdate(maxbias, fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::MB1],    uni_bias_thres, hmean(fmt.bMMB[0], bDP1_0, fmt.bMMB[1], bDP1_1));
+    auto mb2  = fmtFTupdate(maxbias, fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::MB2],    uni_bias_thres, hmean(fmt.cMMB[0], cDP1_0, fmt.cMMB[1], cDP1_1));
+                fmtFTupdate(maxbias, fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::PB1L],   uni_bias_thres, hmean(fmt.bPBL[0], bDP1_0, fmt.bPBL[1], bDP1_1));
+                fmtFTupdate(maxbias, fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::PB1R],   uni_bias_thres, hmean(fmt.bPBR[0], bDP1_0, fmt.bPBR[1], bDP1_1));
+    auto pb2l = fmtFTupdate(maxbias, fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::PB2L],   uni_bias_thres, hmean(fmt.cPBL[0], cDP1_0, fmt.cPBL[1], cDP1_1));
+    auto pb2r = fmtFTupdate(maxbias, fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::PB2R],   uni_bias_thres, hmean(fmt.cPBR[0], cDP1_0, fmt.cPBR[1], cDP1_1));
+                fmtFTupdate(maxbias, fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::SB1],    uni_bias_thres, hmean(fmt.bSBR[0], bDP1_0, fmt.bSBR[1], bDP1_1));
+    auto sb2  = fmtFTupdate(maxbias, fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::SB2],    uni_bias_thres, hmean(fmt.cSBR[0], cDP1_0, fmt.cSBR[1], cDP1_1));
+                fmtFTupdate(maxbias, fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::QTD1],   uni_bias_thres, ceil(100*(MAX(fmt.bQT3[0], fmt.bQT3[1]) / (FLT_MIN+(double)MAX(fmt.bQT2[0], fmt.bQT2[1])))));
+                fmtFTupdate(maxbias, fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::QTD2],   uni_bias_thres, ceil(100*(MAX(fmt.cQT3[0], fmt.cQT3[1]) / (FLT_MIN+(double)MAX(fmt.cQT2[0], fmt.cQT2[1])))));
+                fmtFTupdate(maxbias, fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::DBthis], uni_bias_thres, ceil(100*(     fmt.cFA  / (    fmt.bFA + FLT_MIN))));
+    if ((fmt.cFA < 0.8 || fmt.bFA < 0.8)) {
+        fmtFTupdate(
+                maxbias, fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::DBrest], uni_bias_thres, ceil(((1.0-fmt.cFA) / (1.0-fmt.bFA + FLT_MIN)))); 
+    }
+    if (0 < fmtvar.FT.size()) {
+        fmtvar.FT.pop_back(); // not passed
+    } else {
+        fmtvar.FT += "PASS";
+    }
+    fmtvar.B4 = {db2, MAX(pb2l, pb2r), sb2, mb2};
+    // fmtvar.VAQAB = vcfqual * 100.0 / maxbias;
+    
     std::string ref_alt;
     std::string infostring = (prev_is_tumor ? "SOMATIC" : "ANY_VAR");
     const double pl_exponent = 3.0;
-    
+
     if (prev_is_tumor) {
         assert(tki.autoBestAllBQ >= tki.autoBestRefBQ + tki.autoBestAltBQ);
         
         vcfpos = (tki.ref_alt != "." ? (tki.pos + 1) : vcfpos);
         ref_alt = (tki.ref_alt != "." ? tki.ref_alt : vcfref + "\t" + vcfalt);
+                
         // const double DBLFLT_EPS = (double)FLT_EPSILON; // highqual_thres; // 1.0;
         auto ref_bias = fmt.RefBias; // * 150 / (150-30); // 30 is the min alignment score
         const double altmul = (double)(150 - MIN(120, ref_bias)) / (double)150; // 50.0 / (double)(ref_bias + 50);
@@ -3145,7 +3179,9 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
             // tki.RCC[c*4  ] = (int)rep_num_clusters[i].mode;
             int n_str_units = (isSymbolIns(symbol) ? 1 : (-1)) * (int)(indelstring.size() / repeatunit.size());
             _tn_tpo2q += penal_indel_2(tAD0a, n_str_units, tki.RCC);
-            _tn_npo2q += penal_indel_2(nAD0a, n_str_units, fmt.RCC);
+            // _tn_npo2q += penal_indel_2(nAD0a, n_str_units, fmt.RCC);
+        } else {
+            _tn_tpo2q -= 10.0 / log(10.0) * log((double)MAX6(db2, pb2l, pb2r, sb2, mb2, 100) / 100.0);
         }
         const double tn_tpowq = _tn_tpo2q;
         const double tn_npowq = MAX(0.0, _tn_npo2q);
@@ -3392,45 +3428,9 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
                     //vcfqual = vcfqual * tAD / (tAD + tbase);
                     if (tAD  <1.5) { vcfqual *= ((double)tAD / 1.5); }
                 }
-                // micro-adjustment for LOD // WARNING: no theoretical justification
-                // auto tFA2 = (tAD + (double)1) / ((double)(tDP + 1));
-                // tFA2 = MAX(0.02/2.0, MIN(0.02*2.0, tFA2));
-                // vcfqual += log(tFA2 / 0.02) / log(10.0) * 10.0;
             }
         }
         
-        // This hard-filtering can be done by bcftools but much more slowly
-        int64_t bDP1_0 = (int64_t) fmt.bDP1[0];
-        int64_t bDP1_1 = (int64_t) fmt.bDP1[1];
-        int64_t cDP1_0 = (int64_t) fmt.cDP1[0];
-        int64_t cDP1_1 = (int64_t) fmt.cDP1[1];
-        fmtvar.FT = "";
-        fmtvar.FTV.clear();
-        unsigned int maxbias = 100;
-                    fmtFTupdate(maxbias, fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::DB1],    uni_bias_thres, hmean(fmt.aDB [0], bDP1_0, fmt.aDB [1], bDP1_1));
-        auto db2  = fmtFTupdate(maxbias, fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::DB2],    uni_bias_thres, hmean(fmt.aDB [0], cDP1_0, fmt.aDB [1], cDP1_1));
-                    fmtFTupdate(maxbias, fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::MB1],    uni_bias_thres, hmean(fmt.bMMB[0], bDP1_0, fmt.bMMB[1], bDP1_1));
-        auto mb2  = fmtFTupdate(maxbias, fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::MB2],    uni_bias_thres, hmean(fmt.cMMB[0], cDP1_0, fmt.cMMB[1], cDP1_1));
-                    fmtFTupdate(maxbias, fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::PB1L],   uni_bias_thres, hmean(fmt.bPBL[0], bDP1_0, fmt.bPBL[1], bDP1_1));
-                    fmtFTupdate(maxbias, fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::PB1R],   uni_bias_thres, hmean(fmt.bPBR[0], bDP1_0, fmt.bPBR[1], bDP1_1));
-        auto pb2l = fmtFTupdate(maxbias, fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::PB2L],   uni_bias_thres, hmean(fmt.cPBL[0], cDP1_0, fmt.cPBL[1], cDP1_1));
-        auto pb2r = fmtFTupdate(maxbias, fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::PB2R],   uni_bias_thres, hmean(fmt.cPBR[0], cDP1_0, fmt.cPBR[1], cDP1_1));
-                    fmtFTupdate(maxbias, fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::SB1],    uni_bias_thres, hmean(fmt.bSBR[0], bDP1_0, fmt.bSBR[1], bDP1_1));
-        auto sb2  = fmtFTupdate(maxbias, fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::SB2],    uni_bias_thres, hmean(fmt.cSBR[0], cDP1_0, fmt.cSBR[1], cDP1_1));
-                    fmtFTupdate(maxbias, fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::QTD1],   uni_bias_thres, ceil(100*(MAX(fmt.bQT3[0], fmt.bQT3[1]) / (FLT_MIN+(double)MAX(fmt.bQT2[0], fmt.bQT2[1])))));
-                    fmtFTupdate(maxbias, fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::QTD2],   uni_bias_thres, ceil(100*(MAX(fmt.cQT3[0], fmt.cQT3[1]) / (FLT_MIN+(double)MAX(fmt.cQT2[0], fmt.cQT2[1])))));
-                    fmtFTupdate(maxbias, fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::DBthis], uni_bias_thres, ceil(100*(     fmt.cFA  / (    fmt.bFA + FLT_MIN))));
-        if ((fmt.cFA < 0.8 || fmt.bFA < 0.8)) {
-            fmtFTupdate(
-                    maxbias, fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::DBrest], uni_bias_thres, ceil(((1.0-fmt.cFA) / (1.0-fmt.bFA + FLT_MIN)))); 
-        }
-        if (0 < fmtvar.FT.size()) {
-            fmtvar.FT.pop_back(); // not passed
-        } else {
-            fmtvar.FT += "PASS";
-        }
-        fmtvar.B4 = {db2, MAX(pb2l, pb2r), sb2, mb2};
-        fmtvar.VAQAB = vcfqual * 100.0 / maxbias;
     }
         
     if (0 == vcffilter.size()) {

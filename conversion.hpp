@@ -36,12 +36,22 @@ MAX(auto a, auto b) {
 
 auto 
 MAX3(auto a, auto b, auto c) {
-    return MAX(MAX(a, b), c);
+    return MAX(a, MAX(b, c));
 }
 
 auto 
 MAX4(auto a, auto b, auto c, auto d) {
-    return MAX(MAX3(a, b, c), d);
+    return MAX(a, MAX3(b, c, d));
+}
+
+auto 
+MAX5(auto a, auto b, auto c, auto d, auto e) {
+    return MAX(a, MAX4(b, c, d, e));
+}
+
+auto 
+MAX6(auto a, auto b, auto c, auto d, auto e, auto f) {
+    return MAX(a, MAX5(b, c, d, e, f));
 }
 
 void 
