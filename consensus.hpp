@@ -2372,15 +2372,18 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
             const double fr_v = 1.0 - fa_v;
             const double dr_v = fr_v * fmt.DP;
             
+            // The genotype of the normal sample considers contaminated signals. 
+            // A heavily contaminated normal can therefore be genotyped as heterozygous even though it is homozygous reference if contamination is removed in-silico.
             // normalize contam with t2n_contam, 
             int homref_likecon1 = -200; // t2n_contam_alt_q    = -200;
             int homalt_likecon1 = -200; // t2n_contam_nonref_q = -200;
-            if (prev_is_tumor) {
+            
+            // if (prev_is_tumor) {
                 // double tki_FO = 1.0 - tki.FA - tki.FR;
                 // double fmt_FO = 1.0 - fmt.FA - fmt.FR;
-                homref_likecon1 = -(int)calc_binom_10log10_likeratio(t2n_add_contam_frac,        fa1  * fmt.DP,        fa1  * tki.DP);
-                homalt_likecon1 = -(int)calc_binom_10log10_likeratio(t2n_add_contam_frac, (1.0 - fa1) * fmt.DP, (1.0 - fa1) * tki.DP);
-            }
+                // homref_likecon1 = -(int)calc_binom_10log10_likeratio(t2n_add_contam_frac,        fa1  * fmt.DP,        fa1  * tki.DP);
+                // homalt_likecon1 = -(int)calc_binom_10log10_likeratio(t2n_add_contam_frac, (1.0 - fa1) * fmt.DP, (1.0 - fa1) * tki.DP);
+            // }
             
             // two models (additive and multiplicative)
             // two alleles (REF and ALT)
@@ -2426,10 +2429,10 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
             int homalt_likeval2 = MAX(homalt_likeval1, homalt_likecon1);
             
             fmtGST = {
-                    -homref_likelim1, -homref_likeval1, -homref_likecon1,
+                    -homref_likelim1, -homref_likeval1, // -homref_likecon1,
                     -hetREF_likelim1, -hetALT_likeval1,
                     -hetALT_likelim1, -hetREF_likeval1,
-                    -homalt_likelim1, -homalt_likeval1, -homalt_likecon1
+                    -homalt_likelim1, -homalt_likeval1, // -homalt_likecon1
             };
             // 0/1 : 204 :  -196,8,-296 : 6,0,1,8,-197,-0,-1,-296
             // 0,-7,10,33, 0,0,187,987
@@ -3083,7 +3086,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
                              / ((double)(tAD0 +           tAD0pc0) / (double)(tDP0 - tAD0 +           (tDP0pc0 - tAD0pc0)));
         const double n2t_or1 = ((double)(nAD1 +     0.0 * nAD1pc0) / (double)(nDP1 - nAD1 +     0.0 * (nDP1pc0 - nAD1pc0))) 
                              / ((double)(tAD1 +           tAD1pc0) / (double)(tDP1 - tAD1 +           (tDP1pc0 - tAD1pc0))); 
-
+        
         const double t2n_rawq0 = ((true || nDP0 <= tDP0) // TODO: check if the symmetry makes sense?
             ? calc_binom_10log10_likeratio((double)(tDP0 - tAD0) / (double)tDP0, (double)(nDP0 - nAD0),                (double)(nAD0)                      )
             : calc_binom_10log10_likeratio((double)       (nAD0) / (double)nDP0, (double)(nAD0),                       (double)(nDP0 - nAD0)               )); 
@@ -3192,7 +3195,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         
         double a_no_alt_qual = MAX(
                 nonalt_qual + MIN(MAX(0, nonalt_tu_q), nonalt_tu_maxq), // quality of non-germline event
-                t_base_q - t2n_contam_q - 200*2                         // likelihood of signal minus the likelihood of contamination. Note: this has already been considered in GQ
+                t_base_q - t2n_contam_q - 200*0                         // likelihood of signal minus the likelihood of contamination. Note: this was not considered in GQ
         );
         const int32_t a_nogerm_q = homref_gt_phred + (is_nonref_germline_excluded ? 
                 MIN(a_no_alt_qual, noisy_germ_phred + excalt_qual + MAX(0, excalt_tu_q)) : 
