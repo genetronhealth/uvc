@@ -2386,8 +2386,12 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
             if (prev_is_tumor) {
                 // double tki_FO = 1.0 - tki.FA - tki.FR;
                 // double fmt_FO = 1.0 - fmt.FA - fmt.FR;
-                homref_likecon1 = -(int)calc_binom_10log10_likeratio(t2n_add_contam_frac,        fmt.FA  * fmt.DP,        tki.FA  * tki.DP);
-                homalt_likecon1 = -(int)calc_binom_10log10_likeratio(t2n_add_contam_frac, (1.0 - fmt.FA) * fmt.DP, (1.0 - tki.FA) * tki.DP);
+                const double fa_ns = MAX(0.0, ((0 == t) ? (fmt.FA) : (1.0 - fmt.FA - fmt.FR)));
+                const double fa_ts = MAX(0.0, ((0 == t) ? (tki.FA) : (1.0 - tki.FA - tki.FR)));
+                const double fr_ns = 1.0 - fa_ns;
+                const double fr_ts = 1.0 - fa_t;
+                homref_likecon1 = -(int)calc_binom_10log10_likeratio(t2n_add_contam_frac, fa_ns * fmt.DP, fa_ts * tki.DP);
+                homalt_likecon1 = -(int)calc_binom_10log10_likeratio(t2n_add_contam_frac, fr_ns * fmt.DP, fr_ts * tki.DP);
             }
             
             // two models (additive and multiplicative)
