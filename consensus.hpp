@@ -1975,19 +1975,26 @@ BcfFormat_init(bcfrec::BcfFormat & fmt,
         const AlignmentSymbol refsymbol) {
     
     for (unsigned int strand = 0; strand < 2; strand++) {
-        fmt.bAllBQ[strand] = div_by_10(symbolDistrSets12.bq_qual_p2sum.at(strand).getByPos(refpos).sumBySymbolType(symbolType)); 
+        fmt.bAllBQ[strand] = (symbolDistrSets12.bq_qual_p1sum.at(strand).getByPos(refpos).sumBySymbolType(symbolType)); 
+        // fmt.bAllBQ[strand] = div_by_20(symbolDistrSets12.bq_qual_p2sum.at(strand).getByPos(refpos).sumBySymbolType(symbolType)); 
+
         if (use_deduplicated_reads) {
-            fmt.cAllBQ[strand] = div_by_10(symbolDistrSets12.fq_qual_p2sum.at(strand).getByPos(refpos).sumBySymbolType(symbolType)); 
+            fmt.cAllBQ[strand] = (symbolDistrSets12.fq_qual_p1sum.at(strand).getByPos(refpos).sumBySymbolType(symbolType)); 
+            fmt.cAllBQ2[strand] = div_by_20(symbolDistrSets12.fq_qual_p2sum.at(strand).getByPos(refpos).sumBySymbolType(symbolType)); 
         } else {
             fmt.cAllBQ[strand] = fmt.bAllBQ[strand]; 
+            fmt.cAllBQ2[strand] = div_by_20(symbolDistrSets12.bq_qual_p2sum.at(strand).getByPos(refpos).sumBySymbolType(symbolType)); 
         }
         fmt.cAllHD[strand] = symbolDistrSets12.fq_hiqual_dep.at(strand).getByPos(refpos).sumBySymbolType(symbolType);
         
-        fmt.bRefBQ[strand] = div_by_10(symbolDistrSets12.bq_qual_p2sum.at(strand).getByPos(refpos).getSymbolCount(refsymbol)); 
+        fmt.bRefBQ[strand] = (symbolDistrSets12.bq_qual_p1sum.at(strand).getByPos(refpos).getSymbolCount(refsymbol)); 
+        // fmt.bRefBQ[strand] = div_by_20(symbolDistrSets12.bq_qual_p2sum.at(strand).getByPos(refpos).getSymbolCount(refsymbol)); 
         if (use_deduplicated_reads) {
-            fmt.cRefBQ[strand] = div_by_10(symbolDistrSets12.fq_qual_p2sum.at(strand).getByPos(refpos).getSymbolCount(refsymbol)); 
+            fmt.cRefBQ[strand] = (symbolDistrSets12.fq_qual_p1sum.at(strand).getByPos(refpos).getSymbolCount(refsymbol)); 
+            fmt.cRefBQ2[strand] = div_by_20(symbolDistrSets12.fq_qual_p2sum.at(strand).getByPos(refpos).getSymbolCount(refsymbol)); 
         } else {
             fmt.cRefBQ[strand] = fmt.bRefBQ[strand]; 
+            fmt.cRefBQ2[strand] = div_by_20(symbolDistrSets12.bq_qual_p2sum.at(strand).getByPos(refpos).getSymbolCount(refsymbol)); 
         }
         fmt.cRefHD[strand] = symbolDistrSets12.fq_hiqual_dep.at(strand).getByPos(refpos).getSymbolCount(refsymbol); 
         
@@ -2198,11 +2205,14 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
     uint64_t bq_qsum_sqrMQ_tot = 0; 
     for (unsigned int strand = 0; strand < 2; strand++) {
         
-        fmt.bAltBQ[strand] = div_by_10(symbol2CountCoverageSet12.bq_qual_p2sum.at(strand).getByPos(refpos).getSymbolCount(symbol));
+        fmt.bAltBQ[strand] = (symbol2CountCoverageSet12.bq_qual_p1sum.at(strand).getByPos(refpos).getSymbolCount(symbol));
+        // fmt.bAltBQ[strand] = div_by_20(symbol2CountCoverageSet12.bq_qual_p2sum.at(strand).getByPos(refpos).getSymbolCount(symbol));
         if (use_deduplicated_reads) {
-            fmt.cAltBQ[strand] = div_by_10(symbol2CountCoverageSet12.fq_qual_p2sum.at(strand).getByPos(refpos).getSymbolCount(symbol));
+            fmt.cAltBQ[strand] = (symbol2CountCoverageSet12.fq_qual_p1sum.at(strand).getByPos(refpos).getSymbolCount(symbol));
+            fmt.cAltBQ2[strand] = div_by_20(symbol2CountCoverageSet12.fq_qual_p2sum.at(strand).getByPos(refpos).getSymbolCount(symbol));
         } else {
-            fmt.cAltBQ[strand] = fmt.bAltBQ[strand];  
+            fmt.cAltBQ[strand] = fmt.bAltBQ[strand];
+            fmt.cAltBQ2[strand] = div_by_20(symbol2CountCoverageSet12.bq_qual_p2sum.at(strand).getByPos(refpos).getSymbolCount(symbol));
         }
         fmt.cAltHD[strand] = symbol2CountCoverageSet12.fq_hiqual_dep.at(strand).getByPos(refpos).getSymbolCount(symbol);
         fmt.aDB[strand]  = symbol2CountCoverageSet12.du_bias_dedup.at(strand).getByPos(refpos).getSymbolCount(symbol);
@@ -2238,10 +2248,10 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
         fmt.bBQ1[strand] = sqrt(bq_qual_p2sum / (DBL_MIN + (double)fmt.bAD1[strand]));
         fmt.bBQ2[strand] = bq_qual_p2sum / (DBL_MIN + bq_qual_p1sum);
         
-        double fq_qual_p1sum = (double)symbol2CountCoverageSet12.fq_qual_p1sum.at(strand).getByPos(refpos).getSymbolCount(symbol);
-        double fq_qual_p2sum = (double)symbol2CountCoverageSet12.fq_qual_p2sum.at(strand).getByPos(refpos).getSymbolCount(symbol);
-        fmt.cCQ1[strand] = sqrt(fq_qual_p2sum / (DBL_MIN + (double)fmt.cAD1[strand]));
-        fmt.cCQ2[strand] = fq_qual_p2sum / (DBL_MIN + fq_qual_p1sum); 
+        //double fq_qual_p1sum = (double)symbol2CountCoverageSet12.fq_qual_p1sum.at(strand).getByPos(refpos).getSymbolCount(symbol);
+        //double fq_qual_p2sum = (double)symbol2CountCoverageSet12.fq_qual_p2sum.at(strand).getByPos(refpos).getSymbolCount(symbol);
+        //fmt.cCQ1[strand] = sqrt(fq_qual_p2sum / (DBL_MIN + (double)fmt.cAD1[strand]));
+        //fmt.cCQ2[strand] = fq_qual_p2sum / (DBL_MIN + fq_qual_p1sum); 
         
         fmt.bADLQ[strand] = symbol2CountCoverageSet12.bq_tsum_LQdep.at(strand).getByPos(refpos).getSymbolCount(symbol);
         
@@ -2363,10 +2373,12 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
             
             double fmtFA = ((!isSymbolSubstitution(symbol)) ? fmt.FA : (
                    // MIN(1.0, (double)SUM2(fmt.cAltBQ) / (fmt.FA * (double)SUM2(fmt.cAllBQ) + DBL_EPSILON)) * 
-                             (double)SUM2(fmt.cAltBQ) / (         (double)SUM2(fmt.cAllBQ) + DBL_EPSILON)));
+                             (double)SUM2(fmt.cAltBQ2) / (         (double)SUM2(fmt.cAllBQ2) + DBL_EPSILON)));
             double fmtFR = ((!isSymbolSubstitution(symbol)) ? fmt.FR : (
                    // MIN(1.0, (double)SUM2(fmt.cRefBQ) / (fmt.FR * (double)SUM2(fmt.cAllBQ) + DBL_EPSILON)) * 
-                             (double)SUM2(fmt.cRefBQ) / (         (double)SUM2(fmt.cAllBQ) + DBL_EPSILON)));
+                             (double)SUM2(fmt.cRefBQ2) / (         (double)SUM2(fmt.cAllBQ2) + DBL_EPSILON)));
+            
+            // double qdiff = (SUM2(fmt.cAltBQ) - fmt.FA * SUM2(fmt.cAllBQ)) / (fmt.DP * fmt.FA + DBL_EPSILON);
             
             const double fa1 = MAX(0.0, ((0 == t) ? (fmtFA) : (1.0 - fmtFA - fmtFR)));
             
@@ -3107,9 +3119,12 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         const double nDP0pc0 = 0.5        / tnFA0;
         // const double tnMFpc0 = 1.0 / MIN(MIN(MIN(tAD0pc0, tDP0pc0), nAD0pc0), nDP0pc0);
         
-        const double tE1 = div_by_10(mathsquare(10.0/log(10.0) * log((double)(tDP0 + 2))));
-        const double nE1 = div_by_10(mathsquare(10.0/log(10.0) * log((double)(nDP0 + 2))));
-        const double tnE1 = div_by_10(mathsquare(10.0/log(10.0) * log((double)(tDP0 + nDP0 + 2))));
+        const double tE1  = ((10.0/log(10.0) * log((double)(tDP0 + 2))));
+        const double nE1  = ((10.0/log(10.0) * log((double)(nDP0 + 2))));
+        const double tnE1 = ((10.0/log(10.0) * log((double)(tDP0 + nDP0 + 2))));
+        //const double tE1 = div_by_20(mathsquare(10.0/log(10.0) * log((double)(tDP0 + 2))));
+        //const double nE1 = div_by_20(mathsquare(10.0/log(10.0) * log((double)(nDP0 + 2))));
+        //const double tnE1 = div_by_20(mathsquare(10.0/log(10.0) * log((double)(tDP0 + nDP0 + 2))));
         const double tnDP1ratio = (double)(tDP1 + tE1        ) / (double)(nDP1 + nE1);
         const double tnFA1 =      (double)(tAD1 + nAD1 + tnE1) / (double)(tDP1 + nDP1 + tnE1 * 2.0);
         const double tAD1pc0 = 0.5 * tnE1 * tnDP0ratio       ;
@@ -3181,7 +3196,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
             _tn_tpo2q += penal_indel_2(tAD0a, n_str_units, tki.RCC);
             // _tn_npo2q += penal_indel_2(nAD0a, n_str_units, fmt.RCC);
         } else {
-            _tn_tpo2q -= 10.0 / log(10.0) * log((double)MAX6(db2, pb2l, pb2r, sb2, mb2, 100) / 100.0);
+            // _tn_tpo2q -= 10.0 / log(10.0) * log((double)(100+MAX6(db2, pb2l, pb2r, sb2, mb2, 100)) / 200.0);
         }
         const double tn_tpowq = _tn_tpo2q;
         const double tn_npowq = MAX(0.0, _tn_npo2q);

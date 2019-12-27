@@ -20,8 +20,8 @@
 
 template <class T>
 T
-div_by_10(T n) {
-    return n / 10;    
+div_by_20(T n) {
+    return n / 20;    
 }
 
 auto 
