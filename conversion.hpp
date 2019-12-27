@@ -18,6 +18,12 @@
 
 #define DBLFLT_EPS ((double)FLT_EPSILON)
 
+template <class T>
+T
+div_by_10(T n) {
+    return n / 10;    
+}
+
 auto 
 MIN(auto a, auto b) {
     return (a < b ? a :b);
