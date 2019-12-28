@@ -19,6 +19,7 @@
 #define DBLFLT_EPS ((double)FLT_EPSILON)
 
 #define PLEXP (3.0)
+#define SYS_QMAX (25.0)
 
 template <class T>
 T

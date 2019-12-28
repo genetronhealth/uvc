@@ -3171,6 +3171,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         const double pcap = 60.0 + 25.0 + 5.0; // prob[mapping-error] * prob[false-positive-variant-per-base-position] / num-alts-per-base-positon
         const double pcap_tmq = MIN(60.0, tki.MQ) * 4.0/3.0;
         const double pcap_nmq = MIN(60.0, fmt.MQ) * 4.0/3.0;
+        const double pcap_tmq2 = (tki.MQ - 10.0/log(10.0) * log((double)(tDP0 + tDP0pc0) / (double)(tAD0+tAD0pc0))) * (double)tAD0;
         // double eps_qual = 10.0/log(10.0) * log((double)tDP0 + 2.0);
         const double tn_tpo1q = 10.0 / log(10.0) * log((double)(tAD0 / altmul + tE0) / ((tDP0 - tAD0) / refmul + tAD0 / altmul + 2.0 * tE0)) * (isInDel ? pl_exponent : pl_exponent) + (isInDel ? pcap : pcap);
         const double tn_npo1q = 10.0 / log(10.0) * log((double)(nAD0 / altmul + nE0) / ((nDP0 - tAD0) / refmul + tAD0 / altmul + 2.0 * nE0)) * (isInDel ? pl_exponent : pl_exponent) + (isInDel ? pcap : pcap);
@@ -3189,8 +3190,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         const double tn_trawq = _tn_tra2q;
         const double tn_nrawq = _tn_nra2q;
         
-        double _tn_tpo2q = MIN(tn_tpo1q, pcap_tmq);
-        double _tn_npo2q = MIN(tn_npo1q, pcap_nmq);
+        double _tn_tpo2q = MIN(MIN(tn_tpo1q, pcap_tmq), pcap_tmq2);
+        double _tn_npo2q =     MIN(tn_npo1q, pcap_nmq);
         if (isInDel) {
             // QUESTION: why indel generations are discrete?
             //tn_tpowq = penal_indel(tn_tpo1q, (double)(tAD0a), (double)(tDP0 - tRD0), repeatunit, repeatnum);
@@ -3232,7 +3233,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         double t2n_contam_q = MIN(calc_binom_10log10_likeratio(t2n_add_contam_frac, fmt.FA * (double)fmt.DP, tki.FA * (double)tki.DP)      , 200.0);
         double min_doubleDP = (double)MIN(fmt.DP, tki.DP);
         // double t2n_syserr_q = MIN(calc_binom_10log10_likeratio(t2n_sys_err_frac/2.0,fmt.FA * min_doubleDP,   tki.FA * min_doubleDP  ) * 2.0, 200.0);
-        double t2n_syserr_q = (isInDel ? 0.0 : MIN(MAX(0.0, MIN(tn_npowq, tn_nrawq)) / (0.5 * t2n_or1 + 0.5), SYS_QMAX));
+        double t2n_syserr_q = (isInDel ? 0.0 : MIN(MAX(0.0, MIN(tn_npowq, tn_nrawq)) * MIN(1.0, 4.0 / mathsquare(t2n_or1 + 1.0)), 50.0));
         /* double t2n_syserr_q = MIN(MAX(0.0, 
                 10.0/log(10.0) * log(MIN(1.0 / t2n_sys_err_frac, (nAD1/nDP1) / (tAD1/tDP1) / t2n_sys_err_frac)) * MIN(tAD0, nAD0)), 
                 60.0); */
@@ -3246,7 +3247,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         // part: germline
         // const double indel_aq = (isInDel ? 10.0 : 0.0);
         
-        const int32_t nonalt_tu_maxq = t2n_powq; // MIN(t2n_rawq, t2n_powq);
+        // const int32_t nonalt_tu_maxq = t2n_powq; // MIN(t2n_rawq, t2n_powq);
         // Pr[soma] + Pr[germ] = 1 - Pr[exp-error]
         // Pr[soma | signal is from either germ or soma] * (1 - Pr[exp-error]) = Pr[soma | signal is from either germ, soma, or exp-error]
         // If Pr[exp-error] is approx 0, then Pr[soma | signal is from either germ or soma] is approx Pr[soma | signal is from either germ, soma, or exp-error]
@@ -3255,11 +3256,11 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         
         std::array<double, N_MODELS> testquals = {0};
         unsigned int tqi = 0;
-        double t2n_finq  = max_min01_sub02(MIN(t2n_rawq, t2t_powq), MIN(t2n_rawq, t2n_powq), t2n_contam_q);
+        double t2n_finq  = max_min01_sub02(MIN(t2n_rawq, t2t_powq), MAX(0.0, MIN(t2n_rawq, t2n_powq)), t2n_contam_q);
         double t_base_q = MIN(tn_trawq, tn_tpowq + (double)indel_ic) + t2n_finq;
         
         double a_no_alt_qual = MAX(
-                nonalt_qual + MIN(MAX(0, nonalt_tu_q), nonalt_tu_maxq), // quality of non-germline event
+                nonalt_qual + MAX(0, MIN(nonalt_tu_q, t2n_powq)), // quality of non-germline event
                 t_base_q - t2n_contam_q - 200*2                         // likelihood of signal minus the likelihood of contamination. Note: this has already been considered in GQ
         );
         const int32_t a_nogerm_q = homref_gt_phred + (is_nonref_germline_excluded ? 
