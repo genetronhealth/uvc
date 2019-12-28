@@ -18,6 +18,8 @@
 
 #define DBLFLT_EPS ((double)FLT_EPSILON)
 
+#define PLEXP (3.0)
+
 template <class T>
 T
 div_by_20(T n) {
