@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-#include "common.h"
+#include "common.hpp"
 
 #define BCF_NUM_A (-1)
 #define BCF_NUM_R (-2)

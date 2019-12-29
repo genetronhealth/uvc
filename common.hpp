@@ -149,8 +149,8 @@ struct VcStats {
             ostream << tot_tuDP << "\t";
             ostream << tot_noDP << "\t";
 
-            ostream << (0.03 + (double)tot_nAD)                 / (1.0 + (double)tot_tAD                ) << "\t"; 
-            ostream << (0.03 + (double)tot_nAD*(double)tot_tDP) / (1.0 + (double)tot_tAD*(double)tot_nDP) << "\t"; 
+            ostream << (0.03 + (double)tot_noAD)                  / (1.0 + (double)tot_tuAD                 ) << "\t"; 
+            ostream << (0.03 + (double)tot_noAD*(double)tot_tuDP) / (1.0 + (double)tot_tuAD*(double)tot_noDP) << "\t"; 
 
             if ((!vcfqual_is_too_low) && tot_nvars >= 25 && tot_noDP >= 25*100 && tot_tuDP >= 25*100) {
                 ostream << "VCF_QUAL_EQUALS_THE_THRESHOLD_FOR_TUMOR_TO_NORMAL_CONTAMINATION_ESTIMATION" << "\n";  
