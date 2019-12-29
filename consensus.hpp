@@ -3233,7 +3233,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         double t2n_contam_q = MIN(calc_binom_10log10_likeratio(t2n_add_contam_frac, fmt.FA * (double)fmt.DP, tki.FA * (double)tki.DP)      , 200.0);
         double min_doubleDP = (double)MIN(fmt.DP, tki.DP);
         // double t2n_syserr_q = MIN(calc_binom_10log10_likeratio(t2n_sys_err_frac/2.0,fmt.FA * min_doubleDP,   tki.FA * min_doubleDP  ) * 2.0, 200.0);
-        double t2n_syserr_q = (isInDel ? 0.0 : MIN(MAX(0.0, MIN(tn_npowq, tn_nrawq)) * MIN(1.0, 4.0 / mathsquare(t2n_or1 + 1.0)), 50.0));
+        // double t2n_syserr_q = (isInDel ? 0.0 : MIN(MAX(0.0, MIN(tn_npowq, tn_nrawq)) / (0.5 * t2n_or1 + 0.5), SYS_QMAX));
+        double t2n_syserr_q = (isInDel ? 0.0 : MIN(MAX(0.0, MIN(tn_npowq, tn_nrawq)) * MIN(1.0, 4.0 / mathsquare(t2n_or1 + 1.0)), SYS_QMAX)); // 50.0
         /* double t2n_syserr_q = MIN(MAX(0.0, 
                 10.0/log(10.0) * log(MIN(1.0 / t2n_sys_err_frac, (nAD1/nDP1) / (tAD1/tDP1) / t2n_sys_err_frac)) * MIN(tAD0, nAD0)), 
                 60.0); */
@@ -3260,7 +3261,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         double t_base_q = MIN(tn_trawq, tn_tpowq + (double)indel_ic) + t2n_finq;
         
         double a_no_alt_qual = MAX(
-                nonalt_qual + MAX(0, MIN(nonalt_tu_q, t2n_powq)), // quality of non-germline event
+                nonalt_qual + MAX(0, MIN(nonalt_tu_q, t2n_powq)) - MIN(t2n_contam_q, t2n_syserr_q), // quality of non-germline event
                 t_base_q - t2n_contam_q - 200*2                         // likelihood of signal minus the likelihood of contamination. Note: this has already been considered in GQ
         );
         const int32_t a_nogerm_q = homref_gt_phred + (is_nonref_germline_excluded ? 

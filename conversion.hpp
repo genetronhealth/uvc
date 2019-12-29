@@ -18,8 +18,10 @@
 
 #define DBLFLT_EPS ((double)FLT_EPSILON)
 
-#define PLEXP (3.0)
-#define SYS_QMAX (25.0)
+// http://snap.stanford.edu/class/cs224w-2015/slides/04-powerlaws.pdf
+// https://cs.brynmawr.edu/Courses/cs380/spring2013/section02/slides/10_ScaleFreeNetworks.pdf
+#define PLEXP (3.0)     
+#define SYS_QMAX (25.0) // Is it the PHRED-scaled probability that a germline event is an outlier in terms of allele fraction?
 
 template <class T>
 T
