@@ -935,13 +935,14 @@ public:
         posToIndelToCount_inc(this->getRefPosToDlenToData(symbol), ipos, dlen, incvalue);
     };
     
-    template<ValueType TUpdateType, bool TIsProton, bool THasDups, unsigned int TIndelAddPhred = 0*29>
+    template<ValueType TUpdateType, bool TIsProton, bool THasDups, bool TFillSeqDir, unsigned int TIndelAddPhred = 0*29>
     int // GenericSymbol2CountCoverage<TSymbol2Count>::
     updateByAln(const bam1_t *const b, unsigned int frag_indel_ext, 
             const std::array<unsigned int, NUM_SYMBOL_TYPES> & symbolType2addPhredArg, 
             unsigned int frag_indel_basemax, 
             unsigned int nogap_phred, // this is obsolete
             const auto & region_symbolvec, const unsigned int region_offset,
+            std::array<GenericSymbol2CountCoverage<Symbol2Count>, 2> & bq_dirs_count,
             uint32_t primerlen = 0) {
         static_assert(BASE_QUALITY_MAX == TUpdateType || SYMBOL_COUNT_SUM == TUpdateType);
         assert(this->tid == SIGN2UNSIGN(b->core.tid));
@@ -949,6 +950,7 @@ public:
         assert(this->getExcluEndPosition() >= SIGN2UNSIGN(bam_endpos(b)) || !fprintf(stderr, "%lu >= %d failed", this->getExcluEndPosition(), bam_endpos(b)));
         const auto symbolType2addPhred = symbolType2addPhredArg; // std::array({0, 0});
         
+        bool isrc = ((b->core.flag & 0x10) == 0x10);
         unsigned int qpos = 0;
         unsigned int rpos = b->core.pos;
         const uint32_t n_cigar = b->core.n_cigar;
@@ -968,6 +970,9 @@ public:
                             incvalue = frag_indel_basemax; //(MIN(bam_phredi(b, qpos-1), bam_phredi(b, qpos))); // + symbolType2addPhred[LINK_SYMBOL];
                         }
                         this->inc<TUpdateType>(rpos, LINK_M, incvalue, b);
+                        if (TFillSeqDir) {
+                            bq_dirs_count[isrc].inc<SYMBOL_COUNT_SUM>(rpos, LINK_M, 1, b);
+                        }
                     }
                     unsigned int base4bit = bam_seqi(bseq, qpos);
                     unsigned int base3bit = seq_nt16_int[base4bit];
@@ -976,6 +981,9 @@ public:
                                 + (QUAL_PRE_ADD ? symbolType2addPhred[BASE_SYMBOL] : 0);
                     }
                     this->inc<TUpdateType>(rpos, AlignmentSymbol(base3bit), incvalue, b);
+                    if (TFillSeqDir) {
+                        bq_dirs_count[isrc].inc<SYMBOL_COUNT_SUM>(rpos, AlignmentSymbol(base3bit), 1, b);
+                    }
                     rpos += 1;
                     qpos += 1;
                 }
@@ -1004,6 +1012,9 @@ public:
                     }
                 }
                 this->inc<TUpdateType>(rpos, insLenToSymbol(inslen), MAX(SIGN2UNSIGN(1), incvalue), b);
+                if (TFillSeqDir) {
+                    bq_dirs_count[isrc].inc<SYMBOL_COUNT_SUM>(rpos, insLenToSymbol(inslen), 1, b);
+                }
                 std::string iseq;
                 iseq.reserve(cigar_oplen);
                 unsigned int incvalue2 = incvalue;
@@ -1042,6 +1053,9 @@ public:
                     }
                 }
                 this->inc<TUpdateType>(rpos, delLenToSymbol(dellen), MAX(SIGN2UNSIGN(1), incvalue), b);
+                if (TFillSeqDir) {
+                    bq_dirs_count[isrc].inc<SYMBOL_COUNT_SUM>(rpos, delLenToSymbol(dellen), 1, b);
+                }
                 this->incDel(rpos, cigar_oplen, delLenToSymbol(dellen), MAX(SIGN2UNSIGN(1), incvalue));
 #if 0 
 // The definition of non-ref for indel is not clearly defined, this piece of code can result in germline risk that is not in the ground truth, so it it commented out.
@@ -1069,23 +1083,23 @@ public:
         return 0;
     }
 
-    template<ValueType TUpdateType>
+    template<ValueType TUpdateType, bool TFillSeqDir>
     int // GenericSymbol2CountCoverage<TSymbol2Count>::
     updateByRead1Aln(std::vector<bam1_t *> aln_vec, unsigned int frag_indel_ext, 
             const std::array<unsigned int, NUM_SYMBOL_TYPES> & symbolType2addPhred, const unsigned int alns2size, 
-            const unsigned int frag_indel_basemax, unsigned int dflag, unsigned int nogap_phred, const bool is_proton, const auto & region_symbolvec, const unsigned int region_offset) {
+            const unsigned int frag_indel_basemax, unsigned int dflag, unsigned int nogap_phred, const bool is_proton, const auto & region_symbolvec, const unsigned int region_offset, std::array<GenericSymbol2CountCoverage<Symbol2Count>, 2> & bq_dirs_count) {
         for (bam1_t *aln : aln_vec) {
             if (alns2size > 1 && dflag > 0) { // is barcoded and not singleton
                 if (is_proton || true) {
-                    this->updateByAln<TUpdateType, true , true >(aln, frag_indel_ext, symbolType2addPhred, frag_indel_basemax, nogap_phred, region_symbolvec, region_offset);
+                    this->updateByAln<TUpdateType, true , true , TFillSeqDir>(aln, frag_indel_ext, symbolType2addPhred, frag_indel_basemax, nogap_phred, region_symbolvec, region_offset, bq_dirs_count);
                 } else {
-                    this->updateByAln<TUpdateType, false, true >(aln, frag_indel_ext, symbolType2addPhred, frag_indel_basemax, nogap_phred, region_symbolvec, region_offset);
+                    this->updateByAln<TUpdateType, false, true , TFillSeqDir>(aln, frag_indel_ext, symbolType2addPhred, frag_indel_basemax, nogap_phred, region_symbolvec, region_offset, bq_dirs_count);
                 }
             } else {
                 if (is_proton || true) {
-                    this->updateByAln<TUpdateType, true , false>(aln, frag_indel_ext, symbolType2addPhred, frag_indel_basemax, nogap_phred, region_symbolvec, region_offset);
+                    this->updateByAln<TUpdateType, true , false, TFillSeqDir>(aln, frag_indel_ext, symbolType2addPhred, frag_indel_basemax, nogap_phred, region_symbolvec, region_offset, bq_dirs_count);
                 } else {
-                    this->updateByAln<TUpdateType, false, false>(aln, frag_indel_ext, symbolType2addPhred, frag_indel_basemax, nogap_phred, region_symbolvec, region_offset);
+                    this->updateByAln<TUpdateType, false, false, TFillSeqDir>(aln, frag_indel_ext, symbolType2addPhred, frag_indel_basemax, nogap_phred, region_symbolvec, region_offset, bq_dirs_count);
                 } 
             }
         }
@@ -1104,6 +1118,9 @@ struct Symbol2CountCoverageSet {
     std::string refstring;
     
     //std::array<Symbol2CountCoverage, 2> bq_imba_depth;
+    std::array<Symbol2CountCoverage, 2> bq_dirs_count;
+    std::array<Symbol2CountCoverage, 2> bq_bias_sedir;
+
     std::array<Symbol2CountCoverage, 2> bq_qsum_rawMQ;
     std::array<Symbol2CountCoverageUint64, 2> bq_qsum_sqrMQ;
     std::array<Symbol2CountCoverage, 2> bq_qual_p1sum;
@@ -1174,6 +1191,9 @@ struct Symbol2CountCoverageSet {
     
     Symbol2CountCoverageSet(unsigned int t, unsigned int beg, unsigned int end):
         tid(t), incluBegPosition(beg), excluEndPosition(end)
+        , bq_dirs_count({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
+        , bq_bias_sedir({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
+
         , bq_qsum_rawMQ({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
         , bq_qsum_sqrMQ({Symbol2CountCoverageUint64(t, beg, end), Symbol2CountCoverageUint64(t, beg, end)})
         , bq_qual_p1sum({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
@@ -1352,8 +1372,9 @@ struct Symbol2CountCoverageSet {
             auto & pass_thres, auto & pass_depth,
             auto & vars_thres, auto & vars_depth, auto & vars_badep, auto & vars_vqual,
             auto & dedup_ampDistr, const auto & prev_tsum_depth,
-            auto & pb_dist_lpart, auto & pb_dist_rpart, auto & pb_dist_nvars, auto & additional_note, bool should_add_note, const PhredMutationTable & phred_max_table,
-            const auto & symbolType2addPhred, const double ess_georatio_dedup, const unsigned int uni_bias_r_max) {
+            auto & pb_dist_lpart, auto & pb_dist_rpart, auto & pb_dist_nvars, auto & additional_note, bool should_add_note, 
+            const auto & bq_dirs_count, auto & bq_bias_sedir, const AssayType assay_type,
+            const PhredMutationTable & phred_max_table, const auto & symbolType2addPhred, const double ess_georatio_dedup, const unsigned int uni_bias_r_max) {
         
         assert(dedup_ampDistr.at(0).getIncluBegPosition() == dedup_ampDistr.at(1).getIncluBegPosition());
         assert(dedup_ampDistr.at(0).getExcluEndPosition() == dedup_ampDistr.at(1).getExcluEndPosition());
@@ -1381,6 +1402,9 @@ struct Symbol2CountCoverageSet {
                     const auto dp0 = curr_tsum_depth.at(1-strand).getByPos(pos).sumBySymbolType(symbolType);
                     const auto dp1 = curr_tsum_depth.at(0+strand).getByPos(pos).sumBySymbolType(symbolType);
                     
+                    auto bq_dir_s0 = bq_dirs_count.at(1-strand).getByPos(pos).sumBySymbolType(symbolType);
+                    auto bq_dir_s1 = bq_dirs_count.at(0+strand).getByPos(pos).sumBySymbolType(symbolType);
+
                     for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType];
                             symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType];
                             symbol = AlignmentSymbol(1+((unsigned int)symbol))) {
@@ -1492,7 +1516,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         auto bsum_dist_imba0 = ((bsum_ldist_v1 + 1) / (double)(ad1 + 1)) / ((typebsum_rdist_v0 + 1) / (double)(dp0 + 1));
                         auto bsum_dist_imba1 = ((bsum_rdist_v1 + 1) / (double)(ad1 + 1)) / ((typebsum_ldist_v0 + 1) / (double)(dp0 + 1));
                         
-                        auto sb100raw = any4_to_biasfact100((double)dp0, (double)dp1, (double)ad0, (double)ad1, false , pseudocount);
+                        auto sb100raw = any4_to_biasfact100((double)dp0, (double)dp1, (double)ad0, (double)ad1, false, pseudocount / 2.0 + MIN(1.5, fa * 75.0));
                         bias_1stra[strand].getRefByPos(pos).incSymbolCount(symbol, sb100raw);
                         assert(bsum_dist_imba0 + bsum_dist_imba1 > 0 || !fprintf(stderr, "%g + %g > 0 failed! (will encounter division by zero)\n", bsum_dist_imba0, bsum_dist_imba1));
                         
@@ -1500,10 +1524,27 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         bias_2stra[strand].getRefByPos(pos).incSymbolCount(symbol, sb100fin);
                         auto str_imba = biasfact100_to_imba(sb100fin);
                         
-                        imba_fact = MAX(dup_imba, MAX(MAX(MAX(pb_ldist_imba, pb_rdist_imba), str_imba), pb_nvars_imba));
+                        auto bq_dir_v0 = bq_dirs_count.at(1-strand).getByPos(pos).getSymbolCount(symbol);
+                        auto bq_dir_v1 = bq_dirs_count.at(0+strand).getByPos(pos).getSymbolCount(symbol);
+                        unsigned int sb100seq = 100;
+                        if (ASSAY_TYPE_AMPLICON != assay_type) {
+                            if (TUsePrev) {
+                                sb100seq = bq_bias_sedir.at(strand).getByPos(pos).getSymbolCount(symbol);
+                            } else {
+                                const bool test1bias = (bq_dir_v0 < bq_dir_v1);
+                                const auto bq_dir_vmin = (test1bias ? bq_dir_v0 : bq_dir_v1);
+                                const auto bq_dir_vmax = (test1bias ? bq_dir_v1 : bq_dir_v0);
+                                const auto bq_dir_smin = (test1bias ? bq_dir_s0 : bq_dir_s1);
+                                const auto bq_dir_smax = (test1bias ? bq_dir_s1 : bq_dir_s0);
+                                sb100seq = any4_to_biasfact100((double)bq_dir_smin, (double)bq_dir_smax, (double)bq_dir_vmin, (double)bq_dir_vmax, false, pseudocount / 2.0);
+                                bq_bias_sedir[strand].getRefByPos(pos).incSymbolCount(symbol, sb100seq); 
+                            }
+                        }
+                        
+                        imba_fact = MAX6(dup_imba, pb_ldist_imba, pb_rdist_imba, str_imba, pb_nvars_imba, biasfact100_to_imba(sb100seq));
                         max_imba_depth = (unsigned int)ceil(0.5 * 10.0 + 10.0 * curr_depth_symbsum / 
                                 MIN(((double)uni_bias_r_max) / 100.0, imba_fact) / (1 + DBL_EPSILON));
-                        
+                         
                         if (should_add_note) {
                             this->additional_note.getRefByPos(pos).at(symbol) += "//(" +
                                     std::to_string(uqual_avg_imba) + "/" + 
@@ -1570,7 +1611,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
             const PhredMutationTable & phred_max_table, unsigned int phred_thres
             , double ess_georatio_dedup, double ess_georatio_duped_pcr
             , unsigned int fixedthresBQ, unsigned int nogap_phred, unsigned int uni_bias_r_max
-            , const bool is_proton
+            , const bool is_proton, const AssayType assay_type
             ) {
         for (const auto & alns2pair2dflag : alns3) {
             const auto & alns2pair = alns2pair2dflag.first;
@@ -1580,8 +1621,8 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                     uint32_t tid2, beg2, end2;
                     fillTidBegEndFromAlns1(tid2, beg2, end2, alns1);
                     Symbol2CountCoverage read_ampBQerr_fragWithR1R2(tid, beg2, end2);
-                    read_ampBQerr_fragWithR1R2.updateByRead1Aln<BASE_QUALITY_MAX>(alns1, frag_indel_ext, symbolType2addPhred, alns2.size(), 
-                            frag_indel_basemax, alns2pair2dflag.second, nogap_phred, is_proton, region_symbolvec, this->dedup_ampDistr.at(strand).getIncluBegPosition());
+                    read_ampBQerr_fragWithR1R2.updateByRead1Aln<BASE_QUALITY_MAX, true>(alns1, frag_indel_ext, symbolType2addPhred, alns2.size(), 
+                            frag_indel_basemax, alns2pair2dflag.second, nogap_phred, is_proton, region_symbolvec, this->dedup_ampDistr.at(strand).getIncluBegPosition(), this->bq_dirs_count);
                     unsigned int normMQ = 0;
                     for (const bam1_t * b : alns1) {
                         normMQ = MAX(normMQ, b->core.qual);
@@ -1673,8 +1714,9 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                 this->bq_tsum_depth, this->bq_pass_thres, this->bq_pass_depth,
                 this->bq_vars_thres, this->bq_vars_depth, this->bq_vars_badep, this->bq_vars_vqual,
                 this->dedup_ampDistr,this->bq_tsum_depth,
-                this->pb_dist_lpart, this->pb_dist_rpart, this->pb_dist_nvars, this->additional_note, should_add_note, phred_max_table, 
-                symbolType2addPhred, ess_georatio_dedup, uni_bias_r_max);
+                this->pb_dist_lpart, this->pb_dist_rpart, this->pb_dist_nvars, this->additional_note, should_add_note, 
+                this->bq_dirs_count, this->bq_bias_sedir, assay_type,
+                phred_max_table, symbolType2addPhred, ess_georatio_dedup, uni_bias_r_max);
         return 0;
     }
     
@@ -1689,7 +1731,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
             const double ess_georatio_dedup, const double ess_georatio_duped_pcr,
             bool is_loginfo_enabled, unsigned int thread_id, unsigned int nogap_phred
             , unsigned int highqual_thres_snv, unsigned int highqual_thres_indel, unsigned int uni_bias_r_max
-            , const bool is_proton) {
+            , const bool is_proton, const AssayType assay_type) {
         unsigned int niters = 0;
         for (const auto & alns2pair2dflag : alns3) {
             const auto & alns2pair = alns2pair2dflag.first;
@@ -1713,8 +1755,8 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                     uint32_t tid1, beg1, end1;
                     fillTidBegEndFromAlns1(tid1, beg1, end1, alns1);
                     Symbol2CountCoverage read_ampBQerr_fragWithR1R2(tid1, beg1, end1);
-                    read_ampBQerr_fragWithR1R2.updateByRead1Aln<BASE_QUALITY_MAX>(alns1, frag_indel_ext, symbolType2addPhred, alns2.size(), 
-                            frag_indel_basemax, alns2pair2dflag.second, nogap_phred, is_proton, region_symbolvec, this->dedup_ampDistr.at(strand).getIncluBegPosition());
+                    read_ampBQerr_fragWithR1R2.updateByRead1Aln<BASE_QUALITY_MAX, false>(alns1, frag_indel_ext, symbolType2addPhred, alns2.size(), 
+                            frag_indel_basemax, alns2pair2dflag.second, nogap_phred, is_proton, region_symbolvec, this->dedup_ampDistr.at(strand).getIncluBegPosition(), this->bq_dirs_count);
                     read_family_con_ampl.updateByConsensus<SYMBOL_COUNT_SUM, true>(read_ampBQerr_fragWithR1R2);
                     read_family_amplicon.updateByFiltering(read_ampBQerr_fragWithR1R2, this->bq_pass_thres[strand], 1, true, strand);
                     if (log_alns2) {
@@ -1778,8 +1820,8 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                     uint32_t tid1, beg1, end1;
                     fillTidBegEndFromAlns1(tid1, beg1, end1, aln_vec);
                     Symbol2CountCoverage read_ampBQerr_fragWithR1R2(tid1, beg1, end1);
-                    read_ampBQerr_fragWithR1R2.updateByRead1Aln<BASE_QUALITY_MAX>(aln_vec, frag_indel_ext, symbolType2addPhred, alns2.size(), 
-                            frag_indel_basemax, alns2pair2dflag.second, nogap_phred, is_proton, region_symbolvec, this->dedup_ampDistr.at(strand).getIncluBegPosition());
+                    read_ampBQerr_fragWithR1R2.updateByRead1Aln<BASE_QUALITY_MAX, false>(aln_vec, frag_indel_ext, symbolType2addPhred, alns2.size(), 
+                            frag_indel_basemax, alns2pair2dflag.second, nogap_phred, is_proton, region_symbolvec, this->dedup_ampDistr.at(strand).getIncluBegPosition(), this->bq_dirs_count);
                     // read_family_amplicon.updateByConsensus<SYMBOL_COUNT_SUM>(read_ampBQerr_fragWithR1R2);
                     read_family_amplicon.updateByFiltering(read_ampBQerr_fragWithR1R2, this->bq_pass_thres[strand], 1, true, strand);
                     if (log_alns2) {
@@ -1892,8 +1934,9 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                 this->fq_tsum_depth, this->fq_pass_thres, this->fq_pass_depth,
                 this->fq_vars_thres, this->fq_vars_depth, this->fq_vars_badep, this->fq_vars_vqual,
                 this->dedup_ampDistr,this->bq_tsum_depth,
-                this->pb_dist_lpart, this->pb_dist_rpart, this->pb_dist_nvars, this->additional_note, should_add_note, phred_max_table, 
-                symbolType2addPhred, ess_georatio_dedup, uni_bias_r_max);
+                this->pb_dist_lpart, this->pb_dist_rpart, this->pb_dist_nvars, this->additional_note, should_add_note, 
+                this->bq_dirs_count, this->bq_bias_sedir, assay_type,
+                phred_max_table, symbolType2addPhred, ess_georatio_dedup, uni_bias_r_max);
         return 0;
     };
     
@@ -1944,14 +1987,14 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
             const double ess_georatio_dedup, const double ess_georatio_duped_pcr,
             bool use_deduplicated_reads, bool is_loginfo_enabled, unsigned int thread_id, unsigned int fixedthresBQ, unsigned int nogap_phred
             , unsigned int highqual_thres_snv, unsigned int highqual_thres_indel, unsigned int uni_bias_r_max
-            , const bool is_proton
+            , const bool is_proton, const AssayType assay_type
             ) {
         const std::array<unsigned int, NUM_SYMBOL_TYPES> symbolType2addPhred = {bq_phred_added_misma, bq_phred_added_indel};
         std::basic_string<AlignmentSymbol> ref_symbol_string = string2symbolseq(refstring);
         updateByAlns3UsingBQ(mutform2count4map_bq, alns3, ref_symbol_string, symbolType2addPhred, should_add_note, frag_indel_ext, frag_indel_basemax, 
                 phred_max_sscs_table, phred_thres
                 , ess_georatio_dedup, ess_georatio_duped_pcr, fixedthresBQ, nogap_phred, uni_bias_r_max
-                , is_proton); // base qualities
+                , is_proton, assay_type); // base qualities
         updateHapMap(mutform2count4map_bq, this->bq_tsum_depth);
         if (use_deduplicated_reads) {
             updateByAlns3UsingFQ(mutform2count4map_fq, alns3, ref_symbol_string, symbolType2addPhred, should_add_note, frag_indel_ext, frag_indel_basemax, 
@@ -1959,7 +2002,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                     , ess_georatio_dedup, ess_georatio_duped_pcr
                     , is_loginfo_enabled, thread_id, nogap_phred
                     , highqual_thres_snv, highqual_thres_indel, uni_bias_r_max
-                    , is_proton); // family qualities
+                    , is_proton, assay_type); // family qualities
             updateHapMap(mutform2count4map_fq, this->fq_tsum_depth);
         }
         return 0;
@@ -2237,6 +2280,9 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
         fmt.bQT3[strand] = symbol2CountCoverageSet12.bq_vars_thres.at(strand).getByPos(refpos).getSymbolCount(symbol); // pass  threshold
         fmt.bVQ3[strand] = symbol2CountCoverageSet12.bq_vars_vqual.at(strand).getByPos(refpos).getSymbolCount(symbol); // pass  allele depth 
         
+        fmt.bSSD[strand] = symbol2CountCoverageSet12.bq_dirs_count.at(strand).getByPos(refpos).getSymbolCount(symbol);
+        fmt.bSSB[strand] = symbol2CountCoverageSet12.bq_bias_sedir.at(strand).getByPos(refpos).getSymbolCount(symbol);
+
         double bq_qsum_rawMQ = (double)symbol2CountCoverageSet12.bq_qsum_rawMQ.at(strand).getByPos(refpos).getSymbolCount(symbol);
         double bq_qsum_sqrMQ = (double)symbol2CountCoverageSet12.bq_qsum_sqrMQ.at(strand).getByPos(refpos).getSymbolCount(symbol);
         fmt.bMQ1[strand] = sqrt(bq_qsum_sqrMQ / (DBL_MIN + (double)fmt.bAD1[strand])); // total allele depth
@@ -3153,7 +3199,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
             ? calc_binom_10log10_likeratio(        (tDP1 - tAD1) /         tDP1,         (nDP1 - nAD1) / nDP1 * nDP0,          (nAD1 / nDP1) * nDP0)
             : calc_binom_10log10_likeratio(               (nAD1) /         nDP1,         (tAD1 / tDP1) * tDP0,                 (tDP1 - tAD1) / tDP1 * tDP0)); 
         // const double t2n_rawq = (isInDel ? MAX(t2n_rawq0, t2n_rawq1) : t2n_rawq1);
-        const double t2n_rawq = (isInDel ? t2n_rawq0 : t2n_rawq1);
+        const double t2n_rawq = (isInDel ? t2n_rawq0 : t2n_rawq1 / MAX(1.0, 0.5 + 0.5*tki.B4[3]/100.0));
         
         const double t2n_powq0 = MIN(MAX(-SYS_QMAX, 10.0/log(10.0) * (1.0+log(symfrac*symfrac)/10.0) * pl_exponent * log(t2n_or0 /symfrac)), SYS_QMAX);
         const double t2n_powq1 = MIN(MAX(-SYS_QMAX, 10.0/log(10.0) * (1.0+log(symfrac*symfrac)/10.0) * pl_exponent * log(t2n_or1 /symfrac)), SYS_QMAX);

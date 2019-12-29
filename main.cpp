@@ -628,6 +628,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
             is_loginfo_enabled, thread_id, paramset.fixedthresBQ, paramset.nogap_phred
             , paramset.highqual_thres_snv, paramset.highqual_thres_indel, paramset.uni_bias_r_max
             , SEQUENCING_PLATFORM_IONTORRENT == paramset.sequencing_platform
+            , inferred_assay_type 
             // , paramset.t2n_sys_err_frac
             );
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts analyzing phasing info"; }
