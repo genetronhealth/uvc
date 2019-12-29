@@ -942,7 +942,7 @@ public:
             unsigned int frag_indel_basemax, 
             unsigned int nogap_phred, // this is obsolete
             const auto & region_symbolvec, const unsigned int region_offset,
-            std::array<GenericSymbol2CountCoverage<Symbol2Count>, 2> & bq_dirs_count,
+            std::array<GenericSymbol2CountCoverage<Symbol2Count>, 4> & bq_dirs_count,
             uint32_t primerlen = 0) {
         static_assert(BASE_QUALITY_MAX == TUpdateType || SYMBOL_COUNT_SUM == TUpdateType);
         assert(this->tid == SIGN2UNSIGN(b->core.tid));
@@ -950,7 +950,9 @@ public:
         assert(this->getExcluEndPosition() >= SIGN2UNSIGN(bam_endpos(b)) || !fprintf(stderr, "%lu >= %d failed", this->getExcluEndPosition(), bam_endpos(b)));
         const auto symbolType2addPhred = symbolType2addPhredArg; // std::array({0, 0});
         
-        bool isrc = ((b->core.flag & 0x10) == 0x10);
+        const bool isrc = ((b->core.flag & 0x10) == 0x10);
+        const bool isr2 = ((b->core.flag & 0x80) == 0x80 && (b->core.flag & 0x1) == 0x1);
+        const unsigned int strand = (isrc ^ isr2);
         unsigned int qpos = 0;
         unsigned int rpos = b->core.pos;
         const uint32_t n_cigar = b->core.n_cigar;
@@ -971,7 +973,7 @@ public:
                         }
                         this->inc<TUpdateType>(rpos, LINK_M, incvalue, b);
                         if (TFillSeqDir) {
-                            bq_dirs_count[isrc].inc<SYMBOL_COUNT_SUM>(rpos, LINK_M, 1, b);
+                            bq_dirs_count[strand*2+isrc].inc<SYMBOL_COUNT_SUM>(rpos, LINK_M, 1, b);
                         }
                     }
                     unsigned int base4bit = bam_seqi(bseq, qpos);
@@ -982,7 +984,7 @@ public:
                     }
                     this->inc<TUpdateType>(rpos, AlignmentSymbol(base3bit), incvalue, b);
                     if (TFillSeqDir) {
-                        bq_dirs_count[isrc].inc<SYMBOL_COUNT_SUM>(rpos, AlignmentSymbol(base3bit), 1, b);
+                        bq_dirs_count[strand*2+isrc].inc<SYMBOL_COUNT_SUM>(rpos, AlignmentSymbol(base3bit), 1, b);
                     }
                     rpos += 1;
                     qpos += 1;
@@ -1013,7 +1015,7 @@ public:
                 }
                 this->inc<TUpdateType>(rpos, insLenToSymbol(inslen), MAX(SIGN2UNSIGN(1), incvalue), b);
                 if (TFillSeqDir) {
-                    bq_dirs_count[isrc].inc<SYMBOL_COUNT_SUM>(rpos, insLenToSymbol(inslen), 1, b);
+                    bq_dirs_count[strand*2+isrc].inc<SYMBOL_COUNT_SUM>(rpos, insLenToSymbol(inslen), 1, b);
                 }
                 std::string iseq;
                 iseq.reserve(cigar_oplen);
@@ -1054,7 +1056,7 @@ public:
                 }
                 this->inc<TUpdateType>(rpos, delLenToSymbol(dellen), MAX(SIGN2UNSIGN(1), incvalue), b);
                 if (TFillSeqDir) {
-                    bq_dirs_count[isrc].inc<SYMBOL_COUNT_SUM>(rpos, delLenToSymbol(dellen), 1, b);
+                    bq_dirs_count[strand*2+isrc].inc<SYMBOL_COUNT_SUM>(rpos, delLenToSymbol(dellen), 1, b);
                 }
                 this->incDel(rpos, cigar_oplen, delLenToSymbol(dellen), MAX(SIGN2UNSIGN(1), incvalue));
 #if 0 
@@ -1087,7 +1089,8 @@ public:
     int // GenericSymbol2CountCoverage<TSymbol2Count>::
     updateByRead1Aln(std::vector<bam1_t *> aln_vec, unsigned int frag_indel_ext, 
             const std::array<unsigned int, NUM_SYMBOL_TYPES> & symbolType2addPhred, const unsigned int alns2size, 
-            const unsigned int frag_indel_basemax, unsigned int dflag, unsigned int nogap_phred, const bool is_proton, const auto & region_symbolvec, const unsigned int region_offset, std::array<GenericSymbol2CountCoverage<Symbol2Count>, 2> & bq_dirs_count) {
+            const unsigned int frag_indel_basemax, unsigned int dflag, unsigned int nogap_phred, const bool is_proton, const auto & region_symbolvec, const unsigned int region_offset, 
+            std::array<GenericSymbol2CountCoverage<Symbol2Count>, 4> & bq_dirs_count) {
         for (bam1_t *aln : aln_vec) {
             if (alns2size > 1 && dflag > 0) { // is barcoded and not singleton
                 if (is_proton || true) {
@@ -1118,7 +1121,7 @@ struct Symbol2CountCoverageSet {
     std::string refstring;
     
     //std::array<Symbol2CountCoverage, 2> bq_imba_depth;
-    std::array<Symbol2CountCoverage, 2> bq_dirs_count;
+    std::array<Symbol2CountCoverage, 4> bq_dirs_count;
     std::array<Symbol2CountCoverage, 2> bq_bias_sedir;
 
     std::array<Symbol2CountCoverage, 2> bq_qsum_rawMQ;
@@ -1191,7 +1194,8 @@ struct Symbol2CountCoverageSet {
     
     Symbol2CountCoverageSet(unsigned int t, unsigned int beg, unsigned int end):
         tid(t), incluBegPosition(beg), excluEndPosition(end)
-        , bq_dirs_count({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
+        , bq_dirs_count({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end),
+                         Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
         , bq_bias_sedir({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
 
         , bq_qsum_rawMQ({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
@@ -1402,8 +1406,8 @@ struct Symbol2CountCoverageSet {
                     const auto dp0 = curr_tsum_depth.at(1-strand).getByPos(pos).sumBySymbolType(symbolType);
                     const auto dp1 = curr_tsum_depth.at(0+strand).getByPos(pos).sumBySymbolType(symbolType);
                     
-                    auto bq_dir_s0 = bq_dirs_count.at(1-strand).getByPos(pos).sumBySymbolType(symbolType);
-                    auto bq_dir_s1 = bq_dirs_count.at(0+strand).getByPos(pos).sumBySymbolType(symbolType);
+                    auto bq_dir_s0 = bq_dirs_count.at(strand*2+0).getByPos(pos).sumBySymbolType(symbolType);
+                    auto bq_dir_s1 = bq_dirs_count.at(strand*2+1).getByPos(pos).sumBySymbolType(symbolType);
 
                     for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType];
                             symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType];
@@ -1524,14 +1528,14 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         bias_2stra[strand].getRefByPos(pos).incSymbolCount(symbol, sb100fin);
                         auto str_imba = biasfact100_to_imba(sb100fin);
                         
-                        auto bq_dir_v0 = bq_dirs_count.at(1-strand).getByPos(pos).getSymbolCount(symbol);
-                        auto bq_dir_v1 = bq_dirs_count.at(0+strand).getByPos(pos).getSymbolCount(symbol);
+                        auto bq_dir_v0 = bq_dirs_count.at(strand*2+0).getByPos(pos).getSymbolCount(symbol);
+                        auto bq_dir_v1 = bq_dirs_count.at(strand*2+1).getByPos(pos).getSymbolCount(symbol);
                         unsigned int sb100seq = 100;
                         if (ASSAY_TYPE_AMPLICON != assay_type) {
                             if (TUsePrev) {
                                 sb100seq = bq_bias_sedir.at(strand).getByPos(pos).getSymbolCount(symbol);
                             } else {
-                                const bool test1bias = (bq_dir_v0 < bq_dir_v1);
+                                const bool test1bias = (bq_dir_v0 * bq_dir_s1 < bq_dir_v1 * bq_dir_s0);
                                 const auto bq_dir_vmin = (test1bias ? bq_dir_v0 : bq_dir_v1);
                                 const auto bq_dir_vmax = (test1bias ? bq_dir_v1 : bq_dir_v0);
                                 const auto bq_dir_smin = (test1bias ? bq_dir_s0 : bq_dir_s1);
@@ -2053,6 +2057,9 @@ BcfFormat_init(bcfrec::BcfFormat & fmt,
         
         fmt.cRDT1[strand] = symbolDistrSets12.fam_size1_dep.at(strand).getByPos(refpos).getSymbolCount(refsymbol);
         fmt.cRDTN[strand] = symbolDistrSets12.fam_nocon_dep.at(strand).getByPos(refpos).getSymbolCount(refsymbol); 
+        
+        fmt.bSSDP[strand*2+0] = symbolDistrSets12.bq_dirs_count.at(strand*2+0).getByPos(refpos).sumBySymbolType(symbolType);
+        fmt.bSSDP[strand*2+1] = symbolDistrSets12.bq_dirs_count.at(strand*2+1).getByPos(refpos).sumBySymbolType(symbolType);
     }
     fmt.gapSeq.clear();
     fmt.gapbAD1.clear();
@@ -2280,7 +2287,8 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
         fmt.bQT3[strand] = symbol2CountCoverageSet12.bq_vars_thres.at(strand).getByPos(refpos).getSymbolCount(symbol); // pass  threshold
         fmt.bVQ3[strand] = symbol2CountCoverageSet12.bq_vars_vqual.at(strand).getByPos(refpos).getSymbolCount(symbol); // pass  allele depth 
         
-        fmt.bSSD[strand] = symbol2CountCoverageSet12.bq_dirs_count.at(strand).getByPos(refpos).getSymbolCount(symbol);
+        fmt.bSSAD[strand*2+0] = symbol2CountCoverageSet12.bq_dirs_count.at(strand*2+0).getByPos(refpos).getSymbolCount(symbol);
+        fmt.bSSAD[strand*2+1] = symbol2CountCoverageSet12.bq_dirs_count.at(strand*2+1).getByPos(refpos).getSymbolCount(symbol);
         fmt.bSSB[strand] = symbol2CountCoverageSet12.bq_bias_sedir.at(strand).getByPos(refpos).getSymbolCount(symbol);
 
         double bq_qsum_rawMQ = (double)symbol2CountCoverageSet12.bq_qsum_rawMQ.at(strand).getByPos(refpos).getSymbolCount(symbol);
