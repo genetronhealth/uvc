@@ -14,7 +14,7 @@
 #include "omp.h"
 #endif
 
-#include "common.h"
+#include "common.hpp"
 
 const unsigned int G_BLOCK_SIZE = 1000;
 

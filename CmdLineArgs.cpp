@@ -4,9 +4,7 @@
 #include <fstream>
 #include "htslib/sam.h"
 
-#include "common.h"
 #include "version.h"
-
 #include "CmdLineArgs.hpp"
 
 SequencingPlatform 

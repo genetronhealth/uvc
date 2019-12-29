@@ -8,7 +8,7 @@ debug-st : uvc.st.out
 test-cppt : uvc.cppt.out
 all : debug-mt debug-st release test-cppt
 
-HDR=CLI11-1.7.1/CLI11.hpp logging.hpp consensus.hpp CmdLineArgs.hpp 
+HDR=CLI11-1.7.1/CLI11.hpp logging.hpp consensus.hpp CmdLineArgs.hpp common.hpp 
 SRC=main.cpp  bcf_formats.step1.c conversion.hpp grouping.hpp grouping.cpp utils.hpp CmdLineArgs.cpp
 
 HTSFLAGS=ext/bcftools-1.9/htslib-1.9/libhts.a -lm -lz -lcurl -lbz2 -llzma # -lcrypto # can be changed depending on the specific installed components of htslib (please refer to the INSTALL file in htslib)

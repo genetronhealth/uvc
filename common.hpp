@@ -8,7 +8,7 @@
 #define NUM_BUCKETS (64+8)
 #define SIGN2UNSIGN(a) ((unsigned int)(a))
 
-#define VCFQUAL_NUM_BINS 100
+#define VCFQUAL_NUM_BINS 120 // max vcfqual is at 105, so vcfqual that is higher than the max is reserved
 #define RCC_NUM 2
 #define RCC_NFS 6
 
@@ -115,6 +115,7 @@ struct VcStats {
     
     int
     write_tsv(auto & ostream) {
+        ostream <<"##Mass-function-aka-density-histogram\n";
         ostream <<"#Variant-quality\tnumber-of-calls\ttumor-AD\tnormal-AD\ttumor-DP\tnormal-DP\n";
         for (unsigned int i = 0; i < VCFQUAL_NUM_BINS; i++) { 
             ostream << i << "\t"; 
@@ -123,6 +124,42 @@ struct VcStats {
             ostream << this->vcfqual_to_count[i].noAD << "\t";
             ostream << this->vcfqual_to_count[i].tuDP << "\t";
             ostream << this->vcfqual_to_count[i].noDP << "\n";
+        }
+        unsigned int tot_nvars = 0;
+        unsigned int tot_tuAD = 0;
+        unsigned int tot_noAD = 0;
+        unsigned int tot_tuDP = 0;
+        unsigned int tot_noDP = 0;
+        bool vcfqual_is_too_low = false;
+        ostream <<"##Complementary-cumulative-function\n";
+        ostream <<"#variant-quality\tnumber-of-calls\ttumor-AD\tnormal-AD\ttumor-DP\tnormal-DP"
+                << "\testimated-additive-contamination-fraction\testimated-multiplicative-contamination-fraction"
+                << "\tTUMOR_TO_NORMAL_CONTAMINATION_ESTIMATION_STATUS_FOR_VCF_QUAL\n";
+        for (int i = VCFQUAL_NUM_BINS - 1; i >= 0; i--) { 
+            tot_nvars += this->vcfqual_to_count[i].nvars;
+            tot_tuAD += this->vcfqual_to_count[i].tuAD;
+            tot_noAD += this->vcfqual_to_count[i].noAD;
+            tot_tuDP += this->vcfqual_to_count[i].tuDP;
+            tot_noDP += this->vcfqual_to_count[i].noDP;
+            
+            ostream << i << "\t"; 
+            ostream << tot_nvars<< "\t";
+            ostream << tot_tuAD << "\t";
+            ostream << tot_noAD << "\t";
+            ostream << tot_tuDP << "\t";
+            ostream << tot_noDP << "\t";
+
+            ostream << (0.03 + (double)tot_nAD)                 / (1.0 + (double)tot_tAD                ) << "\t"; 
+            ostream << (0.03 + (double)tot_nAD*(double)tot_tDP) / (1.0 + (double)tot_tAD*(double)tot_nDP) << "\t"; 
+
+            if ((!vcfqual_is_too_low) && tot_nvars >= 25 && tot_noDP >= 25*100 && tot_tuDP >= 25*100) {
+                ostream << "VCF_QUAL_EQUALS_THE_THRESHOLD_FOR_TUMOR_TO_NORMAL_CONTAMINATION_ESTIMATION" << "\n";  
+                vcfqual_is_too_low = true;
+            } else if (vcfqual_is_too_low) {
+                ostream << "VCF_QUAL_IS_BELOW_THE_THRESHOLD_FOR_TUMOR_TO_NORMAL_CONTAMINATION_ESTIMATION" << "\n"; 
+            } else {
+                ostream << "VCF_QUAL_IS_ABOVE_THE_THRESHOLD_FOR_TUMOR_TO_NORMAL_CONTAMINATION_ESTIMATION" << "\n";  
+            }
         }
         return 0;
     }

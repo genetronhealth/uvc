@@ -17,7 +17,7 @@
 
 #include "htslib/sam.h"
 
-#include "common.h"
+#include "common.hpp"
 //#include "logging.hpp"
 
 #define logDEBUGx1 logDEBUG // logINFO

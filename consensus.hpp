@@ -18,7 +18,7 @@
 #include "htslib/sam.h"
 #include "htslib/hts.h"
 
-#include "common.h"
+#include "common.hpp"
 #include "conversion.hpp"
 #include "logging.hpp"
 #include "utils.hpp"

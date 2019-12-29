@@ -3,7 +3,7 @@
 
 #include <string>
 #include "CLI11-1.7.1/CLI11.hpp"
-#include "common.h"
+#include "common.hpp"
 
 struct CommandLineArgs {
     std::string bam_input_fname = NOT_PROVIDED; // not missing
