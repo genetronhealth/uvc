@@ -1406,8 +1406,10 @@ struct Symbol2CountCoverageSet {
                     const auto dp0 = curr_tsum_depth.at(1-strand).getByPos(pos).sumBySymbolType(symbolType);
                     const auto dp1 = curr_tsum_depth.at(0+strand).getByPos(pos).sumBySymbolType(symbolType);
                     
-                    auto bq_dir_s0 = bq_dirs_count.at(strand*2+0).getByPos(pos).sumBySymbolType(symbolType);
-                    auto bq_dir_s1 = bq_dirs_count.at(strand*2+1).getByPos(pos).sumBySymbolType(symbolType);
+                    auto bq_dir_s0 = bq_dirs_count.at(0*2+0).getByPos(pos).sumBySymbolType(symbolType)
+                                   + bq_dirs_count.at(1*2+0).getByPos(pos).sumBySymbolType(symbolType);
+                    auto bq_dir_s1 = bq_dirs_count.at(0*2+1).getByPos(pos).sumBySymbolType(symbolType)
+                                   + bq_dirs_count.at(1*2+1).getByPos(pos).sumBySymbolType(symbolType);
 
                     for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType];
                             symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType];
@@ -1528,8 +1530,10 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         bias_2stra[strand].getRefByPos(pos).incSymbolCount(symbol, sb100fin);
                         auto str_imba = biasfact100_to_imba(sb100fin);
                         
-                        auto bq_dir_v0 = bq_dirs_count.at(strand*2+0).getByPos(pos).getSymbolCount(symbol);
-                        auto bq_dir_v1 = bq_dirs_count.at(strand*2+1).getByPos(pos).getSymbolCount(symbol);
+                        auto bq_dir_v0 = bq_dirs_count.at(0*2+0).getByPos(pos).getSymbolCount(symbol) 
+                                       + bq_dirs_count.at(1*2+0).getByPos(pos).getSymbolCount(symbol);
+                        auto bq_dir_v1 = bq_dirs_count.at(0*2+1).getByPos(pos).getSymbolCount(symbol)
+                                       + bq_dirs_count.at(1*2+1).getByPos(pos).getSymbolCount(symbol);
                         unsigned int sb100seq = 100;
                         if (ASSAY_TYPE_AMPLICON != assay_type) {
                             if (TUsePrev) {
