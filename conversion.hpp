@@ -34,6 +34,16 @@ MIN(auto a, auto b) {
     return (a < b ? a :b);
 }
 
+auto
+MIN3(auto a, auto b, auto c) {
+    return MIN(a, MIN(b, c));
+}
+
+auto
+MIN4(auto a, auto b, auto c, auto d) {
+    return MIN(a, MIN3(b, c, d));
+}
+
 auto 
 MAX(auto a, auto b) {
     return (a > b ? a :b);

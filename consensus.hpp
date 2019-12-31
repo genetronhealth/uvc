@@ -1396,9 +1396,11 @@ struct Symbol2CountCoverageSet {
                     Bucket2CountNumMisma vsum_pb_dist_nvars = pb_dist_nvars[strand].getByPos(pos).vectorsumBySymbolType(symbolType);
 
                     // prepare strand bias
-                    auto typebsum_uqual_v0 = bq_qual_p1sum[1-strand].getByPos(pos).sumBySymbolType(symbolType);
-                    auto typetsum_depth_v0 = bq_tsum_depth[1-strand].getByPos(pos).sumBySymbolType(symbolType);
-                    double typesum_uqual_v0_avg = typebsum_uqual_v0/ (double)(typetsum_depth_v0 + DBL_MIN);
+                    auto typesum_uqual_v0 = bq_qual_p1sum[1-strand].getByPos(pos).sumBySymbolType(symbolType);
+                    auto typesum_depth_v0 = bq_tsum_depth[1-strand].getByPos(pos).sumBySymbolType(symbolType);
+                    auto typesum_uqual_v1 = bq_qual_p1sum[0+strand].getByPos(pos).sumBySymbolType(symbolType);
+                    auto typesum_depth_v1 = bq_tsum_depth[0+strand].getByPos(pos).sumBySymbolType(symbolType);
+                    double typesum_uqual_v0_avg = typesum_uqual_v0/ (double)(typesum_depth_v0 + DBL_MIN);
                     
                     auto typebsum_ldist_v0 = bsum_ldist[1-strand].getByPos(pos).sumBySymbolType(symbolType);
                     auto typebsum_rdist_v0 = bsum_rdist[1-strand].getByPos(pos).sumBySymbolType(symbolType); 
@@ -1512,10 +1514,15 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         }
 
                         // compute strand bias
+                        auto symbval_uqual_v0 = bq_qual_p1sum[1-strand].getByPos(pos).getSymbolCount(symbol);
+                        auto symbval_depth_v0 = bq_tsum_depth[1-strand].getByPos(pos).getSymbolCount(symbol);
                         auto symbval_uqual_v1 = bq_qual_p1sum[0+strand].getByPos(pos).getSymbolCount(symbol);
-                        auto symbval_count_v1 = bq_tsum_depth[0+strand].getByPos(pos).getSymbolCount(symbol);
-                        double symbval_uqual_v1_avg = symbval_uqual_v1 / (double)(symbval_count_v1 + DBL_MIN);
+                        auto symbval_depth_v1 = bq_tsum_depth[0+strand].getByPos(pos).getSymbolCount(symbol);
+                        double symbval_uqual_v1_avg = symbval_uqual_v1 / (double)(symbval_depth_v1 + DBL_MIN);
                         auto uqual_avg_imba = pow((double)10, (symbval_uqual_v1_avg - typesum_uqual_v0_avg) / (double)10);
+                        
+                        double symbval_uqual_va_avg = (symbval_uqual_v0 + symbval_uqual_v1) / (double)(symbval_depth_v0 + symbval_depth_v1 + DBL_MIN);
+                        double typesum_uqual_va_avg = (typesum_uqual_v0 + typesum_uqual_v1) / (double)(typesum_depth_v0 + typesum_depth_v1 + DBL_MIN);
                         
                         auto bsum_ldist_v1 = bsum_ldist[0+strand].getByPos(pos).getSymbolCount(symbol);
                         auto bsum_rdist_v1 = bsum_rdist[0+strand].getByPos(pos).getSymbolCount(symbol);
@@ -1544,7 +1551,8 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                                 const auto bq_dir_vmax = (test1bias ? bq_dir_v1 : bq_dir_v0);
                                 const auto bq_dir_smin = (test1bias ? bq_dir_s0 : bq_dir_s1);
                                 const auto bq_dir_smax = (test1bias ? bq_dir_s1 : bq_dir_s0);
-                                sb100seq = any4_to_biasfact100((double)bq_dir_smin, (double)bq_dir_smax, (double)bq_dir_vmin, (double)bq_dir_vmax, false, pseudocount / 2.0);
+                                sb100seq = any4_to_biasfact100((double)bq_dir_smin, (double)bq_dir_smax, (double)bq_dir_vmin, (double)bq_dir_vmax, false, 
+                                        pseudocount / 2.0 + MIN(1.5, pow(10.0, (symbval_uqual_va_avg - typesum_uqual_va_avg) / 10.0)));
                                 bq_bias_sedir[strand].getRefByPos(pos).incSymbolCount(symbol, sb100seq); 
                             }
                         }
@@ -1552,7 +1560,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         imba_fact = MAX6(dup_imba, pb_ldist_imba, pb_rdist_imba, str_imba, pb_nvars_imba, biasfact100_to_imba(sb100seq));
                         max_imba_depth = (unsigned int)ceil(0.5 * 10.0 + 10.0 * curr_depth_symbsum / 
                                 MIN(((double)uni_bias_r_max) / 100.0, imba_fact) / (1 + DBL_EPSILON));
-                         
+                        
                         if (should_add_note) {
                             this->additional_note.getRefByPos(pos).at(symbol) += "//(" +
                                     std::to_string(uqual_avg_imba) + "/" + 
@@ -2391,7 +2399,7 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
     fmt.ADHQ = fmt_bAD - (fmt.bADLQ[0] + fmt.bADLQ[1]);
     assert(fmt.DPHQ >= 0);
     assert(fmt.ADHQ >= 0);
-    fmt.MQ = sqrt((double)bq_qsum_sqrMQ_tot / (DBL_MIN + (double)(fmt.bAD1[0] + fmt.bAD1[1])));
+    fmt.MQ = (unsigned int)sqrt((double)bq_qsum_sqrMQ_tot / (DBL_MIN + (double)(fmt.bAD1[0] + fmt.bAD1[1])));
         
     if (fmtAD > 0 || is_rescued) {
         assert(fmt.FA >= 0);
@@ -2652,9 +2660,10 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
         double currVAQ = (fmt.bVQ3[i] * minAD1 + fmt.cVQ3[i] * gapAD1) / (double)(minAD1 + gapAD1 + DBL_MIN); // prevent div by zero
         weightedQT3s[i] = (fmt.bQT3[i] * minAD1 + fmt.cQT3[i] * gapAD1) / (double)(minAD1 + gapAD1 + DBL_MIN);
         stdVAQs[i] = currVAQ;
-        // && isSymbolSubstitution(symbol) // not needed
+        
         if ((fmt.bBQ1[i] < minABQ)) {
-            stdVAQs[i] = MIN(stdVAQs[i], fmt.bBQ1[i]);
+            // the following line of code is not theoretically sound
+            // stdVAQs[i] = MIN(stdVAQs[i], fmt.bBQ1[i]);
         }
         if ((unsigned int)fmt.bMQ1[i] < minMQ1) {
             // the following line of code is not theoretically sound
@@ -2665,13 +2674,18 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
     // Ideally (no read supports a variant at its border, there is no mismatch in any read other than at the variant site) the variable below has a value of 4.
     // Even more ideally (there is no mismatch in the entire contig other than at the variant site) the variable below increases logarithmically as a function of variant depth.
     const double contig_to_frag_len_ratio = (double)2;
-    double vaqMQcap = (fmt.MQ < minMQ1 ? (fmt.MQ * contig_to_frag_len_ratio) : ((double)FLT_MAX));
+    double dsBQ1 = sqrt((mathsquare(fmt.bBQ1[0]) * (double)fmt.bAD1[0] + mathsquare(fmt.bBQ1[1]) * (double)fmt.bAD1[1]) / (double)(DBL_MIN + fmt.bAD1[0] + fmt.bAD1[1])); 
+    fmt.BQ = (unsigned int)dsBQ1;
+    double vaqBQcap = ((fmt.BQ < minABQ) ? ((double)fmt.BQ) : ((double)FLT_MAX));
+    // sqrt(bq_qual_p2sum / (DBL_MIN + (double)fmt.bAD1[strand]));
+    
+    double vaqMQcap = ((fmt.MQ < minMQ1) ? (fmt.MQ * contig_to_frag_len_ratio) : ((double)FLT_MAX));
     //double minVAQ = MIN(stdVAQs[0], stdVAQs[1]);
     //double stdVAQ = MAX(stdVAQs[0], stdVAQs[1]);
     
     double weightsum = MIN((double)(weightedQT3s[0] + weightedQT3s[1]), phred_max_dscs);
-    double doubleVAQfw = stdVAQs[0] + stdVAQs[1] * MIN(1.0, (weightsum - weightedQT3s[0]) / (weightedQT3s[0] + DBL_EPSILON));
-    double doubleVAQrv = stdVAQs[1] + stdVAQs[0] * MIN(1.0, (weightsum - weightedQT3s[1]) / (weightedQT3s[1] + DBL_EPSILON));
+    double doubleVAQfw = stdVAQs[0] + stdVAQs[1] * MIN(1.0, (weightsum - weightedQT3s[0]) / (weightedQT3s[0] + DBL_MIN));
+    double doubleVAQrv = stdVAQs[1] + stdVAQs[0] * MIN(1.0, (weightsum - weightedQT3s[1]) / (weightedQT3s[1] + DBL_MIN));
     fmt.cVAQ2 = {(float)doubleVAQfw, (float)doubleVAQrv};
     
     double doubleVAQ_multnorm =(double)(1 + fmt.gapcADD[0] + fmt.gapcADD[1]) / (double)(1 + fmt.gapcADT[0] + fmt.gapcADT[1]);
@@ -2680,8 +2694,8 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
     // double doubleVAQ = stdVAQ + (minVAQ * (phred_max_dscs - phred_max_sscs) / (double)phred_max_sscs);
     double duplexVAQ = (double)fmt.dAD3 * (double)(phred_max_dscs - phred_max_sscs) - (double)(fmt.dAD1 - fmt.dAD3); // h01_to
     duplexVAQ = MIN(duplexVAQ, 200); // Similar to many other upper bounds, the 200 here has no theoretical foundation.
-    fmt.VAQ  = MIN(vaqMQcap, MAX(lowestVAQ, doubleVAQ + duplexVAQ)); // / 1.5;
-    fmt.VAQ2 = MIN(vaqMQcap, MAX(lowestVAQ, doubleVAQ_norm + duplexVAQ)); // treat other forms of indels as background noise if matched normal is not available.
+    fmt.VAQ  = MIN3(vaqMQcap, vaqBQcap, MAX(lowestVAQ, doubleVAQ + duplexVAQ)); // / 1.5;
+    fmt.VAQ2 = MIN3(vaqMQcap, vaqBQcap, MAX(lowestVAQ, doubleVAQ_norm + duplexVAQ)); // treat other forms of indels as background noise if matched normal is not available.
     return (int)(fmt.bAD1[0] + fmt.bAD1[1]);
 };
 
@@ -3139,7 +3153,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         const double tumor_non_germ_reward = MAX(0.0, 0.2 - MAX(tki.FA, (1.0-tki.FA-tki.FR))) * 10;
 #endif
         double reduct_coef = (double)tAD0 / ((double)tAD0 + DBL_EPSILON + MIN(MAX(0.0, tki.B4[3]/100.0-1.0), 2.0) + //0*1.0 // tki.B4[3] is the mismatch bias
-            + 2.0 * (MAX(0.0, 60.0 - tki.MQ) / (MAX(60.0 ,tki.MQ) +  DBL_EPSILON))
+            + 2.0 * (MAX(0.0, 60.0 - (double)tki.MQ) / (MAX(60.0, (double)tki.MQ) +  DBL_EPSILON))
             + 0.0 * (1.0 - tAD1 / MAX(tDP1 - tRD1, tAD1)));
         
         double tnlike_argmin = 0;
@@ -3227,9 +3241,13 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
                  2.0 * MIN(tDP0, nDP0));
         
         const double pcap = 60.0 + 25.0 + 5.0; // prob[mapping-error] * prob[false-positive-variant-per-base-position] / num-alts-per-base-positon
+        const double pcap_tbq = (isInDel ? 200.0 : mathsquare(tki.BQ) / 12.0); // based on heuristics
+        const double pcap_nbq = (isInDel ? 200.0 : mathsquare(fmt.BQ) / 12.0); // based on heuristics
         const double pcap_tmq = MIN(60.0, tki.MQ) * 4.0/3.0;
         const double pcap_nmq = MIN(60.0, fmt.MQ) * 4.0/3.0;
         const double pcap_tmq2 = (tki.MQ - 10.0/log(10.0) * log((double)(tDP0 + tDP0pc0) / (double)(tAD0+tAD0pc0))) * (double)tAD0;
+        const double pcap_nmq2 = (fmt.MQ - 10.0/log(10.0) * log((double)(nDP0 + nDP0pc0) / (double)(nAD0+nAD0pc0))) * (double)nAD0;
+        
         // double eps_qual = 10.0/log(10.0) * log((double)tDP0 + 2.0);
         const double tn_tpo1q = 10.0 / log(10.0) * log((double)(tAD0 / altmul + tE0) / ((tDP0 - tAD0) / refmul + tAD0 / altmul + 2.0 * tE0)) * (isInDel ? pl_exponent : pl_exponent) + (isInDel ? pcap : pcap);
         const double tn_npo1q = 10.0 / log(10.0) * log((double)(nAD0 / altmul + nE0) / ((nDP0 - tAD0) / refmul + tAD0 / altmul + 2.0 * nE0)) * (isInDel ? pl_exponent : pl_exponent) + (isInDel ? pcap : pcap);
@@ -3248,8 +3266,8 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         const double tn_trawq = _tn_tra2q;
         const double tn_nrawq = _tn_nra2q;
         
-        double _tn_tpo2q = MIN(MIN(tn_tpo1q, pcap_tmq), pcap_tmq2);
-        double _tn_npo2q =     MIN(tn_npo1q, pcap_nmq);
+        double _tn_tpo2q = MIN4(tn_tpo1q, pcap_tmq, pcap_tbq, pcap_tmq2);
+        double _tn_npo2q = MIN4(tn_npo1q, pcap_nmq, pcap_nbq, pcap_nmq2);
         if (isInDel) {
             // QUESTION: why indel generations are discrete?
             //tn_tpowq = penal_indel(tn_tpo1q, (double)(tAD0a), (double)(tDP0 - tRD0), repeatunit, repeatnum);
