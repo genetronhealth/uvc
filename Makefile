@@ -2,7 +2,7 @@
 # Example command to build: make all -j9 && make dup
 
 # Multi threads and single thread debug
-release : uvc debarcode mini-vc
+release : uvc debarcode minivc
 debug-mt : uvc.mt.out
 debug-st : uvc.st.out
 test-cppt : uvc.cppt.out
@@ -20,7 +20,7 @@ COMMIT_DIFF_SH=$(shell git diff HEAD --shortstat)
 VERFLAGS=-DCOMMIT_VERSION="\"$(COMMIT_VERSION)\"" -DCOMMIT_DIFF_SH="\"$(COMMIT_DIFF_SH)\"" 
 
 minivc     : minivc.c Makefile
-	$(CC) -O3 -o minivc    $(VERFLAGS) minivc.c         ext/bcftools-1.9/htslib-1.9/libhts.a -lz
+	$(CC) -O3 -o minivc    $(VERFLAGS) minivc.c ${HTSFLAGS} ext/bcftools-1.9/htslib-1.9/libhts.a -lz
 
 debarcode  : debarcode_main.c version.h Makefile
 	$(CC) -O3 -o debarcode $(VERFLAGS) debarcode_main.c ext/bcftools-1.9/htslib-1.9/libhts.a -lz

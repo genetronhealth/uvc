@@ -3056,12 +3056,12 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         double nRefHD = SUM2(fmt.cRefHD);
         double tRefHD = tki.autoBestRefHD;
 
-        double nDP0 = (double)(nUseHD ? (nAllHD) :          (double)fmt.DP);
-        double nAD0 = (double)(nUseHD ? (nAltHD) : fmt.FA * (double)fmt.DP);
-        double nRD0 = (double)(nUseHD ? (nRefHD) : fmt.FR * (double)fmt.DP);
-        double tDP0 = (double)(tUseHD ? (tAllHD) :          (double)tki.DP);
-        double tAD0 = (double)(tUseHD ? (tAltHD) : tki.FA * (double)tki.DP);
-        double tRD0 = (double)(tUseHD ? (tRefHD) : tki.FR * (double)tki.DP);
+        double nDP0 = (double)(nUseHD ? (nAllHD) :          (double)fmt.DP) + DBLFLT_EPS / 2.0;
+        double nAD0 = (double)(nUseHD ? (nAltHD) : fmt.FA * (double)fmt.DP) + DBLFLT_EPS;
+        double nRD0 = (double)(nUseHD ? (nRefHD) : fmt.FR * (double)fmt.DP) + DBLFLT_EPS / 2.0;
+        double tDP0 = (double)(tUseHD ? (tAllHD) :          (double)tki.DP) + DBLFLT_EPS;
+        double tAD0 = (double)(tUseHD ? (tAltHD) : tki.FA * (double)tki.DP) + DBLFLT_EPS / 2.0;
+        double tRD0 = (double)(tUseHD ? (tRefHD) : tki.FR * (double)tki.DP) + DBLFLT_EPS / 2.0; 
         
         double nAD0a = nAD0 * ((isInDel && !nUseHD) ? ((double)(fmt.gapDP4[2] + 1) / (double)(fmt.gapDP4[0] + 1)) : 1.0);
         double tAD0a = tAD0 * ((isInDel && !tUseHD) ? ((double)(tki.gapDP4[2] + 1) / (double)(tki.gapDP4[0] + 1)) : 1.0);

@@ -399,12 +399,12 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         tki.FR = bcffloats[0];
         
         ndst_val = 0;
-        valsize = bcf_get_format_float(bcf_hdr, line,  "BQ", &bcfints,  &ndst_val);
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "BQ", &bcfints,  &ndst_val);
         assert((1 == ndst_val && 1 == valsize) || !fprintf(stderr, "1 == %d && 1 == %d failed for BQ!\n", ndst_val, valsize));
         tki.BQ = bcfints[0];
         
         ndst_val = 0;
-        valsize = bcf_get_format_float(bcf_hdr, line,  "MQ", &bcfints,  &ndst_val);
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "MQ", &bcfints,  &ndst_val);
         assert((1 == ndst_val && 1 == valsize) || !fprintf(stderr, "1 == %d && 1 == %d failed for MQ!\n", ndst_val, valsize)); 
         tki.MQ = bcfints[0];
         
