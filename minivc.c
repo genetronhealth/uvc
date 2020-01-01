@@ -37,8 +37,8 @@ vcf_hdr_print(int argc, char **argv) {
     char timestring[80];
     strftime(timestring, 80, "%F %T", localtime(&rawtime));
     printf("##fileformat=VCFv4.2\n");
-    printf("#fileDate=%s\n", timestring);
-    printf("#variantCallerCommand=");
+    printf("##fileDate=%s\n", timestring);
+    printf("##variantCallerCommand=");
     for (int i = 0; i < argc; i++) {
         printf(" %s", argv[i]);
     }
