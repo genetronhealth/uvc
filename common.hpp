@@ -1,5 +1,5 @@
-#ifndef common_INCLUDED
-#define common_INCLUDED
+#ifndef common_hpp_INCLUDED
+#define common_hpp_INCLUDED
 
 #include <array>
 #include <string>

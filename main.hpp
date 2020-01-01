@@ -1,5 +1,5 @@
-#ifndef consensus_INCLUDED
-#define consensus_INCLUDED
+#ifndef main_hpp_INCLUDED
+#define main_hpp_INCLUDED
 
 #include "bcf_formats.step1.c" // auto-generated
 
@@ -2764,6 +2764,15 @@ fillBySymbol(bcfrec::BcfFormat & fmt,
         double currVAQ = (fmt.bVQ3[i] * minAD1 + fmt.cVQ3[i] * gapAD1) / (double)(minAD1 + gapAD1 + DBL_MIN); // prevent div by zero
         weightedQT3s[i] = (fmt.bQT3[i] * minAD1 + fmt.cQT3[i] * gapAD1) / (double)(minAD1 + gapAD1 + DBL_MIN);
         stdVAQs[i] = currVAQ;
+        
+        if (fmt.bSDL[i] < fmt.bAD1[i] * 15 && fmt.cSDL[i] < fmt.cAD1[i] * 15 ) {
+            double edgeVAQ = ((double)4) * MAX((double)fmt.bSDL[i] / (double)(fmt.bAD1[i] + DBL_MIN), (double)fmt.cSDL[i] / (double)(fmt.cAD1[i] + DBL_MIN));
+            stdVAQs[i] = MIN(stdVAQs[i], edgeVAQ);
+        }
+        if (fmt.bSDR[i] < fmt.bAD1[i] * 15 && fmt.cSDR[i] < fmt.cAD1[i] * 15 ) {
+            double edgeVAQ = ((double)4) * MAX((double)fmt.bSDR[i] / (double)(fmt.bAD1[i] + DBL_MIN), (double)fmt.cSDR[i] / (double)(fmt.cAD1[i] + DBL_MIN));
+            stdVAQs[i] = MIN(stdVAQs[i], edgeVAQ);
+        }
         
         if ((fmt.bBQ1[i] < minABQ)) {
             // the following line of code is not theoretically sound

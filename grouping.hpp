@@ -1,5 +1,5 @@
-#ifndef hts_parser_hpp_INCLUDED
-#define hts_parser_hpp_INCLUDED
+#ifndef grouping_hpp_INCLUDED
+#define grouping_hpp_INCLUDED
 
 #include "common.hpp"
 
