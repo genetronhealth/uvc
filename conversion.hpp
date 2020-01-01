@@ -1,17 +1,17 @@
 #ifndef conversion_hpp_INCLUDED
 #define conversion_hpp_INCLUDED
 
+#include "common.hpp"
+
 #include <algorithm>
+#include <iostream>
+
 #include <assert.h>
 #include <float.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-#include <iostream>
-
-#include "common.hpp"
 
 //#define MIN(a, b) ((a) < (b) ? (a) : (b))
 //#define MAX(a, b) ((a) > (b) ? (a) : (b))

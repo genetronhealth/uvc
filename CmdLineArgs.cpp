@@ -1,11 +1,14 @@
 #ifndef CmdLineArgs_INCLUDED
 #define CmdLineArgs_INCLUDED
 
-#include <fstream>
+#include "CmdLineArgs.hpp"
+#include "version.h"
+
 #include "htslib/sam.h"
 
-#include "version.h"
-#include "CmdLineArgs.hpp"
+#include <fstream>
+
+#include <float.h>
 
 SequencingPlatform 
 CommandLineArgs::selfUpdateByPlatform() {
@@ -285,6 +288,7 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
             // vqual -= (double)10; // maybe useful but not now
         }
         parsing_result_flag = 0;
+        if (t2n_add_contam_transfrac < DBL_EPSILON) { t2n_add_contam_transfrac = DBL_EPSILON; }
     });
     
     CLI11_PARSE(app, argc, argv);

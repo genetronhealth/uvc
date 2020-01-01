@@ -1,10 +1,9 @@
 #ifndef hts_parser_hpp_INCLUDED
 #define hts_parser_hpp_INCLUDED
 
-#include <limits.h>
-#include <math.h>
-#include <stdlib.h>
-#include <string.h>
+#include "common.hpp"
+
+#include "htslib/sam.h"
 
 #include <cassert>
 #include <fstream>
@@ -15,11 +14,12 @@
 #include <tuple>
 #include <vector>
 
-#include "htslib/sam.h"
+#include <limits.h>
+#include <math.h>
+#include <stdlib.h>
+#include <string.h>
 
-#include "common.hpp"
 //#include "logging.hpp"
-
 #define logDEBUGx1 logDEBUG // logINFO
 
 // position of 5' is the starting position, but position of 3' is unreliable without mate info.

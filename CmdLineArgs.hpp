@@ -1,9 +1,9 @@
 #ifndef CmdLineArgs_hpp_INCLUDED
 #define CmdLineArgs_hpp_INCLUDED
 
-#include <string>
-#include "CLI11-1.7.1/CLI11.hpp"
 #include "common.hpp"
+#include "CLI11-1.7.1/CLI11.hpp"
+#include <string>
 
 struct CommandLineArgs {
     std::string bam_input_fname = NOT_PROVIDED; // not missing

@@ -1,8 +1,8 @@
 #ifndef hts_parser_cpp_INCLUDED
 #define hts_parser_cpp_INCLUDED
 
-#include "logging.hpp"
 #include "grouping.hpp"
+#include "logging.hpp"
 
 // position of 5' is the starting position, but position of 3' is unreliable without mate info.
 

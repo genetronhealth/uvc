@@ -1,20 +1,22 @@
+
+#include "main.hpp"
+
+#include "CmdLineArgs.hpp"
+#include "common.hpp"
+#include "grouping.hpp"
+#include "version.h"
+
 #include "htslib/bgzf.h"
 #include "htslib/faidx.h"
 #include "htslib/synced_bcf_reader.h"
-#include "CmdLineArgs.hpp"
-#include "consensus.hpp"
-#include "grouping.hpp"
-#include "version.h"
 
 #include <chrono>
 #include <ctime>
 #include <thread>
-#if defined(USE_STDLIB_THREAD)
-#else
+
+#if !defined(USE_STDLIB_THREAD)
 #include "omp.h"
 #endif
-
-#include "common.hpp"
 
 const unsigned int G_BLOCK_SIZE = 1000;
 
