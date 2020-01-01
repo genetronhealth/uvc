@@ -99,7 +99,7 @@ struct CommandLineArgs {
     double      any_mul_contam_frac = 0.02; // 1e-10; 
     double      t2n_mul_contam_frac = 0.02; // 1e-10; // 0.050; // 0.04 * 2.0; // ;
     double      t2n_add_contam_frac = 0.02;
-    double      t2n_add_contam_transfrac = 0.02; // 1e-10; // 0.025; // 0.04; // 0.125*1.5;
+    double      t2n_add_contam_transfrac = 0.0; // 0.02; // 1e-10; // 0.025; // 0.04; // 0.125*1.5;
     
     int 
     initFromArgCV(int & parsing_result_flag, SequencingPlatform & inferred_sequencing_platform, int argc, const char *const* argv);
