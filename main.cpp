@@ -262,6 +262,9 @@ struct TumorKeyInfo {
     int32_t autoBestAllHD = 0;
     int32_t autoBestAltHD = 0;
     int32_t autoBestRefHD = 0;
+    int32_t cAllBQ2 = 0;
+    int32_t cAltBQ2 = 0;
+    int32_t cRefBQ2 = 0;
     std::array<int32_t, 4> gapDP4 = {0};
     std::array<int32_t, 6*RCC_NUM> RCC = {0};
     std::array<int32_t, 3> GLa = {0};
@@ -447,6 +450,21 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         valsize = bcf_get_format_int32(bcf_hdr, line,  "cRefHD", &bcfints, &ndst_val);
         assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cRefHD!\n", ndst_val, valsize));
         tki.autoBestRefHD = bcfints[0] + bcfints[1];
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "cAllBQ2", &bcfints, &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cAllBQ2!\n", ndst_val, valsize));
+        tki.cAllBQ2 = bcfints[0] + bcfints[1];
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "cAltBQ2", &bcfints, &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cAltBQ2!\n", ndst_val, valsize));
+        tki.cAltBQ2 = bcfints[0] + bcfints[1];
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "cRefBQ2", &bcfints, &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cRefBQ2!\n", ndst_val, valsize));
+        tki.cRefBQ2 = bcfints[0] + bcfints[1];
         
         ndst_val = 0;
         valsize = bcf_get_format_char(bcf_hdr, line, "FT", &bcfstring, &ndst_val);
@@ -709,15 +727,29 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                     if (is_rescued) {
                         tki = tki_it->second; 
                     }
-                    fillBySymbol(fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]], symbolToCountCoverageSet12, 
-                            refpos, symbol, refstring, extended_inclu_beg_pos, mutform2count4vec_bq, indices_bq, mutform2count4vec_fq, indices_fq, 
+                    fillBySymbol(fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]], 
+                            symbolToCountCoverageSet12, 
+                            refpos, 
+                            symbol, 
+                            refstring, 
+                            extended_inclu_beg_pos, 
+                            mutform2count4vec_bq, 
+                            indices_bq, 
+                            mutform2count4vec_fq, 
+                            indices_fq, 
                             ((BASE_SYMBOL == symbolType) ? minABQ_snv : minABQ_indel),
-                            paramset.minMQ1, paramset.maxMQ,
-                            phred_max_sscs, paramset.phred_dscs_minus_sscs + phred_max_sscs,
-                            // ErrorCorrectionType(paramset.seq_data_type), 
-                            !paramset.disable_dup_read_merge, !paramset.enable_dup_read_vqual,
-                            is_rescued, (NOT_PROVIDED != paramset.vcf_tumor_fname)
-                            , repeatunit, repeatnum, tki, paramset.t2n_add_contam_frac);
+                            paramset.minMQ1, 
+                            paramset.maxMQ,
+                            phred_max_sscs, 
+                            paramset.phred_dscs_minus_sscs + phred_max_sscs,
+                            !paramset.disable_dup_read_merge, 
+                            !paramset.enable_dup_read_vqual,
+                            is_rescued, 
+                            (NOT_PROVIDED != paramset.vcf_tumor_fname), 
+                            repeatunit, 
+                            repeatnum, 
+                            tki, 
+                            paramset.t2n_add_contam_transfrac);
                 }
                 for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; symbol = AlignmentSymbol(1+(unsigned int)symbol)) {
                     float vaq = fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]].VAQ;
@@ -793,39 +825,49 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                     if (is_rescued || pass_thres) {
                         fmt.CType = SYMBOL_TO_DESC_ARR[most_confident_symbol];
                         fmt.CAQ = most_confident_qual;
-                        appendVcfRecord(buf_out_string, buf_out_string_pass, arg.vc_stats 
-                                , symbolToCountCoverageSet12,
-                                std::get<0>(tname_tseqlen_tuple).c_str(), refpos, 
-                                symbol, fmt,
-                                refstring, extended_inclu_beg_pos, paramset.vqual, 
-                                should_output_all, should_let_all_pass,
-                                tki, (NOT_PROVIDED != paramset.vcf_tumor_fname), 
+                        appendVcfRecord(buf_out_string, 
+                                buf_out_string_pass, 
+                                arg.vc_stats,
+                                symbolToCountCoverageSet12,
+                                std::get<0>(tname_tseqlen_tuple).c_str(), 
+                                refpos, 
+                                symbol, 
+                                fmt,
+                                refstring, 
+                                extended_inclu_beg_pos, 
+                                paramset.vqual, 
+                                should_output_all, 
+                                should_let_all_pass,
+                                tki, 
+                                (NOT_PROVIDED != paramset.vcf_tumor_fname),
                                 paramset.phred_germline_polymorphism,
-                                paramset.nonref_to_alt_frac_snv, paramset.nonref_to_alt_frac_indel
-                                , paramset.tnq_mult_snv, paramset.tnq_mult_indel
-                                , paramset.tnq_mult_tADadd_snv, paramset.tnq_mult_tADadd_indel
-                                , paramset.ldi_tier_qual
-                                , paramset.ldi_tier1cnt
-                                , paramset.ldi_tier2cnt
-                                , paramset.mai_tier_qual // = 40;
-                                , paramset.mai_tier1abq  // = 40;
-                                , paramset.mai_tier2abq  // = 40;
-                                , paramset.str_tier_qual // = 50;
-                                , paramset.str_tier1len  // = 16;
-                                , paramset.str_tier2len  // = 16;
-                                , paramset.uni_bias_thres // = 180
-                                , bcf_hdr, paramset.is_tumor_format_retrieved
-                                , ((BASE_SYMBOL == symbolType) ? paramset.highqual_thres_snv : (LINK_SYMBOL == symbolType ? paramset.highqual_thres_indel : 0))
-                                , paramset.highqual_min_ratio
-                                , paramset.diffVAQfrac
-                                , ((BASE_SYMBOL == symbolType) ? paramset.phred_sys_artifact_snv : (LINK_SYMBOL == symbolType ? paramset.phred_sys_artifact_indel : 0))
-                                , paramset.t2n_add_contam_frac
-                                , paramset.t2n_mul_contam_frac
-                                , repeatunit, repeatnum
-                                , paramset.t2n_sys_err_frac_snv
-                                , paramset.t2n_sys_err_frac_indel
-                                // paramset.phred_sys_artifact
-                                // , paramset.highqual_min_vardep, paramset.highqual_min_totdep
+                                //paramset.nonref_to_alt_frac_snv, paramset.nonref_to_alt_frac_indel
+                                //, paramset.tnq_mult_snv, paramset.tnq_mult_indel
+                                //, paramset.tnq_mult_tADadd_snv, paramset.tnq_mult_tADadd_indel
+                                //, paramset.ldi_tier_qual
+                                //, paramset.ldi_tier1cnt
+                                //, paramset.ldi_tier2cnt
+                                //, paramset.mai_tier_qual // = 40;
+                                //, paramset.mai_tier1abq  // = 40;
+                                //, paramset.mai_tier2abq  // = 40;
+                                //, paramset.str_tier_qual // = 50;
+                                //, paramset.str_tier1len  // = 16;
+                                //, paramset.str_tier2len  // = 16;
+                                paramset.uni_bias_thres, // = 180
+                                bcf_hdr, 
+                                paramset.is_tumor_format_retrieved,
+                                ((BASE_SYMBOL == symbolType) ? paramset.highqual_thres_snv : (LINK_SYMBOL == symbolType ? paramset.highqual_thres_indel : 0)),
+                                paramset.highqual_min_ratio,
+                                // , paramset.diffVAQfrac
+                                // , ((BASE_SYMBOL == symbolType) ? paramset.phred_sys_artifact_snv : (LINK_SYMBOL == symbolType ? paramset.phred_sys_artifact_indel : 0))
+                                paramset.any_mul_contam_frac,
+                                paramset.t2n_mul_contam_frac,
+                                paramset.t2n_add_contam_frac,
+                                paramset.t2n_add_contam_transfrac,
+                                repeatunit, 
+                                repeatnum
+                                //, paramset.t2n_sys_err_frac_snv
+                                //, paramset.t2n_sys_err_frac_indel
                                 );
                     }
                 }

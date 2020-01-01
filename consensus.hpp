@@ -1529,7 +1529,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         auto bsum_dist_imba0 = ((bsum_ldist_v1 + 1) / (double)(ad1 + 1)) / ((typebsum_rdist_v0 + 1) / (double)(dp0 + 1));
                         auto bsum_dist_imba1 = ((bsum_rdist_v1 + 1) / (double)(ad1 + 1)) / ((typebsum_ldist_v0 + 1) / (double)(dp0 + 1));
                         
-                        auto sb100raw = any4_to_biasfact100((double)dp0, (double)dp1, (double)ad0, (double)ad1, false, pseudocount / 2.0 + MIN(1.5, fa * 75.0));
+                        auto sb100raw = any4_to_biasfact100((double)dp0, (double)dp1, (double)ad0, (double)ad1, false, pseudocount / 2.0 + MIN(2.0, fa * 100.0));
                         bias_1stra[strand].getRefByPos(pos).incSymbolCount(symbol, sb100raw);
                         assert(bsum_dist_imba0 + bsum_dist_imba1 > 0 || !fprintf(stderr, "%g + %g > 0 failed! (will encounter division by zero)\n", bsum_dist_imba0, bsum_dist_imba1));
                         
@@ -1552,7 +1552,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                                 const auto bq_dir_smin = (test1bias ? bq_dir_s0 : bq_dir_s1);
                                 const auto bq_dir_smax = (test1bias ? bq_dir_s1 : bq_dir_s0);
                                 sb100seq = any4_to_biasfact100((double)bq_dir_smin, (double)bq_dir_smax, (double)bq_dir_vmin, (double)bq_dir_vmax, false, 
-                                        pseudocount / 2.0 + MIN(1.5, pow(10.0, (symbval_uqual_va_avg - typesum_uqual_va_avg) / 10.0)));
+                                        pseudocount / 2.0 + MIN(2.0, 2.0 * pow(10.0, (symbval_uqual_va_avg - typesum_uqual_va_avg) / 10.0)));
                                 bq_bias_sedir[strand].getRefByPos(pos).incSymbolCount(symbol, sb100seq); 
                             }
                         }
@@ -2247,21 +2247,29 @@ indel_fill_rep_num_clusters(std::array<RepNumCluster<int>, RCC_NUM> & rep_num_cl
 }
 
 int
-fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2CountCoverageSet12, 
-        unsigned int refpos, const AlignmentSymbol symbol, const std::string & refstring, unsigned int refstring_offset, 
+fillBySymbol(bcfrec::BcfFormat & fmt, 
+        const Symbol2CountCoverageSet & symbol2CountCoverageSet12, 
+        unsigned int refpos, 
+        const AlignmentSymbol symbol, 
+        const std::string & refstring, 
+        unsigned int refstring_offset, 
         const std::vector<std::pair<std::basic_string<std::pair<unsigned int, AlignmentSymbol>>, std::array<unsigned int, 2>>> & mutform2count4vec_bq,
         std::set<size_t> indices_bq,
         const std::vector<std::pair<std::basic_string<std::pair<unsigned int, AlignmentSymbol>>, std::array<unsigned int, 2>>> & mutform2count4vec_fq,
         std::set<size_t> indices_fq,
         unsigned int minABQ, // = 25
-        unsigned int minMQ1, unsigned int maxMQ,
+        unsigned int minMQ1, 
+        unsigned int maxMQ,
         unsigned int phred_max_sscs,
         unsigned int phred_max_dscs,
-        bool use_deduplicated_reads, bool use_only_deduplicated_reads,
-        bool is_rescued, const bool prev_is_tumor
-        , const std::string & repeatunit, const unsigned int repeatnum 
-        , const auto & tki
-        , const double t2n_add_contam_frac
+        bool use_deduplicated_reads, 
+        bool use_only_deduplicated_reads,
+        bool is_rescued, 
+        const bool prev_is_tumor, 
+        const std::string & repeatunit, 
+        const unsigned int repeatnum, 
+        const auto & tki,
+        const double t2n_add_contam_transfrac
         ) {
     fmt.note = symbol2CountCoverageSet12.additional_note.getByPos(refpos).at(symbol);
     uint64_t bq_qsum_sqrMQ_tot = 0; 
@@ -2423,7 +2431,7 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
              *         R89abc reject, (partially) re-alignable, clipped
              *          89abcd reject, not re-alignable
              */
-            ref_bias = ((totsize_sum * 100UL) / (totsize_cnt * 100UL + 1UL)) * 3 + (repeatunit.size() * repeatnum) + 6 * 2 + 5 * 2; // 6=gap_open/match
+            ref_bias = ((totsize_sum * 100UL) / (totsize_cnt * 100UL + 1UL)) * 3 + (repeatunit.size() * (MAX(1, repeatnum) - 1)) + 6 * 2 + 5 * 2; // 6=gap_open/match
         }
         fmt.RefBias = ref_bias; // * 150 / (150-30); // 30 is the min alignment score
         const double altmul = (double)(150 - MIN(120, ref_bias)) / (double)150; // 50.0 / (double)(ref_bias + 50);
@@ -2439,12 +2447,10 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
             
             double fmtFA = ((!isSymbolSubstitution(symbol)) ? fmt.FA : (
                    // MIN(1.0, (double)SUM2(fmt.cAltBQ) / (fmt.FA * (double)SUM2(fmt.cAllBQ) + DBL_EPSILON)) * 
-                             (double)SUM2(fmt.cAltBQ2) / (         (double)SUM2(fmt.cAllBQ2) + DBL_EPSILON)));
+                             (double)SUM2(fmt.cAltBQ2) / (         (double)SUM2(fmt.cAllBQ2) + DBL_MIN)));
             double fmtFR = ((!isSymbolSubstitution(symbol)) ? fmt.FR : (
                    // MIN(1.0, (double)SUM2(fmt.cRefBQ) / (fmt.FR * (double)SUM2(fmt.cAllBQ) + DBL_EPSILON)) * 
-                             (double)SUM2(fmt.cRefBQ2) / (         (double)SUM2(fmt.cAllBQ2) + DBL_EPSILON)));
-            
-            // double qdiff = (SUM2(fmt.cAltBQ) - fmt.FA * SUM2(fmt.cAllBQ)) / (fmt.DP * fmt.FA + DBL_EPSILON);
+                             (double)SUM2(fmt.cRefBQ2) / (         (double)SUM2(fmt.cAllBQ2) + DBL_MIN)));
             
             const double fa1 = MAX(0.0, ((0 == t) ? (fmtFA) : (1.0 - fmtFA - fmtFR)));
             
@@ -2458,18 +2464,26 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
             const double fr_v = 1.0 - fa_v;
             const double dr_v = fr_v * fmt.DP;
             
-            // normalize contam with t2n_contam, 
-            int homref_likecon1 = -200; // t2n_contam_alt_q    = -200;
-            int homalt_likecon1 = -200; // t2n_contam_nonref_q = -200;
+            const double any_contam_rate = 0.02; // 3.0e-2; // - (5e-3/3.0)*(double)SYMBOL_TO_INDEL_N_UNITS[symbol];
+            double t2n_conref_rate = 0.0;
+            double t2n_conalt_rate = 0.0;
+            int homref_likecon1 = -200;
+            int homalt_likecon1 = -200;
             if (prev_is_tumor) {
-                // double tki_FO = 1.0 - tki.FA - tki.FR;
-                // double fmt_FO = 1.0 - fmt.FA - fmt.FR;
+                /*
                 const double fa_ns = MAX(0.0, ((0 == t) ? (fmt.FA) : (1.0 - fmt.FA - fmt.FR)));
                 const double fa_ts = MAX(0.0, ((0 == t) ? (tki.FA) : (1.0 - tki.FA - tki.FR)));
                 const double fr_ns = 1.0 - fa_ns;
                 const double fr_ts = 1.0 - fa_ts;
-                homref_likecon1 = -(int)calc_binom_10log10_likeratio(t2n_add_contam_frac, fa_ns * fmt.DP, fa_ts * tki.DP);
-                homalt_likecon1 = -(int)calc_binom_10log10_likeratio(t2n_add_contam_frac, fr_ns * fmt.DP, fr_ts * tki.DP);
+                */
+                double tkiFA = ((!isSymbolSubstitution(symbol)) ? tki.FA : (
+                             (double)(tki.cAltBQ2) / (         (double)(tki.cAllBQ2) + DBL_MIN)));
+                double tkiFR = ((!isSymbolSubstitution(symbol)) ? tki.FR : (
+                             (double)(tki.cRefBQ2) / (         (double)(tki.cAllBQ2) + DBL_MIN)));
+                homref_likecon1 = -(int)calc_binom_10log10_likeratio(t2n_add_contam_transfrac, fmtFA * fmt.DP, tkiFA * tki.DP);
+                homalt_likecon1 = -(int)calc_binom_10log10_likeratio(t2n_add_contam_transfrac, fmtFR * fmt.DP, tkiFR * tki.DP);
+                t2n_conref_rate += (tkiFR * 0.02 + tkiFR * 0.02 * MIN(5.0, tki.DP / (double)(fmt.DP + DBL_MIN)));
+                t2n_conalt_rate += (tkiFA * 0.02 + tkiFA * 0.02 * MIN(5.0, tki.DP / (double)(fmt.DP + DBL_MIN)));
             }
             
             // two models (additive and multiplicative)
@@ -2477,38 +2491,22 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
             // two sources of stochasticity (heterozygosity and contamination)
             // two genotyes (REF-with-ALT genotype and REF-with-(all-minus-REF-minus-ALT) genotype)
             // = 16 combinations in total
-            //
-            // const double fref  = 1.0 - fa;
-            // const double nfa   = MAX(0.5, fa);
-            // const double nfref = MAX(0.5, fref);
             // ContEst https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3167057/ Fig. 1 TCGA Ovarian 
-            const double any_contam_rate = 3.0e-2; // - (5e-3/3.0)*(double)SYMBOL_TO_INDEL_N_UNITS[symbol];
-            
-            // Uni-directional deviation from its theoretical distribution is translated into a phred-scaled error probability. TODO: check the effect of sqrt?
+                        
+            // assuming classical preferential attachment, deviation from its theoretical distribution is translated into a phred-scaled error probability.
             // zero minus the phred-scale probability that ALT is generated by a stochastic process of power-law error given that ref is good, higher means ref is of better quality (zero is best)
-            int hetREF_likelim1 =  (int)(10.0/log(10.00) * PLEXP * MIN(logit2(fr_l / refmul * (1.0 + 0.0),     fa_l / altmul), 0.0));
-            int hetALT_likelim1 =  (int)(10.0/log(10.00) * PLEXP * MIN(logit2(fa_l / altmul * (1.0 + 0.0),     fr_l / refmul), 0.0));         
-            int homref_likelim1 =  (int)(10.0/log(10.00) * PLEXP * MIN(logit2(fr_l / refmul * any_contam_rate, fa_l / altmul), 0.0));
-            int homalt_likelim1 =  (int)(10.0/log(10.00) * PLEXP * MIN(logit2(fa_l / altmul * any_contam_rate, fr_l / refmul), 0.0));
-            
-            // int homref_likelim = -(int)(10.0/log(10.00)*3.5*1.00 * log(MAX(fa_l / (t2n_contam_rate * altmul), 1.0 / fr_l)));  // hom-alt to REF mul error phred
-            // int homalt_likelim = -(int)(10.0/log(10.00)*3.5*1.00 * log(MAX(fr_l / (t2n_contam_rate * refmul), 1.0 / fa_l)));  // hom-ref to ALT mul error phred
-            
-            // log(0.500 * refmul / fr_l), 0.0));      // het-ref to ALT mul error phred
-            // log(0.500 * refmul / fr_l), 0.0));      // het-ref to ALT mul error phred
-            // (MAX(log(0.500 * altmul / fa_l), 0.0)); // het-alt to REF mul error phred 
-            // const double dref  = fmt.DP * fref;
-            //const double nad   = fmt.DP * nfa;
-            //const double ndref = fmt.DP * nfref;
+            // logit2(theoretical-deviation, observed-deviation), higher-than-expected deviation <=> more-negative-score
+            int hetREF_likelim1 =  (int)(10.0/log(10.00) * PLEXP * MIN(logit2(fr_l / refmul * (1.0 + 0.0),                                fa_l / altmul), 0.0));
+            int hetALT_likelim1 =  (int)(10.0/log(10.00) * PLEXP * MIN(logit2(fa_l / altmul * (1.0 + 0.0),                                fr_l / refmul), 0.0));         
+            int homref_likelim1 =  (int)(10.0/log(10.00) * PLEXP * MIN(logit2(fr_l / refmul * any_contam_rate + t2n_conalt_rate / altmul, fa_l / altmul), 0.0));
+            int homalt_likelim1 =  (int)(10.0/log(10.00) * PLEXP * MIN(logit2(fa_l / altmul * any_contam_rate + t2n_conref_rate / refmul, fr_l / refmul), 0.0));
             
             // assuming statistical independence of reads, kl-divergence is translated into a phred-scaled error probability.
+            // binom_10log10_likeratio(theoretical-deviation-rate, number-of-deviation-signals, number-of-all-signals), higher-than-expected deviation <=> more-negative-score
             int hetREF_likeval1 = -(int)calc_binom_10log10_likeratio(0.500 * altmul, da_v, dr_v);                                 // het-ref to ALT add error phred
             int hetALT_likeval1 = -(int)calc_binom_10log10_likeratio(0.500 * refmul, dr_v, da_v);                                 // het-alt to REF add error phred
-            int homref_likeval1 = -(int)calc_binom_10log10_likeratio(any_contam_rate * altmul, da_v, dr_v);      // hom-alt to REF add error phred by contamination
-            int homalt_likeval1 = -(int)calc_binom_10log10_likeratio(any_contam_rate * refmul, dr_v, da_v);      // hom-ref to ALT add error phred by contamination
-            
-            // int homref_likecon1 = -(int)calc_binom_10log10_likeratio(exp_contam_fa * altmul, da_v, dr_v);      // hom-alt to REF add error phred by contamination
-            // int homalt_likecon1 = -(int)calc_binom_10log10_likeratio(exp_contam_fr * refmul, dr_v, da_v);      // hom-ref to ALT add error phred by contamination
+            int homref_likeval1 = -(int)calc_binom_10log10_likeratio(any_contam_rate * altmul + t2n_conalt_rate, da_v, dr_v);      // hom-alt to REF add error phred by contamination
+            int homalt_likeval1 = -(int)calc_binom_10log10_likeratio(any_contam_rate * refmul + t2n_conref_rate, dr_v, da_v);      // hom-ref to ALT add error phred by contamination
             
             int homref_likelim2 = MAX(homref_likelim1, homref_likecon1);
             int homref_likeval2 = MAX(homref_likeval1, homref_likecon1);
@@ -2522,18 +2520,11 @@ fillBySymbol(bcfrec::BcfFormat & fmt, const Symbol2CountCoverageSet & symbol2Cou
                     -hetALT_likelim1, -hetREF_likeval1,
                     -homalt_likelim1, -homalt_likeval1, -homalt_likecon1
             };
-            // 0/1 : 204 :  -196,8,-296 : 6,0,1,8,-197,-0,-1,-296
-            // 0,-7,10,33, 0,0,187,987
             
             // An important note: two models must generate different alleles to perform model selection
             fmtGL[0] =     MAX(homref_likelim2, homref_likeval2);
             fmtGL[1] = MIN(MAX(hetREF_likelim1, hetREF_likeval1), MAX(hetALT_likelim1, hetALT_likeval1));
             fmtGL[2] =     MAX(homalt_likelim2, homalt_likeval2);
-            
-            //fmtGL[0] = MIN(BTW(MAX(homref_likeval - hetALT_likeval, -hetALT_likelim, homref_likelim), MAX(homref_likeval - homalt_likeval, homalt_likelim));
-            //fmtGL[1] = MAX(BTW(hetALT_likeval - homref_likeval, homref_likelim), MIN(hetREF_likeval - homalt_likeval, homalt_likelim));
-            //MIN(MIN(hetALT_likeval, hetREF_likeval) - MIN(homref_likeval, homalt_likeval), MIN(homref_likelim, homalt_likelim));
-            //fmtGL[2] = MIN(MAX(homalt_likeval - homref_likeval, homref_likelim), MAX(homalt_likeval - hetREF_likeval, hetREF_likelim));
             
             std::array<int, 3> likes = { fmtGL[0], fmtGL[1], fmtGL[2] };
             std::sort(likes.rbegin(), likes.rend());
@@ -2747,21 +2738,24 @@ generateVcfHeader(const char *ref_fasta_fname, const char *platform,
     ret += "##INFO=<ID=tDP,Number=1,Type=Integer,Description=\"Tumor-sample DP\">\n";
     ret += "##INFO=<ID=tFA,Number=1,Type=Float,Description=\"Tumor-sample FA\">\n";
     ret += "##INFO=<ID=tFR,Number=1,Type=Float,Description=\"Tumor-sample FR\">\n";
-    ret += "##INFO=<ID=tFT,Number=1,Type=String,Description=\"Tumor-sample FT where the filter strings are separated by period (.) instead of semi-colon because semi-colon is not permitted in INFO\">\n";
-    ret += "##INFO=<ID=tcHap,Number=1,Type=String,Description=\"Tumor-sample cHap\">\n";
-    ret += "##INFO=<ID=tbDP,Number=1,Type=Integer,Description=\"Tumor-sample bDP\">\n";
     ret += "##INFO=<ID=tAltBQ,Number=1,Type=Integer,Description=\"Tumor-sample cAltBQ or bAltBQ, depending on command-line option\">\n";
     ret += "##INFO=<ID=tAllBQ,Number=1,Type=Integer,Description=\"Tumor-sample cAllBQ or bAllBQ, depending on command-line option\">\n";
     ret += "##INFO=<ID=tRefBQ,Number=1,Type=Integer,Description=\"Tumor-sample cRefBQ or bRefBQ, depending on command-line option\">\n";
+    ret += "##INFO=<ID=tAltBQ2,Number=1,Type=Integer,Description=\"Tumor-sample cAltBQ2\">\n";
+    ret += "##INFO=<ID=tAllBQ2,Number=1,Type=Integer,Description=\"Tumor-sample cAllBQ2\">\n";
+    ret += "##INFO=<ID=tRefBQ2,Number=1,Type=Integer,Description=\"Tumor-sample cRefBQ2\">\n";
     ret += "##INFO=<ID=tAltHD,Number=1,Type=Integer,Description=\"Tumor-sample cAltHD or bAltHD, depending on command-line option\">\n";
     ret += "##INFO=<ID=tAllHD,Number=1,Type=Integer,Description=\"Tumor-sample cAllHD or bAllHD, depending on command-line option\">\n";
     ret += "##INFO=<ID=tRefHD,Number=1,Type=Integer,Description=\"Tumor-sample cRefHD or bRefHD, depending on command-line option\">\n";
+    ret += "##INFO=<ID=tFT,Number=1,Type=String,Description=\"Tumor-sample FT where the filter strings are separated by period (.) instead of semi-colon because semi-colon is not permitted in INFO\">\n";
+    ret += "##INFO=<ID=tcHap,Number=1,Type=String,Description=\"Tumor-sample cHap\">\n";
+    ret += "##INFO=<ID=tbDP,Number=1,Type=Integer,Description=\"Tumor-sample bDP\">\n";
     ret += "##INFO=<ID=tMQ,Number=.,Type=Float,Description=\"Tumor-sample MQ\">\n"; 
     ret += "##INFO=<ID=tB4,Number=4,Type=Integer,Description=\"Tumor-sample B4\">\n";
     ret += "##INFO=<ID=tgapDP4,Number=4,Type=Integer,Description=\"Tumor-sample gapDP4\">\n"; 
     ret += "##INFO=<ID=tRCC,Number=" + std::to_string(RCC_NFS*RCC_NUM) + ",Type=Integer,Description=\"Tumor-sample RCC\">\n";
-    ret += "##INFO=<ID=tGLa,Number=3,Type=Integer,Description=\"Tumor-sample GLa\">\n";
-    ret += "##INFO=<ID=tGLb,Number=3,Type=Integer,Description=\"Tumor-sample GLb\">\n";
+    // ret += "##INFO=<ID=tGLa,Number=3,Type=Integer,Description=\"Tumor-sample GLa\">\n";
+    // ret += "##INFO=<ID=tGLb,Number=3,Type=Integer,Description=\"Tumor-sample GLb\">\n";
     ret += "##INFO=<ID=RU,Number=1,Type=String,Description=\"The shortest repeating unit in the reference\">\n";
     ret += "##INFO=<ID=RC,Number=1,Type=Integer,Description=\"The number of non-interrupted RUs in the reference\">\n"; 
     
@@ -2874,45 +2868,54 @@ penal_indel_2(double AD0a, int dst_str_units, const auto & RCC, const double snr
         }
         max_noise = MAX(max_noise, _noise);
     }
-    return 10.0/log(2.0) * (3.0) * log((AD0a + DBL_EPSILON) / (AD0a + max_noise + DBL_EPSILON));
+    return 10.0/log(2.0) * (3.0) * log((AD0a + DBL_MIN) / (AD0a + max_noise + DBL_MIN));
 }
 
 int
-appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats & vc_stats,
+appendVcfRecord(std::string & out_string, 
+        std::string & out_string_pass, 
+        VcStats & vc_stats,
         const Symbol2CountCoverageSet & symbol2CountCoverageSet, 
-        const char *tname, unsigned int refpos, 
-        const AlignmentSymbol symbol, bcfrec::BcfFormat & fmtvar, 
+        const char *tname, 
+        unsigned int refpos, 
+        const AlignmentSymbol symbol, 
+        bcfrec::BcfFormat & fmtvar, 
         const std::string & refstring,
         const unsigned int extended_inclu_beg_pos, 
         const double vcfqual_thres,
-        const bool should_output_all, const bool should_let_all_pass,
-        const auto & tki, const bool prev_is_tumor, // , unsigned int rank
+        const bool should_output_all, 
+        const bool should_let_all_pass,
+        const auto & tki, 
+        const bool prev_is_tumor, // unsigned int rank
         unsigned int homref_gt_phred,
-        double nonref_to_alt_frac_snv,
-        double nonref_to_alt_frac_indel
-        , double tnq_mult_snv,        double tnq_mult_indel
-        , double tnq_mult_tADadd_snv, double tnq_mult_tADadd_indel
-        , const double       ldi_tier_qual
-        , const unsigned int ldi_tier1cnt
-        , const unsigned int ldi_tier2cnt
-        , const double       mai_tier_qual // = 40;
-        , const unsigned int mai_tier1abq  // = 40;
-        , const unsigned int mai_tier2abq  // = 40;
-        , const double       str_tier_qual // = 50;
-        , const unsigned int str_tier1len // = 16;
-        , const unsigned int str_tier2len // = 16;
-        , const unsigned int uni_bias_thres
-        , const bcf_hdr_t *g_bcf_hdr, const bool is_tumor_format_retrieved
-        , const unsigned int highqual_thres 
-        , double highqual_min_ratio
-        , const double diffVAQfrac
-        , const double phred_sys_artifact
-        , const double t2n_add_contam_frac
-        // , const double add_contam_rate
-        , const double mul_contam_rate
-        , const std::string & repeatunit, const unsigned int repeatnum
-        , const double t2n_sys_err_frac_snv
-        , const double t2n_sys_err_frac_indel
+        //double nonref_to_alt_frac_snv,
+        //double nonref_to_alt_frac_indel
+        //, double tnq_mult_snv,        double tnq_mult_indel
+        //, double tnq_mult_tADadd_snv, double tnq_mult_tADadd_indel
+        //, const double       ldi_tier_qual
+        //, const unsigned int ldi_tier1cnt
+        //, const unsigned int ldi_tier2cnt
+        //, const double       mai_tier_qual // = 40;
+        //, const unsigned int mai_tier1abq  // = 40;
+        //, const unsigned int mai_tier2abq  // = 40;
+        //, const double       str_tier_qual // = 50;
+        //, const unsigned int str_tier1len // = 16;
+        //, const unsigned int str_tier2len // = 16;
+        const unsigned int uni_bias_thres,
+        const bcf_hdr_t *g_bcf_hdr, 
+        const bool is_tumor_format_retrieved,
+        const unsigned int highqual_thres,
+        double highqual_min_ratio,
+        // , const double diffVAQfrac
+        // , const double phred_sys_artifact
+        const double any_mul_contam_frac,
+        const double t2n_mul_contam_frac,
+        const double t2n_add_contam_frac,
+        const double t2n_add_contam_transfrac,
+        const std::string & repeatunit, 
+        const unsigned int repeatnum
+        //, const double t2n_sys_err_frac_snv
+        //, const double t2n_sys_err_frac_indel
         //, unsigned int highqual_min_vardep
         //, unsigned int highqual_min_totdep
         ) { 
@@ -3083,9 +3086,9 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
             }
         }
         
-        auto nonref_to_alt_frac = (isInDel ? nonref_to_alt_frac_indel : nonref_to_alt_frac_snv); 
-        double nNRD0 = nonref_to_alt_frac * (nDP0 - nRD0);
-        double nNRD1 = nonref_to_alt_frac * (nDP1 - nRD1);
+        //auto nonref_to_alt_frac = (isInDel ? nonref_to_alt_frac_indel : nonref_to_alt_frac_snv); 
+        //double nNRD0 = nonref_to_alt_frac * (nDP0 - nRD0);
+        //double nNRD1 = nonref_to_alt_frac * (nDP1 - nRD1);
         
         const double eps = (double)sqrt(FLT_EPSILON);
         
@@ -3289,24 +3292,26 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         double tvn_st_q = 10.0/log(10.0) * log((tAD1/tDP1) / (nAD1/nDP1)) * tAD0;
         
         //double add_contam_phred = MAX(0.0, calc_uninomial_10log10_likeratio(add_contam_rate, (double)nAD0, (double)tAD0)); // 0.2 max 0.02 min
-        //double mul_contam_phred = MAX(0.0, calc_uninomial_10log10_likeratio(mul_contam_rate, (double)nAD0, (double)tAD0 * (double)(nDP0 + 1) / (double)(tDP0 + 1))); 
+        //double mul_contam_phred = MAX(0.0, calc_uninomial_10log10_likeratio(t2n_mul_contam_frac, (double)nAD0, (double)tAD0 * (double)(nDP0 + 1) / (double)(tDP0 + 1))); 
         // double ntfrac = (double)(nDP0 + 1) / (double)(tDP0 + 1);
         
         double base_contam = 1000; // (double)(isInDel ? indel_pp : 0.0); // TODO: FIXME: justify this zero assignment?
         // QUESTION: why contamination generations are discrete?
-        double nAD0normByTN1 = (nAD1 + DBL_EPSILON) / (nAD1 + tAD1 + 2.0 * DBL_EPSILON) * (nAD0 + tAD0 + 2.0 * DBL_EPSILON);
-        double tAD0normByTN1 = (tAD1 + DBL_EPSILON) / (nAD1 + tAD1 + 2.0 * DBL_EPSILON) * (nAD0 + tAD0 + 2.0 * DBL_EPSILON);
+        double nAD0normByTN1 = (nAD1 + DBL_MIN) / (nAD1 + tAD1 + 2.0 * DBL_MIN) * (nAD0 + tAD0 + 2.0 * DBL_MIN);
+        double tAD0normByTN1 = (tAD1 + DBL_MIN) / (nAD1 + tAD1 + 2.0 * DBL_MIN) * (nAD0 + tAD0 + 2.0 * DBL_MIN);
         
         double add_contam_phred = base_contam + 
-              calc_binom_10log10_likeratio((double)t2n_add_contam_frac, (double)nAD0normByTN1 * MIN(1.0, 2.0 * tnDP0ratio), (double)tAD0normByTN1); // 0.2 max 0.02 min
+              calc_binom_10log10_likeratio((double)t2n_add_contam_transfrac, (double)nAD0normByTN1 * MIN(1.0, 2.0 * tnDP0ratio), (double)tAD0normByTN1); // 0.2 max 0.02 min
         double mul_contam_phred = base_contam + (nDP0 < tDP0
-            ? calc_binom_10log10_likeratio((double)mul_contam_rate, (double)nAD0normByTN1             , (double)tAD0normByTN1 / tnDP0ratio)
-            : calc_binom_10log10_likeratio((double)mul_contam_rate, (double)nAD0normByTN1 * tnDP0ratio, (double)tAD0normByTN1)
+            ? calc_binom_10log10_likeratio((double)t2n_mul_contam_frac, (double)nAD0normByTN1             , (double)tAD0normByTN1 / tnDP0ratio)
+            : calc_binom_10log10_likeratio((double)t2n_mul_contam_frac, (double)nAD0normByTN1 * tnDP0ratio, (double)tAD0normByTN1)
         );
         double contam_phred = MAX(add_contam_phred, mul_contam_phred); // select worst-case contam model because tumor and normal depths are highly variable
         
-        double t2n_sys_err_frac = (isInDel ? t2n_sys_err_frac_indel : t2n_sys_err_frac_snv); 
-        double t2n_contam_q = MIN(calc_binom_10log10_likeratio(t2n_add_contam_frac, fmt.FA * (double)fmt.DP, tki.FA * (double)tki.DP)      , 200.0);
+        // double t2n_sys_err_frac = (isInDel ? t2n_sys_err_frac_indel : t2n_sys_err_frac_snv); 
+        double t2n_contam_q = MIN(calc_binom_10log10_likeratio(t2n_add_contam_transfrac, 
+                (isSymbolSubstitution(symbol) ? ((SUM2(fmt.cAltBQ2) + DBL_MIN) / (double)(SUM2(fmt.cAllBQ2) + 2.0 * DBL_MIN)) : fmt.FA) * (double)fmt.DP,
+                (isSymbolSubstitution(symbol) ? ((    (tki.cAltBQ2) + DBL_MIN) / (double)(    (tki.cAllBQ2) + 2.0 * DBL_MIN)) : tki.FA) * (double)tki.DP), 200.0);
         double min_doubleDP = (double)MIN(fmt.DP, tki.DP);
         // double t2n_syserr_q = MIN(calc_binom_10log10_likeratio(t2n_sys_err_frac/2.0,fmt.FA * min_doubleDP,   tki.FA * min_doubleDP  ) * 2.0, 200.0);
         // double t2n_syserr_q = (isInDel ? 0.0 : MIN(MAX(0.0, MIN(tn_npowq, tn_nrawq)) / (0.5 * t2n_or1 + 0.5), SYS_QMAX));
@@ -3409,19 +3414,24 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
         infostring += std::string(";tDP=") + std::to_string(tki.DP);
         infostring += std::string(";tFA=") + std::to_string(tki.FA);
         infostring += std::string(";tFR=") + std::to_string(tki.FR);
-        infostring += std::string(";tFT=") + tki.FT;
-        infostring += std::string(";tbDP=") + std::to_string(tki.bDP);
         infostring += std::string(";tAltBQ=") + std::to_string(tki.autoBestAltBQ);
         infostring += std::string(";tAllBQ=") + std::to_string(tki.autoBestAllBQ);
         infostring += std::string(";tRefBQ=") + std::to_string(tki.autoBestRefBQ);
+        infostring += std::string(";tAltBQ2=") + std::to_string(tki.cAltBQ2);
+        infostring += std::string(";tAllBQ2=") + std::to_string(tki.cAllBQ2);
+        infostring += std::string(";tRefBQ2=") + std::to_string(tki.cRefBQ2);
         infostring += std::string(";tAltHD=") + std::to_string(tki.autoBestAltHD);
         infostring += std::string(";tAllHD=") + std::to_string(tki.autoBestAllHD);
+        infostring += std::string(";tRefHD=") + std::to_string(tki.autoBestAllHD);
+        infostring += std::string(";tFT=") + tki.FT;
+        // infostring += std::string(";tcHap=") + tki.cHap; // tcHap is linked with tFT
+        infostring += std::string(";tbDP=") + std::to_string(tki.bDP);
         infostring += std::string(";tMQ=") + std::to_string(tki.MQ);
         infostring += std::string(";tB4=") + other_join(tki.B4);
         infostring += std::string(";tgapDP4=") + other_join(tki.gapDP4);
         infostring += std::string(";tRCC=") + other_join(tki.RCC);
-        infostring += std::string(";tGLa=") + other_join(tki.GLa);
-        infostring += std::string(";tGLb=") + other_join(tki.GLb);
+        //infostring += std::string(";tGLa=") + other_join(tki.GLa);
+        //infostring += std::string(";tGLb=") + other_join(tki.GLb);
         
         // infostring += std::string(";TNQA=") + string_join(std::array<std::string, 4>({std::to_string(tn_systq), std::to_string(tvn_powq), std::to_string(tnlike_argmin), std::to_string(reduct_coef)}));
         
@@ -3471,6 +3481,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
     if ((!is_novar && vcfqual >= vcfqual_thres) || should_output_all || should_let_all_pass) {
         // infostring += ";RU=" + repeatunit + ";RC=" + std::to_string(repeatnum);
         const bool tUseHD = (prev_is_tumor ? (tki.bDP > tki.DP * highqual_min_ratio) : (fmt.bDP > fmt.DP * highqual_min_ratio));
+        /*
         if (false && isInDel) {
             
             if (vcfqual > str_tier_qual) {
@@ -3528,7 +3539,7 @@ appendVcfRecord(std::string & out_string, std::string & out_string_pass, VcStats
                 }
             }
         }
-        
+        */
     }
         
     if (0 == vcffilter.size()) {
