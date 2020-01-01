@@ -71,7 +71,7 @@ struct CommandLineArgs {
     uint32_t    bq_phred_added_indel = 0;
     uint32_t    bq_phred_added_misma = 0;
     bool        should_add_note = false;
-    uint32_t    phred_germline_polymorphism = 31; // +5; // 30+3; // https://www.biostars.org/p/6177/ probablity of hetero is 0.8e-3 for non-african, it should be 30+5 for african.
+    uint32_t    phred_germline_polymorphism = 31; // +5; // 30+3; // https://www.biostars.org/p/6177/ probablity of hetero is 0.8e-3 for non-african, it should be 32 for african.
     //uint32_t    phred_sys_bias = 0;
     uint32_t    phred_sys_artifact_snv   = phred_germline_polymorphism * 2; // or 55; // PMC4271055: probablity of germline call error is between 1/100kb and 1/200kb
     uint32_t    phred_sys_artifact_indel = phred_germline_polymorphism * 2; // 3 / 2;
@@ -96,8 +96,10 @@ struct CommandLineArgs {
     double      t2n_sys_err_frac_snv = 0.25; //0.4; // (1.0/3.0); // 0.25;
     double      t2n_sys_err_frac_indel = 1e3; // 0.25; // disabled
     
-    double      t2n_add_contam_frac = 1e-10; // 0.025; // 0.04; // 0.125*1.5;
-    double      t2n_mul_contam_frac = 1e-10; // 0.050; // 0.04 * 2.0; // ;
+    double      any_mul_contam_frac = 0.02; // 1e-10; 
+    double      t2n_mul_contam_frac = 0.02; // 1e-10; // 0.050; // 0.04 * 2.0; // ;
+    double      t2n_add_contam_frac = 0.02;
+    double      t2n_add_contam_transfrac = 0.02; // 1e-10; // 0.025; // 0.04; // 0.125*1.5;
     
     int 
     initFromArgCV(int & parsing_result_flag, SequencingPlatform & inferred_sequencing_platform, int argc, const char *const* argv);
