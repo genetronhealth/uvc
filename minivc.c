@@ -76,7 +76,7 @@ posidx_to_basedistr_update(base_distr_t *posidx_to_basedistr, const size_t offse
                 unsigned int base4bit = bam_seqi(bseq, qpos);
                 unsigned int base3bit = seq_nt16_int[base4bit];
                 unsigned int qual8bit = bam_phredi(b, qpos);
-                if (base3bit < 4 && qual8bit * b->core.l_qseq + 5 >= qavg) { // BQ of at least 30 ?
+                if (base3bit < 4 && qual8bit + 7 >= qavg) { // BQ of at least 30 ?
                     posidx_to_basedistr[rpos-offset].data[base3bit]++;
                 }
                 qpos += 1;
