@@ -3456,7 +3456,7 @@ appendVcfRecord(std::string & out_string,
         // Pr[soma | signal is from either germ or soma] * (1 - Pr[exp-error]) = Pr[soma | signal is from either germ, soma, or exp-error]
         // If Pr[exp-error] is approx 0, then Pr[soma | signal is from either germ or soma] is approx Pr[soma | signal is from either germ, soma, or exp-error]
         // If Pr[germ]      is approx 0, then Pr[soma] is approx (1 - Pr[exp-error])
-        const int32_t noisy_germ_phred = 5; // probability that tumor is alt1/alt2 hetero and normal is ref/alt1 hetero, this is quite low
+        const int32_t noisy_germ_phred = (isInDel ? 5 : 0); // 5; // likelihood that tumor is alt1/alt2 hetero and normal is ref/alt1 hetero, normalized to zero for SNPs.
         
         std::array<double, N_MODELS> testquals = {0};
         unsigned int tqi = 0;
