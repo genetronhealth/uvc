@@ -76,7 +76,7 @@ posidx_to_basedistr_update(base_distr_t *posidx_to_basedistr, const size_t offse
                 unsigned int base4bit = bam_seqi(bseq, qpos);
                 unsigned int base3bit = seq_nt16_int[base4bit];
                 unsigned int qual8bit = bam_phredi(b, qpos);
-                if (base3bit < 4 && qual8bit * b->core.l_qseq + 10 >= qavg) { // BQ of at least 30 ?
+                if (base3bit < 4 && qual8bit * b->core.l_qseq + 5 >= qavg) { // BQ of at least 30 ?
                     posidx_to_basedistr[rpos-offset].data[base3bit]++;
                 }
                 qpos += 1;
@@ -121,7 +121,7 @@ pos_base_distr_print(uint64_t *t_ad_sum_ptr, uint64_t *t_dp_sum_ptr, uint64_t *n
             if (t_ad < n_ad * 3) { continue; } // at least 3 times more variant-supporting reads in the tumor than in the normal
             //if (t_ad * MAX(n_dp - n_ad, n_dp / 2) * 2 < 
             //    n_ad * MAX(t_dp - t_ad, t_dp / 2) * 5) { continue; } // at least 2.5 times more variant-supporting reads in the tumor than in the normal normalized by allele fraction
-            if (t_ad * n_dp < n_ad * t_dp * 2) { continue; }
+            if (t_ad * n_dp * 2 < n_ad * t_dp * 5) { continue; }
             printf("%s\t%d\t.\t.\t%c\tTAD=%d;TDP=%d;NAD=%d;NDP=%d\n", tname, beg+i+1, SEQ_ACGT[j], t_ad, t_dp, n_ad, n_dp); 
             *t_ad_sum_ptr += t_ad;
             *t_dp_sum_ptr += MAX(t_dp - t_ad, t_dp / 2);
