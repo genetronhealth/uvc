@@ -843,33 +843,18 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                                 tki, 
                                 (NOT_PROVIDED != paramset.vcf_tumor_fname),
                                 paramset.phred_germline_polymorphism,
-                                //paramset.nonref_to_alt_frac_snv, paramset.nonref_to_alt_frac_indel
-                                //, paramset.tnq_mult_snv, paramset.tnq_mult_indel
-                                //, paramset.tnq_mult_tADadd_snv, paramset.tnq_mult_tADadd_indel
-                                //, paramset.ldi_tier_qual
-                                //, paramset.ldi_tier1cnt
-                                //, paramset.ldi_tier2cnt
-                                //, paramset.mai_tier_qual // = 40;
-                                //, paramset.mai_tier1abq  // = 40;
-                                //, paramset.mai_tier2abq  // = 40;
-                                //, paramset.str_tier_qual // = 50;
-                                //, paramset.str_tier1len  // = 16;
-                                //, paramset.str_tier2len  // = 16;
                                 paramset.uni_bias_thres, // = 180
                                 bcf_hdr, 
                                 paramset.is_tumor_format_retrieved,
                                 ((BASE_SYMBOL == symbolType) ? paramset.highqual_thres_snv : (LINK_SYMBOL == symbolType ? paramset.highqual_thres_indel : 0)),
                                 paramset.highqual_min_ratio,
-                                // , paramset.diffVAQfrac
-                                // , ((BASE_SYMBOL == symbolType) ? paramset.phred_sys_artifact_snv : (LINK_SYMBOL == symbolType ? paramset.phred_sys_artifact_indel : 0))
                                 paramset.any_mul_contam_frac,
                                 paramset.t2n_mul_contam_frac,
                                 paramset.t2n_add_contam_frac,
                                 paramset.t2n_add_contam_transfrac,
                                 repeatunit, 
-                                repeatnum
-                                //, paramset.t2n_sys_err_frac_snv
-                                //, paramset.t2n_sys_err_frac_indel
+                                repeatnum,
+                                SEQUENCING_PLATFORM_IONTORRENT == paramset.sequencing_platform
                                 );
                     }
                 }

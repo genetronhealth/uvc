@@ -3005,7 +3005,8 @@ appendVcfRecord(std::string & out_string,
         const double t2n_add_contam_frac,
         const double t2n_add_contam_transfrac,
         const std::string & repeatunit, 
-        const unsigned int repeatnum) {
+        const unsigned int repeatnum,
+        const bool is_proton) {
     
     const bcfrec::BcfFormat & fmt = fmtvar; 
     
@@ -3228,14 +3229,13 @@ appendVcfRecord(std::string & out_string,
         
         const double pcap = 60.0 + 25.0 + 5.0; // prob[mapping-error] * prob[false-positive-variant-per-base-position] / num-alts-per-base-positon
         
-        const double pcap_tbq = (isInDel ? 200.0 : mathsquare(tki.BQ) / 12.0); // based on heuristics
+        const double pcap_tbq = ((isInDel || is_proton) ? 200.0 : mathsquare(tki.BQ) / 12.0); // based on heuristics
         const double pcap_tmq = MIN(60.0, tki.MQ) * 4.0/3.0; // bases on heuristics
         const double pcap_tmq2 = (tki.MQ - 10.0/log(10.0) * log((double)(tDP0 + tDP0pc0) / (double)(tAD0+tAD0pc0))) * (double)tAD0; // readjustment by MQ
         const double tn_tpo1q = 10.0 / log(10.0) * log((double)(tAD0 / altmul + tE0) / ((tDP0 - tAD0) / refmul + tAD0 / altmul + 2.0 * tE0)) * (isInDel ? pl_exponent : pl_exponent) + (isInDel ? pcap : pcap);
         const double tn_tsamq = 40.0 * pow(0.5, (double)tAD0);
         const double tn_tra1q = (double)tki.VAQ;
         double _tn_tpo2q = MIN4(tn_tpo1q, pcap_tmq, pcap_tbq, pcap_tmq2);
-        
         double _tn_tra2q = MAX(0.0, tn_tra1q/altmul - tn_tsamq    ) + (isInDel ? 0.0:5.0); // tumor  BQ bias is stronger as raw variant (biased to high BQ) is called   from each base
         if (isInDel) {
             int n_str_units = (isSymbolIns(symbol) ? 1 : (-1)) * (int)(indelstring.size() / repeatunit.size());
@@ -3247,22 +3247,21 @@ appendVcfRecord(std::string & out_string,
 
         // QUESTION: why BQ-bias generations are discrete? Because of the noise with each observation of BQ? why indel generations are discrete?
         
-        const double pcap_nbq = (isInDel ? 200.0 : mathsquare(nfm.BQ) / 12.0); // based on heuristics
+        const double pcap_nbq = ((isInDel || is_proton) ? 200.0 : mathsquare(nfm.BQ) / 12.0); // based on heuristics
         const double pcap_nmq = MIN(60.0, nfm.MQ) * 4.0/3.0; // based on heuristics
         const double pcap_nmq2 = (nfm.MQ - 10.0/log(10.0) * log((double)(nDP0 + nDP0pc0) / (double)(nAD0+nAD0pc0))) * (double)nAD0; // readjsutment by MQ
         const double tn_npo1q = 10.0 / log(10.0) * log((double)(nAD0 / altmul + nE0) / ((nDP0 - tAD0) / refmul + tAD0 / altmul + 2.0 * nE0)) * (isInDel ? pl_exponent : pl_exponent) + (isInDel ? pcap : pcap);
         const double tn_nsamq = 40.0 * pow(0.5, (double)nAD0);
         const double tn_nra1q = (double)nfm.VAQ;
         double _tn_npo2q = MIN4(tn_npo1q, pcap_nmq, pcap_nbq, pcap_nmq2);
-        
         double _tn_nra2q = MAX(0.0, tn_nra1q/altmul - tn_nsamq/4.0) + (isInDel ? 0.0:5.0); // normal BQ bias is weaker   as res variant (biased to high BQ) is filtered from each variant
-        const double tn_nrawq = _tn_nra2q;
         if (isInDel) {
-            _tn_nra2q *= ((double)tAD0a + (double)indelstring.size()/8.0) / ((double)tAD0 + (double)indelstring.size()/8.0);
             int n_str_units = (isSymbolIns(symbol) ? 1 : (-1)) * (int)(indelstring.size() / repeatunit.size());
             _tn_npo2q += penal_indel_2(nAD0a, n_str_units, nfm.RCC);
+            _tn_nra2q *= ((double)tAD0a + (double)indelstring.size()/8.0) / ((double)tAD0 + (double)indelstring.size()/8.0);
         }
         const double tn_npowq = MAX(0.0, _tn_npo2q);
+        const double tn_nrawq = _tn_nra2q;
         
         double symfrac = 1.0; // degenerated
         
@@ -3270,8 +3269,6 @@ appendVcfRecord(std::string & out_string,
                              / ((double)(nAD0 +           nAD0pc0) / (double)(nDP0 - nAD0 +           (nDP0pc0 - nAD0pc0)));
         const double t2n_or1 = ((double)(tAD1 + symfrac * tAD1pc0) / (double)(tDP1 - tAD1 + symfrac * (tDP1pc0 - tAD1pc0))) 
                              / ((double)(nAD1 +           nAD1pc0) / (double)(nDP1 - nAD1 +           (nDP1pc0 - nAD1pc0))); 
-        const double t2n_or = MAX(t2n_or0, t2n_or1);
-        
         const double n2t_or0 = ((double)(nAD0 +     0.0 * nAD0pc0) / (double)(nDP0 - nAD0 +     0.0 * (nDP0pc0 - nAD0pc0))) 
                              / ((double)(tAD0 +           tAD0pc0) / (double)(tDP0 - tAD0 +           (tDP0pc0 - tAD0pc0)));
         const double n2t_or1 = ((double)(nAD1 +     0.0 * nAD1pc0) / (double)(nDP1 - nAD1 +     0.0 * (nDP1pc0 - nAD1pc0))) 
