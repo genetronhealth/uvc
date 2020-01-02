@@ -1531,7 +1531,7 @@ struct Symbol2CountCoverageSet {
                             symbol = AlignmentSymbol(1+((unsigned int)symbol))) {
                         auto curr_depth_symbsum = curr_tsum_depth[0+strand].getByPos(pos).getSymbolCount(symbol);
                         auto curr_deprv_symbsum = curr_tsum_depth[1-strand].getByPos(pos).getSymbolCount(symbol);
-                        unsigned int max_imba_depth = (100100100); // magic number meaning no limit on imba depth
+                        unsigned int max_imba_depth = (MAX_IMBA_DEP); // magic number meaning no limit on imba depth
                         double imba_fact = 1.0;
 if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol 
         && ((curr_depth_symbsum * 5 < curr_depth_typesum * 4 && curr_depth_symbsum > 0)
@@ -2417,6 +2417,7 @@ fillBySymbol(bcfrec::BcfFormat & fmt,
         fmt.bQT2[strand] = symbol2CountCoverageSet12.bq_pass_thres.at(strand).getByPos(refpos).getSymbolCount(symbol); // pass  threshold
         fmt.bAD3[strand] = symbol2CountCoverageSet12.bq_vars_depth.at(strand).getByPos(refpos).getSymbolCount(symbol); // pass  allele depth
         fmt.bADB[strand] = symbol2CountCoverageSet12.bq_vars_badep.at(strand).getByPos(refpos).getSymbolCount(symbol);
+        if (MAX_IMBA_DEP == fmt.bADB[strand]) { fmt.bADB[strand] = -1; }
         fmt.bQT3[strand] = symbol2CountCoverageSet12.bq_vars_thres.at(strand).getByPos(refpos).getSymbolCount(symbol); // pass  threshold
         fmt.bVQ3[strand] = symbol2CountCoverageSet12.bq_vars_vqual.at(strand).getByPos(refpos).getSymbolCount(symbol); // pass  allele depth 
         
@@ -2460,6 +2461,7 @@ fillBySymbol(bcfrec::BcfFormat & fmt,
         fmt.cQT2[strand] = symbol2CountCoverageSet12.fq_pass_thres.at(strand).getByPos(refpos).getSymbolCount(symbol);
         fmt.cAD3[strand] = symbol2CountCoverageSet12.fq_vars_depth.at(strand).getByPos(refpos).getSymbolCount(symbol); // pass  allele depth
         fmt.cADB[strand] = symbol2CountCoverageSet12.fq_vars_badep.at(strand).getByPos(refpos).getSymbolCount(symbol); // pass  threshold
+        if (MAX_IMBA_DEP == fmt.cADB[strand]) { fmt.cADB[strand] = -1; }
         fmt.cQT3[strand] = symbol2CountCoverageSet12.fq_vars_thres.at(strand).getByPos(refpos).getSymbolCount(symbol); 
         fmt.cVQ3[strand] = symbol2CountCoverageSet12.fq_vars_vqual.at(strand).getByPos(refpos).getSymbolCount(symbol); // pass  allele depth 
         
@@ -3260,7 +3262,7 @@ appendVcfRecord(std::string & out_string,
             _tn_npo2q += penal_indel_2(nAD0a, n_str_units, nfm.RCC);
             _tn_nra2q *= ((double)tAD0a + (double)indelstring.size()/8.0) / ((double)tAD0 + (double)indelstring.size()/8.0);
         }
-        const double tn_npowq = MAX(0.0, _tn_npo2q);
+        const double tn_npowq = _tn_npo2q;
         const double tn_nrawq = _tn_nra2q;
         
         double symfrac = 1.0; // degenerated
@@ -3299,15 +3301,15 @@ appendVcfRecord(std::string & out_string,
         double min_doubleDP = (double)MIN(nfm.DP, tki.DP);
         double t2n_syserr_q = (isInDel ? 0.0 : MIN(MAX(0.0, MIN(tn_npowq, tn_nrawq)) * MIN(1.0, 4.0 / mathsquare(t2n_or1 + 1.0)), SYS_QMAX)); // 50.0
         
-        double n2t_red_qual = MIN(tn_npowq, tn_nrawq + (double)indel_ic) * MIN(1.0, n2t_or1) * MIN(1.0, n2t_or1); // / (t2n_or1 * t2n_or1);
-        double n2t_orr_qual = MIN(tn_npowq, tn_nrawq + (double)indel_ic) * MIN(1.0, n2t_or1);
-        double n2t_or2_qual = MIN(tn_npowq, tn_nrawq + (double)indel_ic) * MIN(1.0, n2t_or1/2.0);
+        //double n2t_red_qual = MIN(tn_npowq, tn_nrawq + (double)indel_ic) * MIN(1.0, n2t_or1) * MIN(1.0, n2t_or1); // / (t2n_or1 * t2n_or1);
+        //double n2t_orr_qual = MIN(tn_npowq, tn_nrawq + (double)indel_ic) * MIN(1.0, n2t_or1);
+        //double n2t_or2_qual = MIN(tn_npowq, tn_nrawq + (double)indel_ic) * MIN(1.0, n2t_or1/2.0);
         
         const int32_t noisy_germ_phred = (isInDel ? 5 : 0); // 5; // likelihood that tumor is alt1/alt2 hetero and normal is ref/alt1 hetero, normalized to zero for SNPs.
         
         std::array<double, N_MODELS> testquals = {0};
         unsigned int tqi = 0;
-        double t2n_finq = max_min01_sub02(MIN(t2n_rawq, t2t_powq), MAX(0.0, MIN(t2n_rawq, t2n_powq)), t2n_contam_q);
+        double t2n_finq = max_min01_sub02(CENTER(t2n_rawq, t2t_powq), CENTER(t2n_rawq, t2n_powq), t2n_contam_q);
         double t_base_q = MIN(tn_trawq, tn_tpowq + (double)indel_ic);
         
         double a_no_alt_qual = nonalt_qual + MAX(0, MIN(nonalt_tu_q, t2n_powq)) - MIN(t2n_contam_q, t2n_syserr_q);
@@ -3320,7 +3322,7 @@ appendVcfRecord(std::string & out_string,
         // testquals[tqi++] = MIN(tn_trawq - tn_nrawq + tvn_rawq, tn_tpowq - MAX(0.0, tn_npowq - tvn_or_q) + tvn_powq); 
         // testquals[tqi++] = MIN(tn_trawq, tn_tpowq) + MIN(tvn_rawq, tvn_powq) - MAX(0.0 , MIN(tn_nrawq, tn_npowq) - tvn_or_q); // 6
         // testquals[tqi++] = MIN(tn_trawq, tn_tpowq)               + tvn_powq  - MIN(MIN(tn_nrawq, tn_npowq           ), contam_phred); // 20
-
+        
         const int MODEL_SEP_1 = 1;
         if (prev_is_tumor) {
             vcfqual = 0;
@@ -3368,11 +3370,11 @@ appendVcfRecord(std::string & out_string,
                 std::to_string(n2t_or0),     std::to_string(n2t_or1)
         }));
         infostring += std::string(";TNTQ=") + string_join(std::array<std::string, 5>({
-                std::to_string(_tn_tpo2q)  , std::to_string(tn_trawq),
+                std::to_string(tn_tpowq)  , std::to_string(tn_trawq),
                 std::to_string(tn_tpo1q)   , std::to_string(tn_tra1q), std::to_string(tn_tsamq)
         }));
         infostring += std::string(";TNNQ=") + string_join(std::array<std::string, 5>({
-                std::to_string(_tn_npo2q)  , std::to_string(tn_nrawq),
+                std::to_string(tn_npowq)  , std::to_string(tn_nrawq),
                 std::to_string(tn_npo1q)   , std::to_string(tn_nra1q), std::to_string(tn_nsamq)
         }));
         infostring += std::string(";tDP=") + std::to_string(tki.DP);

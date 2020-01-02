@@ -17,6 +17,7 @@
 //#define MAX(a, b) ((a) > (b) ? (a) : (b))
 
 #define DBLFLT_EPS ((double)FLT_EPSILON)
+#define MAX_IMBA_DEP (MIN(INT32_MAX, INT_MAX))
 
 // http://snap.stanford.edu/class/cs224w-2015/slides/04-powerlaws.pdf
 // https://cs.brynmawr.edu/Courses/cs380/spring2013/section02/slides/10_ScaleFreeNetworks.pdf
@@ -29,9 +30,14 @@ div_by_20(T n) {
     return n / 20;    
 }
 
+auto
+CENTER(auto a, auto b, int center = 0) {
+    return ((abs(a - center) < abs(b - center)) ? a : b);
+}
+
 auto 
 MIN(auto a, auto b) {
-    return (a < b ? a :b);
+    return (a < b ? a : b);
 }
 
 auto
