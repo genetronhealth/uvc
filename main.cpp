@@ -248,7 +248,7 @@ is_sig_out(auto a, auto minval, auto maxval, unsigned int mfact, unsigned int af
 
 struct TumorKeyInfo {
     std::string ref_alt;
-    std::string FT;
+    std::string FTS;
     int32_t pos = 0;
     float VAQ = 0;
     int32_t DP = 0;
@@ -469,14 +469,16 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         tki.cRefBQ2 = bcfints[0] + bcfints[1];
         
         ndst_val = 0;
-        valsize = bcf_get_format_char(bcf_hdr, line, "FT", &bcfstring, &ndst_val);
-        assert((ndst_val == valsize && 0 < valsize) || !fprintf(stderr, "%d == %d && nonzero failed for FT!\n", ndst_val, valsize));
+        valsize = bcf_get_format_char(bcf_hdr, line, "FTS", &bcfstring, &ndst_val);
+        assert((ndst_val == valsize && 0 < valsize) || !fprintf(stderr, "%d == %d && nonzero failed for FTS!\n", ndst_val, valsize));
+        /*
         for (int ftidx = 0; ftidx < valsize - 1; ftidx++) {
             if (';' == bcfstring[ftidx]) {
                 bcfstring[ftidx] = '.';
             }
         }
-        tki.FT = std::string(bcfstring, valsize-1);
+        */
+        tki.FTS = std::string(bcfstring, valsize-1);
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line,  "gapDP4", &bcfints, &ndst_val);
@@ -516,7 +518,7 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         ndst_val = 0;
         valsize = bcf_get_format_char(bcf_hdr, line, "cHap", &bcfstring, &ndst_val);
         assert((ndst_val == valsize && 0 < valsize) || !fprintf(stderr, "%d == %d && nonzero failed for cHap!\n", ndst_val, valsize));
-        tki.FT += std::string(";tcHap=") + std::string(bcfstring);
+        tki.FTS += std::string(";tcHap=") + std::string(bcfstring);
         
         tki.pos = line->pos;
         bcf_unpack(line, BCF_UN_STR);

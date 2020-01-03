@@ -69,20 +69,20 @@ const std::vector<std::pair<std::string, std::string>> FILTER_VEC = {
     std::make_pair("Q40",           "Quality below 40 and no other filters"),
     std::make_pair("Q50",           "Quality below 50 and no other filters"),
     std::make_pair("Q60",           "Quality below 60 and no other filters"),
-    std::make_pair("DB1",           "For FORMAT/FT: Deduplication bias for duped base reads, meaning a high portion of variant evidence is from singleton families"),
-    std::make_pair("DB2",           "For FORMAT/FT: Deduplication bias for deduped consensus families, meaning a high portion of variant evidence is from singleton families"),
-    std::make_pair("MB1",           "For FORMAT/FT: Mismatch bias for duped base reads, meaning reads supporting the ALT allele have many more mismatches than reads supporting other alleles."),
-    std::make_pair("MB2",           "For FORMAT/FT: Mismatch bias for deduped consensus families, meaning families supporting the ALT allele have many more mismatches than families supporting other alleles."),
-    std::make_pair("PB1L",          "For FORMAT/FT: Position bias on the left  mappping coordinate for duped base reads"),
-    std::make_pair("PB1R",          "For FORMAT/FT: Position bias on the right mappping coordinate for duped base reads"),
-    std::make_pair("PB2L",          "For FORMAT/FT: Position bias on the left  mappping coordinate for deduped consensus families"),
-    std::make_pair("PB2R",          "For FORMAT/FT: Position bias on the right mappping coordinate for deduped consensus families"),
-    std::make_pair("SB1",           "For FORMAT/FT: Strand bias for duped base reads"),
-    std::make_pair("SB2",           "For FORMAT/FT: Strand bias for deduped consensus families"),
-    std::make_pair("QTD1",          "For FORMAT/FT: Quality-threshold difference for duped base reads, meaning variant evidence is from outlier reads"),
-    std::make_pair("QTD2",          "For FORMAT/FT: Quality-threshold difference for deduped consensus families, meaning variant evidence is from outlier families"), 
-    std::make_pair("DBthis",        "For FORMAT/FT: Allele-fraction-based deduplication bias for this ALT allele, meaning variant evidence is from abnormally small families"),
-    std::make_pair("DBrest",        "For FORMAT/FT: Allele-fraction-based deduplication bias for the non-ALT alelles, meaning variant evidence is from abnormally large families")
+    std::make_pair("DB1",           "For FORMAT/FTS: Deduplication bias for duped base reads, meaning a high portion of variant evidence is from singleton families"),
+    std::make_pair("DB2",           "For FORMAT/FTS: Deduplication bias for deduped consensus families, meaning a high portion of variant evidence is from singleton families"),
+    std::make_pair("MB1",           "For FORMAT/FTS: Mismatch bias for duped base reads, meaning reads supporting the ALT allele have many more mismatches than reads supporting other alleles."),
+    std::make_pair("MB2",           "For FORMAT/FTS: Mismatch bias for deduped consensus families, meaning families supporting the ALT allele have many more mismatches than families supporting other alleles."),
+    std::make_pair("PB1L",          "For FORMAT/FTS: Position bias on the left  mappping coordinate for duped base reads"),
+    std::make_pair("PB1R",          "For FORMAT/FTS: Position bias on the right mappping coordinate for duped base reads"),
+    std::make_pair("PB2L",          "For FORMAT/FTS: Position bias on the left  mappping coordinate for deduped consensus families"),
+    std::make_pair("PB2R",          "For FORMAT/FTS: Position bias on the right mappping coordinate for deduped consensus families"),
+    std::make_pair("SB1",           "For FORMAT/FTS: Strand bias for duped base reads"),
+    std::make_pair("SB2",           "For FORMAT/FTS: Strand bias for deduped consensus families"),
+    std::make_pair("QTD1",          "For FORMAT/FTS: Quality-threshold difference for duped base reads, meaning variant evidence is from outlier reads"),
+    std::make_pair("QTD2",          "For FORMAT/FTS: Quality-threshold difference for deduped consensus families, meaning variant evidence is from outlier families"), 
+    std::make_pair("DBthis",        "For FORMAT/FTS: Allele-fraction-based deduplication bias for this ALT allele, meaning variant evidence is from abnormally small families"),
+    std::make_pair("DBrest",        "For FORMAT/FTS: Allele-fraction-based deduplication bias for the non-ALT alelles, meaning variant evidence is from abnormally large families")
 };
 
 struct BcfFormatStruct {
@@ -105,13 +105,13 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("DP"       , 1, BCF_INTEGER, "Fragment depth supporting any allele [consensus family, deduped]"),
     BcfFormatStruct("FA"       , 1, BCF_FLOAT,   "Frequency of the ALT allele [consensus family, deduped]"),
     BcfFormatStruct("FR"       , 1, BCF_FLOAT,   "Frequency of the REF allele [consensus family, deduped]"),
-    BcfFormatStruct("FT"       , 1, BCF_STRING,  "Sample genotype filter indicating if this genotype was 'called' (similar in concept to the FILTER field). "
+    BcfFormatStruct("FTS"      , 1, BCF_STRING,  "Sample genotype filter indicating if this genotype was 'called' (similar in concept to the FILTER field). "
                                                  "Again, use PASS to indicate that all filters have been passed, "
-                                                   "a semi-colon separated list of codes for filters that fail, "
-                                                   "or '.' to indicate that filters have not been applied. "
+                                                 "an amperstand-separated list of codes for filters that fail, "
+                                                 "or '.' to indicate that filters have not been applied. "
                                                  "These values should be described in the meta-information in the same way as FILTERs. "
                                                  "No white-space or semi-colons permitted."),
-    BcfFormatStruct("FTV"      , BCF_NUM_D, BCF_INTEGER, "Percent bias values for the FT strings"),
+    BcfFormatStruct("FTSV"     , BCF_NUM_D, BCF_INTEGER, "Percent bias values for the FTS strings"),
    
     BcfFormatStruct("DPHQ"     , 1, BCF_INTEGER, "Fragment depth supporting any allele if low-quality bases are ignored which means only high quality (HQ) bases are used [base read, duped]"),
     BcfFormatStruct("ADHQ"     , 1, BCF_INTEGER, "Fragment depth supporting the ALT allele if low-quality bases are ignored which means only high quality (HQ) bases are used [base read, duped]"),

@@ -2875,7 +2875,7 @@ generateVcfHeader(const char *ref_fasta_fname, const char *platform,
     ret += "##INFO=<ID=tAltHD,Number=1,Type=Integer,Description=\"Tumor-sample cAltHD or bAltHD, depending on command-line option\">\n";
     ret += "##INFO=<ID=tAllHD,Number=1,Type=Integer,Description=\"Tumor-sample cAllHD or bAllHD, depending on command-line option\">\n";
     ret += "##INFO=<ID=tRefHD,Number=1,Type=Integer,Description=\"Tumor-sample cRefHD or bRefHD, depending on command-line option\">\n";
-    ret += "##INFO=<ID=tFT,Number=1,Type=String,Description=\"Tumor-sample FT where the filter strings are separated by period (.) instead of semi-colon because semi-colon is not permitted in INFO\">\n";
+    ret += "##INFO=<ID=tFTS,Number=1,Type=String,Description=\"Tumor-sample FTS where the filter strings are separated by amperstand (&)\">\n";
     ret += "##INFO=<ID=tbDP,Number=1,Type=Integer,Description=\"Tumor-sample bDP\">\n";
     ret += "##INFO=<ID=tcHap,Number=1,Type=String,Description=\"Tumor-sample cHap\">\n";
     ret += "##INFO=<ID=tMQ,Number=.,Type=Float,Description=\"Tumor-sample MQ\">\n"; 
@@ -2902,10 +2902,10 @@ generateVcfHeader(const char *ref_fasta_fname, const char *platform,
 }
 
 auto
-fmtFTupdate(auto & maxval, std::string & ft, std::vector<unsigned int> & ftv, const char *fkey , const auto fthres, const auto fval) {
+fmtFTSupdate(auto & maxval, std::string & ft, std::vector<unsigned int> & ftv, const char *fkey , const auto fthres, const auto fval) {
     maxval = MAX(maxval, fval);
     if (fthres < fval) {
-        ft  += (std::string(fkey) + ";");
+        ft  += (std::string(fkey) + "&"); // amperstand-separated list of filter strings
         ftv.push_back((unsigned int)fval);
     }
     return fval;
@@ -3090,30 +3090,30 @@ appendVcfRecord(std::string & out_string,
     int64_t bDP1_1 = (int64_t) fmt.bDP1[1];
     int64_t cDP1_0 = (int64_t) fmt.cDP1[0];
     int64_t cDP1_1 = (int64_t) fmt.cDP1[1];
-    fmtvar.FT = "";
-    fmtvar.FTV.clear();
+    fmtvar.FTS = "";
+    fmtvar.FTSV.clear();
     unsigned int maxbias = 100;
-                fmtFTupdate(maxbias, fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::DB1],    uni_bias_thres, hmean(fmt.aDB [0], bDP1_0, fmt.aDB [1], bDP1_1));
-    auto db2  = fmtFTupdate(maxbias, fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::DB2],    uni_bias_thres, hmean(fmt.aDB [0], cDP1_0, fmt.aDB [1], cDP1_1));
-                fmtFTupdate(maxbias, fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::MB1],    uni_bias_thres, hmean(fmt.bMMB[0], bDP1_0, fmt.bMMB[1], bDP1_1));
-    auto mb2  = fmtFTupdate(maxbias, fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::MB2],    uni_bias_thres, hmean(fmt.cMMB[0], cDP1_0, fmt.cMMB[1], cDP1_1));
-                fmtFTupdate(maxbias, fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::PB1L],   uni_bias_thres, hmean(fmt.bPBL[0], bDP1_0, fmt.bPBL[1], bDP1_1));
-                fmtFTupdate(maxbias, fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::PB1R],   uni_bias_thres, hmean(fmt.bPBR[0], bDP1_0, fmt.bPBR[1], bDP1_1));
-    auto pb2l = fmtFTupdate(maxbias, fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::PB2L],   uni_bias_thres, hmean(fmt.cPBL[0], cDP1_0, fmt.cPBL[1], cDP1_1));
-    auto pb2r = fmtFTupdate(maxbias, fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::PB2R],   uni_bias_thres, hmean(fmt.cPBR[0], cDP1_0, fmt.cPBR[1], cDP1_1));
-                fmtFTupdate(maxbias, fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::SB1],    uni_bias_thres, hmean(fmt.bSBR[0], bDP1_0, fmt.bSBR[1], bDP1_1));
-    auto sb2  = fmtFTupdate(maxbias, fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::SB2],    uni_bias_thres, hmean(fmt.cSBR[0], cDP1_0, fmt.cSBR[1], cDP1_1));
-                fmtFTupdate(maxbias, fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::QTD1],   uni_bias_thres, ceil(100*(MAX(fmt.bQT3[0], fmt.bQT3[1]) / (FLT_MIN+(double)MAX(fmt.bQT2[0], fmt.bQT2[1])))));
-                fmtFTupdate(maxbias, fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::QTD2],   uni_bias_thres, ceil(100*(MAX(fmt.cQT3[0], fmt.cQT3[1]) / (FLT_MIN+(double)MAX(fmt.cQT2[0], fmt.cQT2[1])))));
-                fmtFTupdate(maxbias, fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::DBthis], uni_bias_thres, ceil(100*(     fmt.cFA  / (    fmt.bFA + FLT_MIN))));
+                fmtFTSupdate(maxbias, fmtvar.FTS, fmtvar.FTSV, bcfrec::FILTER_IDS[bcfrec::DB1],    uni_bias_thres, hmean(fmt.aDB [0], bDP1_0, fmt.aDB [1], bDP1_1));
+    auto db2  = fmtFTSupdate(maxbias, fmtvar.FTS, fmtvar.FTSV, bcfrec::FILTER_IDS[bcfrec::DB2],    uni_bias_thres, hmean(fmt.aDB [0], cDP1_0, fmt.aDB [1], cDP1_1));
+                fmtFTSupdate(maxbias, fmtvar.FTS, fmtvar.FTSV, bcfrec::FILTER_IDS[bcfrec::MB1],    uni_bias_thres, hmean(fmt.bMMB[0], bDP1_0, fmt.bMMB[1], bDP1_1));
+    auto mb2  = fmtFTSupdate(maxbias, fmtvar.FTS, fmtvar.FTSV, bcfrec::FILTER_IDS[bcfrec::MB2],    uni_bias_thres, hmean(fmt.cMMB[0], cDP1_0, fmt.cMMB[1], cDP1_1));
+                fmtFTSupdate(maxbias, fmtvar.FTS, fmtvar.FTSV, bcfrec::FILTER_IDS[bcfrec::PB1L],   uni_bias_thres, hmean(fmt.bPBL[0], bDP1_0, fmt.bPBL[1], bDP1_1));
+                fmtFTSupdate(maxbias, fmtvar.FTS, fmtvar.FTSV, bcfrec::FILTER_IDS[bcfrec::PB1R],   uni_bias_thres, hmean(fmt.bPBR[0], bDP1_0, fmt.bPBR[1], bDP1_1));
+    auto pb2l = fmtFTSupdate(maxbias, fmtvar.FTS, fmtvar.FTSV, bcfrec::FILTER_IDS[bcfrec::PB2L],   uni_bias_thres, hmean(fmt.cPBL[0], cDP1_0, fmt.cPBL[1], cDP1_1));
+    auto pb2r = fmtFTSupdate(maxbias, fmtvar.FTS, fmtvar.FTSV, bcfrec::FILTER_IDS[bcfrec::PB2R],   uni_bias_thres, hmean(fmt.cPBR[0], cDP1_0, fmt.cPBR[1], cDP1_1));
+                fmtFTSupdate(maxbias, fmtvar.FTS, fmtvar.FTSV, bcfrec::FILTER_IDS[bcfrec::SB1],    uni_bias_thres, hmean(fmt.bSBR[0], bDP1_0, fmt.bSBR[1], bDP1_1));
+    auto sb2  = fmtFTSupdate(maxbias, fmtvar.FTS, fmtvar.FTSV, bcfrec::FILTER_IDS[bcfrec::SB2],    uni_bias_thres, hmean(fmt.cSBR[0], cDP1_0, fmt.cSBR[1], cDP1_1));
+                fmtFTSupdate(maxbias, fmtvar.FTS, fmtvar.FTSV, bcfrec::FILTER_IDS[bcfrec::QTD1],   uni_bias_thres, ceil(100*(MAX(fmt.bQT3[0], fmt.bQT3[1]) / (FLT_MIN+(double)MAX(fmt.bQT2[0], fmt.bQT2[1])))));
+                fmtFTSupdate(maxbias, fmtvar.FTS, fmtvar.FTSV, bcfrec::FILTER_IDS[bcfrec::QTD2],   uni_bias_thres, ceil(100*(MAX(fmt.cQT3[0], fmt.cQT3[1]) / (FLT_MIN+(double)MAX(fmt.cQT2[0], fmt.cQT2[1])))));
+                fmtFTSupdate(maxbias, fmtvar.FTS, fmtvar.FTSV, bcfrec::FILTER_IDS[bcfrec::DBthis], uni_bias_thres, ceil(100*(     fmt.cFA  / (    fmt.bFA + FLT_MIN))));
     if ((fmt.cFA < 0.8 || fmt.bFA < 0.8)) {
-        fmtFTupdate(
-                maxbias, fmtvar.FT, fmtvar.FTV, bcfrec::FILTER_IDS[bcfrec::DBrest], uni_bias_thres, ceil(((1.0-fmt.cFA) / (1.0-fmt.bFA + FLT_MIN)))); 
+        fmtFTSupdate(
+                maxbias, fmtvar.FTS, fmtvar.FTSV, bcfrec::FILTER_IDS[bcfrec::DBrest], uni_bias_thres, ceil(((1.0-fmt.cFA) / (1.0-fmt.bFA + FLT_MIN)))); 
     }
-    if (0 < fmtvar.FT.size()) {
-        fmtvar.FT.pop_back(); // not passed
+    if (0 < fmtvar.FTS.size()) {
+        fmtvar.FTS.pop_back(); // not passed
     } else {
-        fmtvar.FT += "PASS";
+        fmtvar.FTS += "PASS";
     }
     fmtvar.B4 = {db2, MAX(pb2l, pb2r), sb2, mb2};
     
@@ -3129,7 +3129,7 @@ appendVcfRecord(std::string & out_string,
     if (!prev_is_tumor) {
         ref_alt = vcfref + "\t" + vcfalt;
         vcfqual = calc_non_negative(vcfqual);
-        tki.FT = fmt.FT;
+        tki.FTS = fmt.FTS;
         tki.VAQ = fmt.VAQ;
         tki.DP = fmt.DP;
         tki.FA = fmt.FA;
@@ -3163,10 +3163,10 @@ appendVcfRecord(std::string & out_string,
         
         double nfreqmult = 1.0;
         if (tUseHD && (!nUseHD)) {
-            if (std::string("PASS") == tki.FT) {
+            if (std::string("PASS") == tki.FTS) {
                 nfreqmult /= 3.0; // this is heuristically found
             }
-            if (std::string("PASS") == nfm.FT) {
+            if (std::string("PASS") == nfm.FTS) {
                 nfreqmult /= 2.0; // this is heuristically found
             }
         }
@@ -3397,8 +3397,8 @@ appendVcfRecord(std::string & out_string,
         infostring += std::string(";tAltHD=") + std::to_string(tki.autoBestAltHD);
         infostring += std::string(";tAllHD=") + std::to_string(tki.autoBestAllHD);
         infostring += std::string(";tRefHD=") + std::to_string(tki.autoBestAllHD);
-        infostring += std::string(";tFT=") + tki.FT;
-        // infostring += std::string(";tcHap=") + tki.cHap; // tcHap is linked with tFT
+        infostring += std::string(";tFTS=") + tki.FTS;
+        // infostring += std::string(";tcHap=") + tki.cHap; // tcHap is linked with tFTS
         infostring += std::string(";tbDP=") + std::to_string(tki.bDP);
         infostring += std::string(";tMQ=") + std::to_string(tki.MQ);
         infostring += std::string(";tB4=") + other_join(tki.B4);
