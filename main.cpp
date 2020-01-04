@@ -1,20 +1,22 @@
+
+#include "main.hpp"
+
+#include "CmdLineArgs.hpp"
+#include "common.hpp"
+#include "grouping.hpp"
+#include "version.h"
+
 #include "htslib/bgzf.h"
 #include "htslib/faidx.h"
 #include "htslib/synced_bcf_reader.h"
-#include "CmdLineArgs.hpp"
-#include "consensus.hpp"
-#include "grouping.hpp"
-#include "version.h"
 
 #include <chrono>
 #include <ctime>
 #include <thread>
-#if defined(USE_STDLIB_THREAD)
-#else
+
+#if !defined(USE_STDLIB_THREAD)
 #include "omp.h"
 #endif
-
-#include "common.h"
 
 const unsigned int G_BLOCK_SIZE = 1000;
 
@@ -150,6 +152,7 @@ bgzip_string(std::string & compressed_outstring, const std::string & uncompresse
 struct BatchArg {
     std::string outstring_allp;
     std::string outstring_pass;
+    VcStats vc_stats;
     unsigned int thread_id;
     hts_idx_t *hts_idx;
     faidx_t *ref_faidx;
@@ -245,12 +248,14 @@ is_sig_out(auto a, auto minval, auto maxval, unsigned int mfact, unsigned int af
 
 struct TumorKeyInfo {
     std::string ref_alt;
-    std::string FT;
+    std::string FTS;
     int32_t pos = 0;
     float VAQ = 0;
     int32_t DP = 0;
     float FA = 0;
     float FR = 0;
+    int32_t BQ = 0;
+    int32_t MQ = 0;
     int32_t bDP = 0;
     float bFA = 0;
     int32_t autoBestAllBQ = 0;
@@ -258,6 +263,16 @@ struct TumorKeyInfo {
     int32_t autoBestRefBQ = 0;
     int32_t autoBestAllHD = 0;
     int32_t autoBestAltHD = 0;
+    int32_t autoBestRefHD = 0;
+    int32_t cAllBQ2 = 0;
+    int32_t cAltBQ2 = 0;
+    int32_t cRefBQ2 = 0;
+    std::array<int32_t, 4> gapDP4 = {0};
+    std::array<int32_t, 6*RCC_NUM> RCC = {0};
+    std::array<int32_t, 3> GLa = {0};
+    std::array<int32_t, 3> GLb = {0};
+    std::array<int32_t, 4> B4 = {0};
+
     bcf1_t *bcf1_record = NULL;
     /*
     ~TumorKeyInfo() {
@@ -307,7 +322,7 @@ const std::map<std::tuple<unsigned int, unsigned int, AlignmentSymbol>, TumorKey
 rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_tname_tlen_tuple_vec, const std::string & vcf_tumor_fname, const auto *bcf_hdr, 
         const bool is_tumor_format_retrieved) {
     std::map<std::tuple<unsigned int, unsigned int, AlignmentSymbol>, TumorKeyInfo> ret;
-    if (vcf_tumor_fname.size() == 0) {
+    if (NOT_PROVIDED == vcf_tumor_fname) {
         return ret;
     }
     std::string regionstring;
@@ -389,6 +404,16 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         tki.FR = bcffloats[0];
         
         ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "BQ", &bcfints,  &ndst_val);
+        assert((1 == ndst_val && 1 == valsize) || !fprintf(stderr, "1 == %d && 1 == %d failed for BQ!\n", ndst_val, valsize));
+        tki.BQ = bcfints[0];
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "MQ", &bcfints,  &ndst_val);
+        assert((1 == ndst_val && 1 == valsize) || !fprintf(stderr, "1 == %d && 1 == %d failed for MQ!\n", ndst_val, valsize)); 
+        tki.MQ = bcfints[0];
+        
+        ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line,  "DP", &bcfints,  &ndst_val);
         assert((1 == ndst_val && 1 == valsize) || !fprintf(stderr, "1 == %d && 1 == %d failed for DP!\n", ndst_val, valsize));
         tki.DP = bcfints[0];
@@ -415,28 +440,85 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line,  "cAllHD", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cAllBQ!\n", ndst_val, valsize));
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cAllHD!\n", ndst_val, valsize));
         tki.autoBestAllHD = bcfints[0] + bcfints[1];
 
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line,  "cAltHD", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cAltBQ!\n", ndst_val, valsize));
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cAltHD!\n", ndst_val, valsize));
         tki.autoBestAltHD = bcfints[0] + bcfints[1];
         
         ndst_val = 0;
-        valsize = bcf_get_format_char(bcf_hdr, line, "FT", &bcfstring, &ndst_val);
-        assert((ndst_val == valsize && 0 < valsize) || !fprintf(stderr, "%d == %d && nonzero failed for FT!\n", ndst_val, valsize));
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "cRefHD", &bcfints, &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cRefHD!\n", ndst_val, valsize));
+        tki.autoBestRefHD = bcfints[0] + bcfints[1];
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "cAllBQ2", &bcfints, &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cAllBQ2!\n", ndst_val, valsize));
+        tki.cAllBQ2 = bcfints[0] + bcfints[1];
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "cAltBQ2", &bcfints, &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cAltBQ2!\n", ndst_val, valsize));
+        tki.cAltBQ2 = bcfints[0] + bcfints[1];
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "cRefBQ2", &bcfints, &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cRefBQ2!\n", ndst_val, valsize));
+        tki.cRefBQ2 = bcfints[0] + bcfints[1];
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_char(bcf_hdr, line, "FTS", &bcfstring, &ndst_val);
+        assert((ndst_val == valsize && 0 < valsize) || !fprintf(stderr, "%d == %d && nonzero failed for FTS!\n", ndst_val, valsize));
+        /*
         for (int ftidx = 0; ftidx < valsize - 1; ftidx++) {
             if (';' == bcfstring[ftidx]) {
                 bcfstring[ftidx] = '.';
             }
         }
-        tki.FT = std::string(bcfstring, valsize-1);
+        */
+        tki.FTS = std::string(bcfstring, valsize-1);
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "gapDP4", &bcfints, &ndst_val);
+        assert((4 == ndst_val && 4 == valsize) || !fprintf(stderr, "4 == %d && 4 == %d failed for gapDP4!\n", ndst_val, valsize));
+        tki.gapDP4 = {bcfints[0], bcfints[1], bcfints[2], bcfints[3]};
+        
+        const unsigned int n = 6*RCC_NUM;
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "RCC", &bcfints, &ndst_val);
+        assert((n == ndst_val && n == valsize) || !fprintf(stderr, "%d == %d && %d == %d failed for RCC!\n", n, ndst_val, n, valsize));
+        for (int i = 0; i < 8; i++) {
+            tki.RCC[i] = bcfints[i];
+        }
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "GLa", &bcfints, &ndst_val);
+        assert((3 == ndst_val && 3 == valsize) || !fprintf(stderr, "3 == %d && 3 == %d failed for GQa!\n", ndst_val, valsize));
+        for (int i = 0; i < 3; i++) {
+            tki.GLa[i] = bcfints[i];
+        }
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "GLb", &bcfints, &ndst_val);
+        assert((3 == ndst_val && 3 == valsize) || !fprintf(stderr, "3 == %d && 3 == %d failed for GQb!\n", ndst_val, valsize));
+        for (int i = 0; i < 3; i++) {
+            tki.GLb[i] = bcfints[i];
+        }
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "B4",  &bcfints, &ndst_val);
+        assert((4 == ndst_val && 4 == valsize) || !fprintf(stderr, "4 == %d && 4 == %d failed for B4!\n", ndst_val, valsize));
+        for (int i = 0; i < 4; i++) {
+            tki.B4[i] = bcfints[i];
+        } 
         
         ndst_val = 0;
         valsize = bcf_get_format_char(bcf_hdr, line, "cHap", &bcfstring, &ndst_val);
         assert((ndst_val == valsize && 0 < valsize) || !fprintf(stderr, "%d == %d && nonzero failed for cHap!\n", ndst_val, valsize));
-        tki.FT += std::string(";tcHap=") + std::string(bcfstring);
+        tki.FTS += std::string(";tcHap=") + std::string(bcfstring);
         
         tki.pos = line->pos;
         bcf_unpack(line, BCF_UN_STR);
@@ -572,7 +654,11 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
             (is_by_capture ? paramset.ess_georatio_dedup_cap : paramset.ess_georatio_dedup_pcr), paramset.ess_georatio_duped_pcr,
             !paramset.disable_dup_read_merge, 
             is_loginfo_enabled, thread_id, paramset.fixedthresBQ, paramset.nogap_phred
-            , paramset.highqual_thres_snv, paramset.highqual_thres_indel, paramset.uni_bias_r_max);
+            , paramset.highqual_thres_snv, paramset.highqual_thres_indel, paramset.uni_bias_r_max
+            , SEQUENCING_PLATFORM_IONTORRENT == paramset.sequencing_platform
+            , inferred_assay_type 
+            // , paramset.t2n_sys_err_frac
+            );
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts analyzing phasing info"; }
     auto mutform2count4vec_bq = map2vector(mutform2count4map_bq);
     auto simplemut2indices_bq = mutform2count4vec_to_simplemut2indices(mutform2count4vec_bq);
@@ -597,6 +683,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
     
     std::string buf_out_string;
     std::string buf_out_string_pass;
+    
     const std::set<size_t> empty_size_t_set;
     const unsigned int capDP = 10*1000*1000;
     
@@ -612,6 +699,9 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
     SymbolType prevSymbolType = NUM_SYMBOL_TYPES;
     for (unsigned int refpos = rpos_inclu_beg; refpos <= rpos_exclu_end; refpos++) {        
         // while (tki_it != tki_end && std::get<1>(*tki_it) < refpos) { tki_it++; }
+        std::string repeatunit;
+        unsigned int repeatnum = 0;
+        indelpos_to_context(repeatunit, repeatnum, refstring, refpos - extended_inclu_beg_pos); 
         const std::array<SymbolType, 2> allSymbolTypes = {LINK_SYMBOL, BASE_SYMBOL};
         const std::array<SymbolType, 2> stype_to_immediate_prev = {LINK_SYMBOL, BASE_SYMBOL};
         for (unsigned int stidx = 0; stidx < 2; stidx++) {
@@ -630,20 +720,45 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                     const auto simplemut = std::make_pair(refpos, symbol);
                     auto indices_bq = (simplemut2indices_bq.find(simplemut) != simplemut2indices_bq.end() ? simplemut2indices_bq[simplemut] : empty_size_t_set); 
                     auto indices_fq = (simplemut2indices_fq.find(simplemut) != simplemut2indices_fq.end() ? simplemut2indices_fq[simplemut] : empty_size_t_set);
+                    const auto & tki_it = tid_pos_symb_to_tki.find(std::make_tuple(tid, refpos, symbol));
                     const bool is_rescued = (
                             extended_posidx_to_is_rescued[refpos - extended_inclu_beg_pos] &&
-                            (tid_pos_symb_to_tki.end() != tid_pos_symb_to_tki.find(std::make_tuple(tid, refpos, symbol)))); 
+                            (tid_pos_symb_to_tki.end() != tki_it)); 
                             //(extended_posidx_to_symbol_to_tkinfo[refpos-extended_inclu_beg_pos][symbol].DP > 0); 
                     unsigned int phred_max_sscs = sscs_mut_table.toPhredErrRate(refsymbol, symbol);
                     // int altdepth = 
-                    fillBySymbol(fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]], symbolToCountCoverageSet12, 
-                            refpos, symbol, refstring, extended_inclu_beg_pos, mutform2count4vec_bq, indices_bq, mutform2count4vec_fq, indices_fq, 
+                    TumorKeyInfo tki;
+                    if (is_rescued) {
+                        tki = tki_it->second; 
+                    }
+                    fill_by_symbol(fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]], 
+                            symbolToCountCoverageSet12, 
+                            refpos, 
+                            symbol, 
+                            refstring, 
+                            extended_inclu_beg_pos, 
+                            mutform2count4vec_bq, 
+                            indices_bq, 
+                            mutform2count4vec_fq, 
+                            indices_fq, 
                             ((BASE_SYMBOL == symbolType) ? minABQ_snv : minABQ_indel),
-                            paramset.minMQ1, paramset.maxMQ,
-                            phred_max_sscs, paramset.phred_dscs_minus_sscs + phred_max_sscs,
-                            // ErrorCorrectionType(paramset.seq_data_type), 
-                            !paramset.disable_dup_read_merge, !paramset.enable_dup_read_vqual,
-                            is_rescued);
+                            paramset.minMQ1, 
+                            paramset.maxMQ,
+                            phred_max_sscs, 
+                            paramset.phred_dscs_minus_sscs + phred_max_sscs,
+                            !paramset.disable_dup_read_merge,
+                            !paramset.enable_dup_read_vqual,
+                            is_rescued,
+                            (NOT_PROVIDED != paramset.vcf_tumor_fname),
+                            repeatunit,
+                            repeatnum,
+                            tki,
+                            paramset.any_mul_contam_frac,
+                            paramset.t2n_mul_contam_frac,
+                            paramset.t2n_add_contam_frac,
+                            paramset.t2n_add_contam_transfrac,
+                            paramset.min_edge_dist,
+                            paramset.central_readlen);
                 }
                 for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; symbol = AlignmentSymbol(1+(unsigned int)symbol)) {
                     float vaq = fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]].VAQ;
@@ -719,31 +834,37 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                     if (is_rescued || pass_thres) {
                         fmt.CType = SYMBOL_TO_DESC_ARR[most_confident_symbol];
                         fmt.CAQ = most_confident_qual;
-                        appendVcfRecord(buf_out_string, buf_out_string_pass, symbolToCountCoverageSet12,
-                                std::get<0>(tname_tseqlen_tuple).c_str(), refpos, symbol, fmt,
-                                refstring, extended_inclu_beg_pos, paramset.vqual, should_output_all, should_let_all_pass,
-                                tki, paramset.vcf_tumor_fname.size() != 0, 
+                        append_vcf_record(buf_out_string, 
+                                buf_out_string_pass, 
+                                arg.vc_stats,
+                                symbolToCountCoverageSet12,
+                                std::get<0>(tname_tseqlen_tuple).c_str(), 
+                                refpos, 
+                                symbol, 
+                                fmt,
+                                refstring, 
+                                extended_inclu_beg_pos, 
+                                paramset.vqual, 
+                                should_output_all, 
+                                should_let_all_pass,
+                                tki, 
+                                (NOT_PROVIDED != paramset.vcf_tumor_fname),
                                 paramset.phred_germline_polymorphism,
-                                paramset.nonref_to_alt_frac_snv, paramset.nonref_to_alt_frac_indel,
-                                paramset.tnq_mult_snv, paramset.tnq_mult_indel
-                                , paramset.ldi_tier_qual
-                                , paramset.ldi_tier1cnt
-                                , paramset.ldi_tier2cnt
-                                , paramset.mai_tier_qual // = 40;
-                                , paramset.mai_tier1abq  // = 40;
-                                , paramset.mai_tier2abq  // = 40;
-                                , paramset.str_tier_qual // = 50;
-                                , paramset.str_tier1len  // = 16;
-                                , paramset.str_tier2len  // = 16;
-                                , paramset.uni_bias_thres // = 180
-                                , bcf_hdr, paramset.is_tumor_format_retrieved
-                                , ((BASE_SYMBOL == symbolType) ? paramset.highqual_thres_snv : (LINK_SYMBOL == symbolType ? paramset.highqual_thres_indel : 0))
-                                , paramset.highqual_min_ratio
-                                , paramset.diffVAQfrac
-                                , ((BASE_SYMBOL == symbolType) ? paramset.phred_sys_artifact_snv : (LINK_SYMBOL == symbolType ? paramset.phred_sys_artifact_indel : 0))
-                                // paramset.phred_sys_artifact
-                                // , paramset.highqual_min_vardep, paramset.highqual_min_totdep
-                                );
+                                paramset.uni_bias_thres, // = 180
+                                bcf_hdr, 
+                                paramset.is_tumor_format_retrieved,
+                                ((BASE_SYMBOL == symbolType) ? paramset.highqual_thres_snv : (LINK_SYMBOL == symbolType ? paramset.highqual_thres_indel : 0)),
+                                paramset.highqual_min_ratio,
+                                paramset.any_mul_contam_frac,
+                                paramset.t2n_mul_contam_frac,
+                                paramset.t2n_add_contam_frac,
+                                paramset.t2n_add_contam_transfrac,
+                                repeatunit, 
+                                repeatnum,
+                                SEQUENCING_PLATFORM_IONTORRENT == paramset.sequencing_platform,
+                                paramset.maxMQ,
+                                paramset.central_readlen,
+                                paramset.phred_triallelic_indel);
                     }
                 }
             }
@@ -837,7 +958,7 @@ main(int argc, char **argv) {
     
     bcf_hdr_t *g_bcf_hdr = NULL;
     const char *g_sample = NULL;
-    if (paramset.vcf_tumor_fname.size() > 0) {
+    if (NOT_PROVIDED != paramset.vcf_tumor_fname) {
         htsFile *infile = hts_open(paramset.vcf_tumor_fname.c_str(), "r");
         g_bcf_hdr = bcf_hdr_read(infile);
         g_sample = "";
@@ -868,7 +989,7 @@ main(int argc, char **argv) {
                 exit(-5);
             }
         }
-        if (paramset.vcf_tumor_fname.size() > 0) {
+        if (NOT_PROVIDED != paramset.vcf_tumor_fname) {
             /*
             srs[i] = bcf_sr_init();
             if (NULL == srs[i]) {
@@ -887,14 +1008,27 @@ main(int argc, char **argv) {
         }
     }
     
+    VcStats all_vc_stats;
+
     bam_hdr_t * samheader = sam_hdr_read(samfiles[0]);
-    std::string header_outstring = generateVcfHeader(paramset.fasta_ref_fname.c_str(), SEQUENCING_PLATFORM_TO_DESC.at(inferred_sequencing_platform).c_str(), 
-            paramset.minABQ_pcr_snv, paramset.minABQ_pcr_indel, paramset.minABQ_cap_snv, paramset.minABQ_cap_indel, argc, argv, 
-            samheader->n_targets, samheader->target_name, samheader->target_len,
-            paramset.sample_name.c_str(), g_sample, paramset.is_tumor_format_retrieved);
+    std::string header_outstring = generate_vcf_header(paramset.fasta_ref_fname.c_str(), 
+            SEQUENCING_PLATFORM_TO_DESC.at(inferred_sequencing_platform).c_str(), 
+            paramset.central_readlen, 
+            paramset.minABQ_pcr_snv, 
+            paramset.minABQ_pcr_indel, 
+            paramset.minABQ_cap_snv, 
+            paramset.minABQ_cap_indel, 
+            argc, 
+            argv, 
+            samheader->n_targets, 
+            samheader->target_name, 
+            samheader->target_len,
+            paramset.sample_name.c_str(), 
+            g_sample, 
+            paramset.is_tumor_format_retrieved);
     clearstring<false>(fp_allp, header_outstring);
     clearstring<false>(fp_pass, header_outstring, is_vcf_out_pass_to_stdout);
-    
+
     std::vector<std::tuple<unsigned int, unsigned int, unsigned int, bool, unsigned int>> tid_beg_end_e2e_tuple_vec1;
     std::vector<std::tuple<unsigned int, unsigned int, unsigned int, bool, unsigned int>> tid_beg_end_e2e_tuple_vec2;
     std::map<std::tuple<unsigned int, unsigned int, AlignmentSymbol>, TumorKeyInfo> tid_pos_symb_to_tki1; 
@@ -993,6 +1127,7 @@ main(int argc, char **argv) {
             struct BatchArg a = {
                     outstring_allp : "",
                     outstring_pass : "",
+                    vc_stats : VcStats(),
                     thread_id : 0,
                     hts_idx : NULL, 
                     ref_faidx : NULL,
@@ -1072,6 +1207,7 @@ main(int argc, char **argv) {
             if (batchargs[beg_end_pair_idx].outstring_pass.size() > 0) {
                 clearstring<true>(fp_pass, batchargs[beg_end_pair_idx].outstring_pass); // empty string means end of file
             }
+            all_vc_stats.update(batchargs[beg_end_pair_idx].vc_stats);
         }
         read_bam_thread.join(); // end this iter
         for (auto tid_pos_symb_to_tki1_pair: tid_pos_symb_to_tki1) {
@@ -1081,6 +1217,12 @@ main(int argc, char **argv) {
         }
         autoswap(tid_beg_end_e2e_tuple_vec1, tid_beg_end_e2e_tuple_vec2);
         autoswap(tid_pos_symb_to_tki1, tid_pos_symb_to_tki2);
+    }
+    if (NOT_PROVIDED != paramset.vc_stats_fname) {
+        std::ofstream vc_stats_ofstream(paramset.vc_stats_fname.c_str());
+        all_vc_stats.write_tsv(vc_stats_ofstream);
+    } else {
+        all_vc_stats.write_tsv(std::cerr);
     }
     clearstring<true>(fp_allp, std::string("")); // write end of file
     clearstring<true>(fp_pass, std::string(""), is_vcf_out_pass_to_stdout);

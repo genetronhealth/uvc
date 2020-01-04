@@ -1,9 +1,9 @@
 #ifndef CmdLineArgs_hpp_INCLUDED
 #define CmdLineArgs_hpp_INCLUDED
 
-#include <string>
+#include "common.hpp"
 #include "CLI11-1.7.1/CLI11.hpp"
-#include "common.h"
+#include <string>
 
 struct CommandLineArgs {
     std::string bam_input_fname = NOT_PROVIDED; // not missing
@@ -14,6 +14,7 @@ struct CommandLineArgs {
     std::string bed_region_fname = NOT_PROVIDED;    // bcftools view -R
     std::string vcf_tumor_fname = NOT_PROVIDED;
     std::string sample_name = "-";
+    std::string vc_stats_fname = NOT_PROVIDED;
     std::string tsv_primer_fname = NOT_PROVIDED;
     
     bool is_tumor_format_retrieved = false;
@@ -28,16 +29,12 @@ struct CommandLineArgs {
     PairEndMerge pair_end_merge = PAIR_END_MERGE_YES;
     unsigned int fixedthresBQ = 20; // to count the number of bases with base quality of more than this value at each position
     unsigned int uni_bias_thres = 180; // sampple FT includes the filter string if the filter value is higher than this value
-    unsigned int uni_bias_r_max = 1900900900; // is used as infinity here
-    double diffVAQfrac = 0; // set to 1 to get the old behavior
+    unsigned int uni_bias_r_max = (unsigned int)(INT32_MAX); // is used as infinity here
     
     // it is used to decide whether UMI or non-UMI tumor-vs-normal quality should be used
     unsigned int highqual_thres_snv = 44;
     unsigned int highqual_thres_indel = 0; // 44+6;
     double highqual_min_ratio = 2.5;
-    // removed two variables because too hard to use
-    //unsigned int highqual_min_vardep = 3;
-    //unsigned int highqual_min_totdep = 500;
     
     // https://www.biostars.org/p/110670/
     uint32_t    min_depth_thres = 4;
@@ -47,47 +44,41 @@ struct CommandLineArgs {
     uint32_t    max_cpu_num = 8;
     uint32_t    primerlen = 0;
     uint32_t    phred_max_frag_indel_ext = 5;
-    uint32_t    phred_max_frag_indel_basemax = 34;
+    uint32_t    phred_max_frag_indel_basemax = 34; // 30; // 40-10 // 37; // 42; // 37; // 35; // 25; // 34;
     uint32_t    phred_max_sscs_transition_CG_TA = 44; // Cytosine deamination into Uracil, especially in FFPE samples, also by UV light radiation, more upstream
     uint32_t    phred_max_sscs_transition_TA_CG = 48; // https://en.wikipedia.org/wiki/DNA_oxidation, DNA synthesis error, more downstream
     uint32_t    phred_max_sscs_transversion_any = 52;
     uint32_t    phred_max_sscs_indel_open = 50; // 34;
-    uint32_t    phred_max_sscs_indel_ext  = 0;  // 5;
+    uint32_t    phred_max_sscs_indel_ext  = 5; // 0;  // 5;
     uint32_t    phred_dscs_minus_sscs = 10;
-    double      vqual = 20; // 10; set to 20 for less output
+    double      vqual = (double)15; // 10; set to 20 for less output
     //std::string platform = "auto";
     uint32_t    minABQ_pcr_snv = 0;
     uint32_t    minABQ_pcr_indel = 0;
     uint32_t    minABQ_cap_snv = 0;
     uint32_t    minABQ_cap_indel = 0;
 
-    double      ess_georatio_dedup_cap = 1.50;
+    double      ess_georatio_dedup_cap = 1.25;
     double      ess_georatio_dedup_pcr = 1.50; // increase to 1.65 does not help in matching empirical variant score
     double      ess_georatio_duped_pcr = 2.00;
  
     uint32_t    minMQ1 = 40; // from GATK
     uint32_t    maxMQ  = 60; // from bwa
+    uint32_t    min_edge_dist = 15; // heuristic (may not work well in STR region)
+    
+    uint32_t    central_readlen = 0; // estimate from the data
     uint32_t    bq_phred_added_indel = 0;
     uint32_t    bq_phred_added_misma = 0;
     bool        should_add_note = false;
-    uint32_t    phred_germline_polymorphism = 30; // probablity of germline polymorphism is between 1/500 and 1/1kb
-    //uint32_t    phred_sys_bias = 0;
-    uint32_t    phred_sys_artifact_snv   = phred_germline_polymorphism * 2; // or 55; // PMC4271055: probablity of germline call error is between 1/100kb and 1/200kb
-    uint32_t    phred_sys_artifact_indel = phred_germline_polymorphism * 2; // 3 / 2;
-    double      nonref_to_alt_frac_snv   = 0.50; // 0.50 for practically removing tri-allelic sites.
-    double      nonref_to_alt_frac_indel = 0.20;
-    double      tnq_mult_snv   = 2.000;
-    double      tnq_mult_indel = 2.000; // * 1.5;
+    uint32_t    phred_germline_polymorphism = 31; // +5; // 30+3; // https://www.biostars.org/p/6177/ probablity of hetero is 0.8e-3 for non-african, it should be 32 for african.
+    uint32_t    phred_triallelic_indel = 30; // +5; // 30+3; // https://www.biostars.org/p/6177/ probablity of hetero is 0.8e-3 for non-african, it should be 32 for african.
     
-    double      ldi_tier_qual = 0; // strongly enabled ; // 20;
-    uint32_t    ldi_tier1cnt  = 100; // 300; 
-    uint32_t    ldi_tier2cnt  = 100; // weakly enabled with add-one smoothing
-    double      mai_tier_qual = 40; // = 40; // probability of germline indel
-    uint32_t    mai_tier1abq  = 40; // = 40; // approximately one extra indel is added as a pseudocount
-    uint32_t    mai_tier2abq  = 1024*1024*1024; // disabled
-    double      str_tier_qual = 50; // = 50; // is slightly lower than phred_sys_artifact_indel as STR-indel sys error is more common than germline-indel sys error
-    uint32_t    str_tier1len  = 15; // = 16; // critical STR region size at which polymerase slippage error reaches a plateau
-    uint32_t    str_tier2len  = 15; // enabled 
+    // PMC4271055: probablity of germline call error is between 1/100kb and 1/200kb
+    
+    double      any_mul_contam_frac = 0.02; // 1e-10; 
+    double      t2n_mul_contam_frac = 0.02; // 1e-10; // 0.050; // 0.04 * 2.0; // ;
+    double      t2n_add_contam_frac = 0.02;
+    double      t2n_add_contam_transfrac = 0.0; // 0.02; // 1e-10; // 0.025; // 0.04; // 0.125*1.5;
     
     int 
     initFromArgCV(int & parsing_result_flag, SequencingPlatform & inferred_sequencing_platform, int argc, const char *const* argv);

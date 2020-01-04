@@ -1,6 +1,11 @@
 #ifndef conversion_hpp_INCLUDED
 #define conversion_hpp_INCLUDED
 
+#include "common.hpp"
+
+#include <algorithm>
+#include <iostream>
+
 #include <assert.h>
 #include <float.h>
 #include <math.h>
@@ -8,21 +13,66 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <iostream>
-
-#include "common.h"
-
 //#define MIN(a, b) ((a) < (b) ? (a) : (b))
 //#define MAX(a, b) ((a) > (b) ? (a) : (b))
 
+#define DBLFLT_EPS ((double)FLT_EPSILON)
+#define MAX_IMBA_DEP (MIN(INT32_MAX, INT_MAX))
+
+// http://snap.stanford.edu/class/cs224w-2015/slides/04-powerlaws.pdf
+// https://cs.brynmawr.edu/Courses/cs380/spring2013/section02/slides/10_ScaleFreeNetworks.pdf
+#define PLEXP (3.0)     
+#define SYS_QMAX (25.0) // Is it the PHRED-scaled probability that a germline event is an outlier in terms of allele fraction?
+
+template <class T>
+T
+div_by_20(T n) {
+    return n / 20;    
+}
+
+auto
+CENTER(auto a, auto b, int center = 0) {
+    return ((abs(a - center) < abs(b - center)) ? a : b);
+}
+
 auto 
 MIN(auto a, auto b) {
-    return (a < b ? a :b);
+    return (a < b ? a : b);
+}
+
+auto
+MIN3(auto a, auto b, auto c) {
+    return MIN(a, MIN(b, c));
+}
+
+auto
+MIN4(auto a, auto b, auto c, auto d) {
+    return MIN(a, MIN3(b, c, d));
 }
 
 auto 
 MAX(auto a, auto b) {
     return (a > b ? a :b);
+}
+
+auto 
+MAX3(auto a, auto b, auto c) {
+    return MAX(a, MAX(b, c));
+}
+
+auto 
+MAX4(auto a, auto b, auto c, auto d) {
+    return MAX(a, MAX3(b, c, d));
+}
+
+auto 
+MAX5(auto a, auto b, auto c, auto d, auto e) {
+    return MAX(a, MAX4(b, c, d, e));
+}
+
+auto 
+MAX6(auto a, auto b, auto c, auto d, auto e, auto f) {
+    return MAX(a, MAX5(b, c, d, e, f));
 }
 
 void 
@@ -52,6 +102,16 @@ UPDATE_MAX2(auto & a, const auto & b) {
     for (int i = 0; i < 2; i++) { UPDATE_MAX(a[i], b[i]); }
 }
 
+auto 
+MEDIAN(auto v) {
+    std::sort(v.begin(), v.end());
+    if (v.size() % 2 == 1) {
+        return v[v.size() / 2];
+    } else {
+        return (v[v.size() / 2] + v[v.size() / 2 - 1]) / 2;  
+    }
+}
+
 double 
 powermean2(double a, double b, double p) {
     return pow((pow(a, p) + pow(b, p)) / 2.0, 1.0 / p);
@@ -72,13 +132,43 @@ geomean2(double a, double b) {
     return sqrt(a * b);
 }
 
+template <class V, class W>
+V
+hmean(V v1, W w1, V v2, W w2) {
+    const auto f = (1024UL * 64UL);
+    // return 1/(w1 + w2) * (w1 * 1/v1 + w2 * 1/v2);
+    return  f * (w1 + w2) / (f * w1 / (v1+1UL) + f * w2 / (v2+1UL) + 1UL);
+}
+
 // 1e-6 is the somatic mutation rate
 template <class T>
-void 
-ensure_positive_1(T & v, T base = pow(10.0, 0.1), T thres = 20.0) {
+T
+calc_non_negative(const T v, T base = pow(10.0, 0.1), T thres = 20.0) {
     if (v < thres) {
-        v = log1p(pow(base, v)) / log(base);
-        // v = thres / ((1.0 + thres) - v);
+        return log1p(pow(base, v)) / log(base);
+    } else {
+        return v;
+    }
+}
+
+double
+calc_upper_bounded(double v, double thres = (double)100, double bound = (double)120) {
+    if (v > thres) {
+        auto surplus = v - thres;
+        auto max_surplus = bound - thres;
+        return surplus / (1.0 + surplus / max_surplus) + thres;
+    } else {
+        return v;
+    }
+}
+
+template <class T>
+T
+calc_dim_return(T v, T thres = 30, T dim = 2) {
+    if (v > thres) {
+        return ((v - thres) / dim) + thres;
+    } else {
+        return v;
     }
 }
 
@@ -92,10 +182,72 @@ mathsquare(auto x) {
     return x * x; 
 }
 
+const double
+prob2odds(double p) {
+    assert(0.0 < p && p < 1.0);
+    return p /  (1.0 - p);
+}
+
+const double
+logit(double p) {
+    return log(prob2odds(p));
+}
+
+const double
+logit2(double a, double b) {
+    return logit(a/(a+b));
+}
+
+// non-negative, with prob compared with a/(a+b)
 auto 
 calc_directional_likeratio(double prob, double a, double b) {
     return a * (log((double)a / (double)(a+b)) - log(prob))  + b * (log((double)b / (double)(a+b)) - log(1.0-prob));
 }
+
+auto 
+calc_uninomial_10log10_likeratio(double prob, double a, double b) {
+    // 10*log_10(pow((a / b) / prob, MIN(a, b)));
+    return 10.0/log(10.0) * MIN(a, b) * log((a + DBL_EPSILON) / (b + DBL_EPSILON) / (prob + DBL_EPSILON));
+}
+
+template <bool TIsBiDirectional = false>
+constexpr double
+calc_binom_10log10_likeratio(double prob, double a, double b) {
+    assert(prob > 0 && prob < 1);
+    a += DBL_EPSILON;
+    b += DBL_EPSILON;
+    double A = (      prob) * (a + b);
+    double B = (1.0 - prob) * (a + b);
+    if (TIsBiDirectional || a > A) {
+        // likeratio = pow(a / A, a) * pow(b / B, b);
+        return 10.0 / log(10.0) * (a * log(a / A) + b * log(b / B));
+    } else {
+        return 0.0;
+    }
+}
+
+// h0 and h1 are two explanations, while h2 is responsible for the absence of h1 
+// (e.g., h0 is tumor var quality, h1 is germline polymorphism, and h2 is contamination)
+// h0 and h1 are two possible causes of the outcome, while h2 inhibits h1
+template <class T>
+constexpr T
+max_min01_sub02(T h0, T h1, T h2) {
+    return MAX(MIN(h0, h1), h0 - h2);
+}
+
+#ifdef TEST_calc_binom
+int main(int argc, char **argv) {
+    double prob = atof(argv[1]);
+    double a = atof(argv[2]);
+    double b = atof(argv[3]);
+    printf("calc_binom_10log10_likeratio(%f, %f, %f) = %f\n", prob, a, b, calc_binom_10log10_likeratio(prob, a, b));
+}
+#endif
+
+static_assert(abs(calc_binom_10log10_likeratio(0.1, 10, 90)) < 1e-4);
+static_assert(calc_binom_10log10_likeratio(0.1, 90, 10) > 763); // 10/log(10) * (90*log(9)+10*log(1/9))
+static_assert(calc_binom_10log10_likeratio(0.1, 90, 10) < 764); // 10/log(10) * (90*log(9)+10*log(1/9))
+static_assert(abs(calc_binom_10log10_likeratio(0.1, 1, 99)) < 1e-4); // 10/log(10) * (90*log(9)+10*log(1/9))
 
 auto 
 calc_phred10_likeratio(auto prob, auto a, auto b) {
@@ -483,6 +635,13 @@ struct _PhredToErrorProbability {
 };
 
 const _PhredToErrorProbability THE_PHRED_TO_ERROR_PROBABILITY;
+
+double
+to_exp_contam_fa(double t2n_add_contam_frac, double tFA, double tDP, double nFA, double nDP) {
+    double totAD =  tFA * tDP + nFA * nDP;
+    double exp_contam_AD = t2n_add_contam_frac * totAD;
+    return exp_contam_AD / (exp_contam_AD + nDP - nFA * nDP);
+}
 
 //// conversion of data structures and file formats
 
