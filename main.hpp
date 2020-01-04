@@ -904,21 +904,6 @@ bam_to_phredvalue(unsigned int & n_units, const bam1_t *b, unsigned int qpos, un
     unsigned int decphred = indel_phred(ampfact, cigar_oplen, repeatsize_at_max_repeatnum, max_repeatnum);
     n_units = ((0 == cigar_oplen % repeatsize_at_max_repeatnum) ? (cigar_oplen / repeatsize_at_max_repeatnum) : 0);
     return max_phred - MIN(max_phred, decphred); 
-#if 0
-    if (region_size < 8) {
-        return max_phred;
-    } else {
-        log(exp(region_size - 8)+1);
-        unsigned int penal = prob2phred((1.0 - DBL_EPSILON) / (((double)(region_size + 1 - 8) * 10.0 / repeatsize_at_max_repeatnum) + 1.0));
-        return max_phred - MIN(max_phred, penal);
-        // unsigned int penal_per_region_unit = (repeatsize_at_max_repeatnum > 2 ? 2 : (repeatsize_at_max_repeatnum > 1 ? 3 : 4)) + (is_ins ? 0 : 1);
-        // unsigned int max_reduc = max_phred - MIN(max_phred, 2 * repeatsize_at_max_repeatnum);
-        // return max_phred - MIN(max_reduc, (region_size + 1 - 8) * penal_per_region_unit);
-    }
-    // return (region_size < 8 ? 50 : (50 - MIN(50 - repeatsize_at_max_repeatnum * 2, (region_size + 1 - 8) * 2)));
-    // return prob2phred((1.0 - DBL_EPSILON) / (double)max_repeatnum);
-    // return (repeatsize_at_max_repeatnum * max_repeatnum); // one base in MSI reduces phred-indel-quality by 1, TODO: the one is arbitrary, justify it.
-#endif
 }
 
 template <class TSymbol2Count>
@@ -2866,7 +2851,7 @@ generate_vcf_header(const char *ref_fasta_fname,
     ret += "##INFO=<ID=tbDP,Number=1,Type=Integer,Description=\"Tumor-sample bDP\">\n";
     ret += "##INFO=<ID=tcHap,Number=1,Type=String,Description=\"Tumor-sample cHap\">\n";
     ret += "##INFO=<ID=tMQ,Number=.,Type=Float,Description=\"Tumor-sample MQ\">\n"; 
-    ret += "##INFO=<ID=tB4,Number=4,Type=Integer,Description=\"Tumor-sample B4\">\n";
+    ret += "##INFO=<ID=tEROR,Number=5,Type=Integer,Description=\"Tumor-sample EROR\">\n";
     ret += "##INFO=<ID=tgapDP4,Number=4,Type=Integer,Description=\"Tumor-sample gapDP4\">\n"; 
     ret += "##INFO=<ID=tRCC,Number=" + std::to_string(RCC_NFS*RCC_NUM) + ",Type=Integer,Description=\"Tumor-sample RCC\">\n";
     // ret += "##INFO=<ID=tGLa,Number=3,Type=Integer,Description=\"Tumor-sample GLa\">\n";
@@ -2997,7 +2982,11 @@ append_vcf_record(std::string & out_string,
         const bool is_proton,
         const unsigned int maxMQ, // additional params
         const unsigned int central_readlen,
-        const unsigned int phred_triallelic_indel
+        const unsigned int phred_triallelic_indel,
+        const unsigned int phred_max_sscs,
+        const unsigned int phred_max_dscs,
+        const unsigned int phred_pow_sscs_origin,
+        const unsigned int phred_pow_dscs_origin  
         ) {
     
     const bcfrec::BcfFormat & fmt = fmtvar; 
@@ -3097,7 +3086,7 @@ append_vcf_record(std::string & out_string,
     } else {
         fmtvar.FTS += "PASS";
     }
-    fmtvar.B4 = {db2, MAX(pb2l, pb2r), sb2, mb2};
+    fmtvar.EROR = {db2, MAX(pb2l, pb2r), sb2, mb2, maxbias};
     
     std::string ref_alt;
     std::string infostring = (prev_is_tumor ? "SOMATIC" : "ANY_VAR");
@@ -3133,7 +3122,7 @@ append_vcf_record(std::string & out_string,
         for (int i = 0; i < fmt.RCC.size(); i++) { tki.RCC[i] = fmt.RCC[i]; }
         tki.GLa = fmt.GLa;
         tki.GLb = fmt.GLb;
-        for (int i = 0; i < fmt.B4.size(); i++) { tki.B4[i] = fmt.B4[i]; }
+        for (int i = 0; i < fmt.EROR.size(); i++) { tki.EROR[i] = fmt.EROR[i]; }
     } else {
         vcfpos = (tki.ref_alt != "." ? (tki.pos + 1) : vcfpos);
         ref_alt = (tki.ref_alt != "." ? tki.ref_alt : vcfref + "\t" + vcfalt);
@@ -3143,7 +3132,8 @@ append_vcf_record(std::string & out_string,
         const bool tUseHD =  (tki.bDP > tki.DP * highqual_min_ratio);
         const bool nUseHD = ((nfm.bDP > nfm.DP * highqual_min_ratio) && tUseHD); 
         
-        double nfreqmult = 1.0;
+        double nfreqmult = 1.0; // degenerated
+        /*
         if (tUseHD && (!nUseHD)) {
             if (std::string("PASS") == tki.FTS) {
                 nfreqmult /= 3.0; // this is heuristically found
@@ -3152,7 +3142,8 @@ append_vcf_record(std::string & out_string,
                 nfreqmult /= 2.0; // this is heuristically found
             }
         }
-        
+        */
+
         double nAltBQ = SUM2(nfm.cAltBQ);
         double nAllBQ = SUM2(nfm.cAllBQ);
         double nRefBQ = SUM2(nfm.cRefBQ);
@@ -3219,12 +3210,17 @@ append_vcf_record(std::string & out_string,
         const double nAD1pc0 = 0.5 * tnE1;
         const double nDP1pc0 = 0.5 * tnE1 / tnFA1;
         
-        const double pcap = 60.0 + 25.0 + 5.0; // prob[mapping-error] * prob[false-positive-variant-per-base-position] / num-alts-per-base-positon
+        // QUESTION: what if the duplication rate is in-between the one of UMI and the one of non-UMI?
+        const double pcap_tmax = 60.0 + 25.0 + 5.0 + (tUseHD ? 
+                ((double)(phred_max_sscs - phred_pow_sscs_origin) - (pl_exponent + 1.0) * 10.0/log(10.0) * log(100.0 / (double)MAX(100, maxbias))) : 0.0);
+        // prob[mapping-error] * prob[false-positive-variant-per-base-position] / num-alts-per-base-positon
+        const double pcap_nmax = 60.0 + 25.0 + 5.0 + (nUseHD ? 
+                ((double)(phred_max_sscs - phred_pow_sscs_origin)) : 0.0);
         
         const double pcap_tbq = ((isInDel || is_proton) ? 200.0 : mathsquare(tki.BQ) / 12.0); // based on heuristics
         const double pcap_tmq = MIN(60.0, tki.MQ) * 4.0/3.0; // bases on heuristics
         const double pcap_tmq2 = (tki.MQ - 10.0/log(10.0) * log((double)(tDP0 + tDP0pc0) / (double)(tAD0+tAD0pc0))) * (double)tAD0; // readjustment by MQ
-        const double tn_tpo1q = 10.0 / log(10.0) * log((double)(tAD0 / altmul + tE0) / ((tDP0 - tAD0) / refmul + tAD0 / altmul + 2.0 * tE0)) * (isInDel ? pl_exponent : pl_exponent) + (isInDel ? pcap : pcap);
+        const double tn_tpo1q = 10.0 / log(10.0) * log((double)(tAD0 / altmul + tE0) / ((tDP0 - tAD0) / refmul + tAD0 / altmul + 2.0 * tE0)) * (pl_exponent) + (pcap_tmax);
         const double tn_tsamq = 40.0 * pow(0.5, (double)tAD0);
         const double tn_tra1q = (double)tki.VAQ;
         double _tn_tpo2q = MIN4(tn_tpo1q, pcap_tmq, pcap_tbq, pcap_tmq2);
@@ -3242,7 +3238,7 @@ append_vcf_record(std::string & out_string,
         const double pcap_nbq = ((isInDel || is_proton) ? 200.0 : mathsquare(nfm.BQ) / 12.0); // based on heuristics
         const double pcap_nmq = MIN(60.0, nfm.MQ) * 4.0/3.0; // based on heuristics
         const double pcap_nmq2 = (nfm.MQ - 10.0/log(10.0) * log((double)(nDP0 + nDP0pc0) / (double)(nAD0+nAD0pc0))) * (double)nAD0; // readjsutment by MQ
-        const double tn_npo1q = 10.0 / log(10.0) * log((double)(nAD0 / altmul + nE0) / ((nDP0 - tAD0) / refmul + tAD0 / altmul + 2.0 * nE0)) * (isInDel ? pl_exponent : pl_exponent) + (isInDel ? pcap : pcap);
+        const double tn_npo1q = 10.0 / log(10.0) * log((double)(nAD0 / altmul + nE0) / ((nDP0 - tAD0) / refmul + tAD0 / altmul + 2.0 * nE0)) * (pl_exponent) + (pcap_nmax);
         const double tn_nsamq = 40.0 * pow(0.5, (double)nAD0);
         const double tn_nra1q = (double)nfm.VAQ;
         double _tn_npo2q = MIN4(tn_npo1q, pcap_nmq, pcap_nbq, pcap_nmq2);
@@ -3266,13 +3262,13 @@ append_vcf_record(std::string & out_string,
         const double n2t_or1 = ((double)(nAD1 +     0.0 * nAD1pc0) / (double)(nDP1 - nAD1 +     0.0 * (nDP1pc0 - nAD1pc0))) 
                              / ((double)(tAD1 +           tAD1pc0) / (double)(tDP1 - tAD1 +           (tDP1pc0 - tAD1pc0))); 
         
-        const double t2n_rawq0 = ((true || nDP0 <= tDP0) // TODO: check if the symmetry makes sense?
+        const double t2n_rawq0 = ((true || nDP0 <= tDP0) // TODO: check if the symmetry makes sense. If it does then enable the else part
             ? calc_binom_10log10_likeratio((double)(tDP0 - tAD0) / (double)tDP0, (double)(nDP0 - nAD0),                (double)(nAD0)                      )
             : calc_binom_10log10_likeratio((double)       (nAD0) / (double)nDP0, (double)(nAD0),                       (double)(nDP0 - nAD0)               )); 
-        const double t2n_rawq1 = ((true || nDP0 <= tDP0) // TODO: check if the symmetry makes sense?
+        const double t2n_rawq1 = ((true || nDP0 <= tDP0) // TODO: check if the symmetry makes sense. If it does then enable the else part
             ? calc_binom_10log10_likeratio(        (tDP1 - tAD1) /         tDP1,         (nDP1 - nAD1) / nDP1 * nDP0,          (nAD1 / nDP1) * nDP0)
             : calc_binom_10log10_likeratio(               (nAD1) /         nDP1,         (tAD1 / tDP1) * tDP0,                 (tDP1 - tAD1) / tDP1 * tDP0)); 
-        const double t2n_rawq = (isInDel ? t2n_rawq0 : t2n_rawq1 / MAX(1.0, 0.5 + 0.5*tki.B4[3]/100.0));
+        const double t2n_rawq = (isInDel ? t2n_rawq0 : t2n_rawq1 / MAX(1.0, 0.5 + 0.5*tki.EROR[3]/100.0));
         
         const double t2n_powq0 = MIN(MAX(-SYS_QMAX, 10.0/log(10.0) * (1.0+log(symfrac*symfrac)/10.0) * pl_exponent * log(t2n_or0 /symfrac)), SYS_QMAX);
         const double t2n_powq1 = MIN(MAX(-SYS_QMAX, 10.0/log(10.0) * (1.0+log(symfrac*symfrac)/10.0) * pl_exponent * log(t2n_or1 /symfrac)), SYS_QMAX);
@@ -3383,7 +3379,7 @@ append_vcf_record(std::string & out_string,
         // infostring += std::string(";tcHap=") + tki.cHap; // tcHap is linked with tFTS
         infostring += std::string(";tbDP=") + std::to_string(tki.bDP);
         infostring += std::string(";tMQ=") + std::to_string(tki.MQ);
-        infostring += std::string(";tB4=") + other_join(tki.B4);
+        infostring += std::string(";tEROR=") + other_join(tki.EROR);
         infostring += std::string(";tgapDP4=") + other_join(tki.gapDP4);
         infostring += std::string(";tRCC=") + other_join(tki.RCC);
         

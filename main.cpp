@@ -271,7 +271,7 @@ struct TumorKeyInfo {
     std::array<int32_t, 6*RCC_NUM> RCC = {0};
     std::array<int32_t, 3> GLa = {0};
     std::array<int32_t, 3> GLb = {0};
-    std::array<int32_t, 4> B4 = {0};
+    std::array<int32_t, 5> EROR = {0};
 
     bcf1_t *bcf1_record = NULL;
     /*
@@ -509,10 +509,10 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         }
         
         ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line,  "B4",  &bcfints, &ndst_val);
-        assert((4 == ndst_val && 4 == valsize) || !fprintf(stderr, "4 == %d && 4 == %d failed for B4!\n", ndst_val, valsize));
-        for (int i = 0; i < 4; i++) {
-            tki.B4[i] = bcfints[i];
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "EROR",  &bcfints, &ndst_val);
+        assert((tki.EROR.size() == ndst_val && tki.EROR.size() == valsize) || !fprintf(stderr, "%d == %d && %d == %d failed for EROR!\n", tki.EROR.size(), ndst_val, tki.EROR.size(), valsize));
+        for (int i = 0; i < tki.EROR.size(); i++) {
+            tki.EROR[i] = bcfints[i];
         } 
         
         ndst_val = 0;
@@ -740,12 +740,12 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                             mutform2count4vec_bq, 
                             indices_bq, 
                             mutform2count4vec_fq, 
-                            indices_fq, 
+                            indices_fq,
                             ((BASE_SYMBOL == symbolType) ? minABQ_snv : minABQ_indel),
-                            paramset.minMQ1, 
+                            paramset.minMQ1,
                             paramset.maxMQ,
-                            phred_max_sscs, 
-                            paramset.phred_dscs_minus_sscs + phred_max_sscs,
+                            phred_max_sscs,
+                            paramset.phred_max_dscs_all,
                             !paramset.disable_dup_read_merge,
                             !paramset.enable_dup_read_vqual,
                             is_rescued,
@@ -834,6 +834,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                     if (is_rescued || pass_thres) {
                         fmt.CType = SYMBOL_TO_DESC_ARR[most_confident_symbol];
                         fmt.CAQ = most_confident_qual;
+                        unsigned int phred_max_sscs = sscs_mut_table.toPhredErrRate(refsymbol, symbol);
                         append_vcf_record(buf_out_string, 
                                 buf_out_string_pass, 
                                 arg.vc_stats,
@@ -864,7 +865,12 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                                 SEQUENCING_PLATFORM_IONTORRENT == paramset.sequencing_platform,
                                 paramset.maxMQ,
                                 paramset.central_readlen,
-                                paramset.phred_triallelic_indel);
+                                paramset.phred_triallelic_indel,
+                                phred_max_sscs,
+                                paramset.phred_max_dscs_all,
+                                paramset.phred_pow_sscs_origin,
+                                paramset.phred_pow_dscs_origin
+                                );
                     }
                 }
             }

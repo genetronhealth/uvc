@@ -152,10 +152,12 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
             "Maximum phred score for single-strand consensus sequences (SSCSs) for the opening of indel gap (the opening includes the insertion/deletion of one base)", true);
     app.add_option("--phred-sscs-indel-ext" ,       phred_max_sscs_indel_ext, 
             "Maximum phred score for single-strand consensus sequences (SSCSs) for the extension of indel gap (excluding the extension of one base) per base", true);
-    app.add_option("--phred-dscs-minus-sscs",       phred_dscs_minus_sscs, 
-            "Maximum phred score for double-strand consensus sequences (DSCSs) minus the one for SSCSs", true);
-    
-    //app.add_option("--platform",     platform,          "Platform or the sequencer that generated the data, which is either illumina or iontorrent."); 
+    app.add_option("--phred-dscs-all",              phred_max_dscs_all, 
+            "Maximum phred score for double-strand consensus sequences (DSCSs) for all types of mutations", true);
+    app.add_option("--phred-pow-sscs-origin",       phred_pow_sscs_origin, 
+            "The phred-score that is subtracted from phred-sscs to get the power-law quality adjustment", true);
+    app.add_option("--phred-pow-dscs-origin",       phred_pow_dscs_origin, 
+            "The phred-score that is subtracted from phred-dscs to get the power-law quality adjustment", true);
     
     app.add_option("--ess-georatio-dedup-cap", ess_georatio_dedup_cap, 
                    "Geometric common ratio of the increase in the observed number of deduped reads as a function of the effective number of deduped reads (effective sample size) for capture-based assays.", true);
