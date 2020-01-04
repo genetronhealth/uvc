@@ -205,7 +205,7 @@ int main(int argc,char** argv) {
     
     double addfrac = (double)n_ad_sum / (double)(n_ad_sum + t_ad_sum + DBL_EPSILON);
     fprintf(stderr, "##(TADsum,TDPsum,NADsum,NDPsum)=(%d,%d,%d,%d)\n", t_ad_sum, t_dp_sum, n_ad_sum, n_dp_sum);
-    fprintf(stderr, "##estimatedContaminationFromTumorToNormal_additiveFraction=%f (recommended=%f)\n", addfrac, floor(addfrac*1.75));
+    fprintf(stderr, "##estimatedContaminationFromTumorToNormal_additiveFraction=%f (recommended=%f)\n", addfrac, floor(addfrac*175.0) / 100.0);
     fprintf(stderr, "##estimatedContaminationFromTumorToNormal_multiplicativeFraction=%f\n", (
             double)((double)n_ad_sum * (double)t_dp_sum) / (double)(((double)t_ad_sum * (double)n_dp_sum) + ((double)n_ad_sum * (double)t_dp_sum)));
     
