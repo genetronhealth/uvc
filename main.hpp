@@ -3298,9 +3298,14 @@ append_vcf_record(std::string & out_string,
         double t2n_finq = max_min01_sub02(CENTER(t2n_rawq, t2t_powq), CENTER(t2n_rawq, t2n_powq), t2n_contam_q);
         double t_base_q = MIN(tn_trawq, tn_tpowq + (double)indel_ic);
         
-        double a_no_alt_qual = nonalt_qual + MAX(0, MIN(nonalt_tu_q, t2n_powq)) - MIN(t2n_contam_q, t2n_syserr_q);
+        // double a_no_alt_qual = nonalt_qual + MAX(0, MIN(nonalt_tu_q, t2n_powq)) - MIN(t2n_contam_q, t2n_syserr_q);
+        double a_no_alt_qual = MAX(nonalt_qual, nonalt_tu_q) - MIN(t2n_contam_q, t2n_syserr_q);
+        
         const int32_t a_nogerm_q = homref_gt_phred + (is_nonref_germline_excluded ? 
-                MIN(a_no_alt_qual, noisy_germ_phred + excalt_qual + MAX(0, excalt_tu_q)) : a_no_alt_qual);
+                MIN(a_no_alt_qual, 
+                    // noisy_germ_phred + excalt_qual + MAX(0, excalt_tu_q)) 
+                    noisy_germ_phred + MAX(excalt_qual, excalt_tu_q))
+                    : a_no_alt_qual);
         
         testquals[tqi++] = MIN(t_base_q + t2n_finq - MIN(t2n_contam_q, t2n_syserr_q), (double)a_nogerm_q); // - 5.0;
         
