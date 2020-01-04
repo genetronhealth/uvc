@@ -731,7 +731,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                     if (is_rescued) {
                         tki = tki_it->second; 
                     }
-                    fillBySymbol(fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]], 
+                    fill_by_symbol(fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]], 
                             symbolToCountCoverageSet12, 
                             refpos, 
                             symbol, 
@@ -746,14 +746,19 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                             paramset.maxMQ,
                             phred_max_sscs, 
                             paramset.phred_dscs_minus_sscs + phred_max_sscs,
-                            !paramset.disable_dup_read_merge, 
+                            !paramset.disable_dup_read_merge,
                             !paramset.enable_dup_read_vqual,
-                            is_rescued, 
-                            (NOT_PROVIDED != paramset.vcf_tumor_fname), 
-                            repeatunit, 
-                            repeatnum, 
-                            tki, 
-                            paramset.t2n_add_contam_transfrac);
+                            is_rescued,
+                            (NOT_PROVIDED != paramset.vcf_tumor_fname),
+                            repeatunit,
+                            repeatnum,
+                            tki,
+                            paramset.any_mul_contam_frac,
+                            paramset.t2n_mul_contam_frac,
+                            paramset.t2n_add_contam_frac,
+                            paramset.t2n_add_contam_transfrac,
+                            paramset.min_edge_dist,
+                            paramset.central_readlen);
                 }
                 for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; symbol = AlignmentSymbol(1+(unsigned int)symbol)) {
                     float vaq = fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]].VAQ;
@@ -829,7 +834,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                     if (is_rescued || pass_thres) {
                         fmt.CType = SYMBOL_TO_DESC_ARR[most_confident_symbol];
                         fmt.CAQ = most_confident_qual;
-                        appendVcfRecord(buf_out_string, 
+                        append_vcf_record(buf_out_string, 
                                 buf_out_string_pass, 
                                 arg.vc_stats,
                                 symbolToCountCoverageSet12,
@@ -856,8 +861,10 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                                 paramset.t2n_add_contam_transfrac,
                                 repeatunit, 
                                 repeatnum,
-                                SEQUENCING_PLATFORM_IONTORRENT == paramset.sequencing_platform
-                                );
+                                SEQUENCING_PLATFORM_IONTORRENT == paramset.sequencing_platform,
+                                paramset.maxMQ,
+                                paramset.central_readlen,
+                                paramset.phred_triallelic_indel);
                     }
                 }
             }
@@ -1004,10 +1011,21 @@ main(int argc, char **argv) {
     VcStats all_vc_stats;
 
     bam_hdr_t * samheader = sam_hdr_read(samfiles[0]);
-    std::string header_outstring = generateVcfHeader(paramset.fasta_ref_fname.c_str(), SEQUENCING_PLATFORM_TO_DESC.at(inferred_sequencing_platform).c_str(), 
-            paramset.minABQ_pcr_snv, paramset.minABQ_pcr_indel, paramset.minABQ_cap_snv, paramset.minABQ_cap_indel, argc, argv, 
-            samheader->n_targets, samheader->target_name, samheader->target_len,
-            paramset.sample_name.c_str(), g_sample, paramset.is_tumor_format_retrieved);
+    std::string header_outstring = generate_vcf_header(paramset.fasta_ref_fname.c_str(), 
+            SEQUENCING_PLATFORM_TO_DESC.at(inferred_sequencing_platform).c_str(), 
+            paramset.central_readlen, 
+            paramset.minABQ_pcr_snv, 
+            paramset.minABQ_pcr_indel, 
+            paramset.minABQ_cap_snv, 
+            paramset.minABQ_cap_indel, 
+            argc, 
+            argv, 
+            samheader->n_targets, 
+            samheader->target_name, 
+            samheader->target_len,
+            paramset.sample_name.c_str(), 
+            g_sample, 
+            paramset.is_tumor_format_retrieved);
     clearstring<false>(fp_allp, header_outstring);
     clearstring<false>(fp_pass, header_outstring, is_vcf_out_pass_to_stdout);
 

@@ -14,66 +14,31 @@ SequencingPlatform
 CommandLineArgs::selfUpdateByPlatform() {
     SequencingPlatform inferred_sequencing_platform = this->sequencing_platform;
     if (SEQUENCING_PLATFORM_AUTO == this->sequencing_platform || SEQUENCING_PLATFORM_OTHER == this->sequencing_platform) {
-        // unsigned int bqsum = 0;
-        unsigned int bqcnt = 0;
-
         samFile *sam_infile = sam_open(this->bam_input_fname.c_str(), "r"); // AlignmentFile(samfname, "rb")
         if (NULL == sam_infile) {
             fprintf(stderr, "Failed to open the file %s", this->bam_input_fname.c_str());
             exit(-32);
         }
-        std::array<unsigned int, 96> phred2countArr = {0};
         bam_hdr_t * samheader = sam_hdr_read(sam_infile);
         bam1_t *b = bam_init1();
-        unsigned int indel_len = 0;
         unsigned int countPE = 0;
         unsigned int countSE = 0;
-        while (sam_read1(sam_infile, samheader, b) >= 0 && bqcnt <= 100*1000) {
+        std::vector<unsigned int> qlens;
+        qlens.reserve(500+1);
+        qlens.push_back(150);
+        while (sam_read1(sam_infile, samheader, b) >= 0 && (countPE + countSE) < 500) {
             if (b->core.flag & 0x1) {
                 countPE++;
             } else {
                 countSE++;
             }
-            for (int i = 0; i < b->core.l_qseq; i++) {
-                unsigned int bq = bam_get_qual(b)[i];
-                phred2countArr[bq]++;
-            }
-            bqcnt += b->core.l_qseq;
-            const uint32_t n_cigar = b->core.n_cigar;
-            const uint32_t *cigar =  bam_get_cigar(b);
-            for (unsigned int i = 0; i < n_cigar; i++) {
-                uint32_t c = cigar[i];
-                unsigned int cigar_op = bam_cigar_op(c);
-                if (BAM_CINS == cigar_op || BAM_CDEL ==  cigar_op) {
-                    unsigned int cigar_oplen = bam_cigar_oplen(c);
-                    indel_len += cigar_oplen;
-                }
-            }
+            qlens.push_back(b->core.l_qseq);
         }
+        std::sort(qlens.begin(), qlens.end());
+        if (0 == this->central_readlen) { this->central_readlen = qlens.at(qlens.size()/2); }
         bam_destroy1(b);
         bam_hdr_destroy(samheader);
         sam_close(sam_infile);
-        
-        // The 2/3 of max base quality (BQ) as threshold has no theoretical foundation, so commented out
-        /*
-        unsigned int phredmax = 0;
-        for (int i = 0; i < 96; i++) { 
-            if (0 < phred2countArr[i]) { 
-                phredmax = i; 
-            }
-        }
-        unsigned int phredcut = phredmax * 2 / 3;
-        unsigned int phredpass = 0;
-        unsigned int phredfail = 0;
-        for (int i = 0; i < 96; i++) { 
-            if (i >= phredcut) { 
-                phredpass += phred2countArr[i]; 
-            } else {
-                phredfail += phred2countArr[i];
-            }
-        }
-        bool has_enough_pass = phredpass >= phredfail * 3;
-        */
         if (0 < countPE) {
             inferred_sequencing_platform = SEQUENCING_PLATFORM_ILLUMINA;
         } else {
@@ -147,7 +112,6 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     app.add_option("-s,--sample",    sample_name,       "Sample name which is optional (样本名称，可有可无).");
     // app.add_option("--primers",      tsv_primer_fname,  "primer files")->check(CLI::ExistingFile);
     
-    // If the input is a BAM file for the normal, then the program internally subtracts this parameter by 10. 如果输入为normal比对结果则本参数减10
     app.add_option("-q,--vqual",     vqual,             "Minimum variant quality to be present in -o file. (如果变异质量低于此值，则不输出到-o文件).", true);
     app.add_option("-d,--min-depth", min_depth_thres,   "Minimum depth below which results are fitlered out and therefore not in the output VCF (如果低于此原始深度则在VCF不输入任何结果).", true);
     app.add_option("-D,--min-altdp", min_altdp_thres,   "Minimum depth of ALT below which results are filtered out (如果ALT深度低于此数则不输出结果).", true);
@@ -160,7 +124,7 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
      
     app.add_option("--uni-bias-thres", uni_bias_thres,  "Unified-bias threshold for generating the filter strings in FORMAT/FT. This parameter is only for generating statistics and therefore does not affect variant quality. Downstream hard filtering with FORMAT/FT is possible (统一偏好性的阈值，用于生成FORMAT/FT信息，只用于统计，不影响变异质量，FORMAT/FT可用于下游硬过滤). ", true);
     app.add_option("--uni-bias-r-max", uni_bias_r_max,  "Maximum unified-bias threshold used for reducing variant read support. This parameter does affect variant quality. (统一偏好性的最大值，用于减少变异支持，会影响变异质量). ", true);
-    app.add_option("--diffVAQfrac",    diffVAQfrac,     "Experimental real-numbered parameter that should be set to either zero or one (实验性的实数参数，理论值要么是零要么是一). ", true);
+    //app.add_option("--diffVAQfrac",    diffVAQfrac,     "Experimental real-numbered parameter that should be set to either zero or one (实验性的实数参数，理论值要么是零要么是一). ", true);
     
     app.add_option("--highqual-thres-snv",          highqual_thres_snv,
             "The SNV quality threshold above which the family quality is considered to be high", true);
@@ -214,39 +178,16 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
                    " (如果位点平均碱基质量低于此值则变异质量不会超过平均碱基质量(捕获试验)，建议对Illumina用25并且对IonTorrent用0).", true); 
     
     app.add_option("--minMQ1", minMQ1, "Minimum root-mean-square (RMS) mapping quality (MQ) of non-dedupped raw reads below which variant quality is capped to this RMS MQ.", true);
-    app.add_option("--maxMQ" , maxMQ , "Maximum mapping quality (MQ) of the aligned reads.", true);
-
-    app.add_option("--bq-phred-added-misma", bq_phred_added_misma, "Additional base-quality phred score added to match and mismatch, recommend 6 for IonTorrent from Life Technologies.");
-    app.add_option("--bq-phred-added-indel", bq_phred_added_indel, "Additional base-quality phred score added to indel and no-indel, recommend 6 for Illumina and BGI.");
+    app.add_option("--maxMQ" , maxMQ , "Maximum mapping quality (MQ) of the aligned reads, highly recommended to be the 60 from BWA.", true);
+    app.add_option("--min-edge-dist", min_edge_dist, "Minimum average number of bases to the left and right aligned positions below which variant quality is capped to 4 times this average number.", true);
     
-    app.add_option("--phred-germline",       phred_germline_polymorphism, "Phred-scale prior probability of germline polymorphism event at a loci.", true);
-    app.add_option("--phred-sys-err-snv",    phred_sys_artifact_snv,      "Phred-scale prior probability of systematic SNV error at a loci. "
-                   "Must be greater than phred-germline. Increasing this value increases sensitivity", true);
-    app.add_option("--phred-sys-err-indel",  phred_sys_artifact_indel,    "Phred-scale prior probability of systematic InDel error at a loci. "
-                   "Must be greater than phred-germline. Increasing this value increases sensitivity", true);
-    app.add_option("--tn-sys-err-frac-snv",  t2n_sys_err_frac_snv,        "Maximum tumor-to-normal fraction of SNV   systematic error above which is fit to a binomial model.", true); 
-    app.add_option("--tn-sys-err-frac-indel",t2n_sys_err_frac_indel,      "Maximum tumor-to-normal fraction of InDel systematic error above which is fit to a binomial model.", true); 
-    app.add_option("--nonref-alt-frac-snv",  nonref_to_alt_frac_snv,      "Fraction of NON-REF bases in normal that supports the ALT of interest for SNVs.", true);
-    app.add_option("--nonref-alt-frac-indel",nonref_to_alt_frac_indel,    "Fraction of NON-REF bases in normal that supports the ALT of interest for InDels.", true);
-    app.add_option("--tnq-mult-snv",         tnq_mult_snv,                "Multiplicative factor by which TNQ (tumor-normal quality) is amplified for computing QUAL for SNVs.", true);
-    app.add_option("--tnq-mult-indel",       tnq_mult_indel,              "Multiplicative factor by which TNQ (tumor-normal quality) is amplified for computing QUAL for InDels.", true);
-    //app.add_option("--tnq-mult-tADadd-snv",  tnq_mult_tADadd_snv,         "Additional smoothing factor for SNV TNQ.", true);
-    //app.add_option("--tnq-mult-tADadd-indel",tnq_mult_tADadd_indel,       "Additional smoothing factor for InDel TNQ", true);
+    app.add_option("--central-readlen",      central_readlen,      "Central (median) value for read lengths, 0 means estimate from the data.");
+    app.add_option("--bq-phred-added-misma", bq_phred_added_misma, "Additional base-quality phred score added to match and mismatch, recommend 4 for IonTorrent from Life Technologies.");
+    app.add_option("--bq-phred-added-indel", bq_phred_added_indel, "Additional base-quality phred score added to indel and no-indel, recommend 10 for Illumina and BGI.");
     
-    // app.add_option("--tn-contam-ratio",      tn_contam_ratio,             "Tumor-to-normal contamination ratio. 0 means no contaminaton. ", true);
+    app.add_option("--phred-homref-gt",       phred_germline_polymorphism,"Phred-scale prior probability of germline polymorphism event at a loci.", true);
+    app.add_option("--phred-triallelic-indel",phred_triallelic_indel,     "Phred-scale prior probability that two or more forms of InDel occur at a loci.", true);
  
-    app.add_option("--ldi-tier-qual",        ldi_tier_qual,               "InDel variant quality above this is subject to diminushing return due to low allele-depth indel LDI", true);
-    app.add_option("--ldi-tier1cnt",         ldi_tier1cnt,                "Additive smoothing factor (X100) for LDI with diminushing-return formula 1/(tFA*tDP)", true);
-    app.add_option("--ldi-tier2cnt",         ldi_tier2cnt,                "--ldi-tier1cnt for UMI data", true);
-    
-    app.add_option("--mai-tier-qual",        mai_tier_qual,               "InDel variant quality above this is subject to diminushing return due to multi-allelic indels MAI", true);
-    app.add_option("--mai-tier1abq",         mai_tier1abq,                "Additive smoothing factor for MAI with diminushing-return formula AltBQ/(AllBQ-RefBQ)", true);
-    app.add_option("--mai-tier2abq",         mai_tier2abq,                "--mai-tier1abq for UMI data", true);
- 
-    app.add_option("--str-tier-qual",        str_tier_qual,               "InDel variant quality above this is subject to diminushing effect due to short tandem repeats STR", true);
-    app.add_option("--str-tier1len",         str_tier1len,                "Additive smooth factor for STR with diminushing-return formula 1/(num-bases-in-STR-region)", true); 
-    app.add_option("--str-tier2len",         str_tier2len,                "--str-tier1len for UMI data", true); 
-    
     app.add_option("--any-mul-contam-frac",  any_mul_contam_frac,         "Multiplicative contamination rate for the fraction of reads generated by any source of contamination in any sample", true);
     app.add_option("--t2n-mul-contam-frac",  t2n_mul_contam_frac,         "Multiplicative contamination rate for the fraction of tumor reads in the normal", true); 
     app.add_option("--t2n-add-contam-frac",  t2n_add_contam_frac,         "Additive contamination rate for the fraction of tumor reads in the normal", true);
