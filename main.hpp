@@ -3187,8 +3187,8 @@ append_vcf_record(std::string & out_string,
         int32_t nonalt_qual = nfm.GLa[0] - MAX(nfm.GLa[1], nfm.GLa[2]); // indel_pq ?
         int32_t excalt_qual = nfm.GLb[0] - MAX(nfm.GLb[1], nfm.GLb[2]); // indel_pq; ?
         
-        int32_t nonalt_tu_q = ((tki.GLa[0] >= tki.GLa[2]) ? (0 - MAX(tki.GLa[1], tki.GLa[2])) : 0);
-        int32_t excalt_tu_q = ((tki.GLb[0] >= tki.GLb[2]) ? (0 - MAX(tki.GLb[1], tki.GLb[2])) : 0);
+        int32_t nonalt_tu_q = MAX(-3 - (int)(MAX(tki.GLa[1], tki.GLa[2]) * (pl_exponent - 1) / pl_exponent), 0);
+        int32_t excalt_tu_q = MAX(-3 - (int)(MAX(tki.GLb[1], tki.GLb[2]) * (pl_exponent - 1) / pl_exponent), 0);
         
         const double tE0 = 1.0;
         const double nE0 = 1.0;
