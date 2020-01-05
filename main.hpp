@@ -2828,7 +2828,10 @@ generate_vcf_header(const char *ref_fasta_fname,
         // ret += std::string(";TQ") + std::to_string(i) + "=" + std::to_string(testquals[i]); 
         ret += "##INFO=<ID=TQ" + std::to_string(i) +",Number=1,Type=Float,Description=\"Variant quality computed by the model " + std::to_string(i) +"\">\n";
     }
-    ret += "##INFO=<ID=SQVQ,Number=2,Type=Integer,Description=\"Somatic quality (PHRED-scale probability of germline event) and variant quality (PHRED-scale probability of observing the variant signal given that the variant signal is neither germline nor somatic)\">\n";
+    // ret += "##INFO=<ID=SQVQ,Number=2,Type=Integer,Description=\"Somatic quality (PHRED-scale probability of germline event) and variant quality (PHRED-scale probability of observing the variant signal given that the variant signal is neither germline nor somatic)\">\n";
+    ret += "##INFO=<ID=SomaticQ,Number=1,Type=Integer,Description=\"Somatic quality of the variant, the PHRED-scale probability that this variant is not somatic.\">\n";
+    ret += "##INFO=<ID=TLODQ,Number=1,Type=Integer,Description=\"Tumor log-of-data-likelihood quality, the PHRED-scale probability that this variant is not of biological origin (i.e., artifactual).\">\n";
+    ret += "##INFO=<ID=NLODQ,Number=1,Type=Integer,Description=\"Normal log-of-data-likelihood quality, the PHRED-scale probability that this variant is of germline origin.\">\n";
     ret += "##INFO=<ID=NGQ,Number=.,Type=Float,Description=\"Non-germline qualities: normal-alt, tumor-alt, normal-nonref, tumor-nonref\">\n";
     ret += "##INFO=<ID=TNQ,Number=.,Type=Float,Description=\"For t-vs-n: allele-fraction variant quality (VQ), raw VQ, contamination VQ, and statistical noise VQ\">\n";
     ret += "##INFO=<ID=TNQA,Number=.,Type=Float,Description=\"Tumor baseline quality, tumor contamination quality, and tumor systematic-error quality.\">\n";
@@ -3306,8 +3309,8 @@ append_vcf_record(std::string & out_string,
                     // noisy_germ_phred + excalt_qual + MAX(0, excalt_tu_q)) 
                     noisy_germ_phred + MAX(excalt_qual, excalt_tu_q))
                     : a_no_alt_qual);
-        
-        testquals[tqi++] = MIN(t_base_q + t2n_finq - MIN(t2n_contam_q, t2n_syserr_q), (double)a_nogerm_q); // - 5.0;
+        double tlodq =  t_base_q + t2n_finq - MIN(t2n_contam_q, t2n_syserr_q);
+        testquals[tqi++] = MIN(tlodq, (double)a_nogerm_q); // - 5.0;
         
         // testquals[tqi++] = MIN(tn_trawq - tn_nrawq + 0       , tn_tpowq - MAX(0.0, tn_npowq - tvn_or_q) + tvn_powq);
         // testquals[tqi++] = MIN(tn_trawq - tn_nrawq + tvn_rawq, tn_tpowq - MAX(0.0, tn_npowq - tvn_or_q) + tvn_powq); 
@@ -3316,7 +3319,7 @@ append_vcf_record(std::string & out_string,
         
         const int MODEL_SEP_1 = 1;
         if (prev_is_tumor) {
-            vcfqual = 0;
+            vcfqual = -200;
             for (int i = 0; i < MIN(MODEL_SEP_1, N_MODELS); i++) {
                 // FIXME: probabilities of germline polymorphism and somatic mutation at a locus are both strongly correlated with the STR pattern for InDels
                 //        here we assumed that the likelihood of germline polymorphism is proportional to the likelihood of somatic mutation.
@@ -3338,11 +3341,12 @@ append_vcf_record(std::string & out_string,
         }
         
         for (int i = 0; i < MIN(MODEL_SEP_1, N_MODELS); i++) {
-            infostring += std::string(";TQ") + std::to_string(i) + "=" + std::to_string(testquals[i]); 
+            //infostring += std::string(";TQ") + std::to_string(i) + "=" + std::to_string(testquals[i]); 
         }
-        infostring += std::string(";SQVQ=")  + string_join(std::array<std::string, 2>({
-                std::to_string((int)t_base_q), std::to_string((int)a_nogerm_q), 
-        }));
+        infostring += std::string(";SomaticQ=")  + std::to_string((int)testquals[0]);
+        infostring += std::string(";TLODQ=")  + std::to_string((int)tlodq);
+        infostring += std::string(";NLODQ=")  + std::to_string((int)a_nogerm_q);
+         
         infostring += std::string(";NGQ=") + string_join(std::array<std::string, 4>({
                 std::to_string(nonalt_qual), std::to_string(nonalt_tu_q),
                 std::to_string(excalt_qual), std::to_string(excalt_tu_q) 
