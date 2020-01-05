@@ -2954,7 +2954,7 @@ penal_indel_2(double AD0a, int dst_str_units, const auto & RCC, const unsigned i
         }
         max_noise = MAX(max_noise, _noise);
     }
-    return ((double)phred_triallelic_indel) / log(2.0) * log((AD0a + DBL_MIN + MIN(AD0a,max_noise)) / (AD0a + DBL_MIN));
+    return ((double)phred_triallelic_indel) / log(2.0) * log((AD0a + DBL_MIN + max_noise) / (AD0a + DBL_MIN));
 }
 
 int
@@ -3163,8 +3163,8 @@ append_vcf_record(std::string & out_string,
         double tAD0 = (double)((tUseHD) ? (tAltHD) :             tki.FA * (double)tki.DP) + DBLFLT_EPS / 2.0;
         double tRD0 = (double)((tUseHD) ? (tRefHD) :             tki.FR * (double)tki.DP) + DBLFLT_EPS / 2.0; 
         
-        double nAD0a = nAD0 * ((isInDel && !nUseHD) ? ((double)(nfm.gapDP4[2] + 1) / (double)(nfm.gapDP4[0] + 1)) : 1.0); // not used ?
-        double tAD0a = tAD0 * ((isInDel && !tUseHD) ? ((double)(tki.gapDP4[2] + 1) / (double)(tki.gapDP4[0] + 1)) : 1.0);
+        double nAD0a = nAD0 * ((isInDel && !nUseHD1) ? ((double)(nfm.gapDP4[2] + 1) / (double)(nfm.gapDP4[0] + 1)) : 1.0); // not used ?
+        double tAD0a = tAD0 * ((isInDel && !tUseHD1) ? ((double)(tki.gapDP4[2] + 1) / (double)(tki.gapDP4[0] + 1)) : 1.0);
         
         double nAD1 = (nUseHD ? (highqual_thres * nAltHD) : nAltBQ) + DBLFLT_EPS / 2.0;
         double nDP1 = (nUseHD ? (highqual_thres * nAllHD) : nAllBQ) + DBLFLT_EPS;
@@ -3237,8 +3237,10 @@ append_vcf_record(std::string & out_string,
         if (isInDel) {
             int n_str_units = (isSymbolIns(symbol) ? 1 : (-1)) * (int)(indelstring.size() / repeatunit.size());
             t_indel_penal = penal_indel_2(tAD0a, n_str_units, tki.RCC, phred_triallelic_indel);
-            _tn_tpo2q -= t_indel_penal;
-            _tn_tra2q *= ((double)tAD0a + (double)indelstring.size()/8.0) / ((double)tAD0 + (double)indelstring.size()/8.0); // ad-hoc adjustment
+            if (!tUseHD1) {
+                _tn_tpo2q -= t_indel_penal;
+                _tn_tra2q *= ((double)tAD0a + (double)indelstring.size()/8.0) / ((double)tAD0 + (double)indelstring.size()/8.0); // ad-hoc adjustment
+            }
         }
         const double tn_tpowq = _tn_tpo2q;
         const double tn_trawq = _tn_tra2q;
@@ -3255,8 +3257,10 @@ append_vcf_record(std::string & out_string,
         double _tn_nra2q = MAX(0.0, tn_nra1q/altmul - tn_nsamq/4.0) + (isInDel ? 0.0:5.0); // normal BQ bias is weaker   as res variant (biased to high BQ) is filtered from each variant
         if (isInDel) {
             int n_str_units = (isSymbolIns(symbol) ? 1 : (-1)) * (int)(indelstring.size() / repeatunit.size());
-            //_tn_npo2q += penal_indel_2(nAD0a, n_str_units, nfm.RCC, phred_triallelic_indel);
-            _tn_nra2q *= ((double)tAD0a + (double)indelstring.size()/8.0) / ((double)tAD0 + (double)indelstring.size()/8.0);
+            if (!nUseHD1) {
+                //_tn_npo2q += penal_indel_2(nAD0a, n_str_units, nfm.RCC, phred_triallelic_indel);
+                _tn_nra2q *= ((double)nAD0a + (double)indelstring.size()/8.0) / ((double)nAD0 + (double)indelstring.size()/8.0);
+            }
         }
         const double tn_npowq = _tn_npo2q;
         const double tn_nrawq = _tn_nra2q;
