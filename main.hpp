@@ -3213,12 +3213,19 @@ append_vcf_record(std::string & out_string,
         const double nAD1pc0 = 0.5 * tnE1;
         const double nDP1pc0 = 0.5 * tnE1 / tnFA1;
         
-        // QUESTION: what if the duplication rate is in-between the one of UMI and the one of non-UMI? What is the dimension of bias (4 or 3) given that the dimension of quality is equal to 3?
+        // This is the penalty induced by EROR bias. 
+        // So far I do not have enough data to verify this power-law. 
+        // Also, the theory to support this power-law is rather unclear.
+        // Hence, a simple hard-filter with rejection for EROR>=180 is used for now.
+        // const double eror_penal = (pl_exponent) * 10.0/log(10.0) * log((double)(MAX(100, maxbias) - 100) / 50.0 + 1.0); 
+        // QUESTION: 
+        // 1. What if the duplication rate is in-between the one of UMI and the one of non-UMI? 
+        // 2. Does EROR bias follows a power-law distribution too? A lot of true positive UMI variants are required to see the power-law if it does.
+        //    If EROR bias does follow a power-law, then what is the dimension of EROR bias (4 or 3) given that the dimension of quality is equal to 3? My intuition says it's 3.
         const double pcap_tmax = 60.0 + 25.0 + 5.0 + (tUseHD 
                 ? ((double)((fmt.dAD3 > 0)
                     ? (phred_max_dscs - phred_pow_dscs_origin) 
-                    : (phred_max_sscs - phred_pow_sscs_origin)
-                    ) - (pl_exponent) * 10.0/log(10.0) * log((double)(MAX(100, maxbias) - 100) / 50.0 + 1.0)) 
+                    : (phred_max_sscs - phred_pow_sscs_origin))) // - eror_penal
                 : 0.0);
         // prob[mapping-error] * prob[false-positive-variant-per-base-position] / num-alts-per-base-positon
         const double pcap_nmax = 60.0 + 25.0 + 5.0 + (nUseHD ? 
