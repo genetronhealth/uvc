@@ -3218,7 +3218,7 @@ append_vcf_record(std::string & out_string,
                 ? ((double)((fmt.dAD3 > 0)
                     ? (phred_max_dscs - phred_pow_dscs_origin) 
                     : (phred_max_sscs - phred_pow_sscs_origin)
-                    ) - (pl_exponent) * 10.0/log(10.0) * log((double)(MAX(100, maxbias) - 100) / 50.0)) 
+                    ) - (pl_exponent) * 10.0/log(10.0) * log((double)(MAX(100, maxbias) - 100) / 50.0 + 1.0)) 
                 : 0.0);
         // prob[mapping-error] * prob[false-positive-variant-per-base-position] / num-alts-per-base-positon
         const double pcap_nmax = 60.0 + 25.0 + 5.0 + (nUseHD ? 
