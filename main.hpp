@@ -2074,18 +2074,21 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
     
     int 
     updateHapMap(std::map<std::basic_string<std::pair<unsigned int, AlignmentSymbol>>, std::array<unsigned int, 2>> & mutform2count4map, 
-            const auto & tsum_depth, unsigned int max_ploidy = 2) {
+            const auto & tsum_depth, unsigned int max_ploidy = 2+1) {
         for (auto it = mutform2count4map.begin(); it != mutform2count4map.end();) {
             std::basic_string<std::pair<unsigned int, AlignmentSymbol>> mutform = it->first;
             auto counts = it->second;
-            std::array<unsigned int, 2> minAD = {UINT_MAX, UINT_MAX};
-            for (unsigned int strand = 0; strand < 2; strand++) {
-                for (std::pair<unsigned int, AlignmentSymbol> simplemut : mutform) {
-                    unsigned int ad = tsum_depth.at(strand).getByPos(simplemut.first).getSymbolCount(simplemut.second);
-                    minAD[strand] = MIN(minAD[strand], ad);
-                }
+            std::array<unsigned int, 2> maxAD = {0, 0};
+            std::vector<unsigned int> dsADs; 
+            dsADs.reserve(mutform.size() + 1);
+            dsADs.push_back(0);
+            for (std::pair<unsigned int, AlignmentSymbol> simplemut : mutform) {
+                unsigned int ad0 = tsum_depth.at(0).getByPos(simplemut.first).getSymbolCount(simplemut.second);
+                unsigned int ad1 = tsum_depth.at(1).getByPos(simplemut.first).getSymbolCount(simplemut.second);
+                dsADs.push_back(ad0 + ad1);
             }
-            if (counts[0] * (max_ploidy + mutform.size()) <= minAD[0] && counts[1] * (max_ploidy + mutform.size()) <= minAD[1]) {
+            auto med = MEDIAN(dsADs);
+            if ((counts[0] +counts[1]) * (max_ploidy) <= med) {
                 mutform2count4map.erase(it++);
             } else {
                 it++;
@@ -2836,7 +2839,7 @@ generate_vcf_header(const char *ref_fasta_fname,
     ret += "##INFO=<ID=TNQ,Number=.,Type=Float,Description=\"For t-vs-n: allele-fraction variant quality (VQ), raw VQ, contamination VQ, and statistical noise VQ\">\n";
     ret += "##INFO=<ID=TNQA,Number=.,Type=Float,Description=\"Tumor baseline quality, tumor contamination quality, and tumor systematic-error quality.\">\n";
     ret += "##INFO=<ID=TNOR,Number=.,Type=Float,Description=\"Tumor-to-normal signal odds ratio of odds ratio using read counts and base qualities.\">\n";
-    ret += "##INFO=<ID=TNTQ,Number=.,Type=Float,Description=\"For only normal sample: allele-fraction variant quality (VQ), raw VQ, and raw adjustment quality\">\n";
+    ret += "##INFO=<ID=TNTQ,Number=.,Type=Float,Description=\"For only normal sample: allele-fraction variant quality (VQ), raw VQ, and raw adjustment quality, and indel quality\">\n";
     ret += "##INFO=<ID=TNNQ,Number=.,Type=Float,Description=\"For only tumor  sample: allele-fraction variant quality (VQ), raw VQ, and raw adjustment quality\">\n";
     ret += "##INFO=<ID=tDP,Number=1,Type=Integer,Description=\"Tumor-sample DP\">\n";
     ret += "##INFO=<ID=tFA,Number=1,Type=Float,Description=\"Tumor-sample FA\">\n";
@@ -2951,7 +2954,7 @@ penal_indel_2(double AD0a, int dst_str_units, const auto & RCC, const unsigned i
         }
         max_noise = MAX(max_noise, _noise);
     }
-    return ((double)phred_triallelic_indel) / log(2.0) * log((AD0a + DBL_MIN) / (AD0a + max_noise + DBL_MIN));
+    return ((double)phred_triallelic_indel) / log(2.0) * log((AD0a + DBL_MIN + MIN(AD0a,max_noise)) / (AD0a + DBL_MIN));
 }
 
 int
@@ -3132,32 +3135,23 @@ append_vcf_record(std::string & out_string,
     }
     assert(tki.autoBestAllBQ >= tki.autoBestRefBQ + tki.autoBestAltBQ);
     {
-        const bool tUseHD =  (tki.bDP > tki.DP * highqual_min_ratio);
-        const bool nUseHD = ((nfm.bDP > nfm.DP * highqual_min_ratio) && tUseHD); 
+        const bool tUseHD1 =  (tki.bDP > tki.DP * highqual_min_ratio);
+        const bool nUseHD1 = ((nfm.bDP > nfm.DP * highqual_min_ratio) && tUseHD1); 
         
-        double nfreqmult = 1.0; // degenerated
-        /*
-        if (tUseHD && (!nUseHD)) {
-            if (std::string("PASS") == tki.FTS) {
-                nfreqmult /= 3.0; // this is heuristically found
-            }
-            if (std::string("PASS") == nfm.FTS) {
-                nfreqmult /= 2.0; // this is heuristically found
-            }
-        }
-        */
-
+        const bool tUseHD = (tUseHD1 && !isInDel);
+        const bool nUseHD = (nUseHD1 && !isInDel); 
+        
         double nAltBQ = SUM2(nfm.cAltBQ);
         double nAllBQ = SUM2(nfm.cAllBQ);
         double nRefBQ = SUM2(nfm.cRefBQ);
         double nAltHD = SUM2(nfm.cAltHD);
         double nAllHD = SUM2(nfm.cAllHD);
         double nRefHD = SUM2(nfm.cRefHD);
-
-        double nDP0 = (double)(nUseHD ? (nAllHD) :                      (double)nfm.DP) + DBLFLT_EPS / 2.0;
-        double nAD0 = (double)(nUseHD ? (nAltHD) : nfreqmult * nfm.FA * (double)nfm.DP) + DBLFLT_EPS;
-        double nRD0 = (double)(nUseHD ? (nRefHD) : nfreqmult * nfm.FR * (double)nfm.DP) + DBLFLT_EPS / 2.0;
-
+        
+        double nDP0 = (double)((nUseHD) ? (nAllHD) :                      (double)nfm.DP) + DBLFLT_EPS / 2.0;
+        double nAD0 = (double)((nUseHD) ? (nAltHD) :             nfm.FA * (double)nfm.DP) + DBLFLT_EPS;
+        double nRD0 = (double)((nUseHD) ? (nRefHD) :             nfm.FR * (double)nfm.DP) + DBLFLT_EPS / 2.0;
+        
         double tAltBQ = tki.autoBestAltBQ;
         double tAllBQ = tki.autoBestAllBQ;
         double tRefBQ = tki.autoBestRefBQ;
@@ -3165,9 +3159,9 @@ append_vcf_record(std::string & out_string,
         double tAllHD = tki.autoBestAllHD;
         double tRefHD = tki.autoBestRefHD;
         
-        double tDP0 = (double)(tUseHD ? (tAllHD) :                      (double)tki.DP) + DBLFLT_EPS;
-        double tAD0 = (double)(tUseHD ? (tAltHD) :             tki.FA * (double)tki.DP) + DBLFLT_EPS / 2.0;
-        double tRD0 = (double)(tUseHD ? (tRefHD) :             tki.FR * (double)tki.DP) + DBLFLT_EPS / 2.0; 
+        double tDP0 = (double)((tUseHD) ? (tAllHD) :                      (double)tki.DP) + DBLFLT_EPS;
+        double tAD0 = (double)((tUseHD) ? (tAltHD) :             tki.FA * (double)tki.DP) + DBLFLT_EPS / 2.0;
+        double tRD0 = (double)((tUseHD) ? (tRefHD) :             tki.FR * (double)tki.DP) + DBLFLT_EPS / 2.0; 
         
         double nAD0a = nAD0 * ((isInDel && !nUseHD) ? ((double)(nfm.gapDP4[2] + 1) / (double)(nfm.gapDP4[0] + 1)) : 1.0); // not used ?
         double tAD0a = tAD0 * ((isInDel && !tUseHD) ? ((double)(tki.gapDP4[2] + 1) / (double)(tki.gapDP4[0] + 1)) : 1.0);
@@ -3222,15 +3216,16 @@ append_vcf_record(std::string & out_string,
         // 1. What if the duplication rate is in-between the one of UMI and the one of non-UMI? 
         // 2. Does EROR bias follows a power-law distribution too? A lot of true positive UMI variants are required to see the power-law if it does.
         //    If EROR bias does follow a power-law, then what is the dimension of EROR bias (4 or 3) given that the dimension of quality is equal to 3? My intuition says it's 3.
-        const double pcap_tmax = 60.0 + 25.0 + 5.0 + (tUseHD 
+        const double pcap_tmax = 60.0 + 25.0 + 5.0 + (tUseHD1 
                 ? ((double)((fmt.dAD3 > 0)
                     ? (phred_max_dscs - phred_pow_dscs_origin) 
                     : (phred_max_sscs - phred_pow_sscs_origin))) // - eror_penal
                 : 0.0);
         // prob[mapping-error] * prob[false-positive-variant-per-base-position] / num-alts-per-base-positon
-        const double pcap_nmax = 60.0 + 25.0 + 5.0 + (nUseHD ? 
+        const double pcap_nmax = 60.0 + 25.0 + 5.0 + (nUseHD1 ? 
                 ((double)(phred_max_sscs - phred_pow_sscs_origin)) : 0.0);
         
+        double t_indel_penal = 0.0;
         const double pcap_tbq = ((isInDel || is_proton) ? 200.0 : mathsquare(tki.BQ) / 12.0); // based on heuristics
         const double pcap_tmq = MIN(60.0, tki.MQ) * 4.0/3.0; // bases on heuristics
         const double pcap_tmq2 = (tki.MQ - 10.0/log(10.0) * log((double)(tDP0 + tDP0pc0) / (double)(tAD0+tAD0pc0))) * (double)tAD0; // readjustment by MQ
@@ -3241,7 +3236,8 @@ append_vcf_record(std::string & out_string,
         double _tn_tra2q = MAX(0.0, tn_tra1q/altmul - tn_tsamq    ) + (isInDel ? 0.0:5.0); // tumor  BQ bias is stronger as raw variant (biased to high BQ) is called   from each base
         if (isInDel) {
             int n_str_units = (isSymbolIns(symbol) ? 1 : (-1)) * (int)(indelstring.size() / repeatunit.size());
-            _tn_tpo2q += penal_indel_2(tAD0a, n_str_units, tki.RCC, phred_triallelic_indel);
+            t_indel_penal = penal_indel_2(tAD0a, n_str_units, tki.RCC, phred_triallelic_indel);
+            _tn_tpo2q -= t_indel_penal;
             _tn_tra2q *= ((double)tAD0a + (double)indelstring.size()/8.0) / ((double)tAD0 + (double)indelstring.size()/8.0); // ad-hoc adjustment
         }
         const double tn_tpowq = _tn_tpo2q;
@@ -3375,9 +3371,10 @@ append_vcf_record(std::string & out_string,
                 std::to_string(t2n_or0),     std::to_string(t2n_or1),
                 std::to_string(n2t_or0),     std::to_string(n2t_or1)
         }));
-        infostring += std::string(";TNTQ=") + string_join(std::array<std::string, 5>({
+        infostring += std::string(";TNTQ=") + string_join(std::array<std::string, 5+1>({
                 std::to_string(tn_tpowq)  , std::to_string(tn_trawq),
-                std::to_string(tn_tpo1q)   , std::to_string(tn_tra1q), std::to_string(tn_tsamq)
+                std::to_string(tn_tpo1q)  , std::to_string(tn_tra1q), std::to_string(tn_tsamq), 
+                std::to_string((int)t_indel_penal)
         }));
         infostring += std::string(";TNNQ=") + string_join(std::array<std::string, 5>({
                 std::to_string(tn_npowq)  , std::to_string(tn_nrawq),
@@ -3394,7 +3391,7 @@ append_vcf_record(std::string & out_string,
         infostring += std::string(";tRefBQ2=") + std::to_string(tki.cRefBQ2);
         infostring += std::string(";tAltHD=") + std::to_string(tki.autoBestAltHD);
         infostring += std::string(";tAllHD=") + std::to_string(tki.autoBestAllHD);
-        infostring += std::string(";tRefHD=") + std::to_string(tki.autoBestAllHD);
+        infostring += std::string(";tRefHD=") + std::to_string(tki.autoBestRefHD);
         infostring += std::string(";tFTS=") + tki.FTS;
         // infostring += std::string(";tcHap=") + tki.cHap; // tcHap is linked with tFTS
         infostring += std::string(";tbDP=") + std::to_string(tki.bDP);

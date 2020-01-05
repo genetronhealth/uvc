@@ -102,9 +102,12 @@ UPDATE_MAX2(auto & a, const auto & b) {
     for (int i = 0; i < 2; i++) { UPDATE_MAX(a[i], b[i]); }
 }
 
+template <bool TIsSorted = false>
 auto 
 MEDIAN(auto v) {
-    std::sort(v.begin(), v.end());
+    if (!TIsSorted) {
+        std::sort(v.begin(), v.end());
+    }
     if (v.size() % 2 == 1) {
         return v[v.size() / 2];
     } else {
