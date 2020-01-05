@@ -15,8 +15,10 @@ struct CommandLineArgs {
     std::string vcf_tumor_fname = NOT_PROVIDED;
     std::string sample_name = "-";
     std::string vc_stats_fname = NOT_PROVIDED;
+    std::string bed_out_fname = NOT_PROVIDED;
+    std::string bed_in_fname = NOT_PROVIDED;
     std::string tsv_primer_fname = NOT_PROVIDED;
-    
+     
     bool is_tumor_format_retrieved = false;
     bool should_let_all_pass = false;
     bool disable_dup_read_merge = false;

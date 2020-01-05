@@ -955,6 +955,11 @@ main(int argc, char **argv) {
     */
     // bgzf_mt(fp_allp, nthreads, 128);
     // samFile *sam_infile = sam_open(paramset.bam_input_fname.c_str(), "r");
+    
+    std::ofstream bed_out;
+    if (NOT_PROVIDED != paramset.bed_out_fname) {
+        bed_out.open(paramset.bed_out_fname, std::ios::out);
+    }
 
 #if defined(USE_STDLIB_THREAD)
     const unsigned int nidxs = nthreads * 2 + 1;
@@ -1057,8 +1062,9 @@ main(int argc, char **argv) {
             LOG(logINFO) << "Rescued/retrieved " << tid_pos_symb_to_tki2.size() << " variants in super-contig no " << (n_sam_iters);
         });
         const auto & tid_beg_end_e2e_tuple_vec = tid_beg_end_e2e_tuple_vec1; 
-        std::string bedstring = std::string("The BED-genomic-region is as follows (") + std::to_string(tid_beg_end_e2e_tuple_vec.size()) 
+        const std::string bedstring_header = std::string("The BED-genomic-region is as follows (") + std::to_string(tid_beg_end_e2e_tuple_vec.size()) 
                 + " chunks) for super-contig no " + std::to_string(n_sam_iters-1) + "\n";
+        std::string bedstring = "";
         for (const auto & tid_beg_end_e2e_tuple : tid_beg_end_e2e_tuple_vec) {
             bedstring += (std::get<0>(tid_to_tname_tseqlen_tuple_vec[std::get<0>(tid_beg_end_e2e_tuple)]) + "\t"
                   + std::to_string(std::get<1>(tid_beg_end_e2e_tuple)) + "\t"
@@ -1068,8 +1074,8 @@ main(int argc, char **argv) {
                   + std::to_string(std::get<4>(tid_beg_end_e2e_tuple)) + "\t" 
                   + "\n");
         }
-        LOG(logINFO) << bedstring;
-        
+        LOG(logINFO) << bedstring_header << bedstring;
+        if (bed_out.is_open()) { bed_out << bedstring; }
         const unsigned int allridx = 0;  
         const unsigned int incvalue = tid_beg_end_e2e_tuple_vec.size();
         
