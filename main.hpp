@@ -3316,7 +3316,7 @@ append_vcf_record(std::string & out_string,
         double t_base_q = MIN(tn_trawq, tn_tpowq + (double)indel_ic);
         
         // double a_no_alt_qual = nonalt_qual + MAX(0, MIN(nonalt_tu_q, t2n_powq)) - MIN(t2n_contam_q, t2n_syserr_q);
-        double a_no_alt_qual = MAX(nonalt_qual, nonalt_tu_q) - MIN(t2n_contam_q, t2n_syserr_q);
+        double a_no_alt_qual = MAX(nonalt_qual, nonalt_tu_q); // - MIN(t2n_contam_q, t2n_syserr_q);
         
         const int32_t a_nogerm_q = homref_gt_phred + (is_nonref_germline_excluded ? 
                 MIN(a_no_alt_qual, 
