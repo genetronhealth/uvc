@@ -1980,7 +1980,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         double con_bq_pass_prob = phred2prob(con_bq_pass_thres) * (1 - DBL_EPSILON); // < 1
                         assert (con_bq_pass_prob >= pow(10, (-(double)NUM_BUCKETS)/10) 
                                 || !fprintf(stderr, "%lf >= phred51 failed at position %lu and symbol %u!\n", con_bq_pass_prob, epos, con_symbol));
-                        double prior_weight = 1.0 / (minorcount * (LINK_SYMBOL == symbolType ? minorcount : 1.0) + 1.0);
+                        double prior_weight = 1.0 / (minorcount + 1.0);
                         double phredlike_db = h01_to_phredlike<true>(minorcount + prior_weight, majorcount + minorcount + prior_weight / con_bq_pass_prob, con_count, tot_count, 1.0, (ess_georatio_duped_pcr));
                         unsigned int phredlike = (unsigned int)MAX(0.0, phredlike_db);
                         if (BASE_N == con_symbol) { phredlike = MIN(phredlike, phred_thres); }
@@ -3298,8 +3298,13 @@ append_vcf_record(std::string & out_string,
             : calc_binom_10log10_likeratio(               (nAD1) /         nDP1,         (tAD1 / tDP1) * tDP0,                 (tDP1 - tAD1) / tDP1 * tDP0)); 
         const double t2n_rawq = (isInDel ? t2n_rawq0 : t2n_rawq1 / MAX(1.0, 0.5 + 0.5*tki.EROR[3]/100.0));
         
-        const double t2n_powq0 = MIN(MAX(-SYS_QMAX, 10.0/log(10.0) * (1.0+log(symfrac*symfrac)/10.0) * pl_exponent * log(t2n_or0 /symfrac)), SYS_QMAX);
-        const double t2n_powq1 = MIN(MAX(-SYS_QMAX, 10.0/log(10.0) * (1.0+log(symfrac*symfrac)/10.0) * pl_exponent * log(t2n_or1 /symfrac)), SYS_QMAX);
+        const double t2n_po0q0 = 10.0/log(10.0) * (1.0+log(symfrac*symfrac)/10.0) * pl_exponent * log(t2n_or0 /symfrac);
+        const double t2n_po0q1 = 10.0/log(10.0) * (1.0+log(symfrac*symfrac)/10.0) * pl_exponent * log(t2n_or1 /symfrac);
+        const double t2n_po2q0 = MIN(MAX(-SYS_QMAX, t2n_po0q0), SYS_QMAX + 10);
+        const double t2n_po2q1 = MIN(MAX(-SYS_QMAX, t2n_po0q1), SYS_QMAX + 10);
+        const double t2n_powq0 = MIN(MAX(-SYS_QMAX, t2n_po0q0), SYS_QMAX);
+        const double t2n_powq1 = MIN(MAX(-SYS_QMAX, t2n_po0q1), SYS_QMAX);
+         
         const double t2n_powq = (isInDel ? t2n_powq0 : t2n_powq1);
         const double t2t_powq = SYS_QMAX;
         
@@ -3313,7 +3318,7 @@ append_vcf_record(std::string & out_string,
                 (isSymbolSubstitution(symbol) ? ((SUM2(nfm.cAltBQ2) + DBL_MIN) / (double)(SUM2(nfm.cAllBQ2) + 2.0 * DBL_MIN)) : nfm.FA) * (double)nfm.DP,
                 (isSymbolSubstitution(symbol) ? ((    (tki.cAltBQ2) + DBL_MIN) / (double)(    (tki.cAllBQ2) + 2.0 * DBL_MIN)) : tki.FA) * (double)tki.DP), 200.0);
         double min_doubleDP = (double)MIN(nfm.DP, tki.DP);
-        double t2n_syserr_q = (isInDel ? 0.0 : MIN(MAX(0.0, MIN(tn_npowq, tn_nrawq)) * MIN(1.0, 4.0 / mathsquare(t2n_or1 + 1.0)), SYS_QMAX)); // 50.0
+        double t2n_syserr_q = (isInDel ? 0.0 : MIN(MAX(0.0, MIN3(tn_npowq, tn_nrawq, 45.0)) - 20.0 * mathsquare(MAX(0.0, t2n_or1 - 1.0)), 2.0*SYS_QMAX)); // 50.0
         
         //double n2t_red_qual = MIN(tn_npowq, tn_nrawq + (double)indel_ic) * MIN(1.0, n2t_or1) * MIN(1.0, n2t_or1); // / (t2n_or1 * t2n_or1);
         //double n2t_orr_qual = MIN(tn_npowq, tn_nrawq + (double)indel_ic) * MIN(1.0, n2t_or1);
@@ -3327,7 +3332,10 @@ append_vcf_record(std::string & out_string,
         double t_base_q = MIN(tn_trawq, tn_tpowq + (double)indel_ic);
         
         // double a_no_alt_qual = nonalt_qual + MAX(0, MIN(nonalt_tu_q, t2n_powq)) - MIN(t2n_contam_q, t2n_syserr_q);
-        double a_no_alt_qual = MAX(nonalt_qual, nonalt_tu_q) - MIN(t2n_contam_q, t2n_syserr_q) + MAX(0, MIN(SYS_QMAX, CENTER(t2n_rawq, t2n_powq)));
+        double a_no_alt_qual = MAX(nonalt_qual, nonalt_tu_q) 
+                - MIN(t2n_contam_q, t2n_syserr_q)
+                + MAX(0, CENTER(t2n_rawq, (isInDel ? t2n_po2q0 : t2n_po2q1) - 10)) // ad-hoc: the 10 is kind of arbitrary.
+                ;
         
         const int32_t a_nogerm_q = homref_gt_phred + (is_nonref_germline_excluded ? 
                 MIN(a_no_alt_qual, 
@@ -3377,8 +3385,8 @@ append_vcf_record(std::string & out_string,
                 std::to_string(excalt_qual), std::to_string(excalt_tu_q) 
         }));
         infostring += std::string(";TNQ=")  + string_join(std::array<std::string, 4>({
-                std::to_string(t2n_powq0), std::to_string(t2n_rawq0), 
-                std::to_string(t2n_powq1), std::to_string(t2n_rawq1)      
+                std::to_string(t2n_po0q0), std::to_string(t2n_rawq0), 
+                std::to_string(t2n_po0q1), std::to_string(t2n_rawq1)      
         }));
         infostring += std::string(";TNQA=") + string_join(std::array<std::string, 3>({
                 std::to_string(t2n_finq),
