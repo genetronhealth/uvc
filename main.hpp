@@ -1976,10 +1976,14 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         double con_bq_pass_prob = phred2prob(con_bq_pass_thres) * (1 - DBL_EPSILON); // < 1
                         assert (con_bq_pass_prob >= pow(10, (-(double)NUM_BUCKETS)/10) 
                                 || !fprintf(stderr, "%lf >= phred51 failed at position %lu and symbol %u!\n", con_bq_pass_prob, epos, con_symbol));
-                        unsigned int phredlike = (unsigned int)MAX(0, h01_to_phredlike<true>(minorcount + 1, majorcount + minorcount + (1.0 / con_bq_pass_prob), con_count, tot_count, 1.0, (ess_georatio_duped_pcr)));
+                        double prior_weight = 1.0 / (minorcount + 1.0);
+                        unsigned int phredlike = (unsigned int)MAX(0, h01_to_phredlike<true>(minorcount + prior_weight, majorcount + minorcount + prior_weight / con_bq_pass_prob, con_count, tot_count, 1.0, (ess_georatio_duped_pcr)));
                         if (BASE_N == con_symbol) { phredlike = MIN(phredlike, phred_thres); }
                         phredlike = MIN(phredlike, NUM_BUCKETS - SIGN2UNSIGN(1));
-                        if (LINK_SYMBOL == symbolType) { phredlike = MIN(phredlike, con_bq_pass_thres + 10); } // assuming 10 times more PCR cycles?
+                        if (LINK_SYMBOL == symbolType) { 
+                            unsigned int lim_phred = prob2phred((minorcount + prior_weight) / (majorcount + minorcount + prior_weight / con_bq_pass_prob)),
+                            phredlike = MIN(phredlike, lim_phred + 10); 
+                        } // assuming 10 times more PCR cycles?
                         // no base quality stuff
                         
                         con_symbols_vec[epos - read_family_amplicon.getIncluBegPosition()][symbolType] = con_symbol;
@@ -3317,7 +3321,7 @@ append_vcf_record(std::string & out_string,
         double t_base_q = MIN(tn_trawq, tn_tpowq + (double)indel_ic);
         
         // double a_no_alt_qual = nonalt_qual + MAX(0, MIN(nonalt_tu_q, t2n_powq)) - MIN(t2n_contam_q, t2n_syserr_q);
-        double a_no_alt_qual = MAX(nonalt_qual, nonalt_tu_q) - MIN(t2n_contam_q, t2n_syserr_q) + (MIN(SYS_QMAX, CENTER(t2n_rawq, t2n_powq)));
+        double a_no_alt_qual = MAX(nonalt_qual, nonalt_tu_q) - MIN(t2n_contam_q, t2n_syserr_q) + MAX(0, MIN(SYS_QMAX, CENTER(t2n_rawq, t2n_powq)));
         
         const int32_t a_nogerm_q = homref_gt_phred + (is_nonref_germline_excluded ? 
                 MIN(a_no_alt_qual, 
