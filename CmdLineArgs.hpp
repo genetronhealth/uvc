@@ -22,7 +22,7 @@ struct CommandLineArgs {
     bool is_tumor_format_retrieved = false;
     bool should_let_all_pass = false;
     bool disable_dup_read_merge = false;
-    bool  enable_dup_read_vqual = true;
+    bool  enable_dup_read_vqual = false;
     bool disable_duplex = false;
     unsigned int nogap_phred = 8; // obsolete, not used anymore
     AssayType assay_type = ASSAY_TYPE_AUTO;

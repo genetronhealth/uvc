@@ -1038,7 +1038,7 @@ public:
     updateByAln(const bam1_t *const b, unsigned int frag_indel_ext, 
             const std::array<unsigned int, NUM_SYMBOL_TYPES> & symbolType2addPhredArg, 
             unsigned int frag_indel_basemax, 
-            unsigned int nogap_phred, // this is obsolete
+            unsigned int nogap_phred, // this is obsolete and replace by frag_indel_basemax
             const auto & region_symbolvec, const unsigned int region_offset,
             std::array<GenericSymbol2CountCoverage<Symbol2Count>, 4> & bq_dirs_count,
             uint32_t primerlen = 0) {
@@ -1615,8 +1615,12 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                                         + std::to_string(allrest-allcurr) + "/" + std::to_string(allcurr) + "/" + std::to_string(altrest-altcurr) + "/" + std::to_string(altcurr)  + ")";
                                         // + std::to_string(altcurr) + "/" + std::to_string(altrest-altcurr) + "/" + std::to_string(allcurr) + "/" + std::to_string(allrest-allcurr)  + ")";
                             }
-
+                            
                             this->additional_note.getRefByPos(pos).at(symbol) += ")//";
+                            this->additional_note.getRefByPos(pos).at(symbol) += "ampDistr:"+std::to_string(this->dedup_ampDistr[strand].getByPos(pos).getSymbolCounts(symbol).size())+":";
+                            for (size_t k = 0; k < this->dedup_ampDistr[strand].getByPos(pos).getSymbolCounts(symbol).size(); k++) {
+                                this->additional_note.getRefByPos(pos).at(symbol) += std::to_string(this->dedup_ampDistr[strand].getByPos(pos).getSymbolCounts(symbol).at(k)) + ",";
+                            }
                         }
 
                         // compute strand bias
@@ -1976,14 +1980,16 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         double con_bq_pass_prob = phred2prob(con_bq_pass_thres) * (1 - DBL_EPSILON); // < 1
                         assert (con_bq_pass_prob >= pow(10, (-(double)NUM_BUCKETS)/10) 
                                 || !fprintf(stderr, "%lf >= phred51 failed at position %lu and symbol %u!\n", con_bq_pass_prob, epos, con_symbol));
-                        double prior_weight = 1.0 / (minorcount + 1.0);
-                        unsigned int phredlike = (unsigned int)MAX(0, h01_to_phredlike<true>(minorcount + prior_weight, majorcount + minorcount + prior_weight / con_bq_pass_prob, con_count, tot_count, 1.0, (ess_georatio_duped_pcr)));
+                        double prior_weight = 1.0 / (minorcount * (LINK_SYMBOL == symbolType ? minorcount : 1.0) + 1.0);
+                        double phredlike_db = h01_to_phredlike<true>(minorcount + prior_weight, majorcount + minorcount + prior_weight / con_bq_pass_prob, con_count, tot_count, 1.0, (ess_georatio_duped_pcr));
+                        unsigned int phredlike = (unsigned int)MAX(0.0, phredlike_db);
                         if (BASE_N == con_symbol) { phredlike = MIN(phredlike, phred_thres); }
                         phredlike = MIN(phredlike, NUM_BUCKETS - SIGN2UNSIGN(1));
                         if (LINK_SYMBOL == symbolType) { 
-                            unsigned int lim_phred = prob2phred((minorcount + prior_weight) / (majorcount + minorcount + prior_weight / con_bq_pass_prob)),
+                            unsigned int lim_phred = prob2phred((double)(minorcount + prior_weight) 
+                                    / (double)(majorcount + minorcount + prior_weight / con_bq_pass_prob));
                             phredlike = MIN(phredlike, lim_phred + 10); 
-                        } // assuming 10 times more PCR cycles?
+                        } // assuming 10 PCR cycles after UMI attachment and one PCR cycle before UMI attachment
                         // no base quality stuff
                         
                         con_symbols_vec[epos - read_family_amplicon.getIncluBegPosition()][symbolType] = con_symbol;
@@ -2887,7 +2893,7 @@ generate_vcf_header(const char *ref_fasta_fname,
 auto
 fmtFTSupdate(auto & maxval, std::string & ft, std::vector<unsigned int> & ftv, const char *fkey , const auto fthres, const auto fval) {
     maxval = MAX(maxval, fval);
-    if (fthres < fval) {
+    if ((unsigned int)fthres <= (unsigned int)fval) {
         ft  += (std::string(fkey) + "&"); // amperstand-separated list of filter strings
         ftv.push_back((unsigned int)fval);
     }
