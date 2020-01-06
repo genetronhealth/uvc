@@ -50,8 +50,8 @@ struct CommandLineArgs {
     uint32_t    phred_max_sscs_transition_CG_TA = 44; // Cytosine deamination into Uracil, especially in FFPE samples, also by UV light radiation, more upstream
     uint32_t    phred_max_sscs_transition_TA_CG = 48; // https://en.wikipedia.org/wiki/DNA_oxidation, DNA synthesis error, more downstream
     uint32_t    phred_max_sscs_transversion_any = 52;
-    uint32_t    phred_max_sscs_indel_open = 50; // 34;
-    uint32_t    phred_max_sscs_indel_ext  = 5; // 0;  // 5;
+    uint32_t    phred_max_sscs_indel_open = 60; // 34;
+    uint32_t    phred_max_sscs_indel_ext  = 0; // 5; // 0;  // 5;
     uint32_t    phred_max_dscs_all = 60;
     uint32_t    phred_pow_sscs_origin = 44-30;
     uint32_t    phred_pow_dscs_origin = 0;

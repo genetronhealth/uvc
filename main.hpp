@@ -1979,6 +1979,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         unsigned int phredlike = (unsigned int)MAX(0, h01_to_phredlike<true>(minorcount + 1, majorcount + minorcount + (1.0 / con_bq_pass_prob), con_count, tot_count, 1.0, (ess_georatio_duped_pcr)));
                         if (BASE_N == con_symbol) { phredlike = MIN(phredlike, phred_thres); }
                         phredlike = MIN(phredlike, NUM_BUCKETS - SIGN2UNSIGN(1));
+                        if (LINK_SYMBOL == symbolType) { phredlike = MIN(phredlike, con_bq_pass_thres + 10); } // assuming 10 times more PCR cycles?
                         // no base quality stuff
                         
                         con_symbols_vec[epos - read_family_amplicon.getIncluBegPosition()][symbolType] = con_symbol;
