@@ -3081,7 +3081,10 @@ append_vcf_record(std::string & out_string,
                 fmtFTSupdate(maxbias, fmtvar.FTS, fmtvar.FTSV, bcfrec::FILTER_IDS[bcfrec::SB1],    uni_bias_thres, hmean(fmt.bSBR[0], bDP1_0, fmt.bSBR[1], bDP1_1));
     auto sb2  = fmtFTSupdate(maxbias, fmtvar.FTS, fmtvar.FTSV, bcfrec::FILTER_IDS[bcfrec::SB2],    uni_bias_thres, hmean(fmt.cSBR[0], cDP1_0, fmt.cSBR[1], cDP1_1));
                 fmtFTSupdate(maxbias, fmtvar.FTS, fmtvar.FTSV, bcfrec::FILTER_IDS[bcfrec::QTD1],   uni_bias_thres, ceil(100*(MAX(fmt.bQT3[0], fmt.bQT3[1]) / (FLT_MIN+(double)MAX(fmt.bQT2[0], fmt.bQT2[1])))));
+    // InDel base quality is only correctly computed for InDel ALT and not for non-InDel REF. Thus, the QTD2 bias is not applicable to InDels. TODO: fix this more upstream if possible.
+    if (!isInDel) {
                 fmtFTSupdate(maxbias, fmtvar.FTS, fmtvar.FTSV, bcfrec::FILTER_IDS[bcfrec::QTD2],   uni_bias_thres, ceil(100*(MAX(fmt.cQT3[0], fmt.cQT3[1]) / (FLT_MIN+(double)MAX(fmt.cQT2[0], fmt.cQT2[1])))));
+    }
                 fmtFTSupdate(maxbias, fmtvar.FTS, fmtvar.FTSV, bcfrec::FILTER_IDS[bcfrec::DBthis], uni_bias_thres, ceil(100*(     fmt.cFA  / (    fmt.bFA + FLT_MIN))));
     if ((fmt.cFA < 0.8 || fmt.bFA < 0.8)) {
         fmtFTSupdate(
