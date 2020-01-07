@@ -3265,8 +3265,8 @@ append_vcf_record(std::string & out_string,
                 _tn_tra2q *= ((double)tAD0a + (double)indelstring.size()/8.0) / ((double)tAD0 + (double)indelstring.size()/8.0); // ad-hoc adjustment
             }
         }
-        const double tn_tpowq = MAX(_tn_tpo2q, tn_tpo1q/10.0 + 3.0); 
-        const double tn_trawq = _tn_tra2q;
+        const double tn_tpowq = _tn_tpo2q; 
+        const double tn_trawq = MAX(_tn_tpo2q/10.0 + 3.0, _tn_tra2q);
         // intuition for the pol1q/10 formula: variant candidate with higher baseline-noise frequency is simply more likely to be a true mutation too
         // assuming that in-vivo biological error and in-vitro technical error are positively correlated with each other. 
         
@@ -3394,10 +3394,10 @@ append_vcf_record(std::string & out_string,
         for (int i = 0; i < MIN(MODEL_SEP_1, N_MODELS); i++) {
             //infostring += std::string(";TQ") + std::to_string(i) + "=" + std::to_string(testquals[i]); 
         }
-        infostring += std::string(";SomaticQ=")  + std::to_string((int)testquals[0]);
-        infostring += std::string(";TLODQ=")  + std::to_string((int)tlodq);
-        infostring += std::string(";NLODQ=")  + std::to_string((int)a_nogerm_q);
-         
+        infostring += std::string(";SomaticQ=")  + std::to_string((int)(10.0*testquals[0]));
+        infostring += std::string(";TLODQ=")  + std::to_string((int)(10.0*tlodq));
+        infostring += std::string(";NLODQ=")  + std::to_string((int)(10.0*a_nogerm_q));
+        
         infostring += std::string(";NGQ=") + string_join(std::array<std::string, 4>({
                 std::to_string(nonalt_qual), std::to_string(nonalt_tu_q),
                 std::to_string(excalt_qual), std::to_string(excalt_tu_q) 
@@ -3416,12 +3416,12 @@ append_vcf_record(std::string & out_string,
                 std::to_string(n2t_or0),     std::to_string(n2t_or1)
         }));
         infostring += std::string(";TNTQ=") + string_join(std::array<std::string, 5+1>({
-                std::to_string(tn_tpowq)  , std::to_string(tn_trawq),
+                std::to_string(tn_tpowq)  , std::to_string(_tn_tra2q),
                 std::to_string(tn_tpo1q)  , std::to_string(tn_tra1q), std::to_string(tn_tsamq), 
                 std::to_string((int)t_indel_penal)
         }));
         infostring += std::string(";TNNQ=") + string_join(std::array<std::string, 5>({
-                std::to_string(tn_npowq)  , std::to_string(tn_nrawq),
+                std::to_string(tn_npowq)  , std::to_string(_tn_nra2q),
                 std::to_string(tn_npo1q)   , std::to_string(tn_nra1q), std::to_string(tn_nsamq)
         }));
         infostring += std::string(";tDP=") + std::to_string(tki.DP);
