@@ -3203,8 +3203,9 @@ append_vcf_record(std::string & out_string,
         
         // https://www.researchgate.net/figure/Distribution-of-the-Variant-Allele-Fraction-VAF-of-somatic-mutations-in-one-sample-of_fig7_278912701
         // https://onlinelibrary.wiley.com/doi/full/10.1002/humu.23674
-        int32_t nonalt_tu_q = MAX(-6 - (int)(MAX(tki.GLa[1], tki.GLa[2])), 0);
-        int32_t excalt_tu_q = MAX(-6 - (int)(MAX(tki.GLb[1], tki.GLb[2])), 0);
+        const int uniform_prior_like = -6;
+        int32_t nonalt_tu_q = MAX(uniform_prior_like - (int)(MAX(tki.GLa[1], tki.GLa[2])), 0);
+        int32_t excalt_tu_q = MAX(uniform_prior_like - (int)(MAX(tki.GLb[1], tki.GLb[2])), 0);
         
         const double tE0 = 1.0;
         const double nE0 = 1.0;
@@ -3328,8 +3329,13 @@ append_vcf_record(std::string & out_string,
                 (isSymbolSubstitution(symbol) ? ((SUM2(nfm.cAltBQ2) + DBL_MIN) / (double)(SUM2(nfm.cAllBQ2) + 2.0 * DBL_MIN)) : nfm.FA) * (double)nfm.DP,
                 (isSymbolSubstitution(symbol) ? ((    (tki.cAltBQ2) + DBL_MIN) / (double)(    (tki.cAllBQ2) + 2.0 * DBL_MIN)) : tki.FA) * (double)tki.DP), 200.0);
         double min_doubleDP = (double)MIN(nfm.DP, tki.DP);
+        
+        // The following line works well in practice but has no theory supporting it yet.
+        // double t2n_syserr_q = (isInDel ? 0.0 : MIN(MAX(0.0, MIN(tn_npowq, tn_nrawq)) * MIN(1.0, 4.0 / mathsquare(t2n_or1 + 1.0)), SYS_QMAX)); // 50.0
         // double t2n_syserr_q = (isInDel ? 0.0 : MIN(MAX(0.0, MIN3(tn_npowq, tn_nrawq, 45.0) - 20.0 * mathsquare(MAX(0.0, t2n_or1 - 1.0))), 2.0*SYS_QMAX)); // 50.0
-        double t2n_syserr_q0 = MIN3(tn_npowq, tn_nrawq, 45.0) - 20.0 * mathsquare(MAX(0.0, t2n_or1 - 1.0));
+        double t2n_syserr_q0 = MIN3(tn_npowq, tn_nrawq, 
+            25.0 // - (double)uniform_prior_like) 
+            - 10.0 * mathsquare(MAX(0.0, t2n_or1 - 1.0)));
         double t2n_syserr_q = (isInDel ? 0.0 : MAX(0.0, t2n_syserr_q0));
         //double n2t_red_qual = MIN(tn_npowq, tn_nrawq + (double)indel_ic) * MIN(1.0, n2t_or1) * MIN(1.0, n2t_or1); // / (t2n_or1 * t2n_or1);
         //double n2t_orr_qual = MIN(tn_npowq, tn_nrawq + (double)indel_ic) * MIN(1.0, n2t_or1);
