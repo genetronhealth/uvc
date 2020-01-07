@@ -1988,8 +1988,8 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         if (LINK_SYMBOL == symbolType) { 
                             unsigned int lim_phred = prob2phred((double)(minorcount + prior_weight) 
                                     / (double)(majorcount + minorcount + prior_weight / con_bq_pass_prob));
-                            phredlike = MIN(phredlike, lim_phred + 10); 
-                        } // assuming 10 PCR cycles after UMI attachment and one PCR cycle before UMI attachment
+                            phredlike = MIN(phredlike, lim_phred + 17); 
+                        } // assuming 50 PCR cycles after UMI attachment and one PCR cycle before UMI attachment
                         // no base quality stuff
                         
                         con_symbols_vec[epos - read_family_amplicon.getIncluBegPosition()][symbolType] = con_symbol;
@@ -2849,6 +2849,7 @@ generate_vcf_header(const char *ref_fasta_fname,
     ret += "##INFO=<ID=SomaticQ,Number=1,Type=Integer,Description=\"Somatic quality of the variant, the PHRED-scale probability that this variant is not somatic.\">\n";
     ret += "##INFO=<ID=TLODQ,Number=1,Type=Integer,Description=\"Tumor log-of-data-likelihood quality, the PHRED-scale probability that this variant is not of biological origin (i.e., artifactual).\">\n";
     ret += "##INFO=<ID=NLODQ,Number=1,Type=Integer,Description=\"Normal log-of-data-likelihood quality, the PHRED-scale probability that this variant is of germline origin.\">\n";
+    ret += "##INFO=<ID=TLODQ1,Number=1,Type=Integer,Description=\"Tumor log-of-data-likelihood quality, the PHRED-scale probability that this variant is not of biological origin (i.e., artifactual).\">\n";
     ret += "##INFO=<ID=NGQ,Number=.,Type=Float,Description=\"Non-germline qualities: normal-alt, tumor-alt, normal-nonref, tumor-nonref\">\n";
     ret += "##INFO=<ID=TNQ,Number=.,Type=Float,Description=\"For t-vs-n: allele-fraction variant quality (VQ), raw VQ, contamination VQ, and statistical noise VQ\">\n";
     ret += "##INFO=<ID=TNQA,Number=.,Type=Float,Description=\"Tumor baseline quality, tumor contamination quality, and tumor systematic-error quality.\">\n";
@@ -3331,11 +3332,13 @@ append_vcf_record(std::string & out_string,
         double min_doubleDP = (double)MIN(nfm.DP, tki.DP);
         
         // The following line works well in practice but has no theory supporting it yet.
-        // double t2n_syserr_q = (isInDel ? 0.0 : MIN(MAX(0.0, MIN(tn_npowq, tn_nrawq)) * MIN(1.0, 4.0 / mathsquare(t2n_or1 + 1.0)), SYS_QMAX)); // 50.0
+        double t2n_syserr_q0 = (isInDel ? 0.0 : MIN(MAX(0.0, MIN(tn_npowq, tn_nrawq)) * MIN(1.0, 4.0 / mathsquare(t2n_or1 + 1.0)), SYS_QMAX)); // 50.0
         // double t2n_syserr_q = (isInDel ? 0.0 : MIN(MAX(0.0, MIN3(tn_npowq, tn_nrawq, 45.0) - 20.0 * mathsquare(MAX(0.0, t2n_or1 - 1.0))), 2.0*SYS_QMAX)); // 50.0
+        /*
         double t2n_syserr_q0 = MIN3(tn_npowq, tn_nrawq, 
             25.0 // - (double)uniform_prior_like) 
             - 10.0 * mathsquare(MAX(0.0, t2n_or1 - 1.0)));
+        */
         double t2n_syserr_q = (isInDel ? 0.0 : MAX(0.0, t2n_syserr_q0));
         //double n2t_red_qual = MIN(tn_npowq, tn_nrawq + (double)indel_ic) * MIN(1.0, n2t_or1) * MIN(1.0, n2t_or1); // / (t2n_or1 * t2n_or1);
         //double n2t_orr_qual = MIN(tn_npowq, tn_nrawq + (double)indel_ic) * MIN(1.0, n2t_or1);
@@ -3397,6 +3400,8 @@ append_vcf_record(std::string & out_string,
         infostring += std::string(";SomaticQ=")  + std::to_string((int)(10.0*testquals[0]));
         infostring += std::string(";TLODQ=")  + std::to_string((int)(10.0*tlodq));
         infostring += std::string(";NLODQ=")  + std::to_string((int)(10.0*a_nogerm_q));
+        unsigned int tlodq1 = (maxbias < uni_bias_thres ? tlodq : tlodq - 40*10);
+        infostring += std::string(";TLODQ1=")  + std::to_string((int)(tlodq1));
         
         infostring += std::string(";NGQ=") + string_join(std::array<std::string, 4>({
                 std::to_string(nonalt_qual), std::to_string(nonalt_tu_q),
