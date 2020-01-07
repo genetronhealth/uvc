@@ -3111,8 +3111,7 @@ append_vcf_record(std::string & out_string,
     
     std::string ref_alt;
     std::string infostring = (prev_is_tumor ? "SOMATIC" : "ANY_VAR");
-    const double pl_exponent = PLEXP;
-
+    
     auto ref_bias = fmt.RefBias;
     const double altmul = (double)(central_readlen - MIN(120, ref_bias)) / (double)central_readlen;
     const double refmul = 2.0 - altmul;
@@ -3224,6 +3223,9 @@ append_vcf_record(std::string & out_string,
         const double nAD1pc0 = 0.5 * tnE1;
         const double nDP1pc0 = 0.5 * tnE1 / tnFA1;
         
+        const double pl_exponent = PLEXP;
+        const double pl_exponent_t = PLEXP; // ((isInDel && tUseHD) ? : (PLEXP - 1) : PLEXP);
+        const double pl_exponent_n = PLEXP; // ((isInDel && nUseHD) ? : (PLEXP - 1) : PLEXP);
         // This is the penalty induced by EROR bias. 
         // So far I do not have enough data to verify this power-law. 
         // Also, the theory to support this power-law is rather unclear.
@@ -3245,8 +3247,8 @@ append_vcf_record(std::string & out_string,
         double t_indel_penal = 0.0;
         const double pcap_tbq = ((isInDel || is_proton) ? 200.0 : mathsquare(tki.BQ) / 12.0); // based on heuristics
         const double pcap_tmq = MIN(60.0, tki.MQ) * 4.0/3.0; // bases on heuristics
-        const double pcap_tmq2 = (tki.MQ - 10.0/log(10.0) * log((double)(tDP0 + tDP0pc0) / (double)(tAD0+tAD0pc0))) * (double)tAD0; // readjustment by MQ
-        const double tn_tpo1q = 10.0 / log(10.0) * log((double)(tAD0 / altmul + tE0) / ((tDP0 - tAD0) / refmul + tAD0 / altmul + 2.0 * tE0)) * (pl_exponent) + (pcap_tmax);
+        const double pcap_tmq2 = MAX(0.0, tki.MQ - 10.0/log(10.0) * log((double)(tDP0 + tDP0pc0) / (double)(tAD0+tAD0pc0))) * (double)tAD0; // readjustment by MQ
+        const double tn_tpo1q = 10.0 / log(10.0) * log((double)(tAD0 / altmul + tE0) / ((tDP0 - tAD0) / refmul + tAD0 / altmul + 2.0 * tE0)) * (pl_exponent_t) + (pcap_tmax);
         const double tn_tsamq = 40.0 * pow(0.5, (double)tAD0);
         const double tn_tra1q = (double)tki.VAQ;
         double _tn_tpo2q = MIN4(tn_tpo1q, pcap_tmq, pcap_tbq, pcap_tmq2);
@@ -3259,15 +3261,17 @@ append_vcf_record(std::string & out_string,
                 _tn_tra2q *= ((double)tAD0a + (double)indelstring.size()/8.0) / ((double)tAD0 + (double)indelstring.size()/8.0); // ad-hoc adjustment
             }
         }
-        const double tn_tpowq = _tn_tpo2q;
+        const double tn_tpowq = MAX(_tn_tpo2q, tn_tpo1q/10.0 + 3.0); 
         const double tn_trawq = _tn_tra2q;
-
+        // intuition for the pol1q/10 formula: variant candidate with higher baseline-noise frequency is simply more likely to be a true mutation too
+        // assuming that in-vivo biological error and in-vitro technical error are positively correlated with each other. 
+        
         // QUESTION: why BQ-bias generations are discrete? Because of the noise with each observation of BQ? why indel generations are discrete?
         
         const double pcap_nbq = ((isInDel || is_proton) ? 200.0 : mathsquare(nfm.BQ) / 12.0); // based on heuristics
         const double pcap_nmq = MIN(60.0, nfm.MQ) * 4.0/3.0; // based on heuristics
         const double pcap_nmq2 = (nfm.MQ - 10.0/log(10.0) * log((double)(nDP0 + nDP0pc0) / (double)(nAD0+nAD0pc0))) * (double)nAD0; // readjsutment by MQ
-        const double tn_npo1q = 10.0 / log(10.0) * log((double)(nAD0 / altmul + nE0) / ((nDP0 - tAD0) / refmul + tAD0 / altmul + 2.0 * nE0)) * (pl_exponent) + (pcap_nmax);
+        const double tn_npo1q = 10.0 / log(10.0) * log((double)(nAD0 / altmul + nE0) / ((nDP0 - tAD0) / refmul + tAD0 / altmul + 2.0 * nE0)) * (pl_exponent_n) + (pcap_nmax);
         const double tn_nsamq = 40.0 * pow(0.5, (double)nAD0);
         const double tn_nra1q = (double)nfm.VAQ;
         double _tn_npo2q = MIN4(tn_npo1q, pcap_nmq, pcap_nbq, pcap_nmq2);
