@@ -3199,8 +3199,10 @@ append_vcf_record(std::string & out_string,
         int32_t nonalt_qual = nfm.GLa[0] - MAX(nfm.GLa[1], nfm.GLa[2]); // indel_pq ?
         int32_t excalt_qual = nfm.GLb[0] - MAX(nfm.GLb[1], nfm.GLb[2]); // indel_pq; ?
         
-        int32_t nonalt_tu_q = MAX(-3 - (int)(MAX(tki.GLa[1], tki.GLa[2]) * (pl_exponent - 1) / pl_exponent), 0);
-        int32_t excalt_tu_q = MAX(-3 - (int)(MAX(tki.GLb[1], tki.GLb[2]) * (pl_exponent - 1) / pl_exponent), 0);
+        // https://www.researchgate.net/figure/Distribution-of-the-Variant-Allele-Fraction-VAF-of-somatic-mutations-in-one-sample-of_fig7_278912701
+        // https://onlinelibrary.wiley.com/doi/full/10.1002/humu.23674
+        int32_t nonalt_tu_q = MAX(-6 - (int)(MAX(tki.GLa[1], tki.GLa[2])), 0);
+        int32_t excalt_tu_q = MAX(-6 - (int)(MAX(tki.GLb[1], tki.GLb[2])), 0);
         
         const double tE0 = 1.0;
         const double nE0 = 1.0;
@@ -3334,7 +3336,7 @@ append_vcf_record(std::string & out_string,
         double t_base_q = MIN(tn_trawq, tn_tpowq + (double)indel_ic);
         
         // double a_no_alt_qual = nonalt_qual + MAX(0, MIN(nonalt_tu_q, t2n_powq)) - MIN(t2n_contam_q, t2n_syserr_q);
-        double a_no_alt_qual = MAX(nonalt_qual, nonalt_tu_q) 
+        double a_no_alt_qual = add01_between_min01_max01(nonalt_qual, nonalt_tu_q)
                 - MIN(t2n_contam_q, t2n_syserr_q)
                 + MAX(0, CENTER(t2n_rawq, (isInDel ? t2n_po2q0 : t2n_po2q1) - 10)) // ad-hoc: the 10 is kind of arbitrary.
                 ;
@@ -3342,7 +3344,7 @@ append_vcf_record(std::string & out_string,
         const int32_t a_nogerm_q = homref_gt_phred + (is_nonref_germline_excluded ? 
                 MIN(a_no_alt_qual, 
                     // noisy_germ_phred + excalt_qual + MAX(0, excalt_tu_q)) 
-                    noisy_germ_phred + MAX(excalt_qual, excalt_tu_q))
+                    noisy_germ_phred + add01_between_min01_max01(excalt_qual, excalt_tu_q))
                     : a_no_alt_qual);
         double tlodq =  t_base_q + t2n_finq - MIN(t2n_contam_q, t2n_syserr_q);
         testquals[tqi++] = MIN(tlodq, (double)a_nogerm_q); // - 5.0;

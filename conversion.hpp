@@ -75,6 +75,15 @@ MAX6(auto a, auto b, auto c, auto d, auto e, auto f) {
     return MAX(a, MAX5(b, c, d, e, f));
 }
 
+auto
+BETWEEN(auto v, auto a, auto b) {
+    return MIN(MAX(a, v), b);
+}
+
+auto add01_between_min01_max01(auto a, auto b) {
+    return BETWEEN(MIN(a, b), a + b, MAX(a ,b));
+}
+
 void 
 UPDATE_MIN(auto & a, const auto & b) {
     a = MIN(a, b);
