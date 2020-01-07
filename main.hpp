@@ -3003,7 +3003,8 @@ append_vcf_record(std::string & out_string,
         const unsigned int phred_max_sscs,
         const unsigned int phred_max_dscs,
         const unsigned int phred_pow_sscs_origin,
-        const unsigned int phred_pow_dscs_origin  
+        const unsigned int phred_pow_dscs_origin,
+        const unsigned int vad_thres
         ) {
     
     const bcfrec::BcfFormat & fmt = fmtvar; 
@@ -3318,8 +3319,9 @@ append_vcf_record(std::string & out_string,
                 (isSymbolSubstitution(symbol) ? ((SUM2(nfm.cAltBQ2) + DBL_MIN) / (double)(SUM2(nfm.cAllBQ2) + 2.0 * DBL_MIN)) : nfm.FA) * (double)nfm.DP,
                 (isSymbolSubstitution(symbol) ? ((    (tki.cAltBQ2) + DBL_MIN) / (double)(    (tki.cAllBQ2) + 2.0 * DBL_MIN)) : tki.FA) * (double)tki.DP), 200.0);
         double min_doubleDP = (double)MIN(nfm.DP, tki.DP);
-        double t2n_syserr_q = (isInDel ? 0.0 : MIN(MAX(0.0, MIN3(tn_npowq, tn_nrawq, 45.0)) - 20.0 * mathsquare(MAX(0.0, t2n_or1 - 1.0)), 2.0*SYS_QMAX)); // 50.0
-        
+        // double t2n_syserr_q = (isInDel ? 0.0 : MIN(MAX(0.0, MIN3(tn_npowq, tn_nrawq, 45.0) - 20.0 * mathsquare(MAX(0.0, t2n_or1 - 1.0))), 2.0*SYS_QMAX)); // 50.0
+        double t2n_syserr_q0 = MIN3(tn_npowq, tn_nrawq, 45.0) - 20.0 * mathsquare(MAX(0.0, t2n_or1 - 1.0));
+        double t2n_syserr_q = (isInDel ? 0.0 : MAX(0.0, t2n_syserr_q0));
         //double n2t_red_qual = MIN(tn_npowq, tn_nrawq + (double)indel_ic) * MIN(1.0, n2t_or1) * MIN(1.0, n2t_or1); // / (t2n_or1 * t2n_or1);
         //double n2t_orr_qual = MIN(tn_npowq, tn_nrawq + (double)indel_ic) * MIN(1.0, n2t_or1);
         //double n2t_or2_qual = MIN(tn_npowq, tn_nrawq + (double)indel_ic) * MIN(1.0, n2t_or1/2.0);
@@ -3368,7 +3370,8 @@ append_vcf_record(std::string & out_string,
             vc_stats.vcfqual_to_count[median_intq].noAD += nAD0;
             
             vcfqual = calc_upper_bounded(calc_non_negative(vcfqual));
-            if ((vcfqual < vcfqual_thres || is_novar) && (!should_output_all) && (!should_let_all_pass)) {
+            bool keep_var = ((vcfqual >= vcfqual_thres || (tki.DP * tki.FA) >= vad_thres) && !is_novar); 
+            if ((!keep_var) && (!should_output_all) && (!should_let_all_pass)) {
                 return -2;
             }
         }
@@ -3391,7 +3394,7 @@ append_vcf_record(std::string & out_string,
         infostring += std::string(";TNQA=") + string_join(std::array<std::string, 3>({
                 std::to_string(t2n_finq),
                 std::to_string(t2n_contam_q),
-                std::to_string(t2n_syserr_q),
+                std::to_string(t2n_syserr_q0),
         }));
         infostring += std::string(";TNOR=") + string_join(std::array<std::string, 2+2>({
                 std::to_string(t2n_or0),     std::to_string(t2n_or1),
@@ -3450,7 +3453,9 @@ append_vcf_record(std::string & out_string,
     if (0 < vcffilter.size() && ';' == vcffilter[vcffilter.size()-1]) {
         vcffilter.pop_back();
     }
-    if ((!is_novar && vcfqual >= vcfqual_thres) || should_let_all_pass) {
+    
+    bool keep_var = ((vcfqual >= vcfqual_thres || (tki.DP * tki.FA) >= vad_thres) && !is_novar); 
+    if (keep_var || should_let_all_pass) {
         out_string_pass += 
                 std::string(tname) + "\t" + std::to_string(vcfpos) + "\t.\t" + ref_alt + "\t" 
                 + std::to_string(vcfqual) + "\t" + vcffilter + "\t" + infostring + "\t" + bcfrec::FORMAT_STR_PER_REC + "\t";

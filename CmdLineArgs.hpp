@@ -57,6 +57,7 @@ struct CommandLineArgs {
     uint32_t    phred_pow_dscs_origin = 0;
     
     double      vqual = (double)15; // 10; set to 20 for less output
+    uint32_t    vad = 20; 
     //std::string platform = "auto";
     uint32_t    minABQ_pcr_snv = 0;
     uint32_t    minABQ_pcr_indel = 0;

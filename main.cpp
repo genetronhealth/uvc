@@ -869,7 +869,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                                 phred_max_sscs,
                                 paramset.phred_max_dscs_all,
                                 paramset.phred_pow_sscs_origin,
-                                paramset.phred_pow_dscs_origin
+                                paramset.phred_pow_dscs_origin,
+                                paramset.vad
                                 );
                     }
                 }
