@@ -2602,10 +2602,13 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
                              (double)(tki.cAltBQ2) / (         (double)(tki.cAllBQ2) + DBL_MIN)));
                 double tkiFR = ((!isSymbolSubstitution(symbol)) ? tki.FR : (
                              (double)(tki.cRefBQ2) / (         (double)(tki.cAllBQ2) + DBL_MIN)));
-                homref_likecon1 = -(int)calc_binom_10log10_likeratio(t2n_add_contam_transfrac, fmtFA * fmt.DP, tkiFA * tki.DP);
-                homalt_likecon1 = -(int)calc_binom_10log10_likeratio(t2n_add_contam_transfrac, fmtFR * fmt.DP, tkiFR * tki.DP);
-                t2n_conref_rate += (tkiFR * 0.02 + tkiFR * 0.02 * MIN(5.0, tki.DP / (double)(fmt.DP + DBL_MIN)));
-                t2n_conalt_rate += (tkiFA * 0.02 + tkiFA * 0.02 * MIN(5.0, tki.DP / (double)(fmt.DP + DBL_MIN)));
+                const double tki_fa1 = MAX(0.0, ((0 == t) ? (tkiFA) : (1.0 - tkiFA - tkiFR)));
+                const double tki_fa_l = (tki_fa1 * (double)tki.DP + 1.0 / altmul) / (double)(tki.DP + 2.0 / altmul);
+                const double tki_fr_l = 1.0 - tki_fa_l;
+                homref_likecon1 = -(int)calc_binom_10log10_likeratio(t2n_add_contam_transfrac, fa_l * fmt.DP, tki_fa_l * tki.DP);
+                homalt_likecon1 = -(int)calc_binom_10log10_likeratio(t2n_add_contam_transfrac, fr_l * fmt.DP, tki_fr_l * tki.DP);
+                t2n_conref_rate += (tki_fr_l * 0.02 + tki_fr_l * 0.02 * MIN(5.0, tki.DP / (double)(fmt.DP + DBL_MIN)));
+                t2n_conalt_rate += (tki_fa_l * 0.02 + tki_fa_l * 0.02 * MIN(5.0, tki.DP / (double)(fmt.DP + DBL_MIN)));
             }
             
             // two models (additive and multiplicative)
