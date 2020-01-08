@@ -623,16 +623,11 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
     fill_strand_umi_readset_with_strand_to_umi_to_reads(umi_strand_readset, umi_to_strand_to_reads);
     
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts constructing symbolToCountCoverageSet12 with " << extended_inclu_beg_pos << (" , ") << extended_exclu_end_pos; }
-    //std::array<Symbol2CountCoverageSet, 2> symbolToCountCoverageSet12 = {
-    //    Symbol2CountCoverageSet(tid, extended_inclu_beg_pos, extended_exclu_end_pos),
-    //    Symbol2CountCoverageSet(tid, extended_inclu_beg_pos, extended_exclu_end_pos)
-    //};
-    // + 1 accounts for insertion at the end of the region, this should happen RARELY (like 1e-20 chance)
+    // + 1 accounts for insertion at the end of the region, this should happen rarely for only re-aligned reads at around once per one billion base pairs
     Symbol2CountCoverageSet symbolToCountCoverageSet12(tid, extended_inclu_beg_pos, extended_exclu_end_pos + 1); 
     if (is_loginfo_enabled) { LOG(logINFO)<< "Thread " << thread_id << " starts updateByRegion3Aln with " << umi_strand_readset.size() << " families"; }
     std::string refstring = load_refstring(ref_faidx, tid, extended_inclu_beg_pos, extended_exclu_end_pos);
     std::vector<std::tuple<unsigned int, unsigned int, unsigned int>> adjcount_x_rpos_x_misma_vec;
-    // unsigned int maxvalue;
     std::map<std::basic_string<std::pair<unsigned int, AlignmentSymbol>>, std::array<unsigned int, 2>> mutform2count4map_bq;
     std::map<std::basic_string<std::pair<unsigned int, AlignmentSymbol>>, std::array<unsigned int, 2>> mutform2count4map_fq;
     const PhredMutationTable sscs_mut_table(
@@ -642,22 +637,30 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                 paramset.phred_max_sscs_indel_open,
                 paramset.phred_max_sscs_indel_ext);
     symbolToCountCoverageSet12.updateByRegion3Aln(
-            mutform2count4map_bq, mutform2count4map_fq,
-            // adjcount_x_rpos_x_misma_vec, // maxvalue, 
-            umi_strand_readset, refstring, 
-            paramset.bq_phred_added_misma, paramset.bq_phred_added_indel, paramset.should_add_note, 
-            paramset.phred_max_frag_indel_ext, paramset.phred_max_frag_indel_basemax,  
+            mutform2count4map_bq, 
+            mutform2count4map_fq,
+            umi_strand_readset, 
+            refstring, 
+            paramset.bq_phred_added_misma, 
+            paramset.bq_phred_added_indel, 
+            paramset.should_add_note, 
+            paramset.phred_max_frag_indel_ext, 
+            paramset.phred_max_frag_indel_basemax, 
             sscs_mut_table,
-            // paramset.phred_max_dscs, 
-            minABQ_snv, // minABQ_indel,
-            // ErrorCorrectionType(paramset.seq_data_type),
-            (is_by_capture ? paramset.ess_georatio_dedup_cap : paramset.ess_georatio_dedup_pcr), paramset.ess_georatio_duped_pcr,
+            minABQ_snv,
+            (is_by_capture ? paramset.ess_georatio_dedup_cap : paramset.ess_georatio_dedup_pcr), 
+            paramset.ess_georatio_duped_pcr,
             !paramset.disable_dup_read_merge, 
-            is_loginfo_enabled, thread_id, paramset.fixedthresBQ, paramset.nogap_phred
-            , paramset.highqual_thres_snv, paramset.highqual_thres_indel, paramset.uni_bias_r_max
-            , SEQUENCING_PLATFORM_IONTORRENT == paramset.sequencing_platform
-            , inferred_assay_type 
-            // , paramset.t2n_sys_err_frac
+            is_loginfo_enabled, 
+            thread_id, 
+            paramset.fixedthresBQ, 
+            paramset.nogap_phred,
+            paramset.highqual_thres_snv, 
+            paramset.highqual_thres_indel, 
+            paramset.uni_bias_r_max,
+            SEQUENCING_PLATFORM_IONTORRENT == paramset.sequencing_platform,
+            inferred_assay_type,
+            paramset.phred_frac_indel_error_before_barcode_labeling,
             );
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts analyzing phasing info"; }
     auto mutform2count4vec_bq = map2vector(mutform2count4map_bq);
@@ -665,20 +668,6 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
     auto mutform2count4vec_fq = map2vector(mutform2count4map_fq);
     auto simplemut2indices_fq = mutform2count4vec_to_simplemut2indices(mutform2count4vec_fq);
     
-    /*
-    std::map<unsigned int, std::set<size_t>> simplemut2indices;
-    for (size_t i = 0; i < mutform2count4vec_bq.size(); i++) {
-        for (auto mutform : mutform2count4vec_bq[i].first) {
-            for (auto pos_symb : mutform) {
-                unsigned int pos = pos_symb.first;
-                if (pos_symb.second > 1) {
-                    simplemut2indices.insert(std::make_pair(pos, std::set<size_t>()));
-                    simplemut2indices[pos].insert(i);
-                }
-            }
-        }
-    }
-    */
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id  << " starts generating block gzipped vcf"; }
     
     std::string buf_out_string;
@@ -698,7 +687,6 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
     unsigned int prevPosition = rpos_inclu_beg;
     SymbolType prevSymbolType = NUM_SYMBOL_TYPES;
     for (unsigned int refpos = rpos_inclu_beg; refpos <= rpos_exclu_end; refpos++) {        
-        // while (tki_it != tki_end && std::get<1>(*tki_it) < refpos) { tki_it++; }
         std::string repeatunit;
         unsigned int repeatnum = 0;
         indelpos_to_context(repeatunit, repeatnum, refstring, refpos - extended_inclu_beg_pos); 
@@ -724,9 +712,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                     const bool is_rescued = (
                             extended_posidx_to_is_rescued[refpos - extended_inclu_beg_pos] &&
                             (tid_pos_symb_to_tki.end() != tki_it)); 
-                            //(extended_posidx_to_symbol_to_tkinfo[refpos-extended_inclu_beg_pos][symbol].DP > 0); 
                     unsigned int phred_max_sscs = sscs_mut_table.toPhredErrRate(refsymbol, symbol);
-                    // int altdepth = 
                     TumorKeyInfo tki;
                     if (is_rescued) {
                         tki = tki_it->second; 
@@ -820,13 +806,10 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
             if (rpos_exclu_end != refpos && bDPcDP[0] >= paramset.min_depth_thres) {
                 for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; symbol = AlignmentSymbol(1+(unsigned int)symbol)) {
                     auto & fmt = fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]];
-                    const bool pass_thres = ((fmt.bAD1[0] + fmt.bAD1[1]) >= paramset.min_altdp_thres); //  (paramset.min_alt  );
+                    const bool pass_thres = ((fmt.bAD1[0] + fmt.bAD1[1]) >= paramset.min_altdp_thres);
                     const bool is_rescued = (
-                            //(tki_it != tki_end) 
-                            //&& (std::get<1>(*tki_it) == refpos) 
                             extended_posidx_to_is_rescued[refpos - extended_inclu_beg_pos] &&
                             (tid_pos_symb_to_tki.end() != tid_pos_symb_to_tki.find(std::make_tuple(tid, refpos, symbol)))); 
-                            //(extended_posidx_to_symbol_to_tkinfo[refpos-extended_inclu_beg_pos][symbol].DP > 0); 
                     TumorKeyInfo tki;
                     if (is_rescued) {
                         tki = tid_pos_symb_to_tki.find(std::make_tuple(tid, refpos, symbol))->second; 
@@ -914,21 +897,8 @@ main(int argc, char **argv) {
     }
     LOG(logINFO) << "Program " << argv[0] << " version " << VERSION_DETAIL;
     std::vector<std::tuple<std::string, unsigned int>> tid_to_tname_tseqlen_tuple_vec;
-    /*
-    std::vector<std::tuple<unsigned int, unsigned int, unsigned int, bool, unsigned int>> tid_beg_end_e2e_tuple_vec;
-    LOG(logINFO) << "step1: sam_fname_to_contigs"; 
-    sam_fname_to_contigs(tid_beg_end_e2e_tuple_vec, tid_to_tname_tseqlen_tuple_vec, paramset.bam_input_fname, paramset.bed_region_fname);
-    LOG(logINFO) << "The BED region is as follows (" << tid_beg_end_e2e_tuple_vec.size() << " chunks):";
-    for (auto tid_beg_end_e2e_tuple : tid_beg_end_e2e_tuple_vec) {
-        std::cerr << std::get<0>(tid_to_tname_tseqlen_tuple_vec[std::get<0>(tid_beg_end_e2e_tuple)]) << "\t" 
-                  << std::get<1>(tid_beg_end_e2e_tuple) << "\t"
-                  << std::get<2>(tid_beg_end_e2e_tuple) << "\t"
-                  << std::get<3>(tid_beg_end_e2e_tuple) << "\t"
-                  << std::get<4>(tid_beg_end_e2e_tuple) << "\n";
-    }
-    */
     samfname_to_tid_to_tname_tseq_tup_vec(tid_to_tname_tseqlen_tuple_vec, paramset.bam_input_fname);
-
+    
     const unsigned int nthreads = paramset.max_cpu_num;
     bool is_vcf_out_empty_string = (std::string("") == paramset.vcf_output_fname);
     BGZF *fp_allp = NULL;
@@ -949,6 +919,7 @@ main(int argc, char **argv) {
             exit(-9);
         }
     }
+    // Commented out for now due to lack of good documentation for these bgzf APIs. Can investigate later.
     /*
     if (paramset.vcf_output_fname.size() != 0 && paramset.vcf_output_fname != "-") {
         bgzf_index_build_init(fp_allp);
@@ -1000,23 +971,6 @@ main(int argc, char **argv) {
                 LOG(logCRITICAL) << "Failed to load reference index for file " << paramset.fasta_ref_fname << " for thread with ID = " << i;
                 exit(-5);
             }
-        }
-        if (NOT_PROVIDED != paramset.vcf_tumor_fname) {
-            /*
-            srs[i] = bcf_sr_init();
-            if (NULL == srs[i]) {
-                LOG(logCRITICAL) << "Failed to initialize bcf sr for thread with ID = " << i;
-                exit(-6);
-            }
-            // bcf_sr_set_opt(srs[i], BCF_SR_PAIR_LOGIC, BCF_SR_PAIR_BOTH_REF);
-            
-            int sr_set_opt_retval = bcf_sr_set_opt(srs[i], BCF_SR_REQUIRE_IDX);
-            int sr_add_reader_retval = bcf_sr_add_reader(srs[i], paramset.vcf_tumor_fname.c_str());
-            if (sr_add_reader_retval != 1) {
-                LOG(logCRITICAL) << "Failed to synchronize-read the tumor vcf " << paramset.vcf_tumor_fname << " for thread with ID = " << i;
-                exit(-7);
-            }
-            */
         }
     }
     
@@ -1088,19 +1042,6 @@ main(int argc, char **argv) {
             npositions += std::get<2>(tid_beg_end_e2e_tuple_vec[region_idx]) - std::get<1>(tid_beg_end_e2e_tuple_vec[region_idx]); 
         }
         
-        /*
-        unsigned int incvalue = 0;
-        for (unsigned int allridx = 0; allridx < tid_beg_end_e2e_tuple_vec.size(); allridx += incvalue) {
-            incvalue = 0;
-            unsigned int nreads = 0;
-            unsigned int npositions = 0;
-            while (allridx + incvalue < tid_beg_end_e2e_tuple_vec.size() && nreads < (2000*1000 * nthreads)  && npositions < (1000*1000 * nthreads)) {
-                nreads += std::get<4>(tid_beg_end_e2e_tuple_vec[allridx + incvalue]);
-                npositions += std::get<2>(tid_beg_end_e2e_tuple_vec[allridx + incvalue]) - std::get<1>(tid_beg_end_e2e_tuple_vec[allridx + incvalue]); 
-                incvalue++;
-            }
-        }
-        */
         assert(incvalue > 0);
         
         // distribute inputs as evenly as possible
@@ -1167,8 +1108,7 @@ main(int argc, char **argv) {
 #pragma omp parallel for schedule(dynamic, 1) num_threads(nthreads)
 #endif
         for (unsigned int beg_end_pair_idx = 0; beg_end_pair_idx < beg_end_pair_size; beg_end_pair_idx++) {
-            // for (unsigned int j = 0; j < incvalue; j++) {
-
+            
 #if defined(_OPENMP) && !defined(USE_STDLIB_THREAD)
             size_t thread_id = omp_get_thread_num();
 #elif defined(USE_STDLIB_THREAD)
@@ -1186,15 +1126,11 @@ main(int argc, char **argv) {
 #if defined(USE_STDLIB_THREAD)
             std::thread athread([
                         &batcharg, allridx, beg_end_pair, beg_end_pair_idx, &tid_beg_end_e2e_tuple_vec, &tid_to_tname_tseqlen_tuple_vec, &tid_pos_symb_to_tki1
-                        //beg_end_pair_idx, allridx, is_vcf_out_pass_to_stdout, &beg_end_pair_vec, 
-                        //&outstrings, &outstrings_pass, paramset, &tid_beg_end_e2e_tuple_vec, tid_to_tname_tseqlen_tuple_vec, UMI_STRUCT, 
-                        //sam_idxs, samfiles, ref_faidxs
                         ]() {
 #endif
                     LOG(logINFO) << "Thread " << batcharg.thread_id << " will process the sub-chunk " << beg_end_pair_idx << " which ranges from " 
                             << beg_end_pair.first << " to " << beg_end_pair.second;
                     
-                    //auto *this_sam_idx = sam_index_load2(samfiles[allridx], paramset.bam_input_fname.c_str(), NULL);
                     for (unsigned int j = beg_end_pair.first; j < beg_end_pair.second; j++) {
                         batcharg.regionbatch_ordinal = j;
                         batcharg.regionbatch_tot_num = beg_end_pair.second;
@@ -1203,7 +1139,6 @@ main(int argc, char **argv) {
                         process_batch(batcharg, tid_pos_symb_to_tki1);
                     }
 #if defined(USE_STDLIB_THREAD)
-                    //hts_idx_destroy(this_sam_idx);
             });
             threads.push_back(std::move(athread));
 #endif
@@ -1257,25 +1192,14 @@ main(int argc, char **argv) {
             sam_close(samfiles[i]);
         }
     }
-    // sam_close(sam_infile);
-    // bgzf_flush(fp_allp);
-    /*
-    if (paramset.vcf_output_fname.size() != 0 && paramset.vcf_output_fname != "-") {
-        int index_dump_exitcode = bgzf_index_dump(fp_allp, paramset.vcf_output_fname.c_str(), ".csi");
-        if (0 != index_dump_exitcode) {
-            fprintf(stderr, "bgzf_index_dump to file %s.csi returned exit code %d\n",  paramset.vcf_output_fname.c_str(), index_dump_exitcode);
-        }
-    }
-    */
+    // bgzf_flush is internally called by bgzf_close
     if (fp_allp) {
-        // bgzf_flush(fp_allp);
         int closeresult = bgzf_close(fp_allp);
         if (closeresult != 0) {
             LOG(logERROR) << "Unable to close the bgzip file " << paramset.vcf_output_fname;
         }
     }
     if (fp_pass) {
-        // bgzf_flush(fp_pass);
         int closeresult = bgzf_close(fp_pass);
         if (closeresult != 0) {
             LOG(logERROR) << "Unable to close the bgzip file " << paramset.vcf_output_fname;

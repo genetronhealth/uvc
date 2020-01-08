@@ -86,6 +86,8 @@ struct CommandLineArgs {
     double      t2n_add_contam_frac = 0.02;
     double      t2n_add_contam_transfrac = 0.0; // 0.02; // 1e-10; // 0.025; // 0.04; // 0.125*1.5;
     
+    uint32_t    phred_frac_indel_error_before_barcode_labeling = 23;
+    
     int 
     initFromArgCV(int & parsing_result_flag, SequencingPlatform & inferred_sequencing_platform, int argc, const char *const* argv);
     

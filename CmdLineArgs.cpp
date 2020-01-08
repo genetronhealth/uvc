@@ -198,8 +198,11 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     app.add_option("--t2n-mul-contam-frac",  t2n_mul_contam_frac,         "Multiplicative contamination rate for the fraction of tumor reads in the normal", true); 
     app.add_option("--t2n-add-contam-frac",  t2n_add_contam_frac,         "Additive contamination rate for the fraction of tumor reads in the normal", true);
     app.add_option("--t2n-add-contam-transfrac",t2n_add_contam_transfrac, "Additive contamination rate for the fraction of tumor reads in the normal by read transfer", true); 
- 
-    app.add_flag("--Should-add-note",        should_add_note,             "Flag indicating if the program generates more detail in the VCF result file.");
+    
+    app.add_option("--phred-frac-indel-error-before-barcode-labeling", phred_frac_indel_error_before_barcode_labeling, 
+                                                                          "PHRED-scale fraction of InDel errors that occurred before the attachment of UMI single-strand barcodes.", true); 
+    
+    app.add_flag("--Should-add-note",        should_add_note,             "Flag indicating if the program generates more detail (can be used for debugging) in the VCF result file.");
     
     app.add_option("--is-tumor-format-retrieved", is_tumor_format_retrieved, "Boolean (0: false, 1: true) indicating if the format from the tumor VCF should be retrieved in the tumor-normal comparison. This boolean is only useful if tumor VCF is provided. Notice that a true value for this boolean disables the generation of genomic block so that the output is no longer gvcf.", true);
     

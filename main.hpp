@@ -6,7 +6,6 @@
 #include "common.hpp"
 #include "conversion.hpp"
 #include "logging.hpp"
-// #include "utils.hpp"
 
 #include "htslib/faidx.h"
 #include "htslib/hts.h"
@@ -135,7 +134,7 @@ posToIndelToCount_DlenToDseq(std::map<uint32_t, std::map<std::string, uint32_t>>
     }
 }
 
-
+#define N_MODELS 1 // previously used 23 & 11 models
 #define QUAL_PRE_ADD 1
 // #define bam_phredi(b, i) (phred2bucket(bam_get_qual((b))[(i)]))
 #define bam_phredi(b, i) (bam_get_qual((b))[(i)])
@@ -493,7 +492,7 @@ public:
         } else if (symbolType == LINK_SYMBOL) {
             return this->_sumBySymbolType(LINK_M, LINK_NN);
         } else {
-            abort(); // assert(false);
+            abort();
             return -1;
         }
     };
@@ -538,7 +537,7 @@ public:
         } else if (symbolType == LINK_SYMBOL) {
             return this->_fillConsensusCounts<TIndelIsMajor>(count_argmax, count_max, count_sum, LINK_M, LINK_NN);
         } else {
-            abort(); //assert(false);
+            abort();
             return -1;
         }
     };
@@ -647,7 +646,7 @@ public:
 
     CoveredRegion(uint32_t tid, unsigned int beg, unsigned int end): tid(tid), incluBegPosition(beg)  {
         assert (beg < end || !fprintf(stderr, "assertion %d < %d failed!\n", beg, end));
-        this->idx2symbol2data = std::vector<T>(end-beg); // TODO: see if + 1 is needed ehre
+        this->idx2symbol2data = std::vector<T>(end-beg); // end should be real end position plus one
     };
     
     T &
@@ -774,7 +773,6 @@ is_indel_context_more_STR(unsigned int rulen1, unsigned int rc1, unsigned int ru
         return ((rulen1 < rulen2 || (rulen1 == rulen2 && rc1 > rc2))  ? true : false);
     }
     const unsigned int rank_STR[6+1] = {0, 65, 32, 33, 34, 35, 36}; // monomer is ranked first, followed by 2xdimer, hexamer, pentamer, ..., dimer, and zero
-    // (rulen1 * (rc1 - 1) + rulen1 + rulen2 > rulen2 * (rc2 - 1) + rulen1 + rulen2) 
     if (rank_STR[rulen1] * rc1 > rank_STR[rulen2] * rc2) {
         return true;
     } else {
@@ -798,7 +796,6 @@ indelpos_to_context(
             qidx++;
         }
         unsigned int repeatnum = (qidx - refpos) / repeatsize + 1;
-        // if ((repeatnum - 1) * repeatsize >= max_repeatnum) {
         if (is_indel_context_more_STR(repeatsize, repeatnum, repeatsize_at_max_repeatnum, max_repeatnum)) {
             max_repeatnum = repeatnum;
             repeatsize_at_max_repeatnum = repeatsize;
@@ -811,7 +808,7 @@ indelpos_to_context(
 unsigned int
 indel_len_rusize_phred(unsigned int indel_len, unsigned int repeatunit_size) {
     assert (indel_len > 0 && repeatunit_size > 0);
-    // for i in range(1, 20): print("{}  {}".format(  int( round(10.0/log(10.0)*log(i)) ) , i  )) 
+    // python code: for i in range(1, 20): print("{}  {}".format(  int( round(10.0/log(10.0)*log(i)) ) , i  )) 
     const std::array<unsigned int, 18+1> n_units_to_phred = {
         0 , 
         0 , // 1
@@ -1218,7 +1215,6 @@ struct Symbol2CountCoverageSet {
     const uint32_t excluEndPosition;
     std::string refstring;
     
-    //std::array<Symbol2CountCoverage, 2> bq_imba_depth;
     std::array<Symbol2CountCoverage, 4> bq_dirs_count;
     std::array<Symbol2CountCoverage, 2> bq_bias_sedir;
 
@@ -1323,8 +1319,6 @@ struct Symbol2CountCoverageSet {
         , bq_vars_depth({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
         , bq_vars_badep({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
         , bq_vars_vqual({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
-       
-        // , fq_imba_depth({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
         
         , major_amplicon({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
         , minor_amplicon({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
@@ -1372,8 +1366,7 @@ struct Symbol2CountCoverageSet {
    
     template <bool TIsFilterStrong=false>
     int 
-    getbest( // auto & qual_psum, 
-            auto & max_pqual, auto & best_phred, auto & best_count,
+    getbest(auto & max_pqual, auto & best_phred, auto & best_count,
             const auto & ampDistrByPos, const double symbolTypeSum, const AlignmentSymbol symbol, const unsigned int bias_adjusted_mincount, double imba_fact,
             const unsigned int phred_max, const unsigned int add_phred, double ess_georatio_dedup, const double homogeneity = 0) const {
         max_pqual = 0;
@@ -1441,8 +1434,6 @@ struct Symbol2CountCoverageSet {
         double cur0 = 0;
         double cur1 = 0;
         unsigned int max_biasfact100 = 0;
-        //unsigned int prev_biasfact100 = 0;
-        //unsigned int pre2_biasfact100 = 0;
         std::vector<unsigned int> prev_biasfact100s(gapdist, 0);
         for (size_t i = 0; i < usize - 1; i++) {
             cur0 += (double)t0v[i];
@@ -1451,7 +1442,6 @@ struct Symbol2CountCoverageSet {
                     ? any4_to_biasfact100(sum0 - cur0, cur0, sum1 - cur1, cur1, false, pseudocount) // position bias
                     : any4_to_biasfact100(cur0, sum0 - cur0, cur1, sum1 - cur1, false, pseudocount)); // mismatch bias
             // LOG(logINFO) << "At " << i << " : " << cur0 << " , " << sum0 - cur0 << " , " << cur1 << " , " << sum1 - cur1;
-            // unsigned int norm_biasfact100 = MIN(curr_biasfact100, MIN(prev_biasfact100, pre2_biasfact100));
             unsigned int norm_biasfact100 = curr_biasfact100;
             for (unsigned int prev_bf100 : prev_biasfact100s) {
                 norm_biasfact100 = MIN(norm_biasfact100, prev_bf100);
@@ -1460,8 +1450,6 @@ struct Symbol2CountCoverageSet {
                 max_biasfact100 = norm_biasfact100;
                 argmax = i+1;
             }
-            // pre2_biasfact100 = prev_biasfact100;
-            // prev_biasfact100 = curr_biasfact100;
             for (int j = ((int)gapdist) - 1; j > 0; j--) {
                 prev_biasfact100s[j] = prev_biasfact100s[j-1];
             }
@@ -1531,15 +1519,10 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
          || (curr_deprv_symbsum * 5 < curr_deprv_typesum * 4 && curr_deprv_symbsum > 0))) {
                         const unsigned int add1count = 1;
                         const double pseudocount = (double)add1count;
-                        // double pseudocount = ((double)1) + ((double)1); // pseudocount should be one and there should be another threshold.
                         // compute duplication bias
                         double dup_imba = 1;
                         if (TUsePrev) {
                             auto prev_depth_symbsum = prev_tsum_depth[strand].getByPos(pos).getSymbolCount(symbol);
-                            // pseudocount = (double)(2 * curr_depth_symbsum) / (double)(curr_depth_symbsum + prev_depth_symbsum) + ((double)1);
-                            // auto db100 = any4_to_biasfact100(curr_depth_symbsum, curr_depth_typesum, prev_depth_symbsum, prev_depth_typesum, true, pseudocount / 2);
-                            // If the peak family sizes are 100+-10 and 16+-4 for REF and ALT, then the formula below would fail.
-                            // TODO: find theoretical justification for this
                             auto db100 = any4_to_biasfact100(
                                     MAX(prev_depth_typesum, curr_depth_typesum) - curr_depth_typesum + add1count,
                                     curr_depth_typesum, 
@@ -1556,7 +1539,6 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         
                         double fa = (double)(ad0 + ad1) / (double)(dp0 + dp1 + 1);
                         unsigned int nvars_gapdist = ((fa < 0.025) ? 4 : ((fa < 0.025 * 5) ? 5 : 6));
-                        // unsigned int nvars_gapdist = (unsigned int)floor(pow(fa*100, 1.0/3.0)) + 2; // 1% -> 3, 8% -> 5, 16% -> 5,
                         // compute positional bias
                         auto pb_ldist_pair = adabias<true >(vsum_pb_dist_lpart, pb_dist_lpart[strand].getByPos(pos).getSymbolCounts(symbol), pseudocount / 2.0, 2);
                         amax_ldist[strand].getRefByPos(pos).incSymbolCount(symbol, edbuck2pos(pb_ldist_pair.first));
@@ -1587,7 +1569,6 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                                 altcurr += pb_dist_lpart[strand].getByPos(pos).getSymbolCounts(symbol)[i];
                                 this->additional_note.getRefByPos(pos).at(symbol) += std::to_string(i) + "(" + std::to_string(edbuck2pos(i)) + "/" 
                                         + std::to_string(allrest-allcurr) + "/" + std::to_string(allcurr) + "/" + std::to_string(altrest-altcurr) + "/" + std::to_string(altcurr)  + ")";
-                                        //+ std::to_string(altcurr) + "/" + std::to_string(altrest-altcurr) + "/" + std::to_string(allcurr) + "/" + std::to_string(allrest-allcurr)  + ")";
                             }
 
                             allcurr = altcurr = allrest = altrest = 0;
@@ -1600,7 +1581,6 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                                 altcurr += pb_dist_rpart[strand].getByPos(pos).getSymbolCounts(symbol)[i];
                                 this->additional_note.getRefByPos(pos).at(symbol) += std::to_string(i) + "(" + std::to_string(edbuck2pos(i)) + "/" 
                                         + std::to_string(allrest-allcurr) + "/" + std::to_string(allcurr) + "/" + std::to_string(altrest-altcurr) + "/" + std::to_string(altcurr)  + ")";
-                                        // + std::to_string(altcurr) + "/" + std::to_string(altrest-altcurr) + "/" + std::to_string(allcurr) + "/" + std::to_string(allrest-allcurr)  + ")";
                             }
                             
                             allcurr = altcurr = allrest = altrest = 0;
@@ -1613,7 +1593,6 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                                 altcurr += pb_dist_nvars[strand].getByPos(pos).getSymbolCounts(symbol)[i];
                                 this->additional_note.getRefByPos(pos).at(symbol) += std::to_string(i) + "(" + std::to_string((i)) + "/" 
                                         + std::to_string(allrest-allcurr) + "/" + std::to_string(allcurr) + "/" + std::to_string(altrest-altcurr) + "/" + std::to_string(altcurr)  + ")";
-                                        // + std::to_string(altcurr) + "/" + std::to_string(altrest-altcurr) + "/" + std::to_string(allcurr) + "/" + std::to_string(allrest-allcurr)  + ")";
                             }
                             
                             this->additional_note.getRefByPos(pos).at(symbol) += ")//";
@@ -1680,20 +1659,19 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         }
 }
                         auto phred_max = 0;
-                        //if (LINK_SYMBOL == symbolType) { phred_max = phred_max_table.indel_any; } else {
+                        // previously it was: if (LINK_SYMBOL == symbolType) { phred_max = phred_max_table.indel_any; } else ...
                         {
                             AlignmentSymbol con_symbol;
                             unsigned int con_count, tot_count;
                             curr_tsum_depth.at(0+strand).getByPos(pos).fillConsensusCounts(con_symbol, con_count, tot_count, symbolType);
                             phred_max = phred_max_table.toPhredErrRate(con_symbol, symbol);
                         }
-                        //}
                         // find best cutoff from families
                         double max_pqual = 0;
                         unsigned int best_phred = 0;
                         unsigned int best_count = 0;
                         if (curr_depth_symbsum > 0) {
-                            getbest<false>( //qual_phsum_val, 
+                            getbest<false>(
                                     max_pqual, best_phred, best_count,
                                     dedup_ampDistr[strand].getRefByPos(pos), curr_depth_typesum, symbol, max_imba_depth, imba_fact, phred_max, 0, ess_georatio_dedup);
                         } else {
@@ -1704,7 +1682,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         pass_depth[strand].getRefByPos(pos).incSymbolCount(symbol, best_count);
                         
                         if (curr_depth_symbsum > 0) {
-                            getbest<true> ( //qual_phsum_val,
+                            getbest<true> (
                                     max_pqual, best_phred, best_count,
                                     dedup_ampDistr[strand].getRefByPos(pos), curr_depth_typesum, symbol, max_imba_depth, imba_fact, phred_max, symbolType2addPhred[symbolType], ess_georatio_dedup);
                         } else {
@@ -1734,10 +1712,10 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
             const std::basic_string<AlignmentSymbol> & region_symbolvec,
             const std::array<unsigned int, NUM_SYMBOL_TYPES> & symbolType2addPhred,
             bool should_add_note, unsigned int frag_indel_ext, unsigned int frag_indel_basemax,
-            const PhredMutationTable & phred_max_table, unsigned int phred_thres
-            , double ess_georatio_dedup, double ess_georatio_duped_pcr
-            , unsigned int fixedthresBQ, unsigned int nogap_phred, unsigned int uni_bias_r_max
-            , const bool is_proton, const AssayType assay_type
+            const PhredMutationTable & phred_max_table, unsigned int phred_thres,
+            double ess_georatio_dedup, double ess_georatio_duped_pcr,
+            unsigned int fixedthresBQ, unsigned int nogap_phred, unsigned int uni_bias_r_max,
+            const bool is_proton, const AssayType assay_type
             ) {
         for (const auto & alns2pair2dflag : alns3) {
             const auto & alns2pair = alns2pair2dflag.first;
@@ -1786,7 +1764,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                             unsigned int overallq = MIN(edge_baq, phredlike);
                             this->bq_qual_p1sum [strand].getRefByPos(epos).incSymbolCount(con_symbol, overallq);
                             this->bq_qual_p2sum [strand].getRefByPos(epos).incSymbolCount(con_symbol, mathsquare(overallq)); // specific to BQ
-                            unsigned int pbucket = phred2bucket(overallq); // phred2bucket(MIN(edge_baq, phredlike + symbolType2addPhred[symbolType])); // special
+                            unsigned int pbucket = phred2bucket(overallq);
                             assert (pbucket < NUM_BUCKETS || !fprintf(stderr, "%u < %u failed at position %lu and con_symbol %u symboltype %u plusbucket %u\n", 
                                     pbucket,  NUM_BUCKETS, epos, con_symbol, symbolType, SIGN2UNSIGN(symbolType2addPhred[symbolType])));
                             if (isSymbolIns(con_symbol)) {
@@ -1833,7 +1811,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
         }
         adafilter<false>(
                 this->du_bias_dedup, 
-                this->bq_qual_p1sum, this->bq_tsum_depth, //  this->bq_qual_p1sum, // this->bq_imba_depth,
+                this->bq_qual_p1sum, this->bq_tsum_depth, 
                 this->bq_amax_ldist, this->bq_amax_rdist, this->bq_bias_ldist, this->bq_bias_rdist,
                 this->bq_amax_nvars, this->bq_bias_nvars,
                 this->bq_bsum_ldist, this->bq_bsum_rdist, this->bq_bias_1stra, this->bq_bias_2stra,
@@ -1855,9 +1833,10 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
             bool should_add_note, const unsigned int frag_indel_ext, const unsigned int frag_indel_basemax, 
             const PhredMutationTable & phred_max_table, unsigned int phred_thres, 
             const double ess_georatio_dedup, const double ess_georatio_duped_pcr,
-            bool is_loginfo_enabled, unsigned int thread_id, unsigned int nogap_phred
-            , unsigned int highqual_thres_snv, unsigned int highqual_thres_indel, unsigned int uni_bias_r_max
-            , const bool is_proton, const AssayType assay_type) {
+            bool is_loginfo_enabled, unsigned int thread_id, unsigned int nogap_phred,
+            unsigned int highqual_thres_snv, unsigned int highqual_thres_indel, unsigned int uni_bias_r_max,
+            const bool is_proton, const AssayType assay_type,
+            phred_indel_error_before_barcode_labeling) {
         unsigned int niters = 0;
         for (const auto & alns2pair2dflag : alns3) {
             const auto & alns2pair = alns2pair2dflag.first;
@@ -1948,7 +1927,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                     Symbol2CountCoverage read_ampBQerr_fragWithR1R2(tid1, beg1, end1);
                     read_ampBQerr_fragWithR1R2.updateByRead1Aln<BASE_QUALITY_MAX, false>(aln_vec, frag_indel_ext, symbolType2addPhred, alns2.size(), 
                             frag_indel_basemax, alns2pair2dflag.second, nogap_phred, is_proton, region_symbolvec, this->dedup_ampDistr.at(strand).getIncluBegPosition(), this->bq_dirs_count);
-                    // read_family_amplicon.updateByConsensus<SYMBOL_COUNT_SUM>(read_ampBQerr_fragWithR1R2);
+                    // The line below is similar to : read_family_amplicon.updateByConsensus<SYMBOL_COUNT_SUM>(read_ampBQerr_fragWithR1R2);
                     read_family_amplicon.updateByFiltering(read_ampBQerr_fragWithR1R2, this->bq_pass_thres[strand], 1, true, strand);
                     if (log_alns2) {
                         // LOG(logDEBUG) << "num-updates = " << updateresult << " (second time)";
@@ -1957,7 +1936,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                 if ((2 == alns2pair2dflag.second) && alns2pair[0].size() > 0 && alns2pair[1].size() > 0) { // is duplex
                     read_duplex_amplicon.updateByConsensus<SYMBOL_COUNT_SUM>(read_family_amplicon);
                 }
-                std::basic_string<std::pair<unsigned int, AlignmentSymbol>> pos_symbol_string; // this->dedup_ampDistr
+                std::basic_string<std::pair<unsigned int, AlignmentSymbol>> pos_symbol_string;
                 unsigned int ldist_inc = 0;
                 unsigned int rdist_inc = 0;
                 std::vector<unsigned int> posToInsertLen = read_family_amplicon.computeZeroBasedPosToInsLenVec(rdist_inc); // extend
@@ -1988,7 +1967,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         if (LINK_SYMBOL == symbolType) { 
                             unsigned int lim_phred = prob2phred((double)(minorcount + prior_weight) 
                                     / (double)(majorcount + minorcount + prior_weight / con_bq_pass_prob));
-                            phredlike = MIN(phredlike, lim_phred + 23); 
+                            phredlike = MIN(phredlike, lim_phred + phred_indel_error_before_barcode_labeling); 
                         } // assuming errors equivalent to 200 pre-UMI-attachment PCR cycles after UMI attachment and one such PCR cycle before UMI attachment. QUESTION-TODO: justify
                         // no base quality stuff
                         
@@ -2114,31 +2093,68 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
             std::map<std::basic_string<std::pair<unsigned int, AlignmentSymbol>>, std::array<unsigned int, 2>> & mutform2count4map_fq,
             const std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, int>> & alns3, 
             const std::string & refstring,
-            unsigned int bq_phred_added_misma, unsigned int bq_phred_added_indel, 
+            unsigned int bq_phred_added_misma, 
+            unsigned int bq_phred_added_indel, 
             bool should_add_note, 
-            const unsigned int frag_indel_ext, const unsigned int frag_indel_basemax,
+            const unsigned int frag_indel_ext, 
+            const unsigned int frag_indel_basemax,
             const PhredMutationTable & phred_max_sscs_table, 
-            // unsigned int phred_max_dscs, 
             unsigned int phred_thres,
-            const double ess_georatio_dedup, const double ess_georatio_duped_pcr,
-            bool use_deduplicated_reads, bool is_loginfo_enabled, unsigned int thread_id, unsigned int fixedthresBQ, unsigned int nogap_phred
-            , unsigned int highqual_thres_snv, unsigned int highqual_thres_indel, unsigned int uni_bias_r_max
-            , const bool is_proton, const AssayType assay_type
+            const double ess_georatio_dedup, 
+            const double ess_georatio_duped_pcr,
+            bool use_deduplicated_reads, 
+            bool is_loginfo_enabled, 
+            unsigned int thread_id, 
+            unsigned int fixedthresBQ, 
+            unsigned int nogap_phred,
+            unsigned int highqual_thres_snv, 
+            unsigned int highqual_thres_indel, 
+            unsigned int uni_bias_r_max,
+            const bool is_proton, 
+            const AssayType assay_type,
+            const unsigned int phred_indel_error_before_barcode_labeling,
             ) {
+        
         const std::array<unsigned int, NUM_SYMBOL_TYPES> symbolType2addPhred = {bq_phred_added_misma, bq_phred_added_indel};
         std::basic_string<AlignmentSymbol> ref_symbol_string = string2symbolseq(refstring);
-        updateByAlns3UsingBQ(mutform2count4map_bq, alns3, ref_symbol_string, symbolType2addPhred, should_add_note, frag_indel_ext, frag_indel_basemax, 
-                phred_max_sscs_table, phred_thres
-                , ess_georatio_dedup, ess_georatio_duped_pcr, fixedthresBQ, nogap_phred, uni_bias_r_max
-                , is_proton, assay_type); // base qualities
+        updateByAlns3UsingBQ(mutform2count4map_bq, 
+                alns3, 
+                ref_symbol_string, 
+                symbolType2addPhred, 
+                should_add_note, 
+                frag_indel_ext, 
+                frag_indel_basemax, 
+                phred_max_sscs_table, 
+                phred_thres, 
+                ess_georatio_dedup, 
+                ess_georatio_duped_pcr, 
+                fixedthresBQ, 
+                nogap_phred, 
+                uni_bias_r_max, is_proton, 
+                assay_type,
+                ); // base qualities
         updateHapMap(mutform2count4map_bq, this->bq_tsum_depth);
         if (use_deduplicated_reads) {
-            updateByAlns3UsingFQ(mutform2count4map_fq, alns3, ref_symbol_string, symbolType2addPhred, should_add_note, frag_indel_ext, frag_indel_basemax, 
-                    phred_max_sscs_table, phred_thres 
-                    , ess_georatio_dedup, ess_georatio_duped_pcr
-                    , is_loginfo_enabled, thread_id, nogap_phred
-                    , highqual_thres_snv, highqual_thres_indel, uni_bias_r_max
-                    , is_proton, assay_type); // family qualities
+            updateByAlns3UsingFQ(mutform2count4map_fq, 
+                    alns3,
+                    ref_symbol_string, 
+                    symbolType2addPhred, 
+                    should_add_note, 
+                    frag_indel_ext, 
+                    frag_indel_basemax, 
+                    phred_max_sscs_table, 
+                    phred_thres,
+                    ess_georatio_dedup, 
+                    ess_georatio_duped_pcr,
+                    is_loginfo_enabled, 
+                    thread_id, 
+                    nogap_phred,
+                    highqual_thres_snv, 
+                    highqual_thres_indel, 
+                    uni_bias_r_max,
+                    is_proton, 
+                    assay_type,
+                    phred_indel_error_before_barcode_labeling); // family qualities
             updateHapMap(mutform2count4map_fq, this->fq_tsum_depth);
         }
         return 0;
@@ -2840,22 +2856,23 @@ generate_vcf_header(const char *ref_fasta_fname,
     
     ret += "##INFO=<ID=ANY_VAR,Number=0,Type=Flag,Description=\"Any type of variant which may be caused by germline polymorphism and/or experimental artifact\">\n";
     ret += "##INFO=<ID=SOMATIC,Number=0,Type=Flag,Description=\"Somatic variant\">\n";
-#define N_MODELS 1 // 23 // 11
+#if (1 < N_MODELS)
     for (int i = 0; i < N_MODELS; i++) {
         // ret += std::string(";TQ") + std::to_string(i) + "=" + std::to_string(testquals[i]); 
         ret += "##INFO=<ID=TQ" + std::to_string(i) +",Number=1,Type=Float,Description=\"Variant quality computed by the model " + std::to_string(i) +"\">\n";
     }
-    // ret += "##INFO=<ID=SQVQ,Number=2,Type=Integer,Description=\"Somatic quality (PHRED-scale probability of germline event) and variant quality (PHRED-scale probability of observing the variant signal given that the variant signal is neither germline nor somatic)\">\n";
-    ret += "##INFO=<ID=SomaticQ,Number=1,Type=Integer,Description=\"Somatic quality of the variant, the PHRED-scale probability that this variant is not somatic.\">\n";
-    ret += "##INFO=<ID=TLODQ,Number=1,Type=Integer,Description=\"Tumor log-of-data-likelihood quality, the PHRED-scale probability that this variant is not of biological origin (i.e., artifactual).\">\n";
-    ret += "##INFO=<ID=NLODQ,Number=1,Type=Integer,Description=\"Normal log-of-data-likelihood quality, the PHRED-scale probability that this variant is of germline origin.\">\n";
-    ret += "##INFO=<ID=TLODQ1,Number=1,Type=Integer,Description=\"Tumor log-of-data-likelihood quality, the PHRED-scale probability that this variant is not of biological origin (i.e., artifactual).\">\n";
-    ret += "##INFO=<ID=NGQ,Number=.,Type=Float,Description=\"Non-germline qualities: normal-alt, tumor-alt, normal-nonref, tumor-nonref\">\n";
-    ret += "##INFO=<ID=TNQ,Number=.,Type=Float,Description=\"For t-vs-n: allele-fraction variant quality (VQ), raw VQ, contamination VQ, and statistical noise VQ\">\n";
-    ret += "##INFO=<ID=TNQA,Number=.,Type=Float,Description=\"Tumor baseline quality, tumor contamination quality, and tumor systematic-error quality.\">\n";
-    ret += "##INFO=<ID=TNOR,Number=.,Type=Float,Description=\"Tumor-to-normal signal odds ratio of odds ratio using read counts and base qualities.\">\n";
-    ret += "##INFO=<ID=TNTQ,Number=.,Type=Float,Description=\"For only normal sample: allele-fraction variant quality (VQ), raw VQ, and raw adjustment quality, and indel quality\">\n";
-    ret += "##INFO=<ID=TNNQ,Number=.,Type=Float,Description=\"For only tumor  sample: allele-fraction variant quality (VQ), raw VQ, and raw adjustment quality\">\n";
+#endif
+    ret += "##INFO=<ID=SomaticQ,Number=1,Type=Float,Description=\"Somatic quality of the variant, the PHRED-scale probability that this variant is not somatic.\">\n";
+    ret += "##INFO=<ID=TLODQ,Number=1,Type=Float,Description=\"Tumor log-of-data-likelihood quality, the PHRED-scale probability that this variant is not of biological origin (i.e., artifactual).\">\n";
+    ret += "##INFO=<ID=NLODQ,Number=1,Type=Float,Description=\"Normal log-of-data-likelihood quality, the PHRED-scale probability that this variant is of germline origin.\">\n";
+    // TLODQ1 may be useful in theory, but more data is needed to assess TLODQ1.
+    // ret += "##INFO=<ID=TLODQ1,Number=1,TypeFloat,Description=\"Tumor log-of-data-likelihood quality, the PHRED-scale probability that this variant is not of biological origin (i.e., artifactual).\">\n";
+    ret += "##INFO=<ID=REFQs,Number=.,Type=Float,Description=\"Non-germline qualities: normal-alt, tumor-alt, normal-nonref, tumor-nonref\">\n";
+    ret += "##INFO=<ID=TNQ1s,Number=.,Type=Float,Description=\"For t-vs-n: allele-fraction variant quality (VQ), raw VQ, contamination VQ, and statistical noise VQ\">\n";
+    ret += "##INFO=<ID=TNQ2s,Number=.,Type=Float,Description=\"Tumor baseline quality, tumor contamination quality, and tumor systematic-error quality.\">\n";
+    ret += "##INFO=<ID=TNORs,Number=.,Type=Float,Description=\"Tumor-to-normal signal odds ratio of odds ratio using read counts and base qualities.\">\n";
+    ret += "##INFO=<ID=TSQs,Number=.,Type=Float,Description=\"For only normal sample: allele-fraction variant quality (VQ), raw VQ, and raw adjustment quality, and indel quality\">\n";
+    ret += "##INFO=<ID=NSQs,Number=.,Type=Float,Description=\"For only tumor  sample: allele-fraction variant quality (VQ), raw VQ, and raw adjustment quality\">\n";
     ret += "##INFO=<ID=tDP,Number=1,Type=Integer,Description=\"Tumor-sample DP\">\n";
     ret += "##INFO=<ID=tFA,Number=1,Type=Float,Description=\"Tumor-sample FA\">\n";
     ret += "##INFO=<ID=tFR,Number=1,Type=Float,Description=\"Tumor-sample FR\">\n";
@@ -3397,35 +3414,35 @@ append_vcf_record(std::string & out_string,
         for (int i = 0; i < MIN(MODEL_SEP_1, N_MODELS); i++) {
             //infostring += std::string(";TQ") + std::to_string(i) + "=" + std::to_string(testquals[i]); 
         }
-        infostring += std::string(";SomaticQ=")  + std::to_string((int)(10.0*testquals[0]));
-        infostring += std::string(";TLODQ=")  + std::to_string((int)(10.0*tlodq));
-        infostring += std::string(";NLODQ=")  + std::to_string((int)(10.0*a_nogerm_q));
-        unsigned int tlodq1 = (maxbias < uni_bias_thres ? tlodq : tlodq - 60*10);
-        infostring += std::string(";TLODQ1=")  + std::to_string((int)(tlodq1));
+        infostring += std::string(";SomaticQ=") + std::to_string(testquals[0]);
+        infostring += std::string(";TLODQ=")    + std::to_string(tlodq);
+        infostring += std::string(";NLODQ=")    + std::to_string(a_nogerm_q);
+        //unsigned int tlodq1 = (maxbias < uni_bias_thres ? tlodq : tlodq - 60*10);
+        //infostring += std::string(";TLODQ1=")  + std::to_string((int)(tlodq1));
         
-        infostring += std::string(";NGQ=") + string_join(std::array<std::string, 4>({
+        infostring += std::string(";REFQs=") + string_join(std::array<std::string, 4>({
                 std::to_string(nonalt_qual), std::to_string(nonalt_tu_q),
                 std::to_string(excalt_qual), std::to_string(excalt_tu_q) 
         }));
-        infostring += std::string(";TNQ=")  + string_join(std::array<std::string, 4>({
+        infostring += std::string(";TNQ1s=")  + string_join(std::array<std::string, 4>({
                 std::to_string(t2n_po0q0), std::to_string(t2n_rawq0), 
                 std::to_string(t2n_po0q1), std::to_string(t2n_rawq1)      
         }));
-        infostring += std::string(";TNQA=") + string_join(std::array<std::string, 3>({
+        infostring += std::string(";TNQ2s=") + string_join(std::array<std::string, 3>({
                 std::to_string(t2n_finq),
                 std::to_string(t2n_contam_q),
                 std::to_string(t2n_syserr_q0),
         }));
-        infostring += std::string(";TNOR=") + string_join(std::array<std::string, 2+2>({
+        infostring += std::string(";TNORs=") + string_join(std::array<std::string, 2+2>({
                 std::to_string(t2n_or0),     std::to_string(t2n_or1),
                 std::to_string(n2t_or0),     std::to_string(n2t_or1)
         }));
-        infostring += std::string(";TNTQ=") + string_join(std::array<std::string, 5+1>({
+        infostring += std::string(";TSQs=") + string_join(std::array<std::string, 5+1>({
                 std::to_string(tn_tpowq)  , std::to_string(_tn_tra2q),
                 std::to_string(tn_tpo1q)  , std::to_string(tn_tra1q), std::to_string(tn_tsamq), 
-                std::to_string((int)t_indel_penal)
+                std::to_string(t_indel_penal)
         }));
-        infostring += std::string(";TNNQ=") + string_join(std::array<std::string, 5>({
+        infostring += std::string(";NSQs=") + string_join(std::array<std::string, 5>({
                 std::to_string(tn_npowq)  , std::to_string(_tn_nra2q),
                 std::to_string(tn_npo1q)   , std::to_string(tn_nra1q), std::to_string(tn_nsamq)
         }));
@@ -3435,9 +3452,9 @@ append_vcf_record(std::string & out_string,
         infostring += std::string(";tAltBQ=") + std::to_string(tki.autoBestAltBQ);
         infostring += std::string(";tAllBQ=") + std::to_string(tki.autoBestAllBQ);
         infostring += std::string(";tRefBQ=") + std::to_string(tki.autoBestRefBQ);
-        infostring += std::string(";tAltBQ2=") + std::to_string(tki.cAltBQ2);
-        infostring += std::string(";tAllBQ2=") + std::to_string(tki.cAllBQ2);
-        infostring += std::string(";tRefBQ2=") + std::to_string(tki.cRefBQ2);
+        //infostring += std::string(";tAltBQ2=") + std::to_string(tki.cAltBQ2);
+        //infostring += std::string(";tAllBQ2=") + std::to_string(tki.cAllBQ2);
+        //infostring += std::string(";tRefBQ2=") + std::to_string(tki.cRefBQ2);
         infostring += std::string(";tAltHD=") + std::to_string(tki.autoBestAltHD);
         infostring += std::string(";tAllHD=") + std::to_string(tki.autoBestAllHD);
         infostring += std::string(";tRefHD=") + std::to_string(tki.autoBestRefHD);
@@ -3448,7 +3465,6 @@ append_vcf_record(std::string & out_string,
         infostring += std::string(";tEROR=") + other_join(tki.EROR);
         infostring += std::string(";tgapDP4=") + other_join(tki.gapDP4);
         infostring += std::string(";tRCC=") + other_join(tki.RCC);
-        
     } 
     infostring += std::string(";RU=") + repeatunit + ";RC=" + std::to_string(repeatnum);
      
