@@ -660,7 +660,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
             paramset.uni_bias_r_max,
             SEQUENCING_PLATFORM_IONTORRENT == paramset.sequencing_platform,
             inferred_assay_type,
-            paramset.phred_frac_indel_error_before_barcode_labeling,
+            paramset.phred_frac_indel_error_before_barcode_labeling
             );
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts analyzing phasing info"; }
     auto mutform2count4vec_bq = map2vector(mutform2count4map_bq);

@@ -13,15 +13,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-//#define MIN(a, b) ((a) < (b) ? (a) : (b))
-//#define MAX(a, b) ((a) > (b) ? (a) : (b))
-
 #define DBLFLT_EPS ((double)FLT_EPSILON)
 #define MAX_IMBA_DEP (MIN(INT32_MAX, INT_MAX))
 
 // http://snap.stanford.edu/class/cs224w-2015/slides/04-powerlaws.pdf
 // https://cs.brynmawr.edu/Courses/cs380/spring2013/section02/slides/10_ScaleFreeNetworks.pdf
-#define PLEXP (3.0)     
+#define PLEXP (3.0) // Power-law exponent of the degree distribution of the BA network
 #define SYS_QMAX (25.0) // Is it the PHRED-scaled probability that a germline event is an outlier in terms of allele fraction?
 
 template <class T>
@@ -124,61 +121,18 @@ MEDIAN(auto v) {
     }
 }
 
-double 
-powermean2(double a, double b, double p) {
-    return pow((pow(a, p) + pow(b, p)) / 2.0, 1.0 / p);
-}
-
-double 
-lehmermean2(double a, double b, double p) {
-    return (pow(a, p) + pow(b, p)) / (pow(a, p-1) + pow(b, p-1));
-}
-
-template <bool TEnsurePositive = false>
-double 
-geomean2(double a, double b) {
-    if (TEnsurePositive) {
-        a = MAX(a, 0);
-        b = MAX(b, 0);
-    }
-    return sqrt(a * b);
-}
-
 template <class V, class W>
 V
 hmean(V v1, W w1, V v2, W w2) {
     const auto f = (1024UL * 64UL);
-    // return 1/(w1 + w2) * (w1 * 1/v1 + w2 * 1/v2);
     return  f * (w1 + w2) / (f * w1 / (v1+1UL) + f * w2 / (v2+1UL) + 1UL);
 }
 
-// 1e-6 is the somatic mutation rate
 template <class T>
 T
 calc_non_negative(const T v, T base = pow(10.0, 0.1), T thres = 20.0) {
     if (v < thres) {
         return log1p(pow(base, v)) / log(base);
-    } else {
-        return v;
-    }
-}
-
-double
-calc_upper_bounded(double v, double thres = (double)100, double bound = (double)120) {
-    if (v > thres) {
-        auto surplus = v - thres;
-        auto max_surplus = bound - thres;
-        return surplus / (1.0 + surplus / max_surplus) + thres;
-    } else {
-        return v;
-    }
-}
-
-template <class T>
-T
-calc_dim_return(T v, T thres = 30, T dim = 2) {
-    if (v > thres) {
-        return ((v - thres) / dim) + thres;
     } else {
         return v;
     }
@@ -208,18 +162,6 @@ logit(double p) {
 const double
 logit2(double a, double b) {
     return logit(a/(a+b));
-}
-
-// non-negative, with prob compared with a/(a+b)
-auto 
-calc_directional_likeratio(double prob, double a, double b) {
-    return a * (log((double)a / (double)(a+b)) - log(prob))  + b * (log((double)b / (double)(a+b)) - log(1.0-prob));
-}
-
-auto 
-calc_uninomial_10log10_likeratio(double prob, double a, double b) {
-    // 10*log_10(pow((a / b) / prob, MIN(a, b)));
-    return 10.0/log(10.0) * MIN(a, b) * log((a + DBL_EPSILON) / (b + DBL_EPSILON) / (prob + DBL_EPSILON));
 }
 
 template <bool TIsBiDirectional = false>
@@ -261,19 +203,6 @@ static_assert(calc_binom_10log10_likeratio(0.1, 90, 10) > 763); // 10/log(10) * 
 static_assert(calc_binom_10log10_likeratio(0.1, 90, 10) < 764); // 10/log(10) * (90*log(9)+10*log(1/9))
 static_assert(abs(calc_binom_10log10_likeratio(0.1, 1, 99)) < 1e-4); // 10/log(10) * (90*log(9)+10*log(1/9))
 
-auto 
-calc_phred10_likeratio(auto prob, auto a, auto b) {
-    auto a2 = MIN(a, b);
-    auto b2 = MAX(a, b);
-    return (10.0 / log(10.0)) * calc_directional_likeratio(prob, a2 + DBL_EPSILON, b2 + DBL_EPSILON);
-}
-
-/*
-double calc_sdev (double sum_of_sqr, double sqr_of_sum, unsigned int size) {
-    return (mathsquare(sum_of_sqr) / size  - sqr_of_sum / mathsquare(size));
-}
-*/
-
 template <class T> 
 void 
 autoswap ( T& a, T& b ) {
@@ -289,6 +218,7 @@ _any4_to_biasfact(T dp0, T dp1, T ad0, T ad1, const bool is_inv, double pseudoco
         return _any4_to_biasfact<false>(dp0 + ad0, dp1 + ad1, ad0, ad1, is_inv, pseudocount);
     }
     if (is_inv) {
+        // These assertions now result in errors when enabled due to extended possible usage
         //assert(dp0 <= ad0 || !(std::cerr << dp0 << " <= " << ad0 << " failed!" << std::endl));
         //assert(dp1 <= ad1 || !(std::cerr << dp1 << " <= " << ad1 << " failed!" << std::endl));
         assert(dp0 >= -pseudocount/2);
@@ -321,11 +251,7 @@ _any4_to_biasfact(T dp0, T dp1, T ad0, T ad1, const bool is_inv, double pseudoco
     double weight1over01 = t11 / (t10 + t11);
     
     double raw_biasfact = (t00f - t10f) * (weight1over01 / t10f) + 1;
-    return raw_biasfact;
-    
-    //double cor_biasfact = raw_biasfact; //  * ((t10 + t11) / MAX(t10, t11));
-    //double multnorm = (100 * (1 + DBL_EPSILON));
-    //return (unsigned int)(cor_biasfact * multnorm); // more positive -> more like to reject
+    return raw_biasfact;    
 }
 
 template <bool TRefExcludeAlt=false, class T>
@@ -337,16 +263,6 @@ any4_to_biasfact100(T dp0, T dp1, T ad0, T ad1, const bool is_inv = false, doubl
 double
 biasfact100_to_imba(unsigned int biasfact100) {
     return MAX(SIGN2UNSIGN(100), biasfact100) / (double)100;
-    // return MAX((double)biasfrac/(double)100, (double)1);
-    // return (100 + (MAX(biasfact100, 100) - 100) * 2) / (double)100;
-}
-
-template <class T>
-unsigned int
-any4_to_bias_symmetrical_max(T t00, T t01, T t10, T t11, double p) {
-    auto r1 = any4_to_biasfact100(t00, t01, t10, t11); // check whether t10 and t11 are biased.
-    auto r2 = any4_to_biasfact100(t01, t00, t11, t10);
-    return MAX(r1, r2);
 }
 
 #ifdef TEST_any4_to_bias
@@ -360,48 +276,11 @@ main(int argc, char **argv) {
 
     auto bf1 = any4_to_biasfact100<false>(t00, t01, t10, t11, false, p);
     auto bf2 = any4_to_biasfact100<false>(t01, t00, t11, t10, false, p);
-    //auto im1 = biasfact100_to_imba(bf1);
-    //auto im2 = biasfact100_to_imba(bf2);
     printf("any4_to_bias100(%f %f %f %f %f) == %d\n", t00, t01, t10, t11, p, bf1);
     printf("any4_to_bias100(%f %f %f %f %f) == %d\n", t01, t00, t11, t10, p, bf2);
-    //printf("biasfact100_to_imba(%d) == %f\n", bf1, im1);
-    //printf("biasfact100_to_imba(%d) == %f\n", bf2, im2);
 }
 
 #endif
-
-//template <class T1, class T2, class T3> T3 MIN(T1 a, T2 b) {
-//    return (a < b ? a : b);
-//}
-
-//template <class T1, class T2, class T3> T3 MAX(T1 a, T2 b) {
-//    return (a > b ? a : b);
-//}
-
-
-//// one-way converion of data into hash values
-
-/*
-// https://en.wikipedia.org/wiki/Universal_hashing#Hashing_strings
-uint64_t 
-strnhash(const unsigned char *str, size_t n) {
-    uint64_t ret = 0;
-    for (size_t i = 0; i < n && str[i]; i++) {
-        ret += str[i] * 31;
-    }
-    return ret;
-}
-
-uint64_t 
-strhash(const unsigned char *str) {
-    return strnhash(str, SIZE_MAX);
-}
-
-uint64_t 
-hash2hash(uint64_t hash1, uint64_t hash2) {
-    return hash1 * (2UL<<(31UL)) + hash2;
-}
-*/
 
 double 
 geometric_sum_to_nterms(double geosum, double term1, double ratio) {
@@ -510,7 +389,8 @@ sumBQ4_to_phredlike(double & bestAddValue,
     return argmin2_min2.v4;
 }
 
-//// one-way conversion of information into other measures of information (based on information theory)
+// This function is here for regression test
+// one-way conversion of information into other measures of information (based on information theory)
 // consensual means in the same MIG, 
 // homogeneity=0 means reads are completely independent (e.g. different DNA fragments), homogeneity=1 means reads are completely dependent (e.g. in the same MIG)
 template <bool TIsConsensual = true> 
@@ -522,7 +402,6 @@ _old_h01_to_phredlike(double h0pos, double h0tot, double h1pos, double h1tot,
     assert(h0pos >  0     || !fprintf(stderr, "%lf >  %lf failed", h0pos, 0));
     assert(h1pos >= 0     || !fprintf(stderr, "%lf >= %lf failed", h1pos, 0));
     
-    // double h0neg = h0tot - h0pos;
     double h1neg = h1tot - h1pos;
     double h0freq = ((double)(h0pos)) / ((double)(h0tot));
     double h1freq = ((double)(h1pos)) / ((double)(h1tot));
@@ -535,9 +414,7 @@ _old_h01_to_phredlike(double h0pos, double h0tot, double h1pos, double h1tot,
     }
     assert(kldiv >= 0 || !fprintf(stderr, "kldiv value of %lf is found for (%lf , %lf , %lf , %lf ) and TIsConsensual=%d\n", kldiv, h0pos, h0tot, h1pos, h1tot, TIsConsensual));
     // a * (1 -r^n) / (1-r) = m, n = math.log(m*(r-1)/a + 1, r)
-    // double nreads = geometric_sum_to_nterms(h1pos, homogeneity * h1neg + pseudocount, err_amp_ratio);
     double nreads = geometric_sum_to_nterms(h1pos, h0freq * h1tot + pseudocount, err_amp_ratio);
-    //double nreads=log((double)(h1pos + pseudocount) / (double)(homogeneity * h1neg + pseudocount)) / log(2); // h1pos or h1tot
     return (kldiv) * nreads * (10 / log(10));
 }
 
@@ -561,16 +438,6 @@ main(int argc, char **argv) {
 }
 #endif
 
-/*
-double
-qthres_ad_dp_to_qtotal(unsigned int QP, unsigned int ADP, unsigned int DPT,
-    double positive_pseudocount = 1, double negative_pseudocount = 1) {
-    auto observed_unit_phred = log((double)ADP / (double)DPT) * (10 / log(10));
-    return (observed_unit_phred - QP) * log(ADP+positive_pseudocount) / log(positive_pseudocount + negative_pseudocount);
-};
-*/
-
-
 double 
 dp4_to_sratio(double all_fw0, double all_rv0, double alt_fw0, double alt_rv0, double pseudocount = 1) {
     assert(all_fw0 >= 0 - FLT_EPSILON);
@@ -582,15 +449,15 @@ dp4_to_sratio(double all_fw0, double all_rv0, double alt_fw0, double alt_rv0, do
     double alt_fw = alt_fw0 + pseudocount;
     double alt_rv = alt_rv0 + pseudocount;
     double rawratio = (all_fw * alt_rv) / (all_rv * alt_fw);
-    double sumratio = rawratio + 1.0 / rawratio;  // (t00 / t01) * (t11 / t10) + (t01 / t00) * (t10 / t11);
+    double sumratio = rawratio + 1.0 / rawratio;
     double allratio = MIN(all_fw, all_rv) / MAX(all_fw, all_rv);
     double altratio = MIN(alt_fw, alt_rv) / MAX(alt_fw, alt_rv);
-    double ret = sumratio * allratio / altratio; // there isn't division by 2
+    double ret = sumratio * allratio / altratio;
     assert(0 < ret);
     return ret;
 }
 
-//// conversion between different defintions in bioinformatics
+// conversion between different defintions in bioinformatics
 
 const unsigned int 
 char2phred(const unsigned char charvalue) {
@@ -599,7 +466,6 @@ char2phred(const unsigned char charvalue) {
 
 const unsigned char 
 phred2char(const unsigned int phredvalue) {
-    // return chr(MAX((33-1, MIN((phredvalue + 33, 126)))))
     return phredvalue + 33;
 }
 
@@ -616,22 +482,20 @@ prob2phred(const double probvalue) {
 const unsigned int 
 phred2bucket(const unsigned int phredvalue) {
     assert(phredvalue < NUM_BUCKETS);
-    return phredvalue; // return phredvalue / (64/NUM_BUCKETS);
-    // return MIN(32-1, phredvalue / 2);
+    return phredvalue;
+    // With MIN(32-1, phredvalue / 2) we may some some resolution
     // 0 - 8 -> 1, 8 - 40 -> 2, 40 - .. -> 4 ; 
     //  0 - 10 : 1 -> 10
     // 10 - 20 : 2 -> 5
     // 20 - 30 : 1 -> 10
     // 30 - 40 : 2 -> 5
     // 40 - 60 : 4 -> 5
-    //return floor(20 * log(phredvalue + 1) / log(10));
+    // Another binning schme is : floor(20 * log(phredvalue + 1) / log(10))
 }
 
 const unsigned int 
 bucket2phred(const unsigned int bucketvalue) {
-    return bucketvalue; // return bucketvalue * (64/NUM_BUCKETS);
-    //return bucketvalue * 2;
-    // return floor(pow(10, ((float)(bucketvalue)) / 20) - 1);
+    return bucketvalue;
 }
 
 struct _PhredToErrorProbability {
@@ -647,75 +511,6 @@ struct _PhredToErrorProbability {
 };
 
 const _PhredToErrorProbability THE_PHRED_TO_ERROR_PROBABILITY;
-
-double
-to_exp_contam_fa(double t2n_add_contam_frac, double tFA, double tDP, double nFA, double nDP) {
-    double totAD =  tFA * tDP + nFA * nDP;
-    double exp_contam_AD = t2n_add_contam_frac * totAD;
-    return exp_contam_AD / (exp_contam_AD + nDP - nFA * nDP);
-}
-
-//// conversion of data structures and file formats
-
-#if 0
-bcf_hdr_t *
-bcf_hdr_init2(const int argc, const char * const * const argv, const char sam_hdr_t *sam_hdr, const char *ref_fasta_fname, const char *samplename) {
-    
-    bcf_hdr_t *bcf_hdr = bcf_hdr_init("w");
-    for (unsigned int i = 0; i < bcfhrec::BCF_FILTER_NUM; i++) {
-        bcf_hdr_append(bcf_hdr, bcfrec::FILTER_LINE[i]);
-    }
-    for (unsigned int i = 0; i < bcfhrec::BCF_FORMAT_NUM; i++) {
-        bcf_hdr_append(bcf_hdr, bcfrec::FORMAT_LINE[i]);
-    }
-    
-    bcf_hdr_append(bcf_hdr, "##reference=%s", ref_fasta_fname);
-    for (size_t i = 0; i < sam_hdr->n_targets; i++) {
-        bcf_hdr_append(bcf_hdr, sam_hdr->target_name);
-    }
-    
-    time_t rawtime;
-    struct tm * timeinfo;
-    char buffer [80];
-    time (&rawtime);
-    timeinfo = localtime (&rawtime);
-    strftime(buffer, 80,"%F %T", timeinfo);
-    
-    char cmdline[2000];
-    char cmdline_curr = cmdline;
-    for (int i = 0; i < argc; i++) {
-        if (cmdline_curr - cmdline + (strlen + 1) >= 2000) {
-            break; // overflow if continue
-        }
-        size_t len = strlen(argv[i]);
-        strcpy(cmdline_curr, argv[i]);
-        cmdline_curr[len] = '\t';
-        cmdline_curr += len + 1;
-    }
-    
-    bcf_hdr_append(bcf_hdr, "##fileDdate=%s", buffer);
-    bcf_hdr_append(bcf_hdr, "##variantCallerCommand=%s", cmdline);
-    
-    bcf_hdr_add_sample(bcf_hdr, samplename);
-    bcf_hdr_sync(bcf_hdr);
-    return bcf_hdr;
-}
-#endif
-
-#if 0
-template<class TContainer> int
-update_fpos2reftype_with_fna(TContainer<char> & fpos2reftype, const char *fasta_fname, const unsigned char *tname, unsigned int tbeg, unsigned int tend) {
-    faidx_t *fai = i_load(fasta_fname);
-    int regionlen;
-    char *fetchedseq = faidx_fetch_seq(fai, tname, tbeg, tend, &regionlen);
-    fpos2reftype.resize(regionlen);
-    for (int i = 0; i < regionlen; i++) {
-        fpos2reftype[i] = fetchedseq[i];
-    }
-    free(fetchedseq);
-    fai_destroy(fai);
-}
-#endif
 
 #endif
 

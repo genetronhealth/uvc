@@ -1826,17 +1826,28 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
     
     int
     updateByAlns3UsingFQ(
-            std::map<std::basic_string<std::pair<unsigned int, AlignmentSymbol>>, 
-            std::array<unsigned int, 2>> & mutform2count4map,
-            const auto & alns3, const std::basic_string<AlignmentSymbol> & region_symbolvec,
+            std::map<std::basic_string<std::pair<unsigned int, AlignmentSymbol>>, std::array<unsigned int, 2>> & mutform2count4map,
+            const auto & alns3, 
+            const std::basic_string<AlignmentSymbol> & region_symbolvec,
             const std::array<unsigned int, NUM_SYMBOL_TYPES> & symbolType2addPhred, 
-            bool should_add_note, const unsigned int frag_indel_ext, const unsigned int frag_indel_basemax, 
-            const PhredMutationTable & phred_max_table, unsigned int phred_thres, 
-            const double ess_georatio_dedup, const double ess_georatio_duped_pcr,
-            bool is_loginfo_enabled, unsigned int thread_id, unsigned int nogap_phred,
-            unsigned int highqual_thres_snv, unsigned int highqual_thres_indel, unsigned int uni_bias_r_max,
-            const bool is_proton, const AssayType assay_type,
-            phred_indel_error_before_barcode_labeling) {
+            bool should_add_note,
+            const unsigned int frag_indel_ext, 
+            const unsigned int frag_indel_basemax, 
+            const PhredMutationTable & phred_max_table, 
+            unsigned int phred_thres,
+            const double ess_georatio_dedup, 
+            const double ess_georatio_duped_pcr,
+            bool is_loginfo_enabled, 
+            unsigned int thread_id, 
+            unsigned int nogap_phred,
+            unsigned int highqual_thres_snv, 
+            unsigned int highqual_thres_indel, 
+            unsigned int uni_bias_r_max,
+            const bool is_proton, 
+            const AssayType assay_type,
+            const unsigned int phred_indel_error_before_barcode_labeling
+            ) {
+        
         unsigned int niters = 0;
         for (const auto & alns2pair2dflag : alns3) {
             const auto & alns2pair = alns2pair2dflag.first;
@@ -2112,7 +2123,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
             unsigned int uni_bias_r_max,
             const bool is_proton, 
             const AssayType assay_type,
-            const unsigned int phred_indel_error_before_barcode_labeling,
+            const unsigned int phred_indel_error_before_barcode_labeling
             ) {
         
         const std::array<unsigned int, NUM_SYMBOL_TYPES> symbolType2addPhred = {bq_phred_added_misma, bq_phred_added_indel};
@@ -2131,7 +2142,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                 fixedthresBQ, 
                 nogap_phred, 
                 uni_bias_r_max, is_proton, 
-                assay_type,
+                assay_type
                 ); // base qualities
         updateHapMap(mutform2count4map_bq, this->bq_tsum_depth);
         if (use_deduplicated_reads) {
@@ -3404,7 +3415,7 @@ append_vcf_record(std::string & out_string,
             vc_stats.vcfqual_to_count[median_intq].noDP += nDP0;
             vc_stats.vcfqual_to_count[median_intq].noAD += nAD0;
             
-            vcfqual = calc_upper_bounded(calc_non_negative(vcfqual));
+            vcfqual = calc_non_negative(vcfqual);
             bool keep_var = ((vcfqual >= vcfqual_thres || (tki.DP * tki.FA) >= vad_thres) && !is_novar); 
             if ((!keep_var) && (!should_output_all) && (!should_let_all_pass)) {
                 return -2;
