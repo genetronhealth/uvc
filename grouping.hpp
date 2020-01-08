@@ -19,11 +19,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-//#include "logging.hpp"
 #define logDEBUGx1 logDEBUG // logINFO
 
 // position of 5' is the starting position, but position of 3' is unreliable without mate info.
-
 const unsigned int ARRPOS_MARGIN = 600;
 const int8_t ARRPOS_OUTER_RANGE = 10;
 const int8_t ARRPOS_INNER_RANGE = 3;
@@ -54,8 +52,14 @@ struct SamIter {
     std::vector<std::tuple<unsigned int, unsigned int, unsigned int, bool, unsigned int>> _tid_beg_end_e2e_vec;
     unsigned int _bedregion_idx = 0;
     
-    SamIter(const std::string & in_bam_fname, const std::string & tier1_target_reg, const std::string & reg_bed_fname, const unsigned int nt): 
-            input_bam_fname(in_bam_fname), tier1_target_region(tier1_target_reg), region_bed_fname(reg_bed_fname), nthreads(nt) {
+    SamIter(const std::string & in_bam_fname, 
+            const std::string & tier1_target_reg, 
+            const std::string & reg_bed_fname, 
+            const unsigned int nt): 
+            input_bam_fname(in_bam_fname), 
+            tier1_target_region(tier1_target_reg), 
+            region_bed_fname(reg_bed_fname), 
+            nthreads(nt) {
         this->sam_infile = sam_open(input_bam_fname.c_str(), "r");
         if (NULL == this->sam_infile) {
             fprintf(stderr, "Failed to open the file %s!", input_bam_fname.c_str());
@@ -66,7 +70,6 @@ struct SamIter {
             fprintf(stderr, "Failed to read the header of the file %s!", input_bam_fname.c_str());
             abort();
         }
-        //this->region_bed_fname = reg_bed_fname;
         if (NOT_PROVIDED != this->tier1_target_region) {
             this->sam_idx = sam_index_load2(this->sam_infile, input_bam_fname.c_str(), NULL);
             if (NULL == this->sam_idx) {
@@ -76,7 +79,7 @@ struct SamIter {
             this->sam_itr = sam_itr_querys(this->sam_idx, this->samheader, this->tier1_target_region.c_str());
             if (NULL == this->sam_itr) {
                 fprintf(stderr, "Failed to load the region %s in the indexed file %s!", tier1_target_region.c_str(), input_bam_fname.c_str());
-                abort(); // while (sam_itr_next(sam_infile, hts_itr, aln) >= 0) {
+                abort();
             }
         }
         
@@ -97,13 +100,16 @@ struct SamIter {
 };
 
 int
-samfname_to_tid_to_tname_tseq_tup_vec(std::vector<std::tuple<std::string, unsigned int>> & tid_to_tname_tseqlen_tuple_vec, const std::string & bam_input_fname);
+samfname_to_tid_to_tname_tseq_tup_vec(
+        std::vector<std::tuple<std::string, unsigned int>> & tid_to_tname_tseqlen_tuple_vec, 
+        const std::string & bam_input_fname);
 
 int 
 sam_fname_to_contigs(
         std::vector<std::tuple<unsigned int, unsigned int, unsigned int, bool, unsigned int>> & tid_beg_end_e2e_vec,
         std::vector<std::tuple<std::string, unsigned int>> & tid_to_tname_tlen_tuple_vec,
-        const std::string & input_bam_fname, const std::string & bed_fname);
+        const std::string & input_bam_fname, 
+        const std::string & bed_fname);
 
 struct _RevComplement {
     char data[128];
@@ -162,11 +168,17 @@ fill_strand_umi_readset_with_strand_to_umi_to_reads(
 std::array<unsigned int, 3>
 bamfname_to_strand_to_familyuid_to_reads(
         std::map<uint64_t, std::pair<std::array<std::map<uint64_t, std::vector<bam1_t *>>, 2>, int>> &umi_to_strand_to_reads,
-        unsigned int & extended_inclu_beg_pos, unsigned int & extended_exclu_end_pos,
+        unsigned int & extended_inclu_beg_pos,
+        unsigned int & extended_exclu_end_pos,
         const std::string input_bam_fname, 
-        unsigned int tid, unsigned int fetch_tbeg, unsigned int fetch_tend, 
-        bool end2end, unsigned int min_mapq, unsigned int min_alnlen, 
-        unsigned int regionbatch_ordinal, unsigned int regionbatch_tot_num,
+        unsigned int tid, 
+        unsigned int fetch_tbeg, 
+        unsigned int fetch_tend, 
+        bool end2end, 
+        unsigned int min_mapq, 
+        unsigned int min_alnlen, 
+        unsigned int regionbatch_ordinal, 
+        unsigned int regionbatch_tot_num,
         const std::string UMI_STRUCT_STRING, 
         const hts_idx_t * hts_idx,
         const bool is_molecule_tag_enabled,

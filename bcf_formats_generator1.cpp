@@ -129,6 +129,7 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("GQb"      , 1, BCF_INTEGER, "Genotype Quality of other alleles"),
     BcfFormatStruct("GLb"      , 3, BCF_SIG_INT, "Genotype Likelihood of other alleles"),
     BcfFormatStruct("GSTb"     ,10, BCF_SIG_INT, "Genotype Statistics of other alleles"),
+    
     BcfFormatStruct("__ab"     , 1, BCF_SEP,     "Depth and REF/ALT allele frequency for base read and consensus family"),  
     BcfFormatStruct("bDP"      , 1, BCF_INTEGER, "Fragment depth supporting any allele [base read, duped]"),
     BcfFormatStruct("bFA"      , 1, BCF_FLOAT,   "Frequency of the ALT allele [base read, duped]"),
@@ -138,6 +139,7 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("cFA"      , 1, BCF_FLOAT,   "Frequency of the ALT allele [consensus family, deduped]"),
     BcfFormatStruct("cFR"      , 1, BCF_FLOAT,   "Frequency of the REF allele [consensus family, deduped]"),
     BcfFormatStruct("cFO"      , 1, BCF_FLOAT,   "Frequency of all the other ALT alleles [consensus family, deduped]"),
+    
     BcfFormatStruct("__ac"     , 1, BCF_SEP,     "Consensus/variant allele type/quality"),  
     BcfFormatStruct("CType"    , 1, BCF_STRING,  "Type of consensus allele"),
     BcfFormatStruct("CAQ"      , 1, BCF_FLOAT,   "Consensus Allele Quality"),
@@ -145,6 +147,7 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("VAQ"      , 1, BCF_FLOAT,   "Variant Allele Quality"),
     BcfFormatStruct("VAQ2"     , 1, BCF_FLOAT,   "Variant Allele Quality of the specific form(s) of InDel in ALT assuming other forms of InDels are noise"),
     BcfFormatStruct("VAQAB"    , 1, BCF_FLOAT,   "Variant Allele Quality adjusted with bias"),
+    
     BcfFormatStruct("__ad"     , 1, BCF_SEP,     "Sum of base qualities (bAllBQ/bAltBQ/bRefBQ) and consensus-family qualities (cAllBQ/cAltBQ/cRefBQ) for ALL/ALT/REF alleles"), // global 
     BcfFormatStruct("bAllBQ"   , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("bAltBQ"   , 2, BCF_INTEGER, "see above"),
@@ -152,6 +155,7 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("cAllBQ"   , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("cAltBQ"   , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("cRefBQ"   , 2, BCF_INTEGER, "see above"),
+    
     BcfFormatStruct("__ae"     , 1, BCF_SEP,     "Sum of square/10 consensus-family qualities and number of high-confidence families, and and duplication bias (aDB). All biases are percentages where 100% means no bias."), // global
     BcfFormatStruct("cAllBQ2"  , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("cAltBQ2"  , 2, BCF_INTEGER, "see above"),
@@ -160,6 +164,7 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("cAltHD"   , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("cRefHD"   , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("aDB"      , 2, BCF_INTEGER, "see above"),
+    
     BcfFormatStruct("__ba"     , 1, BCF_SEP,     "Forward&reverse max-bias base distances to left/right end positions (T1PTL/T1PTR) and position bias (T1PBL/T1PBR) [base read, duped]"), 
     BcfFormatStruct("bPTL"     , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("bPTR"     , 2, BCF_INTEGER, "see above"),
@@ -167,35 +172,42 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("bPBR"     , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("bMMT"     , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("bMMB"     , 2, BCF_INTEGER, "see above"),
+    
     BcfFormatStruct("__bb"     , 1, BCF_SEP,     "Forward&reverse sum of : base distances to left/right end positions (T1SDL/T1SDR) and non-normalized/normalized strand bias (T1SB1/T1SBR) [base read, duped]"),
     BcfFormatStruct("bSDL"     , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("bSDR"     , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("bSB1"     , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("bSBR"     , 2, BCF_INTEGER, "see above"),
+    
     BcfFormatStruct("__bc"     , 1, BCF_SEP,     "Forward&reverse depth (DP1), allele depth (AD1), allele depth after weak filter (AD2), quality threshold for weak filter (QT2) [base read, duped]"),
     BcfFormatStruct("bDP1"     , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("bAD1"     , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("bRD1"     , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("bAD2"     , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("bQT2"     , 2, BCF_INTEGER, "see above"),
+    
     BcfFormatStruct("__bd"     , 1, BCF_SEP,     "Forward&reverse allele depth after strong filter (AD3), quality threshold for strong filter (QT3), and variant quality after strong filter (VQ3) [duped]"),
     BcfFormatStruct("bAD3"     , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("bADB"     , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("bQT3"     , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("bVQ3"     , 2, BCF_FLOAT,   "see above"),
+    
     BcfFormatStruct("__be"     , 1, BCF_SEP,     "Forward&reverse  allele root-mean-squre MQ (bMQ1) and (sum of squared MQ) / (sum of MQ) (bMQ2), where MQ is mapping quality, and the same for base quality BQ [duped]"),
     BcfFormatStruct("bMQ1"     , 2, BCF_FLOAT,   "see above"),
     BcfFormatStruct("bMQ2"     , 2, BCF_FLOAT,   "see above"),
     BcfFormatStruct("bBQ1"     , 2, BCF_FLOAT,   "see above"),
     BcfFormatStruct("bBQ2"     , 2, BCF_FLOAT,   "see above"),
+    
     BcfFormatStruct("__bf"     , 1, BCF_SEP,     "Forward&reverse total depth (bDPLQ), ALT depth (bADLQ), and REF depth (bRDLQ) supported by low-quality (LQ) bases [duped]"),
     BcfFormatStruct("bDPLQ"    , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("bADLQ"    , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("bRDLQ"    , 2, BCF_INTEGER, "see above"),
+    
     BcfFormatStruct("__bg"     , 1, BCF_SEP,     "In bSSDP and bSSAD, the four-directions are (fw-fw, fw-rv, rv-fw, rv-rv) library-sequencing strand orientations corresponding to (R1+, R2-, R2+, R1-)"),
     BcfFormatStruct("bSSDP"    , 4, BCF_INTEGER, "Four-direction raw depths total and summed for ALL alleles [duped]"),
     BcfFormatStruct("bSSAD"    , 4, BCF_INTEGER, "Four-direction raw depths specific to only the ALT allele  [duped]"),
     BcfFormatStruct("bSSB"     , 2, BCF_INTEGER, "Forward&reverse sequencing-strand bias"),
+    
     BcfFormatStruct("__ca"     , 1, BCF_SEP,     "Same as __ba but for single-strand families instead of reads [consensus family, deduped]"),
     BcfFormatStruct("cPTL"     , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("cPTR"     , 2, BCF_INTEGER, "see above"),
@@ -203,30 +215,33 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("cPBR"     , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("cMMT"     , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("cMMB"     , 2, BCF_INTEGER, "see above"),
+    
     BcfFormatStruct("__cb"     , 1, BCF_SEP,     "Same as __bb but for single-strand families instead of reads [consensus family, deduped]"), 
     BcfFormatStruct("cSDL"     , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("cSDR"     , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("cSB1"     , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("cSBR"     , 2, BCF_INTEGER, "see above"),
+    
     BcfFormatStruct("__cc"     , 1, BCF_SEP,     "Same as __bc but for single-strand families instead of reads [consensus family, deduped]"), 
     BcfFormatStruct("cDP1"     , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("cAD1"     , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("cRD1"     , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("cAD2"     , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("cQT2"     , 2, BCF_INTEGER, "see above"),
+    
     BcfFormatStruct("__cd"     , 1, BCF_SEP,     "Same as __bd but for single-strand families instead of reads [consensus family, deduped]"),
     BcfFormatStruct("cAD3"     , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("cADB"     , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("cQT3"     , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("cVQ3"     , 2, BCF_FLOAT,   "see above"),
+    
     BcfFormatStruct("__ce"     , 1, BCF_SEP,     "number of read supports generated by signal (cMajor) and noise (cMinor) inferred from heterogeneity of families, "
                                                  "and strand-specific VAQ (non-adjusted: cVAQ1; adjusted with BQ, MQ, and strand balance: cVAQ2) [consensus family, deduped]"),
-    //BcfFormatStruct("cCQ1"     , 2, BCF_FLOAT,   "see above"),
-    //BcfFormatStruct("cCQ2"     , 2, BCF_FLOAT,   "see above"),
     BcfFormatStruct("cMajor"   , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("cMinor"   , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("cVAQ1"    , 2, BCF_FLOAT,   "see above"),
     BcfFormatStruct("cVAQ2"    , 2, BCF_FLOAT,   "see above"),
+    
     BcfFormatStruct("__cf"     , 1, BCF_SEP,     "Forward&reverse number of families without any filtering (total: cDPTT, allele: cADTT, reference: cRDTT, "
                                                  "REF/ALT allele singleton: cRDT1/cADT1, REF/ALT allele failing 80\% consensus : cRDTN/cADTN). "),
     BcfFormatStruct("cDPTT"    , 2, BCF_INTEGER, "see above"),
@@ -240,9 +255,8 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("__da"     , 1, BCF_SEP,     "Same as __ba and __ca but for duplex families [duplex family, DSCS1-deduped]"),
     BcfFormatStruct("dDP1"     , 1, BCF_INTEGER, "see above"),
     BcfFormatStruct("dAD1"     , 1, BCF_INTEGER, "see above"),
-    BcfFormatStruct("dVQ3"     , 1, BCF_INTEGER, "see above"), // AD2=QT2=NotApplicable QT3=60 (all passed)
+    BcfFormatStruct("dVQ3"     , 1, BCF_INTEGER, "see above"),
     BcfFormatStruct("dAD3"     , 1, BCF_INTEGER, "see above"),
-    // BcfFormatStruct("RVAQ"     , 1, BCF_FLOAT,   "Raw Variant Allele Quality"),
     
     BcfFormatStruct("__ea"    , 1, BCF_SEP,     "Number of indels in forward&reverse strand (gapNum), max cAD diff (gapcADD), total cAD depth (gapcADT), indel sequences (gapSeq), duped read count of each gapSeq, dedup family count of each gapSeq, and duped/deduped sub/all allele read counts (gapDP4)"), 
     BcfFormatStruct("gapNum"   , 2, BCF_INTEGER, "see above"), // 2 * number-of-alts
@@ -272,7 +286,6 @@ int
 main(int argc, char **argv) {
     unsigned int itnum = 0;
     std::cout << "// This file is automatically generated by " << argv[0] << ". All changes to this file will be lost after recompilation!!!\n"; 
-    // std::cout << "namespace bcfhrec {\n";
     
     std::cout << "#ifndef bcf_formats_step1_INCLUDED\n";
     std::cout << "#define bcf_formats_step1_INCLUDED\n"; 
@@ -281,7 +294,7 @@ main(int argc, char **argv) {
     std::cout << "#include<string>\n";
     std::cout << "#include<vector>\n";
     std::cout << "namespace bcfrec {\n";
-
+    
     std::cout << "static const unsigned int FILTER_NUM = " << FILTER_VEC.size() << ";\n";
     
     std::cout << "enum FILTER_ENUM {\n";
@@ -369,14 +382,8 @@ main(int argc, char **argv) {
             std::cout << "    outstring += " << (fmt.type == BCF_STRING ? "" : "std::to_string") << "(fmt." << fmt.id << ");\n";
         } else {
             std::cout << "    for (unsigned int i = 0; i < fmt." << fmt.id << ".size(); i++) {\n";
-            
-            //std::string customcode = ((BCF_STRING == fmt.type) ? 
-            //        (std::string(" fmt.") + fmt.id + "[i].size() == 0 ? \".\" : fmt." + fmt.id + "[i]") 
-            //        : (std::string("fmt.") + std::string(fmt.id) + "[i]"));
-            std::cout << "        if (0 != i) { outstring += \",\"; }; outstring += " << (fmt.type == BCF_STRING ? "" : "std::to_string") << "(" << 
-                    // customcode 
-                    "fmt." << fmt.id << "[i]"
-                    << ");\n";
+            std::cout << "        if (0 != i) { outstring += \",\"; }; outstring += " << (fmt.type == BCF_STRING ? "" : "std::to_string") 
+                    << "(" << "fmt." << fmt.id << "[i]" << ");\n";
             std::cout << "    };\n";
             if (BCF_STRING == fmt.type) {
                 std::cout << "        if (fmt. " << fmt.id << ".size() == 1 && fmt." << fmt.id << "[0].size() == 0) { outstring += \",\"; };";

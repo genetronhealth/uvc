@@ -1,4 +1,3 @@
-// Log, version 0.1: a simple logging class
 #ifndef logging_hpp_INCLUDED
 #define logging_hpp_INCLUDED
 
@@ -18,7 +17,7 @@ public:
     std::ostringstream& 
     Get(TLogLevel level = logINFO2);
 public:
-    static TLogLevel& ReportingLevel(); // { return globalMessageLevel; };
+    static TLogLevel& ReportingLevel();
 protected:
     std::ostringstream os;
 private:
