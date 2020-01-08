@@ -620,7 +620,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
     //}
     
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts converting umi_to_strand_to_reads with is_by_capture = " << is_by_capture << "  " ;}
-    fill_strand_umi_readset_with_strand_to_umi_to_reads(umi_strand_readset, umi_to_strand_to_reads);
+    fill_strand_umi_readset_with_strand_to_umi_to_reads(umi_strand_readset, umi_to_strand_to_reads, paramset.baq_per_aligned_base);
     
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts constructing symbolToCountCoverageSet12 with " << extended_inclu_beg_pos << (" , ") << extended_exclu_end_pos; }
     // + 1 accounts for insertion at the end of the region, this should happen rarely for only re-aligned reads at around once per one billion base pairs
@@ -660,7 +660,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
             paramset.uni_bias_r_max,
             SEQUENCING_PLATFORM_IONTORRENT == paramset.sequencing_platform,
             inferred_assay_type,
-            paramset.phred_frac_indel_error_before_barcode_labeling
+            paramset.phred_frac_indel_error_before_barcode_labeling,
+            paramset.baq_per_aligned_base
             );
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts analyzing phasing info"; }
     auto mutform2count4vec_bq = map2vector(mutform2count4map_bq);
@@ -744,7 +745,9 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                             paramset.t2n_add_contam_frac,
                             paramset.t2n_add_contam_transfrac,
                             paramset.min_edge_dist,
-                            paramset.central_readlen);
+                            paramset.central_readlen,
+                            paramset.baq_per_aligned_base
+                            );
                 }
                 for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; symbol = AlignmentSymbol(1+(unsigned int)symbol)) {
                     float vaq = fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]].VAQ;

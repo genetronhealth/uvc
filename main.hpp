@@ -1711,11 +1711,19 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
             const std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, int>> & alns3, 
             const std::basic_string<AlignmentSymbol> & region_symbolvec,
             const std::array<unsigned int, NUM_SYMBOL_TYPES> & symbolType2addPhred,
-            bool should_add_note, unsigned int frag_indel_ext, unsigned int frag_indel_basemax,
-            const PhredMutationTable & phred_max_table, unsigned int phred_thres,
-            double ess_georatio_dedup, double ess_georatio_duped_pcr,
-            unsigned int fixedthresBQ, unsigned int nogap_phred, unsigned int uni_bias_r_max,
-            const bool is_proton, const AssayType assay_type
+            bool should_add_note, 
+            unsigned int frag_indel_ext, 
+            unsigned int frag_indel_basemax,
+            const PhredMutationTable & phred_max_table, 
+            unsigned int phred_thres,
+            double ess_georatio_dedup, 
+            double ess_georatio_duped_pcr,
+            unsigned int fixedthresBQ, 
+            unsigned int nogap_phred, 
+            unsigned int uni_bias_r_max,
+            const bool is_proton, 
+            const AssayType assay_type,
+            const unsigned int baq_per_aligned_base
             ) {
         for (const auto & alns2pair2dflag : alns3) {
             const auto & alns2pair = alns2pair2dflag.first;
@@ -1760,7 +1768,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                             // shared between BQ and FQ
                             con_symbols_vec[epos - read_ampBQerr_fragWithR1R2.getIncluBegPosition()][symbolType] = con_symbol;
                             this->bq_tsum_depth [strand].getRefByPos(epos).incSymbolCount(con_symbol, 1);
-                            unsigned int edge_baq = MIN(ldist, rdist) * 4;
+                            unsigned int edge_baq = MIN(ldist, rdist) * baq_per_aligned_base;
                             unsigned int overallq = MIN(edge_baq, phredlike);
                             this->bq_qual_p1sum [strand].getRefByPos(epos).incSymbolCount(con_symbol, overallq);
                             this->bq_qual_p2sum [strand].getRefByPos(epos).incSymbolCount(con_symbol, mathsquare(overallq)); // specific to BQ
@@ -1845,7 +1853,8 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
             unsigned int uni_bias_r_max,
             const bool is_proton, 
             const AssayType assay_type,
-            const unsigned int phred_indel_error_before_barcode_labeling
+            const unsigned int phred_indel_error_before_barcode_labeling,
+            const unsigned int baq_per_aligned_base
             ) {
         
         unsigned int niters = 0;
@@ -1984,7 +1993,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         
                         con_symbols_vec[epos - read_family_amplicon.getIncluBegPosition()][symbolType] = con_symbol;
                         this->fq_tsum_depth [strand].getRefByPos(epos).incSymbolCount(con_symbol, 1);
-                        unsigned int edge_baq = MIN(ldist, rdist) * 4;
+                        unsigned int edge_baq = MIN(ldist, rdist) * baq_per_aligned_base;
                         unsigned int overallq = MIN(edge_baq, phredlike);
                         this->fq_qual_p1sum [strand].getRefByPos(epos).incSymbolCount(con_symbol, overallq);
                         this->fq_qual_p2sum [strand].getRefByPos(epos).incSymbolCount(con_symbol, mathsquare(overallq));
@@ -2123,7 +2132,8 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
             unsigned int uni_bias_r_max,
             const bool is_proton, 
             const AssayType assay_type,
-            const unsigned int phred_indel_error_before_barcode_labeling
+            const unsigned int phred_indel_error_before_barcode_labeling,
+            const unsigned int baq_per_aligned_base
             ) {
         
         const std::array<unsigned int, NUM_SYMBOL_TYPES> symbolType2addPhred = {bq_phred_added_misma, bq_phred_added_indel};
@@ -2142,7 +2152,8 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                 fixedthresBQ, 
                 nogap_phred, 
                 uni_bias_r_max, is_proton, 
-                assay_type
+                assay_type,
+                baq_per_aligned_base
                 ); // base qualities
         updateHapMap(mutform2count4map_bq, this->bq_tsum_depth);
         if (use_deduplicated_reads) {
@@ -2165,7 +2176,9 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                     uni_bias_r_max,
                     is_proton, 
                     assay_type,
-                    phred_indel_error_before_barcode_labeling); // family qualities
+                    phred_indel_error_before_barcode_labeling,
+                    baq_per_aligned_base
+                    ); // family qualities
             updateHapMap(mutform2count4map_fq, this->fq_tsum_depth);
         }
         return 0;
@@ -2421,7 +2434,8 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
         const double t2n_add_contam_frac,
         const double t2n_add_contam_transfrac, // additional params
         unsigned int min_edge_dist,
-        unsigned int central_readlen
+        unsigned int central_readlen,
+        unsigned int baq_per_aligned_base
         ) {
     fmt.note = symbol2CountCoverageSet12.additional_note.getByPos(refpos).at(symbol);
     uint64_t bq_qsum_sqrMQ_tot = 0; 
@@ -2777,11 +2791,11 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
         stdVAQs[i] = currVAQ;
         
         if (fmt.bSDL[i] < fmt.bAD1[i] * min_edge_dist && fmt.cSDL[i] < fmt.cAD1[i] * min_edge_dist) {
-            double edgeVAQ = ((double)4) * MAX((double)fmt.bSDL[i] / (double)(fmt.bAD1[i] + DBL_MIN), (double)fmt.cSDL[i] / (double)(fmt.cAD1[i] + DBL_MIN));
+            double edgeVAQ = ((double)baq_per_aligned_base) * MAX((double)fmt.bSDL[i] / (double)(fmt.bAD1[i] + DBL_MIN), (double)fmt.cSDL[i] / (double)(fmt.cAD1[i] + DBL_MIN));
             stdVAQs[i] = MIN(stdVAQs[i], edgeVAQ);
         }
         if (fmt.bSDR[i] < fmt.bAD1[i] * min_edge_dist && fmt.cSDR[i] < fmt.cAD1[i] * min_edge_dist) {
-            double edgeVAQ = ((double)4) * MAX((double)fmt.bSDR[i] / (double)(fmt.bAD1[i] + DBL_MIN), (double)fmt.cSDR[i] / (double)(fmt.cAD1[i] + DBL_MIN));
+            double edgeVAQ = ((double)baq_per_aligned_base) * MAX((double)fmt.bSDR[i] / (double)(fmt.bAD1[i] + DBL_MIN), (double)fmt.cSDR[i] / (double)(fmt.cAD1[i] + DBL_MIN));
             stdVAQs[i] = MIN(stdVAQs[i], edgeVAQ);
         }
         

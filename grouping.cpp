@@ -396,12 +396,12 @@ clean_fill_strand_umi_readset(
 }
 
 int 
-apply_baq(bam1_t *aln) {
+apply_baq(bam1_t *aln, const unsigned int baq_per_aligned_base) {
     if (aln->core.l_qseq < (10*2)) { return -1; }
     for (unsigned int i = 0; i < 10; i++) { 
         auto j = aln->core.l_qseq - 1 - i;
-        (bam_get_qual(aln))[i] = min((bam_get_qual(aln))[i], 4*(i+1));
-        (bam_get_qual(aln))[j] = min((bam_get_qual(aln))[j], 4*(i+1));
+        (bam_get_qual(aln))[i] = min((bam_get_qual(aln))[i], baq_per_aligned_base * (i+1));
+        (bam_get_qual(aln))[j] = min((bam_get_qual(aln))[j], baq_per_aligned_base * (i+1));
     }
     return 0;
 }
@@ -409,7 +409,8 @@ apply_baq(bam1_t *aln) {
 int 
 fill_strand_umi_readset_with_strand_to_umi_to_reads(
         std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, int>> &umi_strand_readset,
-        std::map<uint64_t, std::pair<std::array<std::map<uint64_t, std::vector<bam1_t *>>, 2>, int>> &umi_to_strand_to_reads
+        std::map<uint64_t, std::pair<std::array<std::map<uint64_t, std::vector<bam1_t *>>, 2>, int>> &umi_to_strand_to_reads,
+        unsigned int baq_per_aligned_base
         ) {
     for (auto & umi_to_strand_to_reads_element : umi_to_strand_to_reads) {
         const auto strand_to_reads = umi_to_strand_to_reads_element.second.first;
@@ -420,7 +421,7 @@ fill_strand_umi_readset_with_strand_to_umi_to_reads(
                 const std::vector<bam1_t *> alns = read.second;
                 umi_strand_readset.back().first[strand].push_back(std::vector<bam1_t *>());
                 for (auto aln : alns) {
-                    apply_baq(aln);
+                    apply_baq(aln, baq_per_aligned_base);
                     umi_strand_readset.back().first[strand].back().push_back(aln);
                 }
             }

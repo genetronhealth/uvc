@@ -163,7 +163,8 @@ clean_fill_strand_umi_readset(
 int 
 fill_strand_umi_readset_with_strand_to_umi_to_reads(
         std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, int>> &umi_strand_readset,
-        std::map<uint64_t, std::pair<std::array<std::map<uint64_t, std::vector<bam1_t *>>, 2>, int>> &umi_to_strand_to_reads);
+        std::map<uint64_t, std::pair<std::array<std::map<uint64_t, std::vector<bam1_t *>>, 2>, int>> &umi_to_strand_to_reads,
+        unsigned int baq_per_aligned_base);
 
 std::array<unsigned int, 3>
 bamfname_to_strand_to_familyuid_to_reads(
