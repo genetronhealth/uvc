@@ -30,23 +30,25 @@ const char SEQ_ACGT[4] = {'A', 'C', 'G', 'T'};
 
 int 
 vcf_hdr_print(int argc, char **argv) {
+    int ret = 0;
     time_t rawtime;
     time(&rawtime);
     char timestring[80];
     strftime(timestring, 80, "%F %T", localtime(&rawtime));
-    printf("##fileformat=VCFv4.2\n");
-    printf("##fileDate=%s\n", timestring);
-    printf("##variantCallerCommand=");
+    ret += printf("##fileformat=VCFv4.2\n");
+    ret += printf("##fileDate=%s\n", timestring);
+    ret += printf("##variantCallerCommand=");
     for (int i = 0; i < argc; i++) {
-        printf(" %s", argv[i]);
+        ret += printf(" %s", argv[i]);
     }
-    printf("\n");
+    ret += printf("\n");
     // printf("##variantCallerVersion=%s\n");
-    printf("##INFO=<ID=TAD,Number=1,Type=Integer,Description=\"Tumor allele depth\">\n");
-    printf("##INFO=<ID=TDP,Number=1,Type=Integer,Description=\"Tumor total depth\">\n");
-    printf("##INFO=<ID=NAD,Number=1,Type=Integer,Description=\"Normal allele depth\">\n");
-    printf("##INFO=<ID=NDP,Number=1,Type=Integer,Description=\"Normal total depth\">\n");
-    printf("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n");
+    ret += printf("##INFO=<ID=TAD,Number=1,Type=Integer,Description=\"Tumor allele depth\">\n");
+    ret += printf("##INFO=<ID=TDP,Number=1,Type=Integer,Description=\"Tumor total depth\">\n");
+    ret += printf("##INFO=<ID=NAD,Number=1,Type=Integer,Description=\"Normal allele depth\">\n");
+    ret += printf("##INFO=<ID=NDP,Number=1,Type=Integer,Description=\"Normal total depth\">\n");
+    ret += printf("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n");
+    return ret;
 }
 
 int
@@ -98,11 +100,13 @@ posidx_to_basedistr_update(base_distr_t *posidx_to_basedistr, const size_t offse
             return -4;
         }
     }
+    return 0;
 }
 
 int
 pos_base_distr_print(uint64_t *t_ad_sum_ptr, uint64_t *t_dp_sum_ptr, uint64_t *n_ad_sum_ptr, uint64_t *n_dp_sum_ptr,
         const char *tname, unsigned int beg, unsigned int end, const base_distr_t *t_base_distr_arr, const base_distr_t *n_base_distr_arr) {
+    int ret = 0;
     for (int i = 0; i < end-beg; i++) {
         unsigned int t_dp = 0;
         unsigned int n_dp = 0;
@@ -118,13 +122,14 @@ pos_base_distr_print(uint64_t *t_ad_sum_ptr, uint64_t *t_dp_sum_ptr, uint64_t *n
             if (t_ad * 20 < t_dp) { continue; } // at least 5% allele fraction
             if (t_ad < n_ad * 3) { continue; } // at least 3 times more variant-supporting reads in the tumor than in the normal
             if (t_ad * n_dp * 2 < n_ad * t_dp * 5) { continue; } // at least 2.5 times more variant-supporting reads in the tumor than in the normal normalized by allele fraction
-            printf("%s\t%d\t.\t.\t%c\tTAD=%d;TDP=%d;NAD=%d;NDP=%d\n", tname, beg+i+1, SEQ_ACGT[j], t_ad, t_dp, n_ad, n_dp); 
+            ret += printf("%s\t%d\t.\t.\t%c\tTAD=%d;TDP=%d;NAD=%d;NDP=%d\n", tname, beg+i+1, SEQ_ACGT[j], t_ad, t_dp, n_ad, n_dp); 
             *t_ad_sum_ptr += t_ad;
             *t_dp_sum_ptr += MAX(t_dp - t_ad, t_dp / 2);
             *n_ad_sum_ptr += n_ad;
             *n_dp_sum_ptr += MAX(n_dp - n_ad, n_dp / 2); 
         }
     }
+    return ret;
 }
 
 int main(int argc,char** argv) {
@@ -156,16 +161,15 @@ int main(int argc,char** argv) {
 
     assert (t_hdr->n_targets == n_hdr->n_targets);
     size_t n_targets = t_hdr->n_targets;
-    int tid = 0;
     vcf_hdr_print(argc, argv);
     for (int tid = 0; tid < n_targets; tid++) {
         assert (t_hdr->target_len[tid] == n_hdr->target_len[tid]);  
         size_t target_len = t_hdr->target_len[tid];  
         
-        for (int pos_beg = 0; pos_beg < target_len; pos_beg += POS_BASE_ARRSIZE) {
+        for (size_t pos_beg = 0; pos_beg < target_len; pos_beg += POS_BASE_ARRSIZE) {
             size_t pos_end = MIN(target_len, pos_beg + POS_BASE_ARRSIZE);
             if (pos_beg / POS_BASE_ARRSIZE % 100 == 0) {
-                fprintf(stderr, "Processing %s:%d-%d\n", t_hdr->target_name[tid], pos_beg, pos_end);
+                fprintf(stderr, "Processing %s:%lu-%lu\n", t_hdr->target_name[tid], pos_beg, pos_end);
             }
             int t_num_updates = 0;
             while (t_sam_read_ret >= 0 && t_b->core.tid <= tid && t_b->core.pos < pos_end) {
@@ -200,7 +204,7 @@ int main(int argc,char** argv) {
     }
     
     double addfrac = (double)n_ad_sum / (double)(n_ad_sum + t_ad_sum + DBL_EPSILON);
-    fprintf(stderr, "##(TADsum,TDPsum,NADsum,NDPsum)=(%d,%d,%d,%d)\n", t_ad_sum, t_dp_sum, n_ad_sum, n_dp_sum);
+    fprintf(stderr, "##(TADsum,TDPsum,NADsum,NDPsum)=(%lu,%lu,%lu,%lu)\n", t_ad_sum, t_dp_sum, n_ad_sum, n_dp_sum);
     fprintf(stderr, "##estimatedContaminationFromTumorToNormal_additiveFraction=%f (recommended=%f)\n", addfrac, floor(addfrac*175.0) / 100.0);
     fprintf(stderr, "##estimatedContaminationFromTumorToNormal_multiplicativeFraction=%f\n", (
             double)((double)n_ad_sum * (double)t_dp_sum) / (double)(((double)t_ad_sum * (double)n_dp_sum) + ((double)n_ad_sum * (double)t_dp_sum)));
