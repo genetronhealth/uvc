@@ -4,6 +4,7 @@
 #include "common.hpp"
 #include "CLI11-1.7.1/CLI11.hpp"
 #include <string>
+#include <limits.h>
 
 struct CommandLineArgs {
     std::string bam_input_fname = NOT_PROVIDED; // not missing
@@ -57,17 +58,17 @@ struct CommandLineArgs {
     uint32_t    phred_pow_dscs_origin = 0;
     
     double      vqual = (double)15; // 10; set to 20 for less output
-    uint32_t    vad = 20; 
+    uint32_t    vad = (uint32_t)INT_MAX;
     //std::string platform = "auto";
     uint32_t    minABQ_pcr_snv = 0;
     uint32_t    minABQ_pcr_indel = 0;
     uint32_t    minABQ_cap_snv = 0;
     uint32_t    minABQ_cap_indel = 0;
-
+    
     double      ess_georatio_dedup_cap = 1.25;
     double      ess_georatio_dedup_pcr = 1.50; // increase to 1.65 does not help in matching empirical variant score
     double      ess_georatio_duped_pcr = 2.00;
- 
+    
     uint32_t    minMQ1 = 40; // from GATK
     uint32_t    maxMQ  = 60; // from bwa
     uint32_t    min_edge_dist = 15; // heuristic (may not work well in STR region)

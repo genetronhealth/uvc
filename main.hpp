@@ -3254,9 +3254,10 @@ append_vcf_record(std::string & out_string,
         
         // https://www.researchgate.net/figure/Distribution-of-the-Variant-Allele-Fraction-VAF-of-somatic-mutations-in-one-sample-of_fig7_278912701
         // https://onlinelibrary.wiley.com/doi/full/10.1002/humu.23674
-        const int uniform_prior_like = -6;
-        int32_t nonalt_tu_q = MAX(uniform_prior_like - (int)(MAX(tki.GLa[1], tki.GLa[2])), 0);
-        int32_t excalt_tu_q = MAX(uniform_prior_like - (int)(MAX(tki.GLb[1], tki.GLb[2])), 0);
+        // http://mathworld.wolfram.com/ParetoDistribution.html
+        const int median_prior_like = (int)round(log(1.0 / pow(0.5, 1.0 / powlaw_exponent)) / log(pow(10.0, 0.1)) * powlaw_exponent); // normalized with respect to median
+        int32_t nonalt_tu_q = MAX(median_prior_like - (int)(MAX(tki.GLa[1], tki.GLa[2])), 0);
+        int32_t excalt_tu_q = MAX(median_prior_like - (int)(MAX(tki.GLb[1], tki.GLb[2])), 0);
         
         const double tE0 = 1.0;
         const double nE0 = 1.0;
