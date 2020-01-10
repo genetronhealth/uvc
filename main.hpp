@@ -523,7 +523,7 @@ public:
             }
         }
         
-        assert((incluBeg <= count_argmax && count_argmax <= incluEnd) || !fprintf(stderr, "The value %d is not between %d and %d", count_argmax, incluBeg, incluEnd));
+        assert((incluBeg <= count_argmax && count_argmax <= incluEnd) || !fprintf(stderr, "The value %u is not between %u and %u", count_argmax, incluBeg, incluEnd));
         return 0;
     };
     
@@ -842,12 +842,13 @@ indel_len_rusize_phred(unsigned int indel_len, unsigned int repeatunit_size) {
 unsigned int
 indel_phred(double ampfact, unsigned int cigar_oplen, unsigned int repeatsize_at_max_repeatnum, unsigned int max_repeatnum) {
     unsigned int region_size = repeatsize_at_max_repeatnum * max_repeatnum;
-    unsigned int indel_n_units = 0;
+    /*
     if (0 == (cigar_oplen % repeatsize_at_max_repeatnum)) {
         indel_n_units = cigar_oplen / repeatsize_at_max_repeatnum;
     } else {
         indel_n_units = max_repeatnum;
     }
+    */
     double num_slips = (region_size > 64 ? (double)(region_size - 8) : log1p(exp((double)region_size - (double)8))) 
             * ampfact / ((double)(repeatsize_at_max_repeatnum * repeatsize_at_max_repeatnum)); //  / indel_n_units;
     return prob2phred((1.0 - DBL_EPSILON) / (num_slips + 1.0));
@@ -2088,7 +2089,6 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
         for (auto it = mutform2count4map.begin(); it != mutform2count4map.end();) {
             std::basic_string<std::pair<unsigned int, AlignmentSymbol>> mutform = it->first;
             auto counts = it->second;
-            std::array<unsigned int, 2> maxAD = {0, 0};
             std::vector<unsigned int> dsADs; 
             dsADs.reserve(mutform.size() + 1);
             dsADs.push_back(0);
@@ -2435,7 +2435,8 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
         const double t2n_add_contam_transfrac, // additional params
         unsigned int min_edge_dist,
         unsigned int central_readlen,
-        unsigned int baq_per_aligned_base
+        unsigned int baq_per_aligned_base,
+        double powlaw_exponent
         ) {
     fmt.note = symbol2CountCoverageSet12.additional_note.getByPos(refpos).at(symbol);
     uint64_t bq_qsum_sqrMQ_tot = 0; 
@@ -2470,7 +2471,7 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
         fmt.bQT2[strand] = symbol2CountCoverageSet12.bq_pass_thres.at(strand).getByPos(refpos).getSymbolCount(symbol); // pass  threshold
         fmt.bAD3[strand] = symbol2CountCoverageSet12.bq_vars_depth.at(strand).getByPos(refpos).getSymbolCount(symbol); // pass  allele depth
         fmt.bADB[strand] = symbol2CountCoverageSet12.bq_vars_badep.at(strand).getByPos(refpos).getSymbolCount(symbol);
-        if (MAX_IMBA_DEP == fmt.bADB[strand]) { fmt.bADB[strand] = -1; }
+        if (MAX_IMBA_DEP == fmt.bADB[strand]) { fmt.bADB[strand] = (uint32_t)(UINT32_MAX); }
         fmt.bQT3[strand] = symbol2CountCoverageSet12.bq_vars_thres.at(strand).getByPos(refpos).getSymbolCount(symbol); // pass  threshold
         fmt.bVQ3[strand] = symbol2CountCoverageSet12.bq_vars_vqual.at(strand).getByPos(refpos).getSymbolCount(symbol); // pass  allele depth 
         
@@ -2514,7 +2515,7 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
         fmt.cQT2[strand] = symbol2CountCoverageSet12.fq_pass_thres.at(strand).getByPos(refpos).getSymbolCount(symbol);
         fmt.cAD3[strand] = symbol2CountCoverageSet12.fq_vars_depth.at(strand).getByPos(refpos).getSymbolCount(symbol); // pass  allele depth
         fmt.cADB[strand] = symbol2CountCoverageSet12.fq_vars_badep.at(strand).getByPos(refpos).getSymbolCount(symbol); // pass  threshold
-        if (MAX_IMBA_DEP == fmt.cADB[strand]) { fmt.cADB[strand] = -1; }
+        if (MAX_IMBA_DEP == fmt.cADB[strand]) { fmt.cADB[strand] = (uint32_t)(UINT32_MAX); }
         fmt.cQT3[strand] = symbol2CountCoverageSet12.fq_vars_thres.at(strand).getByPos(refpos).getSymbolCount(symbol); 
         fmt.cVQ3[strand] = symbol2CountCoverageSet12.fq_vars_vqual.at(strand).getByPos(refpos).getSymbolCount(symbol); // pass  allele depth 
         
@@ -2599,10 +2600,11 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
              *         R89abc reject, (partially) re-alignable, clipped
              *          89abcd reject, not re-alignable
              */
-            ref_bias = ((totsize_sum * 100UL) / (totsize_cnt * 100UL + 1UL)) * 3 + (repeatunit.size() * (MAX(1, repeatnum) - 1)) + 6 * 2 + 5 * 2; // 6=gap_open/match
+            ref_bias = ((totsize_sum * 100UL) / (totsize_cnt * 100UL + 1UL)) * 3 + (repeatunit.size() * (MAX(1UL, repeatnum) - 1)) + 6 * 2 + 5 * 2; // 6=gap_open/match
         }
-        fmt.RefBias = ref_bias; // * central_readlen / (central_readlen-30); // 30 is the min alignment score
-        const double altmul = (double)(central_readlen - MIN(120, ref_bias)) / (double)central_readlen; // 50.0 / (double)(ref_bias + 50);
+        fmt.RefBias = ref_bias;
+        unsigned int readlen = MAX(central_readlen, 30U); // 30 is the min alignment score
+        const double altmul = (double)(readlen - MIN(readlen - 30, ref_bias)) / (double)readlen; // 50.0 / (double)(ref_bias + 50);
         const double refmul = 2.0 - altmul;
         // likelihood that the reads are generated by tumor contam, other contam, hetero genotype, homo-alt genotype, (and homo-ref genotype)
         std::array<unsigned int, 2> pranks = {0, 0};
@@ -2623,18 +2625,17 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
             const double fa1 = MAX(0.0, ((0 == t) ? (fmtFA) : (1.0 - fmtFA - fmtFR)));
             
             const double fa_l = (fa1 * (double)fmt.DP + 1.0 / altmul) / (double)(fmt.DP + 2.0 / altmul);
-            const double da_l = fa_l * fmt.DP;
+            //const double da_l = fa_l * fmt.DP;
             const double fr_l = 1.0 - fa_l;
-            const double dr_l = fr_l * fmt.DP;
+            //const double dr_l = fr_l * fmt.DP;
             
             const double fa_v = (fa1 * (double)fmt.DP + 1.0 / altmul * DBL_EPSILON) / (double)(fmt.DP + 2.0 / altmul * DBL_EPSILON);
             const double da_v = fa_v * fmt.DP;
             const double fr_v = 1.0 - fa_v;
             const double dr_v = fr_v * fmt.DP;
             
-            const double any_contam_rate = 0.02; // 3.0e-2; // - (5e-3/3.0)*(double)SYMBOL_TO_INDEL_N_UNITS[symbol];
-            double t2n_conref_rate = 0.0;
-            double t2n_conalt_rate = 0.0;
+            double t2n_conref_frac = 0.0;
+            double t2n_conalt_frac = 0.0;
             int homref_likecon1 = -200;
             int homalt_likecon1 = -200;
 
@@ -2648,8 +2649,8 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
                 const double tki_fr_l = 1.0 - tki_fa_l;
                 homref_likecon1 = -(int)calc_binom_10log10_likeratio(t2n_add_contam_transfrac, fa_l * fmt.DP, tki_fa_l * tki.DP);
                 homalt_likecon1 = -(int)calc_binom_10log10_likeratio(t2n_add_contam_transfrac, fr_l * fmt.DP, tki_fr_l * tki.DP);
-                t2n_conref_rate += (tki_fr_l * 0.02 + tki_fr_l * 0.02 * MIN(5.0, tki.DP / (double)(fmt.DP + DBL_MIN)));
-                t2n_conalt_rate += (tki_fa_l * 0.02 + tki_fa_l * 0.02 * MIN(5.0, tki.DP / (double)(fmt.DP + DBL_MIN)));
+                t2n_conref_frac += (tki_fr_l * 0.02 + tki_fr_l * 0.02 * MIN(5.0, tki.DP / (double)(fmt.DP + DBL_MIN)));
+                t2n_conalt_frac += (tki_fa_l * 0.02 + tki_fa_l * 0.02 * MIN(5.0, tki.DP / (double)(fmt.DP + DBL_MIN)));
             }
             
             // two models (additive and multiplicative)
@@ -2662,17 +2663,17 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
             // assuming classical preferential attachment, deviation from its theoretical distribution is translated into a phred-scaled error probability.
             // zero minus the phred-scale probability that ALT is generated by a stochastic process of power-law error given that ref is good, higher means ref is of better quality (zero is best)
             // logit2(theoretical-deviation, observed-deviation), higher-than-expected deviation <=> more-negative-score
-            int hetREF_likelim1 =  (int)(10.0/log(10.00) * PLEXP * MIN(logit2(fr_l / refmul * (1.0 + 0.0),                                fa_l / altmul), 0.0));
-            int hetALT_likelim1 =  (int)(10.0/log(10.00) * PLEXP * MIN(logit2(fa_l / altmul * (1.0 + 0.0),                                fr_l / refmul), 0.0));         
-            int homref_likelim1 =  (int)(10.0/log(10.00) * PLEXP * MIN(logit2(fr_l / refmul * any_contam_rate + t2n_conalt_rate / altmul, fa_l / altmul), 0.0));
-            int homalt_likelim1 =  (int)(10.0/log(10.00) * PLEXP * MIN(logit2(fa_l / altmul * any_contam_rate + t2n_conref_rate / refmul, fr_l / refmul), 0.0));
+            int hetREF_likelim1 =  (int)(10.0/log(10.00) * powlaw_exponent * MIN(logit2(fr_l / refmul * (1.0 + 0.0),                                    fa_l / altmul), 0.0));
+            int hetALT_likelim1 =  (int)(10.0/log(10.00) * powlaw_exponent * MIN(logit2(fa_l / altmul * (1.0 + 0.0),                                    fr_l / refmul), 0.0));         
+            int homref_likelim1 =  (int)(10.0/log(10.00) * powlaw_exponent * MIN(logit2(fr_l / refmul * any_mul_contam_frac + t2n_conalt_frac / altmul, fa_l / altmul), 0.0));
+            int homalt_likelim1 =  (int)(10.0/log(10.00) * powlaw_exponent * MIN(logit2(fa_l / altmul * any_mul_contam_frac + t2n_conref_frac / refmul, fr_l / refmul), 0.0));
             
             // assuming statistical independence of reads, kl-divergence is translated into a phred-scaled error probability.
             // binom_10log10_likeratio(theoretical-deviation-rate, number-of-deviation-signals, number-of-all-signals), higher-than-expected deviation <=> more-negative-score
             int hetREF_likeval1 = -(int)calc_binom_10log10_likeratio(0.500 * altmul, da_v, dr_v);                                 // het-ref to ALT add error phred
             int hetALT_likeval1 = -(int)calc_binom_10log10_likeratio(0.500 * refmul, dr_v, da_v);                                 // het-alt to REF add error phred
-            int homref_likeval1 = -(int)calc_binom_10log10_likeratio(any_contam_rate * altmul + t2n_conalt_rate, da_v, dr_v);      // hom-alt to REF add error phred by contamination
-            int homalt_likeval1 = -(int)calc_binom_10log10_likeratio(any_contam_rate * refmul + t2n_conref_rate, dr_v, da_v);      // hom-ref to ALT add error phred by contamination
+            int homref_likeval1 = -(int)calc_binom_10log10_likeratio(any_mul_contam_frac * altmul + t2n_conalt_frac, da_v, dr_v);      // hom-alt to REF add error phred by contamination
+            int homalt_likeval1 = -(int)calc_binom_10log10_likeratio(any_mul_contam_frac * refmul + t2n_conref_frac, dr_v, da_v);      // hom-ref to ALT add error phred by contamination
             
             int homref_likelim2 = MAX(homref_likelim1, homref_likecon1);
             int homref_likeval2 = MAX(homref_likeval1, homref_likecon1);
@@ -2990,7 +2991,7 @@ penal_indel_2(double AD0a, int dst_str_units, const auto & RCC, const unsigned i
         int peakidx = c*RCC_NFS;
         double src_str_units = RCC[peakidx];
         if (dst_str_units == src_str_units) { continue; }
-        const double peak_height1 = (double)RCC[peakidx+3];
+        //const double peak_height1 = (double)RCC[peakidx+3];
         const double deldev2 = (double)RCC[peakidx+1] * (snr_data2model * snr_data2model); // peak_height1;
         const double deldev1 = (double)RCC[peakidx+2] * (snr_data2model); // peak_height1;
         const double insdev1 = (double)RCC[peakidx+4] * (snr_data2model); // peak_height1;
@@ -3050,7 +3051,15 @@ append_vcf_record(std::string & out_string,
         const unsigned int phred_max_dscs,
         const unsigned int phred_pow_sscs_origin,
         const unsigned int phred_pow_dscs_origin,
-        const unsigned int vad_thres
+        const unsigned int vad_thres,
+        const bool is_somatic_snv_filtered_by_any_nonref_germline_snv,
+        const bool is_somatic_indel_filtered_by_any_nonref_germline_indel,
+        const double illumina_BQ_pow2_div_coef,
+        const double varqual_per_mapqual,
+        const double powlaw_exponent,
+        const double powlaw_anyvar_base,
+        const double syserr_maxqual,
+        const double syserr_norm_devqual
         ) {
     
     const bcfrec::BcfFormat & fmt = fmtvar; 
@@ -3104,7 +3113,7 @@ append_vcf_record(std::string & out_string,
     }
     
     // NOTE: 5% of STR (about 0.25% of InDel genomic regions) has about 75% of InDels, so we have a power law distribution with exponent of one for InDels.
-    const double indel_ic = ((!isInDel) ? 0.0 : (10.0/log(10.0) * log((double)MAX(indelstring.size(), 1) / (double)(repeatunit.size() * (repeatnum - 1) + 1))));
+    const double indel_ic = ((!isInDel) ? 0.0 : (10.0/log(10.0) * log((double)MAX(indelstring.size(), 1U) / (double)(repeatunit.size() * (repeatnum - 1) + 1))));
     // const double indel_pq = ((!isInDel) ? 0.0 : ((double)MIN(indel_phred(64.0, indelstring.size(), repeatunit.size(), repeatnum), 35.0)));
     float vcfqual = fmt.VAQ; // TODO: investigate whether to use VAQ or VAQ2
     
@@ -3159,7 +3168,8 @@ append_vcf_record(std::string & out_string,
     std::string infostring = (prev_is_tumor ? "SOMATIC" : "ANY_VAR");
     
     auto ref_bias = fmt.RefBias;
-    const double altmul = (double)(central_readlen - MIN(120, ref_bias)) / (double)central_readlen;
+    unsigned int readlen = MAX(30U, central_readlen);
+    const double altmul = (double)(readlen - MIN(readlen - 30, ref_bias)) / (double)readlen;
     const double refmul = 2.0 - altmul;
     
     const auto & nfm = (prev_is_tumor ? fmt : FORMAT_UNCOV);
@@ -3184,11 +3194,11 @@ append_vcf_record(std::string & out_string,
         tki.cAltBQ2 = SUM2(fmt.cAltBQ2);
         tki.cAllBQ2 = SUM2(fmt.cAllBQ2);
         tki.cRefBQ2 = SUM2(fmt.cRefBQ2);
-        for (int i = 0; i < fmt.gapDP4.size(); i++) { tki.gapDP4[i] = fmt.gapDP4[i]; }
-        for (int i = 0; i < fmt.RCC.size(); i++) { tki.RCC[i] = fmt.RCC[i]; }
+        for (size_t i = 0; i < fmt.gapDP4.size(); i++) { tki.gapDP4[i] = fmt.gapDP4[i]; }
+        for (size_t i = 0; i < fmt.RCC.size(); i++) { tki.RCC[i] = fmt.RCC[i]; }
         tki.GLa = fmt.GLa;
         tki.GLb = fmt.GLb;
-        for (int i = 0; i < fmt.EROR.size(); i++) { tki.EROR[i] = fmt.EROR[i]; }
+        for (size_t i = 0; i < fmt.EROR.size(); i++) { tki.EROR[i] = fmt.EROR[i]; }
     } else {
         vcfpos = (tki.ref_alt != "." ? (tki.pos + 1) : vcfpos);
         ref_alt = (tki.ref_alt != "." ? tki.ref_alt : vcfref + "\t" + vcfalt);
@@ -3203,25 +3213,25 @@ append_vcf_record(std::string & out_string,
         
         double nAltBQ = SUM2(nfm.cAltBQ);
         double nAllBQ = SUM2(nfm.cAllBQ);
-        double nRefBQ = SUM2(nfm.cRefBQ);
+        //double nRefBQ = SUM2(nfm.cRefBQ);
         double nAltHD = SUM2(nfm.cAltHD);
         double nAllHD = SUM2(nfm.cAllHD);
-        double nRefHD = SUM2(nfm.cRefHD);
+        //double nRefHD = SUM2(nfm.cRefHD);
         
         double nDP0 = (double)((nUseHD) ? (nAllHD) :                      (double)nfm.DP) + DBLFLT_EPS / 2.0;
         double nAD0 = (double)((nUseHD) ? (nAltHD) :             nfm.FA * (double)nfm.DP) + DBLFLT_EPS;
-        double nRD0 = (double)((nUseHD) ? (nRefHD) :             nfm.FR * (double)nfm.DP) + DBLFLT_EPS / 2.0;
+        //double nRD0 = (double)((nUseHD) ? (nRefHD) :             nfm.FR * (double)nfm.DP) + DBLFLT_EPS / 2.0;
         
         double tAltBQ = tki.autoBestAltBQ;
         double tAllBQ = tki.autoBestAllBQ;
-        double tRefBQ = tki.autoBestRefBQ;
+        //double tRefBQ = tki.autoBestRefBQ;
         double tAltHD = tki.autoBestAltHD;
         double tAllHD = tki.autoBestAllHD;
-        double tRefHD = tki.autoBestRefHD;
+        //double tRefHD = tki.autoBestRefHD;
         
         double tDP0 = (double)((tUseHD) ? (tAllHD) :                      (double)tki.DP) + DBLFLT_EPS;
         double tAD0 = (double)((tUseHD) ? (tAltHD) :             tki.FA * (double)tki.DP) + DBLFLT_EPS / 2.0;
-        double tRD0 = (double)((tUseHD) ? (tRefHD) :             tki.FR * (double)tki.DP) + DBLFLT_EPS / 2.0; 
+        //double tRD0 = (double)((tUseHD) ? (tRefHD) :             tki.FR * (double)tki.DP) + DBLFLT_EPS / 2.0; 
         
         double nAD0a = nAD0 * ((isInDel && !nUseHD1) ? ((double)(nfm.gapDP4[2] + 1) / (double)(nfm.gapDP4[0] + 1)) : 1.0); // not used ?
         double tAD0a = tAD0 * ((isInDel && !tUseHD1) ? ((double)(tki.gapDP4[2] + 1) / (double)(tki.gapDP4[0] + 1)) : 1.0);
@@ -3230,14 +3240,12 @@ append_vcf_record(std::string & out_string,
         double nDP1 = (nUseHD ? (highqual_thres * nAllHD) : nAllBQ) + DBLFLT_EPS;
         double tAD1 = (tUseHD ? (highqual_thres * tAltHD) : tAltBQ) + DBLFLT_EPS / 2.0;
         double tDP1 = (tUseHD ? (highqual_thres * tAllHD) : tAllBQ) + DBLFLT_EPS;
-        double nRD1 = (nUseHD ? (highqual_thres * nRefHD) : nRefBQ) + DBLFLT_EPS / 2.0;
-        double tRD1 = (tUseHD ? (highqual_thres * tRefHD) : tRefBQ) + DBLFLT_EPS / 2.0; 
+        //double nRD1 = (nUseHD ? (highqual_thres * nRefHD) : nRefBQ) + DBLFLT_EPS / 2.0;
+        //double tRD1 = (tUseHD ? (highqual_thres * tRefHD) : tRefBQ) + DBLFLT_EPS / 2.0; 
         
-        const double eps = (double)sqrt(FLT_EPSILON);
-        
-        const bool is_nonref_snp_excluded = true; // false for treating tri-allelic and tetra-allelic SNV site as potentially somatic
-        const bool is_nonref_indel_excluded = true; // false for treating tri-allelic and tetra-allelic InDel site as potentially somatic
-        const bool is_nonref_germline_excluded = (isInDel ? is_nonref_indel_excluded : is_nonref_snp_excluded);
+        //const bool is_nonref_snp_excluded = true; // false for treating tri-allelic and tetra-allelic SNV site as potentially somatic
+        //const bool is_nonref_indel_excluded = true; // false for treating tri-allelic and tetra-allelic InDel site as potentially somatic
+        const bool is_nonref_germline_excluded = (isInDel ? is_somatic_indel_filtered_by_any_nonref_germline_indel : is_somatic_snv_filtered_by_any_nonref_germline_snv);
         
         // the genotype likelihoods here are special in that they can somehow normalized for the purpose of computing nonref probabilities
         // HOWEVER, no prior can be given to the raw genotype likelihoods.
@@ -3260,19 +3268,19 @@ append_vcf_record(std::string & out_string,
         const double nAD0pc0 = 0.5       ;
         const double nDP0pc0 = 0.5        / tnFA0;
         
-        const double tE1  = ((10.0/log(10.0) * log((double)(tDP0 + 2))));
-        const double nE1  = ((10.0/log(10.0) * log((double)(nDP0 + 2))));
+        //const double tE1  = ((10.0/log(10.0) * log((double)(tDP0 + 2))));
+        //const double nE1  = ((10.0/log(10.0) * log((double)(nDP0 + 2))));
         const double tnE1 = ((10.0/log(10.0) * log((double)(tDP0 + nDP0 + 2))));
-        const double tnDP1ratio = (double)(tDP1 + tE1        ) / (double)(nDP1 + nE1);
+        //const double tnDP1ratio = (double)(tDP1 + tE1        ) / (double)(nDP1 + nE1);
         const double tnFA1 =      (double)(tAD1 + nAD1 + tnE1) / (double)(tDP1 + nDP1 + tnE1 * 2.0);
         const double tAD1pc0 = 0.5 * tnE1 * tnDP0ratio       ;
         const double tDP1pc0 = 0.5 * tnE1 * tnDP0ratio / tnFA1;
         const double nAD1pc0 = 0.5 * tnE1;
         const double nDP1pc0 = 0.5 * tnE1 / tnFA1;
         
-        const double pl_exponent = PLEXP;
-        const double pl_exponent_t = PLEXP; // ((isInDel && tUseHD) ? : (PLEXP - 1) : PLEXP);
-        const double pl_exponent_n = PLEXP; // ((isInDel && nUseHD) ? : (PLEXP - 1) : PLEXP);
+        const double pl_exponent = powlaw_exponent;
+        const double pl_exponent_t = powlaw_exponent; // ((isInDel && tUseHD) ? : (PLEXP - 1) : PLEXP);
+        const double pl_exponent_n = powlaw_exponent; // ((isInDel && nUseHD) ? : (PLEXP - 1) : PLEXP);
         // This is the penalty induced by EROR bias. 
         // So far I do not have enough data to verify this power-law. 
         // Also, the theory to support this power-law is rather unclear.
@@ -3282,18 +3290,18 @@ append_vcf_record(std::string & out_string,
         // 1. What if the duplication rate is in-between the one of UMI and the one of non-UMI? 
         // 2. Does EROR bias follows a power-law distribution too? A lot of true positive UMI variants are required to see the power-law if it does.
         //    If EROR bias does follow a power-law, then what is the dimension of EROR bias (4 or 3) given that the dimension of quality is equal to 3? My intuition says it's 3.
-        const double pcap_tmax = 60.0 + 25.0 + 5.0 + (tUseHD1 
+        const double pcap_tmax = powlaw_anyvar_base + (tUseHD1 
                 ? ((double)((fmt.dAD3 > 0)
                     ? (phred_max_dscs - phred_pow_dscs_origin) 
                     : (phred_max_sscs - phred_pow_sscs_origin))) // - eror_penal
                 : 0.0);
         // prob[mapping-error] * prob[false-positive-variant-per-base-position] / num-alts-per-base-positon
-        const double pcap_nmax = 60.0 + 25.0 + 5.0 + (nUseHD1 ? 
+        const double pcap_nmax = powlaw_anyvar_base + (nUseHD1 ? 
                 ((double)(phred_max_sscs - phred_pow_sscs_origin)) : 0.0);
         
         double t_indel_penal = 0.0;
-        const double pcap_tbq = ((isInDel || is_proton) ? 200.0 : mathsquare(tki.BQ) / 12.0); // based on heuristics
-        const double pcap_tmq = MIN(60.0, tki.MQ) * 4.0/3.0; // bases on heuristics
+        const double pcap_tbq = ((isInDel || is_proton) ? 200.0 : mathsquare(tki.BQ) / illumina_BQ_pow2_div_coef); // based on heuristics
+        const double pcap_tmq = MIN((double)maxMQ, tki.MQ) * varqual_per_mapqual; // bases on heuristics
         const double pcap_tmq2 = MAX(0.0, tki.MQ - 10.0/log(10.0) * log((double)(tDP0 + tDP0pc0) / (double)(tAD0+tAD0pc0))) * (double)tAD0; // readjustment by MQ
         const double tn_tpo1q = 10.0 / log(10.0) * log((double)(tAD0 / altmul + tE0) / ((tDP0 - tAD0) / refmul + tAD0 / altmul + 2.0 * tE0)) * (pl_exponent_t) + (pcap_tmax);
         const double tn_tsamq = 40.0 * pow(0.5, (double)tAD0);
@@ -3309,14 +3317,14 @@ append_vcf_record(std::string & out_string,
             }
         }
         const double tn_tpowq = _tn_tpo2q; 
-        const double tn_trawq = MAX(_tn_tpo2q/10.0 + 3.0, _tn_tra2q);
+        const double tn_trawq = _tn_tra2q; //MAX(_tn_tpo2q/10.0 + 3.0, _tn_tra2q);
         // intuition for the pol1q/10 formula: variant candidate with higher baseline-noise frequency is simply more likely to be a true mutation too
         // assuming that in-vivo biological error and in-vitro technical error are positively correlated with each other. 
         
         // QUESTION: why BQ-bias generations are discrete? Because of the noise with each observation of BQ? why indel generations are discrete?
         
-        const double pcap_nbq = ((isInDel || is_proton) ? 200.0 : mathsquare(nfm.BQ) / 12.0); // based on heuristics
-        const double pcap_nmq = MIN(60.0, nfm.MQ) * 4.0/3.0; // based on heuristics
+        const double pcap_nbq = ((isInDel || is_proton) ? 200.0 : mathsquare(nfm.BQ) / illumina_BQ_pow2_div_coef); // based on heuristics
+        const double pcap_nmq = MIN(maxMQ, nfm.MQ) * varqual_per_mapqual; // based on heuristics
         const double pcap_nmq2 = (nfm.MQ - 10.0/log(10.0) * log((double)(nDP0 + nDP0pc0) / (double)(nAD0+nAD0pc0))) * (double)nAD0; // readjsutment by MQ
         const double tn_npo1q = 10.0 / log(10.0) * log((double)(nAD0 / altmul + nE0) / ((nDP0 - tAD0) / refmul + tAD0 / altmul + 2.0 * nE0)) * (pl_exponent_n) + (pcap_nmax);
         const double tn_nsamq = 40.0 * pow(0.5, (double)nAD0);
@@ -3324,7 +3332,7 @@ append_vcf_record(std::string & out_string,
         double _tn_npo2q = MIN4(tn_npo1q, pcap_nmq, pcap_nbq, pcap_nmq2);
         double _tn_nra2q = MAX(0.0, tn_nra1q/altmul - tn_nsamq/4.0) + (isInDel ? 0.0:5.0); // normal BQ bias is weaker   as res variant (biased to high BQ) is filtered from each variant
         if (isInDel) {
-            int n_str_units = (isSymbolIns(symbol) ? 1 : (-1)) * (int)(indelstring.size() / repeatunit.size());
+            //int n_str_units = (isSymbolIns(symbol) ? 1 : (-1)) * (int)(indelstring.size() / repeatunit.size());
             if (!nUseHD1) {
                 //_tn_npo2q += penal_indel_2(nAD0a, n_str_units, nfm.RCC, phred_triallelic_indel);
                 _tn_nra2q *= ((double)nAD0a + (double)indelstring.size()/8.0) / ((double)nAD0 + (double)indelstring.size()/8.0);
@@ -3354,13 +3362,13 @@ append_vcf_record(std::string & out_string,
         
         const double t2n_po0q0 = 10.0/log(10.0) * (1.0+log(symfrac*symfrac)/10.0) * pl_exponent * log(t2n_or0 /symfrac);
         const double t2n_po0q1 = 10.0/log(10.0) * (1.0+log(symfrac*symfrac)/10.0) * pl_exponent * log(t2n_or1 /symfrac);
-        const double t2n_po2q0 = MIN(MAX(-SYS_QMAX, t2n_po0q0), SYS_QMAX + 10);
-        const double t2n_po2q1 = MIN(MAX(-SYS_QMAX, t2n_po0q1), SYS_QMAX + 10);
-        const double t2n_powq0 = MIN(MAX(-SYS_QMAX, t2n_po0q0), SYS_QMAX);
-        const double t2n_powq1 = MIN(MAX(-SYS_QMAX, t2n_po0q1), SYS_QMAX);
+        const double t2n_po2q0 = MIN(MAX(-syserr_maxqual, t2n_po0q0), syserr_maxqual + 10);
+        const double t2n_po2q1 = MIN(MAX(-syserr_maxqual, t2n_po0q1), syserr_maxqual + 10);
+        const double t2n_powq0 = MIN(MAX(-syserr_maxqual, t2n_po0q0), syserr_maxqual);
+        const double t2n_powq1 = MIN(MAX(-syserr_maxqual, t2n_po0q1), syserr_maxqual);
          
         const double t2n_powq = (isInDel ? t2n_powq0 : t2n_powq1);
-        const double t2t_powq = SYS_QMAX;
+        const double t2t_powq = syserr_maxqual;
         
         //double tn_cont_nor = MIN(2.0, ((double)(nAD0 + 1) / (double)(nDP0 - nAD0 + 1)));
         //double tn_cont_tor = MIN(2.0, ((double)(tAD0 + 1) / (double)(tDP0 - tAD0 + 1)));
@@ -3371,15 +3379,15 @@ append_vcf_record(std::string & out_string,
         double t2n_contam_q = MIN(calc_binom_10log10_likeratio(t2n_add_contam_transfrac, 
                 (isSymbolSubstitution(symbol) ? ((SUM2(nfm.cAltBQ2) + DBL_MIN) / (double)(SUM2(nfm.cAllBQ2) + 2.0 * DBL_MIN)) : nfm.FA) * (double)nfm.DP,
                 (isSymbolSubstitution(symbol) ? ((    (tki.cAltBQ2) + DBL_MIN) / (double)(    (tki.cAllBQ2) + 2.0 * DBL_MIN)) : tki.FA) * (double)tki.DP), 200.0);
-        double min_doubleDP = (double)MIN(nfm.DP, tki.DP);
+        // double min_doubleDP = (double)MIN(nfm.DP, tki.DP);
 #if 0   // This if branch of macro is disabled
         // The following line works well in practice but has no theory supporting it yet.
         double t2n_syserr_q0 = (isInDel ? 0.0 : MIN(MAX(0.0, MIN(tn_npowq, tn_nrawq)) * MIN(1.0, 4.0 / mathsquare(t2n_or1 + 1.0)), SYS_QMAX)); // 50.0
         // double t2n_syserr_q = (isInDel ? 0.0 : MIN(MAX(0.0, MIN3(tn_npowq, tn_nrawq, 45.0) - 20.0 * mathsquare(MAX(0.0, t2n_or1 - 1.0))), 2.0*SYS_QMAX)); // 50.0
 #else  
-        double t2n_syserr_q0 = MIN(SYS_QMAX, MIN(tn_npowq, tn_nrawq)
+        double t2n_syserr_q0 = MIN(syserr_maxqual, MIN(tn_npowq, tn_nrawq)
             // 25.0 // - (double)uniform_prior_like) 
-            - 12.5 * mathsquare(MAX(0.0, t2n_or1 - 1.0)));
+            - syserr_norm_devqual * mathsquare(MAX(0.0, t2n_or1 - 1.0)));
 #endif
         double t2n_syserr_q = (isInDel ? 0.0 : MAX(0.0, t2n_syserr_q0));
         //double n2t_red_qual = MIN(tn_npowq, tn_nrawq + (double)indel_ic) * MIN(1.0, n2t_or1) * MIN(1.0, n2t_or1); // / (t2n_or1 * t2n_or1);
@@ -3435,14 +3443,15 @@ append_vcf_record(std::string & out_string,
                 return -2;
             }
         }
-        
+#if (1 < N_MODELS)
         for (int i = 0; i < MIN(MODEL_SEP_1, N_MODELS); i++) {
-            //infostring += std::string(";TQ") + std::to_string(i) + "=" + std::to_string(testquals[i]); 
+            infostring += std::string(";TQ") + std::to_string(i) + "=" + std::to_string(testquals[i]); 
         }
+#endif
         infostring += std::string(";SomaticQ=") + std::to_string(testquals[0]);
         infostring += std::string(";TLODQ=")    + std::to_string(tlodq);
         infostring += std::string(";NLODQ=")    + std::to_string(a_nogerm_q);
-        //unsigned int tlodq1 = (maxbias < uni_bias_thres ? tlodq : tlodq - 60*10);
+        //unsigned int tlodq1 = (maxbias < uni_bias_thres ?(10* tlodq) : (10*tlodq*10 - 10*60));
         //infostring += std::string(";TLODQ1=")  + std::to_string((int)(tlodq1));
         
         infostring += std::string(";REFQs=") + string_join(std::array<std::string, 4>({

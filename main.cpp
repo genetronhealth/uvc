@@ -510,10 +510,10 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line,  "EROR",  &bcfints, &ndst_val);
-        assert((tki.EROR.size() == ndst_val && tki.EROR.size() == valsize) || !fprintf(stderr, "%d == %d && %d == %d failed for EROR!\n", tki.EROR.size(), ndst_val, tki.EROR.size(), valsize));
-        for (int i = 0; i < tki.EROR.size(); i++) {
+        assert((tki.EROR.size() == ndst_val && tki.EROR.size() == valsize) || !fprintf(stderr, "%lu == %d && %lu == %d failed for EROR!\n", tki.EROR.size(), ndst_val, tki.EROR.size(), valsize));
+        for (size_t i = 0; i < tki.EROR.size(); i++) {
             tki.EROR[i] = bcfints[i];
-        } 
+        }
         
         ndst_val = 0;
         valsize = bcf_get_format_char(bcf_hdr, line, "cHap", &bcfstring, &ndst_val);
@@ -746,7 +746,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                             paramset.t2n_add_contam_transfrac,
                             paramset.min_edge_dist,
                             paramset.central_readlen,
-                            paramset.baq_per_aligned_base
+                            paramset.baq_per_aligned_base,
+                            paramset.powlaw_exponent
                             );
                 }
                 for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; symbol = AlignmentSymbol(1+(unsigned int)symbol)) {
@@ -856,7 +857,15 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                                 paramset.phred_max_dscs_all,
                                 paramset.phred_pow_sscs_origin,
                                 paramset.phred_pow_dscs_origin,
-                                paramset.vad
+                                paramset.vad,
+                                paramset.is_somatic_snv_filtered_by_any_nonref_germline_snv,
+                                paramset.is_somatic_indel_filtered_by_any_nonref_germline_indel,
+                                paramset.illumina_BQ_pow2_div_coef,
+                                paramset.varqual_per_mapqual,
+                                paramset.powlaw_exponent,
+                                paramset.powlaw_anyvar_base,
+                                paramset.syserr_maxqual,
+                                paramset.syserr_norm_devqual
                                 );
                     }
                 }

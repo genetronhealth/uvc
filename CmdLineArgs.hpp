@@ -18,7 +18,7 @@ struct CommandLineArgs {
     std::string bed_out_fname = NOT_PROVIDED;
     std::string bed_in_fname = NOT_PROVIDED;
     std::string tsv_primer_fname = NOT_PROVIDED;
-     
+    
     bool is_tumor_format_retrieved = false;
     bool should_let_all_pass = false;
     bool disable_dup_read_merge = false;
@@ -88,6 +88,17 @@ struct CommandLineArgs {
     
     uint32_t    phred_frac_indel_error_before_barcode_labeling = 23;
     uint32_t    baq_per_aligned_base = 4; 
+    
+    bool        is_somatic_snv_filtered_by_any_nonref_germline_snv = true;
+    bool        is_somatic_indel_filtered_by_any_nonref_germline_indel = true;
+    double      illumina_BQ_pow2_div_coef= 12.0;
+    double      varqual_per_mapqual = 4.0/3.0;
+    
+    double      powlaw_exponent = 3.0;
+    double      powlaw_anyvar_base = (double)(60+25+5);
+    double      syserr_maxqual = (double)(25.0); // PHRED-scaled probability that a candidate of systematic error is actually non-systematic
+    double      syserr_norm_devqual = (double)(12.5); // PHRED-scaled likelihood that the observed allele fraction additively deviates from the expected allele fraction by a multiplicative factor of two
+    
     int 
     initFromArgCV(int & parsing_result_flag, SequencingPlatform & inferred_sequencing_platform, int argc, const char *const* argv);
     

@@ -120,6 +120,8 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     app.add_option("-d,--min-depth", min_depth_thres,   "Minimum depth below which results are fitlered out and therefore not in the output VCF (如果低于此原始深度则在VCF不输入任何结果).", true);
     app.add_option("-D,--min-altdp", min_altdp_thres,   "Minimum depth of ALT below which results are filtered out (如果ALT深度低于此数则不输出结果).", true);
     app.add_option("-t,--threads",   max_cpu_num,       "Number of cpu cores or equivalently threads to use (使用CPU线程的数量).", true);
+    app.add_option("--is-tumor-format-retrieved", is_tumor_format_retrieved, "Boolean (0: false, 1: true) indicating if the format from the tumor VCF should be retrieved in the tumor-normal comparison. This boolean is only useful if tumor VCF is provided. Notice that a true value for this boolean disables the generation of genomic block so that the output is no longer gvcf.", true);
+    
     app.add_option("--alnlen",       min_aln_len,       "Minimum alignment length below which the alignment is filtered out (如果比对长度低于比值则过滤掉一行的比对结果).", true);
     app.add_option("--mapqual",      min_mapqual,       "Minimum mapping  quality below which the alignment is filtered out (如果比对质量低于此值则过滤掉一行的比对结果).", true);
     app.add_option("--fixedthresBQ", fixedthresBQ,      "Base quality cutoff. This parameter is only for generating statistics and therefore does not affect variant quality (碱基质量阈值，只用于统计，不影响变异质量).", true);
@@ -202,9 +204,26 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     app.add_option("--phred-frac-indel-error-before-barcode-labeling", phred_frac_indel_error_before_barcode_labeling, 
                                                                        "PHRED-scaled fraction of InDel errors that occurred before the attachment of UMI single-strand barcodes.", true); 
     app.add_option("--baq-per-aligned-base", baq_per_aligned_base,     "PHRED-scaled base alignment quality (BAQ) for each additional base between the variant and the read edge.", true); 
+   
+    app.add_option("--is-somatic-snv-filtered-by-any-nonref-germline-snv", is_somatic_snv_filtered_by_any_nonref_germline_snv,
+                   "Set to 0 (zero, false) if reject any nonref germline and to 1 (one, true) if only reject the specific ALT germline for SNV candidate.", true); 
+    app.add_option("--is-somatic-indel-filtered-by-any-nonref-germline-indel", is_somatic_indel_filtered_by_any_nonref_germline_indel,
+                   "Set to 0 (zero, false) if reject any nonref germline and to 1 (one, true) if only reject the specific ALT germline for InDel candidate.", true); 
+    app.add_option("--illumina-BQ-pow2-div-coef", illumina_BQ_pow2_div_coef,
+                   "The square of Illumina root-mean-square base quality divided by this number is the maximum possible TLOD part of variant quality.", true); 
+    app.add_option("--varqual-per-mapqual", varqual_per_mapqual,
+                   "The root-mean square mapping quality multiplied by this number is the maximum possible TLOD part of variant quality.", true); 
+    
+    app.add_option("--powlaw-exponent",     powlaw_exponent,
+                   "Exponent of the power-law relationship between error probability and allele-fraction deviation, strongly recommended to use the default value.", true);     
+    app.add_option("--powlaw-anyvar-base", powlaw_anyvar_base,
+                   "Error probability at allele-fraction of 1 or 100%, storngly recommended to use the default value", true); 
+    app.add_option("--syserr-maxqual", syserr_maxqual,
+                   "PHRED-scaled probability that a candidate of systematic error is actually non-systematic.", true); 
+    app.add_option("--syserr-norm-devqual", syserr_norm_devqual,
+                   "PHRED-scaled likelihood that the observed allele fraction additively deviates from the expected allele fraction by a multiplicative factor of two.", true); 
     
     app.add_flag("--Should-add-note",        should_add_note,             "Flag indicating if the program generates more detail (can be used for debugging) in the VCF result file.");
-    app.add_option("--is-tumor-format-retrieved", is_tumor_format_retrieved, "Boolean (0: false, 1: true) indicating if the format from the tumor VCF should be retrieved in the tumor-normal comparison. This boolean is only useful if tumor VCF is provided. Notice that a true value for this boolean disables the generation of genomic block so that the output is no longer gvcf.", true);
     
     app.add_option("--disable-dup-read-merge", disable_dup_read_merge,      "Boolean (0: false, 1: true) indicating if the program should disable the merge of duplicate reads.", true);
     app.add_option("--enable-dup-read-vqual",  enable_dup_read_vqual,       "Boolean (0: false, 1: true) indicating if the program should enable the use of raw non-dedupped reads in the calculation of variant quality.", true);
