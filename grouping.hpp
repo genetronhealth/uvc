@@ -21,11 +21,6 @@
 
 #define logDEBUGx1 logDEBUG // logINFO
 
-// position of 5' is the starting position, but position of 3' is unreliable without mate info.
-const unsigned int ARRPOS_MARGIN = 600;
-const int8_t ARRPOS_OUTER_RANGE = 10;
-const int8_t ARRPOS_INNER_RANGE = 3;
-
 int 
 bed_fname_to_contigs(
         std::vector<std::tuple<unsigned int, unsigned int, unsigned int, bool, unsigned int>> & tid_beg_end_e2e_vec,
@@ -185,5 +180,11 @@ bamfname_to_strand_to_familyuid_to_reads(
         const bool is_molecule_tag_enabled,
         const bool is_pair_end_merge_enabled, 
         bool disable_duplex,
-        size_t thread_id);
+        size_t thread_id,
+        unsigned int dedup_center_mult,
+        unsigned int dedup_amplicon_count_to_surrcount_frac,
+        unsigned int dedup_yes_umi_2ends_peak_frac,
+        unsigned int dedup_non_umi_2ends_peak_frac
+        );
 #endif
+

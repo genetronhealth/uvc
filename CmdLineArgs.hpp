@@ -99,6 +99,11 @@ struct CommandLineArgs {
     double      powlaw_anyvar_base = (double)(60+25+5);
     double      syserr_maxqual = (double)(25.0); // PHRED-scaled probability that a candidate of systematic error is actually non-systematic
     double      syserr_norm_devqual = (double)(12.5); // PHRED-scaled likelihood that the observed allele fraction additively deviates from the expected allele fraction by a multiplicative factor of two
+
+    uint32_t    dedup_center_mult = 5;
+    uint32_t    dedup_amplicon_count_to_surrcount_frac = 16;
+    uint32_t    dedup_yes_umi_2ends_peak_frac = 4;
+    uint32_t    dedup_non_umi_2ends_peak_frac = 8;
     
     int 
     initFromArgCV(int & parsing_result_flag, SequencingPlatform & inferred_sequencing_platform, int argc, const char *const* argv);

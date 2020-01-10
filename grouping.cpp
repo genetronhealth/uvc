@@ -1,6 +1,11 @@
 #include "grouping.hpp"
 #include "logging.hpp"
 
+// position of 5' is the starting position, but position of 3' is unreliable without mate info.
+const unsigned int ARRPOS_MARGIN = 1200;
+const int8_t ARRPOS_OUTER_RANGE = 10;
+const int8_t ARRPOS_INNER_RANGE = 3;
+
 bool 
 ispowof2(auto num) {
     return (num & (num-1)) == 0;
@@ -297,7 +302,7 @@ fill_isrc_isr2_beg_end_with_aln(bool & isrc, bool & isr2, uint32_t & tBeg, uint3
             // || ((aln->core.flag & 0x2) == 0) // having this line causes problems to SRR2556939_chr3_178936090_178936092
             || (aln->core.flag & 0x8) 
             || (0 == aln->core.isize) 
-            || (abs(aln->core.isize) >= (ARRPOS_MARGIN))) {
+            || (((unsigned int)abs(aln->core.isize)) >= (ARRPOS_MARGIN))) {
         tBeg = (isrc ? endpos : begpos);
         tEnd = (isrc ? begpos : endpos);
         num_seqs = 1;
@@ -329,7 +334,7 @@ int
 poscounter_to_pos2pcenter(
               std::vector<unsigned int> & pos_to_center_pos,
         const std::vector<unsigned int> & pos_to_count, 
-        const unsigned int center_mult=5) {
+        const unsigned int dedup_center_mult) {
     
     for (size_t locov_pos = ARRPOS_INNER_RANGE; locov_pos < pos_to_count.size() - ARRPOS_INNER_RANGE; locov_pos++) {
         unsigned int locov_count = pos_to_count[locov_pos];
@@ -338,7 +343,7 @@ poscounter_to_pos2pcenter(
         // check if inner_pos is attracted by outer position
         for (size_t hicov_pos = locov_pos - ARRPOS_INNER_RANGE; hicov_pos < locov_pos + ARRPOS_INNER_RANGE + 1; hicov_pos++) {
             unsigned int hicov_count = pos_to_count[hicov_pos];
-            if (hicov_count > max_count && hicov_count > locov_count * pow(center_mult, unsigned_diff(locov_pos, hicov_pos))) {
+            if (hicov_count > max_count && hicov_count > locov_count * pow(dedup_center_mult, unsigned_diff(locov_pos, hicov_pos))) {
                 pos_to_center_pos[locov_pos] = hicov_pos;
                 max_count = hicov_count;
             }
@@ -488,7 +493,12 @@ bamfname_to_strand_to_familyuid_to_reads(
         const bool is_molecule_tag_enabled,
         const bool is_pair_end_merge_enabled,
         bool disable_duplex,
-        size_t thread_id) {
+        size_t thread_id,
+        unsigned int dedup_center_mult,
+        unsigned int dedup_amplicon_count_to_surrcount_frac,
+        unsigned int dedup_yes_umi_2ends_peak_frac,
+        unsigned int dedup_non_umi_2ends_peak_frac
+        ) {
     assert (fetch_tend > fetch_tbeg);
     
     const bool should_log = (ispowof2(regionbatch_ordinal+1) || ispowof2(regionbatch_tot_num - regionbatch_ordinal));
@@ -547,12 +557,12 @@ bamfname_to_strand_to_familyuid_to_reads(
     std::array<std::vector<unsigned int>, 4> isrc_isr2_to_beg2bcenter = { inicount, inicount, inicount, inicount };
     for (unsigned int isrc_isr2 = 0; isrc_isr2 < 4; isrc_isr2++) {
         auto beg_to_count = isrc_isr2_to_beg_count[isrc_isr2];
-        poscounter_to_pos2pcenter(isrc_isr2_to_beg2bcenter[isrc_isr2], beg_to_count);
+        poscounter_to_pos2pcenter(isrc_isr2_to_beg2bcenter[isrc_isr2], beg_to_count, dedup_center_mult);
     }
     std::array<std::vector<unsigned int>, 4> isrc_isr2_to_end2ecenter = { inicount, inicount, inicount, inicount };
     for (unsigned int isrc_isr2 = 0; isrc_isr2 < 4; isrc_isr2++) {
         auto end_to_count = isrc_isr2_to_end_count[isrc_isr2];
-        poscounter_to_pos2pcenter(isrc_isr2_to_end2ecenter[isrc_isr2], end_to_count);
+        poscounter_to_pos2pcenter(isrc_isr2_to_end2ecenter[isrc_isr2], end_to_count, dedup_center_mult);
     }
     
     unsigned int beg_peak_max = 0;
@@ -628,12 +638,11 @@ bamfname_to_strand_to_familyuid_to_reads(
         double begfrac = (double)(beg2count) / (double)(beg2surrcount + 1);
         double endfrac = (double)(end2count) / (double)(end2surrcount + 1);
         
-        const bool is_assay_amplicon = (begfrac > 16 || endfrac > 16);
+        const bool is_assay_amplicon = (begfrac > dedup_amplicon_count_to_surrcount_frac || endfrac > dedup_amplicon_count_to_surrcount_frac);
         const bool is_tag_umi = (is_molecule_tag_enabled && is_umi_found);
         const uint64_t umilabel = (is_tag_umi ? umihash : (is_assay_amplicon ? qhash : 0));
         pcrpassed += is_assay_amplicon;
-        const double peakimba = (is_tag_umi ? 4 : 8);
-        const double peakfrac = peakimba;
+        const double peakimba = (is_tag_umi ? dedup_yes_umi_2ends_peak_frac : dedup_non_umi_2ends_peak_frac);
         
         int begIsVariable = 0;
         int endIsVariable = 0;
@@ -641,9 +650,9 @@ bamfname_to_strand_to_familyuid_to_reads(
             endIsVariable = 1; // special flag indicating no end as lots of reads begin at the same position but end at different positions
         } else if (beg2count * peakimba < end2count) {
             begIsVariable = 1;
-        } else if (beg2count > end2count && begfrac > peakfrac && (2 != num_seqs)) {
+        } else if (beg2count > end2count && begfrac > peakimba && (2 != num_seqs)) {
             endIsVariable = 2; // special flag indicating no end as the begin position attracts lots of reads
-        } else if (beg2count < end2count && endfrac > peakfrac && (2 != num_seqs)) {
+        } else if (beg2count < end2count && endfrac > peakimba && (2 != num_seqs)) {
             begIsVariable = 2; 
         }
         

@@ -238,6 +238,14 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     
     app.add_flag("--Disable-duplex",         disable_duplex,            "Flag indicating if the program should disable the merge of two SSCSs (single-strand-consensus-sequences) into a DSCS (double strand consensus sequence). The UMI of the duplex tag should be in the form of <alpha>+<beta>.");
     
+    app.add_option("--dedup-center-mult",    dedup_center_mult,         "Exponential decay per additional base of distance." , true);
+    app.add_option("--dedup-amplicon-count-to-surrcount-frac", dedup_amplicon_count_to_surrcount_frac, 
+                   "centroidCount/surroundingCount of reads ending at a position above which the assay is inferred to be amplicon. Assay type can be override on command-line", true);
+    app.add_option("--dedup-yes-umi-2ends-peak-frac",    dedup_yes_umi_2ends_peak_frac, 
+                   "If the ratio of the numbers of reads ending on the two ends with UMI is above this value, then UMI is assumed to be single-end." , true);
+    app.add_option("--dedup-non-umi-2ends-peak-frac",    dedup_non_umi_2ends_peak_frac, 
+                   "Same as above except for L8G" , true); 
+    
     app.callback([&]() {
         assay_type = (AssayType)assay_type_uint;
         molecule_tag_uint = (MoleculeTag)molecule_tag_uint;

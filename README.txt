@@ -37,7 +37,7 @@ It is recommended to manual check the following outlier variant candidates:
  2. for UMI data, variant candidates with FORMAT/FTS consisting of one or more filter strings (typically less than 6% of all variants).
 If manual check is still too labor-intensive, then it is recommended to keep such outlier variant candidate if the candidate
  1. is at a hotspot (for example, if the candidate shows high-frequency occurence in the COSMIC database) and
- 2. does not show germline risk (such as low-frequency occurence or absence in dbSNP) and
+ 2. does not show germline risk (such as low-frequency occurence or absence in dbSNP).
 Otherwise, it is recommended to reject such variant candidate.
 
 --- What to report if a runtime error arises ---

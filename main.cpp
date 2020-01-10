@@ -577,12 +577,28 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
 
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts bamfname_to_strand_to_familyuid_to_reads with pair_end_merge = " << paramset.pair_end_merge; }
     std::array<unsigned int, 3> passed_pcrpassed_umipassed = bamfname_to_strand_to_familyuid_to_reads(umi_to_strand_to_reads, 
-            extended_inclu_beg_pos, extended_exclu_end_pos,
+            extended_inclu_beg_pos, 
+            extended_exclu_end_pos,
             paramset.bam_input_fname,
-            tid, incluBegPosition, excluEndPosition,
-            end2end, paramset.min_mapqual, paramset.min_aln_len,
-            regionbatch_ordinal, regionbatch_tot_num, UMI_STRUCT_STRING, hts_idx, 
-            ASSAY_TYPE_CAPTURE != paramset.assay_type, PAIR_END_MERGE_NO != paramset.pair_end_merge, paramset.disable_duplex, thread_id);
+            tid, 
+            incluBegPosition, 
+            excluEndPosition,
+            end2end, 
+            paramset.min_mapqual, 
+            paramset.min_aln_len,
+            regionbatch_ordinal, 
+            regionbatch_tot_num, 
+            UMI_STRUCT_STRING, 
+            hts_idx, 
+            ASSAY_TYPE_CAPTURE != paramset.assay_type, 
+            PAIR_END_MERGE_NO != paramset.pair_end_merge, 
+            paramset.disable_duplex,
+            thread_id,
+            paramset.dedup_center_mult,
+            paramset.dedup_amplicon_count_to_surrcount_frac,
+            paramset.dedup_yes_umi_2ends_peak_frac,
+            paramset.dedup_non_umi_2ends_peak_frac
+    );
     
     unsigned int num_passed_reads = passed_pcrpassed_umipassed[0];
     unsigned int num_pcrpassed_reads = passed_pcrpassed_umipassed[1];
