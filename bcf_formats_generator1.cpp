@@ -54,7 +54,9 @@ const std::string vcf_number_to_header_str(int num) {
     else if (BCF_NUM_A == num) { return "A"; }
     else if (BCF_NUM_R == num) { return "R"; }
     else if (BCF_NUM_G == num) { return "G"; }
-    else if (BCF_NUM_D == num) { return "."; } 
+    else if (BCF_NUM_D == num) { return "."; }
+    fprintf(stderr, "%d is not a valid BCF type!\n", num);
+    abort();
 }
 
 const std::vector<std::pair<std::string, std::string>> FILTER_VEC = {
