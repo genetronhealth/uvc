@@ -26,17 +26,18 @@ fill_by_indel_info2_2
         unsigned int repeatnum) {
     
     assert(isSymbolIns(symbol) || isSymbolDel(symbol));
-    AlignmentSymbol link1  = (isSymbolIns(symbol) ? LINK_I1  : LINK_D1 );
-    AlignmentSymbol link2  = (isSymbolIns(symbol) ? LINK_I2  : LINK_D2 ); 
-    AlignmentSymbol link3p = (isSymbolIns(symbol) ? LINK_I3P : LINK_D3P);
-    
-    assert (link1 == symbol || link2 == symbol || link3p == symbol || 
-            !fprintf(stderr, "Symbol %s does not match any of {%s, %s, %s}", 
-            SYMBOL_TO_DESC_ARR[symbol], SYMBOL_TO_DESC_ARR[link1], SYMBOL_TO_DESC_ARR[link2], SYMBOL_TO_DESC_ARR[link3p]));
-    
-    std::vector<std::tuple<uint32_t, uint32_t, std::string>> bqfq_depth_mutform_tuples;
+    if (isSymbolIns(symbol)) {
+        assert (LINK_I1 == symbol || LINK_I2 == symbol || LINK_I3P == symbol || 
+                !fprintf(stderr, "Symbol %s does not match any of {%s, %s, %s}", 
+                SYMBOL_TO_DESC_ARR[symbol], SYMBOL_TO_DESC_ARR[LINK_I1], SYMBOL_TO_DESC_ARR[LINK_I2], SYMBOL_TO_DESC_ARR[LINK_I3P]));
+    } else {
+        assert (LINK_D1 == symbol || LINK_D2 == symbol || LINK_D3P == symbol || 
+                !fprintf(stderr, "Symbol %s does not match any of {%s, %s, %s}", 
+                SYMBOL_TO_DESC_ARR[symbol], SYMBOL_TO_DESC_ARR[LINK_D1], SYMBOL_TO_DESC_ARR[LINK_D2], SYMBOL_TO_DESC_ARR[LINK_D3P]));
+    }
     assert(bq_tsum_depth.find(refpos) != bq_tsum_depth.end());
     
+    std::vector<std::tuple<uint32_t, uint32_t, std::string>> bqfq_depth_mutform_tuples;
     for (auto indel2data4 : bq_tsum_depth.at(refpos)) {
         const auto indel = indel2data4.first;
 #if INDEL_ID == 1
