@@ -2910,6 +2910,7 @@ generate_vcf_header(const char *ref_fasta_fname,
     ret += "##INFO=<ID=TNORs,Number=.,Type=Float,Description=\"Tumor-to-normal signal odds ratio of odds ratio using read counts and base qualities.\">\n";
     ret += "##INFO=<ID=TSQs,Number=.,Type=Float,Description=\"For only tumor  sample: allele-fraction variant quality (VQ), raw VQ, raw adjustment quality, InDel penalty, and SNV penalty.\">\n";
     ret += "##INFO=<ID=NSQs,Number=.,Type=Float,Description=\"For only normal sample: allele-fraction variant quality (VQ), raw VQ, raw adjustment quality\">\n";
+    ret += "##INFO=<ID=TNNRQs,Number=.,Type=Float,Description=\"For tumor and normal samples: read-count raw quality, BQ-sum raw quality, read-count power-law quality, and BQ-sum power-law quality for the other nonref allele\">\n";
     ret += "##INFO=<ID=tDP,Number=1,Type=Integer,Description=\"Tumor-sample DP\">\n";
     ret += "##INFO=<ID=tFA,Number=1,Type=Float,Description=\"Tumor-sample FA\">\n";
     ret += "##INFO=<ID=tFR,Number=1,Type=Float,Description=\"Tumor-sample FR\">\n";
@@ -3226,25 +3227,25 @@ append_vcf_record(std::string & out_string,
         
         double nAltBQ = SUM2(nfm.cAltBQ);
         double nAllBQ = SUM2(nfm.cAllBQ);
-        //double nRefBQ = SUM2(nfm.cRefBQ);
+        double nRefBQ = SUM2(nfm.cRefBQ);
         double nAltHD = SUM2(nfm.cAltHD);
         double nAllHD = SUM2(nfm.cAllHD);
-        //double nRefHD = SUM2(nfm.cRefHD);
+        double nRefHD = SUM2(nfm.cRefHD);
         
         double nDP0 = (double)((nUseHD) ? (nAllHD) :                      (double)nfm.DP) + DBLFLT_EPS / 2.0;
         double nAD0 = (double)((nUseHD) ? (nAltHD) :             nfm.FA * (double)nfm.DP) + DBLFLT_EPS;
-        //double nRD0 = (double)((nUseHD) ? (nRefHD) :             nfm.FR * (double)nfm.DP) + DBLFLT_EPS / 2.0;
+        double nRD0 = (double)((nUseHD) ? (nRefHD) :             nfm.FR * (double)nfm.DP) + DBLFLT_EPS / 2.0;
         
         double tAltBQ = tki.autoBestAltBQ;
         double tAllBQ = tki.autoBestAllBQ;
-        //double tRefBQ = tki.autoBestRefBQ;
+        // double tRefBQ = tki.autoBestRefBQ;
         double tAltHD = tki.autoBestAltHD;
         double tAllHD = tki.autoBestAllHD;
-        //double tRefHD = tki.autoBestRefHD;
+        // double tRefHD = tki.autoBestRefHD;
         
         double tDP0 = (double)((tUseHD) ? (tAllHD) :                      (double)tki.DP) + DBLFLT_EPS;
         double tAD0 = (double)((tUseHD) ? (tAltHD) :             tki.FA * (double)tki.DP) + DBLFLT_EPS / 2.0;
-        //double tRD0 = (double)((tUseHD) ? (tRefHD) :             tki.FR * (double)tki.DP) + DBLFLT_EPS / 2.0; 
+        // double tRD0 = (double)((tUseHD) ? (tRefHD) :             tki.FR * (double)tki.DP) + DBLFLT_EPS / 2.0; 
         
         double nAD0a = nAD0 * ((isInDel && !nUseHD1) ? ((double)(nfm.gapDP4[2] + 1) / (double)(nfm.gapDP4[0] + 1)) : 1.0); // not used ?
         double tAD0a = tAD0 * ((isInDel && !tUseHD1) ? ((double)(tki.gapDP4[2] + 1) / (double)(tki.gapDP4[0] + 1)) : 1.0);
@@ -3253,8 +3254,8 @@ append_vcf_record(std::string & out_string,
         double nDP1 = (nUseHD ? (highqual_thres * nAllHD) : nAllBQ) + DBLFLT_EPS;
         double tAD1 = (tUseHD ? (highqual_thres * tAltHD) : tAltBQ) + DBLFLT_EPS / 2.0;
         double tDP1 = (tUseHD ? (highqual_thres * tAllHD) : tAllBQ) + DBLFLT_EPS;
-        //double nRD1 = (nUseHD ? (highqual_thres * nRefHD) : nRefBQ) + DBLFLT_EPS / 2.0;
-        //double tRD1 = (tUseHD ? (highqual_thres * tRefHD) : tRefBQ) + DBLFLT_EPS / 2.0; 
+        double nRD1 = (nUseHD ? (highqual_thres * nRefHD) : nRefBQ) + DBLFLT_EPS / 2.0;
+        // double tRD1 = (tUseHD ? (highqual_thres * tRefHD) : tRefBQ) + DBLFLT_EPS / 2.0; 
         
         //const bool is_nonref_snp_excluded = true; // false for treating tri-allelic and tetra-allelic SNV site as potentially somatic
         //const bool is_nonref_indel_excluded = true; // false for treating tri-allelic and tetra-allelic InDel site as potentially somatic
@@ -3370,6 +3371,24 @@ append_vcf_record(std::string & out_string,
         
         double symfrac = 1.0; // degenerated
         
+        const double t2n_rawq0 = ((true || nDP0 <= tDP0) // CHECK: check if the symmetry makes sense. If it does then enable the else part
+            ? calc_binom_10log10_likeratio((double)(tDP0 - tAD0) / (double)tDP0, (double)(nDP0 - nAD0),                (double)(nAD0)                      )
+            : calc_binom_10log10_likeratio((double)       (nAD0) / (double)nDP0, (double)(tAD0),                       (double)(tDP0 - tAD0)               )); 
+        const double t2n_rawq1 = ((true || nDP0 <= tDP0) // CHECK: check if the symmetry makes sense. If it does then enable the else part
+            ? calc_binom_10log10_likeratio(        (tDP1 - tAD1) /         tDP1,         (nDP1 - nAD1) / nDP1 * nDP0,          (nAD1 / nDP1) * nDP0)
+            : calc_binom_10log10_likeratio(               (nAD1) /         nDP1,         (tAD1 / tDP1) * tDP0,                 (tDP1 - tAD1) / tDP1 * tDP0)); 
+        const double t2n_rawq = (isInDel ? t2n_rawq0 : t2n_rawq1 / MAX(1.0, 0.5 + 0.5*tki.EROR[3]/100.0));
+        
+        auto n3D0 = nDP0 - MIN(nDP0 - (DBLFLT_EPS / 2.0), nAD0 + nRD0);
+        auto n3D1 = nDP1 - MIN(nDP1 - (DBLFLT_EPS / 2.0), nAD1 + nRD1);
+        const double t3n_rawq0 = ((true || nDP0 <= tDP0) // CHECK: check if the symmetry makes sense. If it does then enable the else part
+            ? calc_binom_10log10_likeratio((double)(tDP0 - tAD0) / (double)tDP0, (double)(nDP0 - n3D0),                (double)(n3D0)                      )
+            : calc_binom_10log10_likeratio((double)       (n3D0) / (double)nDP0, (double)(tAD0),                       (double)(tDP0 - tAD0)               )); 
+        const double t3n_rawq1 = ((true || nDP0 <= tDP0) // CHECK: check if the symmetry makes sense. If it does then enable the else part
+            ? calc_binom_10log10_likeratio(        (tDP1 - tAD1) /         tDP1,         (nDP1 - n3D1) / nDP1 * nDP0,          (n3D1 / nDP1) * nDP0)
+            : calc_binom_10log10_likeratio(               (n3D1) /         nDP1,         (tAD1 / tDP1) * tDP0,                 (tDP1 - tAD1) / tDP1 * tDP0)); 
+        const double t3n_rawq = (isInDel ? t3n_rawq0 : t3n_rawq1 / MAX(1.0, 0.5 + 0.5*tki.EROR[3]/100.0));
+        
         const double t2n_or0 = ((double)(tAD0 + symfrac * tAD0pc0) / (double)(tDP0 - tAD0 + symfrac * (tDP0pc0 - tAD0pc0))) 
                              / ((double)(nAD0 +           nAD0pc0) / (double)(nDP0 - nAD0 +           (nDP0pc0 - nAD0pc0)));
         const double t2n_or1 = ((double)(tAD1 + symfrac * tAD1pc0) / (double)(tDP1 - tAD1 + symfrac * (tDP1pc0 - tAD1pc0))) 
@@ -3378,24 +3397,23 @@ append_vcf_record(std::string & out_string,
                              / ((double)(tAD0 +           tAD0pc0) / (double)(tDP0 - tAD0 +           (tDP0pc0 - tAD0pc0)));
         const double n2t_or1 = ((double)(nAD1 +     0.0 * nAD1pc0) / (double)(nDP1 - nAD1 +     0.0 * (nDP1pc0 - nAD1pc0))) 
                              / ((double)(tAD1 +           tAD1pc0) / (double)(tDP1 - tAD1 +           (tDP1pc0 - tAD1pc0))); 
-        
-        const double t2n_rawq0 = ((true || nDP0 <= tDP0) // TODO: check if the symmetry makes sense. If it does then enable the else part
-            ? calc_binom_10log10_likeratio((double)(tDP0 - tAD0) / (double)tDP0, (double)(nDP0 - nAD0),                (double)(nAD0)                      )
-            : calc_binom_10log10_likeratio((double)       (nAD0) / (double)nDP0, (double)(nAD0),                       (double)(nDP0 - nAD0)               )); 
-        const double t2n_rawq1 = ((true || nDP0 <= tDP0) // TODO: check if the symmetry makes sense. If it does then enable the else part
-            ? calc_binom_10log10_likeratio(        (tDP1 - tAD1) /         tDP1,         (nDP1 - nAD1) / nDP1 * nDP0,          (nAD1 / nDP1) * nDP0)
-            : calc_binom_10log10_likeratio(               (nAD1) /         nDP1,         (tAD1 / tDP1) * tDP0,                 (tDP1 - tAD1) / tDP1 * tDP0)); 
-        const double t2n_rawq = (isInDel ? t2n_rawq0 : t2n_rawq1 / MAX(1.0, 0.5 + 0.5*tki.EROR[3]/100.0));
-        
         const double t2n_po0q0 = 10.0/log(10.0) * (1.0+log(symfrac*symfrac)/10.0) * pl_exponent * log(t2n_or0 /symfrac);
         const double t2n_po0q1 = 10.0/log(10.0) * (1.0+log(symfrac*symfrac)/10.0) * pl_exponent * log(t2n_or1 /symfrac);
         const double t2n_po2q0 = MIN(MAX(-syserr_maxqual, t2n_po0q0), syserr_maxqual + 10);
         const double t2n_po2q1 = MIN(MAX(-syserr_maxqual, t2n_po0q1), syserr_maxqual + 10);
         const double t2n_powq0 = MIN(MAX(-syserr_maxqual, t2n_po0q0), syserr_maxqual);
         const double t2n_powq1 = MIN(MAX(-syserr_maxqual, t2n_po0q1), syserr_maxqual);
-         
         const double t2n_powq = (isInDel ? t2n_powq0 : t2n_powq1);
         const double t2t_powq = syserr_maxqual;
+        
+        const double t3n_or0 = ((double)(tAD0 + symfrac * tAD0pc0) / (double)(tDP0 - tAD0 + symfrac * (tDP0pc0 - tAD0pc0))) 
+                             / ((double)(n3D0 +           nAD0pc0) / (double)(nDP0 - n3D0 +           (nDP0pc0 - nAD0pc0)));
+        const double t3n_or1 = ((double)(tAD1 + symfrac * tAD1pc0) / (double)(tDP1 - tAD1 + symfrac * (tDP1pc0 - tAD1pc0))) 
+                             / ((double)(n3D1 +           nAD1pc0) / (double)(nDP1 - n3D1 +           (nDP1pc0 - nAD1pc0))); 
+        const double t3n_po0q0 = 10.0/log(10.0) * (1.0+log(symfrac*symfrac)/10.0) * pl_exponent * log(t3n_or0 /symfrac);
+        const double t3n_po0q1 = 10.0/log(10.0) * (1.0+log(symfrac*symfrac)/10.0) * pl_exponent * log(t3n_or1 /symfrac);
+        const double t3n_po2q0 = MIN(MAX(-syserr_maxqual, t3n_po0q0), syserr_maxqual + 10);
+        const double t3n_po2q1 = MIN(MAX(-syserr_maxqual, t3n_po0q1), syserr_maxqual + 10);
         
         //double tn_cont_nor = MIN(2.0, ((double)(nAD0 + 1) / (double)(nDP0 - nAD0 + 1)));
         //double tn_cont_tor = MIN(2.0, ((double)(tAD0 + 1) / (double)(tDP0 - tAD0 + 1)));
@@ -3433,11 +3451,14 @@ append_vcf_record(std::string & out_string,
                 - MIN(t2n_contam_q, t2n_syserr_q)
                 + MAX(0, CENTER(t2n_rawq, (isInDel ? t2n_po2q0 : t2n_po2q1) - 10)) // ad-hoc: the 10 is kind of arbitrary.
                 ;
-        
+        double a_ex_alt_qual = add01_between_min01_max01(excalt_qual, excalt_tu_q) + noisy_germ_phred
+                + MAX(0, CENTER(t3n_rawq, (isInDel ? t3n_po2q0 : t3n_po2q1) - 10)) 
+                ;
         const int32_t a_nogerm_q = homref_gt_phred + (is_nonref_germline_excluded ? 
                 MIN(a_no_alt_qual, 
                     // noisy_germ_phred + excalt_qual + MAX(0, excalt_tu_q)) 
-                    noisy_germ_phred + add01_between_min01_max01(excalt_qual, excalt_tu_q))
+                    //noisy_germ_phred + add01_between_min01_max01(excalt_qual, excalt_tu_q)
+                    a_ex_alt_qual)
                     : a_no_alt_qual);
         double tlodq =  t_base_q + t2n_finq - MIN(t2n_contam_q, t2n_syserr_q);
         testquals[tqi++] = MIN(tlodq, (double)a_nogerm_q); // - 5.0;
@@ -3507,6 +3528,11 @@ append_vcf_record(std::string & out_string,
                 std::to_string(tn_npowq)  , std::to_string(_tn_nra2q),
                 std::to_string(tn_npo1q)   , std::to_string(tn_nra1q), std::to_string(tn_nsamq)
         }));
+        infostring += std::string(";TNNRQs=") + string_join(std::array<std::string, 4>({
+                std::to_string(t3n_rawq0)  , std::to_string(t3n_rawq1),
+                std::to_string(t3n_po0q0)  , std::to_string(t3n_po0q1),
+        }));
+
         infostring += std::string(";tDP=") + std::to_string(tki.DP);
         infostring += std::string(";tFA=") + std::to_string(tki.FA);
         infostring += std::string(";tFR=") + std::to_string(tki.FR);
