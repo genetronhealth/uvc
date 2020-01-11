@@ -257,7 +257,7 @@ struct TumorKeyInfo {
     int32_t BQ = 0;
     int32_t MQ = 0;
     int32_t bDP = 0;
-    float bFA = 0;
+    std::array<int32_t, 2> bAD1 = {0};
     int32_t autoBestAllBQ = 0;
     int32_t autoBestAltBQ = 0;
     int32_t autoBestRefBQ = 0;
@@ -273,7 +273,6 @@ struct TumorKeyInfo {
     std::array<int32_t, 3> GLb = {0};
     std::array<int32_t, 5> EROR = {0};
     std::array<int32_t, 4> gapbNRD = {0};
-    
     bcf1_t *bcf1_record = NULL;
     /*
     ~TumorKeyInfo() {
@@ -483,29 +482,28 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line,  "gapDP4", &bcfints, &ndst_val);
-        assert((4 == ndst_val && 4 == valsize) || !fprintf(stderr, "4 == %d && 4 == %d failed for gapDP4!\n", ndst_val, valsize));
-        tki.gapDP4 = {bcfints[0], bcfints[1], bcfints[2], bcfints[3]};
-        
-        const unsigned int n = 6*RCC_NUM;
-        
+        assert((tki.gapDP4.size() == ndst_val && tki.gapDP4.size() == valsize) || !fprintf(stderr, "%lu == %d && %lu == %d failed for gapDP4!\n", tki.gapDP4.size(), ndst_val, tki.gapDP4.size(), valsize));
+        for (size_t i = 0; i < tki.gapDP4.size(); i++) {
+            tki.gapDP4[i] = bcfints[i];
+        }
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line,  "RCC", &bcfints, &ndst_val);
-        assert((n == ndst_val && n == valsize) || !fprintf(stderr, "%d == %d && %d == %d failed for RCC!\n", n, ndst_val, n, valsize));
-        for (int i = 0; i < 8; i++) {
+        assert((tki.RCC.size() == ndst_val && tki.RCC.size() == valsize) || !fprintf(stderr, "%d == %d && %d == %d failed for RCC!\n", tki.RCC.size(), ndst_val, tki.RCC.size(), valsize));
+        for (size_t i = 0; i < tki.RCC.size(); i++) {
             tki.RCC[i] = bcfints[i];
         }
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line,  "GLa", &bcfints, &ndst_val);
-        assert((3 == ndst_val && 3 == valsize) || !fprintf(stderr, "3 == %d && 3 == %d failed for GQa!\n", ndst_val, valsize));
-        for (int i = 0; i < 3; i++) {
+        assert((tki.GLa.size() == ndst_val && tki.GLa.size() == valsize) || !fprintf(stderr, "%lu == %d && %lu == %d failed for GQa!\n", tki.GLa.size(), ndst_val, tki.GLa.size(), valsize));
+        for (size_t i = 0; i < tki.GLa.size(); i++) {
             tki.GLa[i] = bcfints[i];
         }
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line,  "GLb", &bcfints, &ndst_val);
-        assert((3 == ndst_val && 3 == valsize) || !fprintf(stderr, "3 == %d && 3 == %d failed for GQb!\n", ndst_val, valsize));
-        for (int i = 0; i < 3; i++) {
+        assert((tki.GLb.size() == ndst_val && tki.GLb.size() == valsize) || !fprintf(stderr, "%lu == %d && %lu == %d failed for GQb!\n", tki.GLb.size(), ndst_val, tki.GLb.size(), valsize));
+        for (size_t i = 0; i < tki.GLb.size(); i++) {
             tki.GLb[i] = bcfints[i];
         }
         
@@ -521,6 +519,13 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         assert((tki.gapbNRD.size() == ndst_val && tki.gapbNRD.size() == valsize) || !fprintf(stderr, "%lu == %d && %lu == %d failed for gapbNRD!\n", tki.gapbNRD.size(), ndst_val, tki.gapbNRD.size(), valsize));
         for (size_t i = 0; i < tki.gapbNRD.size(); i++) {
             tki.gapbNRD[i] = bcfints[i];
+        }
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "bAD1",  &bcfints, &ndst_val);
+        assert((tki.bAD1.size() == ndst_val && tki.bAD1.size() == valsize) || !fprintf(stderr, "%lu == %d && %lu == %d failed for gapbNRD!\n", tki.bAD1.size(), ndst_val, tki.bAD1.size(), valsize));
+        for (size_t i = 0; i < tki.bAD1.size(); i++) {
+            tki.bAD1[i] = bcfints[i];
         }
         
         ndst_val = 0;

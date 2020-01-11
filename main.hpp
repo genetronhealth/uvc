@@ -3195,7 +3195,8 @@ append_vcf_record(std::string & out_string,
         tki.BQ = fmt.BQ;
         tki.MQ = fmt.MQ;
         tki.bDP = fmt.bDP;
-        tki.bFA = fmt.bFA;
+        // tki.bFA = fmt.bFA;
+        for (size_t i = 0; i < fmt.bAD1.size(); i++) { tki.bAD1[i] = fmt.bAD1[i]; }
         tki.autoBestAltBQ = SUM2(fmt.cAltBQ);
         tki.autoBestAllBQ = SUM2(fmt.cAllBQ);
         tki.autoBestRefBQ = SUM2(fmt.cRefBQ);
@@ -3332,9 +3333,9 @@ append_vcf_record(std::string & out_string,
             }
         } else {
             unsigned int indelmax = MAX(tki.gapbNRD[0] + tki.gapbNRD[1], tki.gapbNRD[2] + tki.gapbNRD[3]);
-            if (SUM2(fmt.bAD1) < indelmax && indelmax > 0) {
-                uint64_t max_pb2 = MAX(pb2l, pb2r);
-                double bAD1frac = (double)(indelmax - SUM2(fmt.bAD1)) / (double)indelmax;
+            if ((SUM2(tki.bAD1) < (int)indelmax) && (indelmax > 0)) {
+                uint64_t max_pb2 = tki.EROR[1];
+                double bAD1frac = (double)(indelmax - SUM2(tki.bAD1)) / (double)indelmax;
                 double sqr_pb2 = bAD1frac * (double)(max_pb2 * MIN(200UL, max_pb2));
                 t_snv_penal_by_indel = 10.0/log(10.0) *log(MAX(1.0, sqr_pb2 / 1e4)) * pl_exponent;
             }
