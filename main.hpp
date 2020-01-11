@@ -2436,7 +2436,9 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
         unsigned int min_edge_dist,
         unsigned int central_readlen,
         unsigned int baq_per_aligned_base,
-        double powlaw_exponent
+        double powlaw_exponent,
+        const auto & bq_ins_2bdepths,
+        const auto & bq_del_2bdepths
         ) {
     fmt.note = symbol2CountCoverageSet12.additional_note.getByPos(refpos).at(symbol);
     uint64_t bq_qsum_sqrMQ_tot = 0; 
@@ -2768,6 +2770,15 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
         fmt.RCC[i*RCC_NFS+5] = (int)rep_num_clusters[i].cnt2p;
     } // fmt.cFR;
     
+    unsigned int refpo2 = MIN(refpos + 1, bq_ins_2bdepths.at(0).getExcluEndPosition() - 1);
+    // Implicitly assume that there is a symmetry between refpos and refpo2
+    fmt.gapbNRD = {
+        MAX(bq_ins_2bdepths.at(0).getByPos(refpos), bq_ins_2bdepths.at(0).getByPos(refpo2)), 
+        MAX(bq_ins_2bdepths.at(1).getByPos(refpos), bq_ins_2bdepths.at(1).getByPos(refpo2)), 
+        MAX(bq_del_2bdepths.at(0).getByPos(refpos), bq_del_2bdepths.at(0).getByPos(refpo2)), 
+        MAX(bq_del_2bdepths.at(1).getByPos(refpos), bq_del_2bdepths.at(1).getByPos(refpo2)) 
+    };
+    
     fmt.VType = SYMBOL_TO_DESC_ARR[symbol];
     double lowestVAQ = prob2phred(1 / (double)(fmt.bAD1[0] + fmt.bAD1[1] + 1)) * ((fmt.bAD1[0] + fmt.bAD1[1]) / (fmt.bDP1[0] + fmt.bDP1[1] + DBL_MIN)) / (double)2;
     double stdVAQs[2] = {0, 0};
@@ -2897,8 +2908,8 @@ generate_vcf_header(const char *ref_fasta_fname,
     ret += "##INFO=<ID=TNQ1s,Number=.,Type=Float,Description=\"For t-vs-n: allele-fraction variant quality (VQ), raw VQ, contamination VQ, and statistical noise VQ\">\n";
     ret += "##INFO=<ID=TNQ2s,Number=.,Type=Float,Description=\"Tumor baseline quality, tumor contamination quality, and tumor systematic-error quality.\">\n";
     ret += "##INFO=<ID=TNORs,Number=.,Type=Float,Description=\"Tumor-to-normal signal odds ratio of odds ratio using read counts and base qualities.\">\n";
-    ret += "##INFO=<ID=TSQs,Number=.,Type=Float,Description=\"For only normal sample: allele-fraction variant quality (VQ), raw VQ, and raw adjustment quality, and indel quality\">\n";
-    ret += "##INFO=<ID=NSQs,Number=.,Type=Float,Description=\"For only tumor  sample: allele-fraction variant quality (VQ), raw VQ, and raw adjustment quality\">\n";
+    ret += "##INFO=<ID=TSQs,Number=.,Type=Float,Description=\"For only tumor  sample: allele-fraction variant quality (VQ), raw VQ, raw adjustment quality, InDel penalty, and SNV penalty.\">\n";
+    ret += "##INFO=<ID=NSQs,Number=.,Type=Float,Description=\"For only normal sample: allele-fraction variant quality (VQ), raw VQ, raw adjustment quality\">\n";
     ret += "##INFO=<ID=tDP,Number=1,Type=Integer,Description=\"Tumor-sample DP\">\n";
     ret += "##INFO=<ID=tFA,Number=1,Type=Float,Description=\"Tumor-sample FA\">\n";
     ret += "##INFO=<ID=tFR,Number=1,Type=Float,Description=\"Tumor-sample FR\">\n";
@@ -3199,6 +3210,7 @@ append_vcf_record(std::string & out_string,
         tki.GLa = fmt.GLa;
         tki.GLb = fmt.GLb;
         for (size_t i = 0; i < fmt.EROR.size(); i++) { tki.EROR[i] = fmt.EROR[i]; }
+        for (size_t i = 0; i < fmt.gapbNRD.size(); i++) { tki.gapbNRD[i] = fmt.gapbNRD[i]; }
     } else {
         vcfpos = (tki.ref_alt != "." ? (tki.pos + 1) : vcfpos);
         ref_alt = (tki.ref_alt != "." ? tki.ref_alt : vcfref + "\t" + vcfalt);
@@ -3301,6 +3313,7 @@ append_vcf_record(std::string & out_string,
                 ((double)(phred_max_sscs - phred_pow_sscs_origin)) : 0.0);
         
         double t_indel_penal = 0.0;
+        double t_snv_penal_by_indel = 0.0; 
         const double pcap_tbq = ((isInDel || is_proton) ? 200.0 : mathsquare(tki.BQ) / illumina_BQ_pow2_div_coef); // based on heuristics
         const double pcap_tmq = MIN((double)maxMQ, tki.MQ) * varqual_per_mapqual; // bases on heuristics
         const double pcap_tmq2 = MAX(0.0, tki.MQ - 10.0/log(10.0) * log((double)(tDP0 + tDP0pc0) / (double)(tAD0+tAD0pc0))) * (double)tAD0; // readjustment by MQ
@@ -3309,6 +3322,7 @@ append_vcf_record(std::string & out_string,
         const double tn_tra1q = (double)tki.VAQ;
         double _tn_tpo2q = MIN4(tn_tpo1q, pcap_tmq, pcap_tbq, pcap_tmq2);
         double _tn_tra2q = MAX(0.0, tn_tra1q/altmul - tn_tsamq    ) + (isInDel ? 0.0:5.0); // tumor  BQ bias is stronger as raw variant (biased to high BQ) is called   from each base
+        
         if (isInDel) {
             int n_str_units = (isSymbolIns(symbol) ? 1 : (-1)) * (int)(indelstring.size() / repeatunit.size());
             t_indel_penal = penal_indel_2(tAD0a, n_str_units, tki.RCC, phred_triallelic_indel);
@@ -3316,8 +3330,19 @@ append_vcf_record(std::string & out_string,
                 _tn_tpo2q -= t_indel_penal;
                 _tn_tra2q *= ((double)tAD0a + (double)indelstring.size()/8.0) / ((double)tAD0 + (double)indelstring.size()/8.0); // ad-hoc adjustment
             }
+        } else {
+            unsigned int indelmax = MAX(tki.gapbNRD[0] + tki.gapbNRD[1], tki.gapbNRD[2] + tki.gapbNRD[3]);
+            if (SUM2(fmt.bAD1) < indelmax && indelmax > 0) {
+                uint64_t max_pb2 = MAX(pb2l, pb2r);
+                double bAD1frac = (double)(indelmax - SUM2(fmt.bAD1)) / (double)indelmax;
+                double sqr_pb2 = bAD1frac * (double)(max_pb2 * MIN(200UL, max_pb2));
+                t_snv_penal_by_indel = 10.0/log(10.0) *log(MAX(1.0, sqr_pb2 / 1e4)) * pl_exponent;
+            }
+            if (!tUseHD1) {
+                _tn_tpo2q -= t_snv_penal_by_indel;
+            }
         }
-        const double tn_tpowq = _tn_tpo2q; 
+        const double tn_tpowq = _tn_tpo2q;
         const double tn_trawq = _tn_tra2q; //MAX(_tn_tpo2q/10.0 + 3.0, _tn_tra2q);
         // intuition for the pol1q/10 formula: variant candidate with higher baseline-noise frequency is simply more likely to be a true mutation too
         // assuming that in-vivo biological error and in-vitro technical error are positively correlated with each other. 
@@ -3472,10 +3497,10 @@ append_vcf_record(std::string & out_string,
                 std::to_string(t2n_or0),     std::to_string(t2n_or1),
                 std::to_string(n2t_or0),     std::to_string(n2t_or1)
         }));
-        infostring += std::string(";TSQs=") + string_join(std::array<std::string, 5+1>({
+        infostring += std::string(";TSQs=") + string_join(std::array<std::string, 5+1+1>({
                 std::to_string(tn_tpowq)  , std::to_string(_tn_tra2q),
                 std::to_string(tn_tpo1q)  , std::to_string(tn_tra1q), std::to_string(tn_tsamq), 
-                std::to_string(t_indel_penal)
+                std::to_string(t_indel_penal), std::to_string(t_snv_penal_by_indel)
         }));
         infostring += std::string(";NSQs=") + string_join(std::array<std::string, 5>({
                 std::to_string(tn_npowq)  , std::to_string(_tn_nra2q),
