@@ -2,7 +2,7 @@
 #define version_INCLUDED
 #include <string.h>
 
-#define VERSION123 "0.0.11"
+#define VERSION123 "0.0.12"
 
 #ifndef COMMIT_VERSION
 #define COMMIT_VERSION "NotVersionControlled"
