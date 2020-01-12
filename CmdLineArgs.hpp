@@ -55,7 +55,11 @@ struct CommandLineArgs {
     uint32_t    phred_max_sscs_indel_ext  = 0; // 5; // 0;  // 5;
     uint32_t    phred_max_dscs_all = 60;
     uint32_t    phred_pow_sscs_origin = 44-26; // 44-30;
+    uint32_t    phred_pow_sscs_indel_origin = 0; 
     uint32_t    phred_pow_dscs_origin = 0;
+    
+    uint32_t    phred_umi_indel_dimret_qual = 40;
+    double      phred_umi_indel_dimret_fold = 2;
     
     double      vqual = (double)15; // 10; set to 20 for less output
     uint32_t    vad = (uint32_t)INT_MAX;

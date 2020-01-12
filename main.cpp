@@ -925,7 +925,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                                 paramset.phred_triallelic_indel,
                                 phred_max_sscs,
                                 paramset.phred_max_dscs_all,
-                                paramset.phred_pow_sscs_origin,
+                                ((BASE_SYMBOL == symbolType) ? paramset.phred_pow_sscs_origin : paramset.phred_pow_sscs_indel_origin),
                                 paramset.phred_pow_dscs_origin,
                                 paramset.vad,
                                 paramset.is_somatic_snv_filtered_by_any_nonref_germline_snv,
@@ -935,7 +935,9 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                                 paramset.powlaw_exponent,
                                 paramset.powlaw_anyvar_base,
                                 paramset.syserr_maxqual,
-                                paramset.syserr_norm_devqual
+                                paramset.syserr_norm_devqual,
+                                paramset.phred_umi_indel_dimret_qual,
+                                paramset.phred_umi_indel_dimret_fold
                                 );
                     }
                 }

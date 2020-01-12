@@ -3071,7 +3071,9 @@ append_vcf_record(std::string & out_string,
         const double powlaw_exponent,
         const double powlaw_anyvar_base,
         const double syserr_maxqual,
-        const double syserr_norm_devqual
+        const double syserr_norm_devqual,
+        const auto phred_umi_indel_dimret_qual,
+        const auto phred_umi_indel_dimret_fold 
         ) {
     
     const bcfrec::BcfFormat & fmt = fmtvar; 
@@ -3331,6 +3333,10 @@ append_vcf_record(std::string & out_string,
             if (!tUseHD1) {
                 _tn_tpo2q -= t_indel_penal;
                 _tn_tra2q *= ((double)tAD0a + (double)indelstring.size()/8.0) / ((double)tAD0 + (double)indelstring.size()/8.0); // ad-hoc adjustment
+            } else {
+                if (_tn_tra2q > phred_umi_indel_dimret_qual) {
+                    _tn_tra2q = (double)phred_umi_indel_dimret_qual + ((double)(_tn_tra2q - phred_umi_indel_dimret_qual) / (double)phred_umi_indel_dimret_fold);
+                }
             }
         } else {
             unsigned int indelmax = MAX(tki.gapbNRD[0] + tki.gapbNRD[1], tki.gapbNRD[2] + tki.gapbNRD[3]);
