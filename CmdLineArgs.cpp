@@ -26,6 +26,8 @@ CommandLineArgs::selfUpdateByPlatform() {
         std::vector<unsigned int> qlens;
         qlens.reserve(500+1);
         qlens.push_back(150);
+        unsigned int q30_n_fail_bases = 0;
+        unsigned int q30_n_pass_bases = 0;
         while (sam_read1(sam_infile, samheader, b) >= 0 && (countPE + countSE) < 500) {
             if (b->core.flag & 0x1) {
                 countPE++;
@@ -33,13 +35,22 @@ CommandLineArgs::selfUpdateByPlatform() {
                 countSE++;
             }
             qlens.push_back(b->core.l_qseq);
+            unsigned int qpos = 0;
+            for (unsigned int qpos = 0; qpos < b->core.l_qseq; qpos++) {
+                unsigned int bq = (bam_get_qual((b))[(qpos)]);
+                if (bq < 30) {
+                    q30_n_fail_bases++;
+                } else {
+                    q30_n_pass_bases++;
+                }
+            }
         }
         std::sort(qlens.begin(), qlens.end());
         if (0 == this->central_readlen) { this->central_readlen = qlens.at(qlens.size()/2); }
         bam_destroy1(b);
         bam_hdr_destroy(samheader);
         sam_close(sam_infile);
-        if (0 < countPE) {
+        if ((0 < countPE) || (q30_n_fail_bases * 3 < q30_n_pass_bases)) {
             inferred_sequencing_platform = SEQUENCING_PLATFORM_ILLUMINA;
         } else {
             inferred_sequencing_platform = SEQUENCING_PLATFORM_IONTORRENT;
