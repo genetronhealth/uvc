@@ -1909,14 +1909,16 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         AlignmentSymbol con_symbol; // = END_ALIGNMENT_SYMBOLS;
                         unsigned int con_count, tot_count;
                         amplicon_symbol2count.fillConsensusCounts(con_symbol, con_count, tot_count, symbolType);
-                        // we can use EM algorithm to improve this estimator, but it is probably overkill
-                        if (1 >= con_count) { continue; } // 0 means no coverage, 1 means no error correction, 2 means low quality family if the symbols disagree with each other
-                        
+                        // This is one round of bootstrapping for EM. We can use a full EM algorithm to improve this estimator, but it is probably overkill
+                        // 0 means no coverage, 1 means no error correction, 2 means low quality family if the symbols disagree with each other, 
+                        // 3 means up to 1 erroneous basecall is tolerated, 4 means up to 2 erroneous basecalls are tolerated
+                        if (tot_count < 4) { continue; } 
+                        if ((con_count * 3 < tot_count * 2)) { continue; }
                         for (AlignmentSymbol 
                                 symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; 
                                 symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; 
                                 symbol = AlignmentSymbol(1+(unsigned int)symbol)) {
-                            if (con_symbol != symbol || con_count * 2 <= tot_count) {
+                            if (con_symbol != symbol) {
                                 this->minor_amplicon[strand].getRefByPos(epos).incSymbolCount(symbol, amplicon_symbol2count.getSymbolCount(symbol));
                                 this->major_amplicon[strand].getRefByPos(epos).incSymbolCount(symbol, tot_count);
                             }
@@ -3430,6 +3432,9 @@ append_vcf_record(std::string & out_string,
         double t2n_contam_q = MIN(calc_binom_10log10_likeratio(t2n_add_contam_transfrac, 
                 (isSymbolSubstitution(symbol) ? ((SUM2(nfm.cAltBQ2) + DBL_MIN) / (double)(SUM2(nfm.cAllBQ2) + 2.0 * DBL_MIN)) : nfm.FA) * (double)nfm.DP,
                 (isSymbolSubstitution(symbol) ? ((    (tki.cAltBQ2) + DBL_MIN) / (double)(    (tki.cAllBQ2) + 2.0 * DBL_MIN)) : tki.FA) * (double)tki.DP), 200.0);
+        if (isInDel) {
+            t2n_contam_q = MAX(0, t2n_contam_q - (double)10); // InDels PCR errors may look like contamination, so increase the prior strenght of contamination.
+        }
         // double min_doubleDP = (double)MIN(nfm.DP, tki.DP);
 #if 0   // This if branch of macro is disabled
         // The following line works well in practice but has no theory supporting it yet.
