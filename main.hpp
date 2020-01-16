@@ -2908,7 +2908,7 @@ generate_vcf_header(const char *ref_fasta_fname,
     // ret += "##INFO=<ID=TLODQ1,Number=1,TypeFloat,Description=\"Tumor log-of-data-likelihood quality, the PHRED-scale probability that this variant is not of biological origin (i.e., artifactual).\">\n";
     ret += "##INFO=<ID=REFQs,Number=.,Type=Float,Description=\"Non-germline qualities: normal-ALT, tumor-ALT, normal-OTHER, tumor-OTHER\">\n";
     
-    ret += "##INFO=<ID=TNQs,Number=.,Type=Float,Description=\"TvsN qualities: baseline, contamination from normal by read transfer, and systematic error.\">\n";
+    ret += "##INFO=<ID=TNQs,Number=.,Type=Float,Description=\"TvsN qualities: baseline, read-transfer contamination by normal (RTCN) baseline, RTCN error, and systematic error.\">\n";
     ret += "##INFO=<ID=TNORORQs,Number=.,Type=Float,Description=\"TvsN qualities of the odds ratio (OR of signal ORs: using AD/BQ-sum for TvsN/NvsT\">\n";
     ret += "##INFO=<ID=TN1Qs,Number=.,Type=Float,Description=\"TvsN qualities: AD power-law, BQ-sum power-low, AD binomial, and BQ-sum binomial\">\n";
     ret += "##INFO=<ID=TN2Qs,Number=.,Type=Float,Description=\"TvsN qualities: TN1Qs for the OTHER covering alleles that are neither ALT nor REF\">\n";
@@ -3436,8 +3436,12 @@ append_vcf_record(std::string & out_string,
         double t2n_contam_q = MIN(calc_binom_10log10_likeratio(t2n_add_contam_transfrac, 
                 (isSymbolSubstitution(symbol) ? ((SUM2(nfm.cAltBQ2) + DBL_MIN) / (double)(SUM2(nfm.cAllBQ2) + 2.0 * DBL_MIN)) : nfm.FA) * (double)nfm.DP,
                 (isSymbolSubstitution(symbol) ? ((    (tki.cAltBQ2) + DBL_MIN) / (double)(    (tki.cAllBQ2) + 2.0 * DBL_MIN)) : tki.FA) * (double)tki.DP), 200.0);
+        double t2n_limq = 200.0;
         if (isInDel) {
-            t2n_contam_q = MAX(0, t2n_contam_q - (double)10); // InDels PCR errors may look like contamination, so increase the prior strenght of contamination.
+            // The following line does not seem to have any impact
+            // t2n_contam_q = MAX(0, t2n_contam_q - (double)10); // InDels PCR errors may look like contamination, so increase the prior strenght of contamination.
+            double max_tn_ratio = 4.0 * (1.0 - t2n_add_contam_transfrac) / t2n_add_contam_transfrac * (((double)nfm.DP) + nE0) / (((double)tki.DP) + tE0);
+            t2n_limq = 10.0/log(10.0) * log(MAX(max_tn_ratio, 1.0));
         }
         // double min_doubleDP = (double)MIN(nfm.DP, tki.DP);
 #if 0   // This if branch of macro is disabled
@@ -3475,7 +3479,7 @@ append_vcf_record(std::string & out_string,
                     //noisy_germ_phred + add01_between_min01_max01(excalt_qual, excalt_tu_q)
                     a_ex_alt_qual)
                     : a_no_alt_qual);
-        double tlodq =  t_base_q + t2n_finq - MIN(t2n_contam_q, t2n_syserr_q);
+        double tlodq =  t_base_q + MIN(t2n_finq, t2n_limq) - MIN(t2n_contam_q, t2n_syserr_q);
         testquals[tqi++] = MIN(tlodq, (double)a_nogerm_q); // - 5.0;
         
         // testquals[tqi++] = MIN(tn_trawq - tn_nrawq + 0       , tn_tpowq - MAX(0.0, tn_npowq - tvn_or_q) + tvn_powq);
@@ -3522,10 +3526,11 @@ append_vcf_record(std::string & out_string,
                 std::to_string(excalt_qual), std::to_string(excalt_tu_q) 
         }));
         
-        infostring += std::string(";TNQs=") + string_join(std::array<std::string, 3>({
+        infostring += std::string(";TNQs=") + string_join(std::array<std::string, 4>({
                 std::to_string(t2n_finq),
+                std::to_string(t2n_limq),
                 std::to_string(t2n_contam_q),
-                std::to_string(t2n_syserr_q0),
+                std::to_string(t2n_syserr_q0)
         }));
         infostring += std::string(";TNORORQs=") + string_join(std::array<std::string, 2+2>({
                 std::to_string(t2n_or0),     std::to_string(t2n_or1),
