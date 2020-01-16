@@ -35,8 +35,7 @@ CommandLineArgs::selfUpdateByPlatform() {
                 countSE++;
             }
             qlens.push_back(b->core.l_qseq);
-            unsigned int qpos = 0;
-            for (unsigned int qpos = 0; qpos < b->core.l_qseq; qpos++) {
+            for (int qpos = 0; qpos < b->core.l_qseq; qpos++) {
                 unsigned int bq = (bam_get_qual((b))[(qpos)]);
                 if (bq < 30) {
                     q30_n_fail_bases++;
