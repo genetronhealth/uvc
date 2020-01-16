@@ -2906,13 +2906,17 @@ generate_vcf_header(const char *ref_fasta_fname,
     ret += "##INFO=<ID=NLODQ,Number=1,Type=Float,Description=\"Normal log-of-data-likelihood quality, the PHRED-scale probability that this variant is of germline origin.\">\n";
     // TLODQ1 may be useful in theory, but more data is needed to assess TLODQ1.
     // ret += "##INFO=<ID=TLODQ1,Number=1,TypeFloat,Description=\"Tumor log-of-data-likelihood quality, the PHRED-scale probability that this variant is not of biological origin (i.e., artifactual).\">\n";
-    ret += "##INFO=<ID=REFQs,Number=.,Type=Float,Description=\"Non-germline qualities: normal-alt, tumor-alt, normal-nonref, tumor-nonref\">\n";
-    ret += "##INFO=<ID=TNQ1s,Number=.,Type=Float,Description=\"For t-vs-n: allele-fraction variant quality (VQ), raw VQ, contamination VQ, and statistical noise VQ\">\n";
-    ret += "##INFO=<ID=TNQ2s,Number=.,Type=Float,Description=\"Tumor baseline quality, tumor contamination quality, and tumor systematic-error quality.\">\n";
-    ret += "##INFO=<ID=TNORs,Number=.,Type=Float,Description=\"Tumor-to-normal signal odds ratio of odds ratio using read counts and base qualities.\">\n";
-    ret += "##INFO=<ID=TSQs,Number=.,Type=Float,Description=\"For only tumor  sample: allele-fraction variant quality (VQ), raw VQ, raw adjustment quality, InDel penalty, and SNV penalty.\">\n";
-    ret += "##INFO=<ID=NSQs,Number=.,Type=Float,Description=\"For only normal sample: allele-fraction variant quality (VQ), raw VQ, raw adjustment quality\">\n";
-    ret += "##INFO=<ID=TNNRQs,Number=.,Type=Float,Description=\"For tumor and normal samples: read-count raw quality, BQ-sum raw quality, read-count power-law quality, and BQ-sum power-law quality for the other nonref allele\">\n";
+    ret += "##INFO=<ID=REFQs,Number=.,Type=Float,Description=\"Non-germline qualities: normal-ALT, tumor-ALT, normal-OTHER, tumor-OTHER\">\n";
+    
+    ret += "##INFO=<ID=TNQs,Number=.,Type=Float,Description=\"TvsN qualities: baseline, contamination from normal by read transfer, and systematic error.\">\n";
+    ret += "##INFO=<ID=TNORORQs,Number=.,Type=Float,Description=\"TvsN qualities of the odds ratio (OR of signal ORs: using AD/BQ-sum for TvsN/NvsT\">\n";
+    ret += "##INFO=<ID=TN1Qs,Number=.,Type=Float,Description=\"TvsN qualities: AD power-law, BQ-sum power-low, AD binomial, and BQ-sum binomial\">\n";
+    ret += "##INFO=<ID=TN2Qs,Number=.,Type=Float,Description=\"TvsN qualities: TN1Qs for the OTHER covering alleles that are neither ALT nor REF\">\n";
+    
+    ret += "##INFO=<ID=TAQs,Number=.,Type=Float,Description=\"Tumor-only  qualities: baseline, InDel penalty, and SNV penalty.\">\n";
+    ret += "##INFO=<ID=TSQs,Number=.,Type=Float,Description=\"Tumor-only  qualities: normalized power-law, binomial, FA power-law, and coverage-depth adjustment.\">\n";
+    ret += "##INFO=<ID=NSQs,Number=.,Type=Float,Description=\"Normal-only qualities: normalized power-law, binomial, FA power-law, and coverage-depth adjustment.\">\n";
+    
     ret += "##INFO=<ID=tDP,Number=1,Type=Integer,Description=\"Tumor-sample DP\">\n";
     ret += "##INFO=<ID=tFA,Number=1,Type=Float,Description=\"Tumor-sample FA\">\n";
     ret += "##INFO=<ID=tFR,Number=1,Type=Float,Description=\"Tumor-sample FR\">\n";
@@ -3517,33 +3521,38 @@ append_vcf_record(std::string & out_string,
                 std::to_string(nonalt_qual), std::to_string(nonalt_tu_q),
                 std::to_string(excalt_qual), std::to_string(excalt_tu_q) 
         }));
-        infostring += std::string(";TNQ1s=")  + string_join(std::array<std::string, 4>({
-                std::to_string(t2n_po0q0), std::to_string(t2n_rawq0), 
-                std::to_string(t2n_po0q1), std::to_string(t2n_rawq1)      
-        }));
-        infostring += std::string(";TNQ2s=") + string_join(std::array<std::string, 3>({
+        
+        infostring += std::string(";TNQs=") + string_join(std::array<std::string, 3>({
                 std::to_string(t2n_finq),
                 std::to_string(t2n_contam_q),
                 std::to_string(t2n_syserr_q0),
         }));
-        infostring += std::string(";TNORs=") + string_join(std::array<std::string, 2+2>({
+        infostring += std::string(";TNORORQs=") + string_join(std::array<std::string, 2+2>({
                 std::to_string(t2n_or0),     std::to_string(t2n_or1),
                 std::to_string(n2t_or0),     std::to_string(n2t_or1)
         }));
-        infostring += std::string(";TSQs=") + string_join(std::array<std::string, 5+1+1>({
+        infostring += std::string(";TN1Qs=")  + string_join(std::array<std::string, 4>({
+                std::to_string(t2n_po0q0), std::to_string(t2n_rawq0), 
+                std::to_string(t2n_po0q1), std::to_string(t2n_rawq1)      
+        }));
+        infostring += std::string(";TN2Qs=") + string_join(std::array<std::string, 4>({
+                std::to_string(t3n_rawq0)  , std::to_string(t3n_rawq1),
+                std::to_string(t3n_po0q0)  , std::to_string(t3n_po0q1),
+        }));
+        
+        infostring += std::string(";TAQs=") + string_join(std::array<std::string, 3>({
+            std::to_string(t_base_q),
+            std::to_string(t_indel_penal), std::to_string(t_snv_penal_by_indel)
+        }));
+        infostring += std::string(";TSQs=") + string_join(std::array<std::string, 5>({
                 std::to_string(tn_tpowq)  , std::to_string(_tn_tra2q),
                 std::to_string(tn_tpo1q)  , std::to_string(tn_tra1q), std::to_string(tn_tsamq), 
-                std::to_string(t_indel_penal), std::to_string(t_snv_penal_by_indel)
         }));
         infostring += std::string(";NSQs=") + string_join(std::array<std::string, 5>({
                 std::to_string(tn_npowq)  , std::to_string(_tn_nra2q),
                 std::to_string(tn_npo1q)   , std::to_string(tn_nra1q), std::to_string(tn_nsamq)
         }));
-        infostring += std::string(";TNNRQs=") + string_join(std::array<std::string, 4>({
-                std::to_string(t3n_rawq0)  , std::to_string(t3n_rawq1),
-                std::to_string(t3n_po0q0)  , std::to_string(t3n_po0q1),
-        }));
-
+        
         infostring += std::string(";tDP=") + std::to_string(tki.DP);
         infostring += std::string(";tFA=") + std::to_string(tki.FA);
         infostring += std::string(";tFR=") + std::to_string(tki.FR);
