@@ -3448,8 +3448,8 @@ append_vcf_record(std::string & out_string,
             // t2n_contam_q = MAX(0, t2n_contam_q - (double)10); // InDels PCR errors may look like contamination, so increase the prior strenght of contamination.
             // 3.0 is the tolerance for errors in contamination estimation
             double max_tn_ratio = 2.0 * (1.0 - t2n_add_contam_transfrac) / t2n_add_contam_transfrac * (((double)nfm.DP) + nE0) / (((double)tki.DP) + tE0);
-            unsigned int nearby_max_bAD = (isSymbolIns(symbol) ? tki.gapbNNRD[0] : tki.gapbNNRD[1]);
-            t2n_limq = 10.0/log(10.0) * log(MAX(max_tn_ratio, 1.0)) - 10.0/log(10.0) * log((double)(nearby_max_bAD + 1) / (double)(SUM2(tki.bAD1) + 1));
+            // unsigned int nearby_max_bAD = (isSymbolIns(symbol) ? tki.gapbNNRD[0] : tki.gapbNNRD[1]);
+            t2n_limq = 10.0/log(10.0) * log(MAX(max_tn_ratio, 1.0)); // - 10.0/log(10.0) * log((double)(nearby_max_bAD + 1) / (double)(SUM2(tki.bAD1) + 1));
         }
         // double min_doubleDP = (double)MIN(nfm.DP, tki.DP);
 #if 0   // This if branch of macro is disabled
@@ -3487,7 +3487,7 @@ append_vcf_record(std::string & out_string,
                     //noisy_germ_phred + add01_between_min01_max01(excalt_qual, excalt_tu_q)
                     a_ex_alt_qual)
                     : a_no_alt_qual);
-        double tlodq =  t_base_q + MIN(t2n_finq, MAX(-10, t2n_limq)) - MIN(t2n_contam_q, t2n_syserr_q);
+        double tlodq =  t_base_q + MIN(t2n_finq, MAX(0, t2n_limq)) - MIN(t2n_contam_q, t2n_syserr_q);
         testquals[tqi++] = MIN(tlodq, (double)a_nogerm_q); // - 5.0;
         
         // testquals[tqi++] = MIN(tn_trawq - tn_nrawq + 0       , tn_tpowq - MAX(0.0, tn_npowq - tvn_or_q) + tvn_powq);
