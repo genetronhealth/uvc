@@ -273,7 +273,7 @@ struct TumorKeyInfo {
     std::array<int32_t, 3> GLb = {0};
     std::array<int32_t, 5> EROR = {0};
     std::array<int32_t, 4> gapbNRD = {0};
-    std::array<int32_t, 2> gapbNNRD = {0};
+    // std::array<int32_t, 2> gapbNNRD = {0};
     bcf1_t *bcf1_record = NULL;
     /*
     ~TumorKeyInfo() {
@@ -522,12 +522,14 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
             tki.gapbNRD[i] = bcfints[i];
         }
         
+        /*
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line,  "gapbNNRD",&bcfints,&ndst_val);
         assert((tki.gapbNNRD.size() == ndst_val && tki.gapbNNRD.size() == valsize) || !fprintf(stderr, "%lu == %d && %lu == %d failed for gapbNNRD!\n", tki.gapbNNRD.size(), ndst_val, tki.gapbNNRD.size(), valsize));
         for (size_t i = 0; i < tki.gapbNNRD.size(); i++) {
             tki.gapbNNRD[i] = bcfints[i];
         }
+        */
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line,  "bAD1",  &bcfints, &ndst_val);
@@ -763,6 +765,9 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
             }
         }
     }
+    // This code can result in false negative InDels, but it looks like these false negative InDels can be avoided with proper (but potentially very complex) normalization
+    // Therefore, this code and all other code related to this code are commented out for now.
+    /*
     std::array<CoveredRegion<uint32_t>, 2> bq_indel_adjmax_depths = {
         CoveredRegion<uint32_t>(tid, extended_inclu_beg_pos, extended_exclu_end_pos + 1),
         CoveredRegion<uint32_t>(tid, extended_inclu_beg_pos, extended_exclu_end_pos + 1)
@@ -781,7 +786,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
             }
         }
     }
-    
+    */
+
     for (unsigned int refpos = rpos_inclu_beg; refpos <= rpos_exclu_end; refpos++) {
         std::string repeatunit;
         unsigned int repeatnum = 0;
@@ -844,8 +850,9 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                             paramset.baq_per_aligned_base,
                             paramset.powlaw_exponent,
                             bq_ins_2bdepths,
-                            bq_del_2bdepths,
-                            bq_indel_adjmax_depths
+                            bq_del_2bdepths
+                            // ,
+                            // bq_indel_adjmax_depths
                             );
                 }
                 for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; symbol = AlignmentSymbol(1+(unsigned int)symbol)) {

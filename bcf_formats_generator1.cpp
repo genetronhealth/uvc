@@ -269,7 +269,7 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("gapcAD1"  , BCF_NUM_D, BCF_INTEGER, "see above"),
     BcfFormatStruct("gapDP4"   , 4, BCF_INTEGER, "see above"),
     BcfFormatStruct("gapbNRD"  , 4, BCF_INTEGER, "Forward&reverse (02&13) strand-specific duped read count for any insertion&deletion (01&23)"),
-    BcfFormatStruct("gapbNNRD" , 2, BCF_INTEGER, "Highest duped read count for any insertion&deletion nearby"),
+    // BcfFormatStruct("gapbNNRD" , 2, BCF_INTEGER, "Highest duped read count for any insertion&deletion nearby"),
     BcfFormatStruct("RCC"      , RCC_NFS*RCC_NUM, BCF_INTEGER, 
                                 "STR-unit position of the mode, two indel counts of -2 and -1 STR units, mode count, two ins counts of +1 and +2 STR units with respect to the mode"),
     BcfFormatStruct("bHap"     , 1, BCF_STRING,  "Duped forward&reverse linkage in the format of ((position&variantType)...depth)... "

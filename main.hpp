@@ -2440,8 +2440,9 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
         unsigned int baq_per_aligned_base,
         double powlaw_exponent,
         const auto & bq_ins_2bdepths,
-        const auto & bq_del_2bdepths,
-        const auto & bq_indel_adjmax_depths
+        const auto & bq_del_2bdepths
+        // ,
+        // const auto & bq_indel_adjmax_depths
         ) {
     fmt.note = symbol2CountCoverageSet12.additional_note.getByPos(refpos).at(symbol);
     uint64_t bq_qsum_sqrMQ_tot = 0; 
@@ -2782,7 +2783,7 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
         MAX(bq_del_2bdepths.at(0).getByPos(refpo1), bq_del_2bdepths.at(0).getByPos(refpo2)), 
         MAX(bq_del_2bdepths.at(1).getByPos(refpo1), bq_del_2bdepths.at(1).getByPos(refpo2)) 
     };
-    fmt.gapbNNRD = { bq_indel_adjmax_depths.at(0).getByPos(refpos), bq_indel_adjmax_depths.at(1).getByPos(refpos) };
+    // fmt.gapbNNRD = { bq_indel_adjmax_depths.at(0).getByPos(refpos), bq_indel_adjmax_depths.at(1).getByPos(refpos) };
     
     fmt.VType = SYMBOL_TO_DESC_ARR[symbol];
     double lowestVAQ = prob2phred(1 / (double)(fmt.bAD1[0] + fmt.bAD1[1] + 1)) * ((fmt.bAD1[0] + fmt.bAD1[1]) / (fmt.bDP1[0] + fmt.bDP1[1] + DBL_MIN)) / (double)2;
@@ -3224,7 +3225,7 @@ append_vcf_record(std::string & out_string,
         tki.GLb = fmt.GLb;
         for (size_t i = 0; i < fmt.EROR.size(); i++) { tki.EROR[i] = fmt.EROR[i]; }
         for (size_t i = 0; i < fmt.gapbNRD.size(); i++) { tki.gapbNRD[i] = fmt.gapbNRD[i]; }
-        for (size_t i = 0; i < fmt.gapbNNRD.size(); i++) { tki.gapbNNRD[i] = fmt.gapbNNRD[i]; }
+        // for (size_t i = 0; i < fmt.gapbNNRD.size(); i++) { tki.gapbNNRD[i] = fmt.gapbNNRD[i]; }
     } else {
         vcfpos = (tki.ref_alt != "." ? (tki.pos + 1) : vcfpos);
         ref_alt = (tki.ref_alt != "." ? tki.ref_alt : vcfref + "\t" + vcfalt);
@@ -3447,9 +3448,9 @@ append_vcf_record(std::string & out_string,
             // The following line does not seem to have any impact
             // t2n_contam_q = MAX(0, t2n_contam_q - (double)10); // InDels PCR errors may look like contamination, so increase the prior strenght of contamination.
             // 3.0 is the tolerance for errors in contamination estimation
-            double max_tn_ratio = (1.0 - t2n_add_contam_transfrac) / t2n_add_contam_transfrac * (((double)nfm.DP) + nE0) / (((double)tki.DP) + tE0);
+            double max_tn_ratio = 2.0 * (1.0 - t2n_add_contam_transfrac) / t2n_add_contam_transfrac * (((double)nfm.DP) + nE0) / (((double)tki.DP) + tE0);
             // unsigned int nearby_max_bAD = (isSymbolIns(symbol) ? tki.gapbNNRD[0] : tki.gapbNNRD[1]);
-            t2n_limq = 10.0/log(10.0) * log(MAX(max_tn_ratio, 1.0)) - 10; // - 10.0/log(10.0) * log((double)(nearby_max_bAD + 1) / (double)(SUM2(tki.bAD1) + 1));
+            t2n_limq = 10.0/log(10.0) * log(MAX(max_tn_ratio, 1.0)); // - 10.0/log(10.0) * log((double)(nearby_max_bAD + 1) / (double)(SUM2(tki.bAD1) + 1));
         }
         // double min_doubleDP = (double)MIN(nfm.DP, tki.DP);
 #if 0   // This if branch of macro is disabled
