@@ -770,13 +770,13 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
     for (unsigned int refpos = extended_inclu_beg_pos; refpos <= extended_exclu_end_pos; refpos++) {
         auto totins = bq_ins_2bdepths[0].getByPos(refpos) + bq_ins_2bdepths[1].getByPos(refpos);
         if (totins > 0) {
-            for (unsigned int p2 = MAX(extended_inclu_beg_pos + 12, refpos) - 12; p2 <= MIN(refpos + 12, extended_exclu_end_pos); p2++) {
+            for (unsigned int p2 = MAX(extended_inclu_beg_pos + 20, refpos) - 20; p2 <= MIN(refpos + 20, extended_exclu_end_pos); p2++) {
                 bq_indel_adjmax_depths[0].getRefByPos(p2) = MAX(bq_indel_adjmax_depths[0].getByPos(p2), totins);
             }
         }
         auto totdel = bq_del_2bdepths[0].getByPos(refpos) + bq_del_2bdepths[1].getByPos(refpos);
         if (totdel > 0) {
-            for (unsigned int p2 = MAX(extended_inclu_beg_pos + 12, refpos) - 12; p2 <= MIN(refpos + 12, extended_exclu_end_pos); p2++) {
+            for (unsigned int p2 = MAX(extended_inclu_beg_pos + 20, refpos) - 20; p2 <= MIN(refpos + 20, extended_exclu_end_pos); p2++) {
                 bq_indel_adjmax_depths[1].getRefByPos(p2) = MAX(bq_indel_adjmax_depths[1].getByPos(p2), totdel);
             }
         }
