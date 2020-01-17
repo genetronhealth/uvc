@@ -2440,7 +2440,8 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
         unsigned int baq_per_aligned_base,
         double powlaw_exponent,
         const auto & bq_ins_2bdepths,
-        const auto & bq_del_2bdepths
+        const auto & bq_del_2bdepths,
+        const auto & bq_indel_adjmax_depths
         ) {
     fmt.note = symbol2CountCoverageSet12.additional_note.getByPos(refpos).at(symbol);
     uint64_t bq_qsum_sqrMQ_tot = 0; 
@@ -2772,14 +2773,16 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
         fmt.RCC[i*RCC_NFS+5] = (int)rep_num_clusters[i].cnt2p;
     } // fmt.cFR;
     
+    unsigned int refpo1 = MAX(refpos, 1 + bq_ins_2bdepths.at(0).getIncluBegPosition()) - 1;
     unsigned int refpo2 = MIN(refpos + 1, bq_ins_2bdepths.at(0).getExcluEndPosition() - 1);
     // Implicitly assume that there is a symmetry between refpos and refpo2
     fmt.gapbNRD = {
-        MAX(bq_ins_2bdepths.at(0).getByPos(refpos), bq_ins_2bdepths.at(0).getByPos(refpo2)), 
-        MAX(bq_ins_2bdepths.at(1).getByPos(refpos), bq_ins_2bdepths.at(1).getByPos(refpo2)), 
-        MAX(bq_del_2bdepths.at(0).getByPos(refpos), bq_del_2bdepths.at(0).getByPos(refpo2)), 
-        MAX(bq_del_2bdepths.at(1).getByPos(refpos), bq_del_2bdepths.at(1).getByPos(refpo2)) 
+        MAX(bq_ins_2bdepths.at(0).getByPos(refpo1), bq_ins_2bdepths.at(0).getByPos(refpo2)), 
+        MAX(bq_ins_2bdepths.at(1).getByPos(refpo1), bq_ins_2bdepths.at(1).getByPos(refpo2)), 
+        MAX(bq_del_2bdepths.at(0).getByPos(refpo1), bq_del_2bdepths.at(0).getByPos(refpo2)), 
+        MAX(bq_del_2bdepths.at(1).getByPos(refpo1), bq_del_2bdepths.at(1).getByPos(refpo2)) 
     };
+    fmt.gapbNNRD = { bq_indel_adjmax_depths.at(0).getByPos(refpos), bq_indel_adjmax_depths.at(1).getByPos(refpos) };
     
     fmt.VType = SYMBOL_TO_DESC_ARR[symbol];
     double lowestVAQ = prob2phred(1 / (double)(fmt.bAD1[0] + fmt.bAD1[1] + 1)) * ((fmt.bAD1[0] + fmt.bAD1[1]) / (fmt.bDP1[0] + fmt.bDP1[1] + DBL_MIN)) / (double)2;
@@ -3221,6 +3224,7 @@ append_vcf_record(std::string & out_string,
         tki.GLb = fmt.GLb;
         for (size_t i = 0; i < fmt.EROR.size(); i++) { tki.EROR[i] = fmt.EROR[i]; }
         for (size_t i = 0; i < fmt.gapbNRD.size(); i++) { tki.gapbNRD[i] = fmt.gapbNRD[i]; }
+        for (size_t i = 0; i < fmt.gapbNNRD.size(); i++) { tki.gapbNNRD[i] = fmt.gapbNNRD[i]; }
     } else {
         vcfpos = (tki.ref_alt != "." ? (tki.pos + 1) : vcfpos);
         ref_alt = (tki.ref_alt != "." ? tki.ref_alt : vcfref + "\t" + vcfalt);
@@ -3444,7 +3448,8 @@ append_vcf_record(std::string & out_string,
             // t2n_contam_q = MAX(0, t2n_contam_q - (double)10); // InDels PCR errors may look like contamination, so increase the prior strenght of contamination.
             // 3.0 is the tolerance for errors in contamination estimation
             double max_tn_ratio = 3.0 * (1.0 - t2n_add_contam_transfrac) / t2n_add_contam_transfrac * (((double)nfm.DP) + nE0) / (((double)tki.DP) + tE0);
-            t2n_limq = 10.0/log(10.0) * log(MAX(max_tn_ratio, 1.0));
+            unsigned int nearby_max_bAD = (isSymbolIns(symbol) ? tki.gapbNNRD[0] : tki.gapbNNRD[1]);
+            t2n_limq = 10.0/log(10.0) * log(MAX(max_tn_ratio, 1.0)) - 10.0/log(10.0) * log((double)(nearby_max_bAD + 1) / (double)(SUM2(tki.bAD1) + 1));
         }
         // double min_doubleDP = (double)MIN(nfm.DP, tki.DP);
 #if 0   // This if branch of macro is disabled
@@ -3482,7 +3487,7 @@ append_vcf_record(std::string & out_string,
                     //noisy_germ_phred + add01_between_min01_max01(excalt_qual, excalt_tu_q)
                     a_ex_alt_qual)
                     : a_no_alt_qual);
-        double tlodq =  t_base_q + MIN(t2n_finq, t2n_limq) - MIN(t2n_contam_q, t2n_syserr_q);
+        double tlodq =  t_base_q + MIN(t2n_finq, MAX(0, t2n_limq)) - MIN(t2n_contam_q, t2n_syserr_q);
         testquals[tqi++] = MIN(tlodq, (double)a_nogerm_q); // - 5.0;
         
         // testquals[tqi++] = MIN(tn_trawq - tn_nrawq + 0       , tn_tpowq - MAX(0.0, tn_npowq - tvn_or_q) + tvn_powq);

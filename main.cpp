@@ -273,6 +273,7 @@ struct TumorKeyInfo {
     std::array<int32_t, 3> GLb = {0};
     std::array<int32_t, 5> EROR = {0};
     std::array<int32_t, 4> gapbNRD = {0};
+    std::array<int32_t, 2> gapbNNRD = {0};
     bcf1_t *bcf1_record = NULL;
     /*
     ~TumorKeyInfo() {
@@ -522,6 +523,13 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         }
         
         ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "gapbNNRD",&bcfints,&ndst_val);
+        assert((tki.gapbNNRD.size() == ndst_val && tki.gapbNNRD.size() == valsize) || !fprintf(stderr, "%lu == %d && %lu == %d failed for gapbNNRD!\n", tki.gapbNNRD.size(), ndst_val, tki.gapbNNRD.size(), valsize));
+        for (size_t i = 0; i < tki.gapbNNRD.size(); i++) {
+            tki.gapbNNRD[i] = bcfints[i];
+        }
+        
+        ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line,  "bAD1",  &bcfints, &ndst_val);
         assert((tki.bAD1.size() == ndst_val && tki.bAD1.size() == valsize) || !fprintf(stderr, "%lu == %d && %lu == %d failed for gapbNRD!\n", tki.bAD1.size(), ndst_val, tki.bAD1.size(), valsize));
         for (size_t i = 0; i < tki.bAD1.size(); i++) {
@@ -718,20 +726,20 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
     SymbolType prevSymbolType = NUM_SYMBOL_TYPES;
     
     std::array<CoveredRegion<uint32_t>, 2> bq_ins_2bdepths = {
-        CoveredRegion<uint32_t>(tid, rpos_inclu_beg, rpos_exclu_end + 1), 
-        CoveredRegion<uint32_t>(tid, rpos_inclu_beg, rpos_exclu_end + 1)
+        CoveredRegion<uint32_t>(tid, extended_inclu_beg_pos, extended_exclu_end_pos + 1), 
+        CoveredRegion<uint32_t>(tid, extended_inclu_beg_pos, extended_exclu_end_pos + 1)
     };
     std::array<CoveredRegion<uint32_t>, 2> bq_del_2bdepths = {
-        CoveredRegion<uint32_t>(tid, rpos_inclu_beg, rpos_exclu_end + 1),
-        CoveredRegion<uint32_t>(tid, rpos_inclu_beg, rpos_exclu_end + 1)
+        CoveredRegion<uint32_t>(tid, extended_inclu_beg_pos, extended_exclu_end_pos + 1),
+        CoveredRegion<uint32_t>(tid, extended_inclu_beg_pos, extended_exclu_end_pos + 1)
     };
-    for (unsigned int refpos = rpos_inclu_beg; refpos <= rpos_exclu_end; refpos++) {
+    for (unsigned int refpos = extended_inclu_beg_pos; refpos <= extended_exclu_end_pos; refpos++) {
         for (unsigned int strand = 0; strand < 2; strand++) {
             unsigned int link_ins_cnt = 0;
             for (const auto ins_symbol : INS_SYMBOLS) {
                 link_ins_cnt += symbolToCountCoverageSet12.bq_tsum_depth.at(strand).getByPos(refpos).getSymbolCount(ins_symbol);
             }
-            if (rpos_inclu_beg < refpos) {
+            if (extended_inclu_beg_pos < refpos) {
                 bq_ins_2bdepths[strand].getRefByPos(refpos-1) += link_ins_cnt;
             }
             bq_ins_2bdepths[strand].getRefByPos(refpos) += link_ins_cnt;
@@ -742,7 +750,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                     for (const auto & indel2data : pos_to_dlen_to_data.at(refpos)) {
                         unsigned int dlen = indel2data.first;
                         unsigned int cnt = indel2data.second;
-                        if (rpos_inclu_beg < refpos) {
+                        if (extended_inclu_beg_pos < refpos) {
                             bq_del_2bdepths[strand].getRefByPos(refpos-1) += cnt;
                         }
                         for (unsigned d = 0; d <= dlen; d++) {
@@ -755,6 +763,25 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
             }
         }
     }
+    std::array<CoveredRegion<uint32_t>, 2> bq_indel_adjmax_depths = {
+        CoveredRegion<uint32_t>(tid, extended_inclu_beg_pos, extended_exclu_end_pos + 1),
+        CoveredRegion<uint32_t>(tid, extended_inclu_beg_pos, extended_exclu_end_pos + 1)
+    };
+    for (unsigned int refpos = extended_inclu_beg_pos; refpos <= extended_exclu_end_pos; refpos++) {
+        auto totins = bq_ins_2bdepths[0].getByPos(refpos) + bq_ins_2bdepths[1].getByPos(refpos);
+        if (totins > 0) {
+            for (unsigned int p2 = MAX(extended_inclu_beg_pos + 12, refpos) - 12; p2 <= MIN(refpos + 12, extended_exclu_end_pos); p2++) {
+                bq_indel_adjmax_depths[0].getRefByPos(p2) = MAX(bq_indel_adjmax_depths[0].getByPos(p2), totins);
+            }
+        }
+        auto totdel = bq_del_2bdepths[0].getByPos(refpos) + bq_del_2bdepths[1].getByPos(refpos);
+        if (totdel > 0) {
+            for (unsigned int p2 = MAX(extended_inclu_beg_pos + 12, refpos) - 12; p2 <= MIN(refpos + 12, extended_exclu_end_pos); p2++) {
+                bq_indel_adjmax_depths[1].getRefByPos(p2) = MAX(bq_indel_adjmax_depths[1].getByPos(p2), totdel);
+            }
+        }
+    }
+    
     for (unsigned int refpos = rpos_inclu_beg; refpos <= rpos_exclu_end; refpos++) {
         std::string repeatunit;
         unsigned int repeatnum = 0;
@@ -817,7 +844,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                             paramset.baq_per_aligned_base,
                             paramset.powlaw_exponent,
                             bq_ins_2bdepths,
-                            bq_del_2bdepths
+                            bq_del_2bdepths,
+                            bq_indel_adjmax_depths
                             );
                 }
                 for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; symbol = AlignmentSymbol(1+(unsigned int)symbol)) {
