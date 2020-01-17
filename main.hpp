@@ -3449,7 +3449,7 @@ append_vcf_record(std::string & out_string,
             // 3.0 is the tolerance for errors in contamination estimation
             double max_tn_ratio = (1.0 - t2n_add_contam_transfrac) / t2n_add_contam_transfrac * (((double)nfm.DP) + nE0) / (((double)tki.DP) + tE0);
             // unsigned int nearby_max_bAD = (isSymbolIns(symbol) ? tki.gapbNNRD[0] : tki.gapbNNRD[1]);
-            t2n_limq = 10.0/log(10.0) * log(MAX(max_tn_ratio, 1.0)); // - 10.0/log(10.0) * log((double)(nearby_max_bAD + 1) / (double)(SUM2(tki.bAD1) + 1));
+            t2n_limq = 10.0/log(10.0) * log(MAX(max_tn_ratio, 1.0)) - 10; // - 10.0/log(10.0) * log((double)(nearby_max_bAD + 1) / (double)(SUM2(tki.bAD1) + 1));
         }
         // double min_doubleDP = (double)MIN(nfm.DP, tki.DP);
 #if 0   // This if branch of macro is disabled
