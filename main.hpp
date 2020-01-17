@@ -3448,7 +3448,7 @@ append_vcf_record(std::string & out_string,
             // The following line does not seem to have any impact
             // t2n_contam_q = MAX(0, t2n_contam_q - (double)10); // InDels PCR errors may look like contamination, so increase the prior strenght of contamination.
             // 3.0 is the tolerance for errors in contamination estimation
-            double max_tn_ratio = 2.0 * (1.0 - t2n_add_contam_transfrac) / t2n_add_contam_transfrac * (((double)nfm.DP) + nE0) / (((double)tki.DP) + tE0);
+            double max_tn_ratio = 3.0 * (1.0 - t2n_add_contam_transfrac) / t2n_add_contam_transfrac * (((double)nfm.DP) + nE0) / (((double)tki.DP) + tE0);
             // unsigned int nearby_max_bAD = (isSymbolIns(symbol) ? tki.gapbNNRD[0] : tki.gapbNNRD[1]);
             t2n_limq = 10.0/log(10.0) * log(MAX(max_tn_ratio, 1.0)); // - 10.0/log(10.0) * log((double)(nearby_max_bAD + 1) / (double)(SUM2(tki.bAD1) + 1));
         }
