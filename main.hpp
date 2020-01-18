@@ -2913,7 +2913,7 @@ generate_vcf_header(const char *ref_fasta_fname,
     ret += "##INFO=<ID=REFQs,Number=.,Type=Float,Description=\"Non-germline qualities: normal-ALT, tumor-ALT, normal-OTHER, tumor-OTHER\">\n";
     
     ret += "##INFO=<ID=TNQs,Number=.,Type=Float,Description=\"TvsN qualities: baseline, read-transfer contamination by normal (RTCN) baseline, RTCN error, and systematic error.\">\n";
-    ret += "##INFO=<ID=TNORORQs,Number=.,Type=Float,Description=\"TvsN qualities of the odds ratio (OR of signal ORs: using AD/BQ-sum for TvsN/NvsT\">\n";
+    ret += "##INFO=<ID=TNORQs,Number=.,Type=Float,Description=\"TvsN qualities: ATL-to-NONALT (ANA) odds ratio, defined as tumor ANA divided by normal ANA, using AD and BQ-sum\">\n";
     ret += "##INFO=<ID=TN1Qs,Number=.,Type=Float,Description=\"TvsN qualities: AD power-law, BQ-sum power-low, AD binomial, and BQ-sum binomial\">\n";
     ret += "##INFO=<ID=TN2Qs,Number=.,Type=Float,Description=\"TvsN qualities: TN1Qs for the OTHER covering alleles that are neither ALT nor REF\">\n";
     
@@ -3412,10 +3412,12 @@ append_vcf_record(std::string & out_string,
                              / ((double)(nAD0 +           nAD0pc0) / (double)(nDP0 - nAD0 +           (nDP0pc0 - nAD0pc0)));
         const double t2n_or1 = ((double)(tAD1 + symfrac * tAD1pc0) / (double)(tDP1 - tAD1 + symfrac * (tDP1pc0 - tAD1pc0))) 
                              / ((double)(nAD1 +           nAD1pc0) / (double)(nDP1 - nAD1 +           (nDP1pc0 - nAD1pc0))); 
+        /*
         const double n2t_or0 = ((double)(nAD0 +     0.0 * nAD0pc0) / (double)(nDP0 - nAD0 +     0.0 * (nDP0pc0 - nAD0pc0))) 
                              / ((double)(tAD0 +           tAD0pc0) / (double)(tDP0 - tAD0 +           (tDP0pc0 - tAD0pc0)));
         const double n2t_or1 = ((double)(nAD1 +     0.0 * nAD1pc0) / (double)(nDP1 - nAD1 +     0.0 * (nDP1pc0 - nAD1pc0))) 
                              / ((double)(tAD1 +           tAD1pc0) / (double)(tDP1 - tAD1 +           (tDP1pc0 - tAD1pc0))); 
+        */
         const double t2n_po0q0 = 10.0/log(10.0) * (1.0+log(symfrac*symfrac)/10.0) * pl_exponent * log(t2n_or0 /symfrac);
         const double t2n_po0q1 = 10.0/log(10.0) * (1.0+log(symfrac*symfrac)/10.0) * pl_exponent * log(t2n_or1 /symfrac);
         const double t2n_po2q0 = MIN(MAX(-syserr_maxqual, t2n_po0q0), syserr_maxqual + 10);
@@ -3448,7 +3450,9 @@ append_vcf_record(std::string & out_string,
             // The following line does not seem to have any impact
             // t2n_contam_q = MAX(0, t2n_contam_q - (double)10); // InDels PCR errors may look like contamination, so increase the prior strenght of contamination.
             // 3.0 is the tolerance for errors in contamination estimation
-            double max_tn_ratio = 3.0 * (1.0 - t2n_add_contam_transfrac) / t2n_add_contam_transfrac * (((double)nfm.DP) + nE0) / (((double)tki.DP) + tE0);
+            double t2n_add_coontam_transfrac_low = t2n_add_contam_transfrac / 2.0;
+            double t2n_nonalt_frac = ((1.0 - nfm.FA) * (double)nfm.DP + nE0) / ((1.0 - tki.FA) * (double)tki.DP + tE0);
+            double max_tn_ratio = (1.0 - t2n_add_coontam_transfrac_low) / t2n_add_coontam_transfrac_low * MIN(2.0, t2n_nonalt_frac);
             // unsigned int nearby_max_bAD = (isSymbolIns(symbol) ? tki.gapbNNRD[0] : tki.gapbNNRD[1]);
             t2n_limq = 10.0/log(10.0) * log(MAX(max_tn_ratio, 1.0)); // - 10.0/log(10.0) * log((double)(nearby_max_bAD + 1) / (double)(SUM2(tki.bAD1) + 1));
         }
@@ -3541,9 +3545,9 @@ append_vcf_record(std::string & out_string,
                 std::to_string(t2n_contam_q),
                 std::to_string(t2n_syserr_q0)
         }));
-        infostring += std::string(";TNORORQs=") + string_join(std::array<std::string, 2+2>({
-                std::to_string(t2n_or0),     std::to_string(t2n_or1),
-                std::to_string(n2t_or0),     std::to_string(n2t_or1)
+        infostring += std::string(";TNORQs=") + string_join(std::array<std::string, 2+2*0>({
+                std::to_string(t2n_or0),     std::to_string(t2n_or1) // ,
+                // std::to_string(n2t_or0),     std::to_string(n2t_or1)
         }));
         infostring += std::string(";TN1Qs=")  + string_join(std::array<std::string, 4>({
                 std::to_string(t2n_po0q0), std::to_string(t2n_rawq0), 
