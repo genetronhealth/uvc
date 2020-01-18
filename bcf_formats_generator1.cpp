@@ -210,6 +210,9 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("bSSAD"    , 4, BCF_INTEGER, "Four-direction raw depths specific to only the ALT allele  [duped]"),
     BcfFormatStruct("bSSB"     , 2, BCF_INTEGER, "Forward&reverse sequencing-strand bias"),
     
+    BcfFormatStruct("bSSEDD"   , 2, BCF_INTEGER, "Left&right max sequencing base distance for all the alleles [duped]"),
+    BcfFormatStruct("bSSEDA"   , 2, BCF_INTEGER, "Left&right max sequencing base distance for the ALT allele [duped]"),
+    
     BcfFormatStruct("__ca"     , 1, BCF_SEP,     "Same as __ba but for single-strand families instead of reads [consensus family, deduped]"),
     BcfFormatStruct("cPTL"     , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("cPTR"     , 2, BCF_INTEGER, "see above"),
