@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
 scriptdir="$(dirname "$(which "$0")")"
 if [ $# -lt 5 ]; then
