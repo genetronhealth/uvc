@@ -3490,10 +3490,13 @@ append_vcf_record(std::string & out_string,
         double t2n_contam_q = MIN(calc_binom_10log10_likeratio(t2n_add_contam_transfrac, 
                 (isSymbolSubstitution(symbol) ? ((SUM2(nfm.cAltBQ2) + DBL_MIN) / (double)(SUM2(nfm.cAllBQ2) + 2.0 * DBL_MIN)) : nfm.FA) * (double)nfm.DP,
                 (isSymbolSubstitution(symbol) ? ((    (tki.cAltBQ2) + DBL_MIN) / (double)(    (tki.cAllBQ2) + 2.0 * DBL_MIN)) : tki.FA) * (double)tki.DP), 200.0);
-        double t2n_limq = 200.0;
+        double t2n_limq = 200.0; 
         if (isInDel) {
             // The following line does not seem to have any impact
             // t2n_contam_q = MAX(0, t2n_contam_q - (double)10); // InDels PCR errors may look like contamination, so increase the prior strenght of contamination.
+            
+            // This is an ad-hoc adjustment to lower TLODQ when there is contamination, and to further lower TLODQ if the variant has sequencing position bias (aka IGV position bias)
+            // TODO: rewrite this piece of code with the sequencing position bias redefined in terms of EROR instead of simple hard filter
             // 3.0 is the tolerance for errors in contamination estimation
             double t2n_add_coontam_transfrac_low = t2n_add_contam_transfrac / 3.0;
             double t2n_nonalt_frac = ((1.0 - nfm.FA) * (double)nfm.DP + nE0) / ((1.0 - tki.FA) * (double)tki.DP + tE0);
@@ -3502,8 +3505,8 @@ append_vcf_record(std::string & out_string,
             unsigned int qseq_min_edgedist = MIN(tki.bSSEDA[0], tki.bSSEDA[1]);
             // unsigned int edgedist_penal = (qseq_min_edgedist >= 24 ? 0 : (mathsquare(24 - qseq_min_edgedist) / 4));
             t2n_limq = 10.0/log(10.0) * log(MAX(max_tn_ratio, 1.0)) - ((LINK_D1 == symbol) ? 6 : 0); // - edgedist_penal; // - 10.0/log(10.0) * log((double)(nearby_max_bAD + 1) / (double)(SUM2(tki.bAD1) + 1));
-            if (qseq_min_edgedist < 30) {
-                t2n_limq -= MIN(MAX(0, MIN(tn_npowq, tn_nrawq)), 60.0);
+            if (qseq_min_edgedist < 35) {
+                t2n_limq -= MIN(MAX(0, tn_npowq), 60.0);
             }
         }
         // double min_doubleDP = (double)MIN(nfm.DP, tki.DP);
