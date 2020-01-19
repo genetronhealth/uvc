@@ -4,7 +4,7 @@ The script uvcTN.sh in the bin directory takes two BAM files corresponding to tu
 
 --- How to install ---
 
-UVC requires a compiler that supports the c++14 standard.
+UVC requires BASH 4.0+ (4.0 is the minimum version required) and a compiler that supports the C++14 standard.
 The Makefile in this directory compiles with g++, but the Makefile can be easily modified to use another compiler instead of g++ (for example, clang).
 To install from scratch, please run: ./install-dependencies.sh && make clean && make all -j4 && make deploy
 UVC depends on htslib 1.6+ and bcftools 1.6+ (lower versions of htslib and bcftools may also work, but are not tested).
@@ -55,12 +55,12 @@ uvc.cppt.out: similar to uvc1 except that uvc.cppt.out uses c++14 thread instead
 
 All bug reports, feature requests, and ideas for improvement are welcome (although not all of them may be addressed in time)!
 
---- Other things --
+--- Other things ---
 
 The environment variable ONE_STEP_UMI_STRUCT has special meaning to UVC.
 Please make sure that ONE_STEP_UMI_STRUCT is either not set or set to the empty string before running UVC.
 The python script extract-barcodes.py is obsolete and is replaced by debarcode.
 Compared with extract-barcodes.py, debarcode generates equivalent output but consumes only 40% of its runtime.
 The outputs of these two programs may not be the same in compressed space but are exactly the same in decompressed space.
-The program minivc is a simple variant caller that runs very fast but has limited sensitivity. It can be used for estimating contamination.
+The program minivc is a simple SNV caller that runs very fast but has limited sensitivity. It can be used for estimating contamination.
 
