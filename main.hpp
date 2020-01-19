@@ -3501,7 +3501,7 @@ append_vcf_record(std::string & out_string,
             // unsigned int nearby_max_bAD = (isSymbolIns(symbol) ? tki.gapbNNRD[0] : tki.gapbNNRD[1]);
             unsigned int qseq_min_edgedist = MIN(tki.bSSEDA[0], tki.bSSEDA[1]);
             // unsigned int edgedist_penal = (qseq_min_edgedist >= 24 ? 0 : (mathsquare(24 - qseq_min_edgedist) / 4));
-            t2n_limq = 10.0/log(10.0) * log(MAX(max_tn_ratio, 1.0)); // - edgedist_penal; // - 10.0/log(10.0) * log((double)(nearby_max_bAD + 1) / (double)(SUM2(tki.bAD1) + 1));
+            t2n_limq = 10.0/log(10.0) * log(MAX(max_tn_ratio, 1.0)) - ((LINK_D1 == symbol) ? 6 : 0); // - edgedist_penal; // - 10.0/log(10.0) * log((double)(nearby_max_bAD + 1) / (double)(SUM2(tki.bAD1) + 1));
             if (qseq_min_edgedist < 30) {
                 t2n_limq -= MIN(MAX(0, MIN(tn_npowq, tn_nrawq)), 40.0);
             }
