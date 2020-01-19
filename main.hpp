@@ -3495,12 +3495,12 @@ append_vcf_record(std::string & out_string,
             // The following line does not seem to have any impact
             // t2n_contam_q = MAX(0, t2n_contam_q - (double)10); // InDels PCR errors may look like contamination, so increase the prior strenght of contamination.
             // 3.0 is the tolerance for errors in contamination estimation
-            double t2n_add_coontam_transfrac_low = t2n_add_contam_transfrac / 2.0;
+            double t2n_add_coontam_transfrac_low = t2n_add_contam_transfrac / 3.0;
             double t2n_nonalt_frac = ((1.0 - nfm.FA) * (double)nfm.DP + nE0) / ((1.0 - tki.FA) * (double)tki.DP + tE0);
             double max_tn_ratio = (1.0 - t2n_add_coontam_transfrac_low) / t2n_add_coontam_transfrac_low * MIN(2.0, t2n_nonalt_frac);
             // unsigned int nearby_max_bAD = (isSymbolIns(symbol) ? tki.gapbNNRD[0] : tki.gapbNNRD[1]);
             unsigned int qseq_min_edgedist = MIN(tki.bSSEDA[0], tki.bSSEDA[1]);
-            unsigned int edgedist_penal = (qseq_min_edgedist >= 24 ? 0 : (mathsquare(24 - qseq_min_edgedist) / 8));
+            unsigned int edgedist_penal = (qseq_min_edgedist >= 24 ? 0 : (mathsquare(24 - qseq_min_edgedist) / 4));
             t2n_limq = 10.0/log(10.0) * log(MAX(max_tn_ratio, 1.0)) - edgedist_penal; // - 10.0/log(10.0) * log((double)(nearby_max_bAD + 1) / (double)(SUM2(tki.bAD1) + 1));
         }
         // double min_doubleDP = (double)MIN(nfm.DP, tki.DP);
@@ -3539,7 +3539,7 @@ append_vcf_record(std::string & out_string,
                     //noisy_germ_phred + add01_between_min01_max01(excalt_qual, excalt_tu_q)
                     a_ex_alt_qual)
                     : a_no_alt_qual);
-        double tlodq =  t_base_q + MIN(t2n_finq, t2n_limq) - MIN(t2n_contam_q, t2n_syserr_q);
+        double tlodq =  t_base_q + MIN(t2n_finq, MAX(-40.0, t2n_limq)) - MIN(t2n_contam_q, t2n_syserr_q);
         testquals[tqi++] = MIN(tlodq, (double)a_nogerm_q); // - 5.0;
         
         // testquals[tqi++] = MIN(tn_trawq - tn_nrawq + 0       , tn_tpowq - MAX(0.0, tn_npowq - tvn_or_q) + tvn_powq);
