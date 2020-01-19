@@ -284,7 +284,7 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
             bed_region_fname = bed_in_fname;
         }
         parsing_result_flag = 0;
-        if (t2n_add_contam_transfrac < DBL_EPSILON) { t2n_add_contam_transfrac = DBL_EPSILON; }
+        if (t2n_add_contam_transfrac < (double)FLT_MIN) { t2n_add_contam_transfrac = (double)FLT_MIN; }
     });
     
     CLI11_PARSE(app, argc, argv);

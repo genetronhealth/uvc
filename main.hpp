@@ -3503,7 +3503,7 @@ append_vcf_record(std::string & out_string,
             // unsigned int edgedist_penal = (qseq_min_edgedist >= 24 ? 0 : (mathsquare(24 - qseq_min_edgedist) / 4));
             t2n_limq = 10.0/log(10.0) * log(MAX(max_tn_ratio, 1.0)) - ((LINK_D1 == symbol) ? 6 : 0); // - edgedist_penal; // - 10.0/log(10.0) * log((double)(nearby_max_bAD + 1) / (double)(SUM2(tki.bAD1) + 1));
             if (qseq_min_edgedist < 30) {
-                t2n_limq -= MIN(MAX(0, MIN(tn_npowq, tn_nrawq)), 40.0);
+                t2n_limq -= MIN(MAX(0, MIN(tn_npowq, tn_nrawq)), 60.0);
             }
         }
         // double min_doubleDP = (double)MIN(nfm.DP, tki.DP);
@@ -3542,7 +3542,7 @@ append_vcf_record(std::string & out_string,
                     //noisy_germ_phred + add01_between_min01_max01(excalt_qual, excalt_tu_q)
                     a_ex_alt_qual)
                     : a_no_alt_qual);
-        double tlodq =  t_base_q + MIN(t2n_finq, MAX(-40.0, t2n_limq)) - MIN(t2n_contam_q, t2n_syserr_q);
+        double tlodq =  t_base_q + MIN(t2n_finq, t2n_limq) - MIN(t2n_contam_q, t2n_syserr_q);
         testquals[tqi++] = MIN(tlodq, (double)a_nogerm_q); // - 5.0;
         
         // testquals[tqi++] = MIN(tn_trawq - tn_nrawq + 0       , tn_tpowq - MAX(0.0, tn_npowq - tvn_or_q) + tvn_powq);
