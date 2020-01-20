@@ -2479,9 +2479,11 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
         unsigned int baq_per_aligned_base,
         double powlaw_exponent,
         const auto & bq_ins_2bdepths,
-        const auto & bq_del_2bdepths
+        const auto & bq_del_2bdepths,
         // ,
         // const auto & bq_indel_adjmax_depths
+        const bool somaticGT,
+        const int runflag // additional runtime flag
         ) {
     fmt.note = symbol2CountCoverageSet12.additional_note.getByPos(refpos).at(symbol);
     uint64_t bq_qsum_sqrMQ_tot = 0; 
@@ -2745,9 +2747,9 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
             
             std::array<int, 3> likes = { fmtGL[0], fmtGL[1], fmtGL[2] };
             std::sort(likes.rbegin(), likes.rend());
-            const auto & gt_homref = (prev_is_tumor ? GT_HOMREF : TT_HOMREF);
-            const auto & gt_homalt = (prev_is_tumor ? GT_HOMALT : TT_HOMALT);
-            const auto & gt_hetero = (prev_is_tumor ? GT_HETERO : TT_HETERO);
+            const auto & gt_homref = (somaticGT ? TT_HOMREF : GT_HOMREF);
+            const auto & gt_homalt = (somaticGT ? TT_HOMALT : GT_HOMALT);
+            const auto & gt_hetero = (somaticGT ? TT_HETERO : GT_HETERO);
             if        (likes[0] == fmtGL[0]) {
                 fmtGT = (is_novar ? gt_homalt[t] : gt_homref[t]);
                 prank = (is_novar ? 2 : 0);

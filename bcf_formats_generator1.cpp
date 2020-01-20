@@ -101,7 +101,7 @@ struct BcfFormatStruct {
 };
 
 const std::vector<BcfFormatStruct> FORMAT_VEC = {
-    BcfFormatStruct("GT"       , 1, BCF_STRING,  "Genotype"),
+    BcfFormatStruct("GT"       , 1, BCF_STRING,  "Genotype (this is a guess for the GT of tumor cells if --somaticGT was set to true)"),
     BcfFormatStruct("GQ"       , 1, BCF_INTEGER, "Genotype Quality"),
     BcfFormatStruct("HQ"       , 2, BCF_INTEGER, "Haplotype Quality"),
     BcfFormatStruct("DP"       , 1, BCF_INTEGER, "Fragment depth supporting any allele [consensus family, deduped]"),

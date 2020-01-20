@@ -77,9 +77,9 @@ const std::array<std::string, 2> GT_HETERO = {"0/1", "0/."};
 const std::array<std::string, 2> GT_HOMREF = {"0/0", "0/0"};
 const std::array<std::string, 2> GT_HOMALT = {"1/1", "./."};
 
-const std::array<std::string, 2> TT_HETERO = {"0/1", "./1"};
-const std::array<std::string, 2> TT_HOMREF = {"1/0", "1/."};
-const std::array<std::string, 2> TT_HOMALT = {"1/1", "1/1"};
+const std::array<std::string, 2> TT_HETERO = {"./1", "1/."};
+const std::array<std::string, 2> TT_HOMREF = {"./1", "1/."};
+const std::array<std::string, 2> TT_HOMALT = {"1/1", "1/."};
 
 /*
 const std::string NRGT_TUMREF = "./0";

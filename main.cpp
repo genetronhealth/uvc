@@ -857,10 +857,11 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                             paramset.baq_per_aligned_base,
                             paramset.powlaw_exponent,
                             bq_ins_2bdepths,
-                            bq_del_2bdepths
+                            bq_del_2bdepths,
+                            paramset.somaticGT,
                             // ,
                             // bq_indel_adjmax_depths
-                            );
+                            0);
                 }
                 for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; symbol = AlignmentSymbol(1+(unsigned int)symbol)) {
                     float vaq = fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]].VAQ;
