@@ -256,6 +256,11 @@ struct TumorKeyInfo {
     float FR = 0;
     int32_t BQ = 0;
     int32_t MQ = 0;
+   
+    int32_t cADTF = 0;
+    int32_t cRDTF = 0;
+    int32_t cDPTF = 0;
+    
     int32_t bDP = 0;
     std::array<int32_t, 2> bAD1 = {0};
     int32_t autoBestAllBQ = 0;
@@ -415,6 +420,22 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         assert((1 == ndst_val && 1 == valsize) || !fprintf(stderr, "1 == %d && 1 == %d failed for MQ!\n", ndst_val, valsize)); 
         tki.MQ = bcfints[0];
         
+
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "cADTF", &bcfints,  &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cADTF!\n", ndst_val, valsize));
+        tki.cADTF = bcfints[0] + bcfints[1];
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "cRDTF", &bcfints,  &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cRDTF!\n", ndst_val, valsize));
+        tki.cRDTF = bcfints[0] + bcfints[1];
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "cDPTF", &bcfints,  &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cDPTF!\n", ndst_val, valsize));
+        tki.cDPTF = bcfints[0] + bcfints[1];
+
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line,  "DP", &bcfints,  &ndst_val);
         assert((1 == ndst_val && 1 == valsize) || !fprintf(stderr, "1 == %d && 1 == %d failed for DP!\n", ndst_val, valsize));

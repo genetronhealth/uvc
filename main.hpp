@@ -2256,16 +2256,21 @@ BcfFormat_init(bcfrec::BcfFormat & fmt,
         
         fmt.bDP1[strand] = symbolDistrSets12.bq_tsum_depth.at(strand).getByPos(refpos).sumBySymbolType(symbolType);
         fmt.cDP1[strand] = symbolDistrSets12.fq_tsum_depth.at(strand).getByPos(refpos).sumBySymbolType(symbolType);
-        fmt.cDPTT[strand] = symbolDistrSets12.fam_total_dep.at(strand).getByPos(refpos).sumBySymbolType(symbolType);
         fmt.bDPLQ[strand] = symbolDistrSets12.bq_tsum_LQdep.at(strand).getByPos(refpos).sumBySymbolType(symbolType);
+       
+        fmt.cDPTT[strand] = symbolDistrSets12.fam_total_dep.at(strand).getByPos(refpos).sumBySymbolType(symbolType);
+        fmt.cDPT1[strand] = symbolDistrSets12.fam_size1_dep.at(strand).getByPos(refpos).sumBySymbolType(symbolType);
+        auto fmt_cDPTN = symbolDistrSets12.fam_nocon_dep.at(strand).getByPos(refpos).sumBySymbolType(symbolType);
+        fmt.cDPTF[strand] = fmt.cDPTT[strand] - fmt.cDPT1[strand] - fmt_cDPTN;
         
         fmt.bRD1[strand] = symbolDistrSets12.bq_tsum_depth.at(strand).getByPos(refpos).getSymbolCount(refsymbol);
         fmt.cRD1[strand] = symbolDistrSets12.fq_tsum_depth.at(strand).getByPos(refpos).getSymbolCount(refsymbol);
-        fmt.cRDTT[strand] = symbolDistrSets12.fam_total_dep.at(strand).getByPos(refpos).getSymbolCount(refsymbol);
         fmt.bRDLQ[strand] = symbolDistrSets12.bq_tsum_LQdep.at(strand).getByPos(refpos).getSymbolCount(refsymbol);
-        
+
+        fmt.cRDTT[strand] = symbolDistrSets12.fam_total_dep.at(strand).getByPos(refpos).getSymbolCount(refsymbol);
         fmt.cRDT1[strand] = symbolDistrSets12.fam_size1_dep.at(strand).getByPos(refpos).getSymbolCount(refsymbol);
-        fmt.cRDTN[strand] = symbolDistrSets12.fam_nocon_dep.at(strand).getByPos(refpos).getSymbolCount(refsymbol); 
+        auto fmt_cRDTN = symbolDistrSets12.fam_nocon_dep.at(strand).getByPos(refpos).getSymbolCount(refsymbol); 
+        fmt.cRDTF[strand] = fmt.cRDTT[strand] - fmt.cRDT1[strand] - fmt_cRDTN;
         
         fmt.bSSDP[strand*2+0] = symbolDistrSets12.bq_dirs_count.at(strand*2+0).getByPos(refpos).sumBySymbolType(symbolType);
         fmt.bSSDP[strand*2+1] = symbolDistrSets12.bq_dirs_count.at(strand*2+1).getByPos(refpos).sumBySymbolType(symbolType);
@@ -2571,8 +2576,8 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
         fmt.cMinor[strand] = symbol2CountCoverageSet12.minor_amplicon.at(strand).getByPos(refpos).getSymbolCount(symbol);
         fmt.cADTT[strand] = symbol2CountCoverageSet12.fam_total_dep.at(strand).getByPos(refpos).getSymbolCount(symbol);
         fmt.cADT1[strand] = symbol2CountCoverageSet12.fam_size1_dep.at(strand).getByPos(refpos).getSymbolCount(symbol);
-        fmt.cADTN[strand] = symbol2CountCoverageSet12.fam_nocon_dep.at(strand).getByPos(refpos).getSymbolCount(symbol); 
-        
+        auto fmt_cADTN = symbol2CountCoverageSet12.fam_nocon_dep.at(strand).getByPos(refpos).getSymbolCount(symbol); 
+        fmt.cADTF[strand] = fmt.cADTT[strand] - fmt.cADT1[strand] - fmt_cADTN;
         fmt.gapNum[strand] = 0;
         if ((0 < fmt.bAD1[strand]) && (isSymbolIns(symbol) || isSymbolDel(symbol))) {
             auto cADdiff_cADtotal = fill_by_indel_info(fmt, symbol2CountCoverageSet12, strand, refpos, symbol, refstring, repeatunit, repeatnum);
@@ -2969,8 +2974,12 @@ generate_vcf_header(const char *ref_fasta_fname,
     ret += "##INFO=<ID=NSQs,Number=.,Type=Float,Description=\"Normal-only qualities: normalized power-law, binomial, FA power-law, and coverage-depth adjustment.\">\n";
     
     ret += "##INFO=<ID=tDP,Number=1,Type=Integer,Description=\"Tumor-sample DP\">\n";
-    ret += "##INFO=<ID=tFA,Number=1,Type=Float,Description=\"Tumor-sample FA\">\n";
-    ret += "##INFO=<ID=tFR,Number=1,Type=Float,Description=\"Tumor-sample FR\">\n";
+    ret += "##INFO=<ID=tFA,Number=1,Type=Float,Description=\"Tumor-sample FA (deprecated, equivalent to AD/DP in tDPs)\">\n";
+    ret += "##INFO=<ID=tFR,Number=1,Type=Float,Description=\"Tumor-sample FR (deprecated, equivalent to RD/DP in tDPs)\">\n";
+    ret += "##INFO=<ID=tDPs,Number=3,Type=Integer,Description=\" Tumor-sample AD, RD, and DP for tissue\">\n";
+    ret += "##INFO=<ID=nDPs,Number=3,Type=Integer,Description=\"Normal-sample AD, RD, and DP for tissue\">\n";
+    ret += "##INFO=<ID=tDPFs,Number=3,Type=Integer,Description=\" Tumor-sample AD, RD, and DP for ctDNA\">\n";
+    ret += "##INFO=<ID=nDPFs,Number=3,Type=Integer,Description=\"Normal-sample AD, RD, and DP for ctDNA\">\n";
     ret += "##INFO=<ID=tAltBQ,Number=1,Type=Integer,Description=\"Tumor-sample cAltBQ or bAltBQ, depending on command-line option\">\n";
     ret += "##INFO=<ID=tAllBQ,Number=1,Type=Integer,Description=\"Tumor-sample cAllBQ or bAllBQ, depending on command-line option\">\n";
     ret += "##INFO=<ID=tRefBQ,Number=1,Type=Integer,Description=\"Tumor-sample cRefBQ or bRefBQ, depending on command-line option\">\n";
@@ -3249,6 +3258,21 @@ append_vcf_record(std::string & out_string,
         vcfqual = calc_non_negative(vcfqual);
         tki.FTS = fmt.FTS;
         tki.VAQ = fmt.VAQ;
+        
+        //static_assert(tki.tDPs.size() == 3);
+        //static_assert(tki.nDPs.size() == 3);
+        //static_assert(tki.tDPFs.size() == 3);
+        //static_assert(tki.nDPFs.size() == 3);
+        //tki.tDPs[0] = (int)(fmt.DP * fmt.FA + 0.5);
+        //tki.tDPs[1] = (int)(fmt.DP * fmt.FR + 0.5);
+        //tki.tDPs[2] = (int)(fmt.DP);
+        //tki.tDPFs[0] = SUM2(fmt.cADTF);
+        //tki.tDPFs[1] = SUM2(fmt.cRDTF);
+        //tki.tDPFs[2] = SUM2(fmt.cDPTF);
+        tki.cADTF = SUM2(fmt.cADTF);
+        tki.cRDTF = SUM2(fmt.cRDTF);
+        tki.cDPTF = SUM2(fmt.cDPTF);
+
         tki.DP = fmt.DP;
         tki.FA = fmt.FA;
         tki.FR = fmt.FR;
@@ -3628,7 +3652,28 @@ append_vcf_record(std::string & out_string,
         
         infostring += std::string(";tDP=") + std::to_string(tki.DP);
         infostring += std::string(";tFA=") + std::to_string(tki.FA);
-        infostring += std::string(";tFR=") + std::to_string(tki.FR);
+        // infostring += std::string(";tFR=") + std::to_string(tki.FR);
+        
+        infostring += std::string(";tDPs=") + string_join(std::array<std::string, 3>({
+                std::to_string((int)(tki.DP * tki.FA + 0.5)),
+                std::to_string((int)(tki.DP * tki.FR + 0.5)),
+                std::to_string(tki.DP)}));
+        if (prev_is_tumor) {
+            infostring += std::string(";nDPs=") + string_join(std::array<std::string, 3>({
+                std::to_string((int)(fmt.DP * fmt.FA + 0.5)),
+                std::to_string((int)(fmt.DP * fmt.FR + 0.5)),
+                std::to_string(fmt.DP)}));
+        }
+        infostring += std::string(";tDPFs=") + string_join(std::array<std::string, 3>({
+                std::to_string(tki.cADTF),
+                std::to_string(tki.cRDTF),
+                std::to_string(tki.cDPTF)}));
+        if (prev_is_tumor) {
+            infostring += std::string(";nDPFs=") + string_join(std::array<std::string, 3>({
+                std::to_string(SUM2(fmt.cADTF)),
+                std::to_string(SUM2(fmt.cRDTF)),
+                std::to_string(SUM2(fmt.cDPTF))}));
+        }
         infostring += std::string(";tAltBQ=") + std::to_string(tki.autoBestAltBQ);
         infostring += std::string(";tAllBQ=") + std::to_string(tki.autoBestAllBQ);
         infostring += std::string(";tRefBQ=") + std::to_string(tki.autoBestRefBQ);
