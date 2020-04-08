@@ -15,6 +15,8 @@ The UVC binary uses multi-threading efficiently for up to 16 threads.
 After reaching 16 threads, adding more threads no longer significantly reduces wall-clock runtime.
 However, more efficient speed-up can still be gained by runing with GNU parallel or qsub to use one job per chromosome.
 
+In total, the installation should take about 5 minutes.
+
 --- How to use ---
 
 The script uvcTN.sh in the bin directory is used for analyzing tumor-normal pairs.
