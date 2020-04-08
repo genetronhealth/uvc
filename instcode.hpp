@@ -16,30 +16,29 @@ fill_by_indel_info2_2
 #endif
 (bcfrec::BcfFormat & fmt,
         const Symbol2CountCoverageSet & symbol2CountCoverageSet, 
-        const unsigned int strand, const unsigned int refpos, const AlignmentSymbol symbol,
-        
-        //const std::map<std::uint32_t, std::map<INDELTYPE, uint32_t>> & rawdu_amplicon_pos2indel2data,
-        //const std::map<std::uint32_t, std::map<INDELTYPE, uint32_t>> & rawdu_ampBQerr_pos2indel2data,
-        //const std::map<std::uint32_t, std::map<INDELTYPE, uint32_t>> & dedup_amplicon_pos2indel2data,
-        //const std::map<std::uint32_t, std::map<INDELTYPE, uint32_t>> & size1_amplicon_pos2indel2data, 
-        const std::map<std::uint32_t, std::map<INDELTYPE, uint32_t>> & bq_tsum_depth, //  _ amplicon_pos2indel2data,
-        const std::map<std::uint32_t, std::map<INDELTYPE, uint32_t>> & fq_tsum_depth, // size1_amplicon_pos2indel2data, 
-        const std::string & refchars) {
+        const unsigned int strand, 
+        const unsigned int refpos, 
+        const AlignmentSymbol symbol,
+        const std::map<std::uint32_t, std::map<INDELTYPE, uint32_t>> & bq_tsum_depth,
+        const std::map<std::uint32_t, std::map<INDELTYPE, uint32_t>> & fq_tsum_depth,
+        const std::string & refchars, 
+        const std::string & repeatunit, 
+        unsigned int repeatnum) {
     
     assert(isSymbolIns(symbol) || isSymbolDel(symbol));
-    AlignmentSymbol link1  = (isSymbolIns(symbol) ? LINK_I1  : LINK_D1 ); // , AlignmentSymbol link2, AlignmentSymbol link3p;
-    AlignmentSymbol link2  = (isSymbolIns(symbol) ? LINK_I2  : LINK_D2 ); 
-    AlignmentSymbol link3p = (isSymbolIns(symbol) ? LINK_I3P : LINK_D3P);
-    
-    assert (link1 == symbol || link2 == symbol || link3p == symbol || 
-            !fprintf(stderr, "Symbol %s does not match any of {%s, %s, %s}", 
-            SYMBOL_TO_DESC_ARR[symbol], SYMBOL_TO_DESC_ARR[link1], SYMBOL_TO_DESC_ARR[link2], SYMBOL_TO_DESC_ARR[link3p]));
-    // std::vector<std::tuple<uint32_t, uint32_t, std::string>> rawdu2_dedup_size1_mutform_tuples; 
-    
-    std::vector<std::tuple<uint32_t, uint32_t, std::string>> bqfq_depth_mutform_tuples; // bqfq_tsum_tuples;
+    if (isSymbolIns(symbol)) {
+        assert (LINK_I1 == symbol || LINK_I2 == symbol || LINK_I3P == symbol || 
+                !fprintf(stderr, "Symbol %s does not match any of {%s, %s, %s}", 
+                SYMBOL_TO_DESC_ARR[symbol], SYMBOL_TO_DESC_ARR[LINK_I1], SYMBOL_TO_DESC_ARR[LINK_I2], SYMBOL_TO_DESC_ARR[LINK_I3P]));
+    } else {
+        assert (LINK_D1 == symbol || LINK_D2 == symbol || LINK_D3P == symbol || 
+                !fprintf(stderr, "Symbol %s does not match any of {%s, %s, %s}", 
+                SYMBOL_TO_DESC_ARR[symbol], SYMBOL_TO_DESC_ARR[LINK_D1], SYMBOL_TO_DESC_ARR[LINK_D2], SYMBOL_TO_DESC_ARR[LINK_D3P]));
+    }
     assert(bq_tsum_depth.find(refpos) != bq_tsum_depth.end());
     
-    for (auto indel2data4 : bq_tsum_depth.at(refpos)) { // = bq_tsum_depth.at(refpos).begin(); indel2data4it != bq_tsum_depth.at(refpos).end(); indel2data4it++) {
+    std::vector<std::tuple<uint32_t, uint32_t, std::string>> bqfq_depth_mutform_tuples;
+    for (auto indel2data4 : bq_tsum_depth.at(refpos)) {
         const auto indel = indel2data4.first;
 #if INDEL_ID == 1
         const std::string indelstring = indel2data4.first;
@@ -53,9 +52,7 @@ fill_by_indel_info2_2
         const uint32_t bqdata = posToIndelToData_get(bq_tsum_depth, refpos, indel);
         const uint32_t fqdata = posToIndelToData_get(fq_tsum_depth, refpos, indel);
         assert(bqdata > 0);
-        if ((link1 == symbol && indelstring.size() == 1) || (link2 == symbol && indelstring.size() == 2) || (link3p == symbol && indelstring.size() >= 3)) {
-            bqfq_depth_mutform_tuples.push_back(std::make_tuple(fqdata, bqdata, indelstring));
-        }
+        bqfq_depth_mutform_tuples.push_back(std::make_tuple(fqdata, bqdata, indelstring));
     }
     unsigned int gapbAD1sum = 0;
     unsigned int gapcAD1sum = 0;
@@ -90,7 +87,6 @@ fill_by_indel_info2_2
         std::cerr << msg << "\n";
     }
     */
-
     // "/4+16" is a probabilistic check in the following code
     /*
     assert(fmt.AD2[strand] >= gapAD2sum && (fmt.AD2[strand] <= gapAD2sum * 5 / 4 + 16) ||

@@ -2,14 +2,14 @@
 # Example command to build: make all -j9 && make dup
 
 # Multi threads and single thread debug
-release : uvc debarcode
+release : uvc debarcode minivc
 debug-mt : uvc.mt.out
 debug-st : uvc.st.out
 test-cppt : uvc.cppt.out
 all : debug-mt debug-st release test-cppt
 
-HDR=CLI11-1.7.1/CLI11.hpp logging.hpp consensus.hpp CmdLineArgs.hpp 
-SRC=main.cpp  bcf_formats.step1.c conversion.hpp grouping.hpp grouping.cpp utils.hpp CmdLineArgs.cpp
+HDR=CLI11-1.7.1/CLI11.hpp logging.hpp main.hpp CmdLineArgs.hpp common.hpp 
+SRC=main.cpp  bcf_formats.step1.c conversion.hpp grouping.hpp grouping.cpp CmdLineArgs.cpp
 
 HTSFLAGS=ext/bcftools-1.9/htslib-1.9/libhts.a -lm -lz -lcurl -lbz2 -llzma # -lcrypto # can be changed depending on the specific installed components of htslib (please refer to the INSTALL file in htslib)
 CC=gcc  # can be changed to clang or other compilers as needed
@@ -19,7 +19,10 @@ COMMIT_VERSION=$(shell git rev-parse HEAD)
 COMMIT_DIFF_SH=$(shell git diff HEAD --shortstat)
 VERFLAGS=-DCOMMIT_VERSION="\"$(COMMIT_VERSION)\"" -DCOMMIT_DIFF_SH="\"$(COMMIT_DIFF_SH)\"" 
 
-debarcode  : debarcode_main.c version.h
+minivc     : minivc.c Makefile
+	$(CC) -O3 -o minivc    $(VERFLAGS) minivc.c ${HTSFLAGS} ext/bcftools-1.9/htslib-1.9/libhts.a -lz
+
+debarcode  : debarcode_main.c version.h Makefile
 	$(CC) -O3 -o debarcode $(VERFLAGS) debarcode_main.c ext/bcftools-1.9/htslib-1.9/libhts.a -lz
 	
 # the main executable, uses OpenMP for multi-threading
@@ -55,5 +58,6 @@ clean:
 deploy:
 	cp uvc bin/uvc1
 	cp debarcode bin/debarcode
+	cp minivc bin/minivc
 	cp uvc.st.out uvc.mt.out uvc.cppt.out bin/
 

@@ -1,20 +1,22 @@
+
+#include "main.hpp"
+
+#include "CmdLineArgs.hpp"
+#include "common.hpp"
+#include "grouping.hpp"
+#include "version.h"
+
 #include "htslib/bgzf.h"
 #include "htslib/faidx.h"
 #include "htslib/synced_bcf_reader.h"
-#include "CmdLineArgs.hpp"
-#include "consensus.hpp"
-#include "grouping.hpp"
-#include "version.h"
 
 #include <chrono>
 #include <ctime>
 #include <thread>
-#if defined(USE_STDLIB_THREAD)
-#else
+
+#if !defined(USE_STDLIB_THREAD)
 #include "omp.h"
 #endif
-
-#include "common.h"
 
 const unsigned int G_BLOCK_SIZE = 1000;
 
@@ -150,11 +152,7 @@ bgzip_string(std::string & compressed_outstring, const std::string & uncompresse
 struct BatchArg {
     std::string outstring_allp;
     std::string outstring_pass;
-    unsigned int contam_tDP;
-    unsigned int contam_nDP;
-    unsigned int contam_tAD;
-    unsigned int contam_nAD;
-    
+    VcStats vc_stats;
     unsigned int thread_id;
     hts_idx_t *hts_idx;
     faidx_t *ref_faidx;
@@ -250,19 +248,38 @@ is_sig_out(auto a, auto minval, auto maxval, unsigned int mfact, unsigned int af
 
 struct TumorKeyInfo {
     std::string ref_alt;
-    std::string FT;
+    std::string FTS;
     int32_t pos = 0;
     float VAQ = 0;
     int32_t DP = 0;
     float FA = 0;
     float FR = 0;
+    int32_t BQ = 0;
+    int32_t MQ = 0;
+   
+    int32_t cADTC = 0;
+    int32_t cRDTC = 0;
+    int32_t cDPTC = 0;
+    
     int32_t bDP = 0;
-    float bFA = 0;
+    std::array<int32_t, 2> bAD1 = {0};
     int32_t autoBestAllBQ = 0;
     int32_t autoBestAltBQ = 0;
     int32_t autoBestRefBQ = 0;
     int32_t autoBestAllHD = 0;
     int32_t autoBestAltHD = 0;
+    int32_t autoBestRefHD = 0;
+    int32_t cAllBQ2 = 0;
+    int32_t cAltBQ2 = 0;
+    int32_t cRefBQ2 = 0;
+    std::array<int32_t, 4> gapDP4 = {0};
+    std::array<int32_t, 6*RCC_NUM> RCC = {0};
+    std::array<int32_t, 3> GLa = {0};
+    std::array<int32_t, 3> GLb = {0};
+    std::array<int32_t, 5> EROR = {0};
+    std::array<int32_t, 4> gapbNRD = {0};
+    std::array<int32_t, 2> bSSEDA = {0};
+    // std::array<int32_t, 2> gapbNNRD = {0};
     bcf1_t *bcf1_record = NULL;
     /*
     ~TumorKeyInfo() {
@@ -312,7 +329,7 @@ const std::map<std::tuple<unsigned int, unsigned int, AlignmentSymbol>, TumorKey
 rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_tname_tlen_tuple_vec, const std::string & vcf_tumor_fname, const auto *bcf_hdr, 
         const bool is_tumor_format_retrieved) {
     std::map<std::tuple<unsigned int, unsigned int, AlignmentSymbol>, TumorKeyInfo> ret;
-    if (vcf_tumor_fname.size() == 0) {
+    if (NOT_PROVIDED == vcf_tumor_fname) {
         return ret;
     }
     std::string regionstring;
@@ -394,6 +411,32 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         tki.FR = bcffloats[0];
         
         ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "BQ", &bcfints,  &ndst_val);
+        assert((1 == ndst_val && 1 == valsize) || !fprintf(stderr, "1 == %d && 1 == %d failed for BQ!\n", ndst_val, valsize));
+        tki.BQ = bcfints[0];
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "MQ", &bcfints,  &ndst_val);
+        assert((1 == ndst_val && 1 == valsize) || !fprintf(stderr, "1 == %d && 1 == %d failed for MQ!\n", ndst_val, valsize)); 
+        tki.MQ = bcfints[0];
+        
+
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "cADTC", &bcfints,  &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cADTC!\n", ndst_val, valsize));
+        tki.cADTC = bcfints[0] + bcfints[1];
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "cRDTC", &bcfints,  &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cRDTC!\n", ndst_val, valsize));
+        tki.cRDTC = bcfints[0] + bcfints[1];
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "cDPTC", &bcfints,  &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cDPTC!\n", ndst_val, valsize));
+        tki.cDPTC = bcfints[0] + bcfints[1];
+
+        ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line,  "DP", &bcfints,  &ndst_val);
         assert((1 == ndst_val && 1 == valsize) || !fprintf(stderr, "1 == %d && 1 == %d failed for DP!\n", ndst_val, valsize));
         tki.DP = bcfints[0];
@@ -420,28 +463,113 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line,  "cAllHD", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cAllBQ!\n", ndst_val, valsize));
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cAllHD!\n", ndst_val, valsize));
         tki.autoBestAllHD = bcfints[0] + bcfints[1];
 
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line,  "cAltHD", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cAltBQ!\n", ndst_val, valsize));
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cAltHD!\n", ndst_val, valsize));
         tki.autoBestAltHD = bcfints[0] + bcfints[1];
         
         ndst_val = 0;
-        valsize = bcf_get_format_char(bcf_hdr, line, "FT", &bcfstring, &ndst_val);
-        assert((ndst_val == valsize && 0 < valsize) || !fprintf(stderr, "%d == %d && nonzero failed for FT!\n", ndst_val, valsize));
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "cRefHD", &bcfints, &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cRefHD!\n", ndst_val, valsize));
+        tki.autoBestRefHD = bcfints[0] + bcfints[1];
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "cAllBQ2", &bcfints, &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cAllBQ2!\n", ndst_val, valsize));
+        tki.cAllBQ2 = bcfints[0] + bcfints[1];
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "cAltBQ2", &bcfints, &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cAltBQ2!\n", ndst_val, valsize));
+        tki.cAltBQ2 = bcfints[0] + bcfints[1];
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "cRefBQ2", &bcfints, &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cRefBQ2!\n", ndst_val, valsize));
+        tki.cRefBQ2 = bcfints[0] + bcfints[1];
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_char(bcf_hdr, line, "FTS", &bcfstring, &ndst_val);
+        assert((ndst_val == valsize && 0 < valsize) || !fprintf(stderr, "%d == %d && nonzero failed for FTS!\n", ndst_val, valsize));
+        /*
         for (int ftidx = 0; ftidx < valsize - 1; ftidx++) {
             if (';' == bcfstring[ftidx]) {
                 bcfstring[ftidx] = '.';
             }
         }
-        tki.FT = std::string(bcfstring, valsize-1);
+        */
+        tki.FTS = std::string(bcfstring, valsize-1);
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "gapDP4", &bcfints, &ndst_val);
+        assert((tki.gapDP4.size() == ndst_val && tki.gapDP4.size() == valsize) || !fprintf(stderr, "%lu == %d && %lu == %d failed for gapDP4!\n", tki.gapDP4.size(), ndst_val, tki.gapDP4.size(), valsize));
+        for (size_t i = 0; i < tki.gapDP4.size(); i++) {
+            tki.gapDP4[i] = bcfints[i];
+        }
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "RCC", &bcfints, &ndst_val);
+        assert((tki.RCC.size() == ndst_val && tki.RCC.size() == valsize) || !fprintf(stderr, "%d == %d && %d == %d failed for RCC!\n", tki.RCC.size(), ndst_val, tki.RCC.size(), valsize));
+        for (size_t i = 0; i < tki.RCC.size(); i++) {
+            tki.RCC[i] = bcfints[i];
+        }
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "GLa", &bcfints, &ndst_val);
+        assert((tki.GLa.size() == ndst_val && tki.GLa.size() == valsize) || !fprintf(stderr, "%lu == %d && %lu == %d failed for GQa!\n", tki.GLa.size(), ndst_val, tki.GLa.size(), valsize));
+        for (size_t i = 0; i < tki.GLa.size(); i++) {
+            tki.GLa[i] = bcfints[i];
+        }
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "GLb", &bcfints, &ndst_val);
+        assert((tki.GLb.size() == ndst_val && tki.GLb.size() == valsize) || !fprintf(stderr, "%lu == %d && %lu == %d failed for GQb!\n", tki.GLb.size(), ndst_val, tki.GLb.size(), valsize));
+        for (size_t i = 0; i < tki.GLb.size(); i++) {
+            tki.GLb[i] = bcfints[i];
+        }
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "EROR",  &bcfints, &ndst_val);
+        assert((tki.EROR.size() == ndst_val && tki.EROR.size() == valsize) || !fprintf(stderr, "%lu == %d && %lu == %d failed for EROR!\n", tki.EROR.size(), ndst_val, tki.EROR.size(), valsize));
+        for (size_t i = 0; i < tki.EROR.size(); i++) {
+            tki.EROR[i] = bcfints[i];
+        }
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "gapbNRD",&bcfints,&ndst_val);
+        assert((tki.gapbNRD.size() == ndst_val && tki.gapbNRD.size() == valsize) || !fprintf(stderr, "%lu == %d && %lu == %d failed for gapbNRD!\n", tki.gapbNRD.size(), ndst_val, tki.gapbNRD.size(), valsize));
+        for (size_t i = 0; i < tki.gapbNRD.size(); i++) {
+            tki.gapbNRD[i] = bcfints[i];
+        }
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "bSSEDA",&bcfints,&ndst_val);
+        assert((tki.bSSEDA.size() == ndst_val && tki.bSSEDA.size() == valsize) || !fprintf(stderr, "%lu == %d && %lu == %d failed for bSSEDA!\n", tki.bSSEDA.size(), ndst_val, tki.bSSEDA.size(), valsize));
+        for (size_t i = 0; i < tki.bSSEDA.size(); i++) {
+            tki.bSSEDA[i] = bcfints[i];
+        }
+        /*
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "gapbNNRD",&bcfints,&ndst_val);
+        assert((tki.gapbNNRD.size() == ndst_val && tki.gapbNNRD.size() == valsize) || !fprintf(stderr, "%lu == %d && %lu == %d failed for gapbNNRD!\n", tki.gapbNNRD.size(), ndst_val, tki.gapbNNRD.size(), valsize));
+        for (size_t i = 0; i < tki.gapbNNRD.size(); i++) {
+            tki.gapbNNRD[i] = bcfints[i];
+        }
+        */
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "bAD1",  &bcfints, &ndst_val);
+        assert((tki.bAD1.size() == ndst_val && tki.bAD1.size() == valsize) || !fprintf(stderr, "%lu == %d && %lu == %d failed for gapbNRD!\n", tki.bAD1.size(), ndst_val, tki.bAD1.size(), valsize));
+        for (size_t i = 0; i < tki.bAD1.size(); i++) {
+            tki.bAD1[i] = bcfints[i];
+        }
         
         ndst_val = 0;
         valsize = bcf_get_format_char(bcf_hdr, line, "cHap", &bcfstring, &ndst_val);
         assert((ndst_val == valsize && 0 < valsize) || !fprintf(stderr, "%d == %d && nonzero failed for cHap!\n", ndst_val, valsize));
-        tki.FT += std::string(";tcHap=") + std::string(bcfstring);
+        tki.FTS += std::string(";tcHap=") + std::string(bcfstring);
         
         tki.pos = line->pos;
         bcf_unpack(line, BCF_UN_STR);
@@ -507,12 +635,28 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
 
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts bamfname_to_strand_to_familyuid_to_reads with pair_end_merge = " << paramset.pair_end_merge; }
     std::array<unsigned int, 3> passed_pcrpassed_umipassed = bamfname_to_strand_to_familyuid_to_reads(umi_to_strand_to_reads, 
-            extended_inclu_beg_pos, extended_exclu_end_pos,
+            extended_inclu_beg_pos, 
+            extended_exclu_end_pos,
             paramset.bam_input_fname,
-            tid, incluBegPosition, excluEndPosition,
-            end2end, paramset.min_mapqual, paramset.min_aln_len,
-            regionbatch_ordinal, regionbatch_tot_num, UMI_STRUCT_STRING, hts_idx, 
-            ASSAY_TYPE_CAPTURE != paramset.assay_type, PAIR_END_MERGE_NO != paramset.pair_end_merge, paramset.disable_duplex, thread_id);
+            tid, 
+            incluBegPosition, 
+            excluEndPosition,
+            end2end, 
+            paramset.min_mapqual, 
+            paramset.min_aln_len,
+            regionbatch_ordinal, 
+            regionbatch_tot_num, 
+            UMI_STRUCT_STRING, 
+            hts_idx, 
+            ASSAY_TYPE_CAPTURE != paramset.assay_type, 
+            PAIR_END_MERGE_NO != paramset.pair_end_merge, 
+            paramset.disable_duplex,
+            thread_id,
+            paramset.dedup_center_mult,
+            paramset.dedup_amplicon_count_to_surrcount_frac,
+            paramset.dedup_yes_umi_2ends_peak_frac,
+            paramset.dedup_non_umi_2ends_peak_frac
+    );
     
     unsigned int num_passed_reads = passed_pcrpassed_umipassed[0];
     unsigned int num_pcrpassed_reads = passed_pcrpassed_umipassed[1];
@@ -550,19 +694,14 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
     //}
     
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts converting umi_to_strand_to_reads with is_by_capture = " << is_by_capture << "  " ;}
-    fill_strand_umi_readset_with_strand_to_umi_to_reads(umi_strand_readset, umi_to_strand_to_reads);
+    fill_strand_umi_readset_with_strand_to_umi_to_reads(umi_strand_readset, umi_to_strand_to_reads, paramset.baq_per_aligned_base);
     
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts constructing symbolToCountCoverageSet12 with " << extended_inclu_beg_pos << (" , ") << extended_exclu_end_pos; }
-    //std::array<Symbol2CountCoverageSet, 2> symbolToCountCoverageSet12 = {
-    //    Symbol2CountCoverageSet(tid, extended_inclu_beg_pos, extended_exclu_end_pos),
-    //    Symbol2CountCoverageSet(tid, extended_inclu_beg_pos, extended_exclu_end_pos)
-    //};
-    // + 1 accounts for insertion at the end of the region, this should happen RARELY (like 1e-20 chance)
+    // + 1 accounts for insertion at the end of the region, this should happen rarely for only re-aligned reads at around once per one billion base pairs
     Symbol2CountCoverageSet symbolToCountCoverageSet12(tid, extended_inclu_beg_pos, extended_exclu_end_pos + 1); 
     if (is_loginfo_enabled) { LOG(logINFO)<< "Thread " << thread_id << " starts updateByRegion3Aln with " << umi_strand_readset.size() << " families"; }
     std::string refstring = load_refstring(ref_faidx, tid, extended_inclu_beg_pos, extended_exclu_end_pos);
     std::vector<std::tuple<unsigned int, unsigned int, unsigned int>> adjcount_x_rpos_x_misma_vec;
-    // unsigned int maxvalue;
     std::map<std::basic_string<std::pair<unsigned int, AlignmentSymbol>>, std::array<unsigned int, 2>> mutform2count4map_bq;
     std::map<std::basic_string<std::pair<unsigned int, AlignmentSymbol>>, std::array<unsigned int, 2>> mutform2count4map_fq;
     const PhredMutationTable sscs_mut_table(
@@ -572,43 +711,43 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                 paramset.phred_max_sscs_indel_open,
                 paramset.phred_max_sscs_indel_ext);
     symbolToCountCoverageSet12.updateByRegion3Aln(
-            mutform2count4map_bq, mutform2count4map_fq,
-            // adjcount_x_rpos_x_misma_vec, // maxvalue, 
-            umi_strand_readset, refstring, 
-            paramset.bq_phred_added_misma, paramset.bq_phred_added_indel, paramset.should_add_note, 
-            paramset.phred_max_frag_indel_ext, paramset.phred_max_frag_indel_basemax,  
+            mutform2count4map_bq, 
+            mutform2count4map_fq,
+            umi_strand_readset, 
+            refstring, 
+            paramset.bq_phred_added_misma, 
+            paramset.bq_phred_added_indel, 
+            paramset.should_add_note, 
+            paramset.phred_max_frag_indel_ext, 
+            paramset.phred_max_frag_indel_basemax, 
             sscs_mut_table,
-            // paramset.phred_max_dscs, 
-            minABQ_snv, // minABQ_indel,
-            // ErrorCorrectionType(paramset.seq_data_type),
-            (is_by_capture ? paramset.ess_georatio_dedup_cap : paramset.ess_georatio_dedup_pcr), paramset.ess_georatio_duped_pcr,
+            minABQ_snv,
+            (is_by_capture ? paramset.ess_georatio_dedup_cap : paramset.ess_georatio_dedup_pcr), 
+            paramset.ess_georatio_duped_pcr,
             !paramset.disable_dup_read_merge, 
-            is_loginfo_enabled, thread_id, paramset.fixedthresBQ, paramset.nogap_phred
-            , paramset.highqual_thres_snv, paramset.highqual_thres_indel, paramset.uni_bias_r_max);
+            is_loginfo_enabled, 
+            thread_id, 
+            paramset.fixedthresBQ, 
+            paramset.nogap_phred,
+            paramset.highqual_thres_snv, 
+            paramset.highqual_thres_indel, 
+            paramset.uni_bias_r_max,
+            SEQUENCING_PLATFORM_IONTORRENT == paramset.sequencing_platform,
+            inferred_assay_type,
+            paramset.phred_frac_indel_error_before_barcode_labeling,
+            paramset.baq_per_aligned_base
+            );
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts analyzing phasing info"; }
     auto mutform2count4vec_bq = map2vector(mutform2count4map_bq);
     auto simplemut2indices_bq = mutform2count4vec_to_simplemut2indices(mutform2count4vec_bq);
     auto mutform2count4vec_fq = map2vector(mutform2count4map_fq);
     auto simplemut2indices_fq = mutform2count4vec_to_simplemut2indices(mutform2count4vec_fq);
     
-    /*
-    std::map<unsigned int, std::set<size_t>> simplemut2indices;
-    for (size_t i = 0; i < mutform2count4vec_bq.size(); i++) {
-        for (auto mutform : mutform2count4vec_bq[i].first) {
-            for (auto pos_symb : mutform) {
-                unsigned int pos = pos_symb.first;
-                if (pos_symb.second > 1) {
-                    simplemut2indices.insert(std::make_pair(pos, std::set<size_t>()));
-                    simplemut2indices[pos].insert(i);
-                }
-            }
-        }
-    }
-    */
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id  << " starts generating block gzipped vcf"; }
     
     std::string buf_out_string;
     std::string buf_out_string_pass;
+    
     const std::set<size_t> empty_size_t_set;
     const unsigned int capDP = 10*1000*1000;
     
@@ -622,8 +761,72 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
     
     unsigned int prevPosition = rpos_inclu_beg;
     SymbolType prevSymbolType = NUM_SYMBOL_TYPES;
-    for (unsigned int refpos = rpos_inclu_beg; refpos <= rpos_exclu_end; refpos++) {        
-        // while (tki_it != tki_end && std::get<1>(*tki_it) < refpos) { tki_it++; }
+    
+    std::array<CoveredRegion<uint32_t>, 2> bq_ins_2bdepths = {
+        CoveredRegion<uint32_t>(tid, extended_inclu_beg_pos, extended_exclu_end_pos + 1), 
+        CoveredRegion<uint32_t>(tid, extended_inclu_beg_pos, extended_exclu_end_pos + 1)
+    };
+    std::array<CoveredRegion<uint32_t>, 2> bq_del_2bdepths = {
+        CoveredRegion<uint32_t>(tid, extended_inclu_beg_pos, extended_exclu_end_pos + 1),
+        CoveredRegion<uint32_t>(tid, extended_inclu_beg_pos, extended_exclu_end_pos + 1)
+    };
+    for (unsigned int refpos = extended_inclu_beg_pos; refpos <= extended_exclu_end_pos; refpos++) {
+        for (unsigned int strand = 0; strand < 2; strand++) {
+            unsigned int link_ins_cnt = 0;
+            for (const auto ins_symbol : INS_SYMBOLS) {
+                link_ins_cnt += symbolToCountCoverageSet12.bq_tsum_depth.at(strand).getByPos(refpos).getSymbolCount(ins_symbol);
+            }
+            if (extended_inclu_beg_pos < refpos) {
+                bq_ins_2bdepths[strand].getRefByPos(refpos-1) += link_ins_cnt;
+            }
+            bq_ins_2bdepths[strand].getRefByPos(refpos) += link_ins_cnt;
+ 
+            for (const auto del_symbol : DEL_SYMBOLS) {
+                const auto & pos_to_dlen_to_data = symbolToCountCoverageSet12.bq_tsum_depth.at(strand).getPosToDlenToData(del_symbol);
+                if (pos_to_dlen_to_data.find(refpos) != pos_to_dlen_to_data.end()) {
+                    for (const auto & indel2data : pos_to_dlen_to_data.at(refpos)) {
+                        unsigned int dlen = indel2data.first;
+                        unsigned int cnt = indel2data.second;
+                        if (extended_inclu_beg_pos < refpos) {
+                            bq_del_2bdepths[strand].getRefByPos(refpos-1) += cnt;
+                        }
+                        for (unsigned d = 0; d <= dlen; d++) {
+                            if ((refpos + d) <= rpos_exclu_end) {
+                                bq_del_2bdepths[strand].getRefByPos(refpos+d) += cnt;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // This code can result in false negative InDels, but it looks like these false negative InDels can be avoided with proper (but potentially very complex) normalization
+    // Therefore, this code and all other code related to this code are commented out for now.
+    /*
+    std::array<CoveredRegion<uint32_t>, 2> bq_indel_adjmax_depths = {
+        CoveredRegion<uint32_t>(tid, extended_inclu_beg_pos, extended_exclu_end_pos + 1),
+        CoveredRegion<uint32_t>(tid, extended_inclu_beg_pos, extended_exclu_end_pos + 1)
+    };
+    for (unsigned int refpos = extended_inclu_beg_pos; refpos <= extended_exclu_end_pos; refpos++) {
+        auto totins = bq_ins_2bdepths[0].getByPos(refpos) + bq_ins_2bdepths[1].getByPos(refpos);
+        if (totins > 0) {
+            for (unsigned int p2 = MAX(extended_inclu_beg_pos + 20, refpos) - 20; p2 <= MIN(refpos + 20, extended_exclu_end_pos); p2++) {
+                bq_indel_adjmax_depths[0].getRefByPos(p2) = MAX(bq_indel_adjmax_depths[0].getByPos(p2), totins);
+            }
+        }
+        auto totdel = bq_del_2bdepths[0].getByPos(refpos) + bq_del_2bdepths[1].getByPos(refpos);
+        if (totdel > 0) {
+            for (unsigned int p2 = MAX(extended_inclu_beg_pos + 20, refpos) - 20; p2 <= MIN(refpos + 20, extended_exclu_end_pos); p2++) {
+                bq_indel_adjmax_depths[1].getRefByPos(p2) = MAX(bq_indel_adjmax_depths[1].getByPos(p2), totdel);
+            }
+        }
+    }
+    */
+
+    for (unsigned int refpos = rpos_inclu_beg; refpos <= rpos_exclu_end; refpos++) {
+        std::string repeatunit;
+        unsigned int repeatnum = 0;
+        indelpos_to_context(repeatunit, repeatnum, refstring, refpos - extended_inclu_beg_pos); 
         const std::array<SymbolType, 2> allSymbolTypes = {LINK_SYMBOL, BASE_SYMBOL};
         const std::array<SymbolType, 2> stype_to_immediate_prev = {LINK_SYMBOL, BASE_SYMBOL};
         for (unsigned int stidx = 0; stidx < 2; stidx++) {
@@ -642,20 +845,51 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                     const auto simplemut = std::make_pair(refpos, symbol);
                     auto indices_bq = (simplemut2indices_bq.find(simplemut) != simplemut2indices_bq.end() ? simplemut2indices_bq[simplemut] : empty_size_t_set); 
                     auto indices_fq = (simplemut2indices_fq.find(simplemut) != simplemut2indices_fq.end() ? simplemut2indices_fq[simplemut] : empty_size_t_set);
+                    const auto & tki_it = tid_pos_symb_to_tki.find(std::make_tuple(tid, refpos, symbol));
                     const bool is_rescued = (
                             extended_posidx_to_is_rescued[refpos - extended_inclu_beg_pos] &&
-                            (tid_pos_symb_to_tki.end() != tid_pos_symb_to_tki.find(std::make_tuple(tid, refpos, symbol)))); 
-                            //(extended_posidx_to_symbol_to_tkinfo[refpos-extended_inclu_beg_pos][symbol].DP > 0); 
+                            (tid_pos_symb_to_tki.end() != tki_it)); 
                     unsigned int phred_max_sscs = sscs_mut_table.toPhredErrRate(refsymbol, symbol);
-                    // int altdepth = 
-                    fillBySymbol(fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]], symbolToCountCoverageSet12, 
-                            refpos, symbol, refstring, extended_inclu_beg_pos, mutform2count4vec_bq, indices_bq, mutform2count4vec_fq, indices_fq, 
+                    TumorKeyInfo tki;
+                    if (is_rescued) {
+                        tki = tki_it->second; 
+                    }
+                    fill_by_symbol(fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]], 
+                            symbolToCountCoverageSet12, 
+                            refpos, 
+                            symbol, 
+                            refstring, 
+                            extended_inclu_beg_pos, 
+                            mutform2count4vec_bq, 
+                            indices_bq, 
+                            mutform2count4vec_fq, 
+                            indices_fq,
                             ((BASE_SYMBOL == symbolType) ? minABQ_snv : minABQ_indel),
-                            paramset.minMQ1, paramset.maxMQ,
-                            phred_max_sscs, paramset.phred_dscs_minus_sscs + phred_max_sscs,
-                            // ErrorCorrectionType(paramset.seq_data_type), 
-                            !paramset.disable_dup_read_merge, !paramset.enable_dup_read_vqual,
-                            is_rescued);
+                            paramset.minMQ1,
+                            paramset.maxMQ,
+                            phred_max_sscs,
+                            paramset.phred_max_dscs_all,
+                            !paramset.disable_dup_read_merge,
+                            !paramset.enable_dup_read_vqual,
+                            is_rescued,
+                            (NOT_PROVIDED != paramset.vcf_tumor_fname),
+                            repeatunit,
+                            repeatnum,
+                            tki,
+                            paramset.any_mul_contam_frac,
+                            paramset.t2n_mul_contam_frac,
+                            paramset.t2n_add_contam_frac,
+                            paramset.t2n_add_contam_transfrac,
+                            paramset.min_edge_dist,
+                            paramset.central_readlen,
+                            paramset.baq_per_aligned_base,
+                            paramset.powlaw_exponent,
+                            bq_ins_2bdepths,
+                            bq_del_2bdepths,
+                            paramset.somaticGT,
+                            // ,
+                            // bq_indel_adjmax_depths
+                            0);
                 }
                 for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; symbol = AlignmentSymbol(1+(unsigned int)symbol)) {
                     float vaq = fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]].VAQ;
@@ -717,13 +951,10 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
             if (rpos_exclu_end != refpos && bDPcDP[0] >= paramset.min_depth_thres) {
                 for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; symbol = AlignmentSymbol(1+(unsigned int)symbol)) {
                     auto & fmt = fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]];
-                    const bool pass_thres = ((fmt.bAD1[0] + fmt.bAD1[1]) >= paramset.min_altdp_thres); //  (paramset.min_alt  );
+                    const bool pass_thres = ((fmt.bAD1[0] + fmt.bAD1[1]) >= paramset.min_altdp_thres);
                     const bool is_rescued = (
-                            //(tki_it != tki_end) 
-                            //&& (std::get<1>(*tki_it) == refpos) 
                             extended_posidx_to_is_rescued[refpos - extended_inclu_beg_pos] &&
                             (tid_pos_symb_to_tki.end() != tid_pos_symb_to_tki.find(std::make_tuple(tid, refpos, symbol)))); 
-                            //(extended_posidx_to_symbol_to_tkinfo[refpos-extended_inclu_beg_pos][symbol].DP > 0); 
                     TumorKeyInfo tki;
                     if (is_rescued) {
                         tki = tid_pos_symb_to_tki.find(std::make_tuple(tid, refpos, symbol))->second; 
@@ -731,36 +962,53 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                     if (is_rescued || pass_thres) {
                         fmt.CType = SYMBOL_TO_DESC_ARR[most_confident_symbol];
                         fmt.CAQ = most_confident_qual;
-                        appendVcfRecord(buf_out_string, buf_out_string_pass, symbolToCountCoverageSet12,
-                                std::get<0>(tname_tseqlen_tuple).c_str(), refpos, symbol, fmt,
-                                refstring
-                                , contam_tDP, contam_nDP, contam_tAD, contam_nAD
-                                , contam_est_qual_thres,
-                                extended_inclu_beg_pos, paramset.vqual, should_output_all, should_let_all_pass,
-                                tki, paramset.vcf_tumor_fname.size() != 0, 
+                        unsigned int phred_max_sscs = sscs_mut_table.toPhredErrRate(refsymbol, symbol);
+                        append_vcf_record(buf_out_string, 
+                                buf_out_string_pass, 
+                                arg.vc_stats,
+                                symbolToCountCoverageSet12,
+                                std::get<0>(tname_tseqlen_tuple).c_str(), 
+                                refpos, 
+                                symbol, 
+                                fmt,
+                                refstring, 
+                                extended_inclu_beg_pos, 
+                                paramset.vqual, 
+                                should_output_all, 
+                                should_let_all_pass,
+                                tki, 
+                                (NOT_PROVIDED != paramset.vcf_tumor_fname),
                                 paramset.phred_germline_polymorphism,
-                                paramset.nonref_to_alt_frac_snv, paramset.nonref_to_alt_frac_indel
-                                , paramset.tnq_mult_snv, paramset.tnq_mult_indel
-                                , paramset.tnq_mult_tADadd_snv, paramset.tnq_mult_tADadd_indel
-                                , paramset.ldi_tier_qual
-                                , paramset.ldi_tier1cnt
-                                , paramset.ldi_tier2cnt
-                                , paramset.mai_tier_qual // = 40;
-                                , paramset.mai_tier1abq  // = 40;
-                                , paramset.mai_tier2abq  // = 40;
-                                , paramset.str_tier_qual // = 50;
-                                , paramset.str_tier1len  // = 16;
-                                , paramset.str_tier2len  // = 16;
-                                , paramset.uni_bias_thres // = 180
-                                , bcf_hdr, paramset.is_tumor_format_retrieved
-                                , ((BASE_SYMBOL == symbolType) ? paramset.highqual_thres_snv : (LINK_SYMBOL == symbolType ? paramset.highqual_thres_indel : 0))
-                                , paramset.highqual_min_ratio
-                                , paramset.diffVAQfrac
-                                , ((BASE_SYMBOL == symbolType) ? paramset.phred_sys_artifact_snv : (LINK_SYMBOL == symbolType ? paramset.phred_sys_artifact_indel : 0))
-                                , paramset.contam_ratio
-                                , paramset.sys_to_nonsys_err_ratio
-                                // paramset.phred_sys_artifact
-                                // , paramset.highqual_min_vardep, paramset.highqual_min_totdep
+                                paramset.uni_bias_thres, // = 180
+                                bcf_hdr, 
+                                paramset.is_tumor_format_retrieved,
+                                ((BASE_SYMBOL == symbolType) ? paramset.highqual_thres_snv : (LINK_SYMBOL == symbolType ? paramset.highqual_thres_indel : 0)),
+                                paramset.highqual_min_ratio,
+                                paramset.any_mul_contam_frac,
+                                paramset.t2n_mul_contam_frac,
+                                paramset.t2n_add_contam_frac,
+                                paramset.t2n_add_contam_transfrac,
+                                repeatunit, 
+                                repeatnum,
+                                SEQUENCING_PLATFORM_IONTORRENT == paramset.sequencing_platform,
+                                paramset.maxMQ,
+                                paramset.central_readlen,
+                                paramset.phred_triallelic_indel,
+                                phred_max_sscs,
+                                paramset.phred_max_dscs_all,
+                                ((BASE_SYMBOL == symbolType) ? paramset.phred_pow_sscs_origin : paramset.phred_pow_sscs_indel_origin),
+                                paramset.phred_pow_dscs_origin,
+                                paramset.vad,
+                                paramset.is_somatic_snv_filtered_by_any_nonref_germline_snv,
+                                paramset.is_somatic_indel_filtered_by_any_nonref_germline_indel,
+                                paramset.illumina_BQ_pow2_div_coef,
+                                paramset.varqual_per_mapqual,
+                                paramset.powlaw_exponent,
+                                paramset.powlaw_anyvar_base,
+                                paramset.syserr_maxqual,
+                                paramset.syserr_norm_devqual,
+                                paramset.phred_umi_indel_dimret_qual,
+                                paramset.phred_umi_indel_dimret_fold
                                 );
                     }
                 }
@@ -808,21 +1056,8 @@ main(int argc, char **argv) {
     }
     LOG(logINFO) << "Program " << argv[0] << " version " << VERSION_DETAIL;
     std::vector<std::tuple<std::string, unsigned int>> tid_to_tname_tseqlen_tuple_vec;
-    /*
-    std::vector<std::tuple<unsigned int, unsigned int, unsigned int, bool, unsigned int>> tid_beg_end_e2e_tuple_vec;
-    LOG(logINFO) << "step1: sam_fname_to_contigs"; 
-    sam_fname_to_contigs(tid_beg_end_e2e_tuple_vec, tid_to_tname_tseqlen_tuple_vec, paramset.bam_input_fname, paramset.bed_region_fname);
-    LOG(logINFO) << "The BED region is as follows (" << tid_beg_end_e2e_tuple_vec.size() << " chunks):";
-    for (auto tid_beg_end_e2e_tuple : tid_beg_end_e2e_tuple_vec) {
-        std::cerr << std::get<0>(tid_to_tname_tseqlen_tuple_vec[std::get<0>(tid_beg_end_e2e_tuple)]) << "\t" 
-                  << std::get<1>(tid_beg_end_e2e_tuple) << "\t"
-                  << std::get<2>(tid_beg_end_e2e_tuple) << "\t"
-                  << std::get<3>(tid_beg_end_e2e_tuple) << "\t"
-                  << std::get<4>(tid_beg_end_e2e_tuple) << "\n";
-    }
-    */
     samfname_to_tid_to_tname_tseq_tup_vec(tid_to_tname_tseqlen_tuple_vec, paramset.bam_input_fname);
-
+    
     const unsigned int nthreads = paramset.max_cpu_num;
     bool is_vcf_out_empty_string = (std::string("") == paramset.vcf_output_fname);
     BGZF *fp_allp = NULL;
@@ -843,6 +1078,7 @@ main(int argc, char **argv) {
             exit(-9);
         }
     }
+    // Commented out for now due to lack of good documentation for these bgzf APIs. Can investigate later.
     /*
     if (paramset.vcf_output_fname.size() != 0 && paramset.vcf_output_fname != "-") {
         bgzf_index_build_init(fp_allp);
@@ -850,6 +1086,11 @@ main(int argc, char **argv) {
     */
     // bgzf_mt(fp_allp, nthreads, 128);
     // samFile *sam_infile = sam_open(paramset.bam_input_fname.c_str(), "r");
+    
+    std::ofstream bed_out;
+    if (NOT_PROVIDED != paramset.bed_out_fname) {
+        bed_out.open(paramset.bed_out_fname, std::ios::out);
+    }
 
 #if defined(USE_STDLIB_THREAD)
     const unsigned int nidxs = nthreads * 2 + 1;
@@ -859,7 +1100,7 @@ main(int argc, char **argv) {
     
     bcf_hdr_t *g_bcf_hdr = NULL;
     const char *g_sample = NULL;
-    if (paramset.vcf_tumor_fname.size() > 0) {
+    if (NOT_PROVIDED != paramset.vcf_tumor_fname) {
         htsFile *infile = hts_open(paramset.vcf_tumor_fname.c_str(), "r");
         g_bcf_hdr = bcf_hdr_read(infile);
         g_sample = "";
@@ -890,33 +1131,29 @@ main(int argc, char **argv) {
                 exit(-5);
             }
         }
-        if (paramset.vcf_tumor_fname.size() > 0) {
-            /*
-            srs[i] = bcf_sr_init();
-            if (NULL == srs[i]) {
-                LOG(logCRITICAL) << "Failed to initialize bcf sr for thread with ID = " << i;
-                exit(-6);
-            }
-            // bcf_sr_set_opt(srs[i], BCF_SR_PAIR_LOGIC, BCF_SR_PAIR_BOTH_REF);
-            
-            int sr_set_opt_retval = bcf_sr_set_opt(srs[i], BCF_SR_REQUIRE_IDX);
-            int sr_add_reader_retval = bcf_sr_add_reader(srs[i], paramset.vcf_tumor_fname.c_str());
-            if (sr_add_reader_retval != 1) {
-                LOG(logCRITICAL) << "Failed to synchronize-read the tumor vcf " << paramset.vcf_tumor_fname << " for thread with ID = " << i;
-                exit(-7);
-            }
-            */
-        }
     }
     
+    VcStats all_vc_stats;
+
     bam_hdr_t * samheader = sam_hdr_read(samfiles[0]);
-    std::string header_outstring = generateVcfHeader(paramset.fasta_ref_fname.c_str(), SEQUENCING_PLATFORM_TO_DESC.at(inferred_sequencing_platform).c_str(), 
-            paramset.minABQ_pcr_snv, paramset.minABQ_pcr_indel, paramset.minABQ_cap_snv, paramset.minABQ_cap_indel, argc, argv, 
-            samheader->n_targets, samheader->target_name, samheader->target_len,
-            paramset.sample_name.c_str(), g_sample, paramset.is_tumor_format_retrieved);
+    std::string header_outstring = generate_vcf_header(paramset.fasta_ref_fname.c_str(), 
+            SEQUENCING_PLATFORM_TO_DESC.at(inferred_sequencing_platform).c_str(), 
+            paramset.central_readlen, 
+            paramset.minABQ_pcr_snv, 
+            paramset.minABQ_pcr_indel, 
+            paramset.minABQ_cap_snv, 
+            paramset.minABQ_cap_indel, 
+            argc, 
+            argv, 
+            samheader->n_targets, 
+            samheader->target_name, 
+            samheader->target_len,
+            paramset.sample_name.c_str(), 
+            g_sample, 
+            paramset.is_tumor_format_retrieved);
     clearstring<false>(fp_allp, header_outstring);
     clearstring<false>(fp_pass, header_outstring, is_vcf_out_pass_to_stdout);
-    
+
     std::vector<std::tuple<unsigned int, unsigned int, unsigned int, bool, unsigned int>> tid_beg_end_e2e_tuple_vec1;
     std::vector<std::tuple<unsigned int, unsigned int, unsigned int, bool, unsigned int>> tid_beg_end_e2e_tuple_vec2;
     std::map<std::tuple<unsigned int, unsigned int, AlignmentSymbol>, TumorKeyInfo> tid_pos_symb_to_tki1; 
@@ -939,8 +1176,9 @@ main(int argc, char **argv) {
             LOG(logINFO) << "Rescued/retrieved " << tid_pos_symb_to_tki2.size() << " variants in super-contig no " << (n_sam_iters);
         });
         const auto & tid_beg_end_e2e_tuple_vec = tid_beg_end_e2e_tuple_vec1; 
-        std::string bedstring = std::string("The BED-genomic-region is as follows (") + std::to_string(tid_beg_end_e2e_tuple_vec.size()) 
+        const std::string bedstring_header = std::string("The BED-genomic-region is as follows (") + std::to_string(tid_beg_end_e2e_tuple_vec.size()) 
                 + " chunks) for super-contig no " + std::to_string(n_sam_iters-1) + "\n";
+        std::string bedstring = "";
         for (const auto & tid_beg_end_e2e_tuple : tid_beg_end_e2e_tuple_vec) {
             bedstring += (std::get<0>(tid_to_tname_tseqlen_tuple_vec[std::get<0>(tid_beg_end_e2e_tuple)]) + "\t"
                   + std::to_string(std::get<1>(tid_beg_end_e2e_tuple)) + "\t"
@@ -950,8 +1188,8 @@ main(int argc, char **argv) {
                   + std::to_string(std::get<4>(tid_beg_end_e2e_tuple)) + "\t" 
                   + "\n");
         }
-        LOG(logINFO) << bedstring;
-        
+        LOG(logINFO) << bedstring_header << bedstring;
+        if (bed_out.is_open()) { bed_out << bedstring; }
         const unsigned int allridx = 0;  
         const unsigned int incvalue = tid_beg_end_e2e_tuple_vec.size();
         
@@ -963,19 +1201,6 @@ main(int argc, char **argv) {
             npositions += std::get<2>(tid_beg_end_e2e_tuple_vec[region_idx]) - std::get<1>(tid_beg_end_e2e_tuple_vec[region_idx]); 
         }
         
-        /*
-        unsigned int incvalue = 0;
-        for (unsigned int allridx = 0; allridx < tid_beg_end_e2e_tuple_vec.size(); allridx += incvalue) {
-            incvalue = 0;
-            unsigned int nreads = 0;
-            unsigned int npositions = 0;
-            while (allridx + incvalue < tid_beg_end_e2e_tuple_vec.size() && nreads < (2000*1000 * nthreads)  && npositions < (1000*1000 * nthreads)) {
-                nreads += std::get<4>(tid_beg_end_e2e_tuple_vec[allridx + incvalue]);
-                npositions += std::get<2>(tid_beg_end_e2e_tuple_vec[allridx + incvalue]) - std::get<1>(tid_beg_end_e2e_tuple_vec[allridx + incvalue]); 
-                incvalue++;
-            }
-        }
-        */
         assert(incvalue > 0);
         
         // distribute inputs as evenly as possible
@@ -1015,11 +1240,7 @@ main(int argc, char **argv) {
             struct BatchArg a = {
                     outstring_allp : "",
                     outstring_pass : "",
-                    contam_tDP : 0,
-                    contam_nDP : 0,
-                    contam_tAD : 0,
-                    contam_nAD : 0,
-                    
+                    vc_stats : VcStats(),
                     thread_id : 0,
                     hts_idx : NULL, 
                     ref_faidx : NULL,
@@ -1046,8 +1267,7 @@ main(int argc, char **argv) {
 #pragma omp parallel for schedule(dynamic, 1) num_threads(nthreads)
 #endif
         for (unsigned int beg_end_pair_idx = 0; beg_end_pair_idx < beg_end_pair_size; beg_end_pair_idx++) {
-            // for (unsigned int j = 0; j < incvalue; j++) {
-
+            
 #if defined(_OPENMP) && !defined(USE_STDLIB_THREAD)
             size_t thread_id = omp_get_thread_num();
 #elif defined(USE_STDLIB_THREAD)
@@ -1065,15 +1285,11 @@ main(int argc, char **argv) {
 #if defined(USE_STDLIB_THREAD)
             std::thread athread([
                         &batcharg, allridx, beg_end_pair, beg_end_pair_idx, &tid_beg_end_e2e_tuple_vec, &tid_to_tname_tseqlen_tuple_vec, &tid_pos_symb_to_tki1
-                        //beg_end_pair_idx, allridx, is_vcf_out_pass_to_stdout, &beg_end_pair_vec, 
-                        //&outstrings, &outstrings_pass, paramset, &tid_beg_end_e2e_tuple_vec, tid_to_tname_tseqlen_tuple_vec, UMI_STRUCT, 
-                        //sam_idxs, samfiles, ref_faidxs
                         ]() {
 #endif
                     LOG(logINFO) << "Thread " << batcharg.thread_id << " will process the sub-chunk " << beg_end_pair_idx << " which ranges from " 
                             << beg_end_pair.first << " to " << beg_end_pair.second;
                     
-                    //auto *this_sam_idx = sam_index_load2(samfiles[allridx], paramset.bam_input_fname.c_str(), NULL);
                     for (unsigned int j = beg_end_pair.first; j < beg_end_pair.second; j++) {
                         batcharg.regionbatch_ordinal = j;
                         batcharg.regionbatch_tot_num = beg_end_pair.second;
@@ -1082,7 +1298,6 @@ main(int argc, char **argv) {
                         process_batch(batcharg, tid_pos_symb_to_tki1);
                     }
 #if defined(USE_STDLIB_THREAD)
-                    //hts_idx_destroy(this_sam_idx);
             });
             threads.push_back(std::move(athread));
 #endif
@@ -1099,10 +1314,7 @@ main(int argc, char **argv) {
             if (batchargs[beg_end_pair_idx].outstring_pass.size() > 0) {
                 clearstring<true>(fp_pass, batchargs[beg_end_pair_idx].outstring_pass); // empty string means end of file
             }
-            contam_tDPtot += batchargs[beg_end_pair_idx].contam_tDP;
-            contam_nDPtot += batchargs[beg_end_pair_idx].contam_nDP;
-            contam_tADtot += batchargs[beg_end_pair_idx].contam_tAD;
-            contam_nADtot += batchargs[beg_end_pair_idx].contam_nAD;
+            all_vc_stats.update(batchargs[beg_end_pair_idx].vc_stats);
         }
         read_bam_thread.join(); // end this iter
         for (auto tid_pos_symb_to_tki1_pair: tid_pos_symb_to_tki1) {
@@ -1112,6 +1324,12 @@ main(int argc, char **argv) {
         }
         autoswap(tid_beg_end_e2e_tuple_vec1, tid_beg_end_e2e_tuple_vec2);
         autoswap(tid_pos_symb_to_tki1, tid_pos_symb_to_tki2);
+    }
+    if (NOT_PROVIDED != paramset.vc_stats_fname) {
+        std::ofstream vc_stats_ofstream(paramset.vc_stats_fname.c_str());
+        all_vc_stats.write_tsv(vc_stats_ofstream);
+    } else {
+        all_vc_stats.write_tsv(std::cerr);
     }
     clearstring<true>(fp_allp, std::string("")); // write end of file
     clearstring<true>(fp_pass, std::string(""), is_vcf_out_pass_to_stdout);
@@ -1133,25 +1351,14 @@ main(int argc, char **argv) {
             sam_close(samfiles[i]);
         }
     }
-    // sam_close(sam_infile);
-    // bgzf_flush(fp_allp);
-    /*
-    if (paramset.vcf_output_fname.size() != 0 && paramset.vcf_output_fname != "-") {
-        int index_dump_exitcode = bgzf_index_dump(fp_allp, paramset.vcf_output_fname.c_str(), ".csi");
-        if (0 != index_dump_exitcode) {
-            fprintf(stderr, "bgzf_index_dump to file %s.csi returned exit code %d\n",  paramset.vcf_output_fname.c_str(), index_dump_exitcode);
-        }
-    }
-    */
+    // bgzf_flush is internally called by bgzf_close
     if (fp_allp) {
-        // bgzf_flush(fp_allp);
         int closeresult = bgzf_close(fp_allp);
         if (closeresult != 0) {
             LOG(logERROR) << "Unable to close the bgzip file " << paramset.vcf_output_fname;
         }
     }
     if (fp_pass) {
-        // bgzf_flush(fp_pass);
         int closeresult = bgzf_close(fp_pass);
         if (closeresult != 0) {
             LOG(logERROR) << "Unable to close the bgzip file " << paramset.vcf_output_fname;

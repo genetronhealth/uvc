@@ -1,10 +1,10 @@
-#ifndef hts_parser_cpp_INCLUDED
-#define hts_parser_cpp_INCLUDED
-
-#include "logging.hpp"
 #include "grouping.hpp"
+#include "logging.hpp"
 
 // position of 5' is the starting position, but position of 3' is unreliable without mate info.
+const unsigned int ARRPOS_MARGIN = 1200;
+const int8_t ARRPOS_OUTER_RANGE = 10;
+const int8_t ARRPOS_INNER_RANGE = 3;
 
 bool 
 ispowof2(auto num) {
@@ -24,7 +24,9 @@ max(auto a, auto b) {
 int 
 bed_fname_to_contigs(
         std::vector<std::tuple<unsigned int, unsigned int, unsigned int, bool, unsigned int>> & tid_beg_end_e2e_vec,
-        const std::string & bed_fname, const bam_hdr_t *bam_hdr) {
+        const std::string & bed_fname, 
+        const bam_hdr_t *bam_hdr) {
+    
     std::map<std::string, unsigned int> tname_to_tid;
     for (size_t i = 0; i < SIGN2UNSIGN(bam_hdr->n_targets); i++) {
         tname_to_tid[bam_hdr->target_name[i]] = i;
@@ -77,7 +79,7 @@ SamIter::iternext(std::vector<std::tuple<unsigned int, unsigned int, unsigned in
             ret++;
             const auto & bedreg = (this->_tid_beg_end_e2e_vec[this->_bedregion_idx]);
             tid_beg_end_e2e_vec.push_back(bedreg);
-            nreads_tot += std::get<4>(bedreg); // tid, tbeg, tend, false, nreads));
+            nreads_tot += std::get<4>(bedreg);
             region_tot += std::get<2>(bedreg) - std::get<1>(bedreg);
             if (nreads_tot > (2000*1000 * nthreads) || region_tot > (1000*1000 * nthreads)) {
                 this->_bedregion_idx++;
@@ -96,8 +98,8 @@ SamIter::iternext(std::vector<std::tuple<unsigned int, unsigned int, unsigned in
         if (UINT_MAX == endingpos) {
             uint64_t n_overlap_positions = min(SIGN2UNSIGN(64), (SIGN2UNSIGN(16) + tend - min(tend, SIGN2UNSIGN(alnrecord->core.pos))));
             uint64_t npositions = (tend - min(tbeg, tend));
-            bool has_many_positions = npositions > n_overlap_positions * (1024); // (npositions * npositions > n_overlap_positions * (1024UL*1024UL*1UL));
-            bool has_many_reads = nreads > n_overlap_positions * (1024 * 2); // ; (nreads * nreads > n_overlap_positions * (1024UL*1024UL*2UL));
+            bool has_many_positions = npositions > n_overlap_positions * (1024);
+            bool has_many_reads = nreads > n_overlap_positions * (1024 * 2);
             if (has_many_positions || has_many_reads) {
                 endingpos = SIGN2UNSIGN(max(bam_endpos(alnrecord), 
                         min(alnrecord->core.pos, alnrecord->core.mpos) + min(abs(alnrecord->core.isize), (int)ARRPOS_MARGIN)) 
@@ -125,11 +127,8 @@ SamIter::iternext(std::vector<std::tuple<unsigned int, unsigned int, unsigned in
                 tend = max(tbeg, SIGN2UNSIGN(bam_endpos(alnrecord))) + 1;
             }
             nreads = prev_nreads;
-            //tend = max(tend, bam_endpos(alnrecord));
             nreads += 1;
-            if (nreads_tot > (2000*1000 * nthreads) || region_tot > (1000*1000 * nthreads)
-                    // || (region_tot > region_max * (nthreads * 8)) && (nreads_tot > nreads_max * (nthreads * 8))  
-                    ) {
+            if (nreads_tot > (2000*1000 * nthreads) || region_tot > (1000*1000 * nthreads)) {
                 return ret;
             }
         } else {
@@ -145,9 +144,12 @@ SamIter::iternext(std::vector<std::tuple<unsigned int, unsigned int, unsigned in
 }
 
 int
-samfname_to_tid_to_tname_tseq_tup_vec(std::vector<std::tuple<std::string, unsigned int>> & tid_to_tname_tseqlen_tuple_vec, const std::string & bam_input_fname) {
+samfname_to_tid_to_tname_tseq_tup_vec(
+        std::vector<std::tuple<std::string, unsigned int>> & tid_to_tname_tseqlen_tuple_vec, 
+        const std::string & bam_input_fname) {
+    
     tid_to_tname_tseqlen_tuple_vec.clear();
-    samFile *sam_infile = sam_open(bam_input_fname.c_str(), "r"); // AlignmentFile(samfname, "rb")
+    samFile *sam_infile = sam_open(bam_input_fname.c_str(), "r");
     bam_hdr_t * samheader = sam_hdr_read(sam_infile);
     tid_to_tname_tseqlen_tuple_vec.reserve(samheader->n_targets);
     for (int tid = 0; tid < samheader->n_targets; tid++) {
@@ -162,10 +164,12 @@ int
 sam_fname_to_contigs(
         std::vector<std::tuple<unsigned int, unsigned int, unsigned int, bool, unsigned int>> & tid_beg_end_e2e_vec,
         std::vector<std::tuple<std::string, unsigned int>> & tid_to_tname_tlen_tuple_vec,
-        const std::string & input_bam_fname, const std::string & bed_fname) {
+        const std::string & input_bam_fname, 
+        const std::string & bed_fname) {
+    
     tid_beg_end_e2e_vec.clear();
     tid_to_tname_tlen_tuple_vec.clear();
-    samFile *sam_infile = sam_open(input_bam_fname.c_str(), "r"); // AlignmentFile(samfname, "rb")
+    samFile *sam_infile = sam_open(input_bam_fname.c_str(), "r");
     bam_hdr_t * samheader = sam_hdr_read(sam_infile);
     tid_to_tname_tlen_tuple_vec.reserve(samheader->n_targets);
     
@@ -193,8 +197,8 @@ sam_fname_to_contigs(
             if (UINT_MAX == endingpos) {
                 uint64_t n_overlap_positions = min(SIGN2UNSIGN(64), (SIGN2UNSIGN(16) + tend - min(tend, SIGN2UNSIGN(alnrecord->core.pos))));
                 uint64_t npositions = (tend - min(tbeg, tend));
-                bool has_many_positions = npositions > n_overlap_positions * (1024); // (npositions * npositions > n_overlap_positions * (1024UL*1024UL*1UL));
-                bool has_many_reads = nreads > n_overlap_positions * (1024 * 2); // ; (nreads * nreads > n_overlap_positions * (1024UL*1024UL*2UL));
+                bool has_many_positions = npositions > n_overlap_positions * (1024);
+                bool has_many_reads = nreads > n_overlap_positions * (1024 * 2);
                 if (has_many_positions || has_many_reads) {
                     endingpos = SIGN2UNSIGN(max(bam_endpos(alnrecord), 
                             min(alnrecord->core.pos, alnrecord->core.mpos) + min(abs(alnrecord->core.isize), (int)ARRPOS_MARGIN)))
@@ -298,21 +302,9 @@ fill_isrc_isr2_beg_end_with_aln(bool & isrc, bool & isr2, uint32_t & tBeg, uint3
             // || ((aln->core.flag & 0x2) == 0) // having this line causes problems to SRR2556939_chr3_178936090_178936092
             || (aln->core.flag & 0x8) 
             || (0 == aln->core.isize) 
-            || (abs(aln->core.isize) >= (ARRPOS_MARGIN))) {
+            || (((unsigned int)abs(aln->core.isize)) >= (ARRPOS_MARGIN))) {
         tBeg = (isrc ? endpos : begpos);
         tEnd = (isrc ? begpos : endpos);
-        /*
-        if (!is_pair_end_merge_enabled) {
-            fprintf(stderr, "%s !is_pair_end_merge_enabled\n", bam_get_qname(aln));
-        }
-        if (aln->core.isize >= (ARRPOS_MARGIN)) {
-            fprintf(stderr, "%s (aln->core.isize >= (ARRPOS_MARGIN) %d >= %d\n", bam_get_qname(aln), aln->core.isize, ARRPOS_MARGIN);
-        }
-        if (0 == aln->core.isize) {
-            fprintf(stderr, "%s (aln->core.isize == 0)\n", bam_get_qname(aln), aln->core.isize);
-        }
-        fprintf(stderr, "%s (aln->core.flag == 0)\n", bam_get_qname(aln), aln->core.flag);
-        */
         num_seqs = 1;
     } else {
         auto tBegP1 = min(begpos, SIGN2UNSIGN(aln->core.mpos));
@@ -342,7 +334,7 @@ int
 poscounter_to_pos2pcenter(
               std::vector<unsigned int> & pos_to_center_pos,
         const std::vector<unsigned int> & pos_to_count, 
-        const unsigned int center_mult=5) {
+        const unsigned int dedup_center_mult) {
     
     for (size_t locov_pos = ARRPOS_INNER_RANGE; locov_pos < pos_to_count.size() - ARRPOS_INNER_RANGE; locov_pos++) {
         unsigned int locov_count = pos_to_count[locov_pos];
@@ -351,7 +343,7 @@ poscounter_to_pos2pcenter(
         // check if inner_pos is attracted by outer position
         for (size_t hicov_pos = locov_pos - ARRPOS_INNER_RANGE; hicov_pos < locov_pos + ARRPOS_INNER_RANGE + 1; hicov_pos++) {
             unsigned int hicov_count = pos_to_count[hicov_pos];
-            if (hicov_count > max_count && hicov_count > locov_count * pow(center_mult, unsigned_diff(locov_pos, hicov_pos))) {
+            if (hicov_count > max_count && hicov_count > locov_count * pow(dedup_center_mult, unsigned_diff(locov_pos, hicov_pos))) {
                 pos_to_center_pos[locov_pos] = hicov_pos;
                 max_count = hicov_count;
             }
@@ -360,8 +352,7 @@ poscounter_to_pos2pcenter(
     return 0;
 }
 
-//// one-way converion of data into hash values
-
+// one-way converion of data into hash values
 // https://en.wikipedia.org/wiki/Universal_hashing#Hashing_strings
 template <class T> 
 uint64_t 
@@ -391,7 +382,6 @@ strhash(const T *str) {
 
 uint64_t 
 hash2hash(uint64_t hash1, uint64_t hash2) {
-    // return hash1 ^ hash2; 
     return hash1 * ((1UL<<(31UL)) - 1UL) + hash2;
 }
 
@@ -411,12 +401,12 @@ clean_fill_strand_umi_readset(
 }
 
 int 
-apply_baq(bam1_t *aln) {
+apply_baq(bam1_t *aln, const unsigned int baq_per_aligned_base) {
     if (aln->core.l_qseq < (10*2)) { return -1; }
     for (unsigned int i = 0; i < 10; i++) { 
         auto j = aln->core.l_qseq - 1 - i;
-        (bam_get_qual(aln))[i] = min((bam_get_qual(aln))[i], 4*(i+1));
-        (bam_get_qual(aln))[j] = min((bam_get_qual(aln))[j], 4*(i+1));
+        (bam_get_qual(aln))[i] = min((bam_get_qual(aln))[i], baq_per_aligned_base * (i+1));
+        (bam_get_qual(aln))[j] = min((bam_get_qual(aln))[j], baq_per_aligned_base * (i+1));
     }
     return 0;
 }
@@ -424,39 +414,24 @@ apply_baq(bam1_t *aln) {
 int 
 fill_strand_umi_readset_with_strand_to_umi_to_reads(
         std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, int>> &umi_strand_readset,
-        std::map<uint64_t, std::pair<std::array<std::map<uint64_t, std::vector<bam1_t *>>, 2>, int>> &umi_to_strand_to_reads
+        std::map<uint64_t, std::pair<std::array<std::map<uint64_t, std::vector<bam1_t *>>, 2>, int>> &umi_to_strand_to_reads,
+        unsigned int baq_per_aligned_base
         ) {
-#if 1
     for (auto & umi_to_strand_to_reads_element : umi_to_strand_to_reads) {
         const auto strand_to_reads = umi_to_strand_to_reads_element.second.first;
         const auto dflag = umi_to_strand_to_reads_element.second.second;
         umi_strand_readset.push_back(std::make_pair(std::array<std::vector<std::vector<bam1_t *>>, 2>(), dflag));
         for (unsigned int strand = 0; strand < 2; strand++) {
-            // umi_strand_readset.back()[strand] = std::vector<std::vector<bam1_t *>>();
             for (auto read : strand_to_reads[strand]) {
                 const std::vector<bam1_t *> alns = read.second;
                 umi_strand_readset.back().first[strand].push_back(std::vector<bam1_t *>());
                 for (auto aln : alns) {
-                    apply_baq(aln);
+                    apply_baq(aln, baq_per_aligned_base);
                     umi_strand_readset.back().first[strand].back().push_back(aln);
                 }
             }
         }
     }
-#else // this is the old data structure that is not duplex aware
-    for (unsigned int strand = 0; strand < 2; strand++) {
-        for (auto umi_to_reads : strand_to_umi_to_reads.at(strand)) {
-            strand_umi_readset.at(strand).push_back(std::vector<std::vector<bam1_t *>>());
-            for (auto reads : umi_to_reads.second) {
-                strand_umi_readset.at(strand).back().push_back(std::vector<bam1_t*>());
-                for (auto read : reads.second) {
-                    apply_baq(aln);
-                    strand_umi_readset.at(strand).back().back().push_back(read);
-                }
-            }
-        }
-    }
-#endif
     return 0;
 };
 
@@ -471,7 +446,6 @@ bam2umihash(int & is_umi_found, const bam1_t *aln, const std::vector<uint8_t> & 
         size_t patpos = 0;
         uint64_t umihash = 0;
         for (int j = i; j < aln->core.l_qseq && patpos < UMI_STRUCT.size(); j++) {
-            // int offset = i + j;
             char int4base;
             if (is_rc) {
                 char int4base2 = bam_seqi(bamseq, aln->core.l_qseq - 1 - j);
@@ -503,17 +477,28 @@ bam2umihash(int & is_umi_found, const bam1_t *aln, const std::vector<uint8_t> & 
 std::array<unsigned int, 3>
 bamfname_to_strand_to_familyuid_to_reads(
         std::map<uint64_t, std::pair<std::array<std::map<uint64_t, std::vector<bam1_t *>>, 2>, int>> &umi_to_strand_to_reads,
-        unsigned int & extended_inclu_beg_pos, unsigned int & extended_exclu_end_pos,
+        unsigned int & extended_inclu_beg_pos, 
+        unsigned int & extended_exclu_end_pos,
         const std::string input_bam_fname, 
-        unsigned int tid, unsigned int fetch_tbeg, unsigned int fetch_tend, 
-        bool end2end, unsigned int min_mapq, unsigned int min_alnlen, 
-        unsigned int regionbatch_ordinal, unsigned int regionbatch_tot_num,
+        unsigned int tid, 
+        unsigned int fetch_tbeg, 
+        unsigned int fetch_tend, 
+        bool end2end, 
+        unsigned int min_mapq, 
+        unsigned int min_alnlen, 
+        unsigned int regionbatch_ordinal, 
+        unsigned int regionbatch_tot_num,
         const std::string UMI_STRUCT_STRING, 
         const hts_idx_t * hts_idx,
         const bool is_molecule_tag_enabled,
         const bool is_pair_end_merge_enabled,
         bool disable_duplex,
-        size_t thread_id) {
+        size_t thread_id,
+        unsigned int dedup_center_mult,
+        unsigned int dedup_amplicon_count_to_surrcount_frac,
+        unsigned int dedup_yes_umi_2ends_peak_frac,
+        unsigned int dedup_non_umi_2ends_peak_frac
+        ) {
     assert (fetch_tend > fetch_tbeg);
     
     const bool should_log = (ispowof2(regionbatch_ordinal+1) || ispowof2(regionbatch_tot_num - regionbatch_ordinal));
@@ -527,23 +512,20 @@ bamfname_to_strand_to_familyuid_to_reads(
     extended_inclu_beg_pos = INT32_MAX;
     extended_exclu_end_pos = 0;
     
-    // unsigned int alignmentpassed, lenpassed, cigarpassed, umipassed, 
     unsigned int pcrpassed, umi_pcrpassed;
-    // alignmentpassed = lenpassed = cigarpassed = umipassed = 
     pcrpassed = umi_pcrpassed = 0;
    
-    samFile *sam_infile = sam_open(input_bam_fname.c_str(), "r"); // AlignmentFile(input_bam_fname, "rb");
+    samFile *sam_infile = sam_open(input_bam_fname.c_str(), "r");
     if (should_log) {
         LOG(logINFO) << "Thread " << thread_id << " started dedupping the chunk tid" << tid << ":" << fetch_tbeg << "-" << fetch_tend 
                 << " (region no " << regionbatch_ordinal << "/" << regionbatch_tot_num << " in this batch)";
     }
-    unsigned int fetch_size = fetch_tend - fetch_tbeg + (ARRPOS_MARGIN + ARRPOS_OUTER_RANGE) * 2; // arrposIsSpecial
+    unsigned int fetch_size = fetch_tend - fetch_tbeg + (ARRPOS_MARGIN + ARRPOS_OUTER_RANGE) * 2;
     
     std::vector<unsigned int> inicount(fetch_size, 0);
     std::array<std::vector<unsigned int>, 4> isrc_isr2_to_beg_count = { inicount, inicount, inicount, inicount };
     std::array<std::vector<unsigned int>, 4> isrc_isr2_to_end_count = { inicount, inicount, inicount, inicount };
     
-    // hts_idx_t * hts_idx = sam_index_load2(sam_infile, input_bam_fname.c_str(), NULL);
     hts_itr_t * hts_itr;
     bam1_t *aln = bam_init1();
     
@@ -571,17 +553,16 @@ bamfname_to_strand_to_familyuid_to_reads(
         num_iter_alns += 1;
     }
     sam_itr_destroy(hts_itr);
-    // LOG(logINFO) << "Iteration 2 begins!";
-
+    
     std::array<std::vector<unsigned int>, 4> isrc_isr2_to_beg2bcenter = { inicount, inicount, inicount, inicount };
     for (unsigned int isrc_isr2 = 0; isrc_isr2 < 4; isrc_isr2++) {
         auto beg_to_count = isrc_isr2_to_beg_count[isrc_isr2];
-        poscounter_to_pos2pcenter(isrc_isr2_to_beg2bcenter[isrc_isr2], beg_to_count);
+        poscounter_to_pos2pcenter(isrc_isr2_to_beg2bcenter[isrc_isr2], beg_to_count, dedup_center_mult);
     }
     std::array<std::vector<unsigned int>, 4> isrc_isr2_to_end2ecenter = { inicount, inicount, inicount, inicount };
     for (unsigned int isrc_isr2 = 0; isrc_isr2 < 4; isrc_isr2++) {
         auto end_to_count = isrc_isr2_to_end_count[isrc_isr2];
-        poscounter_to_pos2pcenter(isrc_isr2_to_end2ecenter[isrc_isr2], end_to_count);
+        poscounter_to_pos2pcenter(isrc_isr2_to_end2ecenter[isrc_isr2], end_to_count, dedup_center_mult);
     }
     
     unsigned int beg_peak_max = 0;
@@ -591,7 +572,6 @@ bamfname_to_strand_to_familyuid_to_reads(
         }
     }
     
-    // LOG(logINFO) << "Iteration 3 begins!";
     size_t alnidx = 0;
     hts_itr = sam_itr_queryi(hts_idx, tid, fetch_tbeg, fetch_tend);
     while (sam_itr_next(sam_infile, hts_itr, aln) >= 0) {
@@ -606,7 +586,6 @@ bamfname_to_strand_to_familyuid_to_reads(
         if (NOT_FILTERED != filterReason) {
             continue;
         }
-        //LOG(logINFO) << "Iteration 3.1 begins!";
         const char *qname = bam_get_qname(aln);
         const uint64_t qhash = strhash(qname);
         const char *umi_beg1 = strchr(qname,   '#');
@@ -626,7 +605,7 @@ bamfname_to_strand_to_familyuid_to_reads(
                 umihash = ((isrc ^ isr2) ? hash2hash(umihash_part1, umihash_part2) : hash2hash(umihash_part2, umihash_part1));
                 is_duplex_found++;
             } else {
-                umihash = strnhash(umi_beg, umi_end-umi_beg); // + strnhash_rc(umi_beg, umi_end-umi_beg);
+                umihash = strnhash(umi_beg, umi_end-umi_beg);
             }
         } else if ((aln->core.flag & 0x1) == 0 && umi_struct_string16.size() > 0) { // should be proton
             umihash = bam2umihash<false>(is_umi_found, aln, umi_struct_string16);
@@ -636,13 +615,10 @@ bamfname_to_strand_to_familyuid_to_reads(
         }
         unsigned int isrc_isr2 = isrc * 2 + isr2;
         unsigned int beg2 = isrc_isr2_to_beg2bcenter[isrc_isr2][tBeg + ARRPOS_MARGIN - fetch_tbeg];
-        // beg2 = (beg2 != 0 ? beg2 :tBeg);
         unsigned int end2 = isrc_isr2_to_end2ecenter[isrc_isr2][tEnd + ARRPOS_MARGIN - fetch_tbeg];
-        // end2 = (end2 != 0 ? end2 :tEnd);
         unsigned int beg2count = isrc_isr2_to_beg_count[isrc_isr2][beg2];
         unsigned int end2count = isrc_isr2_to_end_count[isrc_isr2][end2];
         
-        //LOG(logINFO) << "Iteration 3.2 begins!";
         unsigned int beg2surrcount = 0;
         for (int8_t i = -(int)ARRPOS_OUTER_RANGE; i < (int)ARRPOS_OUTER_RANGE+1; i++) {
             if (i > ARRPOS_INNER_RANGE || i < -ARRPOS_INNER_RANGE) {
@@ -659,30 +635,26 @@ bamfname_to_strand_to_familyuid_to_reads(
                 end2surrcount = max(end2surrcount, end_count);
             }
         }
-        //LOG(logINFO) << "Iteration 3.3 begins!";
         double begfrac = (double)(beg2count) / (double)(beg2surrcount + 1);
         double endfrac = (double)(end2count) / (double)(end2surrcount + 1);
         
-        const bool is_assay_amplicon = (begfrac > 16 || endfrac > 16);
+        const bool is_assay_amplicon = (begfrac > dedup_amplicon_count_to_surrcount_frac || endfrac > dedup_amplicon_count_to_surrcount_frac);
         const bool is_tag_umi = (is_molecule_tag_enabled && is_umi_found);
         const uint64_t umilabel = (is_tag_umi ? umihash : (is_assay_amplicon ? qhash : 0));
         pcrpassed += is_assay_amplicon;
-        const double peakimba = (is_tag_umi ? 4 : 8);
-        const double peakfrac = peakimba;
+        const double peakimba = (is_tag_umi ? dedup_yes_umi_2ends_peak_frac : dedup_non_umi_2ends_peak_frac);
         
-        //LOG(logINFO) << "Iteration 3.4 begins!";
         int begIsVariable = 0;
         int endIsVariable = 0;
         if (end2count * peakimba < beg2count) {
             endIsVariable = 1; // special flag indicating no end as lots of reads begin at the same position but end at different positions
         } else if (beg2count * peakimba < end2count) {
             begIsVariable = 1;
-        } else if (beg2count > end2count && begfrac > peakfrac && (2 != num_seqs)) {
+        } else if (beg2count > end2count && begfrac > peakimba && (2 != num_seqs)) {
             endIsVariable = 2; // special flag indicating no end as the begin position attracts lots of reads
-        } else if (beg2count < end2count && endfrac > peakfrac && (2 != num_seqs)) {
+        } else if (beg2count < end2count && endfrac > peakimba && (2 != num_seqs)) {
             begIsVariable = 2; 
         }
-        //LOG(logINFO) << "Iteration 3.5 begins!";
         
         assert(!(begIsVariable && endIsVariable));
         uint64_t umi3hash;
@@ -695,9 +667,7 @@ bamfname_to_strand_to_familyuid_to_reads(
             auto max2 = max(beg2, end2);
             umi3hash = hash2hash(umilabel, hash2hash(min2+1, max2+1));
         }
-        // umi3hash = umilabel;
         
-        //LOG(logINFO) << "Iteration 3.6 begins!";
         unsigned int strand = (isrc ^ isr2);
         int dflag = (is_duplex_found ? 2 : (is_umi_found ? 1 : 0));
         umi_to_strand_to_reads.insert(std::make_pair(umi3hash, std::make_pair(std::array<std::map<uint64_t, std::vector<bam1_t *>>, 2>(), dflag)));
@@ -726,15 +696,14 @@ bamfname_to_strand_to_familyuid_to_reads(
                     << "qhash = " << qhash;
         }
         alnidx += 1;
-        //LOG(logINFO) << "Iteration 3.7 begins!";
     }
     sam_itr_destroy(hts_itr);
     
     bam_destroy1(aln);
-    // sam_index_destroy(hts_idx); // TODO: reuse index
+    // sam_index_destroy(hts_idx); // TODO: reuse index if possible
     // hts_idx_destroy(hts_idx);
     sam_close(sam_infile);
     if (should_log) { LOG(logINFO) << "Thread " << thread_id << " finished dedupping."; }
     return std::array<unsigned int, 3>({num_pass_alns, pcrpassed, umi_pcrpassed});
 }
-#endif
+

@@ -1,4 +1,3 @@
-// Log, version 0.1: a simple logging class
 #ifndef logging_hpp_INCLUDED
 #define logging_hpp_INCLUDED
 
@@ -9,9 +8,7 @@
 if (level > Log::ReportingLevel()) ; \
 else Log().Get(level)
 
-enum              TLogLevel         { logCRITICAL ,  logERROR ,  logWARNING ,  logINFO ,  logINFO2,   logDEBUG ,  logDEBUG1 ,  logDEBUG2 ,  logDEBUG3 ,  logDEBUG4 };
-
-static TLogLevel globalMessageLevel = logINFO2;
+enum TLogLevel { logCRITICAL ,  logERROR ,  logWARNING ,  logINFO ,  logINFO2,   logDEBUG ,  logDEBUG1 ,  logDEBUG2 ,  logDEBUG3 ,  logDEBUG4 };
 
 class Log {
 public:
@@ -20,8 +17,7 @@ public:
     std::ostringstream& 
     Get(TLogLevel level = logINFO2);
 public:
-    static TLogLevel& 
-    ReportingLevel() { return globalMessageLevel; };
+    static TLogLevel& ReportingLevel();
 protected:
     std::ostringstream os;
 private:

@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
 scriptdir="$(dirname "$(which "$0")")"
 if [ $# -lt 5 ]; then
@@ -61,6 +61,8 @@ else
     nsample="${samplename}_N"
 fi
 
+tbed="${outdir}/${tsample}_uvc1.bed"
+
 tvcfgz="${outdir}/${tsample}_uvc1.vcf.gz"
 nvcfgz="${outdir}/${nsample}_uvc1.vcf.gz"
 
@@ -93,12 +95,12 @@ if [ "${nprocs}" -gt 0 ]; then
     fi
 else
     date 
-    "${scriptdir}/uvc1" -f "${ref}" -s "${tsample}" "${tbam}" -o "${tvcfgz}" "${tparams[@]}" 2> "${tlog}"
+    "${scriptdir}/uvc1" -f "${ref}" -s "${tsample}" "${tbam}" -o "${tvcfgz}" --bed-outfname "${tbed}" "${tparams[@]}" 2> "${tlog}"
     date 
     bcftools index -ft "${tvcfgz}" # or use tabix, requires htslib 1.6 or plus
 
     date
-    "${scriptdir}/uvc1" -f "${ref}" -s "${nsample}" "${nbam}" -o "${nvcfgz}" "${nparams[@]}" --tumor-vcf "${tvcfgz}" 2> "${nlog}"
+    "${scriptdir}/uvc1" -f "${ref}" -s "${nsample}" "${nbam}" -o "${nvcfgz}" --bed-infname  "${tbed}" "${nparams[@]}" --tumor-vcf "${tvcfgz}" 2> "${nlog}"
     date
     bcftools index -ft "${nvcfgz}" # or use tabix, requires htslib 1.6 or plus
 fi

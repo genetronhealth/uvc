@@ -4,7 +4,7 @@ The script uvcTN.sh in the bin directory takes two BAM files corresponding to tu
 
 --- How to install ---
 
-UVC requires a compiler that supports the c++14 standard.
+UVC requires BASH 4.0+ (4.0 is the minimum version required) and a compiler that supports the C++14 standard.
 The Makefile in this directory compiles with g++, but the Makefile can be easily modified to use another compiler instead of g++ (for example, clang).
 To install from scratch, please run: ./install-dependencies.sh && make clean && make all -j4 && make deploy
 UVC depends on htslib 1.6+ and bcftools 1.6+ (lower versions of htslib and bcftools may also work, but are not tested).
@@ -14,6 +14,8 @@ Although not required, it is highly recommmended that bcftools is installed at a
 The UVC binary uses multi-threading efficiently for up to 16 threads. 
 After reaching 16 threads, adding more threads no longer significantly reduces wall-clock runtime.
 However, more efficient speed-up can still be gained by runing with GNU parallel or qsub to use one job per chromosome.
+
+In total, the installation should take about 5 minutes.
 
 --- How to use ---
 
@@ -32,6 +34,14 @@ For example, the UMI-labeled read name can be
 The auxiliary tool debarcode can be used for appending UMI sequences into read names.
 Running debarcode without any command-line argument will display its usage help.
 
+It is recommended to manual check the following outlier variant candidates:
+ 1. for non-UMI data, variant candidates with FORMAT/FTS consisting of three or more filter strings (typically less than 1.5% of all variants).
+ 2. for UMI data, variant candidates with FORMAT/FTS consisting of one or more filter strings (typically less than 6% of all variants).
+If manual check is still too labor-intensive, then it is recommended to keep such outlier variant candidate if the candidate
+ 1. is at a hotspot (for example, if the candidate shows high-frequency occurence in the COSMIC database) and
+ 2. does not show germline risk (such as low-frequency occurence or absence in dbSNP).
+Otherwise, it is recommended to reject such variant candidate.
+
 --- What to report if a runtime error arises ---
 
 In fact, uvc1 and some other executables all generated the same output given the same input. Their differences are as follows.
@@ -47,11 +57,12 @@ uvc.cppt.out: similar to uvc1 except that uvc.cppt.out uses c++14 thread instead
 
 All bug reports, feature requests, and ideas for improvement are welcome (although not all of them may be addressed in time)!
 
---- Other things --
+--- Other things ---
 
 The environment variable ONE_STEP_UMI_STRUCT has special meaning to UVC.
 Please make sure that ONE_STEP_UMI_STRUCT is either not set or set to the empty string before running UVC.
 The python script extract-barcodes.py is obsolete and is replaced by debarcode.
 Compared with extract-barcodes.py, debarcode generates equivalent output but consumes only 40% of its runtime.
 The outputs of these two programs may not be the same in compressed space but are exactly the same in decompressed space.
+The program minivc is a simple SNV caller that runs very fast but has limited sensitivity. It can be used for estimating contamination.
 
