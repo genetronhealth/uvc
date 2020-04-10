@@ -1095,8 +1095,8 @@ public:
                         this->inc<TUpdateType>(rpos, LINK_M, incvalue, b);
                         if (TFillSeqDir) {
                             bq_dirs_count[strand*2+isrc].inc<SYMBOL_COUNT_SUM>(rpos, LINK_M, 1, b);
-                            bq_dirs_edmax[0].inc<BASE_QUALITY_MAX>(rpos, LINK_M, qpos + 1, b);
-                            bq_dirs_edmax[1].inc<BASE_QUALITY_MAX>(rpos, LINK_M, b->core.l_qseq - qpos, b);
+                            bq_dirs_edmax[0].inc<SYMBOL_COUNT_SUM>(rpos, LINK_M, qpos + 1, b);
+                            bq_dirs_edmax[1].inc<SYMBOL_COUNT_SUM>(rpos, LINK_M, b->core.l_qseq - qpos, b);
                         }
                     }
                     unsigned int base4bit = bam_seqi(bseq, qpos);
@@ -1108,8 +1108,8 @@ public:
                     this->inc<TUpdateType>(rpos, AlignmentSymbol(base3bit), incvalue, b);
                     if (TFillSeqDir) {
                         bq_dirs_count[strand*2+isrc].inc<SYMBOL_COUNT_SUM>(rpos, AlignmentSymbol(base3bit), 1, b);
-                        bq_dirs_edmax[0].inc<BASE_QUALITY_MAX>(rpos, AlignmentSymbol(base3bit), qpos + 1, b);
-                        bq_dirs_edmax[1].inc<BASE_QUALITY_MAX>(rpos, AlignmentSymbol(base3bit), b->core.l_qseq - qpos, b);
+                        bq_dirs_edmax[0].inc<SYMBOL_COUNT_SUM>(rpos, AlignmentSymbol(base3bit), qpos + 1, b);
+                        bq_dirs_edmax[1].inc<SYMBOL_COUNT_SUM>(rpos, AlignmentSymbol(base3bit), b->core.l_qseq - qpos, b);
                     }
                     rpos += 1;
                     qpos += 1;
@@ -1141,8 +1141,8 @@ public:
                 this->inc<TUpdateType>(rpos, insLenToSymbol(inslen), MAX(SIGN2UNSIGN(1), incvalue), b);
                 if (TFillSeqDir) {
                     bq_dirs_count[strand*2+isrc].inc<SYMBOL_COUNT_SUM>(rpos, insLenToSymbol(inslen), 1, b);
-                    bq_dirs_edmax[0].inc<BASE_QUALITY_MAX>(rpos, insLenToSymbol(inslen), qpos + 1, b);
-                    bq_dirs_edmax[1].inc<BASE_QUALITY_MAX>(rpos, insLenToSymbol(inslen), b->core.l_qseq - qpos - cigar_oplen, b);
+                    bq_dirs_edmax[0].inc<SYMBOL_COUNT_SUM>(rpos, insLenToSymbol(inslen), qpos + 1, b);
+                    bq_dirs_edmax[1].inc<SYMBOL_COUNT_SUM>(rpos, insLenToSymbol(inslen), b->core.l_qseq - qpos - cigar_oplen, b);
                 }
                 std::string iseq;
                 iseq.reserve(cigar_oplen);
@@ -1184,8 +1184,8 @@ public:
                 this->inc<TUpdateType>(rpos, delLenToSymbol(dellen), MAX(SIGN2UNSIGN(1), incvalue), b);
                 if (TFillSeqDir) {
                     bq_dirs_count[strand*2+isrc].inc<SYMBOL_COUNT_SUM>(rpos, delLenToSymbol(dellen), 1, b);
-                    bq_dirs_edmax[0].inc<BASE_QUALITY_MAX>(rpos, delLenToSymbol(dellen), qpos + 1, b);
-                    bq_dirs_edmax[1].inc<BASE_QUALITY_MAX>(rpos, delLenToSymbol(dellen), b->core.l_qseq - qpos, b);
+                    bq_dirs_edmax[0].inc<SYMBOL_COUNT_SUM>(rpos, delLenToSymbol(dellen), qpos + 1, b);
+                    bq_dirs_edmax[1].inc<SYMBOL_COUNT_SUM>(rpos, delLenToSymbol(dellen), b->core.l_qseq - qpos, b);
                 }
                 this->incDel(rpos, cigar_oplen, delLenToSymbol(dellen), MAX(SIGN2UNSIGN(1), incvalue));
 #if 0 
@@ -2271,7 +2271,7 @@ BcfFormat_init(bcfrec::BcfFormat & fmt,
         fmt.bSSDP[strand*2+1] = symbolDistrSets12.bq_dirs_count.at(strand*2+1).getByPos(refpos).sumBySymbolType(symbolType);
     }
     for (unsigned int dir = 0; dir < 2; dir++) {
-        fmt.bSSEDD[dir] = symbolDistrSets12.bq_dirs_edmax.at(dir).getByPos(refpos).maxBySymbolType(symbolType);
+        fmt.bSSEDD[dir] = symbolDistrSets12.bq_dirs_edmax.at(dir).getByPos(refpos).sumBySymbolType(symbolType);
     }
 
     fmt.gapSeq.clear();
@@ -3198,6 +3198,23 @@ append_vcf_record(std::string & out_string,
     }
     if (0 < vcffilter.size()) {
         vcffilter.pop_back();
+    }
+    
+    fmtvar.FT = "";
+    auto bSSADsum = fmt.bSSAD[0] + fmt.bSSAD[1] + fmt.bSSAD[2] + fmt.bSSAD[3];
+    auto bSSDPsum = fmt.bSSDP[0] + fmt.bSSDP[1] + fmt.bSSDP[2] + fmt.bSSDP[3]; 
+    for (unsigned int dir = 0; dir < 2; dir++) {
+        auto alt_avg_edge_dist = fmt.bSSEDA[dir] / (bSSADsum + 1);
+        auto all_avg_edge_dist = fmt.bSSEDD[dir] / (bSSDPsum + 1);
+        if ((alt_avg_edge_dist < 25) && (alt_avg_edge_dist + 35 < all_avg_edge_dist)) {
+            fmtvar.FT += ((0 == dir) ? "GPBL;" : "GPBR;");
+        }
+    }
+    
+    if ("" == fmtvar.FT) {
+        fmtvar.FT = "PASS";
+    } else {
+        fmtvar.FT.pop_back();
     }
     
     // This hard-filtering can be done by bcftools but much more slowly
