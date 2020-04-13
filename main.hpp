@@ -3201,12 +3201,15 @@ append_vcf_record(std::string & out_string,
     }
     
     fmtvar.FT = "";
-    auto bSSADsum = fmt.bSSAD[0] + fmt.bSSAD[1] + fmt.bSSAD[2] + fmt.bSSAD[3];
-    auto bSSDPsum = fmt.bSSDP[0] + fmt.bSSDP[1] + fmt.bSSDP[2] + fmt.bSSDP[3]; 
+    auto bSSADsum = SUMVEC(fmt.bSSAD);
+    auto bSSDPsum = SUMVEC(fmt.bSSDP);
     for (unsigned int dir = 0; dir < 2; dir++) {
         auto alt_avg_edge_dist = fmt.bSSEDA[dir] / (bSSADsum + 1);
         auto all_avg_edge_dist = fmt.bSSEDD[dir] / (bSSDPsum + 1);
-        if ((alt_avg_edge_dist < 25) && (alt_avg_edge_dist + 35 < all_avg_edge_dist)) {
+        if ((alt_avg_edge_dist < 25)                             // absolute edge
+                && ((alt_avg_edge_dist + 25 < all_avg_edge_dist) // relative edge
+                ||  (bSSADsum > bSSDPsum / 2))                   // is major allele
+                ) {
             fmtvar.FT += ((0 == dir) ? "GPBL;" : "GPBR;");
         }
     }
@@ -3521,10 +3524,10 @@ append_vcf_record(std::string & out_string,
             double t2n_nonalt_frac = ((1.0 - nfm.FA) * (double)nfm.DP + nE0) / ((1.0 - tki.FA) * (double)tki.DP + tE0);
             double max_tn_ratio = (1.0 - t2n_add_coontam_transfrac_low) / t2n_add_coontam_transfrac_low * MIN(2.0, t2n_nonalt_frac);
             // unsigned int nearby_max_bAD = (isSymbolIns(symbol) ? tki.gapbNNRD[0] : tki.gapbNNRD[1]);
-            unsigned int qseq_min_edgedist = MIN(tki.bSSEDA[0], tki.bSSEDA[1]);
+            unsigned int qseq_avg_edge_dist = MIN(tki.bSSEDA[0], tki.bSSEDA[1]) / (SUMVEC(tki.bSSAD) + 1);
             // unsigned int edgedist_penal = (qseq_min_edgedist >= 24 ? 0 : (mathsquare(24 - qseq_min_edgedist) / 4));
             t2n_limq = 10.0/log(10.0) * log(MAX(max_tn_ratio, 1.0)) - ((LINK_D1 == symbol) ? 6 : 0); // - edgedist_penal; // - 10.0/log(10.0) * log((double)(nearby_max_bAD + 1) / (double)(SUM2(tki.bAD1) + 1));
-            if (qseq_min_edgedist < 35) {
+            if (qseq_avg_edge_dist <= 20) {
                 t2n_limq -= MIN(MAX(0, tn_npowq), 60.0);
             }
         }

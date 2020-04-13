@@ -97,6 +97,14 @@ SUM2(const auto & vec) {
     return vec[0] + vec[1];
 }
 
+auto
+SUMVEC(const auto & vec) {
+    auto r = 0;
+    for (unsigned int i = 0; i < vec.size(); i++) {
+        r += vec[i];
+    }
+    return r;
+}
 
 void 
 UPDATE_MIN2(auto & a, const auto & b) {
