@@ -2705,6 +2705,8 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
                 t2n_conalt_frac += (tki_fa_l * 0.02 + tki_fa_l * 0.02 * MIN(5.0, tki.DP / (double)(fmt.DP + DBL_MIN)));
             }
             
+            auto ref_mul_contam_frac = any_mul_contam_frac * 2.0;
+            
             // two models (additive and multiplicative)
             // two alleles (REF and ALT)
             // two sources of stochasticity (heterozygosity and contamination)
@@ -2718,14 +2720,14 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
             int hetREF_likelim1 =  (int)(10.0/log(10.00) * powlaw_exponent * MIN(logit2(fr_l / refmul * (1.0 + 0.0),                                    fa_l / altmul), 0.0));
             int hetALT_likelim1 =  (int)(10.0/log(10.00) * powlaw_exponent * MIN(logit2(fa_l / altmul * (1.0 + 0.0),                                    fr_l / refmul), 0.0));         
             int homref_likelim1 =  (int)(10.0/log(10.00) * powlaw_exponent * MIN(logit2(fr_l / refmul * any_mul_contam_frac + t2n_conalt_frac / altmul, fa_l / altmul), 0.0));
-            int homalt_likelim1 =  (int)(10.0/log(10.00) * powlaw_exponent * MIN(logit2(fa_l / altmul * any_mul_contam_frac + t2n_conref_frac / refmul, fr_l / refmul), 0.0));
+            int homalt_likelim1 =  (int)(10.0/log(10.00) * powlaw_exponent * MIN(logit2(fa_l / altmul * ref_mul_contam_frac + t2n_conref_frac / refmul, fr_l / refmul), 0.0));
             
             // assuming statistical independence of reads, kl-divergence is translated into a phred-scaled error probability.
             // binom_10log10_likeratio(theoretical-deviation-rate, number-of-deviation-signals, number-of-all-signals), higher-than-expected deviation <=> more-negative-score
             int hetREF_likeval1 = -(int)calc_binom_10log10_likeratio(0.500 * altmul, da_v, dr_v);                                 // het-ref to ALT add error phred
             int hetALT_likeval1 = -(int)calc_binom_10log10_likeratio(0.500 * refmul, dr_v, da_v);                                 // het-alt to REF add error phred
             int homref_likeval1 = -(int)calc_binom_10log10_likeratio(any_mul_contam_frac * altmul + t2n_conalt_frac, da_v, dr_v);      // hom-alt to REF add error phred by contamination
-            int homalt_likeval1 = -(int)calc_binom_10log10_likeratio(any_mul_contam_frac * refmul + t2n_conref_frac, dr_v, da_v);      // hom-ref to ALT add error phred by contamination
+            int homalt_likeval1 = -(int)calc_binom_10log10_likeratio(ref_mul_contam_frac * refmul + t2n_conref_frac, dr_v, da_v);      // hom-ref to ALT add error phred by contamination
             
             int homref_likelim2 = MAX(homref_likelim1, homref_likecon1);
             int homref_likeval2 = MAX(homref_likeval1, homref_likecon1);
@@ -3206,7 +3208,7 @@ append_vcf_record(std::string & out_string,
     for (unsigned int dir = 0; dir < 2; dir++) {
         auto alt_avg_edge_dist = fmt.bSSEDA[dir] / (bSSADsum + 1);
         auto all_avg_edge_dist = fmt.bSSEDD[dir] / (bSSDPsum + 1);
-        if ((alt_avg_edge_dist < 25)                             // absolute edge
+        if ((alt_avg_edge_dist < 30)                             // absolute edge
                 && ((alt_avg_edge_dist + 25 < all_avg_edge_dist) // relative edge
                 ||  (bSSADsum > bSSDPsum / 2))                   // is major allele
                 ) {
