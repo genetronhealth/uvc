@@ -252,15 +252,17 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("cVAQ1"    , 2, BCF_FLOAT,   "see above"),
     BcfFormatStruct("cVAQ2"    , 2, BCF_FLOAT,   "see above"),
     
-    BcfFormatStruct("__cf"     , 1, BCF_SEP,     "Forward&reverse number of families without any filtering (total: cDPTT, allele: cADTT, reference: cRDTT, "
-                                                 "REF/ALT allele singleton: cRDT1/cADT1, REF/ALT allele failing 80\% consensus : cRDTN/cADTN). "),
-    BcfFormatStruct("cDPTT"    , 2, BCF_INTEGER, "see above"),
+    BcfFormatStruct("__cf"     , 1, BCF_SEP,     "Forward&reverse number of families without any filtering (REF/ALT/ALL total: cRDTT/cADTT/cDPTT, "
+                                                 "REF/ALT/ALL allele singleton: cRDT1/cADT1/cDPT1, REF/ALT/ALL allele failing 80\% consensus : cRDTN/cADTN/cDPTN). "),
     BcfFormatStruct("cADTT"    , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("cRDTT"    , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("cADT1"    , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("cADTN"    , 2, BCF_INTEGER, "see above"),
+    BcfFormatStruct("cADTC"    , 2, BCF_INTEGER, "(TT - T1 - TN) for ALT"),
+    BcfFormatStruct("cRDTT"    , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("cRDT1"    , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("cRDTN"    , 2, BCF_INTEGER, "see above"),
+    BcfFormatStruct("cRDTC"    , 2, BCF_INTEGER, "(TT - T1 - TN) for REF"),
+    BcfFormatStruct("cDPTT"    , 2, BCF_INTEGER, "see above"),
+    BcfFormatStruct("cDPT1"    , 2, BCF_INTEGER, "see above"),
+    BcfFormatStruct("cDPTC"    , 2, BCF_INTEGER, "(TT - T1 - TN) for ALL"),
     
     BcfFormatStruct("__da"     , 1, BCF_SEP,     "Same as __ba and __ca but for duplex families [duplex family, DSCS1-deduped]"),
     BcfFormatStruct("dDP1"     , 1, BCF_INTEGER, "see above"),
