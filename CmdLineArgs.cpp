@@ -10,6 +10,24 @@
 
 #include <float.h>
 
+bool
+is_bitflag_checked(uint32_t bitflag_InDel_penal_t_UMI_n_UMI, bool is_InDel, bool is_penal, bool is_t_UMI, bool is_n_UMI) {
+    uint32_t bitflag_index = 0;
+    if (is_InDel) {
+        bitflag_index += 8;
+    }
+    if (is_penal) {
+        bitflag_index += 4;
+    } 
+    if (is_t_UMI) {
+        bitflag_index += 2;
+    }
+    if (is_n_UMI) {
+        bitflag_index += 1;
+    }
+    return ((0x1L << bitflag_index) & bitflag_InDel_penal_t_UMI_n_UMI);
+}
+
 SequencingPlatform 
 CommandLineArgs::selfUpdateByPlatform() {
     SequencingPlatform inferred_sequencing_platform = this->sequencing_platform;
@@ -264,8 +282,9 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     app.add_option("--dedup-yes-umi-2ends-peak-frac",    dedup_yes_umi_2ends_peak_frac, 
                    "If the ratio of the numbers of reads ending on the two ends with UMI is above this value, then UMI is assumed to be single-end." , true);
     app.add_option("--dedup-non-umi-2ends-peak-frac",    dedup_non_umi_2ends_peak_frac, 
-                   "Same as above except for L8G" , true); 
-    
+                   "Same as above except for non-UMI data" , true); 
+    app.add_option("--bitflag-InDel-penal-t-UMI-n-UMI", bitflag_InDel_penal_t_UMI_n_UMI, "Advanced flag for comparing tumor with normal" , true); 
+
     app.callback([&]() {
         assay_type = (AssayType)assay_type_uint;
         molecule_tag_uint = (MoleculeTag)molecule_tag_uint;

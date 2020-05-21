@@ -3,6 +3,7 @@
 
 #include "bcf_formats.step1.c" // auto-generated
 
+#include "CmdLineArgs.hpp"
 #include "common.hpp"
 #include "conversion.hpp"
 #include "logging.hpp"
@@ -3127,7 +3128,7 @@ append_vcf_record(std::string & out_string,
         const std::string & repeatunit, 
         const unsigned int repeatnum,
         const bool is_proton,
-        const unsigned int maxMQ, // additional params
+        const unsigned int maxMQ,
         const unsigned int central_readlen,
         const unsigned int phred_triallelic_indel,
         const unsigned int phred_max_sscs,
@@ -3144,7 +3145,8 @@ append_vcf_record(std::string & out_string,
         const double syserr_maxqual,
         const double syserr_norm_devqual,
         const auto phred_umi_indel_dimret_qual,
-        const auto phred_umi_indel_dimret_fold 
+        const auto phred_umi_indel_dimret_fold,
+        const auto bitflag_InDel_penal_t_UMI_n_UMI
         ) {
     
     const bcfrec::BcfFormat & fmt = fmtvar; 
@@ -3297,7 +3299,8 @@ append_vcf_record(std::string & out_string,
         tki.cADTC = SUM2(fmt.cADTC);
         tki.cRDTC = SUM2(fmt.cRDTC);
         tki.cDPTC = SUM2(fmt.cDPTC);
-
+        tki.dAD3 = fmt.dAD3;
+        
         tki.DP = fmt.DP;
         tki.FA = fmt.FA;
         tki.FR = fmt.FR;
@@ -3373,7 +3376,7 @@ append_vcf_record(std::string & out_string,
         // the genotype likelihoods here are special in that they can somehow normalized for the purpose of computing nonref probabilities
         // HOWEVER, no prior can be given to the raw genotype likelihoods.
         int32_t nonalt_qual = nfm.GLa[0] - MAX(nfm.GLa[1], nfm.GLa[2]); // indel_pq ?
-        int32_t excalt_qual = nfm.GLb[0] - MAX(nfm.GLb[1], nfm.GLb[2]); // indel_pq; ?
+        int32_t excalt_qual = nfm.GLb[0] - MAX(nfm.GLb[1], nfm.GLb[2]); // indel_pq ?
         
         // https://www.researchgate.net/figure/Distribution-of-the-Variant-Allele-Fraction-VAF-of-somatic-mutations-in-one-sample-of_fig7_278912701
         // https://onlinelibrary.wiley.com/doi/full/10.1002/humu.23674
@@ -3403,8 +3406,8 @@ append_vcf_record(std::string & out_string,
         const double nDP1pc0 = 0.5 * tnE1 / tnFA1;
         
         const double pl_exponent = powlaw_exponent;
-        const double pl_exponent_t = powlaw_exponent; // ((isInDel && tUseHD) ? : (PLEXP - 1) : PLEXP);
-        const double pl_exponent_n = powlaw_exponent; // ((isInDel && nUseHD) ? : (PLEXP - 1) : PLEXP);
+        const double pl_exponent_t = powlaw_exponent;
+        const double pl_exponent_n = powlaw_exponent;
         // This is the penalty induced by EROR bias. 
         // So far I do not have enough data to verify this power-law. 
         // Also, the theory to support this power-law is rather unclear.
@@ -3414,14 +3417,17 @@ append_vcf_record(std::string & out_string,
         // 1. What if the duplication rate is in-between the one of UMI and the one of non-UMI? 
         // 2. Does EROR bias follows a power-law distribution too? A lot of true positive UMI variants are required to see the power-law if it does.
         //    If EROR bias does follow a power-law, then what is the dimension of EROR bias (4 or 3) given that the dimension of quality is equal to 3? My intuition says it's 3.
-        const double pcap_tmax = powlaw_anyvar_base + (tUseHD1 
-                ? ((double)((fmt.dAD3 > 0)
-                    ? (phred_max_dscs - phred_pow_dscs_origin) 
-                    : (phred_max_sscs - phred_pow_sscs_origin))) // - eror_penal
+        const double pcap_tmax = powlaw_anyvar_base + (tUseHD1
+                ? ((tki.dAD3 > 0)
+                    ? ((double)(phred_max_dscs - phred_pow_dscs_origin))
+                    : ((double)(phred_max_sscs - phred_pow_sscs_origin) * (double)(MAX(tki.DP, tki.bDP) - tki.DP) / (double)(tki.bDP + 1)))
                 : 0.0);
         // prob[mapping-error] * prob[false-positive-variant-per-base-position] / num-alts-per-base-positon
-        const double pcap_nmax = powlaw_anyvar_base + (nUseHD1 ? 
-                ((double)(phred_max_sscs - phred_pow_sscs_origin)) : 0.0);
+        const double pcap_nmax = powlaw_anyvar_base + (nUseHD1
+                ? ((nfm.dAD3 > 0)
+                    ? ((double)(phred_max_dscs - phred_pow_dscs_origin))
+                    : ((double)(phred_max_sscs - phred_pow_sscs_origin) * (double)(MAX(nfm.DP, nfm.bDP) - nfm.DP) / (double)(nfm.bDP + 1)))
+                : 0.0);
         
         double t_indel_penal = 0.0;
         const double pcap_tbq = ((isInDel || is_proton) ? 200.0 : mathsquare(tki.BQ) / illumina_BQ_pow2_div_coef); // based on heuristics
@@ -3460,7 +3466,7 @@ append_vcf_record(std::string & out_string,
         }
         
         const double tn_tpowq = _tn_tpo2q;
-        const double tn_trawq = _tn_tra2q; //MAX(_tn_tpo2q/10.0 + 3.0, _tn_tra2q);
+        const double tn_trawq = _tn_tra2q;
         // intuition for the pol1q/10 formula: variant candidate with higher baseline-noise frequency is simply more likely to be a true mutation too
         // assuming that in-vivo biological error and in-vitro technical error are positively correlated with each other. 
         
@@ -3475,9 +3481,7 @@ append_vcf_record(std::string & out_string,
         double _tn_npo2q = MIN4(tn_npo1q, pcap_nmq, pcap_nbq, pcap_nmq2);
         double _tn_nra2q = MAX(0.0, tn_nra1q/altmul - tn_nsamq/4.0) + (isInDel ? 0.0:5.0); // normal BQ bias is weaker   as res variant (biased to high BQ) is filtered from each variant
         if (isInDel) {
-            //int n_str_units = (isSymbolIns(symbol) ? 1 : (-1)) * (int)(indelstring.size() / repeatunit.size());
             if (!nUseHD1) {
-                //_tn_npo2q += penal_indel_2(nAD0a, n_str_units, nfm.RCC, phred_triallelic_indel);
                 _tn_nra2q *= ((double)nAD0a + (double)indelstring.size()/8.0) / ((double)nAD0 + (double)indelstring.size()/8.0);
             }
         }
@@ -3508,6 +3512,7 @@ append_vcf_record(std::string & out_string,
                              / ((double)(nAD0 +           nAD0pc0) / (double)(nDP0 - nAD0 +           (nDP0pc0 - nAD0pc0)));
         const double t2n_or1 = ((double)(tAD1 + symfrac * tAD1pc0) / (double)(tDP1 - tAD1 + symfrac * (tDP1pc0 - tAD1pc0))) 
                              / ((double)(nAD1 +           nAD1pc0) / (double)(nDP1 - nAD1 +           (nDP1pc0 - nAD1pc0))); 
+        // Symmetry-generated values that do not seem to be useful so far
         /*
         const double n2t_or0 = ((double)(nAD0 +     0.0 * nAD0pc0) / (double)(nDP0 - nAD0 +     0.0 * (nDP0pc0 - nAD0pc0))) 
                              / ((double)(tAD0 +           tAD0pc0) / (double)(tDP0 - tAD0 +           (tDP0pc0 - tAD0pc0)));
@@ -3532,6 +3537,7 @@ append_vcf_record(std::string & out_string,
         const double t3n_po2q0 = MIN(MAX(-syserr_maxqual, t3n_po0q0), syserr_maxqual + 10);
         const double t3n_po2q1 = MIN(MAX(-syserr_maxqual, t3n_po0q1), syserr_maxqual + 10);
         
+        // heuristics based on odds ratio, they do work but cannot be justified meaningfully
         //double tn_cont_nor = MIN(2.0, ((double)(nAD0 + 1) / (double)(nDP0 - nAD0 + 1)));
         //double tn_cont_tor = MIN(2.0, ((double)(tAD0 + 1) / (double)(tDP0 - tAD0 + 1)));
         //double tn_cont_obs = tn_cont_nor / tn_cont_tor;
@@ -3555,22 +3561,30 @@ append_vcf_record(std::string & out_string,
             // unsigned int nearby_max_bAD = (isSymbolIns(symbol) ? tki.gapbNNRD[0] : tki.gapbNNRD[1]);
             unsigned int qseq_avg_edge_dist = MIN(tki.bSSEDA[0], tki.bSSEDA[1]) / (SUMVEC(tki.bSSAD) + 1);
             // unsigned int edgedist_penal = (qseq_min_edgedist >= 24 ? 0 : (mathsquare(24 - qseq_min_edgedist) / 4));
-            t2n_limq = 10.0/log(10.0) * log(MAX(max_tn_ratio, 1.0)) - ((LINK_D1 == symbol) ? 6 : 0); // - edgedist_penal; // - 10.0/log(10.0) * log((double)(nearby_max_bAD + 1) / (double)(SUM2(tki.bAD1) + 1));
+            t2n_limq = 10.0/log(10.0) * log(MAX(max_tn_ratio, 1.0)) - ((LINK_D1 == symbol) ? 6 : 0); 
+            // - edgedist_penal; // - 10.0/log(10.0) * log((double)(nearby_max_bAD + 1) / (double)(SUM2(tki.bAD1) + 1));
             if (qseq_avg_edge_dist <= 20) {
                 t2n_limq -= MIN(MAX(0, tn_npowq), 60.0);
             }
         }
-        // double min_doubleDP = (double)MIN(nfm.DP, tki.DP);
 #if 0   // This if branch of macro is disabled
         // The following line works well in practice but has no theory supporting it yet.
         double t2n_syserr_q0 = (isInDel ? 0.0 : MIN(MAX(0.0, MIN(tn_npowq, tn_nrawq)) * MIN(1.0, 4.0 / mathsquare(t2n_or1 + 1.0)), SYS_QMAX)); // 50.0
         // double t2n_syserr_q = (isInDel ? 0.0 : MIN(MAX(0.0, MIN3(tn_npowq, tn_nrawq, 45.0) - 20.0 * mathsquare(MAX(0.0, t2n_or1 - 1.0))), 2.0*SYS_QMAX)); // 50.0
 #else  
-        double t2n_syserr_q0 = MIN(syserr_maxqual, MIN(tn_npowq, tn_nrawq)
-            // 25.0 // - (double)uniform_prior_like) 
-            - syserr_norm_devqual * mathsquare(MAX(0.0, t2n_or1 - 1.0)));
+        double t2n_finq = max_min01_sub02(CENTER(t2n_rawq, t2t_powq), CENTER(t2n_rawq, t2n_powq), t2n_contam_q);
+        double t2n_syserr_q0 = MIN(syserr_maxqual, MIN(tn_npowq, tn_nrawq) - syserr_norm_devqual * mathsquare(MAX(0.0, t2n_or1 - 1.0)));
 #endif
-        double t2n_syserr_q = (isInDel ? 0.0 : MAX(0.0, t2n_syserr_q0));
+        double t2n_reward_q0 = MIN(t2n_finq, t2n_limq); 
+
+        const bool use_reward = is_bitflag_checked(bitflag_InDel_penal_t_UMI_n_UMI, isInDel, false, tUseHD, nUseHD);
+        double t2n_reward_q = (use_reward ? MAX(0.0, t2n_reward_q0) : 0.0);
+        const bool use_penalt = is_bitflag_checked(bitflag_InDel_penal_t_UMI_n_UMI, isInDel, true,  tUseHD, nUseHD);
+        double t2n_syserr_q = (use_penalt ? MAX(0.0, t2n_syserr_q0) : 0.0);
+        
+        double t_base_q = MIN(tn_trawq, tn_tpowq + (double)indel_ic);
+        double tlodq =  t_base_q + t2n_reward_q - MIN(t2n_contam_q, t2n_syserr_q);
+        
         //double n2t_red_qual = MIN(tn_npowq, tn_nrawq + (double)indel_ic) * MIN(1.0, n2t_or1) * MIN(1.0, n2t_or1); // / (t2n_or1 * t2n_or1);
         //double n2t_orr_qual = MIN(tn_npowq, tn_nrawq + (double)indel_ic) * MIN(1.0, n2t_or1);
         //double n2t_or2_qual = MIN(tn_npowq, tn_nrawq + (double)indel_ic) * MIN(1.0, n2t_or1/2.0);
@@ -3579,10 +3593,7 @@ append_vcf_record(std::string & out_string,
         
         std::array<double, N_MODELS> testquals = {0};
         unsigned int tqi = 0;
-        double t2n_finq = max_min01_sub02(CENTER(t2n_rawq, t2t_powq), CENTER(t2n_rawq, t2n_powq), t2n_contam_q);
-        double t_base_q = MIN(tn_trawq, tn_tpowq + (double)indel_ic);
-        
-        // double a_no_alt_qual = nonalt_qual + MAX(0, MIN(nonalt_tu_q, t2n_powq)) - MIN(t2n_contam_q, t2n_syserr_q);
+
         double a_no_alt_qual = add01_between_min01_max01(nonalt_qual, nonalt_tu_q)
                 - MIN(t2n_contam_q, t2n_syserr_q)
                 + MAX(0, CENTER(t2n_rawq, (isInDel ? t2n_po2q0 : t2n_po2q1) - 10)) // ad-hoc: the 10 is kind of arbitrary.
@@ -3591,12 +3602,8 @@ append_vcf_record(std::string & out_string,
                 + MAX(0, CENTER(t3n_rawq, (isInDel ? t3n_po2q0 : t3n_po2q1) - 10)) 
                 ;
         const int32_t a_nogerm_q = homref_gt_phred + (is_nonref_germline_excluded ? 
-                MIN(a_no_alt_qual, 
-                    // noisy_germ_phred + excalt_qual + MAX(0, excalt_tu_q)) 
-                    //noisy_germ_phred + add01_between_min01_max01(excalt_qual, excalt_tu_q)
-                    a_ex_alt_qual)
-                    : a_no_alt_qual);
-        double tlodq =  t_base_q + MIN(t2n_finq, t2n_limq) - MIN(t2n_contam_q, t2n_syserr_q);
+                MIN(a_no_alt_qual, a_ex_alt_qual) : a_no_alt_qual);
+        
         testquals[tqi++] = MIN(tlodq, (double)a_nogerm_q); // - 5.0;
         
         // testquals[tqi++] = MIN(tn_trawq - tn_nrawq + 0       , tn_tpowq - MAX(0.0, tn_npowq - tvn_or_q) + tvn_powq);
@@ -3636,8 +3643,7 @@ append_vcf_record(std::string & out_string,
         infostring += std::string(";TLODQ=")    + std::to_string(tlodq);
         infostring += std::string(";NLODQ=")    + std::to_string(a_nogerm_q);
         //unsigned int tlodq1 = (maxbias < uni_bias_thres ?(10* tlodq) : (10*tlodq*10 - 10*60));
-        //infostring += std::string(";TLODQ1=")  + std::to_string((int)(tlodq1));
-        
+        //infostring += std::string(";TLODQ1=")  + std::to_string((int)(tlodq1))
         infostring += std::string(";REFQs=") + string_join(std::array<std::string, 4>({
                 std::to_string(nonalt_qual), std::to_string(nonalt_tu_q),
                 std::to_string(excalt_qual), std::to_string(excalt_tu_q) 

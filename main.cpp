@@ -272,6 +272,7 @@ struct TumorKeyInfo {
     int32_t cAllBQ2 = 0;
     int32_t cAltBQ2 = 0;
     int32_t cRefBQ2 = 0;
+    int32_t dAD3 = 0;
     std::array<int32_t, 4> gapDP4 = {0};
     std::array<int32_t, 6*RCC_NUM> RCC = {0};
     std::array<int32_t, 3> GLa = {0};
@@ -493,6 +494,11 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         tki.cRefBQ2 = bcfints[0] + bcfints[1];
         
         ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "dAD3", &bcfints, &ndst_val);
+        assert((1 == ndst_val && 1 == valsize) || !fprintf(stderr, "1 == %d && 1 == %d failed for dAD3!\n", ndst_val, valsize));
+        tki.dAD3 = bcfints[0];
+        
+        ndst_val = 0;
         valsize = bcf_get_format_char(bcf_hdr, line, "FTS", &bcfstring, &ndst_val);
         assert((ndst_val == valsize && 0 < valsize) || !fprintf(stderr, "%d == %d && nonzero failed for FTS!\n", ndst_val, valsize));
         /*
@@ -512,7 +518,7 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         }
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line,  "RCC", &bcfints, &ndst_val);
-        assert((tki.RCC.size() == ndst_val && tki.RCC.size() == valsize) || !fprintf(stderr, "%d == %d && %d == %d failed for RCC!\n", tki.RCC.size(), ndst_val, tki.RCC.size(), valsize));
+        assert((tki.RCC.size() == ndst_val && tki.RCC.size() == valsize) || !fprintf(stderr, "%lu == %d && %lu == %d failed for RCC!\n", tki.RCC.size(), ndst_val, tki.RCC.size(), valsize));
         for (size_t i = 0; i < tki.RCC.size(); i++) {
             tki.RCC[i] = bcfints[i];
         }
@@ -1010,7 +1016,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                                 paramset.syserr_maxqual,
                                 paramset.syserr_norm_devqual,
                                 paramset.phred_umi_indel_dimret_qual,
-                                paramset.phred_umi_indel_dimret_fold
+                                paramset.phred_umi_indel_dimret_fold,
+                                paramset.bitflag_InDel_penal_t_UMI_n_UMI
                                 );
                     }
                 }

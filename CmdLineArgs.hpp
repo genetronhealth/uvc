@@ -55,7 +55,7 @@ struct CommandLineArgs {
     uint32_t    phred_max_sscs_indel_open = 60; // 34;
     uint32_t    phred_max_sscs_indel_ext  = 0; // 5; // 0;  // 5;
     uint32_t    phred_max_dscs_all = 60;
-    uint32_t    phred_pow_sscs_origin = 44-26; // 44-30;
+    uint32_t    phred_pow_sscs_origin = 48-38; // 10*log(2.7e-3/1.5e-4)/log(10)*3 = 37.658175 from https://doi.org/10.1073/pnas.1208715109
     uint32_t    phred_pow_sscs_indel_origin = 0; 
     uint32_t    phred_pow_dscs_origin = 0;
     
@@ -110,10 +110,29 @@ struct CommandLineArgs {
     uint32_t    dedup_yes_umi_2ends_peak_frac = 4;
     uint32_t    dedup_non_umi_2ends_peak_frac = 8;
     
-    int 
+    /*      Reward                                  Penalty         
+            
+            (B)     N/raw   N/UMI   N/DCS   (D-F)   N/raw   N/UMI   N/DCS
+    SNV:    T/raw   1       no      no      T/raw   1       yes yes
+            T/UMI   1       1       no      T/UMI   0.5     1   yes
+            T/DCS   1       1       1       T/DCS   0       0   1
+        
+    InDel   (B)     N/raw   N/UMI   N/DCS   (5)     N/raw   N/UMI   N/DCS
+            T/raw   1       no      no      T/raw   0       yes yes
+            T/UMI   1       1       no      T/UMI   0       1   yes
+            T/DCS   1       1       1       T/DCS   0       0   1
+    */
+    // (1011 11?1 1011 0101 or equivalently 11 13-15 11 5)
+    uint32_t    bitflag_InDel_penal_t_UMI_n_UMI = 0xBFB5; // combine the four above hex letters in parentheses from left-to-right then top-to-bottom.
+    
+    int
     initFromArgCV(int & parsing_result_flag, SequencingPlatform & inferred_sequencing_platform, int argc, const char *const* argv);
     
     SequencingPlatform 
     selfUpdateByPlatform(void);
 };
+
+bool
+is_bitflag_checked(uint32_t bitflag_InDel_penal_t_UMI_n_UMI, bool is_InDel, bool is_penal, bool is_t_UMI, bool is_n_UMI);
+
 #endif
