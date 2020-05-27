@@ -2,7 +2,7 @@
 # Example command to build: make all -j9 && make dup
 
 # Multi threads and single thread debug
-release : uvc debarcode minivc
+release : uvc.rel.out debarcode minivc
 debug-mt : uvc.mt.out
 debug-st : uvc.st.out
 test-cppt : uvc.cppt.out
@@ -27,8 +27,8 @@ debarcode  : debarcode_main.c version.h Makefile
 	$(CC) -O3 -o debarcode $(VERFLAGS) debarcode_main.c ext/bcftools-1.9/htslib-1.9/libhts.a -lz
 	
 # the main executable, uses OpenMP for multi-threading
-uvc        : $(HDR) $(SRC) instcode.hpp Makefile
-	$(CXX) -O3 -DNDEBUG -o uvc          $(CXXFLAGS) $(VERFLAGS) main.cpp grouping.cpp CmdLineArgs.cpp logging.cpp $(HTSFLAGS) -fopenmp # -l htslib
+uvc.rel.out : $(HDR) $(SRC) instcode.hpp Makefile
+	$(CXX) -O3 -DNDEBUG -o uvc.rel.out  $(CXXFLAGS) $(VERFLAGS) main.cpp grouping.cpp CmdLineArgs.cpp logging.cpp $(HTSFLAGS) -fopenmp # -l htslib
 
 # the main executable, use C++ standard template library thread for multi-threading, useful if OpenMP runtime is not available
 uvc.cppt.out : $(HDR) $(SRC) instcode.hpp Makefile
@@ -57,7 +57,7 @@ clean:
 
 # uvc1 is used by uvcTN.sh
 deploy:
-	cp uvc bin/uvc1
+	cp uvc.rel.out bin/uvc1
 	cp debarcode bin/debarcode
 	cp minivc bin/minivc
 	cp uvc.st.out uvc.mt.out uvc.cppt.out bin/
