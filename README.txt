@@ -9,7 +9,8 @@ The Makefile in this directory compiles with g++, but the Makefile can be easily
 To install from scratch, please run: ./install-dependencies.sh && make clean && make all -j4 && make deploy
 UVC depends on htslib 1.6+ and bcftools 1.6+ (lower versions of htslib and bcftools may also work, but are not tested).
 If these two dependencies were already installed, then install-dependencies.sh may not be necessary.
-For trouble-shooting with the installation of htslib and bcftools, please check their official repositories at https://github.com/samtools/htslib and https://github.com/samtools/bcftools
+For trouble-shooting with the installation of htslib and bcftools, please check their official repositories at https://github.com/samtools/htslib and https://github.com/samtools/bcftools.
+More specifically, if any error message containing "error while loading shared libraries" pops up, please use the command (./configure --disable-plugins --disable-bz2 --disable-lzma --disable-libcurl --disable-s3 --disable-largefile) to build the corresponding htslib required by UVC first, then build UVC.
 Although not required, it is highly recommmended that bcftools is installed at a system location (a location that can be found in the <PATH> environment variable).
 The UVC binary uses multi-threading efficiently for up to 16 threads. 
 After reaching 16 threads, adding more threads no longer significantly reduces wall-clock runtime.
