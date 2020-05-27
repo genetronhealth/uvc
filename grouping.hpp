@@ -66,7 +66,7 @@ struct SamIter {
             abort();
         }
         if (NOT_PROVIDED != this->tier1_target_region) {
-            this->sam_idx = sam_index_load2(this->sam_infile, input_bam_fname.c_str(), NULL);
+            this->sam_idx = sam_index_load(this->sam_infile, input_bam_fname.c_str());
             if (NULL == this->sam_idx) {
                 fprintf(stderr, "Failed to load the index for the file %s!", input_bam_fname.c_str());
                 abort();

@@ -1124,7 +1124,7 @@ main(int argc, char **argv) {
             LOG(logCRITICAL) << "Failed to load BAM file " << paramset.bam_input_fname << " for thread with ID = " << i;
             exit(-3);
         }
-        sam_idxs[i] = sam_index_load2(samfiles[i], paramset.bam_input_fname.c_str(), NULL);
+        sam_idxs[i] = sam_index_load(samfiles[i], paramset.bam_input_fname.c_str());
         if (NULL == sam_idxs[i]) {
             LOG(logCRITICAL) << "Failed to load BAM index " << paramset.bam_input_fname << " for thread with ID = " << i;
             exit(-4);
