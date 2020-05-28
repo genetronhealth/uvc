@@ -1116,12 +1116,13 @@ public:
                     qpos += 1;
                 }
             } else if (cigar_op == BAM_CINS) {
+                const bool is_ins_at_read_end = (0 == qpos || qpos + SIGN2UNSIGN(cigar_oplen) >= SIGN2UNSIGN(b->core.l_qseq));
                 unsigned int inslen = SIGN2UNSIGN(cigar_oplen);
                 if (TUpdateType == BASE_QUALITY_MAX) {
                     if (TIndelAddPhred) {
                         auto addidq = (THasDups ? 0 : (MIN(cigar_oplen - 1, SIGN2UNSIGN(3 - 1)) * frag_indel_ext));
                         incvalue = TIndelAddPhred + addidq;
-                    } else if (0 == qpos || qpos + SIGN2UNSIGN(cigar_oplen) >= SIGN2UNSIGN(b->core.l_qseq)) {
+                    } else if (is_ins_at_read_end) {
                         LOG(logWARNING) << "Query " << bam_get_qname(b) << " has insertion of legnth " << cigar_oplen << " at " << qpos
                                 << " which is not exclusively between 0 and " << b->core.l_qseq << " aligned to tid " << b->core.tid << " and position " << rpos;
                         incvalue = (0 != qpos ? bam_phredi(b, qpos-1) : 
@@ -1139,33 +1140,36 @@ public:
                         // this->dedup_ampDistr.at(strand).getIncluBegPosition()
                     }
                 }
-                this->inc<TUpdateType>(rpos, insLenToSymbol(inslen), MAX(SIGN2UNSIGN(1), incvalue), b);
-                if (TFillSeqDir) {
-                    bq_dirs_count[strand*2+isrc].inc<SYMBOL_COUNT_SUM>(rpos, insLenToSymbol(inslen), 1, b);
-                    bq_dirs_edmax[0].inc<SYMBOL_COUNT_SUM>(rpos, insLenToSymbol(inslen), qpos + 1, b);
-                    bq_dirs_edmax[1].inc<SYMBOL_COUNT_SUM>(rpos, insLenToSymbol(inslen), b->core.l_qseq - qpos - cigar_oplen, b);
-                }
-                std::string iseq;
-                iseq.reserve(cigar_oplen);
-                unsigned int incvalue2 = incvalue;
-                for (unsigned int i2 = 0; i2 < cigar_oplen; i2++) {
-                    unsigned int base4bit = bam_seqi(bseq, qpos+i2);
-                    const char base8bit = seq_nt16_str[base4bit];
-                    iseq.push_back(base8bit);
-                    if (TUpdateType == BASE_QUALITY_MAX) {
-                        incvalue2 = MIN(incvalue2, SIGN2UNSIGN(bam_seqi(bseq, qpos+i2)))
-                                + (QUAL_PRE_ADD ? symbolType2addPhred[LINK_SYMBOL] : 0); // + symbolType2addPhred[LINK_SYMBOL];
+                if (!is_ins_at_read_end) {
+                    this->inc<TUpdateType>(rpos, insLenToSymbol(inslen), MAX(SIGN2UNSIGN(1), incvalue), b);
+                    if (TFillSeqDir) {
+                        bq_dirs_count[strand*2+isrc].inc<SYMBOL_COUNT_SUM>(rpos, insLenToSymbol(inslen), 1, b);
+                        bq_dirs_edmax[0].inc<SYMBOL_COUNT_SUM>(rpos, insLenToSymbol(inslen), qpos + 1, b);
+                        bq_dirs_edmax[1].inc<SYMBOL_COUNT_SUM>(rpos, insLenToSymbol(inslen), b->core.l_qseq - qpos - cigar_oplen, b);
                     }
+                    std::string iseq;
+                    iseq.reserve(cigar_oplen);
+                    unsigned int incvalue2 = incvalue;
+                    for (unsigned int i2 = 0; i2 < cigar_oplen; i2++) {
+                        unsigned int base4bit = bam_seqi(bseq, qpos+i2);
+                        const char base8bit = seq_nt16_str[base4bit];
+                        iseq.push_back(base8bit);
+                        if (TUpdateType == BASE_QUALITY_MAX) {
+                            incvalue2 = MIN(incvalue2, SIGN2UNSIGN(bam_seqi(bseq, qpos+i2)))
+                                    + (QUAL_PRE_ADD ? symbolType2addPhred[LINK_SYMBOL] : 0); // + symbolType2addPhred[LINK_SYMBOL];
+                        }
+                    }
+                    this->incIns(rpos, iseq, insLenToSymbol(inslen), MAX(SIGN2UNSIGN(1), incvalue2));
                 }
-                this->incIns(rpos, iseq, insLenToSymbol(inslen), MAX(SIGN2UNSIGN(1), incvalue2));
                 qpos += cigar_oplen;
             } else if (cigar_op == BAM_CDEL) {
+                const bool is_del_at_read_end = (0 == qpos || qpos + SIGN2UNSIGN(cigar_oplen) >= SIGN2UNSIGN(b->core.l_qseq));
                 unsigned int dellen = SIGN2UNSIGN(cigar_oplen);
                 if (TUpdateType == BASE_QUALITY_MAX) {
                     if (TIndelAddPhred) {
                         unsigned int addidq = (THasDups ? 0 : SIGN2UNSIGN(MIN(cigar_oplen - 1, SIGN2UNSIGN(3 - 1)) * frag_indel_ext));
                         incvalue = TIndelAddPhred + addidq;
-                    } else if (0 == qpos || qpos + SIGN2UNSIGN(cigar_oplen) >= SIGN2UNSIGN(b->core.l_qseq)) {
+                    } else if (is_del_at_read_end) {
                         LOG(logWARNING) << "Query " << bam_get_qname(b) << " has deletion of legnth " << cigar_oplen << " at " << qpos
                                 << " which is not exclusively between 0 and " << b->core.l_qseq << " aligned to tid " << b->core.tid << " and position " << rpos; 
                         incvalue = (0 != qpos ? bam_phredi(b, qpos-1) : 
@@ -1182,13 +1186,15 @@ public:
                         // + symbolType2addPhred[LINK_SYMBOL];
                     }
                 }
-                this->inc<TUpdateType>(rpos, delLenToSymbol(dellen), MAX(SIGN2UNSIGN(1), incvalue), b);
-                if (TFillSeqDir) {
-                    bq_dirs_count[strand*2+isrc].inc<SYMBOL_COUNT_SUM>(rpos, delLenToSymbol(dellen), 1, b);
-                    bq_dirs_edmax[0].inc<SYMBOL_COUNT_SUM>(rpos, delLenToSymbol(dellen), qpos + 1, b);
-                    bq_dirs_edmax[1].inc<SYMBOL_COUNT_SUM>(rpos, delLenToSymbol(dellen), b->core.l_qseq - qpos, b);
+                if (!is_del_at_read_end) {
+                    this->inc<TUpdateType>(rpos, delLenToSymbol(dellen), MAX(SIGN2UNSIGN(1), incvalue), b);
+                    if (TFillSeqDir) {
+                        bq_dirs_count[strand*2+isrc].inc<SYMBOL_COUNT_SUM>(rpos, delLenToSymbol(dellen), 1, b);
+                        bq_dirs_edmax[0].inc<SYMBOL_COUNT_SUM>(rpos, delLenToSymbol(dellen), qpos + 1, b);
+                        bq_dirs_edmax[1].inc<SYMBOL_COUNT_SUM>(rpos, delLenToSymbol(dellen), b->core.l_qseq - qpos, b);
+                    }
+                    this->incDel(rpos, cigar_oplen, delLenToSymbol(dellen), MAX(SIGN2UNSIGN(1), incvalue));
                 }
-                this->incDel(rpos, cigar_oplen, delLenToSymbol(dellen), MAX(SIGN2UNSIGN(1), incvalue));
 #if 0 
 // The definition of non-ref for indel is not clearly defined, this piece of code can result in germline risk that is not in the ground truth, so it it commented out.
 // However, if we consider any position covered by the boundary of a germline indel to be non-ref, then this code should be enabled.
@@ -2356,8 +2362,12 @@ indel_get_majority(const bcfrec::BcfFormat & fmt, const bool prev_is_tumor, cons
         } else if ('\t' == tki.ref_alt[midtry] && tki.ref_alt[0] == tki.ref_alt[midtry+1]) {
             indelstring = tki.ref_alt.substr(1, tki.ref_alt.size() - 3);
         } else {
-            fprintf(stderr, "The ref_alt %s is not valid!\n", tki.ref_alt.c_str());
-            abort();
+            fprintf(stderr, "ThisIsAVerySevereWarning: the ref_alt %s is not valid!\n", tki.ref_alt.c_str());
+            std::string msg;
+            bcfrec::streamAppendBcfFormat(msg, fmt);
+            std::cerr << msg << "\n";
+            // abort();
+            indelstring = std::string("<MALFORMED_VAR>,") + SYMBOL_TO_DESC_ARR[symbol];
         }
     } else if (fmt.gapNum[0] <= 0 && fmt.gapNum[1] <= 0) {
         if (!is_rescued) {
@@ -2365,7 +2375,8 @@ indel_get_majority(const bcfrec::BcfFormat & fmt, const bool prev_is_tumor, cons
             std::string msg;
             bcfrec::streamAppendBcfFormat(msg, fmt);
             std::cerr << msg << "\n";
-            assert(false);
+            // assert(false);
+            indelstring = std::string("<MALFORMED_VAR>,") + SYMBOL_TO_DESC_ARR[symbol];
         }
     } else if (fmt.gapNum[0] <= 0 || fmt.gapNum[1] <= 0) {
         indelstring = fmt.gapSeq[0];
@@ -2732,7 +2743,7 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
             int hetREF_likeval1 = -(int)calc_binom_10log10_likeratio(0.500 * altmul, da_v, dr_v);                                 // het-ref to ALT add error phred
             int hetALT_likeval1 = -(int)calc_binom_10log10_likeratio(0.500 * refmul, dr_v, da_v);                                 // het-alt to REF add error phred
             int homref_likeval1 = -(int)calc_binom_10log10_likeratio(any_mul_contam_frac * altmul + t2n_conalt_frac, da_v, dr_v);      // hom-alt to REF add error phred by contamination
-            int homalt_likeval1 = -(int)calc_binom_10log10_likeratio(ref_mul_contam_frac * refmul + t2n_conref_frac, dr_v, da_v);      // hom-ref to ALT add error phred by contamination
+            int homalt_likeval1 = -(int)calc_binom_10log10_likeratio<false, true>(ref_mul_contam_frac * refmul + t2n_conref_frac, dr_v, da_v);      // hom-ref to ALT add error phred by contamination
             
             int homref_likelim2 = MAX(homref_likelim1, homref_likecon1);
             int homref_likeval2 = MAX(homref_likeval1, homref_likecon1);

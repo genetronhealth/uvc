@@ -172,10 +172,12 @@ logit2(double a, double b) {
     return logit(a/(a+b));
 }
 
-template <bool TIsBiDirectional = false>
+template <bool TIsBiDirectional = false, bool TSetMaxProbToOne = false>
 constexpr double
 calc_binom_10log10_likeratio(double prob, double a, double b) {
-    assert(prob > 0 && prob < 1);
+    if (TSetMaxProbToOne) { prob = MIN(1.0, prob); }
+    prob = (prob + DBL_EPSILON) / (1.0 + (2.0 * DBL_EPSILON));
+    assert((prob > 0 && prob < 1) || !fprintf(stderr, "The assertion 0 < %f < 1 failed!\n", prob));
     a += DBL_EPSILON;
     b += DBL_EPSILON;
     double A = (      prob) * (a + b);
