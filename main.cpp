@@ -895,8 +895,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                             bq_ins_2bdepths,
                             bq_del_2bdepths,
                             paramset.somaticGT,
-                            // ,
-                            // bq_indel_adjmax_depths
+                            (paramset.ref_bias_awareness & ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? 0x1 : 0x2)),
+                            // bq_indel_adjmax_depths,
                             0);
                 }
                 for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; symbol = AlignmentSymbol(1+(unsigned int)symbol)) {
@@ -1017,8 +1017,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                                 paramset.syserr_norm_devqual,
                                 paramset.phred_umi_indel_dimret_qual,
                                 paramset.phred_umi_indel_dimret_fold,
-                                paramset.bitflag_InDel_penal_t_UMI_n_UMI
-                                );
+                                paramset.bitflag_InDel_penal_t_UMI_n_UMI);
                     }
                 }
             }

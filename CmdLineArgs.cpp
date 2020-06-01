@@ -284,7 +284,8 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     app.add_option("--dedup-non-umi-2ends-peak-frac",    dedup_non_umi_2ends_peak_frac, 
                    "Same as above except for non-UMI data" , true); 
     app.add_option("--bitflag-InDel-penal-t-UMI-n-UMI", bitflag_InDel_penal_t_UMI_n_UMI, "Advanced flag for comparing tumor with normal" , true); 
-
+    app.add_option("--ref-bias-awareness", ref_bias_awareness, "Boolean bit-vector indicating if germline calls are aware of reference bias. The 0x1 bit is for amplicon and the 0x2 bit is for non-amplicon" , true);
+    
     app.callback([&]() {
         assay_type = (AssayType)assay_type_uint;
         molecule_tag_uint = (MoleculeTag)molecule_tag_uint;

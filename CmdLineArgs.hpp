@@ -124,6 +124,7 @@ struct CommandLineArgs {
     */
     // (1011 11?1 1011 0101 or equivalently 11 13-15 11 5)
     uint32_t    bitflag_InDel_penal_t_UMI_n_UMI = 0xBFB5; // combine the four above hex letters in parentheses from left-to-right then top-to-bottom.
+    uint32_t    ref_bias_awareness = 0x6; // The 0x1 bit is for amplicon and the 0x2 bit is for non-amplicon
     
     int
     initFromArgCV(int & parsing_result_flag, SequencingPlatform & inferred_sequencing_platform, int argc, const char *const* argv);
