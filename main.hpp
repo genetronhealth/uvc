@@ -423,10 +423,10 @@ public:
     };
     
     const TB2C
-    vectorsumBySymbolType(const SymbolType symbolType) const {
+    vectorsumBySymbolType(const SymbolType symbol_type) const {
         TB2C ret = {0};
-        for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; 
-                symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; 
+        for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbol_type]; 
+                symbol <= SYMBOL_TYPE_TO_INCLU_END[symbol_type]; 
                 symbol = AlignmentSymbol(1+((unsigned int)symbol))) {
             for (size_t i = 0; i < this->symbol2data[symbol].size(); i++) {
                 ret[i] += this->getSymbolBucketCount(symbol, i);
@@ -487,10 +487,10 @@ public:
     };
     
     const TInteger
-    sumBySymbolType(const SymbolType symbolType) const {
-        if (symbolType == BASE_SYMBOL) {
+    sumBySymbolType(const SymbolType symbol_type) const {
+        if (symbol_type == BASE_SYMBOL) {
             return this->_sumBySymbolType(BASE_A, BASE_NN);
-        } else if (symbolType == LINK_SYMBOL) {
+        } else if (symbol_type == LINK_SYMBOL) {
             return this->_sumBySymbolType(LINK_M, LINK_NN);
         } else {
             abort();
@@ -556,10 +556,10 @@ public:
     const int
     fillConsensusCounts(
             AlignmentSymbol & count_argmax, unsigned int & count_max, unsigned int & count_sum,
-            const SymbolType symbolType) const {
-        if (symbolType == BASE_SYMBOL) {
+            const SymbolType symbol_type) const {
+        if (symbol_type == BASE_SYMBOL) {
             return this->_fillConsensusCounts<false        >(count_argmax, count_max, count_sum, BASE_A, BASE_NN);
-        } else if (symbolType == LINK_SYMBOL) {
+        } else if (symbol_type == LINK_SYMBOL) {
             return this->_fillConsensusCounts<TIndelIsMajor>(count_argmax, count_max, count_sum, LINK_M, LINK_NN);
         } else {
             abort();
@@ -570,11 +570,11 @@ public:
     template<ValueType T_SymbolCountType, bool TIndelIsMajor>
     const AlignmentSymbol
     _updateByConsensus(const GenericSymbol2Count<TInteger> & thatSymbol2Count,
-            const SymbolType symbolType, const AlignmentSymbol ambig_pos, unsigned int incvalue2) {
+            const SymbolType symbol_type, const AlignmentSymbol ambig_pos, unsigned int incvalue2) {
         AlignmentSymbol argmax_count = END_ALIGNMENT_SYMBOLS; // AlignmentSymbol(0) is not fully correct
         unsigned int max_count = 0;
         unsigned int sum_count = 0;
-        thatSymbol2Count.fillConsensusCounts<TIndelIsMajor>(argmax_count, max_count, sum_count, symbolType);
+        thatSymbol2Count.fillConsensusCounts<TIndelIsMajor>(argmax_count, max_count, sum_count, symbol_type);
         unsigned int incvalue;
         if (T_SymbolCountType == SYMBOL_COUNT_SUM) {
             incvalue = incvalue2;
@@ -611,8 +611,8 @@ public:
     updateByRepresentative(const GenericSymbol2Count<TInteger> & other, unsigned int incvalue = 1) {
         AlignmentSymbol consalpha; 
         unsigned int countalpha, totalalpha;
-        for (SymbolType symbolType = SymbolType(0); symbolType < NUM_SYMBOL_TYPES; symbolType = SymbolType(1 + (unsigned int)symbolType)) { 
-            other.fillConsensusCounts(consalpha, countalpha, totalalpha, symbolType);
+        for (SymbolType symbol_type = SymbolType(0); symbol_type < NUM_SYMBOL_TYPES; symbol_type = SymbolType(1 + (unsigned int)symbol_type)) { 
+            other.fillConsensusCounts(consalpha, countalpha, totalalpha, symbol_type);
             if (countalpha > 0) {
                 this->symbol2data[consalpha] += (TIsIncVariable ? totalalpha : incvalue);
             }
@@ -626,12 +626,12 @@ public:
         int ret = 0;
         AlignmentSymbol consalpha;
         unsigned int countalpha, totalalpha;
-        for (SymbolType symbolType = SymbolType(0); symbolType < NUM_SYMBOL_TYPES; symbolType = SymbolType(1 + (unsigned int)symbolType)) {
+        for (SymbolType symbol_type = SymbolType(0); symbol_type < NUM_SYMBOL_TYPES; symbol_type = SymbolType(1 + (unsigned int)symbol_type)) {
             // consalpha = END_ALIGNMENT_SYMBOLS;
-            if (LINK_SYMBOL == symbolType) {
-                other.fillConsensusCounts<true >(consalpha, countalpha, totalalpha, symbolType);
+            if (LINK_SYMBOL == symbol_type) {
+                other.fillConsensusCounts<true >(consalpha, countalpha, totalalpha, symbol_type);
             } else {
-                other.fillConsensusCounts<false>(consalpha, countalpha, totalalpha, symbolType);
+                other.fillConsensusCounts<false>(consalpha, countalpha, totalalpha, symbol_type);
             }
             auto adjcount = MAX(countalpha * 2, totalalpha) - totalalpha;
             if (adjcount >= (thres.getSymbolCount(consalpha)) && adjcount > 0) {
@@ -641,7 +641,7 @@ public:
             } else {
                 //LOG(logINFO) << " The value " << countalpha << " cannot pass the base quality threshold " << thres.getSymbolCount(consalpha) << " for symbol " << SYMBOL_TO_DESC_ARR[consalpha];
             }
-            con_symbols[symbolType] = consalpha;
+            con_symbols[symbol_type] = consalpha;
         }
         return ret;
     };
@@ -1059,7 +1059,7 @@ public:
     template<ValueType TUpdateType, bool TIsProton, bool THasDups, bool TFillSeqDir, unsigned int TIndelAddPhred = 0*29>
     int // GenericSymbol2CountCoverage<TSymbol2Count>::
     updateByAln(const bam1_t *const b, unsigned int frag_indel_ext, 
-            const std::array<unsigned int, NUM_SYMBOL_TYPES> & symbolType2addPhredArg, 
+            const std::array<unsigned int, NUM_SYMBOL_TYPES> & symb_type_to_added_phred_arg, 
             unsigned int frag_indel_basemax, 
             unsigned int nogap_phred, // this is obsolete and replace by frag_indel_basemax
             const auto & region_symbolvec, const unsigned int region_offset,
@@ -1423,7 +1423,7 @@ struct Symbol2CountCoverageSet {
             tot_count += count;
             unsigned int phred = MIN(bucket2phred(bucket), phred_max);
             auto tot_pqual = 0;
-            assert(tot_count <= symbolTypeSum || !fprintf(stderr, "%d <= %f failed for symbol %d and bucket %d !!!\n", tot_count, symbolTypeSum, symbol, bucket));
+            assert(tot_count <= symb_type_sum || !fprintf(stderr, "%d <= %f failed for symbol %d and bucket %d !!!\n", tot_count, symb_type_sum, symbol, bucket));
             if (0 < count) {
                 if (TIsFilterStrong) {
                     const double adj_tot_count = MIN((double)tot_count, bias_adjusted_mincount / 10.0);
@@ -1521,16 +1521,16 @@ struct Symbol2CountCoverageSet {
         assert(dedup_ampDistr.at(0).getExcluEndPosition() == dedup_ampDistr.at(1).getExcluEndPosition());
         for (unsigned int strand = 0; strand < 2; strand++) {
             for (auto pos = dedup_ampDistr.at(strand).getIncluBegPosition(); pos < dedup_ampDistr.at(strand).getExcluEndPosition(); pos++) {
-                for (SymbolType symbolType = SymbolType(0); symbolType < NUM_SYMBOL_TYPES; symbolType = SymbolType(1+(unsigned int)symbolType)) {
+                for (SymbolType symbol_type = SymbolType(0); symbol_type < NUM_SYMBOL_TYPES; symbol_type = SymbolType(1+(unsigned int)symbol_type)) {
                     // prepare duplication bias
-                    const auto prev_depth_typesum = (TUsePrev ? prev_tsum_depth[strand].getByPos(pos).sumBySymbolType(symbolType) : 0);
-                    const auto curr_depth_typesum = curr_tsum_depth[0+strand].getByPos(pos).sumBySymbolType(symbolType); 
-                    const auto curr_deprv_typesum = curr_tsum_depth[1-strand].getByPos(pos).sumBySymbolType(symbolType);
+                    const auto prev_depth_typesum = (TUsePrev ? prev_tsum_depth[strand].getByPos(pos).sumBySymbolType(symbol_type) : 0);
+                    const auto curr_depth_typesum = curr_tsum_depth[0+strand].getByPos(pos).sumBySymbolType(symbol_type); 
+                    const auto curr_deprv_typesum = curr_tsum_depth[1-strand].getByPos(pos).sumBySymbolType(symbol_type);
  
                     // prepare positional bias
-                    Bucket2CountEdgeDist vsum_pb_dist_lpart = pb_dist_lpart[strand].getByPos(pos).vectorsumBySymbolType(symbolType);
-                    Bucket2CountEdgeDist vsum_pb_dist_rpart = pb_dist_rpart[strand].getByPos(pos).vectorsumBySymbolType(symbolType);
-                    Bucket2CountNumMisma vsum_pb_dist_nvars = pb_dist_nvars[strand].getByPos(pos).vectorsumBySymbolType(symbolType);
+                    Bucket2CountEdgeDist vsum_pb_dist_lpart = pb_dist_lpart[strand].getByPos(pos).vectorsumBySymbolType(symbol_type);
+                    Bucket2CountEdgeDist vsum_pb_dist_rpart = pb_dist_rpart[strand].getByPos(pos).vectorsumBySymbolType(symbol_type);
+                    Bucket2CountNumMisma vsum_pb_dist_nvars = pb_dist_nvars[strand].getByPos(pos).vectorsumBySymbolType(symbol_type);
 
                     // prepare strand bias
                     auto typesum_uqual_v0 = bq_qual_p1sum[1-strand].getByPos(pos).sumBySymbolType(symbolType);
@@ -1539,11 +1539,11 @@ struct Symbol2CountCoverageSet {
                     auto typesum_depth_v1 = bq_tsum_depth[0+strand].getByPos(pos).sumBySymbolType(symbolType);
                     double typesum_uqual_v0_avg = typesum_uqual_v0/ (double)(typesum_depth_v0 + DBL_MIN);
                     
-                    auto typebsum_ldist_v0 = bsum_ldist[1-strand].getByPos(pos).sumBySymbolType(symbolType);
-                    auto typebsum_rdist_v0 = bsum_rdist[1-strand].getByPos(pos).sumBySymbolType(symbolType); 
+                    auto typebsum_ldist_v0 = bsum_ldist[1-strand].getByPos(pos).sumBySymbolType(symbol_type);
+                    auto typebsum_rdist_v0 = bsum_rdist[1-strand].getByPos(pos).sumBySymbolType(symbol_type); 
                     
-                    const auto dp0 = curr_tsum_depth.at(1-strand).getByPos(pos).sumBySymbolType(symbolType);
-                    const auto dp1 = curr_tsum_depth.at(0+strand).getByPos(pos).sumBySymbolType(symbolType);
+                    const auto dp0 = curr_tsum_depth.at(1-strand).getByPos(pos).sumBySymbolType(symbol_type);
+                    const auto dp1 = curr_tsum_depth.at(0+strand).getByPos(pos).sumBySymbolType(symbol_type);
                     
                     auto bq_dir_s0 = bq_dirs_count.at(0*2+0).getByPos(pos).sumBySymbolType(symbolType)
                                    + bq_dirs_count.at(1*2+0).getByPos(pos).sumBySymbolType(symbolType);
@@ -1706,7 +1706,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         {
                             AlignmentSymbol con_symbol;
                             unsigned int con_count, tot_count;
-                            curr_tsum_depth.at(0+strand).getByPos(pos).fillConsensusCounts(con_symbol, con_count, tot_count, symbolType);
+                            curr_tsum_depth.at(0+strand).getByPos(pos).fillConsensusCounts(con_symbol, con_count, tot_count, symbol_type);
                             phred_max = phred_max_table.toPhredErrRate(con_symbol, symbol);
                         }
                         // find best cutoff from families
@@ -1793,13 +1793,13 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                     for (auto epos = read_ampBQerr_fragWithR1R2.getIncluBegPosition(); epos < read_ampBQerr_fragWithR1R2.getExcluEndPosition(); epos++) {
                         unsigned int ldist = 1 + epos - read_ampBQerr_fragWithR1R2.getIncluBegPosition();
                         unsigned int rdist = read_ampBQerr_fragWithR1R2.getExcluEndPosition() - epos;
-                        for (SymbolType symbolType = SymbolType(0); symbolType < NUM_SYMBOL_TYPES; symbolType = SymbolType(1+((unsigned int)symbolType))) {
+                        for (SymbolType symbol_type = SymbolType(0); symbol_type < NUM_SYMBOL_TYPES; symbol_type = SymbolType(1+((unsigned int)symbol_type))) {
                             AlignmentSymbol con_symbol;
                             unsigned int con_count, tot_count;
-                            if (LINK_SYMBOL == symbolType) {
-                                read_ampBQerr_fragWithR1R2.getByPos(epos).fillConsensusCounts<true >(con_symbol, con_count, tot_count, symbolType);
+                            if (LINK_SYMBOL == symbol_type) {
+                                read_ampBQerr_fragWithR1R2.getByPos(epos).fillConsensusCounts<true >(con_symbol, con_count, tot_count, symbol_type);
                             } else {
-                                read_ampBQerr_fragWithR1R2.getByPos(epos).fillConsensusCounts<false>(con_symbol, con_count, tot_count, symbolType); 
+                                read_ampBQerr_fragWithR1R2.getByPos(epos).fillConsensusCounts<false>(con_symbol, con_count, tot_count, symbol_type); 
                             }
                             assert (con_count * 2 >= tot_count);
                             if (0 == tot_count) { continue; }
@@ -1809,7 +1809,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                             this->bq_qsum_sqrMQ [strand].getRefByPos(epos).incSymbolCount(con_symbol, normMQ * normMQ); 
                            
                             // shared between BQ and FQ
-                            con_symbols_vec[epos - read_ampBQerr_fragWithR1R2.getIncluBegPosition()][symbolType] = con_symbol;
+                            con_symbols_vec[epos - read_ampBQerr_fragWithR1R2.getIncluBegPosition()][symbol_type] = con_symbol;
                             this->bq_tsum_depth [strand].getRefByPos(epos).incSymbolCount(con_symbol, 1);
                             unsigned int edge_baq = MIN(ldist, rdist) * baq_per_aligned_base;
                             unsigned int overallq = MIN(edge_baq, phredlike);
@@ -1817,7 +1817,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                             this->bq_qual_p2sum [strand].getRefByPos(epos).incSymbolCount(con_symbol, mathsquare(overallq)); // specific to BQ
                             unsigned int pbucket = phred2bucket(overallq);
                             assert (pbucket < NUM_BUCKETS || !fprintf(stderr, "%u < %u failed at position %lu and con_symbol %u symboltype %u plusbucket %u\n", 
-                                    pbucket,  NUM_BUCKETS, epos, con_symbol, symbolType, SIGN2UNSIGN(symbolType2addPhred[symbolType])));
+                                    pbucket,  NUM_BUCKETS, epos, con_symbol, symbol_type, SIGN2UNSIGN(symb_type_to_added_phred[symbol_type])));
                             if (isSymbolIns(con_symbol)) {
                                 posToIndelToCount_updateByConsensus(this->bq_tsum_depth[strand].getRefPosToIseqToData(con_symbol), read_ampBQerr_fragWithR1R2.getPosToIseqToData(con_symbol), epos, 1);
                             }
@@ -1827,7 +1827,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                             AlignmentSymbol refsymbol = region_symbolvec[epos-this->dedup_ampDistr.at(strand).getIncluBegPosition()]; 
                             if (areSymbolsMutated(refsymbol, con_symbol)) {
                                 pos_symbol_string.push_back(std::make_pair(epos, con_symbol));
-                                if (symbolType == BASE_SYMBOL && phredlike >= phred_thres) {
+                                if (symbol_type == BASE_SYMBOL && phredlike >= phred_thres) {
                                     n_vars++;
                                 }
                             }
@@ -1846,8 +1846,8 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                     }
                     n_vars = MIN(n_vars, NUM_NMBUCKS - 1);
                     for (auto epos = read_ampBQerr_fragWithR1R2.getIncluBegPosition(); epos < read_ampBQerr_fragWithR1R2.getExcluEndPosition(); epos++) {
-                        for (SymbolType symbolType = SymbolType(0); symbolType < NUM_SYMBOL_TYPES; symbolType = SymbolType(1+((unsigned int)symbolType))) {
-                            auto con_symbol = con_symbols_vec.at(epos - read_ampBQerr_fragWithR1R2.getIncluBegPosition()).at(symbolType);
+                        for (SymbolType symbol_type = SymbolType(0); symbol_type < NUM_SYMBOL_TYPES; symbol_type = SymbolType(1+((unsigned int)symbol_type))) {
+                            auto con_symbol = con_symbols_vec.at(epos - read_ampBQerr_fragWithR1R2.getIncluBegPosition()).at(symbol_type);
                             if (END_ALIGNMENT_SYMBOLS != con_symbol) {
                                 this->pb_dist_nvars[strand].getRefByPos(epos).incSymbolBucketCount(con_symbol, n_vars, 1);
                             }
@@ -1934,10 +1934,10 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                 }
                 for (size_t epos = read_family_amplicon.getIncluBegPosition(); epos < read_family_amplicon.getExcluEndPosition(); epos++) {
                     const auto & con_ampl_symbol2count = read_family_amplicon.getByPos(epos);
-                    for (SymbolType symbolType = SymbolType(0); symbolType < NUM_SYMBOL_TYPES; symbolType = SymbolType(1+(unsigned int)symbolType)) {
+                    for (SymbolType symbol_type = SymbolType(0); symbol_type < NUM_SYMBOL_TYPES; symbol_type = SymbolType(1+(unsigned int)symbol_type)) {
                         AlignmentSymbol con_symbol; // = END_ALIGNMENT_SYMBOLS;
                         unsigned int con_count, tot_count;
-                        con_ampl_symbol2count.fillConsensusCounts(con_symbol, con_count, tot_count, symbolType);
+                        con_ampl_symbol2count.fillConsensusCounts(con_symbol, con_count, tot_count, symbol_type);
                         if (0 == tot_count) { continue ; }
                         this->fam_total_dep[strand].getRefByPos(epos).incSymbolCount(con_symbol, 1); // for genomic region, so add DP (every type of  DP is unfiltered)
                         if (1 == tot_count) {
@@ -1947,7 +1947,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         }
                     }
                     const auto & amplicon_symbol2count = read_family_amplicon.getByPos(epos);
-                    for (SymbolType symbolType = SymbolType(0); symbolType < NUM_SYMBOL_TYPES; symbolType = SymbolType(1+(unsigned int)symbolType)) {
+                    for (SymbolType symbol_type = SymbolType(0); symbol_type < NUM_SYMBOL_TYPES; symbol_type = SymbolType(1+(unsigned int)symbol_type)) {
                         AlignmentSymbol con_symbol; // = END_ALIGNMENT_SYMBOLS;
                         unsigned int con_count, tot_count;
                         amplicon_symbol2count.fillConsensusCounts(con_symbol, con_count, tot_count, symbolType);
@@ -1957,8 +1957,8 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         if (tot_count < 4) { continue; } 
                         if ((con_count * 3 < tot_count * 2)) { continue; }
                         for (AlignmentSymbol 
-                                symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; 
-                                symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; 
+                                symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbol_type]; 
+                                symbol <= SYMBOL_TYPE_TO_INCLU_END[symbol_type]; 
                                 symbol = AlignmentSymbol(1+(unsigned int)symbol)) {
                             if (con_symbol != symbol) {
                                 this->minor_amplicon[strand].getRefByPos(epos).incSymbolCount(symbol, amplicon_symbol2count.getSymbolCount(symbol));
@@ -2012,10 +2012,10 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                 for (size_t epos = read_family_amplicon.getIncluBegPosition(); epos < read_family_amplicon.getExcluEndPosition(); epos++) {
                     unsigned int ldist = 1 + epos - read_family_amplicon.getIncluBegPosition();
                     unsigned int rdist = read_family_amplicon.getExcluEndPosition() - epos;
-                    for (SymbolType symbolType = SymbolType(0); symbolType < NUM_SYMBOL_TYPES; symbolType = SymbolType(1+(unsigned int)symbolType)) {
+                    for (SymbolType symbol_type = SymbolType(0); symbol_type < NUM_SYMBOL_TYPES; symbol_type = SymbolType(1+(unsigned int)symbol_type)) {
                         AlignmentSymbol con_symbol; // = END_ALIGNMENT_SYMBOLS;
                         unsigned int con_count, tot_count;
-                        read_family_amplicon.getRefByPos(epos).fillConsensusCounts(con_symbol, con_count, tot_count, symbolType);
+                        read_family_amplicon.getRefByPos(epos).fillConsensusCounts(con_symbol, con_count, tot_count, symbol_type);
                         if (0 == tot_count) { continue; }
                         
                         unsigned int majorcount = this->major_amplicon[strand].getByPos(epos).getSymbolCount(con_symbol);
@@ -2036,7 +2036,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         } // assuming errors equivalent to 200 pre-UMI-attachment PCR cycles after UMI attachment and one such PCR cycle before UMI attachment. QUESTION-TODO: justify
                         // no base quality stuff
                         
-                        con_symbols_vec[epos - read_family_amplicon.getIncluBegPosition()][symbolType] = con_symbol;
+                        con_symbols_vec[epos - read_family_amplicon.getIncluBegPosition()][symbol_type] = con_symbol;
                         this->fq_tsum_depth [strand].getRefByPos(epos).incSymbolCount(con_symbol, 1);
                         unsigned int edge_baq = MIN(ldist, rdist) * baq_per_aligned_base;
                         unsigned int overallq = MIN(edge_baq, phredlike);
@@ -2047,7 +2047,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         }
                         unsigned int pbucket = phred2bucket(overallq);
                         assert (pbucket < NUM_BUCKETS || !fprintf(stderr, "%u < %u failed at position %lu and con_symbol %u symboltype %u plusbucket %u\n", 
-                                 pbucket,  NUM_BUCKETS, epos, con_symbol, symbolType, symbolType2addPhred[symbolType]));
+                                 pbucket,  NUM_BUCKETS, epos, con_symbol, symbol_type, symb_type_to_added_phred[symbol_type]));
                         if (isSymbolIns(con_symbol)) {
                             posToIndelToCount_updateByConsensus(this->fq_tsum_depth[strand].getRefPosToIseqToData(con_symbol), read_family_amplicon.getPosToIseqToData(con_symbol), epos, 1);
                         }
@@ -2057,7 +2057,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         AlignmentSymbol refsymbol = region_symbolvec[epos - this->dedup_ampDistr.at(strand).getIncluBegPosition()]; 
                         if (areSymbolsMutated(refsymbol, con_symbol)) {
                             pos_symbol_string.push_back(std::make_pair(epos, con_symbol));
-                            if (symbolType == BASE_SYMBOL && phredlike >= phred_thres) {
+                            if (symbol_type == BASE_SYMBOL && phredlike >= phred_thres) {
                                 n_vars++;
                             }
                         }
@@ -2072,8 +2072,8 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                 }
                 n_vars = MIN(n_vars, NUM_NMBUCKS - 1);
                 for (auto epos = read_family_amplicon.getIncluBegPosition(); epos < read_family_amplicon.getExcluEndPosition(); epos++) {
-                    for (SymbolType symbolType = SymbolType(0); symbolType < NUM_SYMBOL_TYPES; symbolType = SymbolType(1+((unsigned int)symbolType))) {
-                        auto con_symbol = con_symbols_vec.at(epos - read_family_amplicon.getIncluBegPosition()).at(symbolType);
+                    for (SymbolType symbol_type = SymbolType(0); symbol_type < NUM_SYMBOL_TYPES; symbol_type = SymbolType(1+((unsigned int)symbol_type))) {
+                        auto con_symbol = con_symbols_vec.at(epos - read_family_amplicon.getIncluBegPosition()).at(symbol_type);
                         if (END_ALIGNMENT_SYMBOLS != con_symbol) {
                             this->pb_dist_nvars[strand].getRefByPos(epos).incSymbolBucketCount(con_symbol, n_vars, 1);
                         }
@@ -2087,10 +2087,10 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
             }
             if ((2 == alns2pair2dflag.second) && alns2pair[0].size() > 0 && alns2pair[1].size() > 0) { // is duplex
                 for (size_t epos = read_duplex_amplicon.getIncluBegPosition(); epos < read_duplex_amplicon.getExcluEndPosition(); epos++) {
-                    for (SymbolType symbolType = SymbolType(0); symbolType < NUM_SYMBOL_TYPES; symbolType = SymbolType(1+(unsigned int)symbolType)) {
+                    for (SymbolType symbol_type = SymbolType(0); symbol_type < NUM_SYMBOL_TYPES; symbol_type = SymbolType(1+(unsigned int)symbol_type)) {
                         AlignmentSymbol con_symbol;
                         unsigned int con_count, tot_count;
-                        read_duplex_amplicon.getRefByPos(epos).fillConsensusCounts(con_symbol, con_count, tot_count, symbolType);
+                        read_duplex_amplicon.getRefByPos(epos).fillConsensusCounts(con_symbol, con_count, tot_count, symbol_type);
                         assert (tot_count <= 2 || !fprintf(stderr, "%d <= 2 failed for duplex family, a duplex family is supported by two single-strand families!\n", tot_count));
                         if (0 < tot_count) {
                             this->duplex_tsum_depth.getRefByPos(epos).incSymbolCount(con_symbol, 1);
@@ -2248,7 +2248,7 @@ BcfFormat_init(bcfrec::BcfFormat & fmt,
             fmt.cAllBQ[strand] = fmt.bAllBQ[strand]; 
             fmt.cAllBQ2[strand] = div_by_20(symbolDistrSets12.bq_qual_p2sum.at(strand).getByPos(refpos).sumBySymbolType(symbolType)); 
         }
-        fmt.cAllHD[strand] = symbolDistrSets12.fq_hiqual_dep.at(strand).getByPos(refpos).sumBySymbolType(symbolType);
+        fmt.cAllHD[strand] = symbolDistrSets12.fq_hiqual_dep.at(strand).getByPos(refpos).sumBySymbolType(symbol_type);
         
         fmt.bRefBQ[strand] = (symbolDistrSets12.bq_qual_p1sum.at(strand).getByPos(refpos).getSymbolCount(refsymbol)); 
         // fmt.bRefBQ[strand] = div_by_20(symbolDistrSets12.bq_qual_p2sum.at(strand).getByPos(refpos).getSymbolCount(refsymbol)); 
@@ -2292,7 +2292,7 @@ BcfFormat_init(bcfrec::BcfFormat & fmt,
     fmt.gapNum[0] = 0;
     fmt.gapNum[1] = 0;
 
-    fmt.dDP1 = symbolDistrSets12.duplex_tsum_depth.getByPos(refpos).sumBySymbolType(symbolType);
+    fmt.dDP1 = symbolDistrSets12.duplex_tsum_depth.getByPos(refpos).sumBySymbolType(symbol_type);
     return {fmt.bDP1[0] + fmt.bDP1[1], fmt.cDP1[0] + fmt.cDP1[1]};
 };
 
@@ -2993,7 +2993,10 @@ generate_vcf_header(const char *ref_fasta_fname,
     for (unsigned int i = 0; i < bcfrec::FILTER_NUM; i++) {
         ret += std::string("") + bcfrec::FILTER_LINES[i] + "\n";
     }
-    
+    /* infostring += std::string(";TNQ=") + std::to_string(tn_var_q) + "," + std::to_string(phred_non_germ);
+        infostring += std::string(";TNNQ=") + std::to_string(t_nonorm_q) + "," + std::to_string(tn_mcoef)   + "," + std::to_string(tnlike_alt) + "," + std::to_string(tnlike_nonref);
+        infostring += std::string(";TNTQ=") + std::to_string(t_sample_q) + "," + std::to_string(t_powlaw_q) + "," + std::to_string(tki.VAQ);
+     * */ 
     ret += "##INFO=<ID=ANY_VAR,Number=0,Type=Flag,Description=\"Any type of variant which may be caused by germline polymorphism and/or experimental artifact\">\n";
     ret += "##INFO=<ID=SOMATIC,Number=0,Type=Flag,Description=\"Somatic variant\">\n";
 #if (1 < N_MODELS)
@@ -3507,6 +3510,13 @@ append_vcf_record(std::string & out_string,
         if ((!isInDel) && !tUseHD1) {
             _tn_tpo2q -= t_penal_by_nearby_indel;
         }
+        const double fa100qual = (isInDel ? (80.0 - (0.0/3.0) * (double)MIN(15, eff_track_len)) : 80.0); // 90
+        const double fa_pl_pow = 2.0; // 2.667
+        // double t_ess_frac = (double)tAD0 / ((double)tAD0 + (isInDel ? 1.5 : 1.0));
+        double t_sample_q = (10.0 / log(10.0)) * (log((double)(tDP0 + tAD0 + 2.0) / (double)(tAD0 + 1.0)) / log(2.0)) * tAD0;
+        double n_sample_q = (10.0 / log(10.0)) * (log((double)(nDP0 + nAD0 + 2.0) / (double)(nAD0 + 1.0)) / log(2.0)) * nAD0;
+        double t_powlaw_q = (10.0 / log(10.0)) * log((double)(tAD0 + 1.0) / (double)(tDP0 + 2.0)) * fa_pl_pow + fa100qual - penalFAphred;
+        double t_nonorm_q = MIN((double)tki_VAQ, MIN(t_sample_q, t_powlaw_q));
         
         const double tn_tpowq = _tn_tpo2q;
         const double tn_trawq = _tn_tra2q;

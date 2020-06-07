@@ -1,0 +1,4 @@
+language: c++
+compiler:
+  - g++
+script: ./install-dependencies.sh && make all -j4
