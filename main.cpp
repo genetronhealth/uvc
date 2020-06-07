@@ -607,13 +607,6 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
     
     std::string & outstring_allp = arg.outstring_allp;
     std::string & outstring_pass = arg.outstring_pass;
-
-    unsigned int & contam_tDP = arg.contam_tDP;
-    unsigned int & contam_nDP = arg.contam_nDP;
-    unsigned int & contam_tAD = arg.contam_tAD;
-    unsigned int & contam_nAD = arg.contam_nAD;
-    const double contam_est_qual_thres = arg.paramset.contam_est_qual_thres;
-    
     const hts_idx_t *const hts_idx = arg.hts_idx;
     const faidx_t *const ref_faidx = arg.ref_faidx;
     
@@ -1055,10 +1048,6 @@ int
 main(int argc, char **argv) {
     std::clock_t c_start = std::clock();
     auto t_start = std::chrono::high_resolution_clock::now();
-    uint64_t contam_tDPtot = 0;
-    uint64_t contam_nDPtot = 0;
-    uint64_t contam_tADtot = 0;
-    uint64_t contam_nADtot = 0;
     
     const char *UMI_STRUCT = getenv("ONE_STEP_UMI_STRUCT");
     const std::string UMI_STRUCT_STRING = ((UMI_STRUCT != NULL && strlen(UMI_STRUCT) > 0) ? std::string(UMI_STRUCT) : std::string(""));
@@ -1379,23 +1368,14 @@ main(int argc, char **argv) {
             LOG(logERROR) << "Unable to close the bgzip file " << paramset.vcf_output_fname;
         }
     }
-    if (paramset.vcf_tumor_fname.size() > 0) {
-        double est_contam_ratio = (((double)contam_tADtot + 1.0) / ((double)contam_tDPtot + 2.0)) / (((double)contam_nADtot + 1.0) / ((double)contam_nDPtot + 2.0));
-        std::cerr << "EstimatedContaminationRatioFromTumorToNormal=" << (1.0/est_contam_ratio) << " with " 
-                  << ",tumorDPsum=" << contam_tDPtot
-                  << ",normalDPsum="  << contam_nDPtot 
-                  << ",tumorADsum=" << contam_tADtot
-                  << ",normalADsum=" << contam_nADtot << "\n";
-    }
-    std::cerr << "ProgramFullVersion=" << VERSION_DETAIL << "\n";
-    
     std::clock_t c_end = std::clock();
     auto t_end = std::chrono::high_resolution_clock::now();
+ 
     std::cerr << std::fixed << std::setprecision(2) << "CPU time used: "
-              << 1.0 * (c_end-c_start) / CLOCKS_PER_SEC << " seconds. "
+              << 1.0 * (c_end-c_start) / CLOCKS_PER_SEC << " seconds\n"
               << "Wall clock time passed: "
               << std::chrono::duration<double>(t_end-t_start).count()
-              << " seconds.\n";
+              << " seconds\n";
     return 0;
 }
 
