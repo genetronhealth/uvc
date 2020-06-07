@@ -12,6 +12,10 @@ if [ $(echo "${1}" | grep skip-bcftools | wc -l) -eq 0 ]; then
     ./configure
     make -j 4
     cp bcftools "${currdir}/bin/"
+    cp -r "${currdir}/ext/bcftools-1.9/htslib-1.9" "${currdir}/ext/htslib-1.9-lowdep"
+    cd "${currdir}/ext/htslib-1.9-lowdep"
+    ./configure -disable-plugins --disable-libcurl --disable-s3 --disable-largefile # --disable-bz2 --disable-lzma # are both for disabling CRAM files
+    make -j 4
     #make install # this command may fail without root privilege, but it does not matter much as bcftools is in the PATH variable by exporting in uvcTN.sh
 fi
 
