@@ -174,7 +174,7 @@ struct BatchArg {
 
 unsigned int
 gen_fq_tsum_depths(const auto & fq_tsum_depth, unsigned int refpos) {
-    std::array<unsigned int, 3> fq_tsum_depths = {0, 0, 0};
+    std::array<unsigned int, 3> fq_tsum_depths = {{0, 0, 0}};
     for (unsigned int strand = 0; strand < 2; strand++) {
         fq_tsum_depths[0] += fq_tsum_depth.at(strand).getByPos(refpos+0).sumBySymbolType(LINK_SYMBOL);
         fq_tsum_depths[1] += fq_tsum_depth.at(strand).getByPos(refpos+0).sumBySymbolType(BASE_SYMBOL);
@@ -262,7 +262,7 @@ struct TumorKeyInfo {
     int32_t cDPTC = 0;
     
     int32_t bDP = 0;
-    std::array<int32_t, 2> bAD1 = {0};
+    std::array<int32_t, 2> bAD1 = {{0}};
     int32_t autoBestAllBQ = 0;
     int32_t autoBestAltBQ = 0;
     int32_t autoBestRefBQ = 0;
@@ -273,14 +273,14 @@ struct TumorKeyInfo {
     int32_t cAltBQ2 = 0;
     int32_t cRefBQ2 = 0;
     int32_t dAD3 = 0;
-    std::array<int32_t, 4> gapDP4 = {0};
-    std::array<int32_t, 6*RCC_NUM> RCC = {0};
-    std::array<int32_t, 3> GLa = {0};
-    std::array<int32_t, 3> GLb = {0};
-    std::array<int32_t, 5> EROR = {0};
-    std::array<int32_t, 4> gapbNRD = {0};
-    std::array<int32_t, 2> bSSEDA = {0};
-    std::array<int32_t, 4> bSSAD = {0};
+    std::array<int32_t, 4> gapDP4 = {{0}};
+    std::array<int32_t, 6*RCC_NUM> RCC = {{0}};
+    std::array<int32_t, 3> GLa = {{0}};
+    std::array<int32_t, 3> GLb = {{0}};
+    std::array<int32_t, 5> EROR = {{0}};
+    std::array<int32_t, 4> gapbNRD = {{0}};
+    std::array<int32_t, 2> bSSEDA = {{0}};
+    std::array<int32_t, 4> bSSAD = {{0}};
     // std::array<int32_t, 2> gapbNNRD = {0};
     bcf1_t *bcf1_record = NULL;
     /*
@@ -770,14 +770,14 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
     unsigned int prevPosition = rpos_inclu_beg;
     SymbolType prevSymbolType = NUM_SYMBOL_TYPES;
     
-    std::array<CoveredRegion<uint32_t>, 2> bq_ins_2bdepths = {
+    std::array<CoveredRegion<uint32_t>, 2> bq_ins_2bdepths = {{
         CoveredRegion<uint32_t>(tid, extended_inclu_beg_pos, extended_exclu_end_pos + 1), 
         CoveredRegion<uint32_t>(tid, extended_inclu_beg_pos, extended_exclu_end_pos + 1)
-    };
-    std::array<CoveredRegion<uint32_t>, 2> bq_del_2bdepths = {
+    }};
+    std::array<CoveredRegion<uint32_t>, 2> bq_del_2bdepths = {{
         CoveredRegion<uint32_t>(tid, extended_inclu_beg_pos, extended_exclu_end_pos + 1),
         CoveredRegion<uint32_t>(tid, extended_inclu_beg_pos, extended_exclu_end_pos + 1)
-    };
+    }};
     for (unsigned int refpos = extended_inclu_beg_pos; refpos <= extended_exclu_end_pos; refpos++) {
         for (unsigned int strand = 0; strand < 2; strand++) {
             unsigned int link_ins_cnt = 0;
@@ -835,8 +835,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
         std::string repeatunit;
         unsigned int repeatnum = 0;
         indelpos_to_context(repeatunit, repeatnum, refstring, refpos - extended_inclu_beg_pos); 
-        const std::array<SymbolType, 2> allSymbolTypes = {LINK_SYMBOL, BASE_SYMBOL};
-        const std::array<SymbolType, 2> stype_to_immediate_prev = {LINK_SYMBOL, BASE_SYMBOL};
+        const std::array<SymbolType, 2> allSymbolTypes = {{LINK_SYMBOL, BASE_SYMBOL}};
+        const std::array<SymbolType, 2> stype_to_immediate_prev = {{LINK_SYMBOL, BASE_SYMBOL}};
         for (unsigned int stidx = 0; stidx < 2; stidx++) {
             const SymbolType symbolType = allSymbolTypes[stidx];
             bcfrec::BcfFormat init_fmt;

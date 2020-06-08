@@ -73,13 +73,13 @@ const std::vector<std::string> PAIR_END_MERGE_TO_MSG = {
 
 // const std::array<std::string, 2> GT_TUMREF = {"1/0", "1/0"};
 
-const std::array<std::string, 2> GT_HETERO = {"0/1", "0/."};
-const std::array<std::string, 2> GT_HOMREF = {"0/0", "0/0"};
-const std::array<std::string, 2> GT_HOMALT = {"1/1", "./."};
+const std::array<std::string, 2> GT_HETERO = {{"0/1", "0/."}};
+const std::array<std::string, 2> GT_HOMREF = {{"0/0", "0/0"}};
+const std::array<std::string, 2> GT_HOMALT = {{"1/1", "./."}};
 
-const std::array<std::string, 2> TT_HETERO = {"./1", "1/."};
-const std::array<std::string, 2> TT_HOMREF = {"./1", "1/."};
-const std::array<std::string, 2> TT_HOMALT = {"1/1", "1/."};
+const std::array<std::string, 2> TT_HETERO = {{"./1", "1/."}};
+const std::array<std::string, 2> TT_HOMREF = {{"./1", "1/."}};
+const std::array<std::string, 2> TT_HOMALT = {{"1/1", "1/."}};
 
 /*
 const std::string NRGT_TUMREF = "./0";
@@ -98,7 +98,7 @@ struct TnDP4 {
 };
 
 struct VcStats {
-    std::array<TnDP4, VCFQUAL_NUM_BINS> vcfqual_to_count = {TnDP4()};
+    std::array<TnDP4, VCFQUAL_NUM_BINS> vcfqual_to_count = {{TnDP4()}};
     
     VcStats() {}
     

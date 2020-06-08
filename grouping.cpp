@@ -523,8 +523,8 @@ bamfname_to_strand_to_familyuid_to_reads(
     unsigned int fetch_size = fetch_tend - fetch_tbeg + (ARRPOS_MARGIN + ARRPOS_OUTER_RANGE) * 2;
     
     std::vector<unsigned int> inicount(fetch_size, 0);
-    std::array<std::vector<unsigned int>, 4> isrc_isr2_to_beg_count = { inicount, inicount, inicount, inicount };
-    std::array<std::vector<unsigned int>, 4> isrc_isr2_to_end_count = { inicount, inicount, inicount, inicount };
+    std::array<std::vector<unsigned int>, 4> isrc_isr2_to_beg_count = {{ inicount, inicount, inicount, inicount }};
+    std::array<std::vector<unsigned int>, 4> isrc_isr2_to_end_count = {{ inicount, inicount, inicount, inicount }};
     
     hts_itr_t * hts_itr;
     bam1_t *aln = bam_init1();
@@ -554,12 +554,12 @@ bamfname_to_strand_to_familyuid_to_reads(
     }
     sam_itr_destroy(hts_itr);
     
-    std::array<std::vector<unsigned int>, 4> isrc_isr2_to_beg2bcenter = { inicount, inicount, inicount, inicount };
+    std::array<std::vector<unsigned int>, 4> isrc_isr2_to_beg2bcenter = {{ inicount, inicount, inicount, inicount }};
     for (unsigned int isrc_isr2 = 0; isrc_isr2 < 4; isrc_isr2++) {
         auto beg_to_count = isrc_isr2_to_beg_count[isrc_isr2];
         poscounter_to_pos2pcenter(isrc_isr2_to_beg2bcenter[isrc_isr2], beg_to_count, dedup_center_mult);
     }
-    std::array<std::vector<unsigned int>, 4> isrc_isr2_to_end2ecenter = { inicount, inicount, inicount, inicount };
+    std::array<std::vector<unsigned int>, 4> isrc_isr2_to_end2ecenter = {{ inicount, inicount, inicount, inicount }};
     for (unsigned int isrc_isr2 = 0; isrc_isr2 < 4; isrc_isr2++) {
         auto end_to_count = isrc_isr2_to_end_count[isrc_isr2];
         poscounter_to_pos2pcenter(isrc_isr2_to_end2ecenter[isrc_isr2], end_to_count, dedup_center_mult);
