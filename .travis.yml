@@ -3,7 +3,7 @@ dist: bionic
 script:
   #- export CC=gcc-7
   #- export CXX=g++-7
-  #- ./install-dependencies.sh 
+  - ./install-dependencies.sh 
   - make clean
   - make all -j4 
   - make deploy
