@@ -1,19 +1,9 @@
-sudo: false
 language: cpp
-compiler:
-  - g++
-  - clang
-addons:
-  apt:
-    sources:
-    - ubuntu-toolchain-r-test
-    - llvm-toolchain-precise-3.8
-    packages:
-    - g++-7
-    - clang-5.0
-install:
-- "[ $CXX = g++ ] && export CXX=g++-7 || true"
-- "[ $CXX = clang++ ] && export CXX=clang++-5.0 || true"
-script:
-  - ./install-dependencies.sh && make clean && make all -j4 && make deploy
+dist: bionic
+compiler: g++
 
+script: 
+  - ./install-dependencies.sh 
+  - make clean
+  - make all -j4 
+  - make deploy
