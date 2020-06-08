@@ -558,9 +558,9 @@ public:
             AlignmentSymbol & count_argmax, unsigned int & count_max, unsigned int & count_sum,
             const SymbolType symbolType) const {
         if (symbolType == BASE_SYMBOL) {
-            return this->_fillConsensusCounts<false        >(count_argmax, count_max, count_sum, BASE_A, BASE_NN);
+            return this->template _fillConsensusCounts<false        >(count_argmax, count_max, count_sum, BASE_A, BASE_NN);
         } else if (symbolType == LINK_SYMBOL) {
-            return this->_fillConsensusCounts<TIndelIsMajor>(count_argmax, count_max, count_sum, LINK_M, LINK_NN);
+            return this->template _fillConsensusCounts<TIndelIsMajor>(count_argmax, count_max, count_sum, LINK_M, LINK_NN);
         } else {
             abort();
             return -1;
@@ -574,7 +574,7 @@ public:
         AlignmentSymbol argmax_count = END_ALIGNMENT_SYMBOLS; // AlignmentSymbol(0) is not fully correct
         unsigned int max_count = 0;
         unsigned int sum_count = 0;
-        thatSymbol2Count.fillConsensusCounts<TIndelIsMajor>(argmax_count, max_count, sum_count, symbolType);
+        thatSymbol2Count.template fillConsensusCounts<TIndelIsMajor>(argmax_count, max_count, sum_count, symbolType);
         unsigned int incvalue;
         if (T_SymbolCountType == SYMBOL_COUNT_SUM) {
             incvalue = incvalue2;
@@ -601,8 +601,8 @@ public:
     template<ValueType T_SymbolCountType, bool TIndelIsMajor = false>
     std::array<AlignmentSymbol, 2>
     updateByConsensus(const GenericSymbol2Count<TInteger> & thatSymbol2Count, unsigned int incvalue = 1) {
-        AlignmentSymbol baseSymb = this->_updateByConsensus<T_SymbolCountType, false        >(thatSymbol2Count, BASE_SYMBOL, BASE_NN, incvalue);
-        AlignmentSymbol linkSymb = this->_updateByConsensus<T_SymbolCountType, TIndelIsMajor>(thatSymbol2Count, LINK_SYMBOL, LINK_NN, incvalue);
+        AlignmentSymbol baseSymb = this->template _updateByConsensus<T_SymbolCountType, false        >(thatSymbol2Count, BASE_SYMBOL, BASE_NN, incvalue);
+        AlignmentSymbol linkSymb = this->template _updateByConsensus<T_SymbolCountType, TIndelIsMajor>(thatSymbol2Count, LINK_SYMBOL, LINK_NN, incvalue);
         return {baseSymb, linkSymb};
     };
     
@@ -629,9 +629,9 @@ public:
         for (SymbolType symbolType = SymbolType(0); symbolType < NUM_SYMBOL_TYPES; symbolType = SymbolType(1 + (unsigned int)symbolType)) {
             // consalpha = END_ALIGNMENT_SYMBOLS;
             if (LINK_SYMBOL == symbolType) {
-                other.fillConsensusCounts<true >(consalpha, countalpha, totalalpha, symbolType);
+                other.template fillConsensusCounts<true >(consalpha, countalpha, totalalpha, symbolType);
             } else {
-                other.fillConsensusCounts<false>(consalpha, countalpha, totalalpha, symbolType);
+                other.template fillConsensusCounts<false>(consalpha, countalpha, totalalpha, symbolType);
             }
             auto adjcount = MAX(countalpha * 2, totalalpha) - totalalpha;
             if (adjcount >= (thres.getSymbolCount(consalpha)) && adjcount > 0) {
@@ -975,7 +975,7 @@ public:
         
         if (update_idx2symbol2data) {
             for (size_t epos = other.getIncluBegPosition(); epos < other.getExcluEndPosition(); epos++) {
-                AlignmentSymbol consymbol = this->getRefByPos(epos).updateByRepresentative<TIsIncVariable>(other.getByPos(epos), incvalue);
+                AlignmentSymbol consymbol = this->getRefByPos(epos).template updateByRepresentative<TIsIncVariable>(other.getByPos(epos), incvalue);
                 if (update_pos2indel2count) {
                     if (isSymbolIns(consymbol)) {
                         posToIndelToCount_updateByRepresentative<TIsIncVariable>(this->getRefPosToIseqToData(consymbol), other.getPosToIseqToData(consymbol), epos, incvalue);
@@ -996,7 +996,7 @@ public:
         
         if (update_idx2symbol2data) {
             for (size_t epos = other.getIncluBegPosition(); epos < other.getExcluEndPosition(); epos++) {
-                const std::array<AlignmentSymbol, NUM_SYMBOL_TYPES> consymbols = this->getRefByPos(epos).updateByConsensus<T_ConsensusType, TIndelIsMajor>(other.getByPos(epos), incvalue);
+                const std::array<AlignmentSymbol, NUM_SYMBOL_TYPES> consymbols = this->getRefByPos(epos).template updateByConsensus<T_ConsensusType, TIndelIsMajor>(other.getByPos(epos), incvalue);
                 if (update_pos2indel2count) {
                     if (isSymbolIns(consymbols[1])) {
                         posToIndelToCount_updateByConsensus(this->getRefPosToIseqToData(consymbols[1]), other.getPosToIseqToData(consymbols[1]), epos, incvalue);
@@ -1093,11 +1093,11 @@ public:
                         if (TUpdateType == BASE_QUALITY_MAX) {
                             incvalue = frag_indel_basemax; //(MIN(bam_phredi(b, qpos-1), bam_phredi(b, qpos))); // + symbolType2addPhred[LINK_SYMBOL];
                         }
-                        this->inc<TUpdateType>(rpos, LINK_M, incvalue, b);
+                        this->template inc<TUpdateType>(rpos, LINK_M, incvalue, b);
                         if (TFillSeqDir) {
-                            bq_dirs_count[strand*2+isrc].inc<SYMBOL_COUNT_SUM>(rpos, LINK_M, 1, b);
-                            bq_dirs_edmax[0].inc<SYMBOL_COUNT_SUM>(rpos, LINK_M, qpos + 1, b);
-                            bq_dirs_edmax[1].inc<SYMBOL_COUNT_SUM>(rpos, LINK_M, b->core.l_qseq - qpos, b);
+                            bq_dirs_count[strand*2+isrc].template inc<SYMBOL_COUNT_SUM>(rpos, LINK_M, 1, b);
+                            bq_dirs_edmax[0].template inc<SYMBOL_COUNT_SUM>(rpos, LINK_M, qpos + 1, b);
+                            bq_dirs_edmax[1].template inc<SYMBOL_COUNT_SUM>(rpos, LINK_M, b->core.l_qseq - qpos, b);
                         }
                     }
                     unsigned int base4bit = bam_seqi(bseq, qpos);
@@ -1106,11 +1106,11 @@ public:
                         incvalue = bam_phredi(b, qpos) 
                                 + (QUAL_PRE_ADD ? symbolType2addPhred[BASE_SYMBOL] : 0);
                     }
-                    this->inc<TUpdateType>(rpos, AlignmentSymbol(base3bit), incvalue, b);
+                    this->template inc<TUpdateType>(rpos, AlignmentSymbol(base3bit), incvalue, b);
                     if (TFillSeqDir) {
-                        bq_dirs_count[strand*2+isrc].inc<SYMBOL_COUNT_SUM>(rpos, AlignmentSymbol(base3bit), 1, b);
-                        bq_dirs_edmax[0].inc<SYMBOL_COUNT_SUM>(rpos, AlignmentSymbol(base3bit), qpos + 1, b);
-                        bq_dirs_edmax[1].inc<SYMBOL_COUNT_SUM>(rpos, AlignmentSymbol(base3bit), b->core.l_qseq - qpos, b);
+                        bq_dirs_count[strand*2+isrc].template inc<SYMBOL_COUNT_SUM>(rpos, AlignmentSymbol(base3bit), 1, b);
+                        bq_dirs_edmax[0].template inc<SYMBOL_COUNT_SUM>(rpos, AlignmentSymbol(base3bit), qpos + 1, b);
+                        bq_dirs_edmax[1].template inc<SYMBOL_COUNT_SUM>(rpos, AlignmentSymbol(base3bit), b->core.l_qseq - qpos, b);
                     }
                     rpos += 1;
                     qpos += 1;
@@ -1141,11 +1141,11 @@ public:
                     }
                 }
                 if (!is_ins_at_read_end) {
-                    this->inc<TUpdateType>(rpos, insLenToSymbol(inslen), MAX(SIGN2UNSIGN(1), incvalue), b);
+                    this->template inc<TUpdateType>(rpos, insLenToSymbol(inslen), MAX(SIGN2UNSIGN(1), incvalue), b);
                     if (TFillSeqDir) {
-                        bq_dirs_count[strand*2+isrc].inc<SYMBOL_COUNT_SUM>(rpos, insLenToSymbol(inslen), 1, b);
-                        bq_dirs_edmax[0].inc<SYMBOL_COUNT_SUM>(rpos, insLenToSymbol(inslen), qpos + 1, b);
-                        bq_dirs_edmax[1].inc<SYMBOL_COUNT_SUM>(rpos, insLenToSymbol(inslen), b->core.l_qseq - qpos - cigar_oplen, b);
+                        bq_dirs_count[strand*2+isrc].template inc<SYMBOL_COUNT_SUM>(rpos, insLenToSymbol(inslen), 1, b);
+                        bq_dirs_edmax[0].template inc<SYMBOL_COUNT_SUM>(rpos, insLenToSymbol(inslen), qpos + 1, b);
+                        bq_dirs_edmax[1].template inc<SYMBOL_COUNT_SUM>(rpos, insLenToSymbol(inslen), b->core.l_qseq - qpos - cigar_oplen, b);
                     }
                     std::string iseq;
                     iseq.reserve(cigar_oplen);
@@ -1187,11 +1187,11 @@ public:
                     }
                 }
                 if (!is_del_at_read_end) {
-                    this->inc<TUpdateType>(rpos, delLenToSymbol(dellen), MAX(SIGN2UNSIGN(1), incvalue), b);
+                    this->template inc<TUpdateType>(rpos, delLenToSymbol(dellen), MAX(SIGN2UNSIGN(1), incvalue), b);
                     if (TFillSeqDir) {
-                        bq_dirs_count[strand*2+isrc].inc<SYMBOL_COUNT_SUM>(rpos, delLenToSymbol(dellen), 1, b);
-                        bq_dirs_edmax[0].inc<SYMBOL_COUNT_SUM>(rpos, delLenToSymbol(dellen), qpos + 1, b);
-                        bq_dirs_edmax[1].inc<SYMBOL_COUNT_SUM>(rpos, delLenToSymbol(dellen), b->core.l_qseq - qpos, b);
+                        bq_dirs_count[strand*2+isrc].template inc<SYMBOL_COUNT_SUM>(rpos, delLenToSymbol(dellen), 1, b);
+                        bq_dirs_edmax[0].template inc<SYMBOL_COUNT_SUM>(rpos, delLenToSymbol(dellen), qpos + 1, b);
+                        bq_dirs_edmax[1].template inc<SYMBOL_COUNT_SUM>(rpos, delLenToSymbol(dellen), b->core.l_qseq - qpos, b);
                     }
                     this->incDel(rpos, cigar_oplen, delLenToSymbol(dellen), MAX(SIGN2UNSIGN(1), incvalue));
                 }
@@ -1200,7 +1200,7 @@ public:
 // However, if we consider any position covered by the boundary of a germline indel to be non-ref, then this code should be enabled.
                 unsigned int endpos = SIGN2UNSIGN(bam_endpos(b));
                 for (unsigned int p = rpos+1; p < MIN(rpos + cigar_oplen + 1, endpos); p++) {
-                    this->inc<TUpdateType>(p, LINK_NN, MAX(SIGN2UNSIGN(1), incvalue), b);
+                    this->template inc<TUpdateType>(p, LINK_NN, MAX(SIGN2UNSIGN(1), incvalue), b);
                 }
 #endif
                 rpos += cigar_oplen;
@@ -1230,15 +1230,15 @@ public:
         for (bam1_t *aln : aln_vec) {
             if (alns2size > 1 && dflag > 0) { // is barcoded and not singleton
                 if (is_proton || true) {
-                    this->updateByAln<TUpdateType, true , true , TFillSeqDir>(aln, frag_indel_ext, symbolType2addPhred, frag_indel_basemax, nogap_phred, region_symbolvec, region_offset, bq_dirs_count, bq_dirs_edmax);
+                    this->template updateByAln<TUpdateType, true , true , TFillSeqDir>(aln, frag_indel_ext, symbolType2addPhred, frag_indel_basemax, nogap_phred, region_symbolvec, region_offset, bq_dirs_count, bq_dirs_edmax);
                 } else {
-                    this->updateByAln<TUpdateType, false, true , TFillSeqDir>(aln, frag_indel_ext, symbolType2addPhred, frag_indel_basemax, nogap_phred, region_symbolvec, region_offset, bq_dirs_count, bq_dirs_edmax);
+                    this->template updateByAln<TUpdateType, false, true , TFillSeqDir>(aln, frag_indel_ext, symbolType2addPhred, frag_indel_basemax, nogap_phred, region_symbolvec, region_offset, bq_dirs_count, bq_dirs_edmax);
                 }
             } else {
                 if (is_proton || true) {
-                    this->updateByAln<TUpdateType, true , false, TFillSeqDir>(aln, frag_indel_ext, symbolType2addPhred, frag_indel_basemax, nogap_phred, region_symbolvec, region_offset, bq_dirs_count, bq_dirs_edmax);
+                    this->template updateByAln<TUpdateType, true , false, TFillSeqDir>(aln, frag_indel_ext, symbolType2addPhred, frag_indel_basemax, nogap_phred, region_symbolvec, region_offset, bq_dirs_count, bq_dirs_edmax);
                 } else {
-                    this->updateByAln<TUpdateType, false, false, TFillSeqDir>(aln, frag_indel_ext, symbolType2addPhred, frag_indel_basemax, nogap_phred, region_symbolvec, region_offset, bq_dirs_count, bq_dirs_edmax);
+                    this->template updateByAln<TUpdateType, false, false, TFillSeqDir>(aln, frag_indel_ext, symbolType2addPhred, frag_indel_basemax, nogap_phred, region_symbolvec, region_offset, bq_dirs_count, bq_dirs_edmax);
                 } 
             }
         }
@@ -1776,7 +1776,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                     uint32_t tid2, beg2, end2;
                     fillTidBegEndFromAlns1(tid2, beg2, end2, alns1);
                     Symbol2CountCoverage read_ampBQerr_fragWithR1R2(tid, beg2, end2);
-                    read_ampBQerr_fragWithR1R2.updateByRead1Aln<BASE_QUALITY_MAX, true>(alns1, frag_indel_ext, symbolType2addPhred, alns2.size(), 
+                    read_ampBQerr_fragWithR1R2.template updateByRead1Aln<BASE_QUALITY_MAX, true>(alns1, frag_indel_ext, symbolType2addPhred, alns2.size(), 
                             frag_indel_basemax, alns2pair2dflag.second, nogap_phred, is_proton, region_symbolvec, this->dedup_ampDistr.at(strand).getIncluBegPosition(), this->bq_dirs_count, this->bq_dirs_edmax);
                     unsigned int normMQ = 0;
                     for (const bam1_t * b : alns1) {
@@ -1797,9 +1797,9 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                             AlignmentSymbol con_symbol;
                             unsigned int con_count, tot_count;
                             if (LINK_SYMBOL == symbolType) {
-                                read_ampBQerr_fragWithR1R2.getByPos(epos).fillConsensusCounts<true >(con_symbol, con_count, tot_count, symbolType);
+                                read_ampBQerr_fragWithR1R2.getByPos(epos).template fillConsensusCounts<true >(con_symbol, con_count, tot_count, symbolType);
                             } else {
-                                read_ampBQerr_fragWithR1R2.getByPos(epos).fillConsensusCounts<false>(con_symbol, con_count, tot_count, symbolType); 
+                                read_ampBQerr_fragWithR1R2.getByPos(epos).template fillConsensusCounts<false>(con_symbol, con_count, tot_count, symbolType); 
                             }
                             assert (con_count * 2 >= tot_count);
                             if (0 == tot_count) { continue; }
@@ -1923,9 +1923,9 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                     uint32_t tid1, beg1, end1;
                     fillTidBegEndFromAlns1(tid1, beg1, end1, alns1);
                     Symbol2CountCoverage read_ampBQerr_fragWithR1R2(tid1, beg1, end1);
-                    read_ampBQerr_fragWithR1R2.updateByRead1Aln<BASE_QUALITY_MAX, false>(alns1, frag_indel_ext, symbolType2addPhred, alns2.size(), 
+                    read_ampBQerr_fragWithR1R2.template updateByRead1Aln<BASE_QUALITY_MAX, false>(alns1, frag_indel_ext, symbolType2addPhred, alns2.size(), 
                             frag_indel_basemax, alns2pair2dflag.second, nogap_phred, is_proton, region_symbolvec, this->dedup_ampDistr.at(strand).getIncluBegPosition(), this->bq_dirs_count, this->bq_dirs_edmax);
-                    read_family_con_ampl.updateByConsensus<SYMBOL_COUNT_SUM, true>(read_ampBQerr_fragWithR1R2);
+                    read_family_con_ampl.template updateByConsensus<SYMBOL_COUNT_SUM, true>(read_ampBQerr_fragWithR1R2);
                     read_family_amplicon.updateByFiltering(read_ampBQerr_fragWithR1R2, this->bq_pass_thres[strand], 1, true, strand);
                     if (log_alns2) {
                         // LOG(logINFO) << "        has " << alns1.size() << " sequenced read templates.";
@@ -1990,7 +1990,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                     uint32_t tid1, beg1, end1;
                     fillTidBegEndFromAlns1(tid1, beg1, end1, aln_vec);
                     Symbol2CountCoverage read_ampBQerr_fragWithR1R2(tid1, beg1, end1);
-                    read_ampBQerr_fragWithR1R2.updateByRead1Aln<BASE_QUALITY_MAX, false>(aln_vec, frag_indel_ext, symbolType2addPhred, alns2.size(), 
+                    read_ampBQerr_fragWithR1R2.template updateByRead1Aln<BASE_QUALITY_MAX, false>(aln_vec, frag_indel_ext, symbolType2addPhred, alns2.size(), 
                             frag_indel_basemax, alns2pair2dflag.second, nogap_phred, is_proton, region_symbolvec, this->dedup_ampDistr.at(strand).getIncluBegPosition(), this->bq_dirs_count, this->bq_dirs_edmax);
                     // The line below is similar to : read_family_amplicon.updateByConsensus<SYMBOL_COUNT_SUM>(read_ampBQerr_fragWithR1R2);
                     read_family_amplicon.updateByFiltering(read_ampBQerr_fragWithR1R2, this->bq_pass_thres[strand], 1, true, strand);
@@ -1999,7 +1999,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                     }
                 }
                 if ((2 == alns2pair2dflag.second) && alns2pair[0].size() > 0 && alns2pair[1].size() > 0) { // is duplex
-                    read_duplex_amplicon.updateByConsensus<SYMBOL_COUNT_SUM>(read_family_amplicon);
+                    read_duplex_amplicon.template updateByConsensus<SYMBOL_COUNT_SUM>(read_family_amplicon);
                 }
                 std::basic_string<std::pair<unsigned int, AlignmentSymbol>> pos_symbol_string;
                 unsigned int ldist_inc = 0;
