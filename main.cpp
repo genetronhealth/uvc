@@ -279,7 +279,7 @@ struct TumorKeyInfo {
     std::array<int32_t, 3> GLb = {{0}};
     std::array<int32_t, 5> EROR = {{0}};
     std::array<int32_t, 4> gapbNRD = {{0}};
-    std::array<int32_t, 2> bSSEDA = {{0}};
+    std::array<int32_t, 2> bSSRAD = {{0}};
     std::array<int32_t, 4> bSSAD = {{0}};
     // std::array<int32_t, 2> gapbNNRD = {0};
     bcf1_t *bcf1_record = NULL;
@@ -552,10 +552,10 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         }
         
         ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line,  "bSSEDA",&bcfints,&ndst_val);
-        assert((tki.bSSEDA.size() == ndst_val && tki.bSSEDA.size() == valsize) || !fprintf(stderr, "%lu == %d && %lu == %d failed for bSSEDA!\n", tki.bSSEDA.size(), ndst_val, tki.bSSEDA.size(), valsize));
-        for (size_t i = 0; i < tki.bSSEDA.size(); i++) {
-            tki.bSSEDA[i] = bcfints[i];
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "bSSRAD",&bcfints,&ndst_val);
+        assert((tki.bSSRAD.size() == ndst_val && tki.bSSRAD.size() == valsize) || !fprintf(stderr, "%lu == %d && %lu == %d failed for bSSRAD!\n", tki.bSSRAD.size(), ndst_val, tki.bSSRAD.size(), valsize));
+        for (size_t i = 0; i < tki.bSSRAD.size(); i++) {
+            tki.bSSRAD[i] = bcfints[i];
         }
         
         ndst_val = 0;
@@ -743,8 +743,11 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
             SEQUENCING_PLATFORM_IONTORRENT == paramset.sequencing_platform,
             inferred_assay_type,
             paramset.phred_frac_indel_error_before_barcode_labeling,
-            paramset.baq_per_aligned_base
-            );
+            paramset.baq_per_aligned_base,
+            paramset.regside_nbases,
+            (is_by_capture ? paramset.bias_flag_cap_snv : paramset.bias_flag_amp_snv),
+            (is_by_capture ? paramset.bias_flag_cap_indel : paramset.bias_flag_amp_indel),
+            0);
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts analyzing phasing info"; }
     auto mutform2count4vec_bq = map2vector(mutform2count4map_bq);
     auto simplemut2indices_bq = mutform2count4vec_to_simplemut2indices(mutform2count4vec_bq);
@@ -1017,7 +1020,13 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                                 paramset.syserr_norm_devqual,
                                 paramset.phred_umi_indel_dimret_qual,
                                 paramset.phred_umi_indel_dimret_fold,
-                                paramset.bitflag_InDel_penal_t_UMI_n_UMI);
+                                paramset.bitflag_InDel_penal_t_UMI_n_UMI,
+                                paramset.haplo_in_diplo_allele_perc,
+                                paramset.diplo_oneside_posbias_perc,
+                                paramset.diplo_twoside_posbias_perc,
+                                paramset.haplo_oneside_posbias_perc,
+                                paramset.haplo_twoside_posbias_perc,
+                                0);
                     }
                 }
             }

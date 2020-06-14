@@ -13,16 +13,16 @@
 bool
 is_bitflag_checked(uint32_t bitflag_InDel_penal_t_UMI_n_UMI, bool is_InDel, bool is_penal, bool is_t_UMI, bool is_n_UMI) {
     uint32_t bitflag_index = 0;
-    if (is_InDel) {
+    if (!is_InDel) {
         bitflag_index += 8;
     }
-    if (is_penal) {
+    if (!is_penal) {
         bitflag_index += 4;
     } 
-    if (is_t_UMI) {
+    if (!is_t_UMI) {
         bitflag_index += 2;
     }
-    if (is_n_UMI) {
+    if (!is_n_UMI) {
         bitflag_index += 1;
     }
     return ((0x1L << bitflag_index) & bitflag_InDel_penal_t_UMI_n_UMI);
@@ -162,7 +162,11 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
      
     app.add_option("--uni-bias-thres", uni_bias_thres,  "Unified-bias threshold for generating the filter strings in FORMAT/FT. This parameter is only for generating statistics and therefore does not affect variant quality. Downstream hard filtering with FORMAT/FT is possible (统一偏好性的阈值，用于生成FORMAT/FT信息，只用于统计，不影响变异质量，FORMAT/FT可用于下游硬过滤). ", true);
     app.add_option("--uni-bias-r-max", uni_bias_r_max,  "Maximum unified-bias threshold used for reducing variant read support. This parameter does affect variant quality. (统一偏好性的最大值，用于减少变异支持，会影响变异质量). ", true);
-    //app.add_option("--diffVAQfrac",    diffVAQfrac,     "Experimental real-numbered parameter that should be set to either zero or one (实验性的实数参数，理论值要么是零要么是一). ", true);
+    app.add_option("--bias-flag-amp-snv",   bias_flag_amp_snv,   "Flag where each bit enables evidence reduction by each bias for SNVs and amplicon assay. "
+            + stringvec_to_descstring(BIAS_TYPE_TO_MSG), true);
+    app.add_option("--bias-flag-amp-indel", bias_flag_amp_indel, "Flag where each bit enables evidence reduction by each bias for InDels and amplicon assay.", true);
+    app.add_option("--bias-flag-cap-snv",   bias_flag_cap_snv,   "Flag where each bit enables evidence reduction by each bias for SNVs and capture assay.", true);
+    app.add_option("--bias-flag-cap-indel", bias_flag_cap_indel, "Flag where each bit enables evidence reduction by each bias for InDels and capture assay.", true);
     
     app.add_option("--highqual-thres-snv",          highqual_thres_snv,
             "The SNV quality threshold above which the family quality is considered to be high", true);
@@ -171,10 +175,6 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
             "zero means auto infer to highqual-thres-snv + 6 for Illumina/BGI and -4 for IonTorrent)", true);
     app.add_option("--highqual-min-ratio",          highqual_min_ratio,
             "The mininum ratio of the raw non-deduplicated read depth to the deduplicated read family depth to trigger tumor-normal comparison with high quality families only", true);
-    //app.add_option("--highqual-min-vardep",         highqual_min_vardep,
-    //        "the mininum number of families suporting the variant in the tumor sample to trigger tumor-normal comparison with families of duplicated reads only", true);
-    //app.add_option("--highqual-min-totdep",         highqual_min_vardep,
-    //        "the mininum number of familiess supporting any allele in the tumor sample to trigger tumor-normal comparison with families of duplicated reads only", true);
     
     app.add_option("--phred-frag-indel-ext",        phred_max_frag_indel_ext,
             "Maximum phred score fo the indel of one additional base (excluding the one base required for opening indel), capped at two additional bases", true);
@@ -285,6 +285,19 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
                    "Same as above except for non-UMI data" , true); 
     app.add_option("--bitflag-InDel-penal-t-UMI-n-UMI", bitflag_InDel_penal_t_UMI_n_UMI, "Advanced flag for comparing tumor with normal" , true); 
     app.add_option("--ref-bias-awareness", ref_bias_awareness, "Boolean bit-vector indicating if germline calls are aware of reference bias. The 0x1 bit is for amplicon and the 0x2 bit is for non-amplicon" , true);
+    
+    app.add_option("--haplo-in-diplo-allele-perc", haplo_in_diplo_allele_perc, "Percent allele of a haplotype observed in a diploid sample" , true);
+    app.add_option("--diplo-oneside-posbias-perc", diplo_oneside_posbias_perc, "Percent ratio of sequencing-segments not biased to either left or right side "
+            "below which position bias is added to the germline filter for homozygous variants" , true);
+    app.add_option("--diplo-twoside-posbias-perc", diplo_twoside_posbias_perc, "Percent ratio of sequencing-segments not biased to both left and right sides "
+            "below which position bias is added to the germline filter for homozygous variants" , true);
+    app.add_option("--haplo-oneside-posbias-perc", haplo_oneside_posbias_perc, "Percent ratio of sequencing-segments not biased to either left or right side "
+            "below which position bias is added to the germline filter for heterozygous variants" , true);
+    app.add_option("--haplo-twoside-posbias-perc", haplo_twoside_posbias_perc, "Percent ratio of sequencing-segments not biased to both left and right sides "
+            "below which position bias is added to the germline filter for heterozygous variants" , true);
+    
+    app.add_option("--regside-nbases", regside_nbases, "A variant is in the side region (left, right, or both) if and only if "
+            "the number of bases to the sequencing-segment end is at most this number." , true);
     
     app.callback([&]() {
         assay_type = (AssayType)assay_type_uint;

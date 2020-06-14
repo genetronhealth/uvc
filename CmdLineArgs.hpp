@@ -34,6 +34,13 @@ struct CommandLineArgs {
     unsigned int fixedthresBQ = 20; // to count the number of bases with base quality of more than this value at each position
     unsigned int uni_bias_thres = 180; // sampple FT includes the filter string if the filter value is higher than this value
     unsigned int uni_bias_r_max = (unsigned int)(INT32_MAX); // is used as infinity here
+    // segment: strand, side, position
+    //   duped: position, strand, mismatch, deduplication
+    // deduped: position, strand, mismatch, deduplication
+    uint32_t bias_flag_amp_snv = (BIAS_FRAG_DUP | BIAS_FRAG_POS | BIAS_FRAG_STR | BIAS_FRAG_MIS);
+    uint32_t bias_flag_amp_indel = (BIAS_FRAG_DUP | BIAS_FRAG_POS | BIAS_FRAG_MIS);
+    uint32_t bias_flag_cap_snv = (BIAS_FRAG_DUP | BIAS_FRAG_POS | BIAS_FRAG_STR | BIAS_FRAG_MIS | BIAS_SSEG_POS | BIAS_SSEG_STR | BIAS_SSEG_END);
+    uint32_t bias_flag_cap_indel = (BIAS_FRAG_DUP | BIAS_FRAG_POS | BIAS_FRAG_STR | BIAS_FRAG_MIS);
     
     // it is used to decide whether UMI or non-UMI tumor-vs-normal quality should be used
     unsigned int highqual_thres_snv = 44;
@@ -124,7 +131,14 @@ struct CommandLineArgs {
     */
     // (1011 11?1 1011 0101 or equivalently 11 13-15 11 5)
     uint32_t    bitflag_InDel_penal_t_UMI_n_UMI = 0xBFB5; // combine the four above hex letters in parentheses from left-to-right then top-to-bottom.
-    uint32_t    ref_bias_awareness = 0x6; // The 0x1 bit is for amplicon and the 0x2 bit is for non-amplicon
+    uint32_t    ref_bias_awareness = 0x2; // The 0x1 bit is for amplicon and the 0x2 bit is for non-amplicon
+    
+    uint32_t haplo_in_diplo_allele_perc = 50;
+    uint32_t diplo_oneside_posbias_perc = 20;
+    uint32_t diplo_twoside_posbias_perc = 10;
+    uint32_t haplo_oneside_posbias_perc = 25;
+    uint32_t haplo_twoside_posbias_perc = 15;
+    uint32_t regside_nbases = 30;
     
     int
     initFromArgCV(int & parsing_result_flag, SequencingPlatform & inferred_sequencing_platform, int argc, const char *const* argv);

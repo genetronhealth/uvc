@@ -2,7 +2,7 @@ UVC is a very accurate and reasonably fast somatic variant caller.
 The executable uvc1 in the bin direcotry takes one BAM file as input and generates one block-gzipped VCF file as output.
 The script uvcTN.sh in the bin directory takes two BAM files corresponding to tumor and normal as input and generate two block-gzipped VCF files (tumor-variant VCF and normal-filtered VCF) as output.
 
---- How to install ---
+# How to install
 
 UVC requires BASH 4.0+ (4.0 is the minimum version required) and a compiler that supports the C++14 standard.
 The Makefile in this directory compiles with g++, but the Makefile can be easily modified to use another compiler instead of g++ (for example, clang).
@@ -18,7 +18,7 @@ However, more efficient speed-up can still be gained by runing with GNU parallel
 
 In total, the installation should take about 5 minutes.
 
---- How to use ---
+# How to use
 
 The script uvcTN.sh in the bin directory is used for analyzing tumor-normal pairs.
 Run uvcTN.sh without any command-line argument will display its usage help.
@@ -43,7 +43,7 @@ If manual check is still too labor-intensive, then it is recommended to keep suc
  2. does not show germline risk (such as low-frequency occurence or absence in dbSNP).
 Otherwise, it is recommended to reject such variant candidate.
 
---- What to report if a runtime error arises ---
+# What to report if a runtime error arises
 
 In fact, uvc1 and some other executables all generated the same output given the same input. Their differences are as follows.
 uvc1: the release version that runs the fastest with multi-threading. 
@@ -58,7 +58,7 @@ uvc.cppt.out: similar to uvc1 except that uvc.cppt.out uses c++14 thread instead
 
 All bug reports, feature requests, and ideas for improvement are welcome (although not all of them may be addressed in time)!
 
---- Other things ---
+# Other things
 
 The environment variable ONE_STEP_UMI_STRUCT has special meaning to UVC.
 Please make sure that ONE_STEP_UMI_STRUCT is either not set or set to the empty string before running UVC.
