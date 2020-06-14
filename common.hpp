@@ -12,6 +12,26 @@
 #define RCC_NUM 2
 #define RCC_NFS 6
 
+enum BiasType {
+    BIAS_FRAG_DUP = 1,
+    BIAS_FRAG_POS = 2,
+    BIAS_FRAG_STR = 4,
+    BIAS_FRAG_MIS = 8,
+    BIAS_SSEG_POS = 32,
+    BIAS_SSEG_STR = 64,
+    BIAS_SSEG_END = 128,
+};
+
+const std::vector<std::string> BIAS_TYPE_TO_MSG = {
+    "Fragment duplication bias with bitmask " + std::to_string(BIAS_FRAG_DUP),
+    "Fragment position bias with bitmask " + std::to_string(BIAS_FRAG_POS),
+    "Fragment strand bias with bitmask " + std::to_string(BIAS_FRAG_STR),
+    "Fragment mismatch bias with bitmas " + std::to_string(BIAS_FRAG_MIS),
+    "Sequencing-segment position bias with bitmask " + std::to_string(BIAS_SSEG_POS),
+    "Sequencing-segment strand bias with bitmask "  + std::to_string(BIAS_SSEG_STR),
+    "Sequencing-segment two-sided position bias with bitmask "  + std::to_string(BIAS_SSEG_END)
+};
+
 const char *const NOT_PROVIDED = "";
 
 enum AssayType {

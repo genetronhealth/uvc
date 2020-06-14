@@ -743,8 +743,11 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
             SEQUENCING_PLATFORM_IONTORRENT == paramset.sequencing_platform,
             inferred_assay_type,
             paramset.phred_frac_indel_error_before_barcode_labeling,
-            paramset.baq_per_aligned_base
-            );
+            paramset.baq_per_aligned_base,
+            paramset.regside_nbases,
+            (is_by_capture ? paramset.bias_flag_cap_snv : paramset.bias_flag_amp_snv),
+            (is_by_capture ? paramset.bias_flag_cap_indel : paramset.bias_flag_amp_indel),
+            0);
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts analyzing phasing info"; }
     auto mutform2count4vec_bq = map2vector(mutform2count4map_bq);
     auto simplemut2indices_bq = mutform2count4vec_to_simplemut2indices(mutform2count4vec_bq);
@@ -1017,7 +1020,13 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                                 paramset.syserr_norm_devqual,
                                 paramset.phred_umi_indel_dimret_qual,
                                 paramset.phred_umi_indel_dimret_fold,
-                                paramset.bitflag_InDel_penal_t_UMI_n_UMI);
+                                paramset.bitflag_InDel_penal_t_UMI_n_UMI,
+                                paramset.haplo_in_diplo_allele_perc,
+                                paramset.diplo_oneside_posbias_perc,
+                                paramset.diplo_twoside_posbias_perc,
+                                paramset.haplo_oneside_posbias_perc,
+                                paramset.haplo_twoside_posbias_perc,
+                                0);
                     }
                 }
             }
