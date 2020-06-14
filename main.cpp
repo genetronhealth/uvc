@@ -279,7 +279,7 @@ struct TumorKeyInfo {
     std::array<int32_t, 3> GLb = {{0}};
     std::array<int32_t, 5> EROR = {{0}};
     std::array<int32_t, 4> gapbNRD = {{0}};
-    std::array<int32_t, 2> bSSEDA = {{0}};
+    std::array<int32_t, 2> bSSRAD = {{0}};
     std::array<int32_t, 4> bSSAD = {{0}};
     // std::array<int32_t, 2> gapbNNRD = {0};
     bcf1_t *bcf1_record = NULL;
@@ -552,10 +552,10 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         }
         
         ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line,  "bSSEDA",&bcfints,&ndst_val);
-        assert((tki.bSSEDA.size() == ndst_val && tki.bSSEDA.size() == valsize) || !fprintf(stderr, "%lu == %d && %lu == %d failed for bSSEDA!\n", tki.bSSEDA.size(), ndst_val, tki.bSSEDA.size(), valsize));
-        for (size_t i = 0; i < tki.bSSEDA.size(); i++) {
-            tki.bSSEDA[i] = bcfints[i];
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "bSSRAD",&bcfints,&ndst_val);
+        assert((tki.bSSRAD.size() == ndst_val && tki.bSSRAD.size() == valsize) || !fprintf(stderr, "%lu == %d && %lu == %d failed for bSSRAD!\n", tki.bSSRAD.size(), ndst_val, tki.bSSRAD.size(), valsize));
+        for (size_t i = 0; i < tki.bSSRAD.size(); i++) {
+            tki.bSSRAD[i] = bcfints[i];
         }
         
         ndst_val = 0;
