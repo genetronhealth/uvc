@@ -2741,10 +2741,10 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
     assert(fmt.DPHQ >= 0);
     assert(fmt.ADHQ >= 0);
     fmt.MQ = (unsigned int)sqrt((double)bq_qsum_sqrMQ_tot / (DBL_MIN + (double)(fmt.bAD1[0] + fmt.bAD1[1])));
-        
+    
     if (fmtAD > 0 || is_rescued) {
         assert(fmt.FA >= 0);
-        unsigned int ref_bias = 4*2;
+        unsigned int ref_bias = 4 * 2; // this is rather empirical
         if (isSymbolIns(symbol) || isSymbolDel(symbol)) {
             uint64_t totsize_cnt = 0;
             uint64_t totsize_sum = 0;
@@ -2788,10 +2788,11 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
              */
             auto indel_bias_len = ((totsize_sum * 100UL) / (totsize_cnt * 100UL + 1UL));
             auto context_bias = (repeatunit.size() * MAX(1UL, repeatnum));
+            // 1 = match score, 4 = mismatch-penalty, 5 = softclip-penalty, 6 = gap-open-penalty
             if (isSymbolIns(symbol)) {
-                ref_bias = (indel_bias_len * 3) + (6 * 2) + context_bias;
+                ref_bias = (indel_bias_len * 3) + (6 * 2) + (4 * 2) + context_bias;
             } else {
-                ref_bias = (indel_bias_len * 2) + (6 * 2) + context_bias; // 5 = softclip/match // 6 = gap_open/match
+                ref_bias = (indel_bias_len * 2) + (6 * 2) + (4 * 2) + context_bias;
             }
         }
         fmt.RefBias = ref_bias;

@@ -37,10 +37,11 @@ struct CommandLineArgs {
     // segment: strand, side, position
     //   duped: position, strand, mismatch, deduplication
     // deduped: position, strand, mismatch, deduplication
+    // BIAS_SSEG_END may be useful for discarding special false positive variants
     uint32_t bias_flag_amp_snv = (BIAS_FRAG_DUP | BIAS_FRAG_POS | BIAS_FRAG_STR | BIAS_FRAG_MIS);
     uint32_t bias_flag_amp_indel = (BIAS_FRAG_DUP | BIAS_FRAG_POS | BIAS_FRAG_MIS);
-    uint32_t bias_flag_cap_snv = (BIAS_FRAG_DUP | BIAS_FRAG_POS | BIAS_FRAG_STR | BIAS_FRAG_MIS | BIAS_SSEG_POS | BIAS_SSEG_STR | BIAS_SSEG_END);
-    uint32_t bias_flag_cap_indel = (BIAS_FRAG_DUP | BIAS_FRAG_POS | BIAS_FRAG_STR | BIAS_FRAG_MIS);
+    uint32_t bias_flag_cap_snv = (BIAS_FRAG_DUP | BIAS_FRAG_POS | BIAS_FRAG_STR | BIAS_FRAG_MIS | BIAS_SSEG_POS | BIAS_SSEG_STR);
+    uint32_t bias_flag_cap_indel = (BIAS_FRAG_DUP | BIAS_FRAG_POS | BIAS_FRAG_STR | BIAS_FRAG_MIS | BIAS_SSEG_POS | BIAS_SSEG_STR);
     
     // it is used to decide whether UMI or non-UMI tumor-vs-normal quality should be used
     unsigned int highqual_thres_snv = 44;
