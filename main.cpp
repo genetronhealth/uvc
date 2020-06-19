@@ -663,8 +663,9 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
             paramset.dedup_center_mult,
             paramset.dedup_amplicon_count_to_surrcount_frac,
             paramset.dedup_yes_umi_2ends_peak_frac,
-            paramset.dedup_non_umi_2ends_peak_frac
-    );
+            paramset.dedup_non_umi_2ends_peak_frac,
+            paramset.always_log,
+            0);
     
     unsigned int num_passed_reads = passed_pcrpassed_umipassed[0];
     unsigned int num_pcrpassed_reads = passed_pcrpassed_umipassed[1];

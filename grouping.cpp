@@ -497,8 +497,9 @@ bamfname_to_strand_to_familyuid_to_reads(
         unsigned int dedup_center_mult,
         unsigned int dedup_amplicon_count_to_surrcount_frac,
         unsigned int dedup_yes_umi_2ends_peak_frac,
-        unsigned int dedup_non_umi_2ends_peak_frac
-        ) {
+        unsigned int dedup_non_umi_2ends_peak_frac,
+        bool always_log,
+        unsigned int specialflag) {
     assert (fetch_tend > fetch_tbeg);
     
     const bool should_log = (ispowof2(regionbatch_ordinal+1) || ispowof2(regionbatch_tot_num - regionbatch_ordinal));
@@ -676,8 +677,7 @@ bamfname_to_strand_to_familyuid_to_reads(
         
         const bool should_log_read = (ispowof2(alnidx+1) || ispowof2(num_pass_alns - alnidx));
         if (!is_pair_end_merge_enabled) { assert(!isr2); }
-        if ((should_log_read && (beg_peak_max >= 2000 || should_log))
-                ) {
+        if ((should_log_read && (beg_peak_max >= 2000 || should_log)) || always_log) {
             LOG(logINFO) << "Thread " << thread_id << " ; readname = " << qname << " ; " 
                     << "tid = " << aln->core.tid << " ; "
                     << "alnidx/num_pass_alns = " << alnidx << "/" << num_pass_alns << " ; "

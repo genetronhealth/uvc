@@ -272,9 +272,9 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     app.add_option("--assay-type",           assay_type_uint,           "Assay type. " + stringvec_to_descstring(ASSAY_TYPE_TO_MSG), true);
     app.add_option("--molecule-tag",         molecule_tag_uint,         "Molecule tag. " + stringvec_to_descstring(MOLECULE_TAG_TO_MSG), true);
     app.add_option("--sequencing-platform",  sequencing_platform_uint,  "Sequencing platform. " + stringvec_to_descstring(SEQUENCING_PLATFORM_TO_MSG), true);
-    app.add_option("--pair-end-merge",       pair_end_merge_uint,       "Mode for the merge of R1 and R2 in a read pair. " + stringvec_to_descstring(PAIR_END_MERGE_TO_MSG), true);
-    
+    app.add_option("--pair-end-merge",       pair_end_merge_uint,       "Mode for the merge of R1 and R2 in a read pair. " + stringvec_to_descstring(PAIR_END_MERGE_TO_MSG), true);   
     app.add_flag("--Disable-duplex",         disable_duplex,            "Flag indicating if the program should disable the merge of two SSCSs (single-strand-consensus-sequences) into a DSCS (double strand consensus sequence). The UMI of the duplex tag should be in the form of <alpha>+<beta>.");
+    app.add_flag("--always-log",             always_log,                "Flag indicating if the program should generate detailed log results to stderr");
     
     app.add_option("--dedup-center-mult",    dedup_center_mult,         "Exponential decay per additional base of distance." , true);
     app.add_option("--dedup-amplicon-count-to-surrcount-frac", dedup_amplicon_count_to_surrcount_frac, 

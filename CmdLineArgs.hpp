@@ -26,6 +26,7 @@ struct CommandLineArgs {
     bool disable_dup_read_merge = false;
     bool  enable_dup_read_vqual = true; // set to false can result in about 10% increase in false positive (FP) variants at around 1 FP/kilobase rate.
     bool disable_duplex = false;
+    bool always_log = false;
     unsigned int nogap_phred = 8; // obsolete, not used anymore
     AssayType assay_type = ASSAY_TYPE_AUTO;
     MoleculeTag molecule_tag = MOLECULE_TAG_AUTO;
