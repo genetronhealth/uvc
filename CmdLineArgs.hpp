@@ -116,8 +116,8 @@ struct CommandLineArgs {
 
     uint32_t    dedup_center_mult = 5;
     uint32_t    dedup_amplicon_count_to_surrcount_frac = 16;
-    uint32_t    dedup_yes_umi_2ends_peak_frac = 4;
-    uint32_t    dedup_non_umi_2ends_peak_frac = 8;
+    uint32_t    dedup_yes_umi_2ends_peak_frac = 8;
+    uint32_t    dedup_non_umi_2ends_peak_frac = 12;
     
     /*      Reward                                  Penalty         
             

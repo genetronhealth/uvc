@@ -636,8 +636,8 @@ bamfname_to_strand_to_familyuid_to_reads(
                 end2surrcount = max(end2surrcount, end_count);
             }
         }
-        double begfrac = (double)(beg2count) / (double)(beg2surrcount + 1);
-        double endfrac = (double)(end2count) / (double)(end2surrcount + 1);
+        double begfrac = (double)(beg2count) / (double)(beg2surrcount + 2);
+        double endfrac = (double)(end2count) / (double)(end2surrcount + 2);
         
         const bool is_assay_amplicon = (begfrac > dedup_amplicon_count_to_surrcount_frac || endfrac > dedup_amplicon_count_to_surrcount_frac);
         const bool is_tag_umi = (is_molecule_tag_enabled && is_umi_found);
@@ -647,9 +647,9 @@ bamfname_to_strand_to_familyuid_to_reads(
         
         int begIsVariable = 0;
         int endIsVariable = 0;
-        if (end2count * peakimba < beg2count) {
+        if ((end2count + 2) * peakimba < beg2count) {
             endIsVariable = 1; // special flag indicating no end as lots of reads begin at the same position but end at different positions
-        } else if (beg2count * peakimba < end2count) {
+        } else if ((beg2count + 2) * peakimba < end2count) {
             begIsVariable = 1;
         } else if (beg2count > end2count && begfrac > peakimba && (2 != num_seqs)) {
             endIsVariable = 2; // special flag indicating no end as the begin position attracts lots of reads
