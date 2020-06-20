@@ -157,7 +157,7 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     app.add_option("--alnlen",       min_aln_len,       "Minimum alignment length below which the alignment is filtered out (如果比对长度低于比值则过滤掉一行的比对结果).", true);
     app.add_option("--mapqual",      min_mapqual,       "Minimum mapping  quality below which the alignment is filtered out (如果比对质量低于此值则过滤掉一行的比对结果).", true);
     app.add_option("--fixedthresBQ", fixedthresBQ,      "Base quality cutoff. This parameter is only for generating statistics and therefore does not affect variant quality (碱基质量阈值，只用于统计，不影响变异质量).", true);
-    app.add_option("--nogap-phred",  nogap_phred,       "Base quality for the symbol denoting non-InDel, can solve disconcordant alignment problem in the overlap between R1 and R2, This parameter is now obsolete because the current R1-R2 merge considers symbols to be merged so that InDels dominate over non-Indels. (合并 R1 和 R2 有可能遇到没有InDel和有InDel这种不一致情况，因此没有InDel的质量有这个上限，目前已废除).", true);
+    // app.add_option("--nogap-phred",  nogap_phred,       "Base quality for the symbol denoting non-InDel, can solve disconcordant alignment problem in the overlap between R1 and R2, This parameter is now obsolete because the current R1-R2 merge considers symbols to be merged so that InDels dominate over non-Indels. (合并 R1 和 R2 有可能遇到没有InDel和有InDel这种不一致情况，因此没有InDel的质量有这个上限，目前已废除).", true);
     app.add_option("--vc-stats-fname", vc_stats_fname  ,"Output TSV file containing variant-call statistics. The default is the standard error stream. (含有检测变异统计信息的TSV文件，默认为标准错误输出).", true);
      
     app.add_option("--uni-bias-thres", uni_bias_thres,  "Unified-bias threshold for generating the filter strings in FORMAT/FT. This parameter is only for generating statistics and therefore does not affect variant quality. Downstream hard filtering with FORMAT/FT is possible (统一偏好性的阈值，用于生成FORMAT/FT信息，只用于统计，不影响变异质量，FORMAT/FT可用于下游硬过滤). ", true);
@@ -175,11 +175,11 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
             "zero means auto infer to highqual-thres-snv + 6 for Illumina/BGI and -4 for IonTorrent)", true);
     app.add_option("--highqual-min-ratio",          highqual_min_ratio,
             "The mininum ratio of the raw non-deduplicated read depth to the deduplicated read family depth to trigger tumor-normal comparison with high quality families only", true);
-    
+     
     app.add_option("--phred-frag-indel-ext",        phred_max_frag_indel_ext,
-            "Maximum phred score fo the indel of one additional base (excluding the one base required for opening indel), capped at two additional bases", true);
+            "Maximum phred score for the indel of one additional base (excluding the one base required for opening indel), capped at two additional bases", true);
     app.add_option("--phred-frag-indel-basemax",    phred_max_frag_indel_basemax,
-            "Maximum phred score fo the opening of an indel (including the one base required for opening indel)", true);
+            "Maximum phred score for the opening of an indel (including the one base required for opening indel).", true);
     app.add_option("--phred-sscs-transition-CG-TA", phred_max_sscs_transition_CG_TA, 
             "Maximum phred score for single-strand consensus sequences (SSCSs) for C:G > T:A transition", true);
     app.add_option("--phred-sscs-transition-TA-CG", phred_max_sscs_transition_TA_CG, 

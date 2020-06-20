@@ -1115,14 +1115,12 @@ public:
                             || !fprintf(stderr, "Bam line with QNAME %s has rpos that is not within the range (%d - %d)", bam_get_qname(b), b->core.pos, bam_endpos(b)));
                     if (i2 > 0) {
                         if (TUpdateType == BASE_QUALITY_MAX) {
-                            incvalue = frag_indel_basemax; //(MIN(bam_phredi(b, qpos-1), bam_phredi(b, qpos))); // + symbolType2addPhred[LINK_SYMBOL];
+                            incvalue = (TIsProton ? (MIN3(frag_indel_basemax, bam_phredi(b, qpos-1), bam_phredi(b, qpos))) : frag_indel_basemax); 
+                            // + symbolType2addPhred[LINK_SYMBOL];
                         }
                         this->template inc<TUpdateType>(rpos, LINK_M, incvalue, b);
                         if (TFillSeqDir) {
-                            // bq_dirs_count[strand*2+isrc].template inc<SYMBOL_COUNT_SUM>(rpos, LINK_M, 1, b);
                             dealwith_seg_regbias(qpos, qpos, b, sidereg_nbases, bq_dirs_count, strand, isrc, bq_regs_count, rpos, LINK_M);
-                            // bq_regs_count[0].template inc<SYMBOL_COUNT_SUM>(rpos, LINK_M, qpos + 1, b);
-                            // bq_regs_count[1].template inc<SYMBOL_COUNT_SUM>(rpos, LINK_M, b->core.l_qseq - qpos, b);
                         }
                     }
                     unsigned int base4bit = bam_seqi(bseq, qpos);
@@ -1133,10 +1131,7 @@ public:
                     }
                     this->template inc<TUpdateType>(rpos, AlignmentSymbol(base3bit), incvalue, b);
                     if (TFillSeqDir) {
-                        // bq_dirs_count[strand*2+isrc].template inc<SYMBOL_COUNT_SUM>(rpos, AlignmentSymbol(base3bit), 1, b);
                         dealwith_seg_regbias(qpos, qpos, b, sidereg_nbases, bq_dirs_count, strand, isrc, bq_regs_count, rpos, AlignmentSymbol(base3bit));
-                        // bq_regs_count[0].template inc<SYMBOL_COUNT_SUM>(rpos, AlignmentSymbol(base3bit), qpos + 1, b);
-                        // bq_regs_count[1].template inc<SYMBOL_COUNT_SUM>(rpos, AlignmentSymbol(base3bit), b->core.l_qseq - qpos, b);
                     }
                     rpos += 1;
                     qpos += 1;
@@ -1158,21 +1153,14 @@ public:
                     } else {
                         unsigned int phredvalue = ref_to_phredvalue(inslen, region_symbolvec, rpos - region_offset,
                                 frag_indel_basemax, 8.0, cigar_oplen, cigar_op);
-                        // unsigned int phredvalue = bam_to_phredvalue(inslen, , qpos, frag_indel_basemax, 6.0, cigar_oplen, cigar_op); // THasDups is not used here
-                        // auto min_adj_BQ = MIN(bam_phredi(b, qpos-1), bam_phredi(b, qpos + cigar_oplen);
-                        incvalue = (TIsProton ? MIN(MIN(bam_phredi(b, qpos-1), bam_phredi(b, qpos + cigar_oplen)), phredvalue) : phredvalue)
+                        incvalue = MIN(MIN(bam_phredi(b, qpos-1), bam_phredi(b, qpos + cigar_oplen)) + (TIsProton ? MIN(cigar_oplen * 2 - 2, 10) : 0), phredvalue)
                                 + (QUAL_PRE_ADD ? symbolType2addPhred[LINK_SYMBOL] : 0); // + addidq; 
-                        // + symbolType2addPhred[LINK_SYMBOL];
-                        // this->dedup_ampDistr.at(strand).getIncluBegPosition()
                     }
                 }
                 if (!is_ins_at_read_end) {
                     this->template inc<TUpdateType>(rpos, insLenToSymbol(inslen), MAX(SIGN2UNSIGN(1), incvalue), b);
                     if (TFillSeqDir) {
-                        // bq_dirs_count[strand*2+isrc].template inc<SYMBOL_COUNT_SUM>(rpos, insLenToSymbol(inslen), 1, b);
                         dealwith_seg_regbias(qpos + cigar_oplen, qpos, b, sidereg_nbases, bq_dirs_count, strand, isrc, bq_regs_count, rpos, insLenToSymbol(inslen));
-                        // bq_regs_count[0].template inc<SYMBOL_COUNT_SUM>(rpos, insLenToSymbol(inslen), qpos + 1, b);
-                        // bq_regs_count[1].template inc<SYMBOL_COUNT_SUM>(rpos, insLenToSymbol(inslen), b->core.l_qseq - qpos - cigar_oplen, b);
                     }
                     std::string iseq;
                     iseq.reserve(cigar_oplen);
@@ -1208,18 +1196,15 @@ public:
                         unsigned int phredvalue = ref_to_phredvalue(dellen, region_symbolvec, rpos - region_offset, 
                                 frag_indel_basemax, 8.0, cigar_oplen, cigar_op);
                         // unsigned int phredvalue = bam_to_phredvalue(dellen, b, qpos, frag_indel_basemax, 6.0, cigar_oplen, cigar_op); // THasDups is not used here
-                        incvalue = (TIsProton ? MIN(MIN(bam_phredi(b, qpos), bam_phredi(b, qpos-1)), phredvalue) : phredvalue) // + addidq; 
-                                + (QUAL_PRE_ADD ? symbolType2addPhred[LINK_SYMBOL] : 0); 
+                        incvalue = MIN(MIN(bam_phredi(b, qpos), bam_phredi(b, qpos-1)) + (TIsProton ? MIN(cigar_oplen * 2 - 2, 10) : 0), phredvalue) // + addidq; 
+                                + (QUAL_PRE_ADD ? symbolType2addPhred[LINK_SYMBOL] : 0);
                         // + symbolType2addPhred[LINK_SYMBOL];
                     }
                 }
                 if (!is_del_at_read_end) {
                     this->template inc<TUpdateType>(rpos, delLenToSymbol(dellen), MAX(SIGN2UNSIGN(1), incvalue), b);
                     if (TFillSeqDir) {
-                        // bq_dirs_count[strand*2+isrc].template inc<SYMBOL_COUNT_SUM>(rpos, delLenToSymbol(dellen), 1, b);
                         dealwith_seg_regbias(qpos, qpos, b, sidereg_nbases, bq_dirs_count, strand, isrc, bq_regs_count, rpos, delLenToSymbol(dellen));
-                        // bq_regs_count[0].template inc<SYMBOL_COUNT_SUM>(rpos, delLenToSymbol(dellen), qpos + 1, b);
-                        // bq_regs_count[1].template inc<SYMBOL_COUNT_SUM>(rpos, delLenToSymbol(dellen), b->core.l_qseq - qpos, b);
                     }
                     this->incDel(rpos, cigar_oplen, delLenToSymbol(dellen), MAX(SIGN2UNSIGN(1), incvalue));
                 }
@@ -1260,7 +1245,7 @@ public:
             ) {
         for (bam1_t *aln : aln_vec) {
             if (alns2size > 1 && dflag > 0) { // is barcoded and not singleton
-                if (is_proton || true) {
+                if (is_proton) {
                     this->template updateByAln<TUpdateType, true , true , TFillSeqDir>(aln, frag_indel_ext, symbolType2addPhred, frag_indel_basemax, 
                             nogap_phred, region_symbolvec, region_offset, bq_dirs_count, bq_regs_count, sidereg_nbases);
                 } else {
@@ -1268,7 +1253,7 @@ public:
                             nogap_phred, region_symbolvec, region_offset, bq_dirs_count, bq_regs_count, sidereg_nbases);
                 }
             } else {
-                if (is_proton || true) {
+                if (is_proton) {
                     this->template updateByAln<TUpdateType, true , false, TFillSeqDir>(aln, frag_indel_ext, symbolType2addPhred, frag_indel_basemax, 
                             nogap_phred, region_symbolvec, region_offset, bq_dirs_count, bq_regs_count, sidereg_nbases);
                 } else {
