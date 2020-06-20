@@ -638,8 +638,8 @@ bamfname_to_strand_to_familyuid_to_reads(
                 end2surrcount = max(end2surrcount, end_count);
             }
         }
-        double begfrac = (double)(beg2count) / (double)(beg2surrcount + 2);
-        double endfrac = (double)(end2count) / (double)(end2surrcount + 2);
+        double begfrac = (double)(beg2count) / (double)(beg2surrcount + 1);
+        double endfrac = (double)(end2count) / (double)(end2surrcount + 1);
         
         const bool is_assay_amplicon = (begfrac > dedup_amplicon_count_to_surrcount_frac || endfrac > dedup_amplicon_count_to_surrcount_frac);
         const uint64_t umilabel = (is_umi_found ? umihash : (is_assay_amplicon ? qhash : 0));
@@ -649,16 +649,16 @@ bamfname_to_strand_to_familyuid_to_reads(
         unsigned int end_peak_flag= 0;
         const uint64_t peakimba = (is_umi_found ? dedup_yes_umi_2ends_peak_frac : dedup_non_umi_2ends_peak_frac);
         const uint64_t flatperc = (is_umi_found ? dedup_yes_umi_2ends_flat_perc : dedup_non_umi_2ends_flat_perc);
-        if (beg2count > (beg2surrcount + 2) * peakimba) {
+        if (beg2count > (beg2surrcount + 1) * peakimba) {
             beg_peak_flag |= 0x1;
         }
-        if (beg2count * flatperc > (end2count + 2) * (uint64_t)100UL) {
+        if (beg2count * flatperc > (end2count + 1) * (uint64_t)100UL) {
             beg_peak_flag |= 0x2;
         }
-        if (end2count > (end2surrcount + 2) * peakimba) {
+        if (end2count > (end2surrcount + 1) * peakimba) {
             end_peak_flag |= 0x1;
         }
-        if (end2count * flatperc > (beg2count + 2) * (uint64_t)100UL) {
+        if (end2count * flatperc > (beg2count + 1) * (uint64_t)100UL) {
             end_peak_flag |= 0x2;
         }
         
