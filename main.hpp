@@ -3483,6 +3483,8 @@ append_vcf_record(std::string & out_string,
         ref_alt = (tki.ref_alt != "." ? tki.ref_alt : vcfref + "\t" + vcfalt);
     }
     assert(tki.autoBestAllBQ >= tki.autoBestRefBQ + tki.autoBestAltBQ);
+    double vcfqual = -(double)FLT_MAX;
+    bool keep_var = false;
     {
         const bool tUseHD1 =  (tki.bDP > tki.DP * highqual_min_ratio);
         const bool nUseHD1 = ((nfm.bDP > nfm.DP * highqual_min_ratio) && tUseHD1); 
@@ -3772,7 +3774,7 @@ append_vcf_record(std::string & out_string,
         //        here we assumed that the likelihood of germline polymorphism is proportional to the likelihood of somatic mutation.
         //        however, in practice the two likelihoods may be different from each other.
         const int MODEL_SEP_1 = 1;
-        const double vcfqual = calc_non_negative(prev_is_tumor ? ((double)testquals[0]) : ((double)tlodq));
+        vcfqual = calc_non_negative(prev_is_tumor ? ((double)testquals[0]) : ((double)tlodq));
         if (prev_is_tumor) {
             unsigned int median_intq = (unsigned int)MIN(MAX(0, (int)vcfqual), VCFQUAL_NUM_BINS - 1);
             vc_stats.vcfqual_to_count[median_intq].nvars+= 1;
@@ -3782,7 +3784,7 @@ append_vcf_record(std::string & out_string,
             vc_stats.vcfqual_to_count[median_intq].noAD += nAD0;
         }
         
-        const bool keep_var = ((vcfqual >= vcfqual_thres || (tki.DP * tki.FA) >= vad_thres) && !is_novar); 
+        keep_var = ((vcfqual >= vcfqual_thres || (tki.DP * tki.FA) >= vad_thres) && !is_novar); 
         if ((!keep_var) && (!should_output_all) && (!should_let_all_pass)) {
             return -2;
         }
