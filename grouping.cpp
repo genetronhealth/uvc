@@ -498,6 +498,8 @@ bamfname_to_strand_to_familyuid_to_reads(
         unsigned int dedup_amplicon_count_to_surrcount_frac,
         unsigned int dedup_yes_umi_2ends_peak_frac,
         unsigned int dedup_non_umi_2ends_peak_frac,
+        unsigned int dedup_yes_umi_2ends_flat_perc,
+        unsigned int dedup_non_umi_2ends_flat_perc,
         bool always_log,
         unsigned int specialflag) {
     assert (fetch_tend > fetch_tbeg);
@@ -594,7 +596,7 @@ bamfname_to_strand_to_familyuid_to_reads(
         const char *umi_end1 = strchr(umi_beg, '#');
         const char *umi_end = ((NULL != umi_end1) ? (umi_end1    ) : (qname + aln->core.l_qname)); 
        
-        int is_umi_found = (umi_beg + 1 < umi_end); // UMI has at least one letter
+        int is_umi_found = ((umi_beg + 1 < umi_end) && is_molecule_tag_enabled); // UMI has at least one letter
         int is_duplex_found = 0;
         uint64_t umihash = 0;
         if (is_umi_found) {
@@ -640,28 +642,30 @@ bamfname_to_strand_to_familyuid_to_reads(
         double endfrac = (double)(end2count) / (double)(end2surrcount + 2);
         
         const bool is_assay_amplicon = (begfrac > dedup_amplicon_count_to_surrcount_frac || endfrac > dedup_amplicon_count_to_surrcount_frac);
-        const bool is_tag_umi = (is_molecule_tag_enabled && is_umi_found);
-        const uint64_t umilabel = (is_tag_umi ? umihash : (is_assay_amplicon ? qhash : 0));
+        const uint64_t umilabel = (is_umi_found ? umihash : (is_assay_amplicon ? qhash : 0));
         pcrpassed += is_assay_amplicon;
-        const double peakimba = (is_tag_umi ? dedup_yes_umi_2ends_peak_frac : dedup_non_umi_2ends_peak_frac);
         
-        int begIsVariable = 0;
-        int endIsVariable = 0;
-        if ((end2count + 2) * peakimba < beg2count) {
-            endIsVariable = 1; // special flag indicating no end as lots of reads begin at the same position but end at different positions
-        } else if ((beg2count + 2) * peakimba < end2count) {
-            begIsVariable = 1;
-        } else if (beg2count > end2count && begfrac > peakimba && (2 != num_seqs)) {
-            endIsVariable = 2; // special flag indicating no end as the begin position attracts lots of reads
-        } else if (beg2count < end2count && endfrac > peakimba && (2 != num_seqs)) {
-            begIsVariable = 2; 
+        unsigned int beg_peak_flag = 0;
+        unsigned int end_peak_flag= 0;
+        const uint64_t peakimba = (is_umi_found ? dedup_yes_umi_2ends_peak_frac : dedup_non_umi_2ends_peak_frac);
+        const uint64_t flatperc = (is_umi_found ? dedup_yes_umi_2ends_flat_perc : dedup_non_umi_2ends_flat_perc);
+        if (beg2count > (beg2surrcount + 2) * peakimba) {
+            beg_peak_flag |= 0x1;
+        }
+        if (beg2count * flatperc > (end2count + 2) * (uint64_t)100UL) {
+            beg_peak_flag |= 0x2;
+        }
+        if (end2count > (end2surrcount + 2) * peakimba) {
+            end_peak_flag |= 0x1;
+        }
+        if (end2count * flatperc > (beg2count + 2) * (uint64_t)100UL) {
+            end_peak_flag |= 0x2;
         }
         
-        assert(!(begIsVariable && endIsVariable));
         uint64_t umi3hash;
-        if (begIsVariable) {
+        if        ((0x3 == end_peak_flag)) {
             umi3hash = hash2hash(umilabel, hash2hash(0, end2+1)); 
-        } else if (endIsVariable) {
+        } else if ((0x3 == beg_peak_flag)) {
             umi3hash = hash2hash(umilabel, hash2hash(beg2+1, 0)); 
         } else {
             auto min2 = min(beg2, end2);
@@ -689,8 +693,8 @@ bamfname_to_strand_to_familyuid_to_reads(
                     << "adjusted-counts = " << beg2count << " to " << end2count << " ; " 
                     << "adjusted-surrounding-counts = " << beg2surrcount << " to " << end2surrcount << " ; " 
                     << "molecular-barcode = " << (is_umi_found ? umihash : 0) << " ; "
-                    << "begIsVariable = " << begIsVariable << " ; " 
-                    << "endIsVariable = " << endIsVariable << " ; "
+                    << "beg_peak_flag = " << beg_peak_flag << " ; " 
+                    << "end_peak_flag = " << end_peak_flag << " ; "
                     << "umi3hash = " << umi3hash << " ; "
                     << "strand = " << strand << " ; "
                     << "qhash = " << qhash;

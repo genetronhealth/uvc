@@ -664,6 +664,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
             paramset.dedup_amplicon_count_to_surrcount_frac,
             paramset.dedup_yes_umi_2ends_peak_frac,
             paramset.dedup_non_umi_2ends_peak_frac,
+            paramset.dedup_yes_umi_2ends_flat_perc,
+            paramset.dedup_non_umi_2ends_flat_perc,
             paramset.always_log,
             0);
     

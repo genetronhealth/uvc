@@ -185,6 +185,8 @@ bamfname_to_strand_to_familyuid_to_reads(
         unsigned int dedup_amplicon_count_to_surrcount_frac,
         unsigned int dedup_yes_umi_2ends_peak_frac,
         unsigned int dedup_non_umi_2ends_peak_frac,
+        unsigned int dedup_yes_umi_2ends_flat_perc,
+        unsigned int dedup_non_umi_2ends_flat_perc,
         bool always_log,
         unsigned int specialflag);
 #endif

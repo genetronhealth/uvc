@@ -1720,44 +1720,44 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         auto bq_dir_v1 = bq_dirs_count.at(0*2+1).getByPos(pos).getSymbolCount(symbol)
                                        + bq_dirs_count.at(1*2+1).getByPos(pos).getSymbolCount(symbol);
                         unsigned int segbias100 = 100;
-                        if (ASSAY_TYPE_AMPLICON != assay_type) {
-                            if (!TUsePrev && 0 == strand) {
-                                const bool test1bias = (bq_dir_v0 * bq_dir_s1 < bq_dir_v1 * bq_dir_s0);
-                                const auto bq_dir_vmin = (test1bias ? bq_dir_v0 : bq_dir_v1);
-                                const auto bq_dir_vmax = (test1bias ? bq_dir_v1 : bq_dir_v0);
-                                const auto bq_dir_smin = (test1bias ? bq_dir_s0 : bq_dir_s1);
-                                const auto bq_dir_smax = (test1bias ? bq_dir_s1 : bq_dir_s0);
-                                auto segbias100strand = any4_to_biasfact100((double)bq_dir_smin, (double)bq_dir_smax, (double)bq_dir_vmin, (double)bq_dir_vmax, 
-                                        false, pseudocount / 2.0 + MIN(2.0, 2.0 * pow(10.0, (symbval_uqual_va_avg - typesum_uqual_va_avg) / 10.0)));
-                                bq_bias_sedir[0].getRefByPos(pos).incSymbolCount(symbol, segbias100strand); 
-                                
-                                auto side_vtotal= bq_dir_v0 + bq_dir_v1;
-                                auto only_vboth = bq_regs_count.at(0).getByPos(pos).getSymbolCount(symbol);
-                                auto only_vleft = bq_regs_count.at(1).getByPos(pos).getSymbolCount(symbol);
-                                auto only_vright= bq_regs_count.at(2).getByPos(pos).getSymbolCount(symbol);
-                                auto side_vleft = only_vleft + only_vboth;
-                                auto side_vright= only_vright+ only_vboth;
-                                auto side_vboth = only_vleft + only_vright+ only_vboth;
+                        if (!TUsePrev && 0 == strand) {
+                            const bool test1bias = (bq_dir_v0 * bq_dir_s1 < bq_dir_v1 * bq_dir_s0);
+                            const auto bq_dir_vmin = (test1bias ? bq_dir_v0 : bq_dir_v1);
+                            const auto bq_dir_vmax = (test1bias ? bq_dir_v1 : bq_dir_v0);
+                            const auto bq_dir_smin = (test1bias ? bq_dir_s0 : bq_dir_s1);
+                            const auto bq_dir_smax = (test1bias ? bq_dir_s1 : bq_dir_s0);
+                            const double pseudocount_1 = ((double)pseudocount) / 2.0 + (double)(symbolType == BASE_SYMBOL ? 
+                                    (MIN(2.0, 2.0 * pow(10.0, (symbval_uqual_va_avg - typesum_uqual_va_avg) / 10.0))) : 1);
+                            auto segbias100strand = any4_to_biasfact100((double)bq_dir_smin, (double)bq_dir_smax, (double)bq_dir_vmin, (double)bq_dir_vmax, 
+                                    false, pseudocount_1);
+                            bq_bias_sedir[0].getRefByPos(pos).incSymbolCount(symbol, segbias100strand); 
+                            
+                            auto side_vtotal= bq_dir_v0 + bq_dir_v1;
+                            auto only_vboth = bq_regs_count.at(0).getByPos(pos).getSymbolCount(symbol);
+                            auto only_vleft = bq_regs_count.at(1).getByPos(pos).getSymbolCount(symbol);
+                            auto only_vright= bq_regs_count.at(2).getByPos(pos).getSymbolCount(symbol);
+                            auto side_vleft = only_vleft + only_vboth;
+                            auto side_vright= only_vright+ only_vboth;
+                            auto side_vboth = only_vleft + only_vright+ only_vboth;
 
-                                auto segbias100bside = any4_to_biasfact100(
-                                        (double)(side_stotal - side_sboth), (double)side_sboth,
-                                        (double)(side_vtotal - side_vboth), (double)side_vboth, false, pseudocount);
-                                bq_bias_sedir[1].getRefByPos(pos).incSymbolCount(symbol, segbias100bside);
-                                auto segbias100lside = any4_to_biasfact100(
-                                        (double)(side_stotal - side_sleft), (double)side_sleft, 
-                                        (double)(side_vtotal - side_vleft), (double)side_vleft, false, pseudocount);
-                                bq_bias_sedir[2].getRefByPos(pos).incSymbolCount(symbol, segbias100lside);
-                                auto segbias100rside = any4_to_biasfact100(
-                                        (double)(side_stotal - side_sright),(double)side_sright, 
-                                        (double)(side_vtotal - side_vright),(double)side_vright,false, pseudocount * 2.0);
-                                bq_bias_sedir[3].getRefByPos(pos).incSymbolCount(symbol, segbias100rside);
-                            }
-                            if (bias_flag_symb & BIAS_SSEG_STR) {UPDATE_MAX(segbias100, bq_bias_sedir.at(0).getByPos(pos).getSymbolCount(symbol)); }
-                            if (bias_flag_symb & BIAS_SSEG_END) {UPDATE_MAX(segbias100, bq_bias_sedir.at(1).getByPos(pos).getSymbolCount(symbol)); }
-                            if (bias_flag_symb & BIAS_SSEG_POS) {UPDATE_MAX(segbias100, MAX(
-                                    bq_bias_sedir.at(2).getByPos(pos).getSymbolCount(symbol), 
-                                    bq_bias_sedir.at(3).getByPos(pos).getSymbolCount(symbol))); }
+                            auto segbias100bside = any4_to_biasfact100(
+                                    (double)(side_stotal - side_sboth), (double)side_sboth,
+                                    (double)(side_vtotal - side_vboth), (double)side_vboth, false, pseudocount);
+                            bq_bias_sedir[1].getRefByPos(pos).incSymbolCount(symbol, segbias100bside);
+                            auto segbias100lside = any4_to_biasfact100(
+                                    (double)(side_stotal - side_sleft), (double)side_sleft, 
+                                    (double)(side_vtotal - side_vleft), (double)side_vleft, false, pseudocount);
+                            bq_bias_sedir[2].getRefByPos(pos).incSymbolCount(symbol, segbias100lside);
+                            auto segbias100rside = any4_to_biasfact100(
+                                    (double)(side_stotal - side_sright),(double)side_sright, 
+                                    (double)(side_vtotal - side_vright),(double)side_vright,false, pseudocount * 2.0);
+                            bq_bias_sedir[3].getRefByPos(pos).incSymbolCount(symbol, segbias100rside);
                         }
+                        if (bias_flag_symb & BIAS_SSEG_STR) {UPDATE_MAX(segbias100, bq_bias_sedir.at(0).getByPos(pos).getSymbolCount(symbol)); }
+                        if (bias_flag_symb & BIAS_SSEG_END) {UPDATE_MAX(segbias100, bq_bias_sedir.at(1).getByPos(pos).getSymbolCount(symbol)); }
+                        if (bias_flag_symb & BIAS_SSEG_POS) {UPDATE_MAX(segbias100, MAX(
+                                bq_bias_sedir.at(2).getByPos(pos).getSymbolCount(symbol), 
+                                bq_bias_sedir.at(3).getByPos(pos).getSymbolCount(symbol))); }
                         
                         imba_fact = biasfact100_to_imba(segbias100);
                         if (bias_flag_symb & BIAS_FRAG_DUP) { UPDATE_MAX(imba_fact, dup_imba); }
@@ -3099,6 +3099,7 @@ generate_vcf_header(const char *ref_fasta_fname,
     ret += "##INFO=<ID=SomaticQ,Number=A,Type=Float,Description=\"Somatic quality of the variant, the PHRED-scale probability that this variant is not somatic.\">\n";
     ret += "##INFO=<ID=TLODQ,Number=A,Type=Float,Description=\"Tumor log-of-data-likelihood quality, the PHRED-scale probability that this variant is not of biological origin (i.e., artifactual).\">\n";
     ret += "##INFO=<ID=NLODQ,Number=A,Type=Float,Description=\"Normal log-of-data-likelihood quality, the PHRED-scale probability that this variant is of germline origin.\">\n";
+    ret += "##INFO=<ID=QUAL1,Number=A,Type=Float,Description=\"Tumor-only quality without applying universality (deprecated but kept for compatibility with older versions).\">\n";
     // TLODQ1 may be useful in theory, but more data is needed to assess TLODQ1.
     // ret += "##INFO=<ID=TLODQ1,Number=1,TypeFloat,Description=\"Tumor log-of-data-likelihood quality, the PHRED-scale probability that this variant is not of biological origin (i.e., artifactual).\">\n";
     ret += "##INFO=<ID=REFQs,Number=.,Type=Float,Description=\"Non-germline qualities: normal-ALT, tumor-ALT, normal-OTHER, tumor-OTHER\">\n";
@@ -3344,7 +3345,6 @@ append_vcf_record(std::string & out_string,
     // NOTE: 5% of STR (about 0.25% of InDel genomic regions) has about 75% of InDels, so we have a power law distribution with exponent of one for InDels.
     const double indel_ic = ((!isInDel) ? 0.0 : (10.0/log(10.0) * log((double)MAX(indelstring.size(), 1U) / (double)(repeatunit.size() * (repeatnum - 1) + 1))));
     // const double indel_pq = ((!isInDel) ? 0.0 : ((double)MIN(indel_phred(64.0, indelstring.size(), repeatunit.size(), repeatnum), 35.0)));
-    float vcfqual = fmt.VAQ; // TODO: investigate whether to use VAQ or VAQ2
     
     bool is_novar = (symbol == LINK_M || (isSymbolSubstitution(symbol) && vcfref == vcfalt));
     if (is_novar && (!should_let_all_pass) && (!should_output_all)) {
@@ -3435,7 +3435,6 @@ append_vcf_record(std::string & out_string,
     const auto & nfm = (prev_is_tumor ? fmt : FORMAT_UNCOV);
     if (!prev_is_tumor) {
         ref_alt = vcfref + "\t" + vcfalt;
-        vcfqual = calc_non_negative(vcfqual);
         tki.FTS = fmt.FTS;
         tki.VAQ = fmt.VAQ;
         
@@ -3769,37 +3768,34 @@ append_vcf_record(std::string & out_string,
         // testquals[tqi++] = MIN(tn_trawq, tn_tpowq) + MIN(tvn_rawq, tvn_powq) - MAX(0.0 , MIN(tn_nrawq, tn_npowq) - tvn_or_q); // 6
         // testquals[tqi++] = MIN(tn_trawq, tn_tpowq)               + tvn_powq  - MIN(MIN(tn_nrawq, tn_npowq           ), contam_phred); // 20
         
+        // FIXME: probabilities of germline polymorphism and somatic mutation at a locus are both strongly correlated with the STR pattern for InDels
+        //        here we assumed that the likelihood of germline polymorphism is proportional to the likelihood of somatic mutation.
+        //        however, in practice the two likelihoods may be different from each other.
         const int MODEL_SEP_1 = 1;
+        const double vcfqual = calc_non_negative(prev_is_tumor ? ((double)testquals[0]) : ((double)tlodq));
         if (prev_is_tumor) {
-            vcfqual = -200;
-            for (int i = 0; i < MIN(MODEL_SEP_1, N_MODELS); i++) {
-                // FIXME: probabilities of germline polymorphism and somatic mutation at a locus are both strongly correlated with the STR pattern for InDels
-                //        here we assumed that the likelihood of germline polymorphism is proportional to the likelihood of somatic mutation.
-                //        however, in practice the two likelihoods may be different from each other.
-                vcfqual = MAX(vcfqual, testquals[i]);
-            }
-            double median_qual = testquals[0]; // MEDIAN(std::array<double, N_MODELS>(testquals));
-            unsigned int median_intq = (unsigned int)MIN(MAX(0, (int)median_qual), VCFQUAL_NUM_BINS - 1);
+            unsigned int median_intq = (unsigned int)MIN(MAX(0, (int)vcfqual), VCFQUAL_NUM_BINS - 1);
             vc_stats.vcfqual_to_count[median_intq].nvars+= 1;
             vc_stats.vcfqual_to_count[median_intq].tuDP += tDP0;
             vc_stats.vcfqual_to_count[median_intq].tuAD += tAD0;
             vc_stats.vcfqual_to_count[median_intq].noDP += nDP0;
             vc_stats.vcfqual_to_count[median_intq].noAD += nAD0;
-            
-            vcfqual = calc_non_negative(vcfqual);
-            bool keep_var = ((vcfqual >= vcfqual_thres || (tki.DP * tki.FA) >= vad_thres) && !is_novar); 
-            if ((!keep_var) && (!should_output_all) && (!should_let_all_pass)) {
-                return -2;
-            }
         }
+        
+        const bool keep_var = ((vcfqual >= vcfqual_thres || (tki.DP * tki.FA) >= vad_thres) && !is_novar); 
+        if ((!keep_var) && (!should_output_all) && (!should_let_all_pass)) {
+            return -2;
+        }
+        
 #if (1 < N_MODELS)
-        for (int i = 0; i < MIN(MODEL_SEP_1, N_MODELS); i++) {
+        for (int i = 0; i < N_MODELS; i++) {
             infostring += std::string(";TQ") + std::to_string(i) + "=" + std::to_string(testquals[i]); 
         }
 #endif
         infostring += std::string(";SomaticQ=") + std::to_string(testquals[0]);
         infostring += std::string(";TLODQ=")    + std::to_string(tlodq);
         infostring += std::string(";NLODQ=")    + std::to_string(a_nogerm_q);
+        infostring += std::string(";QUAL1=")    + std::to_string(calc_non_negative(tki.VAQ));
         //unsigned int tlodq1 = (maxbias < uni_bias_thres ?(10* tlodq) : (10*tlodq*10 - 10*60));
         //infostring += std::string(";TLODQ1=")  + std::to_string((int)(tlodq1))
         infostring += std::string(";REFQs=") + string_join(std::array<std::string, 4>({
@@ -3903,7 +3899,6 @@ append_vcf_record(std::string & out_string,
         vcffilter.pop_back();
     }
     
-    bool keep_var = ((vcfqual >= vcfqual_thres || (tki.DP * tki.FA) >= vad_thres) && !is_novar); 
     if (keep_var || should_let_all_pass) {
         out_string_pass += 
                 std::string(tname) + "\t" + std::to_string(vcfpos) + "\t.\t" + ref_alt + "\t" 

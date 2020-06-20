@@ -40,7 +40,7 @@ struct CommandLineArgs {
     // deduped: position, strand, mismatch, deduplication
     // BIAS_SSEG_END may be useful for discarding special false positive variants
     uint32_t bias_flag_amp_snv = (BIAS_FRAG_DUP | BIAS_FRAG_POS | BIAS_FRAG_STR | BIAS_FRAG_MIS);
-    uint32_t bias_flag_amp_indel = (BIAS_FRAG_DUP | BIAS_FRAG_POS | BIAS_FRAG_MIS);
+    uint32_t bias_flag_amp_indel = (BIAS_FRAG_DUP | BIAS_FRAG_POS | BIAS_FRAG_STR | BIAS_FRAG_MIS);
     uint32_t bias_flag_cap_snv = (BIAS_FRAG_DUP | BIAS_FRAG_POS | BIAS_FRAG_STR | BIAS_FRAG_MIS | BIAS_SSEG_POS | BIAS_SSEG_STR);
     uint32_t bias_flag_cap_indel = (BIAS_FRAG_DUP | BIAS_FRAG_POS | BIAS_FRAG_STR | BIAS_FRAG_MIS | BIAS_SSEG_POS | BIAS_SSEG_STR);
     
@@ -116,9 +116,11 @@ struct CommandLineArgs {
 
     uint32_t    dedup_center_mult = 5;
     uint32_t    dedup_amplicon_count_to_surrcount_frac = 16;
-    uint32_t    dedup_yes_umi_2ends_peak_frac = 8;
+    uint32_t    dedup_yes_umi_2ends_peak_frac = 4;
     uint32_t    dedup_non_umi_2ends_peak_frac = 12;
-    
+    uint32_t    dedup_yes_umi_2ends_flat_perc = 66;
+    uint32_t    dedup_non_umi_2ends_flat_perc = 66;
+
     /*      Reward                                  Penalty         
             
             (B)     N/raw   N/UMI   N/DCS   (D-F)   N/raw   N/UMI   N/DCS
