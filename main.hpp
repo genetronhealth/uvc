@@ -3560,13 +3560,17 @@ append_vcf_record(std::string & out_string,
         const double pcap_tmax = powlaw_anyvar_base + (tUseHD1
                 ? ((tki.dAD3 > 0)
                     ? ((double)(phred_max_dscs - phred_pow_dscs_origin))
-                    : ((double)(phred_max_sscs - phred_pow_sscs_origin) * (double)(MAX(tki.DP, tki.bDP) - tki.DP) / (double)(tki.bDP + 1)))
+                    : ((double)(phred_max_sscs - phred_pow_sscs_origin) 
+                      // * (double)(MAX(tki.DP, tki.bDP) - tki.DP) / (double)(tki.bDP + 1)
+                      ))
                 : 0.0);
         // prob[mapping-error] * prob[false-positive-variant-per-base-position] / num-alts-per-base-positon
         const double pcap_nmax = powlaw_anyvar_base + (nUseHD1
                 ? ((nfm.dAD3 > 0)
                     ? ((double)(phred_max_dscs - phred_pow_dscs_origin))
-                    : ((double)(phred_max_sscs - phred_pow_sscs_origin) * (double)(MAX(nfm.DP, nfm.bDP) - nfm.DP) / (double)(nfm.bDP + 1)))
+                    : ((double)(phred_max_sscs - phred_pow_sscs_origin) 
+                    // * (double)(MAX(nfm.DP, nfm.bDP) - nfm.DP) / (double)(nfm.bDP + 1)
+                    ))
                 : 0.0);
         
         double t_indel_penal = 0.0;
@@ -3721,9 +3725,9 @@ append_vcf_record(std::string & out_string,
 #endif
         double t2n_reward_q0 = MIN(t2n_finq, t2n_limq); 
 
-        const bool use_reward = is_bitflag_checked(bitflag_InDel_penal_t_UMI_n_UMI, isInDel, false, tUseHD, nUseHD);
+        const bool use_reward = is_bitflag_checked(bitflag_InDel_penal_t_UMI_n_UMI, isInDel, false, tUseHD1, nUseHD1);
         double t2n_reward_q = (use_reward ? MAX(0.0, t2n_reward_q0) : 0.0);
-        const bool use_penalt = is_bitflag_checked(bitflag_InDel_penal_t_UMI_n_UMI, isInDel, true,  tUseHD, nUseHD);
+        const bool use_penalt = is_bitflag_checked(bitflag_InDel_penal_t_UMI_n_UMI, isInDel, true,  tUseHD1, nUseHD1);
         double t2n_syserr_q = (use_penalt ? MAX(0.0, t2n_syserr_q0) : 0.0);
         
         double t_base_q = MIN(tn_trawq, tn_tpowq + (double)indel_ic);
@@ -3811,15 +3815,15 @@ append_vcf_record(std::string & out_string,
         
         infostring += std::string(";TAQs=") + string_join(std::array<std::string, 3>({
             std::to_string(t_base_q),
-            std::to_string(t_indel_penal), std::to_string(t_penal_by_nearby_indel)
+            std::to_string(t_indel_penal), std::to_string(t_penal_by_nearby_indel),
         }));
         infostring += std::string(";TSQs=") + string_join(std::array<std::string, 5>({
                 std::to_string(tn_tpowq)  , std::to_string(_tn_tra2q),
-                std::to_string(tn_tpo1q)  , std::to_string(tn_tra1q), std::to_string(tn_tsamq), 
+                std::to_string(tn_tpo1q)  , std::to_string(tn_tra1q), std::to_string(tn_tsamq), // std::to_string(pcap_tmax)
         }));
         infostring += std::string(";NSQs=") + string_join(std::array<std::string, 5>({
                 std::to_string(tn_npowq)  , std::to_string(_tn_nra2q),
-                std::to_string(tn_npo1q)   , std::to_string(tn_nra1q), std::to_string(tn_nsamq)
+                std::to_string(tn_npo1q)  , std::to_string(tn_nra1q), std::to_string(tn_nsamq),
         }));
         
         infostring += std::string(";tFA=") + std::to_string(tki.FA);

@@ -501,6 +501,7 @@ bamfname_to_strand_to_familyuid_to_reads(
         unsigned int dedup_yes_umi_2ends_flat_perc,
         unsigned int dedup_non_umi_2ends_flat_perc,
         bool always_log,
+        bool is_proton,
         unsigned int specialflag) {
     assert (fetch_tend > fetch_tbeg);
     
@@ -661,16 +662,45 @@ bamfname_to_strand_to_familyuid_to_reads(
         if (end2count * flatperc > (beg2count + 1) * (uint64_t)100UL) {
             end_peak_flag |= 0x2;
         }
+        // beg end qname UMI
+        // IonTorrent amplicon without UMI: beg + qname
+        // IonTorrent capture  without UMI: beg + qname
+        // IonTorrent amplicon with    UMI: beg + UMI
+        // IonTorrent capture  with    UMI: beg + UMI
+        // Illumina   amplicon without UMI: beg + end + qname
+        // Illumina   capture  without UMI: beg + end
+        // Illumina   amplicon with    UMI: beg + end + UMI
+        // Illumina   capture  with    UMI: beg + end + UMI
         
-        uint64_t umi3hash;
-        if        ((0x3 == end_peak_flag)) {
-            umi3hash = hash2hash(umilabel, hash2hash(0, end2+1)); 
-        } else if ((0x3 == beg_peak_flag)) {
-            umi3hash = hash2hash(umilabel, hash2hash(beg2+1, 0)); 
+        unsigned int idflag = 0x0;
+        if (is_proton) {
+            if (is_umi_found) { idflag = 0x5; }
+            else { idflag = 0x9; }
         } else {
+            if (is_umi_found) {
+                idflag = 0xB;
+            } else if (is_assay_amplicon) {
+                idflag = 0x7;
+            } else {
+                idflag = 0x3;
+            }
+        }
+        
+        uint64_t umi3hash = 0;
+        if (0x3 == (0x3 & idflag)) {
             auto min2 = min(beg2, end2);
             auto max2 = max(beg2, end2);
-            umi3hash = hash2hash(umilabel, hash2hash(min2+1, max2+1));
+            umi3hash = hash2hash(umi3hash, hash2hash(min2, max2)); 
+        } else if (0x1 & idflag) {
+            umi3hash = hash2hash(umi3hash, beg2+1); 
+        } else if (0x2 & idflag) {
+            umi3hash = hash2hash(umi3hash, end2+1); 
+        }
+        if (0x4 & idflag) {
+            umi3hash = hash2hash(umi3hash, qhash);
+        }
+        if (0x8 & idflag) {
+            umi3hash = hash2hash(umi3hash, umihash); 
         }
         
         unsigned int strand = (isrc ^ isr2);
@@ -695,6 +725,7 @@ bamfname_to_strand_to_familyuid_to_reads(
                     << "molecular-barcode = " << (is_umi_found ? umihash : 0) << " ; "
                     << "beg_peak_flag = " << beg_peak_flag << " ; " 
                     << "end_peak_flag = " << end_peak_flag << " ; "
+                    << "idflag = " << idflag << " ; "
                     << "umi3hash = " << umi3hash << " ; "
                     << "strand = " << strand << " ; "
                     << "qhash = " << qhash;

@@ -667,6 +667,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
             paramset.dedup_yes_umi_2ends_flat_perc,
             paramset.dedup_non_umi_2ends_flat_perc,
             paramset.always_log,
+            (SEQUENCING_PLATFORM_IONTORRENT == paramset.sequencing_platform),
             0);
     
     unsigned int num_passed_reads = passed_pcrpassed_umipassed[0];
