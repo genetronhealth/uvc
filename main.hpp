@@ -2092,7 +2092,8 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         assert (con_bq_pass_prob >= pow(10, (-(double)NUM_BUCKETS)/10) 
                                 || !fprintf(stderr, "%lf >= phred51 failed at position %lu and symbol %u!\n", con_bq_pass_prob, epos, con_symbol));
                         double prior_weight = 1.0 / (minorcount + 1.0);
-                        double phredlike_db = h01_to_phredlike<true>(minorcount + prior_weight, majorcount + minorcount + prior_weight / con_bq_pass_prob, con_count, tot_count, 1.0, (ess_georatio_duped_pcr));
+                        double phredlike_db = h01_to_phredlike<true>(minorcount + prior_weight, majorcount + minorcount + prior_weight / con_bq_pass_prob, 
+                                con_count * 2 - MIN(con_count * 2, tot_count), tot_count, 1.0, (ess_georatio_duped_pcr));
                         unsigned int phredlike = (unsigned int)MAX(0.0, phredlike_db);
                         if (BASE_N == con_symbol) { phredlike = MIN(phredlike, phred_thres); }
                         phredlike = MIN(phredlike, NUM_BUCKETS - SIGN2UNSIGN(1));
@@ -3471,8 +3472,8 @@ append_vcf_record(std::string & out_string,
     double vcfqual = -(double)FLT_MAX;
     bool keep_var = false;
     {
-        const bool tUseHD1 =  (tki.bDP > tki.DP * highqual_min_ratio);
-        const bool nUseHD1 = ((nfm.bDP > nfm.DP * highqual_min_ratio) && tUseHD1); 
+        const bool tUseHD1 = ((tki.bDP > tki.DP * highqual_min_ratio) && (tki.cADTC       > 0));
+        const bool nUseHD1 = ((nfm.bDP > nfm.DP * highqual_min_ratio) && (SUM2(nfm.cADTC) > 0) && tUseHD1); 
         
         const bool tUseHD = (tUseHD1 && !isInDel);
         const bool nUseHD = (nUseHD1 && !isInDel); 
@@ -3483,9 +3484,14 @@ append_vcf_record(std::string & out_string,
         double nAltHD = SUM2(nfm.cAltHD);
         double nAllHD = SUM2(nfm.cAllHD);
         double nRefHD = SUM2(nfm.cRefHD);
-        
+        double nAltCD = SUM2(nfm.cADTC);
+        double nAllCD = SUM2(nfm.cDPTC);
+
         double nDP0 = (double)((nUseHD) ? (nAllHD) :                      (double)nfm.DP) + DBLFLT_EPS / 2.0;
         double nAD0 = (double)((nUseHD) ? (nAltHD) :             nfm.FA * (double)nfm.DP) + DBLFLT_EPS;
+        if (nUseHD1 && nfm.FA > DBLFLT_EPS) {
+            nDP0 = MAX3(nDP0, nAD0 / nfm.FA, nAD0 / (nAltCD / (nAllCD + 1.0)));
+        }
         double nRD0 = (double)((nUseHD) ? (nRefHD) :             nfm.FR * (double)nfm.DP) + DBLFLT_EPS / 2.0;
         
         double tAltBQ = tki.autoBestAltBQ;
@@ -3494,9 +3500,14 @@ append_vcf_record(std::string & out_string,
         double tAltHD = tki.autoBestAltHD;
         double tAllHD = tki.autoBestAllHD;
         // double tRefHD = tki.autoBestRefHD;
+        double tAltCD = tki.cADTC;
+        double tAllCD = tki.cDPTC; 
         
         double tDP0 = (double)((tUseHD) ? (tAllHD) :                      (double)tki.DP) + DBLFLT_EPS;
         double tAD0 = (double)((tUseHD) ? (tAltHD) :             tki.FA * (double)tki.DP) + DBLFLT_EPS / 2.0;
+        if (tUseHD1 && tki.FA > DBLFLT_EPS) {
+            tDP0 = MAX3(tDP0, tAD0 / tki.FA, tAD0 / (tAltCD / (tAllCD + 1.0)));
+        }
         // double tRD0 = (double)((tUseHD) ? (tRefHD) :             tki.FR * (double)tki.DP) + DBLFLT_EPS / 2.0; 
         
         double nAD0a = nAD0 * ((isInDel && !nUseHD1) ? ((double)(nfm.gapDP4[2] + 1) / (double)(nfm.gapDP4[0] + 1)) : 1.0); // not used ?

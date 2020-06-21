@@ -6,12 +6,12 @@ The script uvcTN.sh in the bin directory takes two BAM files corresponding to tu
 
 UVC requires BASH 4.0+ (4.0 is the minimum version required) and a compiler that supports the C++14 standard.
 The Makefile in this directory compiles with g++, but the Makefile can be easily modified to use another compiler instead of g++ (for example, clang).
-To install from scratch, please run: ./install-dependencies.sh && make clean && make all -j4 && make deploy
+To install from scratch, please run: (./install-dependencies.sh && make clean && make all -j4 && make deploy).
 UVC depends on htslib 1.6+ and bcftools 1.6+ (lower versions of htslib and bcftools may also work, but are not tested).
 If these two dependencies were already installed, then install-dependencies.sh may not be necessary.
 For trouble-shooting with the installation of htslib and bcftools, please check their official repositories at https://github.com/samtools/htslib and https://github.com/samtools/bcftools.
 More specifically, if any error message containing "error while loading shared libraries" pops up, please use the command (./configure --disable-plugins --disable-bz2 --disable-lzma --disable-libcurl --disable-s3 --disable-largefile) to build the corresponding htslib required by UVC first, then build UVC.
-Although not required, it is highly recommmended that bcftools is installed at a system location (a location that can be found in the <PATH> environment variable).
+Although not required, it is highly recommmended that bcftools is installed at a system location (a location that can be found in the PATH environment variable).
 The UVC binary uses multi-threading efficiently for up to 16 threads. 
 After reaching 16 threads, adding more threads no longer significantly reduces wall-clock runtime.
 However, more efficient speed-up can still be gained by runing with GNU parallel or qsub to use one job per chromosome.
@@ -28,7 +28,7 @@ The executable uvc1 can perform each of the following tasks:
  2. filtering of tumor variants in tumor-only bgzipped vcf with its matched normal.
 The script uvcTN.sh simply wraps around the binary executable uvc1.
 
-For UMI (unique molecular identifier, a.k.a. molecular barcode) to be detected, the read name (QNAME) in the input BAM file should be in the format of <original-name>#<UMI>.
+For UMI (unique molecular identifier, a.k.a. molecular barcode) to be detected, the read name (QNAME) in the input BAM file should be in the format of originalName#UMI.
 For example, the UMI-labeled read name can be
  1. "H5G5ABBCC:4:1209:10114:63736#ACGTAACCA" (ACGTAACCA is the single-strand barcode) or 
  2. "H5G5ABBCC:1:3010:10412:33669#AGTA+TGGT" (AGTA+TGGT is the duplex barcode).
@@ -38,23 +38,25 @@ Running debarcode without any command-line argument will display its usage help.
 It is recommended to manual check the following outlier variant candidates:
  1. for non-UMI data, variant candidates with FORMAT/FTS consisting of three or more filter strings (typically less than 1.5% of all variants).
  2. for UMI data, variant candidates with FORMAT/FTS consisting of one or more filter strings (typically less than 6% of all variants).
+
 If manual check is still too labor-intensive, then it is recommended to keep such outlier variant candidate if the candidate
  1. is at a hotspot (for example, if the candidate shows high-frequency occurence in the COSMIC database) and
  2. does not show germline risk (such as low-frequency occurence or absence in dbSNP).
+
 Otherwise, it is recommended to reject such variant candidate.
 
 # What to report if a runtime error arises
 
 In fact, uvc1 and some other executables all generated the same output given the same input. Their differences are as follows.
-uvc1: the release version that runs the fastest with multi-threading. 
+ 1. uvc1: the release version that runs the fastest with multi-threading. 
     Because of extreme runtime optimization, this program probably will not generate any useful error message when an error arises.
-uvc.mt.out: the debug version that runs with multi-threading. 
+ 2. uvc.mt.out: the debug version that runs with multi-threading. 
     If the release version encounters any problem. please use this debug version to generate some useful error message. 
     The error message can then be used by the software maintainer for debugging and/or testing.
-uvc.st.out: the debug version that runs without multi-threading. 
+ 3. uvc.st.out: the debug version that runs without multi-threading. 
     If the debug version with multi-threading encounters any problem, please use this debug version to generate some useful error message.
     The error message can then be used by the software maintainer for debugging and/or testing.
-uvc.cppt.out: similar to uvc1 except that uvc.cppt.out uses c++14 thread instead of OpenMP for multi-threading.
+ 4. uvc.cppt.out: similar to uvc1 except that uvc.cppt.out uses c++14 thread instead of OpenMP for multi-threading.
 
 All bug reports, feature requests, and ideas for improvement are welcome (although not all of them may be addressed in time)!
 
