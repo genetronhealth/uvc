@@ -677,8 +677,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
     AssayType inferred_assay_type = ((ASSAY_TYPE_AUTO == paramset.assay_type) ? (is_by_capture ? ASSAY_TYPE_CAPTURE : ASSAY_TYPE_AMPLICON) : (paramset.assay_type));
     
     if (0 == num_passed_reads) { return -1; };
-    unsigned int minABQ_snv = ((ASSAY_TYPE_CAPTURE != inferred_assay_type) ? paramset.minABQ_pcr_snv : paramset.minABQ_cap_snv);
-    unsigned int minABQ_indel = ((ASSAY_TYPE_CAPTURE != inferred_assay_type) ? paramset.minABQ_pcr_indel : paramset.minABQ_cap_indel);
+    unsigned int minABQ_snv = ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? paramset.minABQ_pcr_snv : paramset.minABQ_cap_snv);
+    unsigned int minABQ_indel = ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? paramset.minABQ_pcr_indel : paramset.minABQ_cap_indel);
     
     const unsigned int rpos_inclu_beg = MAX(incluBegPosition, extended_inclu_beg_pos);
     const unsigned int rpos_exclu_end = MIN(excluEndPosition, extended_exclu_end_pos); 
@@ -903,6 +903,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                             bq_del_2bdepths,
                             paramset.somaticGT,
                             (paramset.ref_bias_awareness & ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? 0x1 : 0x2)),
+                            ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? 0.625 : 1.0),
                             // bq_indel_adjmax_depths,
                             0);
                 }

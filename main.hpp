@@ -2242,7 +2242,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
             unsigned int highqual_thres_indel, 
             unsigned int uni_bias_r_max,
             const bool is_proton, 
-            const AssayType assay_type,
+            const AssayType assay_type, // unused?
             const unsigned int phred_indel_error_before_barcode_labeling,
             const unsigned int baq_per_aligned_base,
             const unsigned int regside_nbases,
@@ -2578,8 +2578,8 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
         // const auto & bq_indel_adjmax_depths
         const bool somaticGT,
         const bool is_ref_bias_aware,
-        const int runflag // additional runtime flag
-        ) {
+        const bool coef_VAQ,
+        const int specialflag) {
     fmt.note = symbol2CountCoverageSet12.additional_note.getByPos(refpos).at(symbol);
     uint64_t bq_qsum_sqrMQ_tot = 0; 
     for (unsigned int strand = 0; strand < 2; strand++) {
@@ -3026,8 +3026,8 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
     // double doubleVAQ = stdVAQ + (minVAQ * (phred_max_dscs - phred_max_sscs) / (double)phred_max_sscs);
     double duplexVAQ = (double)fmt.dAD3 * (double)(phred_max_dscs - phred_max_sscs) - (double)(fmt.dAD1 - fmt.dAD3); // h01_to
     duplexVAQ = MIN(duplexVAQ, 200); // Similar to many other upper bounds, the 200 here has no theoretical foundation.
-    fmt.VAQ  = MIN3(vaqMQcap, vaqBQcap, MAX(lowestVAQ, doubleVAQ + duplexVAQ)); // / 1.5;
-    fmt.VAQ2 = MIN3(vaqMQcap, vaqBQcap, MAX(lowestVAQ, doubleVAQ_norm + duplexVAQ)); // treat other forms of indels as background noise if matched normal is not available.
+    fmt.VAQ  = coef_VAQ * MIN3(vaqMQcap, vaqBQcap, MAX(lowestVAQ, doubleVAQ + duplexVAQ)); // / 1.5;
+    fmt.VAQ2 = coef_VAQ * MIN3(vaqMQcap, vaqBQcap, MAX(lowestVAQ, doubleVAQ_norm + duplexVAQ)); // treat other forms of indels as background noise if matched normal is not available.
     return (int)(fmt.bAD1[0] + fmt.bAD1[1]);
 };
 
@@ -3561,7 +3561,7 @@ append_vcf_record(std::string & out_string,
                 ? ((tki.dAD3 > 0)
                     ? ((double)(phred_max_dscs - phred_pow_dscs_origin))
                     : ((double)(phred_max_sscs - phred_pow_sscs_origin) 
-                      // * (double)(MAX(tki.DP, tki.bDP) - tki.DP) / (double)(tki.bDP + 1)
+                      * (double)(MAX(tki.DP, tki.bDP) - tki.DP) / (double)(tki.bDP + 1)
                       ))
                 : 0.0);
         // prob[mapping-error] * prob[false-positive-variant-per-base-position] / num-alts-per-base-positon
@@ -3569,7 +3569,7 @@ append_vcf_record(std::string & out_string,
                 ? ((nfm.dAD3 > 0)
                     ? ((double)(phred_max_dscs - phred_pow_dscs_origin))
                     : ((double)(phred_max_sscs - phred_pow_sscs_origin) 
-                    // * (double)(MAX(nfm.DP, nfm.bDP) - nfm.DP) / (double)(nfm.bDP + 1)
+                    * (double)(MAX(nfm.DP, nfm.bDP) - nfm.DP) / (double)(nfm.bDP + 1)
                     ))
                 : 0.0);
         
