@@ -2579,7 +2579,7 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
         // const auto & bq_indel_adjmax_depths
         const bool somaticGT,
         const bool is_ref_bias_aware,
-        const bool coef_VAQ,
+        const double coef_VAQ,
         const int specialflag) {
     fmt.note = symbol2CountCoverageSet12.additional_note.getByPos(refpos).at(symbol);
     uint64_t bq_qsum_sqrMQ_tot = 0; 
@@ -2728,10 +2728,11 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
     assert(fmt.ADHQ >= 0);
     fmt.MQ = (unsigned int)sqrt((double)bq_qsum_sqrMQ_tot / (DBL_MIN + (double)(fmt.bAD1[0] + fmt.bAD1[1])));
     
+    bool isInDel = (isSymbolIns(symbol) || isSymbolDel(symbol));
     if (fmtAD > 0 || is_rescued) {
         assert(fmt.FA >= 0);
         unsigned int ref_bias = 4 * 2; // this is rather empirical
-        if (isSymbolIns(symbol) || isSymbolDel(symbol)) {
+        if (isInDel) {
             uint64_t totsize_cnt = 0;
             uint64_t totsize_sum = 0;
             for (unsigned int k = 0; k < fmt.gapSeq.size(); k++) {
@@ -2950,7 +2951,6 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
         fmt.RCC[i*RCC_NFS+5] = (int)rep_num_clusters[i].cnt2p;
     } // fmt.cFR;
     
-    const bool isInDel = (isSymbolIns(symbol) || isSymbolDel(symbol));
     unsigned int refpo1 = (isInDel ? (MAX(refpos, 1 + bq_ins_2bdepths.at(0).getIncluBegPosition()) - 1) : refpos);
     unsigned int refpo2 = MIN(refpos + 1, bq_ins_2bdepths.at(0).getExcluEndPosition() - 1);
     // Implicitly assume that there is a symmetry between refpos and refpo2
@@ -3027,8 +3027,8 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
     // double doubleVAQ = stdVAQ + (minVAQ * (phred_max_dscs - phred_max_sscs) / (double)phred_max_sscs);
     double duplexVAQ = (double)fmt.dAD3 * (double)(phred_max_dscs - phred_max_sscs) - (double)(fmt.dAD1 - fmt.dAD3); // h01_to
     duplexVAQ = MIN(duplexVAQ, 200); // Similar to many other upper bounds, the 200 here has no theoretical foundation.
-    fmt.VAQ  = coef_VAQ * MIN3(vaqMQcap, vaqBQcap, MAX(lowestVAQ, doubleVAQ + duplexVAQ)); // / 1.5;
-    fmt.VAQ2 = coef_VAQ * MIN3(vaqMQcap, vaqBQcap, MAX(lowestVAQ, doubleVAQ_norm + duplexVAQ)); // treat other forms of indels as background noise if matched normal is not available.
+    fmt.VAQ  = calc_score_with_penal_at_low_val(MIN3(vaqMQcap, vaqBQcap, MAX(lowestVAQ, doubleVAQ + duplexVAQ)), coef_VAQ); // / 1.5;
+    fmt.VAQ2 = calc_score_with_penal_at_low_val(MIN3(vaqMQcap, vaqBQcap, MAX(lowestVAQ, doubleVAQ_norm + duplexVAQ)), coef_VAQ); // treat other forms of indels as background noise if matched normal is not available.
     return (int)(fmt.bAD1[0] + fmt.bAD1[1]);
 };
 
@@ -3257,8 +3257,8 @@ append_vcf_record(std::string & out_string,
         const unsigned int phred_triallelic_indel,
         const unsigned int phred_max_sscs,
         const unsigned int phred_max_dscs,
-        const unsigned int phred_pow_sscs_origin,
-        const unsigned int phred_pow_dscs_origin,
+        const double phred_pow_sscs_origin,
+        const double phred_pow_dscs_origin,
         const unsigned int vad_thres,
         const bool is_somatic_snv_filtered_by_any_nonref_germline_snv,
         const bool is_somatic_indel_filtered_by_any_nonref_germline_indel,

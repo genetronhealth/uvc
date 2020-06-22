@@ -903,7 +903,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                             bq_del_2bdepths,
                             paramset.somaticGT,
                             (paramset.ref_bias_awareness & ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? 0x1 : 0x2)),
-                            ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? 0.625 : 1.0),
+                            ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? 0.5 : 1.0),
                             // bq_indel_adjmax_depths,
                             0);
                 }
