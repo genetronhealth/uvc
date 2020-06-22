@@ -64,9 +64,9 @@ struct CommandLineArgs {
     uint32_t    phred_max_sscs_indel_open = 60; // 34;
     uint32_t    phred_max_sscs_indel_ext  = 0; // 5; // 0;  // 5;
     uint32_t    phred_max_dscs_all = 60;
-    double      phred_pow_sscs_origin = 44-38; // 10*log(2.7e-3/1.5e-4)/log(10)*3 = 37.658175 from https://doi.org/10.1073/pnas.1208715109
-    double      phred_pow_sscs_indel_origin = -4; 
-    double      phred_pow_dscs_origin = -14;
+    double      phred_pow_sscs_origin = 48 - 38; // 10*log(2.7e-3/1.5e-4)/log(10)*3 = 37.658175 from https://doi.org/10.1073/pnas.1208715109
+    double      phred_pow_sscs_indel_origin = 60 - 23; // 60 - 38; 
+    double      phred_pow_dscs_origin = 0;
     
     uint32_t    phred_umi_indel_dimret_qual = 40;
     double      phred_umi_indel_dimret_fold = 2;

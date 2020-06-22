@@ -2,7 +2,7 @@
 #define version_INCLUDED
 #include <string.h>
 
-#define VERSION123 "0.0.54"
+#define VERSION123 "0.0.55"
 
 #ifndef COMMIT_VERSION
 #define COMMIT_VERSION "NotVersionControlled"
@@ -19,5 +19,7 @@
 #define VERSION_DETAIL_CLEAN (VERSION_CLEAN " (" COMMIT_DIFF_SH ")")
 #define VERSION_DETAIL_DIRTY (VERSION_DIRTY " (" COMMIT_DIFF_SH ")")
 #define VERSION_DETAIL ((strlen(COMMIT_DIFF_SH) > 0) ? (VERSION_DETAIL_DIRTY) : (VERSION_DETAIL_CLEAN))
+
+extern const char *GIT_DIFF_FULL;
 
 #endif

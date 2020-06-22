@@ -1073,6 +1073,10 @@ main(int argc, char **argv) {
         return parsing_result_ret; 
     }
     LOG(logINFO) << "Program " << argv[0] << " version " << VERSION_DETAIL;
+    LOG(logINFO) << "<GIT_DIFF_FULL_DISPLAY_MSG>"; 
+    LOG(logINFO) << GIT_DIFF_FULL;
+    LOG(logINFO) << "</GIT_DIFF_FULL_DISPLAY_MSG>";
+    
     std::vector<std::tuple<std::string, unsigned int>> tid_to_tname_tseqlen_tuple_vec;
     samfname_to_tid_to_tname_tseq_tup_vec(tid_to_tname_tseqlen_tuple_vec, paramset.bam_input_fname);
     

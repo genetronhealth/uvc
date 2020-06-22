@@ -1,4 +1,3 @@
-
 # Example command to build: make all -j9 && make deploy
 
 # Multi threads and single thread debug
@@ -8,8 +7,9 @@ debug-st : uvc.st.out
 test-cppt : uvc.cppt.out
 all : debug-mt debug-st release test-cppt
 
-HDR=CLI11-1.7.1/CLI11.hpp logging.hpp main.hpp CmdLineArgs.hpp common.hpp 
-SRC=main.cpp  bcf_formats.step1.c conversion.hpp grouping.hpp grouping.cpp CmdLineArgs.cpp
+HDR=CmdLineArgs.hpp common.hpp grouping.hpp logging.hpp main.hpp main_conversion.hpp version.h CLI11-1.7.1/CLI11.hpp
+SRC=CmdLineArgs.cpp            grouping.cpp logging.cpp main.cpp                     version.cpp 
+DEP=bcf_formats.step1.c instcode.hpp Makefile
 
 HTSPATH=ext/htslib-1.9-lowdep/libhts.a #ext/htslib/htslib-1.9-mindep/libhts.a 
 HTSFLAGS=$(HTSPATH) -I ext/htslib-1.9-lowdep/ -pthread -lm -lz -lbz2 -llzma # -lcurl -lcrypto # can be changed depending on the specific installed components of htslib (please refer to the INSTALL file in htslib)
@@ -18,29 +18,30 @@ CXX=g++ # can be changed to clang or other compilers as needed
 CXXFLAGS=-std=c++14 -static-libstdc++
 COMMIT_VERSION=$(shell git rev-parse HEAD)
 COMMIT_DIFF_SH=$(shell git diff HEAD --shortstat)
-VERFLAGS=-DCOMMIT_VERSION="\"$(COMMIT_VERSION)\"" -DCOMMIT_DIFF_SH="\"$(COMMIT_DIFF_SH)\"" 
+COMMIT_DIFF_FULL=$(shell git diff HEAD > gitdiff.txt)
+VERFLAGS=-DCOMMIT_VERSION="\"$(COMMIT_VERSION)\"" -DCOMMIT_DIFF_SH="\"$(COMMIT_DIFF_SH)\"" -DCOMMIT_DIFF_FULL="\"$(COMMIT_DIFF_FULL)\""
 
-minivc     : minivc.c Makefile
+minivc     : minivc.c version.h Makefile
 	$(CC) -O3 -o minivc    $(VERFLAGS) minivc.c ${HTSFLAGS}
 
 debarcode  : debarcode_main.c version.h Makefile
 	$(CC) -O3 -o debarcode $(VERFLAGS) debarcode_main.c ${HTSFLAGS}
 	
 # the main executable, uses OpenMP for multi-threading
-uvc.rel.out : $(HDR) $(SRC) instcode.hpp Makefile
-	$(CXX) -O3 -DNDEBUG -o uvc.rel.out  $(CXXFLAGS) $(VERFLAGS) main.cpp grouping.cpp CmdLineArgs.cpp logging.cpp $(HTSFLAGS) -fopenmp # -l htslib
+uvc.rel.out : $(HDR) $(SRC) $(DEP)
+	$(CXX) -O3 -DNDEBUG -o uvc.rel.out  $(CXXFLAGS) $(VERFLAGS) $(SRC) $(HTSFLAGS) -fopenmp # -l htslib
 
 # the main executable, use C++ standard template library thread for multi-threading, useful if OpenMP runtime is not available
-uvc.cppt.out : $(HDR) $(SRC) instcode.hpp Makefile
-	$(CXX) -O3 -DNDEBUG -o uvc.cppt.out $(CXXFLAGS) $(VERFLAGS) main.cpp grouping.cpp CmdLineArgs.cpp logging.cpp $(HTSFLAGS) -DUSE_STDLIB_THREAD # -l htslib
+uvc.cppt.out : $(HDR) $(SRC) $(DEP)
+	$(CXX) -O3 -DNDEBUG -o uvc.cppt.out $(CXXFLAGS) $(VERFLAGS) $(SRC) $(HTSFLAGS) -DUSE_STDLIB_THREAD # -l htslib
 
 # single-thread executable with runtime assertions and debug symbols, very useful for debugging
-uvc.st.out : $(HDR) $(SRC) instcode.hpp Makefile
-	$(CXX) -O2 -g -p    -o uvc.st.out   $(CXXFLAGS) $(VERFLAGS) main.cpp grouping.cpp CmdLineArgs.cpp logging.cpp $(HTSFLAGS) 
+uvc.st.out : $(HDR) $(SRC) $(DEP)
+	$(CXX) -O2 -g -p    -o uvc.st.out   $(CXXFLAGS) $(VERFLAGS) $(SRC) $(HTSFLAGS) 
 
 # multi-thread executable with runtime assertions and debug symbols, useful for debugging
-uvc.mt.out : $(HDR) $(SRC) instcode.hpp Makefile
-	$(CXX) -O2 -g -p    -o uvc.mt.out   $(CXXFLAGS) $(VERFLAGS) main.cpp grouping.cpp CmdLineArgs.cpp logging.cpp $(HTSFLAGS) -fopenmp
+uvc.mt.out : $(HDR) $(SRC) $(DEP)
+	$(CXX) -O2 -g -p    -o uvc.mt.out   $(CXXFLAGS) $(VERFLAGS) $(SRC) $(HTSFLAGS) -fopenmp
 
 # generator for bcf templates
 bcf_formats_generator1.out : bcf_formats_generator1.cpp version.h 

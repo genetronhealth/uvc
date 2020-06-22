@@ -5,8 +5,8 @@
 
 #include "CmdLineArgs.hpp"
 #include "common.hpp"
-#include "conversion.hpp"
 #include "logging.hpp"
+#include "main_conversion.hpp"
 
 #include "htslib/faidx.h"
 #include "htslib/hts.h"
