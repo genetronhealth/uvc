@@ -65,10 +65,10 @@ struct CommandLineArgs {
     uint32_t    phred_max_sscs_indel_ext  = 0; // 5; // 0;  // 5;
     uint32_t    phred_max_dscs_all = 60;
     double      phred_pow_sscs_origin = 48 - 38; // 10*log(2.7e-3/1.5e-4)/log(10)*3 = 37.658175 from https://doi.org/10.1073/pnas.1208715109
-    double      phred_pow_sscs_indel_origin = 60 - 23; // 60 - 38; 
+    double      phred_pow_sscs_indel_origin = 60 - 38; // 60 - 38; 
     double      phred_pow_dscs_origin = 0;
     
-    uint32_t    phred_umi_indel_dimret_qual = 40;
+    uint32_t    phred_umi_indel_dimret_qual = 940; // effectively disabled // 40
     double      phred_umi_indel_dimret_fold = 2;
     
     double      vqual = (double)15; // 10; set to 20 for less output
@@ -79,8 +79,8 @@ struct CommandLineArgs {
     uint32_t    minABQ_cap_snv = 0;
     uint32_t    minABQ_cap_indel = 0;
     
-    double      ess_georatio_dedup_cap = 1.25;
-    double      ess_georatio_dedup_pcr = 1.50; // increase to 1.65 does not help in matching empirical variant score
+    double      ess_georatio_dedup_any = 1.25;
+    double      amp_vaq_coef = 0.5; // formerly ess_georatio_dedup_cap: 1.5 increase to 1.65 does not help in matching empirical variant score
     double      ess_georatio_duped_pcr = 2.00;
     
     uint32_t    minMQ1 = 40; // from GATK
@@ -101,7 +101,7 @@ struct CommandLineArgs {
     double      t2n_add_contam_frac = 0.02;
     double      t2n_add_contam_transfrac = 0.0; // 0.02; // 1e-10; // 0.025; // 0.04; // 0.125*1.5;
     
-    uint32_t    phred_frac_indel_error_before_barcode_labeling = 23;
+    uint32_t    phred_frac_indel_error_before_barcode_labeling = 17; // 23;
     uint32_t    baq_per_aligned_base = 4; 
     
     bool        is_somatic_snv_filtered_by_any_nonref_germline_snv = true;

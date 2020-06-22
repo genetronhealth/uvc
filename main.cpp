@@ -674,7 +674,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
     unsigned int num_pcrpassed_reads = passed_pcrpassed_umipassed[1];
     // unsigned int num_umipassed_reads = passed_pcrpassed_umipassed[2];
     bool is_by_capture = ((num_pcrpassed_reads) * 2 <= num_passed_reads);
-    AssayType inferred_assay_type = ((ASSAY_TYPE_AUTO == paramset.assay_type) ? (is_by_capture ? ASSAY_TYPE_CAPTURE : ASSAY_TYPE_AMPLICON) : (paramset.assay_type));
+    const AssayType inferred_assay_type = ((ASSAY_TYPE_AUTO == paramset.assay_type) ? (is_by_capture ? ASSAY_TYPE_CAPTURE : ASSAY_TYPE_AMPLICON) : (paramset.assay_type));
     
     if (0 == num_passed_reads) { return -1; };
     unsigned int minABQ_snv = ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? paramset.minABQ_pcr_snv : paramset.minABQ_cap_snv);
@@ -734,7 +734,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
             paramset.phred_max_frag_indel_basemax, 
             sscs_mut_table,
             minABQ_snv,
-            (is_by_capture ? paramset.ess_georatio_dedup_cap : paramset.ess_georatio_dedup_pcr), 
+            paramset.ess_georatio_dedup_any,
             paramset.ess_georatio_duped_pcr,
             !paramset.disable_dup_read_merge, 
             is_loginfo_enabled, 
@@ -749,8 +749,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
             paramset.phred_frac_indel_error_before_barcode_labeling,
             paramset.baq_per_aligned_base,
             paramset.regside_nbases,
-            (is_by_capture ? paramset.bias_flag_cap_snv : paramset.bias_flag_amp_snv),
-            (is_by_capture ? paramset.bias_flag_cap_indel : paramset.bias_flag_amp_indel),
+            ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? paramset.bias_flag_amp_snv : paramset.bias_flag_cap_snv),
+            ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? paramset.bias_flag_amp_indel : paramset.bias_flag_cap_indel),
             0);
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts analyzing phasing info"; }
     auto mutform2count4vec_bq = map2vector(mutform2count4map_bq);
@@ -903,7 +903,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                             bq_del_2bdepths,
                             paramset.somaticGT,
                             (paramset.ref_bias_awareness & ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? 0x1 : 0x2)),
-                            ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? 0.5 : 1.0),
+                            ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? paramset.amp_vaq_coef : 1.0),
                             // bq_indel_adjmax_depths,
                             0);
                 }

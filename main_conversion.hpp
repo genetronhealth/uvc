@@ -149,6 +149,8 @@ calc_non_negative(const T v, T base = pow(10.0, 0.1), T thres = 20.0) {
 template <class T>
 T
 calc_score_with_penal_at_low_val(const T v, T penal_mult, T thres = 60.0) {
+    return v * penal_mult;
+    // enable the following if it makes sense.
     if (v <= thres) {
         return v * penal_mult;
     } else {

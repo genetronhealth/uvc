@@ -2110,7 +2110,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         unsigned int overallq = MIN(edge_baq, phredlike);
                         this->fq_qual_p1sum [strand].getRefByPos(epos).incSymbolCount(con_symbol, overallq);
                         this->fq_qual_p2sum [strand].getRefByPos(epos).incSymbolCount(con_symbol, mathsquare(overallq));
-                        if (overallq >= (BASE_SYMBOL == symbolType ? highqual_thres_snv : (LINK_SYMBOL == symbolType ? highqual_thres_indel : 0))) {
+                        if (overallq >= ((BASE_SYMBOL == symbolType) ? highqual_thres_snv : ((LINK_SYMBOL == symbolType) ? highqual_thres_indel : 0))) {
                             this->fq_hiqual_dep[strand].getRefByPos(epos).incSymbolCount(con_symbol, 1);
                         }
                         unsigned int pbucket = phred2bucket(overallq);
@@ -3472,8 +3472,8 @@ append_vcf_record(std::string & out_string,
     double vcfqual = -(double)FLT_MAX;
     bool keep_var = false;
     {
-        const bool tUseHD1 = ((tki.bDP > tki.DP * highqual_min_ratio) && (tki.cADTC       > 0));
-        const bool nUseHD1 = ((nfm.bDP > nfm.DP * highqual_min_ratio) && (SUM2(nfm.cADTC) > 0) && tUseHD1); 
+        const bool tUseHD1 = ((tki.bDP > tki.DP * highqual_min_ratio) && (tki.cADTC       > 0 || isInDel));
+        const bool nUseHD1 = ((nfm.bDP > nfm.DP * highqual_min_ratio) && (SUM2(nfm.cADTC) > 0 || isInDel) && tUseHD1); 
         
         const bool tUseHD = (tUseHD1 && !isInDel);
         const bool nUseHD = (nUseHD1 && !isInDel); 
@@ -3490,7 +3490,7 @@ append_vcf_record(std::string & out_string,
         double nDP0 = (double)((nUseHD) ? (nAllHD) :                      (double)nfm.DP) + DBLFLT_EPS / 2.0;
         double nAD0 = (double)((nUseHD) ? (nAltHD) :             nfm.FA * (double)nfm.DP) + DBLFLT_EPS;
         if (nUseHD1 && nfm.FA > DBLFLT_EPS) {
-            nDP0 = MAX3(nDP0, nAD0 / nfm.FA, nAD0 / (nAltCD / (nAllCD + 1.0)));
+            nDP0 = MAX3(nDP0, nAD0 / nfm.FA, nAD0 / ((nAltCD + 0.5) / (nAllCD + 1.0)));
         }
         double nRD0 = (double)((nUseHD) ? (nRefHD) :             nfm.FR * (double)nfm.DP) + DBLFLT_EPS / 2.0;
         
@@ -3506,7 +3506,7 @@ append_vcf_record(std::string & out_string,
         double tDP0 = (double)((tUseHD) ? (tAllHD) :                      (double)tki.DP) + DBLFLT_EPS;
         double tAD0 = (double)((tUseHD) ? (tAltHD) :             tki.FA * (double)tki.DP) + DBLFLT_EPS / 2.0;
         if (tUseHD1 && tki.FA > DBLFLT_EPS) {
-            tDP0 = MAX3(tDP0, tAD0 / tki.FA, tAD0 / (tAltCD / (tAllCD + 1.0)));
+            tDP0 = MAX3(tDP0, tAD0 / tki.FA, tAD0 / ((tAltCD + 0.5) / (tAllCD + 1.0)));
         }
         // double tRD0 = (double)((tUseHD) ? (tRefHD) :             tki.FR * (double)tki.DP) + DBLFLT_EPS / 2.0; 
         

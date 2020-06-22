@@ -203,10 +203,10 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     app.add_option("--phred-umi-indel-dimret_fold", phred_umi_indel_dimret_fold, 
             "The diminishing-return factor for the PHRED-scaled raw variant quality for InDels detected with UMI barcodes", true);
     
-    app.add_option("--ess-georatio-dedup-cap", ess_georatio_dedup_cap, 
-                   "Geometric common ratio of the increase in the observed number of deduped reads as a function of the effective number of deduped reads (effective sample size) for capture-based assays.", true);
-    app.add_option("--ess-georatio-dedup-pcr", ess_georatio_dedup_pcr, 
-                   "Geometric common ratio of the increase in the observed number of deduped reads as a function of the effective number of deduped reads (effective sample size) for PCR-based assays.", true);
+    app.add_option("--ess-georatio-dedup-any", ess_georatio_dedup_any, 
+                   "Geometric common ratio of the increase in the observed number of deduped reads as a function of the effective number of deduped reads (effective sample size) for any assay.", true);
+    app.add_option("--amp-vaq-coef", amp_vaq_coef, 
+                   "VAQ is multiplied by this coefficient to be normalized for amplicon data.", true);
     app.add_option("--ess-georatio-duped-pcr", ess_georatio_duped_pcr, 
                    "Geometric common ratio of the increase in the observed number of duped reads as a function of the effective number of duped reads (effective sample size) for reads derived from one template molecule.", true);
  
