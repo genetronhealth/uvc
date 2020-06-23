@@ -65,7 +65,7 @@ struct CommandLineArgs {
     uint32_t    phred_max_sscs_indel_ext  = 0; // 5; // 0;  // 5;
     uint32_t    phred_max_dscs_all = 60;
     double      phred_pow_sscs_origin = 48 - 38; // 10*log(2.7e-3/1.5e-4)/log(10)*3 = 37.658175 from https://doi.org/10.1073/pnas.1208715109
-    double      phred_pow_sscs_indel_origin = 60 - 38; // 60 - 38; 
+    double      phred_pow_sscs_indel_origin = 0; // 60 - 38; 
     double      phred_pow_dscs_origin = 0;
     
     uint32_t    phred_umi_indel_dimret_qual = 940; // effectively disabled // 40
@@ -101,7 +101,7 @@ struct CommandLineArgs {
     double      t2n_add_contam_frac = 0.02;
     double      t2n_add_contam_transfrac = 0.0; // 0.02; // 1e-10; // 0.025; // 0.04; // 0.125*1.5;
     
-    uint32_t    phred_frac_indel_error_before_barcode_labeling = 17; // 23;
+    uint32_t    phred_frac_indel_error_before_barcode_labeling = 23; // 12, 18, 24 // 23;
     uint32_t    baq_per_aligned_base = 4; 
     
     bool        is_somatic_snv_filtered_by_any_nonref_germline_snv = true;
