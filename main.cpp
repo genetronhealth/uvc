@@ -903,7 +903,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                             bq_del_2bdepths,
                             paramset.somaticGT,
                             (paramset.ref_bias_awareness & ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? 0x1 : 0x2)),
-                            ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? paramset.amp_vaq_coef : 1.0),
+                            ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? paramset.phred_umi_dimret_qual : ((double)FLT_MAX)),
+                            ((BASE_SYMBOL == symbolType) ? paramset.phred_umi_dimret_mult_snv : paramset.phred_umi_dimret_mult_indel),
                             // bq_indel_adjmax_depths,
                             0);
                 }
@@ -1023,8 +1024,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                                 paramset.powlaw_anyvar_base,
                                 paramset.syserr_maxqual,
                                 paramset.syserr_norm_devqual,
-                                paramset.phred_umi_indel_dimret_qual,
-                                paramset.phred_umi_indel_dimret_fold,
+                                paramset.phred_umi_dimret_qual,
+                                paramset.phred_umi_dimret_mult_indel,
                                 paramset.bitflag_InDel_penal_t_UMI_n_UMI,
                                 paramset.haplo_in_diplo_allele_perc,
                                 paramset.diplo_oneside_posbias_perc,

@@ -198,10 +198,12 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
             "The phred-score that is subtracted from phred-sscs to get the power-law quality adjustment for InDels", true);
     app.add_option("--phred-pow-dscs-origin",       phred_pow_dscs_origin, 
             "The phred-score that is subtracted from phred-dscs to get the power-law quality adjustment", true);
-    app.add_option("--phred-umi-indel-dimret_qual", phred_umi_indel_dimret_qual, 
-            "The PHRED-scaled raw variant quality above which such quality is subject to diminishing return for InDels detected with UMI barcodes", true);
-    app.add_option("--phred-umi-indel-dimret_fold", phred_umi_indel_dimret_fold, 
-            "The diminishing-return factor for the PHRED-scaled raw variant quality for InDels detected with UMI barcodes", true);
+    app.add_option("--phred-umi-dimret-qual", phred_umi_dimret_qual, 
+            "The PHRED-scaled raw variant quality above which such quality is subject to diminishing return for amplicon data", true);
+    app.add_option("--phred-umi-dimret-mult-snv", phred_umi_dimret_mult_snv,
+            "The diminishing-return factor for the PHRED-scaled raw variant quality for amplicon SNVs", true);
+    app.add_option("--phred-umi-dimret-mult-indel", phred_umi_dimret_mult_indel,
+            "The diminishing-return factor for the PHRED-scaled raw variant quality for amplicon InDels", true);
     
     app.add_option("--ess-georatio-dedup-any", ess_georatio_dedup_any, 
                    "Geometric common ratio of the increase in the observed number of deduped reads as a function of the effective number of deduped reads (effective sample size) for any assay.", true);

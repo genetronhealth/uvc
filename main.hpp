@@ -2579,7 +2579,8 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
         // const auto & bq_indel_adjmax_depths
         const bool somaticGT,
         const bool is_ref_bias_aware,
-        const double coef_VAQ,
+        const unsigned int phred_umi_dimret_qual, 
+        const double phred_umi_dimret_mult,
         const int specialflag) {
     fmt.note = symbol2CountCoverageSet12.additional_note.getByPos(refpos).at(symbol);
     uint64_t bq_qsum_sqrMQ_tot = 0; 
@@ -3027,8 +3028,8 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
     // double doubleVAQ = stdVAQ + (minVAQ * (phred_max_dscs - phred_max_sscs) / (double)phred_max_sscs);
     double duplexVAQ = (double)fmt.dAD3 * (double)(phred_max_dscs - phred_max_sscs) - (double)(fmt.dAD1 - fmt.dAD3); // h01_to
     duplexVAQ = MIN(duplexVAQ, 200); // Similar to many other upper bounds, the 200 here has no theoretical foundation.
-    fmt.VAQ  = calc_score_with_penal_at_low_val(MIN3(vaqMQcap, vaqBQcap, MAX(lowestVAQ, doubleVAQ + duplexVAQ)), coef_VAQ); // / 1.5;
-    fmt.VAQ2 = calc_score_with_penal_at_low_val(MIN3(vaqMQcap, vaqBQcap, MAX(lowestVAQ, doubleVAQ_norm + duplexVAQ)), coef_VAQ); // treat other forms of indels as background noise if matched normal is not available.
+    fmt.VAQ = calc_score_with_dimret(MIN3(vaqMQcap, vaqBQcap, MAX(lowestVAQ, doubleVAQ + duplexVAQ)), phred_umi_dimret_mult, (double)phred_umi_dimret_qual); // / 1.5;
+    fmt.VAQ2= calc_score_with_dimret(MIN3(vaqMQcap, vaqBQcap, MAX(lowestVAQ, doubleVAQ_norm + duplexVAQ)), phred_umi_dimret_mult, (double)phred_umi_dimret_qual); // treat other forms of indels as background noise if matched normal is not available.
     return (int)(fmt.bAD1[0] + fmt.bAD1[1]);
 };
 
@@ -3268,8 +3269,8 @@ append_vcf_record(std::string & out_string,
         const double powlaw_anyvar_base,
         const double syserr_maxqual,
         const double syserr_norm_devqual,
-        const auto phred_umi_indel_dimret_qual,
-        const auto phred_umi_indel_dimret_fold,
+        const auto phred_umi_dimret_qual,
+        const auto phred_umi_dimret_mult,
         const auto bitflag_InDel_penal_t_UMI_n_UMI,
         uint64_t haplo_in_diplo_allele_perc,
         uint64_t diplo_oneside_posbias_perc,
@@ -3599,12 +3600,13 @@ append_vcf_record(std::string & out_string,
             t_indel_penal = penal_indel_2(tAD0a, n_str_units, tki.RCC, phred_triallelic_indel);
             if (!tUseHD1) {
                 _tn_tra2q *= ((double)tAD0a + (double)indelstring.size()/8.0) / ((double)tAD0 + (double)indelstring.size()/8.0); // ad-hoc adjustment
-            } else {
-                if (_tn_tra2q > phred_umi_indel_dimret_qual) {
-                    _tn_tra2q = (double)phred_umi_indel_dimret_qual + ((double)(_tn_tra2q - phred_umi_indel_dimret_qual) / (double)phred_umi_indel_dimret_fold);
+            } /*else {
+                if (_tn_tra2q > phred_umi_dimret_qual) {
+                    _tn_tra2q = (double)phred_umi_dimret_qual + ((double)(_tn_tra2q - phred_umi_dimret_qual) / (double)phred_umi_dimret_mult);
                 }
-            }
-        } 
+            }*/
+        }
+        
         double t_penal_by_nearby_indel = 0.0; 
         unsigned int indelmax = MAX(tki.gapbNRD[0] + tki.gapbNRD[1], tki.gapbNRD[2] + tki.gapbNRD[3]);
         if ((SUM2(tki.bAD1) < (int)indelmax) && (indelmax > 0)) {
