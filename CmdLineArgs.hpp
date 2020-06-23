@@ -65,12 +65,12 @@ struct CommandLineArgs {
     uint32_t    phred_max_sscs_indel_ext  = 0; // 5; // 0;  // 5;
     uint32_t    phred_max_dscs_all = 60;
     double      phred_pow_sscs_origin = 48 - 41; // 10*log((2.7e-3-3.5e-5)/(1.5e-4-3.5e-5))/log(10)*3 = 41 from https://doi.org/10.1073/pnas.1208715109
-    double      phred_pow_sscs_indel_origin = 60 - 70; // 60 - 38; 
+    double      phred_pow_sscs_indel_origin = 60 - 60; // 60 - 38; 
     double      phred_pow_dscs_origin = 0;
     
     uint32_t    phred_umi_dimret_qual = 12; // the number of genomic positions typically covered by an amplicon // 40
     double      phred_umi_dimret_mult_snv = 0.4;
-    double      phred_umi_dimret_mult_indel = 0.4;
+    double      phred_umi_dimret_mult_indel = 0.3;
     
     double      vqual = (double)15; // 10; set to 20 for less output
     uint32_t    vad = (uint32_t)INT_MAX;

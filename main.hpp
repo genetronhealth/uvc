@@ -3586,14 +3586,16 @@ append_vcf_record(std::string & out_string,
                 : 0.0);
         
         double t_indel_penal = 0.0;
-        const double pcap_tbq = ((isInDel || is_proton) ? 200.0 : mathsquare(tki.BQ) / illumina_BQ_pow2_div_coef); // based on heuristics
+        const double pcap_tbq = ((isInDel || is_proton) ? 200.0 : (mathsquare(tki.BQ) / illumina_BQ_pow2_div_coef)); // based on heuristics
         const double pcap_tmq = MIN((double)maxMQ, tki.MQ) * varqual_per_mapqual; // bases on heuristics
         const double pcap_tmq2 = MAX(0.0, tki.MQ - 10.0/log(10.0) * log((double)(tDP0 + tDP0pc0) / (double)(tAD0+tAD0pc0))) * (double)tAD0; // readjustment by MQ
-        const double tn_tpo1q = 10.0 / log(10.0) * log((double)(tAD0 / altmul + tE0) / ((tDP0 - tAD0) / refmul + tAD0 / altmul + 2.0 * tE0)) * (pl_exponent_t) + (pcap_tmax);
+        const double tn_t_altmul = (tUseHD1 ? 1.0 : altmul);
+        const double tn_t_refmul = (tUseHD1 ? 1.0 : refmul);
+        const double tn_tpo1q = 10.0 / log(10.0) * log((double)(tAD0 / tn_t_altmul + tE0) / ((tDP0 - tAD0) / tn_t_refmul + tAD0 / tn_t_altmul + 2.0 * tE0)) * (pl_exponent_t) + (pcap_tmax);
         const double tn_tsamq = 40.0 * pow(0.5, (double)tAD0);
         const double tn_tra1q = (double)tki.VAQ;
         double _tn_tpo2q = MIN4(tn_tpo1q, pcap_tmq, pcap_tbq, pcap_tmq2);
-        double _tn_tra2q = MAX(0.0, tn_tra1q/altmul - tn_tsamq    ) + (isInDel ? 0.0:5.0); // tumor  BQ bias is stronger as raw variant (biased to high BQ) is called   from each base
+        double _tn_tra2q = MAX(0.0, tn_tra1q/tn_t_altmul - tn_tsamq    ) + (isInDel ? 0.0:5.0); // tumor  BQ bias is stronger as raw variant (biased to high BQ) is called   from each base
         
         if (isInDel) {
             int n_str_units = (isSymbolIns(symbol) ? 1 : (-1)) * (int)(indelstring.size() / repeatunit.size());
@@ -3632,11 +3634,13 @@ append_vcf_record(std::string & out_string,
         const double pcap_nbq = ((isInDel || is_proton) ? 200.0 : mathsquare(nfm.BQ) / illumina_BQ_pow2_div_coef); // based on heuristics
         const double pcap_nmq = MIN(maxMQ, nfm.MQ) * varqual_per_mapqual; // based on heuristics
         const double pcap_nmq2 = (nfm.MQ - 10.0/log(10.0) * log((double)(nDP0 + nDP0pc0) / (double)(nAD0+nAD0pc0))) * (double)nAD0; // readjsutment by MQ
-        const double tn_npo1q = 10.0 / log(10.0) * log((double)(nAD0 / altmul + nE0) / ((nDP0 - tAD0) / refmul + tAD0 / altmul + 2.0 * nE0)) * (pl_exponent_n) + (pcap_nmax);
+        const double tn_n_altmul = (nUseHD1 ? 1.0 : altmul);
+        const double tn_n_refmul = (nUseHD1 ? 1.0 : refmul);
+        const double tn_npo1q = 10.0 / log(10.0) * log((double)(nAD0 / tn_n_altmul + nE0) / ((nDP0 - tAD0) / tn_n_refmul + tAD0 / tn_n_altmul + 2.0 * nE0)) * (pl_exponent_n) + (pcap_nmax);
         const double tn_nsamq = 40.0 * pow(0.5, (double)nAD0);
         const double tn_nra1q = (double)nfm.VAQ;
         double _tn_npo2q = MIN4(tn_npo1q, pcap_nmq, pcap_nbq, pcap_nmq2);
-        double _tn_nra2q = MAX(0.0, tn_nra1q/altmul - tn_nsamq/4.0) + (isInDel ? 0.0:5.0); // normal BQ bias is weaker   as res variant (biased to high BQ) is filtered from each variant
+        double _tn_nra2q = MAX(0.0, tn_nra1q/tn_n_altmul - tn_nsamq/4.0) + (isInDel ? 0.0:5.0); // normal BQ bias is weaker   as res variant (biased to high BQ) is filtered from each variant
         if (isInDel) {
             if (!nUseHD1) {
                 _tn_nra2q *= ((double)nAD0a + (double)indelstring.size()/8.0) / ((double)nAD0 + (double)indelstring.size()/8.0);
