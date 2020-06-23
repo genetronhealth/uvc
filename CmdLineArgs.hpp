@@ -68,7 +68,7 @@ struct CommandLineArgs {
     double      phred_pow_sscs_indel_origin = 0; // 60 - 38; 
     double      phred_pow_dscs_origin = 0;
     
-    uint32_t    phred_umi_dimret_qual = 20; // the number of genomic positions typically covered by an amplicon // 40
+    uint32_t    phred_umi_dimret_qual = 12; // the number of genomic positions typically covered by an amplicon // 40
     double      phred_umi_dimret_mult_snv = 0.4;
     double      phred_umi_dimret_mult_indel = 0.5;
 
