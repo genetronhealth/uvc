@@ -70,7 +70,7 @@ struct CommandLineArgs {
     
     uint32_t    phred_umi_dimret_qual = 12; // the number of genomic positions typically covered by an amplicon // 40
     double      phred_umi_dimret_mult_snv = 0.4;
-    double      phred_umi_dimret_mult_indel = 0.8;
+    double      phred_umi_dimret_mult_indel = 0.4;
     
     double      vqual = (double)15; // 10; set to 20 for less output
     uint32_t    vad = (uint32_t)INT_MAX;
