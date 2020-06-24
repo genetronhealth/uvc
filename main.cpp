@@ -852,6 +852,10 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
             float most_confident_qual = 0;
             std::string most_confident_GT = "./.";
             float most_confident_GQ = 0;
+            
+            AlignmentSymbol most_confident_nonref_symbol = END_ALIGNMENT_SYMBOLS;
+            float most_confident_nonref_qual = 0;
+            
             std::vector<bcfrec::BcfFormat> fmts(SYMBOL_TYPE_TO_INCLU_END[symbolType] - SYMBOL_TYPE_TO_INCLU_BEG[symbolType] + 1, init_fmt);
             if (rpos_exclu_end != refpos && bDPcDP[0] >= paramset.min_depth_thres) {
                 for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; symbol = AlignmentSymbol(1+(unsigned int)symbol)) {
@@ -871,7 +875,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                             symbolToCountCoverageSet12, 
                             refpos, 
                             symbol, 
-                            refstring, 
+                            refstring,
                             extended_inclu_beg_pos, 
                             mutform2count4vec_bq, 
                             indices_bq, 
@@ -915,6 +919,10 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                         auto GQval = fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]].GQ;
                         most_confident_GT = GTval;
                         most_confident_GQ = GQval;
+                    }
+                    if (vaq >= most_confident_nonref_qual && refsymbol != symbol) {
+                        most_confident_nonref_symbol = symbol;
+                        most_confident_nonref_qual = vaq;
                     }
                 }
             }
@@ -975,8 +983,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                         tki = tid_pos_symb_to_tki.find(std::make_tuple(tid, refpos, symbol))->second; 
                     }
                     if (is_rescued || pass_thres) {
-                        fmt.CType = SYMBOL_TO_DESC_ARR[most_confident_symbol];
-                        fmt.CAQ = most_confident_qual;
+                        fmt.CTypes = {{ SYMBOL_TO_DESC_ARR[most_confident_symbol], SYMBOL_TO_DESC_ARR[most_confident_nonref_symbol]}};
+                        fmt.CAQs = {{ most_confident_qual, most_confident_nonref_qual }};
                         unsigned int phred_max_sscs = sscs_mut_table.toPhredErrRate(refsymbol, symbol);
                         append_vcf_record(buf_out_string, 
                                 buf_out_string_pass, 

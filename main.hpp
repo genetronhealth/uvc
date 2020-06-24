@@ -2697,34 +2697,26 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
     bool is_novar = (symbol == LINK_M || (isSymbolSubstitution(symbol) && vcfref == vcfalt));
     
     fmt.bDP = fmt.bDP1[0] + fmt.bDP1[1];
-    auto fmt_bAD = fmt.bAD1[0] + fmt.bAD1[1];
-    fmt.bFA = (double)(fmt_bAD) / (double)(fmt.bDP);
-    auto fmtbRD = fmt.bRD1[0] + fmt.bRD1[1];
-    fmt.bFR = (double)(fmtbRD) / (double)(fmt.bDP);
-    fmt.bFO = 1.0 - fmt.bFA - fmt.bFR;
+    fmt.bADR = {{ fmt.bRD1[0] + fmt.bRD1[1], fmt.bAD1[0] + fmt.bAD1[1] }}; 
     
     fmt.cDP = fmt.cDPTT[0] + fmt.cDPTT[1];
-    auto fmtcAD = fmt.cADTT[0] + fmt.cADTT[1];
-    fmt.cFA = (double)(fmtcAD) / (double)(fmt.cDP);
-    auto fmtcRD = fmt.cRDTT[0] + fmt.cRDTT[1];
-    fmt.cFR = (double)(fmtcRD) / (double)(fmt.cDP);
-    fmt.cFO = 1.0 - fmt.cFA - fmt.cFR;
-     
+    fmt.cADR = {{ fmt.cRDTT[0] + fmt.cRDTT[1], fmt.cADTT[0] + fmt.cADTT[1] }}; 
+    
     auto fmtAD = SIGN2UNSIGN(0);
     if (use_deduplicated_reads) {
         fmt.DP = fmt.cDP;
-        fmtAD = fmtcAD;
-        fmt.FA = fmt.cFA;
-        fmt.FR = fmt.cFR;
+        fmtAD = fmt.cADR[1];
+        fmt.FA = ((double)fmt.cADR[1]) / ((double)fmt.cDP + DBL_EPSILON);
+        fmt.FR = ((double)fmt.cADR[0]) / ((double)fmt.cDP + DBL_EPSILON);
     } else {
         fmt.DP = fmt.bDP;
-        fmtAD = fmt_bAD;
-        fmt.FA = fmt.bFA;
-        fmt.FR = fmt.bFR;
+        fmtAD = fmt.bADR[1];
+        fmt.FA = ((double)fmt.bADR[1]) / ((double)fmt.bDP + DBL_EPSILON);
+        fmt.FR = ((double)fmt.bADR[0]) / ((double)fmt.bDP + DBL_EPSILON);
     }
      
     fmt.DPHQ = fmt.bDP - (fmt.bDPLQ[0] + fmt.bDPLQ[1]);
-    fmt.ADHQ = fmt_bAD - (fmt.bADLQ[0] + fmt.bADLQ[1]);
+    fmt.ADHQ = fmt.bADR[1] - (fmt.bADLQ[0] + fmt.bADLQ[1]);
     assert(fmt.DPHQ >= 0);
     assert(fmt.ADHQ >= 0);
     fmt.MQ = (unsigned int)sqrt((double)bq_qsum_sqrMQ_tot / (DBL_MIN + (double)(fmt.bAD1[0] + fmt.bAD1[1])));
@@ -2940,7 +2932,7 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
     }
     
     indel_fill_rep_num_clusters(rep_num_clusters, 
-             fmtcRD, repeatunit, iseq2cnt_vec, dlen2cnt_vec);
+             fmt.cADR[0], repeatunit, iseq2cnt_vec, dlen2cnt_vec);
     
     // std::string indelstring = indel_get_majority(fmt, prev_is_tumor, tki); 
     for (unsigned int i = 0; i < RCC_NUM; i++) {
@@ -3102,24 +3094,22 @@ generate_vcf_header(const char *ref_fasta_fname,
     
     // ret += "##INFO=<ID=tDP,Number=1,Type=Integer,Description=\"Tumor-sample DP\">\n";
     ret += "##INFO=<ID=tFA,Number=1,Type=Float,Description=\"Tumor-sample FA (deprecated, equivalent to AD[1] divided by DP in tAD)\">\n";
-    ret += "##INFO=<ID=tFR,Number=1,Type=Float,Description=\"Tumor-sample FR (deprecated, equivalent to AD[0] divided by DP in tAD)\">\n";
-    ret += "##INFO=<ID=tAD,Number=R,Type=Integer,Description=\" Tumor-sample RD and AD for tissue (RD: depth of the REF, AD: depth of each ALT)\">\n";
+    // ret += "##INFO=<ID=tFR,Number=1,Type=Float,Description=\"Tumor-sample FR (deprecated, equivalent to AD[0] divided by DP in tAD)\">\n";
+    ret += "##INFO=<ID=tADR,Number=R,Type=Integer,Description=\" Tumor-sample RD and AD for tissue (RD: depth of the REF, AD: depth of each ALT)\">\n";
     ret += "##INFO=<ID=tDP,Number=1,Type=Integer,Description=\" Tumor-sample DP for tissue\">\n";
-    ret += "##INFO=<ID=nAD,Number=R,Type=Integer,Description=\"Normal-sample RD and AD for tissue\">\n";
+    ret += "##INFO=<ID=nADR,Number=R,Type=Integer,Description=\"Normal-sample RD and AD for tissue\">\n";
     ret += "##INFO=<ID=nDP,Number=1,Type=Integer,Description=\"Normal-sample DP for tissue\">\n";
-    ret += "##INFO=<ID=tADC,Number=R,Type=Integer,Description=\" Tumor-sample RD and AD for ctDNA (RD: depth of the REF, AD: depth of each ALT)\">\n";
+    ret += "##INFO=<ID=tADCR,Number=R,Type=Integer,Description=\" Tumor-sample RD and AD for ctDNA (RD: depth of the REF, AD: depth of each ALT)\">\n";
     ret += "##INFO=<ID=tDPC,Number=1,Type=Integer,Description=\" Tumor-sample DP for ctDNA\">\n";
-    ret += "##INFO=<ID=nADC,Number=R,Type=Integer,Description=\"Normal-sample RD and AD for ctDNA\">\n";
+    ret += "##INFO=<ID=nADCR,Number=R,Type=Integer,Description=\"Normal-sample RD and AD for ctDNA\">\n";
     ret += "##INFO=<ID=nDPC,Number=1,Type=Integer,Description=\"Normal-sample DP for ctDNA\">\n";
-    ret += "##INFO=<ID=tAltBQ,Number=1,Type=Integer,Description=\"Tumor-sample cAltBQ or bAltBQ, depending on command-line option\">\n";
-    ret += "##INFO=<ID=tAllBQ,Number=1,Type=Integer,Description=\"Tumor-sample cAllBQ or bAllBQ, depending on command-line option\">\n";
-    ret += "##INFO=<ID=tRefBQ,Number=1,Type=Integer,Description=\"Tumor-sample cRefBQ or bRefBQ, depending on command-line option\">\n";
-    ret += "##INFO=<ID=tAltBQ2,Number=1,Type=Integer,Description=\"Tumor-sample cAltBQ2\">\n";
-    ret += "##INFO=<ID=tAllBQ2,Number=1,Type=Integer,Description=\"Tumor-sample cAllBQ2\">\n";
-    ret += "##INFO=<ID=tRefBQ2,Number=1,Type=Integer,Description=\"Tumor-sample cRefBQ2\">\n";
-    ret += "##INFO=<ID=tAltHD,Number=1,Type=Integer,Description=\"Tumor-sample cAltHD or bAltHD, depending on command-line option\">\n";
-    ret += "##INFO=<ID=tAllHD,Number=1,Type=Integer,Description=\"Tumor-sample cAllHD or bAllHD, depending on command-line option\">\n";
-    ret += "##INFO=<ID=tRefHD,Number=1,Type=Integer,Description=\"Tumor-sample cRefHD or bRefHD, depending on command-line option\">\n";
+    ret += "##INFO=<ID=tADBQR,Number=R,Type=Integer,Description=\"Tumor-sample (cRefBQ,cAltBQ) or (bRefBQ,bAltBQ), depending on the command-line option\">\n";
+    ret += "##INFO=<ID=tDPBQ,Number=1,Type=Integer,Description=\"Tumor-sample cAllBQ or bAllBQ, depending on the command-line option\">\n";
+    //ret += "##INFO=<ID=tAltBQ2,Number=1,Type=Integer,Description=\"Tumor-sample cAltBQ2\">\n";
+    //ret += "##INFO=<ID=tAllBQ2,Number=1,Type=Integer,Description=\"Tumor-sample cAllBQ2\">\n";
+    //ret += "##INFO=<ID=tRefBQ2,Number=1,Type=Integer,Description=\"Tumor-sample cRefBQ2\">\n";
+    ret += "##INFO=<ID=tADHDR,Number=R,Type=Integer,Description=\"Tumor-sample (cRefHD,cAltHD) or (bRefHD,bAltHD), depending on the command-line option\">\n";
+    ret += "##INFO=<ID=tDPHD,Number=1,Type=Integer,Description=\"Tumor-sample cAllHD or bAllHD, depending on the command-line option\">\n";
     ret += "##INFO=<ID=tFTS,Number=1,Type=String,Description=\"Tumor-sample FTS where the filter strings are separated by amperstand (&)\">\n";
     ret += "##INFO=<ID=tbDP,Number=1,Type=Integer,Description=\"Tumor-sample bDP\">\n";
     ret += "##INFO=<ID=tcHap,Number=1,Type=String,Description=\"Tumor-sample cHap\">\n";
@@ -3399,10 +3389,12 @@ append_vcf_record(std::string & out_string,
     if (!isInDel) {
                 fmtFTSupdate(maxbias, fmtvar.FTS, fmtvar.FTSV, bcfrec::FILTER_IDS[bcfrec::QTD2],   uni_bias_thres, ceil(100*(MAX(fmt.cQT3[0], fmt.cQT3[1]) / (FLT_MIN+(double)MAX(fmt.cQT2[0], fmt.cQT2[1])))));
     }
-                fmtFTSupdate(maxbias, fmtvar.FTS, fmtvar.FTSV, bcfrec::FILTER_IDS[bcfrec::DBthis], uni_bias_thres, ceil(100*(     fmt.cFA  / (    fmt.bFA + FLT_MIN))));
-    if ((fmt.cFA < 0.8 || fmt.bFA < 0.8)) {
+    auto fmt_bFA = ((double)fmt.bADR[1]) / (fmt.bDP+1.0);
+    auto fmt_cFA = ((double)fmt.cADR[1]) / (fmt.cDP+1.0);
+                fmtFTSupdate(maxbias, fmtvar.FTS, fmtvar.FTSV, bcfrec::FILTER_IDS[bcfrec::DBthis], uni_bias_thres, ceil(100*(fmt_cFA  / fmt_bFA)));
+    if ((fmt_cFA < 0.8 || fmt_bFA < 0.8)) {
         fmtFTSupdate(
-                maxbias, fmtvar.FTS, fmtvar.FTSV, bcfrec::FILTER_IDS[bcfrec::DBrest], uni_bias_thres, ceil(((1.0-fmt.cFA) / (1.0-fmt.bFA + FLT_MIN)))); 
+                maxbias, fmtvar.FTS, fmtvar.FTSV, bcfrec::FILTER_IDS[bcfrec::DBrest], uni_bias_thres, ceil(((1.0-fmt_cFA) / (1.0-fmt_bFA + FLT_MIN)))); 
     }
     if (0 < fmtvar.FTS.size()) {
         fmtvar.FTS.pop_back(); // not passed
@@ -3847,35 +3839,37 @@ append_vcf_record(std::string & out_string,
         infostring += std::string(";tFA=") + std::to_string(tki.FA);
         // infostring += std::string(";tFR=") + std::to_string(tki.FR);
                 
-            infostring += std::string(";tAD=") + string_join(std::array<std::string, 2>({
+            infostring += std::string(";tADR=") + string_join(std::array<std::string, 2>({
                 std::to_string((int)(tki.DP * tki.FR + 0.5)),
                 std::to_string((int)(tki.DP * tki.FA + 0.5))}));
             infostring += std::string(";tDP=") + std::to_string(tki.DP);
         if (prev_is_tumor) {
-            infostring += std::string(";nAD=") + string_join(std::array<std::string, 2>({
+            infostring += std::string(";nADR=") + string_join(std::array<std::string, 2>({
                 std::to_string((int)(fmt.DP * fmt.FR + 0.5)),
                 std::to_string((int)(fmt.DP * fmt.FA + 0.5))}));
             infostring += std::string(";nDP=") + std::to_string(fmt.DP);
         }
-            infostring += std::string(";tADC=") + string_join(std::array<std::string, 2>({
+            infostring += std::string(";tADCR=") + string_join(std::array<std::string, 2>({
                 std::to_string(tki.cRDTC),
                 std::to_string(tki.cADTC)}));
             infostring += std::string(";tDPC=") + std::to_string(tki.cDPTC);
         if (prev_is_tumor) {
-            infostring += std::string(";nADC=") + string_join(std::array<std::string, 2>({
+            infostring += std::string(";nADCR=") + string_join(std::array<std::string, 2>({
                 std::to_string(SUM2(fmt.cRDTC)),
                 std::to_string(SUM2(fmt.cADTC))}));
             infostring += std::string(";nDPC=") + std::to_string(SUM2(fmt.cDPTC));
         }
-        infostring += std::string(";tAltBQ=") + std::to_string(tki.autoBestAltBQ);
-        infostring += std::string(";tAllBQ=") + std::to_string(tki.autoBestAllBQ);
-        infostring += std::string(";tRefBQ=") + std::to_string(tki.autoBestRefBQ);
+        infostring += std::string(";tADBQR=") + string_join(std::array<std::string, 2>({
+            std::to_string(tki.autoBestRefBQ),
+            std::to_string(tki.autoBestAltBQ)}));
+        infostring += std::string(";tDPBQ=") + std::to_string(tki.autoBestAllBQ);
         //infostring += std::string(";tAltBQ2=") + std::to_string(tki.cAltBQ2);
         //infostring += std::string(";tAllBQ2=") + std::to_string(tki.cAllBQ2);
         //infostring += std::string(";tRefBQ2=") + std::to_string(tki.cRefBQ2);
-        infostring += std::string(";tAltHD=") + std::to_string(tki.autoBestAltHD);
-        infostring += std::string(";tAllHD=") + std::to_string(tki.autoBestAllHD);
-        infostring += std::string(";tRefHD=") + std::to_string(tki.autoBestRefHD);
+        infostring += std::string(";tADHDR=") + string_join(std::array<std::string, 2>({
+            std::to_string(tki.autoBestRefHD),
+            std::to_string(tki.autoBestAltHD)}));
+        infostring += std::string(";tDPHD=") + std::to_string(tki.autoBestAllHD);
         infostring += std::string(";tFTS=") + tki.FTS;
         // infostring += std::string(";tcHap=") + tki.cHap; // tcHap is linked with tFTS
         infostring += std::string(";tbDP=") + std::to_string(tki.bDP);
