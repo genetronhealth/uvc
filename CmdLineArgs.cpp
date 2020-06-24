@@ -279,16 +279,11 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     app.add_flag("--always-log",             always_log,                "Flag indicating if the program should generate detailed log results to stderr");
     
     app.add_option("--dedup-center-mult",    dedup_center_mult,         "Exponential decay per additional base of distance." , true);
-    app.add_option("--dedup-amplicon-count-to-surrcount-frac", dedup_amplicon_count_to_surrcount_frac, 
+    app.add_option("--dedup-amplicon-count-to-surrcount-ratio", dedup_amplicon_count_to_surrcount_ratio, 
                    "centroidCount/surroundingCount of reads ending at a position above which the assay is inferred to be amplicon. Assay type can be override on command-line", true);
-    app.add_option("--dedup-yes-umi-2ends-peak-frac",    dedup_yes_umi_2ends_peak_frac, 
-                   "If the ratio of the numbers of reads ending at a position to that ending at surrounding positions with UMI is above this value, then the UMI is probably single-end." , true);
-    app.add_option("--dedup-non-umi-2ends-peak-frac",    dedup_non_umi_2ends_peak_frac, 
-                   "Same as above except for non-UMI data" , true);
-    app.add_option("--dedup-yes-umi-2ends-flat-perc",    dedup_yes_umi_2ends_flat_perc, 
-                   "If the percentage of the numbers of reads ending on the two ends with UMI is above this value, then the UMI is probably single-end. If --dedup-yes-umi-2ends-peak-frac and this option are both satisfied, then the UMI is considered to be single-end." , true);
-    app.add_option("--dedup-non-umi-2ends-flat-perc",    dedup_non_umi_2ends_flat_perc, 
-                   "Same as above except for non-UMI data" , true); 
+    app.add_option("--dedup-amplicon-end2end-ratio", dedup_amplicon_end2end_ratio,
+                   "oneEndSegmentCount/otherEndSegmentCount above which the assay is inferred to be amplicon UMI", true);
+    
     app.add_option("--bitflag-InDel-penal-t-UMI-n-UMI", bitflag_InDel_penal_t_UMI_n_UMI, "Advanced flag for comparing tumor with normal" , true); 
     app.add_option("--ref-bias-awareness", ref_bias_awareness, "Boolean bit-vector indicating if germline calls are aware of reference bias. The 0x1 bit is for amplicon and the 0x2 bit is for non-amplicon" , true);
     

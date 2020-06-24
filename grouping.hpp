@@ -182,11 +182,8 @@ bamfname_to_strand_to_familyuid_to_reads(
         bool disable_duplex,
         size_t thread_id,
         unsigned int dedup_center_mult,
-        unsigned int dedup_amplicon_count_to_surrcount_frac,
-        unsigned int dedup_yes_umi_2ends_peak_frac,
-        unsigned int dedup_non_umi_2ends_peak_frac,
-        unsigned int dedup_yes_umi_2ends_flat_perc,
-        unsigned int dedup_non_umi_2ends_flat_perc,
+        unsigned int dedup_amplicon_count_to_surrcount_ratio,
+        double dedup_amplicon_end2end_ratio,
         bool always_log,
         bool is_proton,
         unsigned int specialflag);

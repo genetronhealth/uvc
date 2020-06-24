@@ -70,7 +70,7 @@ struct CommandLineArgs {
     
     uint32_t    phred_umi_dimret_qual = 12; // the number of genomic positions typically covered by an amplicon // 40
     double      phred_umi_dimret_mult_snv = 0.4;
-    double      phred_umi_dimret_mult_indel = 0.3;
+    double      phred_umi_dimret_mult_indel = 0.8;
     
     double      vqual = (double)15; // 10; set to 20 for less output
     uint32_t    vad = (uint32_t)INT_MAX;
@@ -116,12 +116,9 @@ struct CommandLineArgs {
     double      syserr_norm_devqual = (double)(12.5); // PHRED-scaled likelihood that the observed allele fraction additively deviates from the expected allele fraction by a multiplicative factor of two
 
     uint32_t    dedup_center_mult = 5;
-    uint32_t    dedup_amplicon_count_to_surrcount_frac = 16;
-    uint32_t    dedup_yes_umi_2ends_peak_frac = 4;
-    uint32_t    dedup_non_umi_2ends_peak_frac = 8;
-    uint32_t    dedup_yes_umi_2ends_flat_perc = 66;
-    uint32_t    dedup_non_umi_2ends_flat_perc = 66;
-
+    uint32_t    dedup_amplicon_count_to_surrcount_ratio = 16;
+    double      dedup_amplicon_end2end_ratio = 1.5;
+    
     /*      Reward                                  Penalty         
             
             (B)     N/raw   N/UMI   N/DCS   (D-F)   N/raw   N/UMI   N/DCS

@@ -495,11 +495,8 @@ bamfname_to_strand_to_familyuid_to_reads(
         bool disable_duplex,
         size_t thread_id,
         unsigned int dedup_center_mult,
-        unsigned int dedup_amplicon_count_to_surrcount_frac,
-        unsigned int dedup_yes_umi_2ends_peak_frac,
-        unsigned int dedup_non_umi_2ends_peak_frac,
-        unsigned int dedup_yes_umi_2ends_flat_perc,
-        unsigned int dedup_non_umi_2ends_flat_perc,
+        unsigned int dedup_amplicon_count_to_surrcount_ratio,
+        double dedup_amplicon_end2end_ratio,
         bool always_log,
         bool is_proton,
         unsigned int specialflag) {
@@ -642,27 +639,11 @@ bamfname_to_strand_to_familyuid_to_reads(
         double begfrac = (double)(beg2count) / (double)(beg2surrcount + 1);
         double endfrac = (double)(end2count) / (double)(end2surrcount + 1);
         
-        const bool is_assay_amplicon = (begfrac > dedup_amplicon_count_to_surrcount_frac || endfrac > dedup_amplicon_count_to_surrcount_frac);
+        const bool is_assay_amplicon = (begfrac > dedup_amplicon_count_to_surrcount_ratio || endfrac > dedup_amplicon_count_to_surrcount_ratio);
         const uint64_t umilabel = (is_umi_found ? umihash : (is_assay_amplicon ? qhash : 0));
         pcrpassed += is_assay_amplicon;
         
-        unsigned int beg_peak_flag = 0;
-        unsigned int end_peak_flag= 0;
-        const uint64_t peakimba = (is_umi_found ? dedup_yes_umi_2ends_peak_frac : dedup_non_umi_2ends_peak_frac);
-        const uint64_t flatperc = (is_umi_found ? dedup_yes_umi_2ends_flat_perc : dedup_non_umi_2ends_flat_perc);
-        if (beg2count > (beg2surrcount + 1) * peakimba) {
-            beg_peak_flag |= 0x1;
-        }
-        if (beg2count * flatperc > (end2count + 1) * (uint64_t)100UL) {
-            beg_peak_flag |= 0x2;
-        }
-        if (end2count > (end2surrcount + 1) * peakimba) {
-            end_peak_flag |= 0x1;
-        }
-        if (end2count * flatperc > (beg2count + 1) * (uint64_t)100UL) {
-            end_peak_flag |= 0x2;
-        }
-        // beg end qname UMI
+        // beg end qname UMI = 1 2 4 8
         // IonTorrent amplicon without UMI: beg + qname
         // IonTorrent capture  without UMI: beg + qname
         // IonTorrent amplicon with    UMI: beg + UMI
@@ -671,6 +652,10 @@ bamfname_to_strand_to_familyuid_to_reads(
         // Illumina   capture  without UMI: beg + end
         // Illumina   amplicon with    UMI: beg + end + UMI
         // Illumina   capture  with    UMI: beg + end + UMI
+        //
+        // For Illumina amplicon with UMI:
+        //     if beg * frac > end, then: beg + UMI
+        //     if end * frac > beg, then: end + UMI
         
         unsigned int idflag = 0x0;
         if (is_proton) {
@@ -678,7 +663,13 @@ bamfname_to_strand_to_familyuid_to_reads(
             else { idflag = 0x9; }
         } else {
             if (is_umi_found) {
-                idflag = 0xB;
+                if (is_assay_amplicon && beg2count > end2count * dedup_amplicon_end2end_ratio) {
+                    idflag = 0x9;
+                } else if (is_assay_amplicon && end2count > beg2count * dedup_amplicon_end2end_ratio) {
+                    idflag = 0xA;
+                } else {
+                    idflag = 0xB;
+                }
             } else if (is_assay_amplicon) {
                 idflag = 0x7;
             } else {
@@ -723,8 +714,6 @@ bamfname_to_strand_to_familyuid_to_reads(
                     << "adjusted-counts = " << beg2count << " to " << end2count << " ; " 
                     << "adjusted-surrounding-counts = " << beg2surrcount << " to " << end2surrcount << " ; " 
                     << "molecular-barcode = " << (is_umi_found ? umihash : 0) << " ; "
-                    << "beg_peak_flag = " << beg_peak_flag << " ; " 
-                    << "end_peak_flag = " << end_peak_flag << " ; "
                     << "idflag = " << idflag << " ; "
                     << "umi3hash = " << umi3hash << " ; "
                     << "strand = " << strand << " ; "
