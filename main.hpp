@@ -3473,8 +3473,8 @@ append_vcf_record(std::string & out_string,
     double vcfqual = -(double)FLT_MAX;
     bool keep_var = false;
     {
-        const bool tUseHD1 = ((tki.bDP > tki.DP * highqual_min_ratio) && (tki.cADTC       > 0 || isInDel));
-        const bool nUseHD1 = ((nfm.bDP > nfm.DP * highqual_min_ratio) && (SUM2(nfm.cADTC) > 0 || isInDel) && tUseHD1); 
+        const bool tUseHD1 = ((tki.bDP > tki.DP * highqual_min_ratio) && (tki.cADTC       > 0));
+        const bool nUseHD1 = ((nfm.bDP > nfm.DP * highqual_min_ratio) && (SUM2(nfm.cADTC) > 0) && tUseHD1); 
         
         const bool tUseHD = (tUseHD1 && !isInDel);
         const bool nUseHD = (nUseHD1 && !isInDel); 
@@ -3487,7 +3487,7 @@ append_vcf_record(std::string & out_string,
         double nRefHD = SUM2(nfm.cRefHD);
         double nAltCD = SUM2(nfm.cADTC);
         double nAllCD = SUM2(nfm.cDPTC);
-
+        
         double nDP0 = (double)((nUseHD) ? (nAllHD) :                      (double)nfm.DP) + DBLFLT_EPS / 2.0;
         double nAD0 = (double)((nUseHD) ? (nAltHD) :             nfm.FA * (double)nfm.DP) + DBLFLT_EPS;
         if (nUseHD1 && nfm.FA > DBLFLT_EPS) {
@@ -3748,7 +3748,8 @@ append_vcf_record(std::string & out_string,
         double t2n_syserr_q = (use_penalt ? MAX(0.0, t2n_syserr_q0) : 0.0);
         
         double t_base_q = MIN(tn_trawq, tn_tpowq + (double)indel_ic);
-        double tlodq =  t_base_q + t2n_reward_q - MIN(t2n_contam_q, t2n_syserr_q);
+        double t2n_infodist = calc_binom_10log10_likeratio(tAD0 / (tDP0 + DBL_EPSILON), nAD0, (nDP0 + DBL_EPSILON));
+        double tlodq =  t_base_q + CENTER(t2n_reward_q - MIN(t2n_contam_q, t2n_syserr_q), t2n_infodist);
         
         //double n2t_red_qual = MIN(tn_npowq, tn_nrawq + (double)indel_ic) * MIN(1.0, n2t_or1) * MIN(1.0, n2t_or1); // / (t2n_or1 * t2n_or1);
         //double n2t_orr_qual = MIN(tn_npowq, tn_nrawq + (double)indel_ic) * MIN(1.0, n2t_or1);
