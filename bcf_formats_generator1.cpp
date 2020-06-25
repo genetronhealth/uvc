@@ -149,8 +149,8 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("cADR"     , BCF_NUM_R, BCF_INTEGER, "Fragment depth supporting the REF and ALT alleles [consensus family, deduped]"),
     
     BcfFormatStruct("__ac"     , 1, BCF_SEP,     "Consensus/variant allele type/quality"),  
-    BcfFormatStruct("CTypes"   , 2, BCF_STRING,  "Consensus types for all alleles and nonref alleles"),
-    BcfFormatStruct("CAQs"     , 2, BCF_FLOAT,   "Consensus Allele Qualities"),
+    BcfFormatStruct("OType"    , 1, BCF_STRING,  "The non-reference allele type with the most evidence other than the ALT allele type of this record"),
+    BcfFormatStruct("ORAQs"    , 2, BCF_FLOAT,   "Qualities of OType and reference allele type"),
     BcfFormatStruct("VType"    , 1, BCF_STRING,  "Variant type for the ALT allele"),
     BcfFormatStruct("VAQ"      , 1, BCF_FLOAT,   "Variant Allele Quality"),
     BcfFormatStruct("VAQ2"     , 1, BCF_FLOAT,   "Variant Allele Quality of the specific form(s) of InDel in ALT assuming other forms of InDels are noise"),

@@ -854,8 +854,10 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
             std::string most_confident_GT = "./.";
             float most_confident_GQ = 0;
             
-            AlignmentSymbol most_confident_nonref_symbol = END_ALIGNMENT_SYMBOLS;
-            float most_confident_nonref_qual = 0;
+            AlignmentSymbol most_confident_nonref_symbol = (LINK_SYMBOL == symbolType ? LINK_NN : BASE_NN);
+            float most_confident_nonref_qual = -FLT_MAX;
+            AlignmentSymbol most_confident_nonref_symbol_2 = most_confident_nonref_symbol;
+            float most_confident_nonref_qual_2 = most_confident_nonref_qual;
             
             std::vector<bcfrec::BcfFormat> fmts(SYMBOL_TYPE_TO_INCLU_END[symbolType] - SYMBOL_TYPE_TO_INCLU_BEG[symbolType] + 1, init_fmt);
             if (rpos_exclu_end != refpos && bDPcDP[0] >= paramset.min_depth_thres) {
@@ -916,12 +918,12 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                     if (vaq >= most_confident_qual) {
                         most_confident_symbol = symbol;
                         most_confident_qual = vaq;
-                        auto GTval = fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]].GT;
-                        auto GQval = fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]].GQ;
-                        most_confident_GT = GTval;
-                        most_confident_GQ = GQval;
+                        most_confident_GT = fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]].GT;
+                        most_confident_GQ = fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]].GQ;
                     }
                     if (vaq >= most_confident_nonref_qual && refsymbol != symbol) {
+                        most_confident_nonref_symbol_2 = most_confident_nonref_symbol;
+                        most_confident_nonref_qual_2 = most_confident_nonref_qual;
                         most_confident_nonref_symbol = symbol;
                         most_confident_nonref_qual = vaq;
                     }
@@ -984,8 +986,11 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                         tki = tid_pos_symb_to_tki.find(std::make_tuple(tid, refpos, symbol))->second; 
                     }
                     if (is_rescued || pass_thres) {
-                        fmt.CTypes = {{ SYMBOL_TO_DESC_ARR[most_confident_symbol], SYMBOL_TO_DESC_ARR[most_confident_nonref_symbol]}};
-                        fmt.CAQs = {{ most_confident_qual, most_confident_nonref_qual }};
+                        auto nonref_symbol_12 = (most_confident_nonref_symbol != symbol ? most_confident_nonref_symbol : most_confident_nonref_symbol_2);
+                        auto nonref_qual_12 = (most_confident_nonref_symbol != symbol ? most_confident_nonref_qual : most_confident_nonref_qual_2);
+                        fmt.OType = SYMBOL_TO_DESC_ARR[nonref_symbol_12];
+                        auto ref_qual = fmts[refsymbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]].VAQ;
+                        fmt.ORAQs = {{ nonref_qual_12, ref_qual }};
                         unsigned int phred_max_sscs = sscs_mut_table.toPhredErrRate(refsymbol, symbol);
                         append_vcf_record(buf_out_string, 
                                 buf_out_string_pass, 

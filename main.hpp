@@ -883,7 +883,7 @@ indel_phred(double ampfact, unsigned int cigar_oplen, unsigned int repeatsize_at
 
 unsigned int
 ref_to_phredvalue(unsigned int & n_units, const auto & refstring, const size_t refpos, 
-        const unsigned int max_phred, double ampfact, const unsigned int cigar_oplen, const auto cigar_op) {
+        const unsigned int max_phred, double ampfact, const unsigned int cigar_oplen, const auto cigar_op, const bam1_t *b) {
     unsigned int max_repeatnum = 0;
     unsigned int repeatsize_at_max_repeatnum = 0;
     for (unsigned int repeatsize = 1; repeatsize <= 6; repeatsize++) {
@@ -1152,7 +1152,7 @@ public:
                                 + (QUAL_PRE_ADD ? symbolType2addPhred[LINK_SYMBOL] : 0); // + addidq; // 
                     } else {
                         unsigned int phredvalue = ref_to_phredvalue(inslen, region_symbolvec, rpos - region_offset,
-                                frag_indel_basemax, 8.0, cigar_oplen, cigar_op);
+                                frag_indel_basemax, 8.0, cigar_oplen, cigar_op, b);
                         incvalue = MIN(MIN(bam_phredi(b, qpos-1), bam_phredi(b, qpos + cigar_oplen)) + (TIsProton ? MIN(cigar_oplen * 2 - 2, 10) : 0), phredvalue)
                                 + (QUAL_PRE_ADD ? symbolType2addPhred[LINK_SYMBOL] : 0); // + addidq; 
                     }
@@ -1194,7 +1194,7 @@ public:
                     } else {
                         // double afa = ((cigar_oplen <= 2) ? 18.0 : 6.0);
                         unsigned int phredvalue = ref_to_phredvalue(dellen, region_symbolvec, rpos - region_offset, 
-                                frag_indel_basemax, 8.0, cigar_oplen, cigar_op);
+                                frag_indel_basemax, 8.0, cigar_oplen, cigar_op, b);
                         // unsigned int phredvalue = bam_to_phredvalue(dellen, b, qpos, frag_indel_basemax, 6.0, cigar_oplen, cigar_op); // THasDups is not used here
                         incvalue = MIN(MIN(bam_phredi(b, qpos), bam_phredi(b, qpos-1)) + (TIsProton ? MIN(cigar_oplen * 2 - 2, 10) : 0), phredvalue) // + addidq; 
                                 + (QUAL_PRE_ADD ? symbolType2addPhred[LINK_SYMBOL] : 0);
@@ -2190,7 +2190,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
         std::basic_string<AlignmentSymbol> ret;
         ret.reserve(instring.size());
         for (size_t i = 0; i < instring.size(); i++) {
-            ret[i] = CHAR_TO_SYMBOL.data[instring[i]];
+            ret.push_back(CHAR_TO_SYMBOL.data[instring[i]]);
         }
         return ret;
     };
@@ -3584,7 +3584,7 @@ append_vcf_record(std::string & out_string,
         const double tn_t_altmul = (tUseHD1 ? 1.0 : altmul);
         const double tn_t_refmul = (tUseHD1 ? 1.0 : refmul);
         const double tn_tpo1q = 10.0 / log(10.0) * log((double)(tAD0 / tn_t_altmul + tE0) / ((tDP0 - tAD0) / tn_t_refmul + tAD0 / tn_t_altmul + 2.0 * tE0)) * (pl_exponent_t) + (pcap_tmax);
-        const double tn_tsamq = 40.0 * pow(0.5, MAX((double)tAD0, ((double)tki.bDP) / ((double)tki.DP) - 1.0));
+        const double tn_tsamq = 40.0 * pow(0.5, MAX((double)tAD0, ((double)(tki.bDP + 1)) / ((double)(tki.DP + 1)) - 1.0));
         const double tn_tra1q = (double)tki.VAQ;
         double _tn_tpo2q = MIN4(tn_tpo1q, pcap_tmq, pcap_tbq, pcap_tmq2);
         double _tn_tra2q = MAX(0.0, tn_tra1q/tn_t_altmul - tn_tsamq    ) + (isInDel ? 0.0:5.0); // tumor  BQ bias is stronger as raw variant (biased to high BQ) is called   from each base
@@ -3629,7 +3629,7 @@ append_vcf_record(std::string & out_string,
         const double tn_n_altmul = (nUseHD1 ? 1.0 : altmul);
         const double tn_n_refmul = (nUseHD1 ? 1.0 : refmul);
         const double tn_npo1q = 10.0 / log(10.0) * log((double)(nAD0 / tn_n_altmul + nE0) / ((nDP0 - tAD0) / tn_n_refmul + tAD0 / tn_n_altmul + 2.0 * nE0)) * (pl_exponent_n) + (pcap_nmax);
-        const double tn_nsamq = 40.0 * pow(0.5, MAX((double)nAD0, ((double)nfm.bDP) / ((double)nfm.DP) - 1.0));
+        const double tn_nsamq = 40.0 * pow(0.5, MAX((double)nAD0, ((double)(nfm.bDP + 1)) / ((double)(nfm.DP + 1)) - 1.0));
         const double tn_nra1q = (double)nfm.VAQ;
         double _tn_npo2q = MIN4(tn_npo1q, pcap_nmq, pcap_nbq, pcap_nmq2);
         double _tn_nra2q = MAX(0.0, tn_nra1q/tn_n_altmul - tn_nsamq/4.0) + (isInDel ? 0.0:5.0); // normal BQ bias is weaker   as res variant (biased to high BQ) is filtered from each variant
