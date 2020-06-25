@@ -207,8 +207,8 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     
     app.add_option("--ess-georatio-dedup-any", ess_georatio_dedup_any, 
                    "Geometric common ratio of the increase in the observed number of deduped reads as a function of the effective number of deduped reads (effective sample size) for any assay.", true);
-    app.add_option("--amp-vaq-coef", amp_vaq_coef, 
-                   "VAQ is multiplied by this coefficient to be normalized for amplicon data.", true);
+    // app.add_option("--amp-vaq-coef", amp_vaq_coef, 
+    //                "VAQ is multiplied by this coefficient to be normalized for amplicon data.", true);
     app.add_option("--ess-georatio-duped-pcr", ess_georatio_duped_pcr, 
                    "Geometric common ratio of the increase in the observed number of duped reads as a function of the effective number of duped reads (effective sample size) for reads derived from one template molecule.", true);
  
@@ -299,6 +299,10 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     
     app.add_option("--regside-nbases", regside_nbases, "A variant is in the side region (left, right, or both) if and only if "
             "the number of bases to the sequencing-segment end is at most this number." , true);
+    app.add_option("--dedup-flag", dedup_flag, "Flag determinating what information is used for dedupping. "
+            "(0x1: read begin position. 0x2: read end position. 0x4: read QNAME. 0x8: UMI molecular-barcode). "
+            "If this flag is zero, then infer such information from sequencing data. "
+            "For example, if set to 0x3, then reads having the same begin and end positions are considered to be duplicates of each other. ");
     
     app.callback([&]() {
         assay_type = (AssayType)assay_type_uint;

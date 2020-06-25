@@ -81,7 +81,7 @@ struct CommandLineArgs {
     uint32_t    minABQ_cap_indel = 0;
     
     double      ess_georatio_dedup_any = 1.25;
-    double      amp_vaq_coef = 0.5; // formerly ess_georatio_dedup_cap: 1.5 increase to 1.65 does not help in matching empirical variant score
+    // double      amp_vaq_coef = 0.5; // formerly ess_georatio_dedup_cap: 1.5 increase to 1.65 does not help in matching empirical variant score
     double      ess_georatio_duped_pcr = 2.00;
     
     uint32_t    minMQ1 = 40; // from GATK
@@ -141,6 +141,7 @@ struct CommandLineArgs {
     uint32_t haplo_oneside_posbias_perc = 25;
     uint32_t haplo_twoside_posbias_perc = 15;
     uint32_t regside_nbases = 30;
+    uint32_t dedup_flag = 0x0;
     
     int
     initFromArgCV(int & parsing_result_flag, SequencingPlatform & inferred_sequencing_platform, int argc, const char *const* argv);

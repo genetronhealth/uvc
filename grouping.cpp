@@ -499,6 +499,7 @@ bamfname_to_strand_to_familyuid_to_reads(
         double dedup_amplicon_end2end_ratio,
         bool always_log,
         bool is_proton,
+        uint32_t dedup_flag,
         unsigned int specialflag) {
     assert (fetch_tend > fetch_tbeg);
     
@@ -658,7 +659,9 @@ bamfname_to_strand_to_familyuid_to_reads(
         //     if end * frac > beg, then: end + UMI
         
         unsigned int idflag = 0x0;
-        if (is_proton) {
+        if (dedup_flag != 0) {
+            idflag = dedup_flag;
+        } else if (is_proton) {
             if (is_umi_found) { idflag = 0x5; }
             else { idflag = 0x9; }
         } else {

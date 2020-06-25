@@ -186,6 +186,7 @@ bamfname_to_strand_to_familyuid_to_reads(
         double dedup_amplicon_end2end_ratio,
         bool always_log,
         bool is_proton,
+        uint32_t dedup_flag,
         unsigned int specialflag);
 #endif
 
