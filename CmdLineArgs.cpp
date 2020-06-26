@@ -198,17 +198,17 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
             "The phred-score that is subtracted from phred-sscs to get the power-law quality adjustment for InDels", true);
     app.add_option("--phred-pow-dscs-origin",       phred_pow_dscs_origin, 
             "The phred-score that is subtracted from phred-dscs to get the power-law quality adjustment", true);
-    app.add_option("--phred-umi-dimret-qual", phred_umi_dimret_qual, 
-            "The PHRED-scaled raw variant quality above which such quality is subject to diminishing return for amplicon data", true);
+    //app.add_option("--phred-umi-dimret-qual", phred_umi_dimret_qual, 
+    //        "The PHRED-scaled raw variant quality above which such quality is subject to diminishing return for amplicon data", true);
     app.add_option("--phred-umi-dimret-mult-snv", phred_umi_dimret_mult_snv,
             "The diminishing-return factor for the PHRED-scaled raw variant quality for amplicon SNVs", true);
     app.add_option("--phred-umi-dimret-mult-indel", phred_umi_dimret_mult_indel,
             "The diminishing-return factor for the PHRED-scaled raw variant quality for amplicon InDels", true);
     
-    app.add_option("--ess-georatio-dedup-any", ess_georatio_dedup_any, 
-                   "Geometric common ratio of the increase in the observed number of deduped reads as a function of the effective number of deduped reads (effective sample size) for any assay.", true);
-    // app.add_option("--amp-vaq-coef", amp_vaq_coef, 
-    //                "VAQ is multiplied by this coefficient to be normalized for amplicon data.", true);
+    app.add_option("--ess-georatio-dedup-cap", ess_georatio_dedup_cap,
+                   "Geometric common ratio of the increase in the observed number of deduped reads as a function of the effective number of deduped reads (effective sample size) for capture assay.", true);
+    app.add_option("--ess-georatio-dedup-amp", ess_georatio_dedup_amp,
+                   "Geometric common ratio of the increase in the observed number of deduped reads as a function of the effective number of deduped reads (effective sample size) for amplicon assay.", true);
     app.add_option("--ess-georatio-duped-pcr", ess_georatio_duped_pcr, 
                    "Geometric common ratio of the increase in the observed number of duped reads as a function of the effective number of duped reads (effective sample size) for reads derived from one template molecule.", true);
  

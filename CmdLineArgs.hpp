@@ -68,9 +68,9 @@ struct CommandLineArgs {
     double      phred_pow_sscs_indel_origin = 60 - 60; // 60 - 38; 
     double      phred_pow_dscs_origin = 0;
     
-    uint32_t    phred_umi_dimret_qual = 12; // the number of genomic positions typically covered by an amplicon // 40
-    double      phred_umi_dimret_mult_snv = 0.4;
-    double      phred_umi_dimret_mult_indel = 0.4;
+    // uint32_t    phred_umi_dimret_qual = 12; // the number of genomic positions typically covered by an amplicon // 40
+    double      phred_umi_dimret_mult_snv = 0.75; //0.4;
+    double      phred_umi_dimret_mult_indel = 0.75; // 0.4;
     
     double      vqual = (double)15; // 10; set to 20 for less output
     uint32_t    vad = (uint32_t)INT_MAX;
@@ -80,8 +80,8 @@ struct CommandLineArgs {
     uint32_t    minABQ_cap_snv = 0;
     uint32_t    minABQ_cap_indel = 0;
     
-    double      ess_georatio_dedup_any = 1.25;
-    // double      amp_vaq_coef = 0.5; // formerly ess_georatio_dedup_cap: 1.5 increase to 1.65 does not help in matching empirical variant score
+    double      ess_georatio_dedup_cap = 1.25;
+    double      ess_georatio_dedup_amp = 1.50; // 1.5 increase to 1.65 does not help in matching empirical variant score
     double      ess_georatio_duped_pcr = 2.00;
     
     uint32_t    minMQ1 = 40; // from GATK

@@ -1819,7 +1819,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
             unsigned int frag_indel_basemax,
             const PhredMutationTable & phred_max_table, 
             unsigned int phred_thres,
-            double ess_georatio_dedup, 
+            double ess_georatio_dedup,
             double ess_georatio_duped_pcr,
             unsigned int fixedthresBQ, 
             unsigned int nogap_phred, 
@@ -2579,7 +2579,7 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
         // const auto & bq_indel_adjmax_depths
         const bool somaticGT,
         const bool is_ref_bias_aware,
-        const unsigned int phred_umi_dimret_qual, 
+        // const unsigned int phred_umi_dimret_qual, 
         const double phred_umi_dimret_mult,
         const int specialflag) {
     fmt.note = symbol2CountCoverageSet12.additional_note.getByPos(refpos).at(symbol);
@@ -3020,8 +3020,10 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
     // double doubleVAQ = stdVAQ + (minVAQ * (phred_max_dscs - phred_max_sscs) / (double)phred_max_sscs);
     double duplexVAQ = (double)fmt.dAD3 * (double)(phred_max_dscs - phred_max_sscs) - (double)(fmt.dAD1 - fmt.dAD3); // h01_to
     duplexVAQ = MIN(duplexVAQ, 200); // Similar to many other upper bounds, the 200 here has no theoretical foundation.
-    fmt.VAQ = calc_score_with_dimret(MIN3(vaqMQcap, vaqBQcap, MAX(lowestVAQ, doubleVAQ + duplexVAQ)), phred_umi_dimret_mult, (double)phred_umi_dimret_qual); // / 1.5;
-    fmt.VAQ2= calc_score_with_dimret(MIN3(vaqMQcap, vaqBQcap, MAX(lowestVAQ, doubleVAQ_norm + duplexVAQ)), phred_umi_dimret_mult, (double)phred_umi_dimret_qual); // treat other forms of indels as background noise if matched normal is not available.
+    double duprate = 1.0 - MIN(1.0, (double)(fmt.cDP + 1) / (double)(fmt.bDP + 1));
+    double dimret_coef = phred_umi_dimret_mult * duprate + (1.0 - duprate);
+    fmt.VAQ = dimret_coef * MIN3(vaqMQcap, vaqBQcap, MAX(lowestVAQ, doubleVAQ + duplexVAQ)); // / 1.5;
+    fmt.VAQ2= dimret_coef * MIN3(vaqMQcap, vaqBQcap, MAX(lowestVAQ, doubleVAQ_norm + duplexVAQ)); // treat other forms of indels as background noise if matched normal is not available.
     return (int)(fmt.bAD1[0] + fmt.bAD1[1]);
 };
 
@@ -3259,7 +3261,7 @@ append_vcf_record(std::string & out_string,
         const double powlaw_anyvar_base,
         const double syserr_maxqual,
         const double syserr_norm_devqual,
-        const auto phred_umi_dimret_qual,
+        // const auto phred_umi_dimret_qual,
         const auto phred_umi_dimret_mult,
         const auto bitflag_InDel_penal_t_UMI_n_UMI,
         uint64_t haplo_in_diplo_allele_perc,
@@ -3321,7 +3323,9 @@ append_vcf_record(std::string & out_string,
     
     // NOTE: 5% of STR (about 0.25% of InDel genomic regions) has about 75% of InDels, so we have a power law distribution with exponent of one for InDels.
     const double indel_ic = ((!isInDel) ? 0.0 : (10.0/log(10.0) * log((double)MAX(indelstring.size(), 1U) / (double)(repeatunit.size() * (repeatnum - 1) + 1))));
-    // const double indel_pq = ((!isInDel) ? 0.0 : ((double)MIN(indel_phred(64.0, indelstring.size(), repeatunit.size(), repeatnum), 35.0)));
+    // intuition for the indel_pq formula: InDel candidate with higher baseline-noise frequency is simply more likely to be a true mutation too
+    // assuming that in-vivo biological error and in-vitro technical error are positively correlated with each other. 
+    const double indel_pq = ((!isInDel) ? 0.0 : ((double)MIN(indel_phred(8.0, indelstring.size(), repeatunit.size(), repeatnum), 35.0)));
     
     bool is_novar = (symbol == LINK_M || (isSymbolSubstitution(symbol) && vcfref == vcfalt));
     if (is_novar && (!should_let_all_pass) && (!should_output_all)) {
@@ -3585,7 +3589,7 @@ append_vcf_record(std::string & out_string,
         const double tn_t_refmul = (tUseHD1 ? 1.0 : refmul);
         const double tn_tpo1q = 10.0 / log(10.0) * log((double)(tAD0 / tn_t_altmul + tE0) / ((tDP0 - tAD0) / tn_t_refmul + tAD0 / tn_t_altmul + 2.0 * tE0)) * (pl_exponent_t) + (pcap_tmax);
         const double tn_tsamq = 40.0 * pow(0.5, MAX((double)tAD0, ((double)(tki.bDP + 1)) / ((double)(tki.DP + 1)) - 1.0));
-        const double tn_tra1q = (double)tki.VAQ;
+        const double tn_tra1q = (double)tki.VAQ + indel_pq; // non-intuitive prior like
         double _tn_tpo2q = MIN4(tn_tpo1q, pcap_tmq, pcap_tbq, pcap_tmq2);
         double _tn_tra2q = MAX(0.0, tn_tra1q/tn_t_altmul - tn_tsamq    ) + (isInDel ? 0.0:5.0); // tumor  BQ bias is stronger as raw variant (biased to high BQ) is called   from each base
         
@@ -3618,9 +3622,6 @@ append_vcf_record(std::string & out_string,
         
         const double tn_tpowq = _tn_tpo2q;
         const double tn_trawq = _tn_tra2q;
-        // intuition for the pol1q/10 formula: variant candidate with higher baseline-noise frequency is simply more likely to be a true mutation too
-        // assuming that in-vivo biological error and in-vitro technical error are positively correlated with each other. 
-        
         // QUESTION: why BQ-bias generations are discrete? Because of the noise with each observation of BQ? why indel generations are discrete?
         
         const double pcap_nbq = ((isInDel || is_proton) ? 200.0 : mathsquare(nfm.BQ) / illumina_BQ_pow2_div_coef); // based on heuristics
@@ -3730,7 +3731,8 @@ append_vcf_record(std::string & out_string,
         // double t2n_syserr_q = (isInDel ? 0.0 : MIN(MAX(0.0, MIN3(tn_npowq, tn_nrawq, 45.0) - 20.0 * mathsquare(MAX(0.0, t2n_or1 - 1.0))), 2.0*SYS_QMAX)); // 50.0
 #else  
         double t2n_finq = max_min01_sub02(CENTER(t2n_rawq, t2t_powq), CENTER(t2n_rawq, t2n_powq), t2n_contam_q);
-        double t2n_syserr_q0 = MIN(syserr_maxqual, MIN(tn_npowq, tn_nrawq) - syserr_norm_devqual * mathsquare(MAX(0.0, t2n_or1 - 1.0)));
+        double t2n_syserr_q0 = MIN3(syserr_maxqual, MIN(tn_npowq, tn_nrawq) - syserr_norm_devqual * mathsquare(MAX(0.0, t2n_or1 - 1.0)),
+                ((double)nAD0 + 1.0) * 10.0 / log(10.0) * log((double)nDP0 + 1.0));
 #endif
         double t2n_reward_q0 = MIN(t2n_finq, t2n_limq); 
 
@@ -3741,7 +3743,7 @@ append_vcf_record(std::string & out_string,
         
         double t_base_q = MIN(tn_trawq, tn_tpowq + (double)indel_ic);
         double t2n_infodist = calc_binom_10log10_likeratio(tAD0 / (tDP0 + DBL_EPSILON), nAD0, (nDP0 + DBL_EPSILON));
-        double tlodq =  t_base_q + CENTER(t2n_reward_q - MIN(t2n_contam_q, t2n_syserr_q), t2n_infodist);
+        double tlodq = t_base_q + t2n_reward_q - MIN(t2n_contam_q, t2n_syserr_q);
         
         //double n2t_red_qual = MIN(tn_npowq, tn_nrawq + (double)indel_ic) * MIN(1.0, n2t_or1) * MIN(1.0, n2t_or1); // / (t2n_or1 * t2n_or1);
         //double n2t_orr_qual = MIN(tn_npowq, tn_nrawq + (double)indel_ic) * MIN(1.0, n2t_or1);

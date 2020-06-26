@@ -671,7 +671,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
     
     unsigned int num_passed_reads = passed_pcrpassed_umipassed[0];
     unsigned int num_pcrpassed_reads = passed_pcrpassed_umipassed[1];
-    // unsigned int num_umipassed_reads = passed_pcrpassed_umipassed[2];
+    unsigned int num_umipassed_reads = passed_pcrpassed_umipassed[2];
+    bool is_umi_barcoded = (num_umipassed_reads * 2 > num_passed_reads);
     bool is_by_capture = ((num_pcrpassed_reads) * 2 <= num_passed_reads);
     const AssayType inferred_assay_type = ((ASSAY_TYPE_AUTO == paramset.assay_type) ? (is_by_capture ? ASSAY_TYPE_CAPTURE : ASSAY_TYPE_AMPLICON) : (paramset.assay_type));
     
@@ -733,7 +734,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
             paramset.phred_max_frag_indel_basemax, 
             sscs_mut_table,
             minABQ_snv,
-            paramset.ess_georatio_dedup_any,
+            ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? paramset.ess_georatio_dedup_amp : paramset.ess_georatio_dedup_cap),
             paramset.ess_georatio_duped_pcr,
             !paramset.disable_dup_read_merge, 
             is_loginfo_enabled, 
@@ -908,8 +909,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                             bq_del_2bdepths,
                             paramset.somaticGT,
                             (paramset.ref_bias_awareness & ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? 0x1 : 0x2)),
-                            ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? paramset.phred_umi_dimret_qual : ((double)FLT_MAX)),
-                            ((BASE_SYMBOL == symbolType) ? paramset.phred_umi_dimret_mult_snv : paramset.phred_umi_dimret_mult_indel),
+                            // ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? paramset.phred_umi_dimret_qual : ((double)FLT_MAX)),
+                            (is_umi_barcoded ? ((BASE_SYMBOL == symbolType) ? paramset.phred_umi_dimret_mult_snv : paramset.phred_umi_dimret_mult_indel) : 1.0),
                             // bq_indel_adjmax_depths,
                             0);
                 }
@@ -1036,7 +1037,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                                 paramset.powlaw_anyvar_base,
                                 paramset.syserr_maxqual,
                                 paramset.syserr_norm_devqual,
-                                paramset.phred_umi_dimret_qual,
+                                // paramset.phred_umi_dimret_qual,
                                 paramset.phred_umi_dimret_mult_indel,
                                 paramset.bitflag_InDel_penal_t_UMI_n_UMI,
                                 paramset.haplo_in_diplo_allele_perc,
