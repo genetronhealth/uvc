@@ -589,7 +589,7 @@ bamfname_to_strand_to_familyuid_to_reads(
             continue;
         }
         const char *qname = bam_get_qname(aln);
-        const uint64_t qhash = strhash(qname);
+        const uint64_t qname_hash = strhash(qname);
         const char *umi_beg1 = strchr(qname,   '#');
         const char *umi_beg = ((NULL != umi_beg1) ? (umi_beg1 + 1) : (qname + aln->core.l_qname));
         const char *umi_end1 = strchr(umi_beg, '#');
@@ -616,8 +616,10 @@ bamfname_to_strand_to_familyuid_to_reads(
             }
         }
         unsigned int isrc_isr2 = isrc * 2 + isr2;
-        unsigned int beg2 = isrc_isr2_to_beg2bcenter[isrc_isr2][tBeg + ARRPOS_MARGIN - fetch_tbeg];
-        unsigned int end2 = isrc_isr2_to_end2ecenter[isrc_isr2][tEnd + ARRPOS_MARGIN - fetch_tbeg];
+        unsigned int beg1 = tBeg + ARRPOS_MARGIN - fetch_tbeg;
+        unsigned int end1 = tEnd + ARRPOS_MARGIN - fetch_tbeg;
+        unsigned int beg2 = isrc_isr2_to_beg2bcenter[isrc_isr2][beg1];
+        unsigned int end2 = isrc_isr2_to_end2ecenter[isrc_isr2][end1];
         unsigned int beg2count = isrc_isr2_to_beg_count[isrc_isr2][beg2];
         unsigned int end2count = isrc_isr2_to_end_count[isrc_isr2][end2];
         
@@ -641,7 +643,7 @@ bamfname_to_strand_to_familyuid_to_reads(
         double endfrac = (double)(end2count) / (double)(end2surrcount + 1);
         
         const bool is_assay_amplicon = (begfrac > dedup_amplicon_count_to_surrcount_ratio || endfrac > dedup_amplicon_count_to_surrcount_ratio);
-        const uint64_t umilabel = (is_umi_found ? umihash : (is_assay_amplicon ? qhash : 0));
+        const uint64_t umilabel = (is_umi_found ? umihash : (is_assay_amplicon ? qname_hash : 0));
         pcrpassed += is_assay_amplicon;
         
         // beg end qname UMI = 1 2 4 8
@@ -658,69 +660,71 @@ bamfname_to_strand_to_familyuid_to_reads(
         //     if beg * frac > end, then: beg + UMI
         //     if end * frac > beg, then: end + UMI
         
-        unsigned int idflag = 0x0;
+        unsigned int dedup_idflag = 0x0;
         if (dedup_flag != 0) {
-            idflag = dedup_flag;
+            dedup_idflag = dedup_flag;
         } else if (is_proton) {
-            if (is_umi_found) { idflag = 0x5; }
-            else { idflag = 0x9; }
+            if (is_umi_found) { dedup_idflag = 0x5; }
+            else { dedup_idflag = 0x9; }
         } else {
             if (is_umi_found) {
                 if (is_assay_amplicon && beg2count > end2count * dedup_amplicon_end2end_ratio) {
-                    idflag = 0x9;
+                    dedup_idflag = 0x9;
                 } else if (is_assay_amplicon && end2count > beg2count * dedup_amplicon_end2end_ratio) {
-                    idflag = 0xA;
+                    dedup_idflag = 0xA;
                 } else {
-                    idflag = 0xB;
+                    dedup_idflag = 0xB;
                 }
             } else if (is_assay_amplicon) {
-                idflag = 0x7;
+                dedup_idflag = 0x7;
             } else {
-                idflag = 0x3;
+                dedup_idflag = 0x3;
             }
         }
         
-        uint64_t umi3hash = 0;
-        if (0x3 == (0x3 & idflag)) {
+        uint64_t molecule_hash = 0;
+        if (0x3 == (0x3 & dedup_idflag)) {
             auto min2 = min(beg2, end2);
             auto max2 = max(beg2, end2);
-            umi3hash = hash2hash(umi3hash, hash2hash(min2, max2)); 
-        } else if (0x1 & idflag) {
-            umi3hash = hash2hash(umi3hash, beg2+1); 
-        } else if (0x2 & idflag) {
-            umi3hash = hash2hash(umi3hash, end2+1); 
+            molecule_hash = hash2hash(molecule_hash, hash2hash(min2, max2)); 
+        } else if (0x1 & dedup_idflag) {
+            molecule_hash = hash2hash(molecule_hash, beg2+1); 
+        } else if (0x2 & dedup_idflag) {
+            molecule_hash = hash2hash(molecule_hash, end2+1); 
         }
-        if (0x4 & idflag) {
-            umi3hash = hash2hash(umi3hash, qhash);
+        if (0x4 & dedup_idflag) {
+            molecule_hash = hash2hash(molecule_hash, qname_hash);
         }
-        if (0x8 & idflag) {
-            umi3hash = hash2hash(umi3hash, umihash); 
+        if (0x8 & dedup_idflag) {
+            molecule_hash = hash2hash(molecule_hash, umihash); 
         }
         
         unsigned int strand = (isrc ^ isr2);
         int dflag = (is_duplex_found ? 2 : (is_umi_found ? 1 : 0));
-        umi_to_strand_to_reads.insert(std::make_pair(umi3hash, std::make_pair(std::array<std::map<uint64_t, std::vector<bam1_t *>>, 2>(), dflag)));
-        umi_to_strand_to_reads[umi3hash].first[strand].insert(std::make_pair(qhash, std::vector<bam1_t *>()));
-        umi_to_strand_to_reads[umi3hash].first[strand][qhash].push_back(bam_dup1(aln));
+        umi_to_strand_to_reads.insert(std::make_pair(molecule_hash, std::make_pair(std::array<std::map<uint64_t, std::vector<bam1_t *>>, 2>(), dflag)));
+        umi_to_strand_to_reads[molecule_hash].first[strand].insert(std::make_pair(qname_hash, std::vector<bam1_t *>()));
+        umi_to_strand_to_reads[molecule_hash].first[strand][qname_hash].push_back(bam_dup1(aln));
         
-        const bool should_log_read = (ispowof2(alnidx+1) || ispowof2(num_pass_alns - alnidx));
+        const bool should_log_read = (ispowof2(alnidx + 1) || ispowof2(num_pass_alns - alnidx));
         if (!is_pair_end_merge_enabled) { assert(!isr2); }
         if ((should_log_read && (beg_peak_max >= 2000 || should_log)) || always_log) {
             LOG(logINFO) << "Thread " << thread_id << " ; readname = " << qname << " ; " 
-                    << "tid = " << aln->core.tid << " ; "
                     << "alnidx/num_pass_alns = " << alnidx << "/" << num_pass_alns << " ; "
                     << "isrc = " << isrc << " ; "
                     << "isr2 = " << isr2 << " ; "
-                    << "num_seqs = " << num_seqs << " ; "
-                    << "original-range = " << tBeg << " to " << tEnd << " ; " 
-                    << "adjusted-range = " << beg2 << " to " << end2 << " ; "
-                    << "adjusted-counts = " << beg2count << " to " << end2count << " ; " 
-                    << "adjusted-surrounding-counts = " << beg2surrcount << " to " << end2surrcount << " ; " 
-                    << "molecular-barcode = " << (is_umi_found ? umihash : 0) << " ; "
-                    << "idflag = " << idflag << " ; "
-                    << "umi3hash = " << umi3hash << " ; "
                     << "strand = " << strand << " ; "
-                    << "qhash = " << qhash;
+                    << "num_seqs = " << num_seqs << " ; "
+                    << "dedup_idflag = " << dedup_idflag << " ; "
+                    << "tid = " << aln->core.tid << " ; "
+                    << "fastaseq_range = " << tBeg << "&" << tEnd << " ; " 
+                    << "original_range = " << beg1 << "&" << end1 << " ; "
+                    << "adjusted_rdiff = " << ((int)beg2 - (int)beg1) << "&" << ((int)end2 - (int)end1) << " ; "
+                    << "adjusted_count = " << beg2count << "&" << end2count << " ; " 
+                    << "adjusted_surrounding_counts = " << beg2surrcount << "&" << end2surrcount << " ; " 
+                    << "barcode_umihash = " << (is_umi_found ? umihash : 0) << " ; "
+                    << "molecule_hash = " << molecule_hash << " ; "
+                    << "qname_hash = " << qname_hash << " ; "
+                    << "num_qname_from_molecule_so_far = " umi_to_strand_to_reads[molecule_hash].first[strand].size();
         }
         alnidx += 1;
     }
