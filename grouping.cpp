@@ -99,7 +99,7 @@ SamIter::iternext(std::vector<std::tuple<unsigned int, unsigned int, unsigned in
             uint64_t n_overlap_positions = min(SIGN2UNSIGN(48), (SIGN2UNSIGN(16) + tend - min(tend, SIGN2UNSIGN(alnrecord->core.pos))));
             uint64_t npositions = (tend - min(tbeg, tend));
             bool has_many_positions = npositions > n_overlap_positions * (1024);
-            bool has_many_reads = nreads > n_overlap_positions * (1024 * 2);
+            bool has_many_reads = nreads > n_overlap_positions * (1024 * 5);
             if (has_many_positions || has_many_reads) {
                 endingpos = SIGN2UNSIGN(max(bam_endpos(alnrecord), 
                         min(alnrecord->core.pos, alnrecord->core.mpos) + min(abs(alnrecord->core.isize), (int)ARRPOS_MARGIN)) 
@@ -194,10 +194,10 @@ sam_fname_to_contigs(
             }
             bool is_uncov = (SIGN2UNSIGN(alnrecord->core.tid) != tid || SIGN2UNSIGN(alnrecord->core.pos) > tend);
             if (UINT_MAX == endingpos) {
-                uint64_t n_overlap_positions = min(SIGN2UNSIGN(64), (SIGN2UNSIGN(16) + tend - min(tend, SIGN2UNSIGN(alnrecord->core.pos))));
+                uint64_t n_overlap_positions = min(SIGN2UNSIGN(48), (SIGN2UNSIGN(16) + tend - min(tend, SIGN2UNSIGN(alnrecord->core.pos))));
                 uint64_t npositions = (tend - min(tbeg, tend));
                 bool has_many_positions = npositions > n_overlap_positions * (1024);
-                bool has_many_reads = nreads > n_overlap_positions * (1024 * 2);
+                bool has_many_reads = nreads > n_overlap_positions * (1024 * 5);
                 if (has_many_positions || has_many_reads) {
                     endingpos = SIGN2UNSIGN(max(bam_endpos(alnrecord), 
                             min(alnrecord->core.pos, alnrecord->core.mpos) + min(abs(alnrecord->core.isize), (int)ARRPOS_MARGIN)))
