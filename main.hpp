@@ -327,6 +327,8 @@ const AlignmentSymbol SYMBOL_TYPE_TO_AMBIG[NUM_SYMBOL_TYPES] = {
     [LINK_SYMBOL] = LINK_NN,
 };
 
+const std::array<SymbolType, 2> SYMBOL_TYPES_IN_VCF_ORDER = {{LINK_SYMBOL, BASE_SYMBOL}};
+
 bool 
 isSymbolSubstitution(AlignmentSymbol symbol) {
     return (SYMBOL_TYPE_TO_INCLU_BEG[BASE_SYMBOL] <= symbol && symbol <= SYMBOL_TYPE_TO_INCLU_END[BASE_SYMBOL]);
@@ -1857,7 +1859,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                     for (auto epos = read_ampBQerr_fragWithR1R2.getIncluBegPosition(); epos < read_ampBQerr_fragWithR1R2.getExcluEndPosition(); epos++) {
                         unsigned int ldist = 1 + epos - read_ampBQerr_fragWithR1R2.getIncluBegPosition();
                         unsigned int rdist = read_ampBQerr_fragWithR1R2.getExcluEndPosition() - epos;
-                        for (SymbolType symbolType = SymbolType(0); symbolType < NUM_SYMBOL_TYPES; symbolType = SymbolType(1+((unsigned int)symbolType))) {
+                        for (SymbolType symbolType : SYMBOL_TYPES_IN_VCF_ORDER) {
                             AlignmentSymbol con_symbol;
                             unsigned int con_count, tot_count;
                             if (LINK_SYMBOL == symbolType) {
@@ -2079,7 +2081,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                 for (size_t epos = read_family_amplicon.getIncluBegPosition(); epos < read_family_amplicon.getExcluEndPosition(); epos++) {
                     unsigned int ldist = 1 + epos - read_family_amplicon.getIncluBegPosition();
                     unsigned int rdist = read_family_amplicon.getExcluEndPosition() - epos;
-                    for (SymbolType symbolType = SymbolType(0); symbolType < NUM_SYMBOL_TYPES; symbolType = SymbolType(1+(unsigned int)symbolType)) {
+                    for (SymbolType symbolType : SYMBOL_TYPES_IN_VCF_ORDER) {
                         AlignmentSymbol con_symbol; // = END_ALIGNMENT_SYMBOLS;
                         unsigned int con_count, tot_count;
                         read_family_amplicon.getRefByPos(epos).fillConsensusCounts(con_symbol, con_count, tot_count, symbolType);
@@ -2415,12 +2417,7 @@ mutform2count4map_to_phase(const auto & mutform2count4vec, const auto & indices,
             phase_string +="(";
             for (auto pos2symbol4pair : mutform2count4pair.first) {
                 AlignmentSymbol symbol = pos2symbol4pair.second;
-                unsigned int mutpos;
-                if (SYMBOL_TYPE_TO_INCLU_BEG[BASE_SYMBOL] <= pos2symbol4pair.first && pos2symbol4pair.first <= SYMBOL_TYPE_TO_INCLU_END[BASE_SYMBOL]) {
-                    mutpos = pos2symbol4pair.first + 1;
-                } else {
-                    mutpos = pos2symbol4pair.first;
-                }
+                unsigned int mutpos = pos2symbol4pair.first + (isSymbolSubstitution(symbol) ? 1 : 0);
                 phase_string += std::string("(") + std::to_string(mutpos) + "&" + SYMBOL_TO_DESC_ARR[symbol] + ")";
             }
             phase_string += std::string("&") + std::to_string(counts[0]) + "&" + std::to_string(counts[1]) + ")";

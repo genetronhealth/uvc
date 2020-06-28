@@ -842,10 +842,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
         std::string repeatunit;
         unsigned int repeatnum = 0;
         indelpos_to_context(repeatunit, repeatnum, refstring, refpos - extended_inclu_beg_pos); 
-        const std::array<SymbolType, 2> allSymbolTypes = {{LINK_SYMBOL, BASE_SYMBOL}};
         const std::array<SymbolType, 2> stype_to_immediate_prev = {{LINK_SYMBOL, BASE_SYMBOL}};
-        for (unsigned int stidx = 0; stidx < 2; stidx++) {
-            const SymbolType symbolType = allSymbolTypes[stidx];
+        for (SymbolType symbolType : SYMBOL_TYPES_IN_VCF_ORDER) {
             bcfrec::BcfFormat init_fmt;
             const AlignmentSymbol refsymbol = (LINK_SYMBOL == symbolType ? LINK_M : (
                     refstring.size() == (refpos - extended_inclu_beg_pos) ? BASE_NN : CHAR_TO_SYMBOL.data.at(refstring.at(refpos - extended_inclu_beg_pos))));
@@ -930,7 +928,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                     }
                 }
             }
-            if (rpos_exclu_end != refpos || allSymbolTypes[0] == symbolType) {
+            if (rpos_exclu_end != refpos || LINK_SYMBOL == symbolType) {
                 auto bDPval = bDPcDP[0];
                 auto cDPval = bDPcDP[1];
                 auto fGTmm2 = (most_confident_GQ >= 10 ? most_confident_GT : "./.");
