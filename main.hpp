@@ -3321,11 +3321,11 @@ append_vcf_record(std::string & out_string,
         vcfalt = altsymbolname;
     }
     
-    // NOTE: 5% of STR (about 0.25% of InDel genomic regions) has about 75% of InDels, so we have a power law distribution with exponent of one for InDels.
     const double indel_ic = ((!isInDel) ? 0.0 : (10.0/log(10.0) * log((double)MAX(indelstring.size(), 1U) / (double)(repeatunit.size() * (repeatnum - 1) + 1))));
-    // intuition for the indel_pq formula: InDel candidate with higher baseline-noise frequency is simply more likely to be a true mutation too
+    // intuition for the somatic_var_pq formula: InDel candidate with higher baseline-noise frequency is simply more likely to be a true mutation too
     // assuming that in-vivo biological error and in-vitro technical error are positively correlated with each other. 
-    const double indel_pq = ((!isInDel) ? 0.0 : ((double)MIN(indel_phred(8.0, indelstring.size(), repeatunit.size(), repeatnum), 35.0)));
+    // https://doi.org/10.1007%2Fs00239-010-9377-4
+    const double somatic_var_pq = ((!isInDel) ? 5.0 : (MIN((double)indel_phred(8.0, indelstring.size(), repeatunit.size(), repeatnum), 24.0) - 9.0));
     
     bool is_novar = (symbol == LINK_M || (isSymbolSubstitution(symbol) && vcfref == vcfalt));
     if (is_novar && (!should_let_all_pass) && (!should_output_all)) {
@@ -3523,8 +3523,8 @@ append_vcf_record(std::string & out_string,
         
         // the genotype likelihoods here are special in that they can somehow normalized for the purpose of computing nonref probabilities
         // HOWEVER, no prior can be given to the raw genotype likelihoods.
-        int32_t nonalt_qual = nfm.GLa[0] - MAX(nfm.GLa[1], nfm.GLa[2]); // indel_pq ?
-        int32_t excalt_qual = nfm.GLb[0] - MAX(nfm.GLb[1], nfm.GLb[2]); // indel_pq ?
+        int32_t nonalt_qual = nfm.GLa[0] - MAX(nfm.GLa[1], nfm.GLa[2]); // somatic_var_pq ?
+        int32_t excalt_qual = nfm.GLb[0] - MAX(nfm.GLb[1], nfm.GLb[2]); // somatic_var_pq ?
         
         // https://www.researchgate.net/figure/Distribution-of-the-Variant-Allele-Fraction-VAF-of-somatic-mutations-in-one-sample-of_fig7_278912701
         // https://onlinelibrary.wiley.com/doi/full/10.1002/humu.23674
@@ -3556,6 +3556,9 @@ append_vcf_record(std::string & out_string,
         const double pl_exponent = powlaw_exponent;
         const double pl_exponent_t = powlaw_exponent;
         const double pl_exponent_n = powlaw_exponent;
+        
+        const double symbol_to_allele_frac = 1.0 - pow((isSymbolIns(symbol) ? 0.9 : (isSymbolDel(symbol) ? 0.95 : 1.0)), indelstring.size());
+        
         // This is the penalty induced by EROR bias. 
         // So far I do not have enough data to verify this power-law. 
         // Also, the theory to support this power-law is rather unclear.
@@ -3589,15 +3592,15 @@ append_vcf_record(std::string & out_string,
         const double tn_t_refmul = (tUseHD1 ? 1.0 : refmul);
         const double tn_tpo1q = 10.0 / log(10.0) * log((double)(tAD0 / tn_t_altmul + tE0) / ((tDP0 - tAD0) / tn_t_refmul + tAD0 / tn_t_altmul + 2.0 * tE0)) * (pl_exponent_t) + (pcap_tmax);
         const double tn_tsamq = 40.0 * pow(0.5, MAX((double)tAD0, ((double)(tki.bDP + 1)) / ((double)(tki.DP + 1)) - 1.0));
-        const double tn_tra1q = (double)tki.VAQ + indel_pq; // non-intuitive prior like
+        const double tn_tra1q = ((double)tki.VAQ); // non-intuitive prior like
         double _tn_tpo2q = MIN4(tn_tpo1q, pcap_tmq, pcap_tbq, pcap_tmq2);
-        double _tn_tra2q = MAX(0.0, tn_tra1q/tn_t_altmul - tn_tsamq    ) + (isInDel ? 0.0:5.0); // tumor  BQ bias is stronger as raw variant (biased to high BQ) is called   from each base
+        double _tn_tra2q = MAX(0.0, tn_tra1q/tn_t_altmul - tn_tsamq + somatic_var_pq); // tumor  BQ bias is stronger as raw variant (biased to high BQ) is called   from each base
         
         if (isInDel) {
-            int n_str_units = (isSymbolIns(symbol) ? 1 : (-1)) * (int)(indelstring.size() / repeatunit.size());
-            t_indel_penal = penal_indel_2(tAD0a, n_str_units, tki.RCC, phred_triallelic_indel);
             if (!tUseHD1) {
-                _tn_tra2q *= ((double)tAD0a + (double)indelstring.size()/8.0) / ((double)tAD0 + (double)indelstring.size()/8.0); // ad-hoc adjustment
+                int n_str_units = (isSymbolIns(symbol) ? 1 : (-1)) * (int)(indelstring.size() / repeatunit.size());
+                t_indel_penal = penal_indel_2(tAD0a, n_str_units, tki.RCC, phred_triallelic_indel);
+                _tn_tra2q *= ((double)tAD0a + (double)(tAD0 - tAD0a) * symbol_to_allele_frac) / ((double)tAD0); // ad-hoc adjustment
             } /*else {
                 if (_tn_tra2q > phred_umi_dimret_qual) {
                     _tn_tra2q = (double)phred_umi_dimret_qual + ((double)(_tn_tra2q - phred_umi_dimret_qual) / (double)phred_umi_dimret_mult);
@@ -3633,10 +3636,10 @@ append_vcf_record(std::string & out_string,
         const double tn_nsamq = 40.0 * pow(0.5, MAX((double)nAD0, ((double)(nfm.bDP + 1)) / ((double)(nfm.DP + 1)) - 1.0));
         const double tn_nra1q = (double)nfm.VAQ;
         double _tn_npo2q = MIN4(tn_npo1q, pcap_nmq, pcap_nbq, pcap_nmq2);
-        double _tn_nra2q = MAX(0.0, tn_nra1q/tn_n_altmul - tn_nsamq/4.0) + (isInDel ? 0.0:5.0); // normal BQ bias is weaker   as res variant (biased to high BQ) is filtered from each variant
+        double _tn_nra2q = MAX(0.0, tn_nra1q/tn_n_altmul - tn_nsamq/4.0 + somatic_var_pq); // normal BQ bias is weaker   as res variant (biased to high BQ) is filtered from each variant
         if (isInDel) {
             if (!nUseHD1) {
-                _tn_nra2q *= ((double)nAD0a + (double)indelstring.size()/8.0) / ((double)nAD0 + (double)indelstring.size()/8.0);
+                _tn_nra2q *= ((double)nAD0a + (double)(nAD0 - nAD0a) * symbol_to_allele_frac) / ((double)nAD0);
             }
         }
         const double tn_npowq = _tn_npo2q;
@@ -3742,7 +3745,7 @@ append_vcf_record(std::string & out_string,
         double t2n_syserr_q = (use_penalt ? MAX(0.0, t2n_syserr_q0) : 0.0);
         
         double t_base_q = MIN(tn_trawq, tn_tpowq + (double)indel_ic);
-        double t2n_infodist = calc_binom_10log10_likeratio(tAD0 / (tDP0 + DBL_EPSILON), nAD0, (nDP0 + DBL_EPSILON));
+        // double t2n_infodist = calc_binom_10log10_likeratio(tAD0 / (tDP0 + DBL_EPSILON), nAD0, (nDP0 + DBL_EPSILON));
         double tlodq = t_base_q + t2n_reward_q - MIN(t2n_contam_q, t2n_syserr_q);
         
         //double n2t_red_qual = MIN(tn_npowq, tn_nrawq + (double)indel_ic) * MIN(1.0, n2t_or1) * MIN(1.0, n2t_or1); // / (t2n_or1 * t2n_or1);

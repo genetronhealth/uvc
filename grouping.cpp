@@ -96,7 +96,7 @@ SamIter::iternext(std::vector<std::tuple<unsigned int, unsigned int, unsigned in
         }
         bool is_uncov = (SIGN2UNSIGN(alnrecord->core.tid) != tid || SIGN2UNSIGN(alnrecord->core.pos) > tend);
         if (UINT_MAX == endingpos) {
-            uint64_t n_overlap_positions = min(SIGN2UNSIGN(64), (SIGN2UNSIGN(16) + tend - min(tend, SIGN2UNSIGN(alnrecord->core.pos))));
+            uint64_t n_overlap_positions = min(SIGN2UNSIGN(48), (SIGN2UNSIGN(16) + tend - min(tend, SIGN2UNSIGN(alnrecord->core.pos))));
             uint64_t npositions = (tend - min(tbeg, tend));
             bool has_many_positions = npositions > n_overlap_positions * (1024);
             bool has_many_reads = nreads > n_overlap_positions * (1024 * 2);
@@ -134,7 +134,6 @@ SamIter::iternext(std::vector<std::tuple<unsigned int, unsigned int, unsigned in
         } else {
             tend = max(tend, SIGN2UNSIGN(bam_endpos(alnrecord)));
             nreads += 1;
-
         }
     }
     if (tid != UINT_MAX) {
@@ -724,7 +723,7 @@ bamfname_to_strand_to_familyuid_to_reads(
                     << "barcode_umihash = " << (is_umi_found ? umihash : 0) << " ; "
                     << "molecule_hash = " << molecule_hash << " ; "
                     << "qname_hash = " << qname_hash << " ; "
-                    << "num_qname_from_molecule_so_far = " umi_to_strand_to_reads[molecule_hash].first[strand].size();
+                    << "num_qname_from_molecule_so_far = " << umi_to_strand_to_reads[molecule_hash].first[strand].size() << " ; ";
         }
         alnidx += 1;
     }
