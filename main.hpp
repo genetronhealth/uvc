@@ -2000,7 +2000,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                     }
                 }
                 for (size_t epos = read_family_amplicon.getIncluBegPosition(); epos < read_family_amplicon.getExcluEndPosition(); epos++) {
-                    const auto & con_ampl_symbol2count = read_family_amplicon.getByPos(epos);
+                    const auto & con_ampl_symbol2count = read_family_con_ampl.getByPos(epos);
                     for (SymbolType symbolType = SymbolType(0); symbolType < NUM_SYMBOL_TYPES; symbolType = SymbolType(1+(unsigned int)symbolType)) {
                         AlignmentSymbol con_symbol; // = END_ALIGNMENT_SYMBOLS;
                         unsigned int con_count, tot_count;

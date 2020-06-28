@@ -342,7 +342,7 @@ poscounter_to_pos2pcenter(
         // check if inner_pos is attracted by outer position
         for (size_t hicov_pos = locov_pos - ARRPOS_INNER_RANGE; hicov_pos < locov_pos + ARRPOS_INNER_RANGE + 1; hicov_pos++) {
             unsigned int hicov_count = pos_to_count[hicov_pos];
-            if (hicov_count > max_count && hicov_count > locov_count * pow(dedup_center_mult, unsigned_diff(locov_pos, hicov_pos))) {
+            if ((hicov_count > max_count) && ((hicov_count + 1) > (locov_count + 1) * pow(dedup_center_mult, unsigned_diff(locov_pos, hicov_pos)))) {
                 pos_to_center_pos[locov_pos] = hicov_pos;
                 max_count = hicov_count;
             }
@@ -638,11 +638,10 @@ bamfname_to_strand_to_familyuid_to_reads(
                 end2surrcount = max(end2surrcount, end_count);
             }
         }
-        double begfrac = (double)(beg2count) / (double)(beg2surrcount + 1);
-        double endfrac = (double)(end2count) / (double)(end2surrcount + 1);
+        double begfrac = (double)(beg2count + 1) / (double)(beg2surrcount + 2);
+        double endfrac = (double)(end2count + 1) / (double)(end2surrcount + 2);
         
         const bool is_assay_amplicon = (begfrac > dedup_amplicon_count_to_surrcount_ratio || endfrac > dedup_amplicon_count_to_surrcount_ratio);
-        const uint64_t umilabel = (is_umi_found ? umihash : (is_assay_amplicon ? qname_hash : 0));
         pcrpassed += is_assay_amplicon;
         
         // beg end qname UMI = 1 2 4 8
@@ -707,19 +706,22 @@ bamfname_to_strand_to_familyuid_to_reads(
         const bool should_log_read = (ispowof2(alnidx + 1) || ispowof2(num_pass_alns - alnidx));
         if (!is_pair_end_merge_enabled) { assert(!isr2); }
         if ((should_log_read && (beg_peak_max >= 2000 || should_log)) || always_log) {
-            LOG(logINFO) << "Thread " << thread_id << " ; readname = " << qname << " ; " 
-                    << "alnidx/num_pass_alns = " << alnidx << "/" << num_pass_alns << " ; "
+            LOG(logINFO) << "thread_id = " << thread_id << " ; "
+                    << "readname = " << qname << " ; "
+                    << "alnidx = " << alnidx << " ; "
+                    << "num_pass_alns = " << num_pass_alns << " ; "
                     << "isrc = " << isrc << " ; "
                     << "isr2 = " << isr2 << " ; "
                     << "strand = " << strand << " ; "
                     << "num_seqs = " << num_seqs << " ; "
                     << "dedup_idflag = " << dedup_idflag << " ; "
+                    << "is_assay_amplicon = " << is_assay_amplicon << " ; "
                     << "tid = " << aln->core.tid << " ; "
-                    << "fastaseq_range = " << tBeg << "&" << tEnd << " ; " 
-                    << "original_range = " << beg1 << "&" << end1 << " ; "
-                    << "adjusted_rdiff = " << ((int)beg2 - (int)beg1) << "&" << ((int)end2 - (int)end1) << " ; "
-                    << "adjusted_count = " << beg2count << "&" << end2count << " ; " 
-                    << "adjusted_surrounding_counts = " << beg2surrcount << "&" << end2surrcount << " ; " 
+                    << "fastaseq_range = " << tBeg << "," << tEnd << " ; "
+                    << "original_range = " << beg1 << "," << end1 << " ; "
+                    << "adjusted_rdiff = " << ((int)beg2 - (int)beg1) << "," << ((int)end2 - (int)end1) << " ; "
+                    << "adjusted_count = " << beg2count << "," << end2count << " ; " 
+                    << "adjusted_surrounding_counts = " << beg2surrcount << "," << end2surrcount << " ; " 
                     << "barcode_umihash = " << (is_umi_found ? umihash : 0) << " ; "
                     << "molecule_hash = " << molecule_hash << " ; "
                     << "qname_hash = " << qname_hash << " ; "
