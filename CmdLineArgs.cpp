@@ -83,7 +83,7 @@ CommandLineArgs::selfUpdateByPlatform() {
         if (0 == highqual_thres_indel) { highqual_thres_indel = highqual_thres_snv - 4; }
     }
     if (SEQUENCING_PLATFORM_ILLUMINA == inferred_sequencing_platform && SEQUENCING_PLATFORM_OTHER != this->sequencing_platform) {
-        bq_phred_added_indel += 10; // 0; // 6; //10;
+        bq_phred_added_indel += 17; // 10; // 0; // 6; //10;
         bq_phred_added_misma += 0;
         minABQ_pcr_snv += 25;
         minABQ_pcr_indel += 15; // 18;
@@ -176,8 +176,8 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     app.add_option("--highqual-min-ratio",          highqual_min_ratio,
             "The mininum ratio of the raw non-deduplicated read depth to the deduplicated read family depth to trigger tumor-normal comparison with high quality families only", true);
      
-    app.add_option("--phred-frag-indel-ext",        phred_max_frag_indel_ext,
-            "Maximum phred score for the indel of one additional base (excluding the one base required for opening indel), capped at two additional bases", true);
+    //app.add_option("--phred-frag-indel-ext",        phred_max_frag_indel_ext,
+    //        "Maximum phred score for the indel of one additional base (excluding the one base required for opening indel), capped at two additional bases", true);
     app.add_option("--phred-frag-indel-basemax",    phred_max_frag_indel_basemax,
             "Maximum phred score for the opening of an indel (including the one base required for opening indel).", true);
     app.add_option("--phred-sscs-transition-CG-TA", phred_max_sscs_transition_CG_TA, 
@@ -198,8 +198,9 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
             "The phred-score that is subtracted from phred-sscs to get the power-law quality adjustment for InDels", true);
     app.add_option("--phred-pow-dscs-origin",       phred_pow_dscs_origin, 
             "The phred-score that is subtracted from phred-dscs to get the power-law quality adjustment", true);
-    //app.add_option("--phred-umi-dimret-qual", phred_umi_dimret_qual, 
-    //        "The PHRED-scaled raw variant quality above which such quality is subject to diminishing return for amplicon data", true);
+    
+    app.add_option("--phred-snv-to-indel-ratio", phred_snv_to_indel_ratio,
+            "The phred-score for the ratio of SNVs to InDels.", true);
     app.add_option("--phred-umi-dimret-mult-snv", phred_umi_dimret_mult_snv,
             "The diminishing-return factor for the PHRED-scaled raw variant quality for amplicon SNVs", true);
     app.add_option("--phred-umi-dimret-mult-indel", phred_umi_dimret_mult_indel,
@@ -231,7 +232,7 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     
     app.add_option("--central-readlen",      central_readlen,      "Central (median) value for read lengths, 0 means estimate from the data.");
     app.add_option("--bq-phred-added-misma", bq_phred_added_misma, "Additional base-quality phred score added to match and mismatch, recommend 4 for IonTorrent from Life Technologies.");
-    app.add_option("--bq-phred-added-indel", bq_phred_added_indel, "Additional base-quality phred score added to indel and no-indel, recommend 10 for Illumina and BGI.");
+    app.add_option("--bq-phred-added-indel", bq_phred_added_indel, "Additional base-quality phred score added to indel and no-indel, recommend 17 for Illumina and BGI.");
     
     app.add_option("--phred-homref-gt",       phred_germline_polymorphism,"Phred-scaled prior probability of germline polymorphism event at a loci.", true);
     app.add_option("--phred-triallelic-indel",phred_triallelic_indel,     "Phred-scaled prior probability that two or more forms of InDel occur at a loci.", true);

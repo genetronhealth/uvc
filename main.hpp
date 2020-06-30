@@ -1238,13 +1238,21 @@ public:
 
     template<ValueType TUpdateType, bool TFillSeqDir>
     int // GenericSymbol2CountCoverage<TSymbol2Count>::
-    updateByRead1Aln(std::vector<bam1_t *> aln_vec, unsigned int frag_indel_ext, 
-            const std::array<unsigned int, NUM_SYMBOL_TYPES> & symbolType2addPhred, const unsigned int alns2size, 
-            const unsigned int frag_indel_basemax, unsigned int dflag, unsigned int nogap_phred, const bool is_proton, 
-            const auto & region_symbolvec, const unsigned int region_offset,
-            std::array<GenericSymbol2CountCoverage<Symbol2Count>, 4> & bq_dirs_count, std::array<GenericSymbol2CountCoverage<Symbol2Count>, 3> & bq_regs_count,
-            unsigned int sidereg_nbases
-            ) {
+    updateByRead1Aln(
+            std::vector<bam1_t *> aln_vec, 
+            unsigned int frag_indel_ext, 
+            const std::array<unsigned int, NUM_SYMBOL_TYPES> & symbolType2addPhred, 
+            const unsigned int alns2size, 
+            const unsigned int frag_indel_basemax, 
+            unsigned int dflag, 
+            unsigned int nogap_phred, 
+            const bool is_proton, 
+            const auto & region_symbolvec, 
+            const unsigned int region_offset,
+            std::array<GenericSymbol2CountCoverage<Symbol2Count>, 4> & bq_dirs_count, 
+            std::array<GenericSymbol2CountCoverage<Symbol2Count>, 3> & bq_regs_count,
+            unsigned int sidereg_nbases,
+            unsigned int specialflag) {
         for (bam1_t *aln : aln_vec) {
             if (alns2size > 1 && dflag > 0) { // is barcoded and not singleton
                 if (is_proton) {
@@ -1842,8 +1850,21 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                     uint32_t tid2, beg2, end2;
                     fillTidBegEndFromAlns1(tid2, beg2, end2, alns1);
                     Symbol2CountCoverage read_ampBQerr_fragWithR1R2(tid, beg2, end2);
-                    read_ampBQerr_fragWithR1R2.template updateByRead1Aln<BASE_QUALITY_MAX, true>(alns1, frag_indel_ext, symbolType2addPhred, alns2.size(), 
-                            frag_indel_basemax, alns2pair2dflag.second, nogap_phred, is_proton, region_symbolvec, this->dedup_ampDistr.at(strand).getIncluBegPosition(), this->bq_dirs_count, this->bq_regs_count, sidereg_nbases);
+                    read_ampBQerr_fragWithR1R2.template updateByRead1Aln<BASE_QUALITY_MAX, true>(
+                            alns1, 
+                            frag_indel_ext, 
+                            symbolType2addPhred, 
+                            alns2.size(), 
+                            frag_indel_basemax, 
+                            alns2pair2dflag.second, 
+                            nogap_phred, 
+                            is_proton, 
+                            region_symbolvec, 
+                            this->dedup_ampDistr.at(strand).getIncluBegPosition(), 
+                            this->bq_dirs_count, 
+                            this->bq_regs_count, 
+                            sidereg_nbases,
+                            0);
                     unsigned int normMQ = 0;
                     for (const bam1_t * b : alns1) {
                         normMQ = MAX(normMQ, b->core.qual);
@@ -1992,8 +2013,21 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                     uint32_t tid1, beg1, end1;
                     fillTidBegEndFromAlns1(tid1, beg1, end1, alns1);
                     Symbol2CountCoverage read_ampBQerr_fragWithR1R2(tid1, beg1, end1);
-                    read_ampBQerr_fragWithR1R2.template updateByRead1Aln<BASE_QUALITY_MAX, false>(alns1, frag_indel_ext, symbolType2addPhred, alns2.size(), 
-                            frag_indel_basemax, alns2pair2dflag.second, nogap_phred, is_proton, region_symbolvec, this->dedup_ampDistr.at(strand).getIncluBegPosition(), this->bq_dirs_count, this->bq_regs_count, sidereg_nbases);
+                    read_ampBQerr_fragWithR1R2.template updateByRead1Aln<BASE_QUALITY_MAX, false>(
+                            alns1, 
+                            frag_indel_ext, 
+                            symbolType2addPhred, 
+                            alns2.size(), 
+                            frag_indel_basemax, 
+                            alns2pair2dflag.second, 
+                            nogap_phred, 
+                            is_proton, 
+                            region_symbolvec, 
+                            this->dedup_ampDistr.at(strand).getIncluBegPosition(), 
+                            this->bq_dirs_count, 
+                            this->bq_regs_count, 
+                            sidereg_nbases,
+                            0);
                     read_family_con_ampl.template updateByConsensus<SYMBOL_COUNT_SUM, true>(read_ampBQerr_fragWithR1R2);
                     read_family_amplicon.updateByFiltering(read_ampBQerr_fragWithR1R2, this->bq_pass_thres[strand], 1, true, strand);
                     if (log_alns2) {
@@ -2059,8 +2093,21 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                     uint32_t tid1, beg1, end1;
                     fillTidBegEndFromAlns1(tid1, beg1, end1, aln_vec);
                     Symbol2CountCoverage read_ampBQerr_fragWithR1R2(tid1, beg1, end1);
-                    read_ampBQerr_fragWithR1R2.template updateByRead1Aln<BASE_QUALITY_MAX, false>(aln_vec, frag_indel_ext, symbolType2addPhred, alns2.size(), 
-                            frag_indel_basemax, alns2pair2dflag.second, nogap_phred, is_proton, region_symbolvec, this->dedup_ampDistr.at(strand).getIncluBegPosition(), this->bq_dirs_count, this->bq_regs_count, sidereg_nbases);
+                    read_ampBQerr_fragWithR1R2.template updateByRead1Aln<BASE_QUALITY_MAX, false>(
+                            aln_vec, 
+                            frag_indel_ext, 
+                            symbolType2addPhred, 
+                            alns2.size(), 
+                            frag_indel_basemax, 
+                            alns2pair2dflag.second, 
+                            nogap_phred, 
+                            is_proton, 
+                            region_symbolvec, 
+                            this->dedup_ampDistr.at(strand).getIncluBegPosition(), 
+                            this->bq_dirs_count, 
+                            this->bq_regs_count, 
+                            sidereg_nbases,
+                            0);
                     // The line below is similar to : read_family_amplicon.updateByConsensus<SYMBOL_COUNT_SUM>(read_ampBQerr_fragWithR1R2);
                     read_family_amplicon.updateByFiltering(read_ampBQerr_fragWithR1R2, this->bq_pass_thres[strand], 1, true, strand);
                     if (log_alns2) {
@@ -3266,7 +3313,8 @@ append_vcf_record(std::string & out_string,
         uint64_t diplo_twoside_posbias_perc,
         uint64_t haplo_oneside_posbias_perc,
         uint64_t haplo_twoside_posbias_perc,
-        const unsigned int  specialflag = 0) {
+        const double phred_snv_to_indel_ratio,
+        const unsigned int  specialflag) {
     
     const bcfrec::BcfFormat & fmt = fmtvar; 
     
@@ -3322,7 +3370,7 @@ append_vcf_record(std::string & out_string,
     // intuition for the somatic_var_pq formula: InDel candidate with higher baseline-noise frequency is simply more likely to be a true mutation too
     // assuming that in-vivo biological error and in-vitro technical error are positively correlated with each other. 
     // https://doi.org/10.1007%2Fs00239-010-9377-4
-    const double somatic_var_pq = ((!isInDel) ? 5.0 : (MIN((double)indel_phred(8.0, indelstring.size(), repeatunit.size(), repeatnum), 24.0) - 9.0));
+    const double somatic_var_pq = ((!isInDel) ? 5.0 : (MIN((double)indel_phred(8.0, indelstring.size(), repeatunit.size(), repeatnum), 24.0) + (5.0 - 3.0) - phred_snv_to_indel_ratio));
     
     bool is_novar = (symbol == LINK_M || (isSymbolSubstitution(symbol) && vcfref == vcfalt));
     if (is_novar && (!should_let_all_pass) && (!should_output_all)) {

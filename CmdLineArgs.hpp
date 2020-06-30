@@ -56,8 +56,8 @@ struct CommandLineArgs {
     uint32_t    min_mapqual = 0; // 40; // from GATK
     uint32_t    max_cpu_num = 8;
     uint32_t    primerlen = 0;
-    uint32_t    phred_max_frag_indel_ext = 5;
-    uint32_t    phred_max_frag_indel_basemax = 39; // 34; // 40-10 // 37; // 42; // 37; // 35; // 25;
+    uint32_t    phred_max_frag_indel_ext = 5; // unused
+    uint32_t    phred_max_frag_indel_basemax = 30; // 39; // 34; // 40-10 // 37; // 42; // 37; // 35; // 25;
     uint32_t    phred_max_sscs_transition_CG_TA = 44; // Cytosine deamination into Uracil, especially in FFPE samples, also by UV light radiation, more upstream
     uint32_t    phred_max_sscs_transition_TA_CG = 48; // https://en.wikipedia.org/wiki/DNA_oxidation, DNA synthesis error, more downstream
     uint32_t    phred_max_sscs_transversion_any = 52;
@@ -68,13 +68,11 @@ struct CommandLineArgs {
     double      phred_pow_sscs_indel_origin = 60 - 60; // 60 - 38; 
     double      phred_pow_dscs_origin = 0;
     
-    // uint32_t    phred_umi_dimret_qual = 12; // the number of genomic positions typically covered by an amplicon // 40
     double      phred_umi_dimret_mult_snv = 0.75; //0.4;
     double      phred_umi_dimret_mult_indel = 0.75; // 0.4;
-    
+    double      phred_snv_to_indel_ratio = 10.0;
     double      vqual = (double)15; // 10; set to 20 for less output
     uint32_t    vad = (uint32_t)INT_MAX;
-    //std::string platform = "auto";
     uint32_t    minABQ_pcr_snv = 0;
     uint32_t    minABQ_pcr_indel = 0;
     uint32_t    minABQ_cap_snv = 0;

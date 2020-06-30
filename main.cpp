@@ -1043,6 +1043,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                                 paramset.diplo_twoside_posbias_perc,
                                 paramset.haplo_oneside_posbias_perc,
                                 paramset.haplo_twoside_posbias_perc,
+                                paramset.phred_snv_to_indel_ratio,
                                 0);
                     }
                 }
