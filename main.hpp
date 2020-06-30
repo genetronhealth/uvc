@@ -3402,12 +3402,12 @@ append_vcf_record(std::string & out_string,
     bool lrel_seqbias = (100UL * (1 + bSSADsum - bSSRADlb) * (1 + bSSRDPlb) < haplo_oneside_posbias_perc * (1 + bSSRADlb) * (1 + bSSDPsum - bSSRDPlb));
     bool rrel_seqbias = (100UL * (1 + bSSADsum - bSSRADrb) * (1 + bSSRDPrb) < haplo_oneside_posbias_perc * (1 + bSSRADrb) * (1 + bSSDPsum - bSSRDPrb));
     
-    if (babs_seqbias && is_highfrac_var) { fmtvar.FT += "GPBLR2"; }
-    if (labs_seqbias && is_highfrac_var) { fmtvar.FT += "GPBL2"; }
-    if (rabs_seqbias && is_highfrac_var) { fmtvar.FT += "GPBR2"; }
-    if (brel_seqbias) { fmtvar.FT += "GPBLR1"; }
-    if (lrel_seqbias) { fmtvar.FT += "GPBL1"; }
-    if (rrel_seqbias) { fmtvar.FT += "GPBR1"; }
+    if (babs_seqbias && is_highfrac_var) { fmtvar.FT += std::string(bcfrec::FILTER_IDS[bcfrec::GPBLR2]) + ";"; }
+    if (labs_seqbias && is_highfrac_var) { fmtvar.FT += std::string(bcfrec::FILTER_IDS[bcfrec::GPBL2] ) + ";"; }
+    if (rabs_seqbias && is_highfrac_var) { fmtvar.FT += std::string(bcfrec::FILTER_IDS[bcfrec::GPBR2] ) + ";"; }
+    if (brel_seqbias) { fmtvar.FT += std::string(bcfrec::FILTER_IDS[bcfrec::GPBLR1]) + ";"; }
+    if (lrel_seqbias) { fmtvar.FT += std::string(bcfrec::FILTER_IDS[bcfrec::GPBL1] ) + ";"; }
+    if (rrel_seqbias) { fmtvar.FT += std::string(bcfrec::FILTER_IDS[bcfrec::GPBR1] ) + ";"; }
     
     if ("" == fmtvar.FT) {
         fmtvar.FT = "PASS";

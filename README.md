@@ -69,3 +69,5 @@ Compared with extract-barcodes.py, debarcode generates equivalent output but con
 The outputs of these two programs may not be the same in compressed space but are exactly the same in decompressed space.
 The program minivc is a simple SNV caller that runs very fast but has limited sensitivity. It can be used for estimating contamination.
 
+For more information, please check the wiki.
+
