@@ -186,6 +186,7 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("bSDR"     , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("bSB1"     , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("bSBR"     , 2, BCF_INTEGER, "see above"),
+    BcfFormatStruct("bNSB"     , 2, BCF_INTEGER, "Total number of sequenced bases on all reads covering this position [base read, duped]"), 
     
     BcfFormatStruct("__bc"     , 1, BCF_SEP,     "Forward&reverse depth (DP1), allele depth (AD1), allele depth after weak filter (AD2), quality threshold for weak filter (QT2) [base read, duped]"),
     BcfFormatStruct("bDP1"     , 2, BCF_INTEGER, "see above"),
@@ -231,7 +232,8 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("cSDR"     , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("cSB1"     , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("cSBR"     , 2, BCF_INTEGER, "see above"),
-    
+    BcfFormatStruct("cNSB"     , 2, BCF_INTEGER, "Total number of sequenced bases on all reads covering this position [consensus family, deduped]"),
+
     BcfFormatStruct("__cc"     , 1, BCF_SEP,     "Same as __bc but for single-strand families instead of reads [consensus family, deduped]"), 
     BcfFormatStruct("cDP1"     , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("cAD1"     , 2, BCF_INTEGER, "see above"),

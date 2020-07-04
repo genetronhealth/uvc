@@ -1309,6 +1309,7 @@ struct Symbol2CountCoverageSet {
     std::array<Symbol2CountCoverage, 2> bq_bsum_rdist;
     std::array<Symbol2CountCoverage, 2> bq_bias_1stra;
     std::array<Symbol2CountCoverage, 2> bq_bias_2stra;
+    std::array<Symbol2CountCoverage, 2> bq_n_seq_bases;
 
     std::array<Symbol2CountCoverage, 2> bq_tsum_depth;
     std::array<Symbol2CountCoverage, 2> bq_pass_thres;
@@ -1339,6 +1340,7 @@ struct Symbol2CountCoverageSet {
     std::array<Symbol2CountCoverage, 2> fq_bsum_rdist;
     std::array<Symbol2CountCoverage, 2> fq_bias_1stra;
     std::array<Symbol2CountCoverage, 2> fq_bias_2stra;
+    std::array<Symbol2CountCoverage, 2> fq_n_seq_bases;
 
     std::array<Symbol2CountCoverage, 2> fq_tsum_depth;
     std::array<Symbol2CountCoverage, 2> fq_pass_thres;
@@ -1385,6 +1387,7 @@ struct Symbol2CountCoverageSet {
         , bq_bsum_rdist({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
         , bq_bias_1stra({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
         , bq_bias_2stra({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
+        , bq_n_seq_bases({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
 
         , bq_tsum_depth({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
         , bq_pass_thres({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
@@ -1415,6 +1418,7 @@ struct Symbol2CountCoverageSet {
         , fq_bsum_rdist({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
         , fq_bias_1stra({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
         , fq_bias_2stra({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
+        , fq_n_seq_bases({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
         
         , fq_tsum_depth({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
         , fq_pass_thres({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
@@ -1545,7 +1549,7 @@ struct Symbol2CountCoverageSet {
             auto & vars_thres, auto & vars_depth, auto & vars_badep, auto & vars_vqual,
             auto & dedup_ampDistr, const auto & prev_tsum_depth,
             auto & pb_dist_lpart, auto & pb_dist_rpart, auto & pb_dist_nvars, auto & additional_note, bool should_add_note, 
-            const auto & bq_dirs_count, auto & bq_bias_sedir, const AssayType assay_type,
+            const auto & bq_dirs_count, auto & bq_bias_sedir, const auto & q_n_seq_bases, const AssayType assay_type,
             const PhredMutationTable & phred_max_table, const auto & symbolType2addPhred, const double ess_georatio_dedup, 
             const unsigned int uni_bias_r_max, uint32_t bias_flag_snv, uint32_t bias_flag_indel) {
         
@@ -1622,7 +1626,8 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         auto ad1 = curr_tsum_depth.at(0+strand).getByPos(pos).getSymbolCount(symbol);
                         
                         double fa = (double)(ad0 + ad1) / (double)(dp0 + dp1 + 1);
-                        unsigned int nvars_gapdist = ((fa < 0.025) ? 4 : ((fa < 0.025 * 5) ? 5 : 6));
+                        // unsigned int nvars_gapdist = ((fa < 0.025) ? 4 : ((fa < 0.025 * 5) ? 5 : 6));
+                        unsigned int nvars_gapdist = q_n_seq_bases[strand].getByPos(pos).getSymbolCount(symbol) / MAX(ad1, 1) / 70 + 2; // ;
                         // compute positional bias
                         auto pb_ldist_pair = adabias<true >(vsum_pb_dist_lpart, pb_dist_lpart[strand].getByPos(pos).getSymbolCounts(symbol), pseudocount / 2.0, 2);
                         amax_ldist[strand].getRefByPos(pos).incSymbolCount(symbol, edbuck2pos(pb_ldist_pair.first));
@@ -1734,7 +1739,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                             auto side_vleft = only_vleft + only_vboth;
                             auto side_vright= only_vright+ only_vboth;
                             auto side_vboth = only_vleft + only_vright+ only_vboth;
-
+                            
                             auto segbias100bside = any4_to_biasfact100(
                                     (double)(side_stotal - side_sboth), (double)side_sboth,
                                     (double)(side_vtotal - side_vboth), (double)side_vboth, false, pseudocount);
@@ -1874,6 +1879,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                     unsigned int rdist_inc = 0;
                     std::vector<unsigned int> posToInsertLen = read_ampBQerr_fragWithR1R2.computeZeroBasedPosToInsLenVec(rdist_inc); // extend
                     unsigned int n_vars = 0;
+                    unsigned int n_seq_bases = 0;
                     std::vector<std::array<AlignmentSymbol, NUM_SYMBOL_TYPES>> con_symbols_vec(
                             read_ampBQerr_fragWithR1R2.getExcluEndPosition() - read_ampBQerr_fragWithR1R2.getIncluBegPosition(),
                             std::array<AlignmentSymbol, NUM_SYMBOL_TYPES>({END_ALIGNMENT_SYMBOLS, END_ALIGNMENT_SYMBOLS}));
@@ -1918,6 +1924,9 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                                     n_vars++;
                                 }
                             }
+                            if (symbolType == BASE_SYMBOL) {
+                                n_seq_bases++;
+                            }
                             this->dedup_ampDistr[strand].getRefByPos(epos).incSymbolBucketCount(con_symbol, pbucket, 1);
                             ldist_inc += posToInsertLen[epos - read_ampBQerr_fragWithR1R2.getIncluBegPosition()];
                             this->pb_dist_lpart [strand].getRefByPos(epos).incSymbolBucketCount(con_symbol, pos2edbuck(ldist + ldist_inc), 1);
@@ -1937,6 +1946,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                             auto con_symbol = con_symbols_vec.at(epos - read_ampBQerr_fragWithR1R2.getIncluBegPosition()).at(symbolType);
                             if (END_ALIGNMENT_SYMBOLS != con_symbol) {
                                 this->pb_dist_nvars[strand].getRefByPos(epos).incSymbolBucketCount(con_symbol, n_vars, 1);
+                                this->bq_n_seq_bases[strand].getRefByPos(epos).incSymbolCount(con_symbol, n_seq_bases);
                             }
                         }
                     }
@@ -1953,11 +1963,12 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                 this->bq_amax_ldist, this->bq_amax_rdist, this->bq_bias_ldist, this->bq_bias_rdist,
                 this->bq_amax_nvars, this->bq_bias_nvars,
                 this->bq_bsum_ldist, this->bq_bsum_rdist, this->bq_bias_1stra, this->bq_bias_2stra,
-                this->bq_tsum_depth, this->bq_pass_thres, this->bq_pass_depth,
+                this->bq_tsum_depth, 
+                this->bq_pass_thres, this->bq_pass_depth,
                 this->bq_vars_thres, this->bq_vars_depth, this->bq_vars_badep, this->bq_vars_vqual,
                 this->dedup_ampDistr,this->bq_tsum_depth,
                 this->pb_dist_lpart, this->pb_dist_rpart, this->pb_dist_nvars, this->additional_note, should_add_note, 
-                this->bq_dirs_count, this->bq_bias_sedir, assay_type,
+                this->bq_dirs_count, this->bq_bias_sedir, this->bq_n_seq_bases, assay_type,
                 phred_max_table, symbolType2addPhred, ess_georatio_dedup, uni_bias_r_max, bias_flag_snv, bias_flag_indel);
         return 0;
     }
@@ -2122,6 +2133,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                 unsigned int rdist_inc = 0;
                 std::vector<unsigned int> posToInsertLen = read_family_amplicon.computeZeroBasedPosToInsLenVec(rdist_inc); // extend
                 unsigned int n_vars = 0;
+                unsigned int n_seq_bases = 0;
                 std::vector<std::array<AlignmentSymbol, NUM_SYMBOL_TYPES>> con_symbols_vec(
                         read_family_amplicon.getExcluEndPosition() - read_family_amplicon.getIncluBegPosition(),
                         std::array<AlignmentSymbol, NUM_SYMBOL_TYPES>({END_ALIGNMENT_SYMBOLS, END_ALIGNMENT_SYMBOLS}));
@@ -2178,6 +2190,9 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                                 n_vars++;
                             }
                         }
+                        if (symbolType == BASE_SYMBOL) {
+                            n_seq_bases++;
+                        }
                         this->dedup_ampDistr[strand].getRefByPos(epos).incSymbolBucketCount(con_symbol, pbucket, 1);
                         ldist_inc += posToInsertLen[epos - read_family_amplicon.getIncluBegPosition()];
                         this->pb_dist_lpart [strand].getRefByPos(epos).incSymbolBucketCount(con_symbol, pos2edbuck(ldist + ldist_inc), 1);
@@ -2193,6 +2208,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         auto con_symbol = con_symbols_vec.at(epos - read_family_amplicon.getIncluBegPosition()).at(symbolType);
                         if (END_ALIGNMENT_SYMBOLS != con_symbol) {
                             this->pb_dist_nvars[strand].getRefByPos(epos).incSymbolBucketCount(con_symbol, n_vars, 1);
+                            this->fq_n_seq_bases[strand].getRefByPos(epos).incSymbolCount(con_symbol, n_seq_bases);
                         }
                     }
                 }
@@ -2225,11 +2241,12 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                 this->fq_amax_ldist, this->fq_amax_rdist, this->fq_bias_ldist, this->fq_bias_rdist, 
                 this->fq_amax_nvars, this->fq_bias_nvars,
                 this->fq_bsum_ldist, this->fq_bsum_rdist, this->fq_bias_1stra, this->fq_bias_2stra,
-                this->fq_tsum_depth, this->fq_pass_thres, this->fq_pass_depth,
+                this->fq_tsum_depth, 
+                this->fq_pass_thres, this->fq_pass_depth,
                 this->fq_vars_thres, this->fq_vars_depth, this->fq_vars_badep, this->fq_vars_vqual,
                 this->dedup_ampDistr,this->bq_tsum_depth,
                 this->pb_dist_lpart, this->pb_dist_rpart, this->pb_dist_nvars, this->additional_note, should_add_note, 
-                this->bq_dirs_count, this->bq_bias_sedir, assay_type,
+                this->bq_dirs_count, this->bq_bias_sedir, this->fq_n_seq_bases, assay_type,
                 phred_max_table, symbolType2addPhred, ess_georatio_dedup, uni_bias_r_max, bias_flag_snv, bias_flag_indel);
         return 0;
     };
@@ -2653,6 +2670,7 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
         fmt.bSDR[strand] = symbol2CountCoverageSet12.bq_bsum_rdist.at(strand).getByPos(refpos).getSymbolCount(symbol);
         fmt.bSB1[strand] = symbol2CountCoverageSet12.bq_bias_1stra.at(strand).getByPos(refpos).getSymbolCount(symbol);
         fmt.bSBR[strand] = symbol2CountCoverageSet12.bq_bias_2stra.at(strand).getByPos(refpos).getSymbolCount(symbol);
+        fmt.bNSB[strand] = symbol2CountCoverageSet12.bq_n_seq_bases.at(strand).getByPos(refpos).getSymbolCount(symbol);
         
         fmt.bAD1[strand] = symbol2CountCoverageSet12.bq_tsum_depth.at(strand).getByPos(refpos).getSymbolCount(symbol); // total allele depth
         fmt.bAD2[strand] = symbol2CountCoverageSet12.bq_pass_depth.at(strand).getByPos(refpos).getSymbolCount(symbol); // pass  allele depth
@@ -2700,7 +2718,8 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
         fmt.cSDR[strand] = symbol2CountCoverageSet12.fq_bsum_rdist.at(strand).getByPos(refpos).getSymbolCount(symbol);
         fmt.cSB1[strand] = symbol2CountCoverageSet12.fq_bias_1stra.at(strand).getByPos(refpos).getSymbolCount(symbol);
         fmt.cSBR[strand] = symbol2CountCoverageSet12.fq_bias_2stra.at(strand).getByPos(refpos).getSymbolCount(symbol);
- 
+        fmt.cNSB[strand] = symbol2CountCoverageSet12.fq_n_seq_bases.at(strand).getByPos(refpos).getSymbolCount(symbol);
+        
         fmt.cAD1[strand] = symbol2CountCoverageSet12.fq_tsum_depth.at(strand).getByPos(refpos).getSymbolCount(symbol);
         fmt.cAD2[strand] = symbol2CountCoverageSet12.fq_pass_depth.at(strand).getByPos(refpos).getSymbolCount(symbol);  
         fmt.cQT2[strand] = symbol2CountCoverageSet12.fq_pass_thres.at(strand).getByPos(refpos).getSymbolCount(symbol);
