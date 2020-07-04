@@ -41,9 +41,9 @@ enum AssayType {
 };
 
 const std::vector<std::string> ASSAY_TYPE_TO_MSG = {
-    [ASSAY_TYPE_AUTO] = "Automatically infer assay type from the data (根据数据自动判断试验类型)",
-    [ASSAY_TYPE_CAPTURE] = "Data is generatd from a capture-based assay (捕获试验)",
-    [ASSAY_TYPE_AMPLICON] = "Data is generated from an amplicon-based assay  (扩增子试验)" 
+    [ASSAY_TYPE_AUTO] = "Automatically infer assay type from the data",
+    [ASSAY_TYPE_CAPTURE] = "Data is generatd from a capture-based assay",
+    [ASSAY_TYPE_AMPLICON] = "Data is generated from an amplicon-based assay", 
 };
 
 enum MoleculeTag {
@@ -54,10 +54,10 @@ enum MoleculeTag {
 };
 
 const std::vector<std::string> MOLECULE_TAG_TO_MSG = {
-    [MOLECULE_TAG_AUTO] = "Automatically infer assay type from the data (根据数据自动判断试验类型)",
-    [MOLECULE_TAG_NONE] = "Molecule is not tagged (没有分子标签)",
-    [MOLECULE_TAG_BARCODING] = "Molecule is tagged with an unique molecular identifer on one strand as in SAFE-SEQ (有单链分子标签)", 
-    [MOLECULE_TAG_DUPLEX] = "Molecule is tagged with a duplex tag (有双链分子标签)",
+    [MOLECULE_TAG_AUTO] = "Automatically infer assay type from the data",
+    [MOLECULE_TAG_NONE] = "Molecule is not tagged",
+    [MOLECULE_TAG_BARCODING] = "Molecule is tagged with an unique molecular identifer on one strand as in SAFE-SEQ", 
+    [MOLECULE_TAG_DUPLEX] = "Molecule is tagged with a duplex tag",
 };
 
 enum SequencingPlatform {
@@ -68,7 +68,7 @@ enum SequencingPlatform {
 };
 
 const std::vector<std::string> SEQUENCING_PLATFORM_TO_MSG = {
-    [SEQUENCING_PLATFORM_AUTO] = "Automatically infer assay type from the data (根据数据自动判断试验类型)",
+    [SEQUENCING_PLATFORM_AUTO] = "Automatically infer assay type from the data",
     [SEQUENCING_PLATFORM_ILLUMINA] = "Illumina sequencing platform (compatible with BGI)",
     [SEQUENCING_PLATFORM_IONTORRENT] = "IonTorrent sequencing platform by Life Technologies",
     [SEQUENCING_PLATFORM_OTHER] = "Other sequencing platform (for example, Nanopore)",
@@ -87,11 +87,10 @@ enum PairEndMerge {
 };
 
 const std::vector<std::string> PAIR_END_MERGE_TO_MSG = {
-    [PAIR_END_MERGE_YES] = "paired-end sequenced segments are merged (合并R1和R2)",
-    [PAIR_END_MERGE_NO]  = "paired-end sequenced segments are not merged (不合并R1和R2)",
+    [PAIR_END_MERGE_YES] = "paired-end sequenced segments are merged",
+    [PAIR_END_MERGE_NO]  = "paired-end sequenced segments are not merged",
 };
 
-// const std::array<std::string, 2> GT_TUMREF = {"1/0", "1/0"};
 
 const std::array<std::string, 2> GT_HETERO = {{"0/1", "0/."}};
 const std::array<std::string, 2> GT_HOMREF = {{"0/0", "0/0"}};
@@ -100,13 +99,6 @@ const std::array<std::string, 2> GT_HOMALT = {{"1/1", "./."}};
 const std::array<std::string, 2> TT_HETERO = {{"./1", "1/."}};
 const std::array<std::string, 2> TT_HOMREF = {{"./1", "1/."}};
 const std::array<std::string, 2> TT_HOMALT = {{"1/1", "1/."}};
-
-/*
-const std::string NRGT_TUMREF = "./0";
-const std::string NRGT_HET    = "0/.";
-const std::string NRGT_HOMREF = "0/0";
-const std::string NRGT_HOMALT = "./.";
-*/
 
 struct TnDP4 {
     unsigned int nvars= 0;
@@ -171,7 +163,7 @@ struct VcStats {
 
             ostream << (0.03 + (double)tot_noAD)                  / (1.0 + (double)tot_tuAD                 ) << "\t"; 
             ostream << (0.03 + (double)tot_noAD*(double)tot_tuDP) / (1.0 + (double)tot_tuAD*(double)tot_noDP) << "\t"; 
-
+            
             if ((!vcfqual_is_too_low) && tot_nvars >= 25 && tot_noDP >= 25*100 && tot_tuDP >= 25*100) {
                 ostream << "VCF_QUAL_EQUALS_THE_THRESHOLD_FOR_TUMOR_TO_NORMAL_CONTAMINATION_ESTIMATION" << "\n";  
                 vcfqual_is_too_low = true;
@@ -183,9 +175,12 @@ struct VcStats {
         }
         return 0;
     }
-
 };
 
+// I tried to use the following correction types in the past. 
+// However, correction types were very confusing to the end user and always missed some edge cases.
+// Hence, I used assay types, sequencing platforms, UMI-awareness, etc. instead of correction types.
+// If anyone thinks that correction types can be reworked into something intuitive to the end user, please let me know.
 /*
 enum ErrorCorrectionType {
     CORRECTION_AUTO,
@@ -196,17 +191,6 @@ enum ErrorCorrectionType {
     CORRECTION_BARCODE,
     CORRECTION_DUPLEX,
     END_ERROR_CORRECTION_TYPES
-};
-
-const char *const CORRECTION_TYPE_TO_MSG[] = {
-    [CORRECTION_AUTO] = "Automatically infer from the input BAM file, it is recommended to use this mode (自动识别去重找错机制，建议使用此模式)",
-    [CORRECTION_NONE] = "Do not attempt to find and/or correct errors, consider R1 and R2 as two reads (不去重不找错)",
-    [CORRECTION_BASEQUAL] = "Find and/or correct errors by using base quality (用碱基质量找错)",
-    [CORRECTION_SINGLETON] = "PCR without UMI which is experimental (还在测试阶段的方法)",
-    [CORRECTION_DUPLICATE] = "Find and/or correct errors by dedupping with the density distribution of start/end coordinates of mapped reads (用起始终止的位置去重找错)",
-    [CORRECTION_BARCODE] = "Find and/or correct errors by dedupping with UMI (unique molecular identifier) signle-strand barcode and the denstiy distribution of start/end coordinates of mapped reads "
-            "(用分子签和起始终止位置的分布去重找错)",
-    [CORRECTION_DUPLEX] = "Find and/or correct errors by dedupping with duplex barcode and the denstiy distribution of start/end coordinates of mapped reads (用duplex标签和起始终止位置的分布去重找错)",
 };
 */
 

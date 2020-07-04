@@ -18,7 +18,7 @@ struct CommandLineArgs {
     std::string vc_stats_fname = NOT_PROVIDED;
     std::string bed_out_fname = NOT_PROVIDED;
     std::string bed_in_fname = NOT_PROVIDED;
-    std::string tsv_primer_fname = NOT_PROVIDED;
+    // std::string tsv_primer_fname = NOT_PROVIDED;
     
     bool somaticGT = true;
     bool is_tumor_format_retrieved = false;
@@ -55,7 +55,7 @@ struct CommandLineArgs {
     uint32_t    min_aln_len = 0;
     uint32_t    min_mapqual = 0; // 40; // from GATK
     uint32_t    max_cpu_num = 8;
-    uint32_t    primerlen = 0;
+    // uint32_t    primerlen = 0;
     uint32_t    phred_max_frag_indel_ext = 5; // unused
     uint32_t    phred_max_frag_indel_basemax = 30; // 39; // 34; // 40-10 // 37; // 42; // 37; // 35; // 25;
     uint32_t    phred_max_sscs_transition_CG_TA = 44; // Cytosine deamination into Uracil, especially in FFPE samples, also by UV light radiation, more upstream
@@ -101,11 +101,11 @@ struct CommandLineArgs {
     double      t2n_add_contam_transfrac = 0.0; // 0.02; // 1e-10; // 0.025; // 0.04; // 0.125*1.5;
     
     uint32_t    phred_frac_indel_error_before_barcode_labeling = 23; // 12, 18, 24 // 23;
-    uint32_t    baq_per_aligned_base = 4; 
+    uint32_t    baq_per_aligned_base = 3; // 4; // The BAQ of 3 seems to make more sense after reading the feedback from reviewer #2
     
     bool        is_somatic_snv_filtered_by_any_nonref_germline_snv = true;
     bool        is_somatic_indel_filtered_by_any_nonref_germline_indel = true;
-    double      illumina_BQ_pow2_div_coef= 12.0;
+    double      illumina_BQ_pow2_div_coef = 12.0;
     double      varqual_per_mapqual = 4.0/3.0;
     
     double      powlaw_exponent = 3.0;
@@ -113,7 +113,7 @@ struct CommandLineArgs {
     double      syserr_maxqual = (double)(25.0); // PHRED-scaled probability that a candidate of systematic error is actually non-systematic
     double      syserr_norm_devqual = (double)(12.5); // PHRED-scaled likelihood that the observed allele fraction additively deviates from the expected allele fraction by a multiplicative factor of two
 
-    uint32_t    dedup_center_mult = 5;
+    uint32_t    dedup_center_mult = 5; // PCR stutter noise at (di,tri,tetra,...)-nucleotide generates +-(2,3,4...) shift in read end position, so more accurate dedupping requires us to consider these cases. This constant is good enough for the general case.
     uint32_t    dedup_amplicon_count_to_surrcount_ratio = 16;
     double      dedup_amplicon_end2end_ratio = 1.5;
     
