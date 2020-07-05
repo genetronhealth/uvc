@@ -1625,9 +1625,11 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         auto ad0 = curr_tsum_depth.at(1-strand).getByPos(pos).getSymbolCount(symbol);
                         auto ad1 = curr_tsum_depth.at(0+strand).getByPos(pos).getSymbolCount(symbol);
                         
+                        unsigned int ad01 = ad0 + ad1;
                         double fa = (double)(ad0 + ad1) / (double)(dp0 + dp1 + 1);
                         // unsigned int nvars_gapdist = ((fa < 0.025) ? 4 : ((fa < 0.025 * 5) ? 5 : 6));
-                        unsigned int nvars_gapdist = q_n_seq_bases[strand].getByPos(pos).getSymbolCount(symbol) / MAX(ad1, 1) / 70 + 2; // ;
+                        unsigned int nvars_gapdist = q_n_seq_bases[strand].getByPos(pos).getSymbolCount(symbol) / MAX(ad1, 1) / 90
+                                + (ad01 < 4 ? 1 : (ad01 < 16 ? 2 : 3));
                         // compute positional bias
                         auto pb_ldist_pair = adabias<true >(vsum_pb_dist_lpart, pb_dist_lpart[strand].getByPos(pos).getSymbolCounts(symbol), pseudocount / 2.0, 2);
                         amax_ldist[strand].getRefByPos(pos).incSymbolCount(symbol, edbuck2pos(pb_ldist_pair.first));
