@@ -2508,7 +2508,7 @@ indel_get_majority(const bcfrec::BcfFormat & fmt, const bool prev_is_tumor, cons
             bcfrec::streamAppendBcfFormat(msg, fmt);
             std::cerr << msg << "\n";
             // abort();
-            indelstring = std::string("<MALFORMED_VAR>,") + SYMBOL_TO_DESC_ARR[symbol];
+            indelstring = std::string("<UNRESOLVED_INDEL>,") + SYMBOL_TO_DESC_ARR[symbol];
         }
     } else if (fmt.gapNum[0] <= 0 && fmt.gapNum[1] <= 0) {
         if (!is_rescued) {
@@ -2517,7 +2517,7 @@ indel_get_majority(const bcfrec::BcfFormat & fmt, const bool prev_is_tumor, cons
             bcfrec::streamAppendBcfFormat(msg, fmt);
             std::cerr << msg << "\n";
             // assert(false);
-            indelstring = std::string("<MALFORMED_VAR>,") + SYMBOL_TO_DESC_ARR[symbol];
+            indelstring = std::string("<UNRESOLVED_INDEL>,") + SYMBOL_TO_DESC_ARR[symbol];
         }
     } else if (fmt.gapNum[0] <= 0 || fmt.gapNum[1] <= 0) {
         indelstring = fmt.gapSeq[0];
@@ -2789,7 +2789,7 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
     bool isInDel = (isSymbolIns(symbol) || isSymbolDel(symbol));
     if (fmtAD > 0 || is_rescued) {
         assert(fmt.FA >= 0);
-        unsigned int ref_bias = 4 * 2; // this is rather empirical
+        unsigned int ref_bias = 2; // 4 * 2; // this is rather empirical
         if (isInDel) {
             uint64_t totsize_cnt = 0;
             uint64_t totsize_sum = 0;
@@ -2855,24 +2855,43 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
             auto & fmtGST = (0 == t ? fmt.GSTa : fmt.GSTb);
             auto & prank = pranks[t];
             
-            double fmtFA = ((!isSymbolSubstitution(symbol)) ? fmt.FA : (
+            //double fmtFA = ((!isSymbolSubstitution(symbol) || true) ? fmt.FA : (
                    // MIN(1.0, (double)SUM2(fmt.cAltBQ) / (fmt.FA * (double)SUM2(fmt.cAllBQ) + DBL_EPSILON)) * 
-                             (double)SUM2(fmt.cAltBQ2) / (         (double)SUM2(fmt.cAllBQ2) + DBL_MIN)));
-            double fmtFR = ((!isSymbolSubstitution(symbol)) ? fmt.FR : (
+            //                 (double)SUM2(fmt.cAltBQ) / (         (double)SUM2(fmt.cAllBQ) + DBL_MIN)));
+            //double fmtFR = ((!isSymbolSubstitution(symbol) || true) ? fmt.FR : (
                    // MIN(1.0, (double)SUM2(fmt.cRefBQ) / (fmt.FR * (double)SUM2(fmt.cAllBQ) + DBL_EPSILON)) * 
-                             (double)SUM2(fmt.cRefBQ2) / (         (double)SUM2(fmt.cAllBQ2) + DBL_MIN)));
+            //                 (double)SUM2(fmt.cRefBQ) / (         (double)SUM2(fmt.cAllBQ) + DBL_MIN)));
+            auto fmt_AD = (fmt.FA) * fmt.DP;
+            auto fmt_OD = (1.0 - fmt.FA - fmt.FR) * fmt.DP;
+            auto fmt_RD = (fmt.FR) * fmt.DP;
+            auto pre1AD = ((0 == t) ? fmt_AD : fmt_OD);
+            auto pre2AD = ((0 == t) ? MAX(fmt_RD, fmt_OD) : MAX(fmt_RD, fmt_AD));
             
-            const double fa1 = MAX(0.0, ((0 == t) ? (fmtFA) : (1.0 - fmtFA - fmtFR)));
+            auto fmt_bAD = SUM2(fmt.bAD1);
+            auto fmt_bOD = SUM2(fmt.bDP1) - SUM2(fmt.bAD1) - SUM2(fmt.bRD1);
+            auto fmt_bRD = SUM2(fmt.bRD1);
+            auto pre1bAD = ((0 == t) ? fmt_bAD : fmt_bOD);
+            auto pre2bAD = ((0 == t) ? MAX(fmt_bRD, fmt_bOD) : MAX(fmt_bRD, fmt_bAD));
             
-            const double fa_l = (fa1 * (double)fmt.DP + 1.0 / altmul) / (double)(fmt.DP + 2.0 / altmul);
+            auto fmt_bABQ = SUM2(fmt.bAltBQ);
+            auto fmt_bOBQ = SUM2(fmt.bAllBQ) - SUM2(fmt.bAltBQ) - SUM2(fmt.bRefBQ);
+            auto fmt_bRBQ = SUM2(fmt.bRefBQ);
+            auto pre1bBQ = ((0 == t) ? fmt_bABQ : fmt_bOBQ);
+            auto pre2bBQ = ((0 == t) ? MAX(fmt_bRBQ, fmt_bOBQ) : MAX(fmt_bRBQ, fmt_bABQ));
+            
+            // const double preFrac = MAX(0, (0 == t) ? (fmt.FA + MAX(fmt.FR, fmt_FO)) : (1.0 - MIN(fmt.FA, fmt.FR)));
+            // const double fa1 = MAX(0.0, ((0 == t) ? (fmtFA / (fmtFA + fmtFR)) : ((1.0 - fmtFA - fmtFR) / ()) ));
+            const double fa1 = (double)pre1AD / (double)(pre1AD + pre2AD); // / preFrac;
+            
+            const double fa_l = (pre1AD + 1.0 / altmul) / (pre1AD + pre2AD + 2.0 / altmul);
             //const double da_l = fa_l * fmt.DP;
             const double fr_l = 1.0 - fa_l;
             //const double dr_l = fr_l * fmt.DP;
             
-            const double fa_v = (fa1 * (double)fmt.DP + 1.0 / altmul * DBL_EPSILON) / (double)(fmt.DP + 2.0 / altmul * DBL_EPSILON);
-            const double da_v = fa_v * fmt.DP;
+            const double fa_v = (pre1AD +  DBL_EPSILON) / (pre1AD + pre2AD + 2 * DBL_EPSILON);
+            const double da_v = fa_v * (pre1AD + pre2AD);
             const double fr_v = 1.0 - fa_v;
-            const double dr_v = fr_v * fmt.DP;
+            const double dr_v = fr_v * (pre1AD + pre2AD);
             
             double t2n_conref_frac = 0.0;
             double t2n_conalt_frac = 0.0;
@@ -2880,10 +2899,10 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
             int homalt_likecon1 = -200;
 
             if (prev_is_tumor) {
-                double tkiFA = ((!isSymbolSubstitution(symbol)) ? tki.FA : (
-                             (double)(tki.cAltBQ2) / (         (double)(tki.cAllBQ2) + DBL_MIN)));
-                double tkiFR = ((!isSymbolSubstitution(symbol)) ? tki.FR : (
-                             (double)(tki.cRefBQ2) / (         (double)(tki.cAllBQ2) + DBL_MIN)));
+                double tkiFA = ((!isSymbolSubstitution(symbol) || true) ? tki.FA : (
+                             (double)(tki.cAltBQ) / (         (double)(tki.cAllBQ) + DBL_MIN)));
+                double tkiFR = ((!isSymbolSubstitution(symbol) || true) ? tki.FR : (
+                             (double)(tki.cRefBQ) / (         (double)(tki.cAllBQ) + DBL_MIN)));
                 const double tki_fa1 = MAX(0.0, ((0 == t) ? (tkiFA) : (1.0 - tkiFA - tkiFR)));
                 const double tki_fa_l = (tki_fa1 * (double)tki.DP + 1.0 / altmul) / (double)(tki.DP + 2.0 / altmul);
                 const double tki_fr_l = 1.0 - tki_fa_l;
@@ -2928,11 +2947,16 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
                     -hetALT_likelim1, -hetREF_likeval1,
                     -homalt_likelim1, -homalt_likeval1, -homalt_likecon1
             };
-            
+            int pre1bBQAvg = pre1bBQ / MAX(1, pre1bAD);
+            int pre2bBQAvg = pre2bBQ / MAX(1, pre2bAD);
+            if (0 == pre1bBQAvg || 0 == pre2bBQAvg) {
+                pre1bBQAvg = 0;
+                pre2bBQAvg = 0;
+            }
             // An important note: two models must generate different alleles to perform model selection
-            fmtGL[0] =     MAX(homref_likelim2, homref_likeval2);
-            fmtGL[1] = MIN(MAX(hetREF_likelim1, hetREF_likeval1), MAX(hetALT_likelim1, hetALT_likeval1));
-            fmtGL[2] =     MAX(homalt_likelim2, homalt_likeval2);
+            fmtGL[0] =     MAX(homref_likelim2, homref_likeval2)                                         + pre1bBQAvg;
+            fmtGL[1] = MIN(MAX(hetREF_likelim1, hetREF_likeval1), MAX(hetALT_likelim1, hetALT_likeval1)) + MIN(pre1bBQAvg, pre2bBQAvg);
+            fmtGL[2] =     MAX(homalt_likelim2, homalt_likeval2)                                         + pre2bBQAvg;
             
             std::array<int, 3> likes = {{ fmtGL[0], fmtGL[1], fmtGL[2] }};
             std::sort(likes.rbegin(), likes.rend());
@@ -3371,6 +3395,8 @@ append_vcf_record(std::string & out_string,
         }
         if (indelstring.size() == 0) {
             vcfalt = altsymbolname;
+        } else if ('<' == indelstring[0]) {
+            vcfalt = indelstring;
         } else if (isSymbolIns(symbol)) {
             vcfalt += indelstring;
         } else {
@@ -3516,9 +3542,9 @@ append_vcf_record(std::string & out_string,
         tki.autoBestAltHD = SUM2(fmt.cAltHD);
         tki.autoBestAllHD = SUM2(fmt.cAllHD);
         tki.autoBestRefHD = SUM2(fmt.cRefHD);
-        tki.cAltBQ2 = SUM2(fmt.cAltBQ2);
-        tki.cAllBQ2 = SUM2(fmt.cAllBQ2);
-        tki.cRefBQ2 = SUM2(fmt.cRefBQ2);
+        tki.cAltBQ = SUM2(fmt.cAltBQ);
+        tki.cAllBQ = SUM2(fmt.cAllBQ);
+        tki.cRefBQ = SUM2(fmt.cRefBQ);
         for (size_t i = 0; i < fmt.gapDP4.size(); i++) { tki.gapDP4[i] = fmt.gapDP4[i]; }
         for (size_t i = 0; i < fmt.RCC.size(); i++) { tki.RCC[i] = fmt.RCC[i]; }
         tki.GLa = fmt.GLa;
@@ -3768,8 +3794,8 @@ append_vcf_record(std::string & out_string,
         //double tvn_st_q = 10.0/log(10.0) * log((tAD1/tDP1) / (nAD1/nDP1)) * tAD0;
         
         double t2n_contam_q = MIN(calc_binom_10log10_likeratio(t2n_add_contam_transfrac, 
-                (isSymbolSubstitution(symbol) ? ((SUM2(nfm.cAltBQ2) + DBL_MIN) / (double)(SUM2(nfm.cAllBQ2) + 2.0 * DBL_MIN)) : nfm.FA) * (double)nfm.DP,
-                (isSymbolSubstitution(symbol) ? ((    (tki.cAltBQ2) + DBL_MIN) / (double)(    (tki.cAllBQ2) + 2.0 * DBL_MIN)) : tki.FA) * (double)tki.DP), 200.0);
+                (isSymbolSubstitution(symbol) ? ((SUM2(nfm.cAltBQ) + DBL_MIN) / (double)(SUM2(nfm.cAllBQ) + 2.0 * DBL_MIN)) : nfm.FA) * (double)nfm.DP,
+                (isSymbolSubstitution(symbol) ? ((    (tki.cAltBQ) + DBL_MIN) / (double)(    (tki.cAllBQ) + 2.0 * DBL_MIN)) : tki.FA) * (double)tki.DP), 200.0);
         double t2n_limq = 200.0; 
         if (isInDel && prev_is_tumor) {
             // The following line does not seem to have any impact

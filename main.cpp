@@ -269,9 +269,9 @@ struct TumorKeyInfo {
     int32_t autoBestAllHD = 0;
     int32_t autoBestAltHD = 0;
     int32_t autoBestRefHD = 0;
-    int32_t cAllBQ2 = 0;
-    int32_t cAltBQ2 = 0;
-    int32_t cRefBQ2 = 0;
+    int32_t cAllBQ = 0;
+    int32_t cAltBQ = 0;
+    int32_t cRefBQ = 0;
     int32_t dAD3 = 0;
     std::array<int32_t, 4> gapDP4 = {{0}};
     std::array<int32_t, 6*RCC_NUM> RCC = {{0}};
@@ -279,7 +279,7 @@ struct TumorKeyInfo {
     std::array<int32_t, 3> GLb = {{0}};
     std::array<int32_t, 5> EROR = {{0}};
     std::array<int32_t, 4> gapbNRD = {{0}};
-    std::array<int32_t, 2> bSSRAD = {{0}};
+    std::array<int32_t, 3> bSSRAD = {{0}};
     std::array<int32_t, 4> bSSAD = {{0}};
     // std::array<int32_t, 2> gapbNNRD = {0};
     bcf1_t *bcf1_record = NULL;
@@ -375,6 +375,7 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
     
     while (bcf_sr_next_line(sr)) {
         bcf1_t *line = bcf_sr_get_line(sr, 0);
+        bcf_unpack(line, BCF_UN_ALL);
         ndst_val = 0;
         valsize = bcf_get_format_char(bcf_hdr, line, "VType", &bcfstring, &ndst_val);
         if (valsize <= 0) { continue; }
@@ -479,19 +480,19 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         tki.autoBestRefHD = bcfints[0] + bcfints[1];
         
         ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line,  "cAllBQ2", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cAllBQ2!\n", ndst_val, valsize));
-        tki.cAllBQ2 = bcfints[0] + bcfints[1];
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "cAllBQ", &bcfints, &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cAllBQ!\n", ndst_val, valsize));
+        tki.cAllBQ = bcfints[0] + bcfints[1];
         
         ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line,  "cAltBQ2", &bcfints, &ndst_val);
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "cAltBQ", &bcfints, &ndst_val);
         assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cAltBQ2!\n", ndst_val, valsize));
-        tki.cAltBQ2 = bcfints[0] + bcfints[1];
+        tki.cAltBQ = bcfints[0] + bcfints[1];
         
         ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line,  "cRefBQ2", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cRefBQ2!\n", ndst_val, valsize));
-        tki.cRefBQ2 = bcfints[0] + bcfints[1];
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "cRefBQ", &bcfints, &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cRefBQ!\n", ndst_val, valsize));
+        tki.cRefBQ = bcfints[0] + bcfints[1];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line,  "dAD3", &bcfints, &ndst_val);
@@ -587,7 +588,6 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         tki.FTS += std::string(";tcHap=") + std::string(bcfstring);
         
         tki.pos = line->pos;
-        bcf_unpack(line, BCF_UN_STR);
         tki.ref_alt = als_to_string(line->d.allele, line->d.m_allele);
         if (is_tumor_format_retrieved) {
             tki.bcf1_record = bcf_dup(line);
