@@ -180,7 +180,7 @@ mathsquare(auto x) {
 
 const double
 prob2odds(double p) {
-    assert(0.0 < p && p < 1.0);
+    assert(0.0 < p && p < 1.0 || !fprintf(stderr, "%lf is not between 0 and 1!", p));
     return p /  (1.0 - p);
 }
 
@@ -191,7 +191,7 @@ logit(double p) {
 
 const double
 logit2(double a, double b) {
-    return logit(a/(a+b));
+    return logit((a + DBL_EPSILON)/(a+b + 2.0*DBL_EPSILON));
 }
 
 template <bool TIsBiDirectional = false, bool TSetMaxProbToOne = false>

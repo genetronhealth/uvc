@@ -2508,7 +2508,7 @@ indel_get_majority(const bcfrec::BcfFormat & fmt, const bool prev_is_tumor, cons
             bcfrec::streamAppendBcfFormat(msg, fmt);
             std::cerr << msg << "\n";
             // abort();
-            indelstring = std::string("<UNRESOLVED_INDEL>,") + SYMBOL_TO_DESC_ARR[symbol];
+            indelstring = SYMBOL_TO_DESC_ARR[symbol];
         }
     } else if (fmt.gapNum[0] <= 0 && fmt.gapNum[1] <= 0) {
         if (!is_rescued) {
@@ -2517,7 +2517,7 @@ indel_get_majority(const bcfrec::BcfFormat & fmt, const bool prev_is_tumor, cons
             bcfrec::streamAppendBcfFormat(msg, fmt);
             std::cerr << msg << "\n";
             // assert(false);
-            indelstring = std::string("<UNRESOLVED_INDEL>,") + SYMBOL_TO_DESC_ARR[symbol];
+            indelstring = SYMBOL_TO_DESC_ARR[symbol];
         }
     } else if (fmt.gapNum[0] <= 0 || fmt.gapNum[1] <= 0) {
         indelstring = fmt.gapSeq[0];
@@ -2861,9 +2861,9 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
             //double fmtFR = ((!isSymbolSubstitution(symbol) || true) ? fmt.FR : (
                    // MIN(1.0, (double)SUM2(fmt.cRefBQ) / (fmt.FR * (double)SUM2(fmt.cAllBQ) + DBL_EPSILON)) * 
             //                 (double)SUM2(fmt.cRefBQ) / (         (double)SUM2(fmt.cAllBQ) + DBL_MIN)));
-            auto fmt_AD = (fmt.FA) * fmt.DP;
-            auto fmt_OD = (1.0 - fmt.FA - fmt.FR) * fmt.DP;
-            auto fmt_RD = (fmt.FR) * fmt.DP;
+            auto fmt_AD = MAX(0.0, fmt.FA) * fmt.DP;
+            auto fmt_OD = MAX(0.0, 1.0 - fmt.FA - fmt.FR) * fmt.DP;
+            auto fmt_RD = MAX(0.0, fmt.FR) * fmt.DP;
             auto pre1AD = ((0 == t) ? fmt_AD : fmt_OD);
             auto pre2AD = ((0 == t) ? MAX(fmt_RD, fmt_OD) : MAX(fmt_RD, fmt_AD));
             
@@ -2887,6 +2887,8 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
             //const double da_l = fa_l * fmt.DP;
             const double fr_l = 1.0 - fa_l;
             //const double dr_l = fr_l * fmt.DP;
+            assert (fa_l > 0 && fa_l < 1 || !fprintf(stderr, "The fraction %lf is not a valid fa_l\n", fa_l));
+            assert (fr_l > 0 && fr_l < 1 || !fprintf(stderr, "The fraction %lf is not a valid fr_l\n", fr_l));
             
             const double fa_v = (pre1AD +  DBL_EPSILON) / (pre1AD + pre2AD + 2 * DBL_EPSILON);
             const double da_v = fa_v * (pre1AD + pre2AD);
