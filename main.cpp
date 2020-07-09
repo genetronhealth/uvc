@@ -376,6 +376,15 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
     while (bcf_sr_next_line(sr)) {
         bcf1_t *line = bcf_sr_get_line(sr, 0);
         bcf_unpack(line, BCF_UN_ALL);
+        
+        // skip over all symbolic alleles
+        bool should_continue = false;
+        for (unsigned int i = 1; i < line->d.m_allele; i++) {
+            if ('<' == line->d.allele[i][0]) {
+                should_continue = true;
+            }
+        }
+        if (should_continue) { continue; }
         ndst_val = 0;
         valsize = bcf_get_format_char(bcf_hdr, line, "VType", &bcfstring, &ndst_val);
         if (valsize <= 0) { continue; }
