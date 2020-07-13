@@ -110,6 +110,9 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("GT"       , 1, BCF_STRING,  "Genotype (this is a guess for the GT of tumor cells if --somaticGT was set to true)"),
     BcfFormatStruct("GQ"       , 1, BCF_INTEGER, "Genotype Quality"),
     BcfFormatStruct("HQ"       , 2, BCF_INTEGER, "Haplotype Quality"),
+    BcfFormatStruct("ALODQ"    , 1, BCF_INTEGER, "Artifact log-likelihood of data quality in PHRED-scale."),
+    BcfFormatStruct("BLODQ"    , 1, BCF_INTEGER, "Bias-of-allele log-likelihood of data quality in PHRED-scale."),
+    
     BcfFormatStruct("DP"       , 1, BCF_INTEGER, "Fragment depth supporting any allele [consensus family, deduped]"),
     BcfFormatStruct("FA"       , 1, BCF_FLOAT,   "Frequency of the ALT allele [consensus family, deduped]"),
     BcfFormatStruct("FR"       , 1, BCF_FLOAT,   "Frequency of the REF allele [consensus family, deduped]"),

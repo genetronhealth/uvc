@@ -983,6 +983,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                 }
             }
             if (rpos_exclu_end != refpos && bDPcDP[0] >= paramset.min_depth_thres) {
+                bool is_probably_germline = false;
                 for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; symbol = AlignmentSymbol(1+(unsigned int)symbol)) {
                     auto & fmt = fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]];
                     const bool pass_thres = ((fmt.bAD1[0] + fmt.bAD1[1]) >= paramset.min_altdp_thres);
@@ -992,6 +993,9 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                     TumorKeyInfo tki;
                     if (is_rescued) {
                         tki = tid_pos_symb_to_tki.find(std::make_tuple(tid, refpos, symbol))->second; 
+                    }
+                    if (pass_thres && symbol != refsymbol) {
+                        is_probably_germline = true;
                     }
                     if (is_rescued || pass_thres) {
                         auto nonref_symbol_12 = (most_confident_nonref_symbol != symbol ? most_confident_nonref_symbol : most_confident_nonref_symbol_2);
@@ -1055,6 +1059,37 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                                 paramset.phred_snv_to_indel_ratio,
                                 0);
                     }
+                }
+                
+                if (is_probably_germline) {
+                    std::vector<std::pair<AlignmentSymbol, bcfrec::BcfFormat*>> symbol_format_vec;
+                    for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; 
+                            symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; 
+                            symbol = AlignmentSymbol(1+(unsigned int)symbol)) {
+                        auto & fmt = fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]];
+                        if (refsymbol == symbol) {
+                            auto central_readlen = MAX(paramset.central_readlen, 30U); 
+                            auto RefBias = MIN(fmt.RefBias, central_readlen - 30U);
+                            double biasfrac = MAX(paramset.any_mul_contam_frac, (double)(central_readlen - RefBias) / (double)central_readlen);
+                            fmt.BLODQ = MAX(1, (int)MIN(
+                                    calc_binom_10log10_likeratio(biasfrac, fmt.FA * fmt.DP, fmt.DP),
+                                    mathsquare(fmt.FA / paramset.any_mul_contam_frac) * paramset.syserr_norm_devqual));
+                        } else {
+                            fmt.BLODQ = 99999;
+                        }
+                        symbol_format_vec.push_back(std::make_pair(symbol, &fmt));
+                    }
+                    TumorKeyInfo tki;
+                    output_germline(
+                            buf_out_string_pass,
+                            refsymbol,
+                            symbol_format_vec,
+                            std::get<0>(tname_tseqlen_tuple).c_str(), // tname,
+                            refstring,
+                            refpos,
+                            extended_inclu_beg_pos, // regionpos,
+                            paramset.central_readlen,
+                            tki, 0);
                 }
             }
         }    

@@ -2494,7 +2494,7 @@ mutform2count4map_to_phase(const auto & mutform2count4vec, const auto & indices,
 
 const std::string 
 indel_get_majority(const bcfrec::BcfFormat & fmt, const bool prev_is_tumor, const auto & tki, 
-        bool is_rescued, const char *tname, unsigned int refpos, const AlignmentSymbol symbol) {
+        bool is_rescued, const char *tname, unsigned int refpos, const AlignmentSymbol symbol, bool is_warning_generated = true) {
     std::string indelstring = "";
     if (prev_is_tumor && tki.ref_alt.size() > 3) {
         size_t midtry = tki.ref_alt.size() - 2;
@@ -2503,20 +2503,24 @@ indel_get_majority(const bcfrec::BcfFormat & fmt, const bool prev_is_tumor, cons
         } else if ('\t' == tki.ref_alt[midtry] && tki.ref_alt[0] == tki.ref_alt[midtry+1]) {
             indelstring = tki.ref_alt.substr(1, tki.ref_alt.size() - 3);
         } else {
-            fprintf(stderr, "ThisIsAVerySevereWarning: the ref_alt %s is not valid!\n", tki.ref_alt.c_str());
-            std::string msg;
-            bcfrec::streamAppendBcfFormat(msg, fmt);
-            std::cerr << msg << "\n";
-            // abort();
+            if (is_warning_generated) {
+                fprintf(stderr, "ThisIsAVerySevereWarning: the ref_alt %s is not valid!\n", tki.ref_alt.c_str());
+                std::string msg;
+                bcfrec::streamAppendBcfFormat(msg, fmt);
+                std::cerr << msg << "\n";
+                // abort();
+            }
             indelstring = SYMBOL_TO_DESC_ARR[symbol];
         }
     } else if (fmt.gapNum[0] <= 0 && fmt.gapNum[1] <= 0) {
         if (!is_rescued) {
-            std::cerr << "Invalid indel detected (invalid mutation) : " << tname << ", " << refpos << ", " << SYMBOL_TO_DESC_ARR[symbol] << std::endl;
-            std::string msg;
-            bcfrec::streamAppendBcfFormat(msg, fmt);
-            std::cerr << msg << "\n";
-            // assert(false);
+            if (is_warning_generated) {
+                std::cerr << "Invalid indel detected (invalid mutation) : " << tname << ", " << refpos << ", " << SYMBOL_TO_DESC_ARR[symbol] << std::endl;
+                std::string msg;
+                bcfrec::streamAppendBcfFormat(msg, fmt);
+                std::cerr << msg << "\n";
+                // assert(false);
+            }
             indelstring = SYMBOL_TO_DESC_ARR[symbol];
         }
     } else if (fmt.gapNum[0] <= 0 || fmt.gapNum[1] <= 0) {
@@ -2748,7 +2752,7 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
     for (unsigned int region = 0; region < symbol2CountCoverageSet12.bq_regs_count.size(); region++) {
         fmt.bSSRAD[region] = symbol2CountCoverageSet12.bq_regs_count.at(region).getByPos(refpos).getSymbolCount(symbol);
     }
-
+    
     fmt.bHap = mutform2count4map_to_phase(mutform2count4vec_bq, indices_bq);
     fmt.cHap = mutform2count4map_to_phase(mutform2count4vec_fq, indices_fq);
     
@@ -2779,7 +2783,7 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
         fmt.FA = ((double)fmt.bADR[1]) / ((double)fmt.bDP + DBL_EPSILON);
         fmt.FR = ((double)fmt.bADR[0]) / ((double)fmt.bDP + DBL_EPSILON);
     }
-     
+    
     fmt.DPHQ = fmt.bDP - (fmt.bDPLQ[0] + fmt.bDPLQ[1]);
     fmt.ADHQ = fmt.bADR[1] - (fmt.bADLQ[0] + fmt.bADLQ[1]);
     assert(fmt.DPHQ >= 0);
@@ -3115,6 +3119,7 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
     double dimret_coef = phred_umi_dimret_mult * duprate + (1.0 - duprate);
     fmt.VAQ = dimret_coef * MIN3(vaqMQcap, vaqBQcap, MAX(lowestVAQ, doubleVAQ + duplexVAQ)); // / 1.5;
     fmt.VAQ2= dimret_coef * MIN3(vaqMQcap, vaqBQcap, MAX(lowestVAQ, doubleVAQ_norm + duplexVAQ)); // treat other forms of indels as background noise if matched normal is not available.
+    
     return (int)(fmt.bAD1[0] + fmt.bAD1[1]);
 };
 
@@ -3160,7 +3165,8 @@ generate_vcf_header(const char *ref_fasta_fname,
         ret += std::string("") + bcfrec::FILTER_LINES[i] + "\n";
     }
     
-    ret += "##INFO=<ID=ANY_VAR,Number=0,Type=Flag,Description=\"Any type of variant which may be caused by germline polymorphism and/or experimental artifact\">\n";
+    ret += "##INFO=<ID=ANY_VAR,Number=0,Type=Flag,Description=\"Any type of variant which may be caused by germline polymorphism and/or somatic mutation\">\n";
+    ret += "##INFO=<ID=GERMLINE,Number=0,Type=Flag,Description=\"germline variant\">\n";
     ret += "##INFO=<ID=SOMATIC,Number=0,Type=Flag,Description=\"Somatic variant\">\n";
 #if (1 < N_MODELS)
     for (int i = 0; i < N_MODELS; i++) {
@@ -3307,6 +3313,200 @@ penal_indel_2(double AD0a, int dst_str_units, const auto & RCC, const unsigned i
     return ((double)phred_triallelic_indel) / log(2.0) * log((AD0a + DBL_MIN + max_noise) / (AD0a + DBL_MIN));
 }
 
+// higher allele1count (lower allele2count) results in higher LODQ if FA is above frac, meaning allele1 is more likely to be homo, and vice versa
+unsigned int hetLODQ(unsigned int allele1count, unsigned int allele2count, double frac, double powlaw_exponent = 3.0) {
+    auto binomLODQ = (int)calc_binom_10log10_likeratio(frac, allele1count, allele2count);
+    auto powerLODQ = (int)(10.0/log(10.00) * powlaw_exponent * MAX(logit2(allele1count / (frac * 2.0) + 0.5, allele2count / ((1.0 - frac) * 2.0) + 0.5), 0.0));
+    return MIN(binomLODQ, powerLODQ);
+}
+
+struct {
+    template<class T1, class T2>
+    bool operator()(std::pair<T1, T2> a, std::pair<T1, T2> b) const {   
+        return a.second < b.second;
+    }
+} PairSecondLess;
+
+void
+output_germline(
+        std::string & out_string,
+        AlignmentSymbol refsymbol, 
+        std::vector<std::pair<AlignmentSymbol, bcfrec::BcfFormat*>> symbol_format_vec,
+        const char *tname,
+        const std::string & refstring,
+        unsigned int refpos,
+        unsigned int extended_inclu_beg_pos, // regionpos,
+        unsigned int central_readlen,
+        const auto & tki, unsigned int specialflag) {
+    
+    assert(symbol_format_vec.size() >= 4 || 
+            !fprintf(stderr, " The variant-type %s:%u %u has symbol_format_vec of length %u", 
+            tname, refpos, refsymbol, symbol_format_vec.size()));
+    unsigned int regionpos = refpos- extended_inclu_beg_pos;
+    struct {
+        bool operator()(std::pair<AlignmentSymbol, bcfrec::BcfFormat*> p1, std::pair<AlignmentSymbol, bcfrec::BcfFormat*> p2) const {
+            return p1.second->ALODQ < p2.second->ALODQ;
+        }
+    } SymbolBcfFormatPairLess;
+    std::sort(symbol_format_vec.rbegin(), symbol_format_vec.rend(), SymbolBcfFormatPairLess);
+    std::array<std::pair<AlignmentSymbol, bcfrec::BcfFormat*>, 4> ref_alt1_alt2_alt3 = {{std::make_pair(AlignmentSymbol(0), (bcfrec::BcfFormat*)NULL)}};
+    unsigned int allele_idx = 1;
+    for (auto symb_fmt : symbol_format_vec) {
+        if (refsymbol == symb_fmt.first) {
+            ref_alt1_alt2_alt3[0] = symb_fmt;
+        } else if (allele_idx <= 3) {
+            ref_alt1_alt2_alt3[allele_idx] = symb_fmt;
+            allele_idx++;
+        }
+    }
+    assert(ref_alt1_alt2_alt3[0].second != NULL);
+    assert(ref_alt1_alt2_alt3[3].second != NULL);
+    
+    int a0LODQA = ref_alt1_alt2_alt3[0].second->ALODQ;
+    int a0LODQB = ref_alt1_alt2_alt3[0].second->BLODQ;
+    int a0LODQ = MIN(a0LODQA, a0LODQB) + 1;
+    int a1LODQ = (ref_alt1_alt2_alt3[1].second->ALODQ);
+    int a2LODQ = (ref_alt1_alt2_alt3[2].second->ALODQ);
+    int a3LODQ = (ref_alt1_alt2_alt3[3].second->ALODQ);
+    
+    unsigned int readlen = MAX(30U, central_readlen);
+    const double alt1frac = (double)(readlen - MIN(readlen - 30, ref_alt1_alt2_alt3[1].second->RefBias)) / (double)readlen / 2.0;
+    const double alt2frac = (double)(readlen - MIN(readlen - 30, ref_alt1_alt2_alt3[2].second->RefBias)) / (double)readlen / 2.0;
+    
+    int a0a1LODQ = -3 + hetLODQ(SUM2(ref_alt1_alt2_alt3[0].second->cADTT), SUM2(ref_alt1_alt2_alt3[1].second->cADTT), 1.0 - alt1frac);
+    int a1a0LODQ = -3 + hetLODQ(SUM2(ref_alt1_alt2_alt3[1].second->cADTT), SUM2(ref_alt1_alt2_alt3[0].second->cADTT), alt1frac);
+    int a1a2LODQ = -3 + hetLODQ(SUM2(ref_alt1_alt2_alt3[1].second->cADTT), SUM2(ref_alt1_alt2_alt3[2].second->cADTT), alt1frac / (alt1frac + alt2frac));
+    
+    std::array<std::string, 4> GTidx2GT {{
+        "0/0",
+        "0/1",
+        "1/1",
+        "1/2"
+    }};
+    std::array<std::pair<int, int>, 4> GL4 = {{
+        std::make_pair(0,  30 + MIN(a0LODQ - a1LODQ, (0 + a0a1LODQ))),
+        std::make_pair(1,   0 + MIN(a0LODQ, a1LODQ) - a2LODQ),
+        std::make_pair(2,  -2 + MIN(a1LODQ - MAX(a0LODQ, a2LODQ), MIN((0 + a1a0LODQ), (25 + a1a2LODQ)))),
+        std::make_pair(3, -25 + MIN(a1LODQ, a2LODQ) - MAX(a0LODQ, a3LODQ))
+    }};
+    // 0LODQA, a0LODQB, a1LODQ, a2LODQ, a3LODQ,
+    // a0a1LODQ, a0a2LODQ, a1a2LODQ, 0, 0
+    
+    std::sort(GL4.rbegin(), GL4.rend(), PairSecondLess);
+    
+    size_t GLidx = GL4[0].first;
+    std::string germ_GT = GTidx2GT[GLidx];
+    int germ_GQ = GL4[0].second - GL4[1].second;
+    
+    std::array<std::string, 3> ref_alt1_alt2_vcfstr_arr = {{
+        SYMBOL_TO_DESC_ARR[ref_alt1_alt2_alt3[0].first],
+        SYMBOL_TO_DESC_ARR[ref_alt1_alt2_alt3[1].first],
+        SYMBOL_TO_DESC_ARR[ref_alt1_alt2_alt3[2].first]
+    }};
+    
+    std::string vcfref = "";
+    std::string vcfalt = "";
+    if (isSymbolSubstitution(refsymbol)) {
+        assert(refstring.substr(regionpos, 1) == ref_alt1_alt2_vcfstr_arr[0]);
+        vcfref = std::string(ref_alt1_alt2_vcfstr_arr[0]);
+        vcfalt = std::string(ref_alt1_alt2_vcfstr_arr[1]);
+        if (3 == GLidx) {
+            vcfalt += std::string(",") + std::string(ref_alt1_alt2_vcfstr_arr[2]);
+        }
+    } else {
+        ref_alt1_alt2_vcfstr_arr[0] = (regionpos > 0 ? refstring.substr(regionpos-1, 1) : "n");
+        AlignmentSymbol s1 = ref_alt1_alt2_alt3[1].first;
+        std::string indelstring1 = indel_get_majority(*(ref_alt1_alt2_alt3[1].second), false, tki,
+            false, tname, refpos, s1, false);
+        // if (indelstring1.size() == 0 || indelstring1[0] == '<') { vcfalt = SYMBOL_TO_DESC_ARR[s1]; }
+        if (3 != GLidx) {
+            vcfref = (regionpos > 0 ? refstring.substr(regionpos-1, 1) : "n");
+            if (indelstring1.size() == 0 || indelstring1[0] == '<') { 
+                vcfalt = SYMBOL_TO_DESC_ARR[s1]; 
+            } else {
+                vcfalt = vcfref;
+                if (isSymbolIns(s1)) {
+                    vcfalt += indelstring1;
+                } else if (isSymbolDel(s1)) {
+                    vcfref += indelstring1;
+                } else {
+                    vcfalt = SYMBOL_TO_DESC_ARR[s1];
+                }
+            }
+        } else {
+            AlignmentSymbol s2 = ref_alt1_alt2_alt3[2].first;
+            std::string indelstring2 = indel_get_majority(*(ref_alt1_alt2_alt3[2].second), false, tki,
+                false, tname, refpos, ref_alt1_alt2_alt3[2].first, false);
+            
+            auto vcfref1 = (regionpos > 0 ? refstring.substr(regionpos-1, 1) : "n");
+            auto vcfalt1 = vcfref1;
+            vcfref = vcfref1;
+            vcfalt = vcfalt1;
+            if (indelstring1.size() == 0 || indelstring1[0] == '<' || indelstring2.size() == 0 || indelstring2[0] == '<') {
+                vcfalt = std::string(SYMBOL_TO_DESC_ARR[s1]) + "," + SYMBOL_TO_DESC_ARR[s2]; 
+            } else {
+                if (isSymbolIns(s1) && isSymbolIns(s2)) {
+                    vcfalt = vcfref1 + indelstring1 + "," + vcfref1 + indelstring2;
+                } else if (isSymbolDel(s1) && isSymbolDel(s2)) {
+                    assert(indelstring1.size() != indelstring2.size());
+                    auto minsize = MIN(indelstring1.size(), indelstring2.size());
+                    assert(indelstring1.substr(0, minsize) == indelstring2.substr(0, minsize));
+                    if (indelstring1.size() > indelstring2.size()) {
+                        vcfref = vcfref1 + indelstring1;
+                        vcfalt = vcfalt1 + "," + indelstring1.substr(indelstring2.size());
+                    } else {
+                        vcfref = vcfref1 + indelstring2;
+                        vcfalt = indelstring2.substr(indelstring1.size()) + "," + vcfalt1;
+                    }
+                    // vcfref = vcfref1 + indelstring1 + "," + vcfref1 + indelstring2;
+                } else if (isSymbolIns(s1) && isSymbolDel(s2)) {
+                    vcfalt = vcfref1 + indelstring1 + indelstring2 + "," + vcfref1;
+                    vcfref = vcfref1 + indelstring2;
+                } else if (isSymbolDel(s1) && isSymbolIns(s2)) {
+                    vcfalt = vcfref1 + "," + vcfref1 + indelstring2 + indelstring1;
+                    vcfref = vcfref1 + indelstring1;
+                } else {
+                    vcfalt = std::string(SYMBOL_TO_DESC_ARR[s1]) + "," + SYMBOL_TO_DESC_ARR[s2];  
+                }
+            }
+        }
+    }
+    auto vcfpos = refpos + (isSymbolSubstitution(refsymbol) ? 1 : 0);
+    
+    std::vector<int> germ_ADR;
+    germ_ADR.push_back(ref_alt1_alt2_alt3[0].second->cADR[1]);
+    germ_ADR.push_back(ref_alt1_alt2_alt3[1].second->cADR[1]);
+    if (3 == GLidx) {
+        germ_ADR.push_back(ref_alt1_alt2_alt3[2].second->cADR[1]);
+    }
+    std::string bcfline = string_join(std::array<std::string, 10>
+    {{
+        std::string(tname), 
+        std::to_string(vcfpos), 
+        std::string("."), 
+        vcfref, 
+        vcfalt, 
+        std::to_string(germ_GQ), 
+        std::string("PASS"), 
+        std::string("GERMLINE"),
+        std::string("GT:GQ:HQ:DP:cADR:GSTa"),
+        string_join(std::array<std::string, 6>
+        {{
+            germ_GT, 
+            std::to_string(germ_GQ), 
+            std::string(".,."), 
+            std::to_string(symbol_format_vec[0].second->DP),
+            other_join(germ_ADR, std::string(",")), 
+            other_join(std::array<int, 10>
+            {{ 
+                a0LODQA, a0LODQB, a1LODQ, a2LODQ, a3LODQ,
+                a0a1LODQ, a1a0LODQ, a1a2LODQ, 0, 0
+            }}, ",")
+        }}, ":")
+    }}, "\t") + "\n";
+    out_string += bcfline;
+}
+
 int
 append_vcf_record(std::string & out_string, 
         std::string & out_string_pass, 
@@ -3423,7 +3623,7 @@ append_vcf_record(std::string & out_string,
     
     bool is_novar = (symbol == LINK_M || (isSymbolSubstitution(symbol) && vcfref == vcfalt));
     if (is_novar && (!should_let_all_pass) && (!should_output_all)) {
-        return -1;
+        //return -1;
     }
     std::string vcffilter;
     if (is_novar) {
@@ -3839,9 +4039,13 @@ append_vcf_record(std::string & out_string,
         double t2n_syserr_q = (use_penalt ? MAX(0.0, t2n_syserr_q0) : 0.0);
         
         double t_base_q = MIN(tn_trawq, tn_tpowq + (double)indel_ic);
+        fmtvar.ALODQ = MAX(1, t_base_q);
+        if (is_novar && (!should_let_all_pass) && (!should_output_all)) {
+            return -1;
+        }
         // double t2n_infodist = calc_binom_10log10_likeratio(tAD0 / (tDP0 + DBL_EPSILON), nAD0, (nDP0 + DBL_EPSILON));
         double tlodq = t_base_q + t2n_reward_q - MIN(t2n_contam_q, t2n_syserr_q);
-        
+                
         //double n2t_red_qual = MIN(tn_npowq, tn_nrawq + (double)indel_ic) * MIN(1.0, n2t_or1) * MIN(1.0, n2t_or1); // / (t2n_or1 * t2n_or1);
         //double n2t_orr_qual = MIN(tn_npowq, tn_nrawq + (double)indel_ic) * MIN(1.0, n2t_or1);
         //double n2t_or2_qual = MIN(tn_npowq, tn_nrawq + (double)indel_ic) * MIN(1.0, n2t_or1/2.0);

@@ -194,6 +194,7 @@ logit2(double a, double b) {
     return logit((a + DBL_EPSILON)/(a+b + 2.0*DBL_EPSILON));
 }
 
+// always at least zero
 template <bool TIsBiDirectional = false, bool TSetMaxProbToOne = false>
 constexpr double
 calc_binom_10log10_likeratio(double prob, double a, double b) {
