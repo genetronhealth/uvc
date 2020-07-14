@@ -1070,7 +1070,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                         if (refsymbol == symbol) {
                             auto central_readlen = MAX(paramset.central_readlen, 30U); 
                             auto RefBias = MIN(fmt.RefBias, central_readlen - 30U);
-                            double biasfrac = MAX3(0.06, paramset.any_mul_contam_frac, (double)(RefBias) / (double)central_readlen);
+                            double biasfrac = MAX3(0.05, paramset.any_mul_contam_frac, (double)(RefBias) / (double)central_readlen);
                             fmt.BLODQ = MAX(1, (int)MIN(
                                     calc_binom_10log10_likeratio(biasfrac, fmt.FR * fmt.DP, fmt.DP),
                                     mathsquare(fmt.FR / biasfrac) * paramset.syserr_norm_devqual));
