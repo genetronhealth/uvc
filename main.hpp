@@ -3314,7 +3314,7 @@ penal_indel_2(double AD0a, int dst_str_units, const auto & RCC, const unsigned i
 }
 
 // higher allele1count (lower allele2count) results in higher LODQ if FA is above frac, meaning allele1 is more likely to be homo, and vice versa
-unsigned int hetLODQ(unsigned int allele1count, unsigned int allele2count, double frac, double powlaw_exponent = 3.0) {
+unsigned int hetLODQ(double allele1count, double allele2count, double frac, double powlaw_exponent = 3.0) {
     auto binomLODQ = (int)calc_binom_10log10_likeratio(frac, allele1count, allele2count);
     auto powerLODQ = (int)(10.0/log(10.00) * powlaw_exponent * MAX(logit2(allele1count / (frac * 2.0) + 0.5, allele2count / ((1.0 - frac) * 2.0) + 0.5), 0.0));
     return MIN(binomLODQ, powerLODQ);
@@ -3372,23 +3372,45 @@ output_germline(
     unsigned int readlen = MAX(30U, central_readlen);
     const double alt1frac = (double)(readlen - MIN(readlen - 30, ref_alt1_alt2_alt3[1].second->RefBias)) / (double)readlen / 2.0;
     const double alt2frac = (double)(readlen - MIN(readlen - 30, ref_alt1_alt2_alt3[2].second->RefBias)) / (double)readlen / 2.0;
-    
-    int a0a1LODQ = -3 + hetLODQ(SUM2(ref_alt1_alt2_alt3[0].second->cADTT), SUM2(ref_alt1_alt2_alt3[1].second->cADTT), 1.0 - alt1frac);
-    int a1a0LODQ = -3 + hetLODQ(SUM2(ref_alt1_alt2_alt3[1].second->cADTT), SUM2(ref_alt1_alt2_alt3[0].second->cADTT), alt1frac);
-    int a1a2LODQ = -3 + hetLODQ(SUM2(ref_alt1_alt2_alt3[1].second->cADTT), SUM2(ref_alt1_alt2_alt3[2].second->cADTT), alt1frac / (alt1frac + alt2frac));
-    
+   
+    auto fmtptr0 = ref_alt1_alt2_alt3[0].second;
+    auto fmtptr1 = ref_alt1_alt2_alt3[1].second;
+    auto fmtptr2 = ref_alt1_alt2_alt3[2].second;
+    bool isSubst = isSymbolSubstitution(refsymbol);
+    double ad0 = (isSubst ? MIN(SUM2(fmtptr0->bAltBQ) / (double)SUM2(fmtptr0->bAllBQ) * SUM2(fmtptr0->cDPTT), SUM2(fmtptr0->cADTT)) : (double)SUM2(fmtptr0->cADTT));
+    double ad1 = (isSubst ? MIN(SUM2(fmtptr1->bAltBQ) / (double)SUM2(fmtptr1->bAllBQ) * SUM2(fmtptr1->cDPTT), SUM2(fmtptr1->cADTT)) : (double)SUM2(fmtptr1->cADTT));
+    double ad2 = (isSubst ? MIN(SUM2(fmtptr2->bAltBQ) / (double)SUM2(fmtptr2->bAllBQ) * SUM2(fmtptr2->cDPTT), SUM2(fmtptr2->cADTT)) : (double)SUM2(fmtptr2->cADTT));
+    int a0a1LODQ = hetLODQ(ad0, ad1, 1.0 - alt1frac);
+    int a1a0LODQ = hetLODQ(ad1, ad0, alt1frac);
+    int a1a2LODQ = hetLODQ(ad1, ad2, alt1frac / (alt1frac + alt2frac));
+    int a2a1LODQ = hetLODQ(ad2, ad1, alt2frac / (alt1frac + alt2frac));
+
     std::array<std::string, 4> GTidx2GT {{
         "0/0",
         "0/1",
         "1/1",
         "1/2"
     }};
+    
+    int phred_hetero = (isSubst ? 31 : 40);
+    int phred_homalt = (isSubst ? 33 : 42);
+    int phred_tri_al = (isSubst ? 55 : 45);
+    
+    std::array<std::pair<int, int>, 4> GL4raw = {{
+        std::make_pair(0,              0 - a1LODQ              - MAX(a2LODQ - phred_hetero, 0)),
+        std::make_pair(1,  -phred_hetero - a2LODQ              - MAX(a0a1LODQ, a1a0LODQ)),
+        std::make_pair(2,  -phred_homalt - MAX(a0LODQ, a2LODQ)),
+        std::make_pair(3,  -phred_tri_al - MAX(a0LODQ, a3LODQ) - MAX(a1a2LODQ, a2a1LODQ))
+    }};
+    auto GL4 = GL4raw;
+    /*
     std::array<std::pair<int, int>, 4> GL4 = {{
         std::make_pair(0,  30 + MIN(a0LODQ - a1LODQ, (0 + a0a1LODQ))),
         std::make_pair(1,   0 + MIN(a0LODQ, a1LODQ) - a2LODQ),
         std::make_pair(2,  -2 + MIN(a1LODQ - MAX(a0LODQ, a2LODQ), MIN((0 + a1a0LODQ), (25 + a1a2LODQ)))),
         std::make_pair(3, -25 + MIN(a1LODQ, a2LODQ) - MAX(a0LODQ, a3LODQ))
     }};
+    */
     // 0LODQA, a0LODQB, a1LODQ, a2LODQ, a3LODQ,
     // a0a1LODQ, a0a2LODQ, a1a2LODQ, 0, 0
     
@@ -3489,8 +3511,8 @@ output_germline(
         std::to_string(germ_GQ), 
         std::string("PASS"), 
         std::string("GERMLINE"),
-        std::string("GT:GQ:HQ:DP:cADR:GSTa"),
-        string_join(std::array<std::string, 6>
+        std::string("GT:GQ:HQ:DP:cADR:GSTa:GLa"),
+        string_join(std::array<std::string, 7>
         {{
             germ_GT, 
             std::to_string(germ_GQ), 
@@ -3500,8 +3522,12 @@ output_germline(
             other_join(std::array<int, 10>
             {{ 
                 a0LODQA, a0LODQB, a1LODQ, a2LODQ, a3LODQ,
-                a0a1LODQ, a1a0LODQ, a1a2LODQ, 0, 0
-            }}, ",")
+                a0a1LODQ, a1a0LODQ, a1a2LODQ, a2a1LODQ, GL4raw[3].second
+            }}, ","),
+            other_join(std::array<int, 3>
+            {{ 
+                GL4raw[0].second, GL4raw[1].second, GL4raw[2].second 
+            }}, ","),
         }}, ":")
     }}, "\t") + "\n";
     out_string += bcfline;
@@ -3547,7 +3573,7 @@ append_vcf_record(std::string & out_string,
         const bool is_somatic_snv_filtered_by_any_nonref_germline_snv,
         const bool is_somatic_indel_filtered_by_any_nonref_germline_indel,
         const double illumina_BQ_pow2_div_coef,
-        const double varqual_per_mapqual,
+        const double phred_varcall_err_per_map_err_per_base,
         const double powlaw_exponent,
         const double powlaw_anyvar_base,
         const double syserr_maxqual,
@@ -3759,7 +3785,8 @@ append_vcf_record(std::string & out_string,
         vcfpos = (tki.ref_alt != "." ? (tki.pos + 1) : vcfpos);
         ref_alt = (tki.ref_alt != "." ? tki.ref_alt : vcfref + "\t" + vcfalt);
     }
-    assert(tki.autoBestAllBQ >= tki.autoBestRefBQ + tki.autoBestAltBQ);
+    assert(tki.autoBestAllBQ >= tki.autoBestRefBQ + tki.autoBestAltBQ || is_novar || !fprintf(stderr, "%u >= %u + %u failed for %s:%u %s!\n", 
+        tki.autoBestAllBQ, tki.autoBestRefBQ, tki.autoBestAltBQ, tname, refpos, SYMBOL_TO_DESC_ARR[symbol]));
     double vcfqual = -(double)FLT_MAX;
     bool keep_var = false;
     {
@@ -3880,7 +3907,7 @@ append_vcf_record(std::string & out_string,
         
         double t_indel_penal = 0.0;
         const double pcap_tbq = ((isInDel || is_proton) ? 200.0 : (mathsquare(tki.BQ) / illumina_BQ_pow2_div_coef)); // based on heuristics
-        const double pcap_tmq = MIN((double)maxMQ, tki.MQ) * varqual_per_mapqual; // bases on heuristics
+        const double pcap_tmq = MIN((double)maxMQ, tki.MQ) + phred_varcall_err_per_map_err_per_base; // bases on heuristics
         const double pcap_tmq2 = MAX(0.0, tki.MQ - 10.0/log(10.0) * log((double)(tDP0 + tDP0pc0) / (double)(tAD0+tAD0pc0))) * (double)tAD0; // readjustment by MQ
         const double tn_t_altmul = (tUseHD1 ? 1.0 : altmul);
         const double tn_t_refmul = (tUseHD1 ? 1.0 : refmul);
@@ -3922,7 +3949,7 @@ append_vcf_record(std::string & out_string,
         // QUESTION: why BQ-bias generations are discrete? Because of the noise with each observation of BQ? why indel generations are discrete?
         
         const double pcap_nbq = ((isInDel || is_proton) ? 200.0 : mathsquare(nfm.BQ) / illumina_BQ_pow2_div_coef); // based on heuristics
-        const double pcap_nmq = MIN(maxMQ, nfm.MQ) * varqual_per_mapqual; // based on heuristics
+        const double pcap_nmq = MIN(maxMQ, nfm.MQ) * phred_varcall_err_per_map_err_per_base; // based on heuristics
         const double pcap_nmq2 = (nfm.MQ - 10.0/log(10.0) * log((double)(nDP0 + nDP0pc0) / (double)(nAD0+nAD0pc0))) * (double)nAD0; // readjsutment by MQ
         const double tn_n_altmul = (nUseHD1 ? 1.0 : altmul);
         const double tn_n_refmul = (nUseHD1 ? 1.0 : refmul);

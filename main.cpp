@@ -1043,7 +1043,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                                 paramset.is_somatic_snv_filtered_by_any_nonref_germline_snv,
                                 paramset.is_somatic_indel_filtered_by_any_nonref_germline_indel,
                                 paramset.illumina_BQ_pow2_div_coef,
-                                paramset.varqual_per_mapqual,
+                                paramset.phred_varcall_err_per_map_err_per_base,
                                 paramset.powlaw_exponent,
                                 paramset.powlaw_anyvar_base,
                                 paramset.syserr_maxqual,
@@ -1070,10 +1070,10 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                         if (refsymbol == symbol) {
                             auto central_readlen = MAX(paramset.central_readlen, 30U); 
                             auto RefBias = MIN(fmt.RefBias, central_readlen - 30U);
-                            double biasfrac = MAX(paramset.any_mul_contam_frac, (double)(central_readlen - RefBias) / (double)central_readlen);
+                            double biasfrac = MAX3(0.06, paramset.any_mul_contam_frac, (double)(RefBias) / (double)central_readlen);
                             fmt.BLODQ = MAX(1, (int)MIN(
-                                    calc_binom_10log10_likeratio(biasfrac, fmt.FA * fmt.DP, fmt.DP),
-                                    mathsquare(fmt.FA / paramset.any_mul_contam_frac) * paramset.syserr_norm_devqual));
+                                    calc_binom_10log10_likeratio(biasfrac, fmt.FR * fmt.DP, fmt.DP),
+                                    mathsquare(fmt.FR / biasfrac) * paramset.syserr_norm_devqual));
                         } else {
                             fmt.BLODQ = 99999;
                         }

@@ -451,9 +451,9 @@ ADD_OPTDEF(app,
            illumina_BQ_pow2_div_coef,
         "The square of Illumina root-mean-square base quality divided by this number is the maximum possible TLOD part of variant quality. "); 
     ADD_OPTDEF(app, 
-        "--varqual-per-mapqual", 
-           varqual_per_mapqual,
-        "The root-mean square mapping quality multiplied by this number is the maximum possible TLOD part of variant quality. "); 
+        "--phred-varcall-err-per-map-err-per-base", 
+           phred_varcall_err_per_map_err_per_base,
+        "The root-mean square mapping quality added by this number is the maximum possible TLOD part of variant quality. "); 
 
     ADD_OPTDEF(app, 
         "--powlaw-exponent", 
