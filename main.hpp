@@ -3327,6 +3327,10 @@ struct {
     }
 } PairSecondLess;
 
+double compute_norm_ad(const bcfrec::BcfFormat* fmtp, const bool isSubst) {
+    return (isSubst ? MIN(SUM2(fmtp->bAltBQ) / ((double)SUM2(fmtp->bAllBQ) + DBL_EPSILON) * SUM2(fmtp->cDPTT), SUM2(fmtp->cADTT)) : (double)SUM2(fmtp->cADTT));
+}
+
 void
 output_germline(
         std::string & out_string,
@@ -3377,9 +3381,9 @@ output_germline(
     auto fmtptr1 = ref_alt1_alt2_alt3[1].second;
     auto fmtptr2 = ref_alt1_alt2_alt3[2].second;
     bool isSubst = isSymbolSubstitution(refsymbol);
-    double ad0 = (isSubst ? MIN(SUM2(fmtptr0->bAltBQ) / (double)SUM2(fmtptr0->bAllBQ) * SUM2(fmtptr0->cDPTT), SUM2(fmtptr0->cADTT)) : (double)SUM2(fmtptr0->cADTT));
-    double ad1 = (isSubst ? MIN(SUM2(fmtptr1->bAltBQ) / (double)SUM2(fmtptr1->bAllBQ) * SUM2(fmtptr1->cDPTT), SUM2(fmtptr1->cADTT)) : (double)SUM2(fmtptr1->cADTT));
-    double ad2 = (isSubst ? MIN(SUM2(fmtptr2->bAltBQ) / (double)SUM2(fmtptr2->bAllBQ) * SUM2(fmtptr2->cDPTT), SUM2(fmtptr2->cADTT)) : (double)SUM2(fmtptr2->cADTT));
+    double ad0 = compute_norm_ad(fmtptr0, isSubst);
+    double ad1 = compute_norm_ad(fmtptr1, isSubst);
+    double ad2 = compute_norm_ad(fmtptr2, isSubst);
     int a0a1LODQ = hetLODQ(ad0, ad1, 1.0 - alt1frac);
     int a1a0LODQ = hetLODQ(ad1, ad0, alt1frac);
     int a1a2LODQ = hetLODQ(ad1, ad2, alt1frac / (alt1frac + alt2frac));
