@@ -1070,10 +1070,12 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                         if (refsymbol == symbol) {
                             auto central_readlen = MAX(paramset.central_readlen, 30U); 
                             auto RefBias = MIN(fmt.RefBias, central_readlen - 30U);
-                            double biasfrac = MAX3(0.05, paramset.any_mul_contam_frac, (double)(RefBias) / (double)central_readlen);
+                            double biasfrac = MAX(0.03, (double)(RefBias) / (double)central_readlen);
+                            double    ref_dep = (LINK_SYMBOL == symbolType ? (     fmt.FR  * fmt.DP) : MIN(       fmt.FR  * fmt.DP,        SUM2(fmt.bRefBQ) / (double)SUM2(fmt.bAllBQ)  * fmt.DP));
+                            double nonref_dep = (LINK_SYMBOL == symbolType ? ((1.0-fmt.FR) * fmt.DP) : MIN((1.0 - fmt.FR) * fmt.DP, (1.0 - SUM2(fmt.bRefBQ) / (double)SUM2(fmt.bAllBQ)) * fmt.DP));
                             fmt.BLODQ = MAX(1, (int)MIN(
-                                    calc_binom_10log10_likeratio(biasfrac, fmt.FR * fmt.DP, fmt.DP),
-                                    mathsquare(fmt.FR / biasfrac) * paramset.syserr_norm_devqual));
+                                    calc_binom_10log10_likeratio(biasfrac, ref_dep, ref_dep + MAX(DBL_EPSILON, nonref_dep)),
+                                    mathsquare(ref_dep / MAX(DBL_EPSILON, ref_dep + nonref_dep) / biasfrac) * paramset.syserr_norm_devqual));
                         } else {
                             fmt.BLODQ = 99999;
                         }

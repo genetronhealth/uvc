@@ -2793,7 +2793,7 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
     bool isInDel = (isSymbolIns(symbol) || isSymbolDel(symbol));
     if (fmtAD > 0 || is_rescued) {
         assert(fmt.FA >= 0);
-        unsigned int ref_bias = 2; // 4 * 2; // this is rather empirical
+        unsigned int ref_bias = 1; // 2; // 4 * 2; // this is rather empirical
         if (isInDel) {
             uint64_t totsize_cnt = 0;
             uint64_t totsize_sum = 0;
@@ -3396,15 +3396,16 @@ output_germline(
         "1/2"
     }};
     
+    int phred_homref = 0; // (isSubst ? 31 : 41);
     int phred_hetero = (isSubst ? 31 : 41);
     int phred_homalt = (isSubst ? 33 : 43);
     int phred_tri_al = (isSubst ? 55 : 49);
     
     std::array<std::pair<int, int>, 4> GL4raw = {{
-        std::make_pair(0,              0 - a1LODQ - MAX(a2LODQ - phred_hetero, 0)),
-        std::make_pair(1,  -phred_hetero - MAX3(a2LODQ, a0a1LODQ, a1a0LODQ)),
+        std::make_pair(0,  -phred_homref - a1LODQ - MAX(a2LODQ - phred_tri_al, 0)),
+        std::make_pair(1,  -phred_hetero - a2LODQ - MAX(a0a1LODQ, a1a0LODQ)),
         std::make_pair(2,  -phred_homalt - MAX(a0LODQ, a2LODQ)),
-        std::make_pair(3,  -phred_tri_al - MAX4(a0LODQ, a3LODQ, a1a2LODQ, a2a1LODQ))
+        std::make_pair(3,  -phred_tri_al - MAX(a0LODQ, a3LODQ) - MAX(a1a2LODQ, a2a1LODQ))
     }};
     auto GL4 = GL4raw;
     /*
