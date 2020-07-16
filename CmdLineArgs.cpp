@@ -446,10 +446,15 @@ ADD_OPTDEF(app,
         "--is-somatic-indel-filtered-by-any-nonref-germline-indel", 
            is_somatic_indel_filtered_by_any_nonref_germline_indel,
         "Set to 0 (zero, false) if reject any nonref germline and to 1 (one, true) if only reject the specific ALT germline for InDel candidate. "); 
-    ADD_OPTDEF(app, 
-        "--illumina-BQ-pow2-div-coef", 
-           illumina_BQ_pow2_div_coef,
-        "The square of Illumina root-mean-square base quality divided by this number is the maximum possible TLOD part of variant quality. "); 
+    ADD_OPTDEF(app,
+        "--amp-BQ-sqr-coef",
+           amp_BQ_sqr_coef,
+        "The square of Illumina root-mean-square base quality multiplied by this number is the max possible TLOD of variant quality for PCR-amplicon assays. "); 
+    ADD_OPTDEF(app,
+        "--cap-BQ-sqr-coef",
+           cap_BQ_sqr_coef,
+        "The square of Illumina root-mean-square base quality multiplied by this number is the max possible TLOD of variant quality for hybrid-capture assays. "); 
+    
     ADD_OPTDEF(app, 
         "--phred-varcall-err-per-map-err-per-base", 
            phred_varcall_err_per_map_err_per_base,

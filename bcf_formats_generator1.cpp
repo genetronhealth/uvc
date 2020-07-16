@@ -190,6 +190,7 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("bSB1"     , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("bSBR"     , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("bNSB"     , 2, BCF_INTEGER, "Total number of sequenced bases on all reads covering this position [base read, duped]"), 
+    BcfFormatStruct("bEDAD"    , 2, BCF_INTEGER, "Summed Phred-scaled edit distance of reads supporting this allele where an InDel corresponds to 2 edits [base read, duped]"),
     
     BcfFormatStruct("__bc"     , 1, BCF_SEP,     "Forward&reverse depth (DP1), allele depth (AD1), allele depth after weak filter (AD2), quality threshold for weak filter (QT2) [base read, duped]"),
     BcfFormatStruct("bDP1"     , 2, BCF_INTEGER, "see above"),
@@ -221,7 +222,7 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("bSSRDP"   , 3, BCF_INTEGER, "Raw depths within the left&right, left, and right regions for all the alleles [unmerged]"),
     BcfFormatStruct("bSSRAD"   , 3, BCF_INTEGER, "Raw depths within the left&right, left, and right regions for the ALT allele  [unmerged]"),
     BcfFormatStruct("bSSB"     , 4, BCF_INTEGER, "For sequencing-segments: strand, left&right position, left position, and right position biases [unmerged]"),
-
+       
     BcfFormatStruct("__ca"     , 1, BCF_SEP,     "Same as __ba but for single-strand families instead of reads [consensus family, deduped]"),
     BcfFormatStruct("cPTL"     , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("cPTR"     , 2, BCF_INTEGER, "see above"),

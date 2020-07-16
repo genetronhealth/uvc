@@ -1042,7 +1042,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                                 paramset.vad,
                                 paramset.is_somatic_snv_filtered_by_any_nonref_germline_snv,
                                 paramset.is_somatic_indel_filtered_by_any_nonref_germline_indel,
-                                paramset.illumina_BQ_pow2_div_coef,
+                                ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? paramset.amp_BQ_sqr_coef : paramset.cap_BQ_sqr_coef),
                                 paramset.phred_varcall_err_per_map_err_per_base,
                                 paramset.powlaw_exponent,
                                 paramset.powlaw_anyvar_base,
@@ -1069,11 +1069,15 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                         auto & fmt = fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]];
                         if (refsymbol == symbol) {
                             auto central_readlen = MAX(paramset.central_readlen, 30U); 
-                            auto RefBias = MIN(fmt.RefBias, central_readlen - 30U);
-                            double biasfrac = MAX(0.03, (double)(RefBias) / (double)central_readlen);
+                            double ref_bias = (double)MIN(fmt.RefBias, central_readlen - 30U) / (double)central_readlen;
+                            double con_bias = MIN(fmt.DP * 2e-4, paramset.any_mul_contam_frac);
+                            double aln_bias = MIN(0.1, (double)SUMVEC(fmt.bEDAD) / (double)SUMVEC(fmt.bNSB));
+                            double biasfrac = MAX4(0.003, ref_bias, con_bias, aln_bias);
+                            
                             double    ref_dep = (LINK_SYMBOL == symbolType ? (     fmt.FR  * fmt.DP) : MIN(       fmt.FR  * fmt.DP,        SUM2(fmt.bRefBQ) / (double)SUM2(fmt.bAllBQ)  * fmt.DP));
                             double nonref_dep = (LINK_SYMBOL == symbolType ? ((1.0-fmt.FR) * fmt.DP) : MIN((1.0 - fmt.FR) * fmt.DP, (1.0 - SUM2(fmt.bRefBQ) / (double)SUM2(fmt.bAllBQ)) * fmt.DP));
-                            fmt.BLODQ = MAX(1, (int)MIN(
+                            
+                            fmt.BLODQ = MAX(0, (int)MIN(
                                     calc_binom_10log10_likeratio(biasfrac, ref_dep, ref_dep + MAX(DBL_EPSILON, nonref_dep)),
                                     mathsquare(ref_dep / MAX(DBL_EPSILON, ref_dep + nonref_dep) / biasfrac) * paramset.syserr_norm_devqual));
                         } else {

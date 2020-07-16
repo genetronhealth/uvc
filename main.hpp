@@ -1294,8 +1294,9 @@ struct Symbol2CountCoverageSet {
     std::array<Symbol2CountCoverageUint64, 2> bq_qsum_sqrMQ;
     std::array<Symbol2CountCoverage, 2> bq_qual_p1sum;
     std::array<Symbol2CountCoverageUint64, 2> bq_qual_p2sum;
-    std::array<Symbol2CountCoverage, 2> bq_tsum_LQdep; 
-
+    std::array<Symbol2CountCoverage, 2> bq_tsum_LQdep;
+    std::array<Symbol2CountCoverage, 2> bq_n_edit_ops;
+    
     std::array<Symbol2CountCoverage, 2> du_bias_dedup;  
     
     std::array<Symbol2CountCoverage, 2> bq_amax_ldist; // edge distance to end
@@ -1373,6 +1374,7 @@ struct Symbol2CountCoverageSet {
         , bq_qual_p1sum({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
         , bq_qual_p2sum({Symbol2CountCoverageUint64(t, beg, end), Symbol2CountCoverageUint64(t, beg, end)})
         , bq_tsum_LQdep({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
+        , bq_n_edit_ops({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
         
         , du_bias_dedup({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
         
@@ -1441,7 +1443,7 @@ struct Symbol2CountCoverageSet {
         assert(this->bq_tsum_depth[1].getIncluBegPosition() == beg);
         Symbol2CountCoverage cov(t, beg, end);
     };
-   
+    
     template <bool TIsFilterStrong=false>
     int 
     getbest(auto & max_pqual, auto & best_phred, auto & best_count,
@@ -1881,6 +1883,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                     unsigned int rdist_inc = 0;
                     std::vector<unsigned int> posToInsertLen = read_ampBQerr_fragWithR1R2.computeZeroBasedPosToInsLenVec(rdist_inc); // extend
                     unsigned int n_vars = 0;
+                    unsigned int n_ops = 0;
                     unsigned int n_seq_bases = 0;
                     std::vector<std::array<AlignmentSymbol, NUM_SYMBOL_TYPES>> con_symbols_vec(
                             read_ampBQerr_fragWithR1R2.getExcluEndPosition() - read_ampBQerr_fragWithR1R2.getIncluBegPosition(),
@@ -1925,6 +1928,11 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                                 if (symbolType == BASE_SYMBOL && phredlike >= phred_thres) {
                                     n_vars++;
                                 }
+                                if (symbolType == BASE_SYMBOL) {
+                                    n_ops += 1; 
+                                } else {
+                                    n_ops += 2; // gap-opening is one edit operation and gap-extension is another edit operation
+                                }
                             }
                             if (symbolType == BASE_SYMBOL) {
                                 n_seq_bases++;
@@ -1948,6 +1956,8 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                             auto con_symbol = con_symbols_vec.at(epos - read_ampBQerr_fragWithR1R2.getIncluBegPosition()).at(symbolType);
                             if (END_ALIGNMENT_SYMBOLS != con_symbol) {
                                 this->pb_dist_nvars[strand].getRefByPos(epos).incSymbolBucketCount(con_symbol, n_vars, 1);
+                                this->bq_n_edit_ops[strand].getRefByPos(epos).incSymbolCount(con_symbol, 
+                                        (unsigned int)floor(0.5 + 10.0 / log(10.0) * log(n_ops * 10.0 + 1.0)));
                                 this->bq_n_seq_bases[strand].getRefByPos(epos).incSymbolCount(con_symbol, n_seq_bases);
                             }
                         }
@@ -2699,11 +2709,13 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
         fmt.bMQ1[strand] = sqrt(bq_qsum_sqrMQ / (DBL_MIN + (double)fmt.bAD1[strand])); // total allele depth
         fmt.bMQ2[strand] = bq_qsum_sqrMQ / (DBL_MIN + bq_qsum_rawMQ);
         bq_qsum_sqrMQ_tot += bq_qsum_sqrMQ;
-        
+
         double bq_qual_p1sum = (double)symbol2CountCoverageSet12.bq_qual_p1sum.at(strand).getByPos(refpos).getSymbolCount(symbol);
         double bq_qual_p2sum = (double)symbol2CountCoverageSet12.bq_qual_p2sum.at(strand).getByPos(refpos).getSymbolCount(symbol);
         fmt.bBQ1[strand] = sqrt(bq_qual_p2sum / (DBL_MIN + (double)fmt.bAD1[strand]));
         fmt.bBQ2[strand] = bq_qual_p2sum / (DBL_MIN + bq_qual_p1sum);
+        
+        fmt.bEDAD[strand] = symbol2CountCoverageSet12.bq_n_edit_ops.at(strand).getByPos(refpos).getSymbolCount(symbol);
         
         //double fq_qual_p1sum = (double)symbol2CountCoverageSet12.fq_qual_p1sum.at(strand).getByPos(refpos).getSymbolCount(symbol);
         //double fq_qual_p2sum = (double)symbol2CountCoverageSet12.fq_qual_p2sum.at(strand).getByPos(refpos).getSymbolCount(symbol);
@@ -3399,7 +3411,7 @@ output_germline(
     int phred_homref = 0; // (isSubst ? 31 : 41);
     int phred_hetero = (isSubst ? 31 : 41);
     int phred_homalt = (isSubst ? 33 : 43);
-    int phred_tri_al = (isSubst ? 55 : 49);
+    int phred_tri_al = (isSubst ? 55 : 49); // https://www.genetics.org/content/184/1/233 : triallelic-SNP-phred = 29*2-3
     
     std::array<std::pair<int, int>, 4> GL4raw = {{
         std::make_pair(0,  -phred_homref - a1LODQ - MAX(a2LODQ - phred_tri_al, 0)),
@@ -3577,7 +3589,7 @@ append_vcf_record(std::string & out_string,
         const unsigned int vad_thres,
         const bool is_somatic_snv_filtered_by_any_nonref_germline_snv,
         const bool is_somatic_indel_filtered_by_any_nonref_germline_indel,
-        const double illumina_BQ_pow2_div_coef,
+        const double illumina_BQ_sqr_coef,
         const double phred_varcall_err_per_map_err_per_base,
         const double powlaw_exponent,
         const double powlaw_anyvar_base,
@@ -3911,7 +3923,7 @@ append_vcf_record(std::string & out_string,
                 : 0.0);
         
         double t_indel_penal = 0.0;
-        const double pcap_tbq = ((isInDel || is_proton) ? 200.0 : (mathsquare(tki.BQ) / illumina_BQ_pow2_div_coef)); // based on heuristics
+        const double pcap_tbq = ((isInDel || is_proton) ? 200.0 : (mathsquare(tki.BQ) * illumina_BQ_sqr_coef)); // based on heuristics
         const double pcap_tmq = MIN((double)maxMQ, tki.MQ) + phred_varcall_err_per_map_err_per_base; // bases on heuristics
         const double pcap_tmq2 = MAX(0.0, tki.MQ - 10.0/log(10.0) * log((double)(tDP0 + tDP0pc0) / (double)(tAD0+tAD0pc0))) * (double)tAD0; // readjustment by MQ
         const double tn_t_altmul = (tUseHD1 ? 1.0 : altmul);
@@ -3953,7 +3965,7 @@ append_vcf_record(std::string & out_string,
         const double tn_trawq = _tn_tra2q;
         // QUESTION: why BQ-bias generations are discrete? Because of the noise with each observation of BQ? why indel generations are discrete?
         
-        const double pcap_nbq = ((isInDel || is_proton) ? 200.0 : mathsquare(nfm.BQ) / illumina_BQ_pow2_div_coef); // based on heuristics
+        const double pcap_nbq = ((isInDel || is_proton) ? 200.0 : mathsquare(nfm.BQ) * illumina_BQ_sqr_coef); // based on heuristics
         const double pcap_nmq = MIN(maxMQ, nfm.MQ) * phred_varcall_err_per_map_err_per_base; // based on heuristics
         const double pcap_nmq2 = (nfm.MQ - 10.0/log(10.0) * log((double)(nDP0 + nDP0pc0) / (double)(nAD0+nAD0pc0))) * (double)nAD0; // readjsutment by MQ
         const double tn_n_altmul = (nUseHD1 ? 1.0 : altmul);
@@ -4071,7 +4083,7 @@ append_vcf_record(std::string & out_string,
         double t2n_syserr_q = (use_penalt ? MAX(0.0, t2n_syserr_q0) : 0.0);
         
         double t_base_q = MIN(tn_trawq, tn_tpowq + (double)indel_ic);
-        fmtvar.ALODQ = MAX(1, t_base_q);
+        fmtvar.ALODQ = MAX(0, t_base_q);
         if (is_novar && (!should_let_all_pass) && (!should_output_all)) {
             return -1;
         }
