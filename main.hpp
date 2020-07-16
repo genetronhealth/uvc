@@ -1957,7 +1957,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                             if (END_ALIGNMENT_SYMBOLS != con_symbol) {
                                 this->pb_dist_nvars[strand].getRefByPos(epos).incSymbolBucketCount(con_symbol, n_vars, 1);
                                 this->bq_n_edit_ops[strand].getRefByPos(epos).incSymbolCount(con_symbol, 
-                                        (unsigned int)floor(0.5 + 10.0 / log(10.0) * log(n_ops * 10.0 + 1.0)));
+                                        (unsigned int)floor(0.5 + 10.0 / log(10.0) * log(n_ops + 1.0)));
                                 this->bq_n_seq_bases[strand].getRefByPos(epos).incSymbolCount(con_symbol, n_seq_bases);
                             }
                         }
@@ -2436,6 +2436,8 @@ BcfFormat_init(bcfrec::BcfFormat & fmt,
         
         fmt.bSSDP[strand*2+0] = symbolDistrSets12.bq_dirs_count.at(strand*2+0).getByPos(refpos).sumBySymbolType(symbolType);
         fmt.bSSDP[strand*2+1] = symbolDistrSets12.bq_dirs_count.at(strand*2+1).getByPos(refpos).sumBySymbolType(symbolType);
+        
+        fmt.bEDRD[strand] = symbol2CountCoverageSet12.bq_n_edit_ops.at(strand).getByPos(refpos).getSymbolCount(refsymbol);
     }
     assert(fmt.bSSRDP.size() == symbolDistrSets12.bq_regs_count.size());
     for (unsigned int region = 0; region < symbolDistrSets12.bq_regs_count.size(); region++) {
@@ -2805,7 +2807,7 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
     bool isInDel = (isSymbolIns(symbol) || isSymbolDel(symbol));
     if (fmtAD > 0 || is_rescued) {
         assert(fmt.FA >= 0);
-        unsigned int ref_bias = 1; // 2; // 4 * 2; // this is rather empirical
+        unsigned int ref_bias = 0; // 2; // 4 * 2; // this is rather empirical
         if (isInDel) {
             uint64_t totsize_cnt = 0;
             uint64_t totsize_sum = 0;
@@ -3518,6 +3520,13 @@ output_germline(
     if (3 == GLidx) {
         germ_ADR.push_back(ref_alt1_alt2_alt3[2].second->cADR[1]);
     }
+    std::vector<std::string> germ_FT;
+    germ_FT.push_back(ref_alt1_alt2_alt3[0].second->FT);
+    germ_FT.push_back(ref_alt1_alt2_alt3[1].second->FT);
+    if (3 == GLidx) {
+        germ_FT.push_back(ref_alt1_alt2_alt3[2].second->FT);
+    }
+    
     std::string bcfline = string_join(std::array<std::string, 10>
     {{
         std::string(tname), 
@@ -3528,22 +3537,24 @@ output_germline(
         std::to_string(germ_GQ), 
         std::string("PASS"), 
         std::string("GERMLINE"),
-        std::string("GT:GQ:HQ:DP:cADR:GSTa:GLa"),
-        string_join(std::array<std::string, 7>
+        std::string("GT:GQ:HQ:DP:FT:cADR:GLa:GSTa"),
+        string_join(std::array<std::string, 8>
         {{
             germ_GT, 
             std::to_string(germ_GQ), 
             std::string(".,."), 
             std::to_string(symbol_format_vec[0].second->DP),
+            string_join(germ_FT, "/"),
             other_join(germ_ADR, std::string(",")), 
-            other_join(std::array<int, 10>
-            {{ 
-                a0LODQA, a0LODQB, a1LODQ, a2LODQ, a3LODQ,
-                a0a1LODQ, a1a0LODQ, a1a2LODQ, a2a1LODQ, GL4raw[3].second
-            }}, ","),
             other_join(std::array<int, 3>
             {{ 
                 GL4raw[0].second, GL4raw[1].second, GL4raw[2].second 
+            }}, ","),
+            other_join(std::array<int, 10>
+            {{
+                GL4raw[3].second,
+                a0LODQA, a0LODQB, a1LODQ, a2LODQ, a3LODQ,
+                a0a1LODQ, a1a0LODQ, a1a2LODQ, a2a1LODQ
             }}, ","),
         }}, ":")
     }}, "\t") + "\n";

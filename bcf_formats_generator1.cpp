@@ -189,8 +189,6 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("bSDR"     , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("bSB1"     , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("bSBR"     , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("bNSB"     , 2, BCF_INTEGER, "Total number of sequenced bases on all reads covering this position [base read, duped]"), 
-    BcfFormatStruct("bEDAD"    , 2, BCF_INTEGER, "Summed Phred-scaled edit distance of reads supporting this allele where an InDel corresponds to 2 edits [base read, duped]"),
     
     BcfFormatStruct("__bc"     , 1, BCF_SEP,     "Forward&reverse depth (DP1), allele depth (AD1), allele depth after weak filter (AD2), quality threshold for weak filter (QT2) [base read, duped]"),
     BcfFormatStruct("bDP1"     , 2, BCF_INTEGER, "see above"),
@@ -210,7 +208,10 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("bMQ2"     , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("bBQ1"     , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("bBQ2"     , 2, BCF_INTEGER, "see above"),
-    
+    BcfFormatStruct("bNSB"     , 2, BCF_INTEGER, "Total number of sequenced bases on all reads covering this position [base read, duped]"), 
+    BcfFormatStruct("bEDRD"    , 2, BCF_INTEGER, "Summed Phred-scaled edit distance of reads supporting the REF where an InDel corresponds to 2 edits [base read, duped]"),
+    BcfFormatStruct("bEDAD"    , 2, BCF_INTEGER, "Summed Phred-scaled edit distance of reads supporting the ALT where an InDel corresponds to 2 edits [base read, duped]"),
+
     BcfFormatStruct("__bf"     , 1, BCF_SEP,     "Forward&reverse total depth (bDPLQ), ALT depth (bADLQ), and REF depth (bRDLQ) supported by low-quality (LQ) bases [duped]"),
     BcfFormatStruct("bDPLQ"    , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("bADLQ"    , 2, BCF_INTEGER, "see above"),

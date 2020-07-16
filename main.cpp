@@ -1071,7 +1071,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                             auto central_readlen = MAX(paramset.central_readlen, 30U); 
                             double ref_bias = (double)MIN(fmt.RefBias, central_readlen - 30U) / (double)central_readlen;
                             double con_bias = MIN(fmt.DP * 2e-4, paramset.any_mul_contam_frac);
-                            double aln_bias = MIN(0.1, (double)SUMVEC(fmt.bEDAD) / (double)SUMVEC(fmt.bNSB));
+                            double aln_bias = MIN(0.1, (double)SUMVEC(fmt.bEDRD) / (double)SUMVEC(fmt.bNSB));
                             double biasfrac = MAX4(0.003, ref_bias, con_bias, aln_bias);
                             
                             double    ref_dep = (LINK_SYMBOL == symbolType ? (     fmt.FR  * fmt.DP) : MIN(       fmt.FR  * fmt.DP,        SUM2(fmt.bRefBQ) / (double)SUM2(fmt.bAllBQ)  * fmt.DP));
