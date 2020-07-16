@@ -110,17 +110,18 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("GT"       , 1, BCF_STRING,  "Genotype (this is a guess for the GT of tumor cells if --somaticGT was set to true)"),
     BcfFormatStruct("GQ"       , 1, BCF_INTEGER, "Genotype Quality"),
     BcfFormatStruct("HQ"       , 2, BCF_INTEGER, "Haplotype Quality"),
-    BcfFormatStruct("ALODQ"    , 1, BCF_INTEGER, "Artifact log-likelihood of data quality in PHRED-scale."),
-    BcfFormatStruct("BLODQ"    , 1, BCF_INTEGER, "Bias-of-allele log-likelihood of data quality in PHRED-scale."),
-    
     BcfFormatStruct("DP"       , 1, BCF_INTEGER, "Fragment depth supporting any allele [consensus family, deduped]"),
     BcfFormatStruct("FA"       , 1, BCF_FLOAT,   "Frequency of the ALT allele [consensus family, deduped]"),
     BcfFormatStruct("FR"       , 1, BCF_FLOAT,   "Frequency of the REF allele [consensus family, deduped]"),
+    BcfFormatStruct("BQ"       , 1, BCF_INTEGER, "Root mean square (RMS) base quality of the ALT [base read, duped]"), 
+    BcfFormatStruct("MQ"       , 1, BCF_INTEGER, "Root mean square (RMS) mapping quality of the ALT [base read, duped]"), 
     BcfFormatStruct("FT"       , 1, BCF_STRING,  "Sample genotype filter indicating if this genotype was 'called' (similar in concept to the FILTER field). "
                                                  "Again, use PASS to indicate that all filters have been passed, a semi-colon separated list of codes for filters "
                                                  "that fail, or ‘.’ to indicate that filters have not been applied. "
                                                  "These values should be described in the meta-information in the same way as FILTERs "
                                                  "(String, no white-space or semi-colons permitted)"),
+    
+    BcfFormatStruct("__A1"     , 1, BCF_SEP,     "Dummy header (separator) for genotype-related FORMAT fields. The description of each associated FORMAT is shown below. "),
     BcfFormatStruct("FTS"      , 1, BCF_STRING,  "Sample variant filter indicating if this variant was 'called' (similar in concept to the FILTER field). "
                                                  "Again, use PASS to indicate that all filters have been passed, "
                                                  "an amperstand-separated list of codes for filters that fail, "
@@ -130,11 +131,11 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("FTSV"     , BCF_NUM_D, BCF_INTEGER, "Percent bias values for the FTS strings"),
     BcfFormatStruct("DPHQ"     , 1, BCF_INTEGER, "Fragment depth supporting any allele if low-quality bases are ignored which means only high quality (HQ) bases are used [base read, duped]"),
     BcfFormatStruct("ADHQ"     , 1, BCF_INTEGER, "Fragment depth supporting the ALT allele if low-quality bases are ignored which means only high quality (HQ) bases are used [base read, duped]"),
-    BcfFormatStruct("BQ"       , 1, BCF_INTEGER, "Root mean square (RMS) base quality of the ALT [base read, duped]"), 
-    BcfFormatStruct("MQ"       , 1, BCF_INTEGER, "Root mean square (RMS) mapping quality of the ALT [base read, duped]"), 
+    BcfFormatStruct("ALODQ"    , 1, BCF_INTEGER, "Artifact log-likelihood of data quality in PHRED-scale."),
+    BcfFormatStruct("BLODQ"    , 1, BCF_INTEGER, "Bias-of-allele log-likelihood of data quality in PHRED-scale."),
     BcfFormatStruct("EROR"     , 5, BCF_INTEGER, "Deduplication bias, position bias, strand bias, and mismatch bias of the evidence reduction odds ratio for deduplicated reads, and the maximum of all biases in FTS"), 
  
-    BcfFormatStruct("__aa"     , 1, BCF_SEP,     "Dummy header (separator) for genotype-related FORMAT fields. The description of each associated FORMAT is shown below"),
+    BcfFormatStruct("__A2"     , 1, BCF_SEP,     "Dummy header (separator) for genotype-related FORMAT fields. The description of each associated FORMAT is shown below. "),
     BcfFormatStruct("RefBias"  , 1, BCF_INTEGER, "Reference bias (on average, the read supporting the ALT is shorter than the read supporting the REF by this many bases)"),
     BcfFormatStruct("GTa"      , 1, BCF_STRING,  "Genotype of this alelle"),
     BcfFormatStruct("GQa"      , 1, BCF_INTEGER, "Genotype Quality of this allele"),
@@ -145,13 +146,13 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("GLb"      , 3, BCF_SIG_INT, "Genotype Likelihood of other alleles"),
     BcfFormatStruct("GSTb"     ,10, BCF_SIG_INT, "Genotype Statistics of other alleles"),
     
-    BcfFormatStruct("__ab"     , 1, BCF_SEP,     "Depth and REF/ALT allele frequency for base read and consensus family"),  
+    BcfFormatStruct("__A3"     , 1, BCF_SEP,     "Depth and REF/ALT allele frequency for base read and consensus family"),  
     BcfFormatStruct("bDP"      , 1, BCF_INTEGER, "Fragment depth supporting any allele [base read, duped]"),
     BcfFormatStruct("bADR"     , BCF_NUM_R, BCF_INTEGER, "Fragment depth supporting the REF and ALT alleles [base read, duped]"),
     BcfFormatStruct("cDP"      , 1, BCF_INTEGER, "Fragment depth supporting any allele [consensus family, deduped]"),
     BcfFormatStruct("cADR"     , BCF_NUM_R, BCF_INTEGER, "Fragment depth supporting the REF and ALT alleles [consensus family, deduped]"),
     
-    BcfFormatStruct("__ac"     , 1, BCF_SEP,     "Consensus/variant allele type/quality"),  
+    BcfFormatStruct("__A4"     , 1, BCF_SEP,     "Consensus/variant allele type/quality"),  
     BcfFormatStruct("OType"    , 1, BCF_STRING,  "The non-reference allele type with the most evidence other than the ALT allele type of this record"),
     BcfFormatStruct("ORAQs"    , 2, BCF_FLOAT,   "Qualities of OType and reference allele type"),
     BcfFormatStruct("VType"    , 1, BCF_STRING,  "Variant type for the ALT allele"),
@@ -159,7 +160,7 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("VAQ2"     , 1, BCF_FLOAT,   "Variant Allele Quality of the specific form(s) of InDel in ALT assuming other forms of InDels are noise"),
     // BcfFormatStruct("VAQAB"    , 1, BCF_FLOAT,   "Variant Allele Quality adjusted with bias"),
     
-    BcfFormatStruct("__ad"     , 1, BCF_SEP,     "Sum of base qualities (bAllBQ/bAltBQ/bRefBQ) and consensus-family qualities (cAllBQ/cAltBQ/cRefBQ) for ALL/ALT/REF alleles"), // global 
+    BcfFormatStruct("__A5"     , 1, BCF_SEP,     "Sum of base qualities (bAllBQ/bAltBQ/bRefBQ) and consensus-family qualities (cAllBQ/cAltBQ/cRefBQ) for ALL/ALT/REF alleles"), // global 
     BcfFormatStruct("bAllBQ"   , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("bAltBQ"   , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("bRefBQ"   , 2, BCF_INTEGER, "see above"),
@@ -167,15 +168,27 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("cAltBQ"   , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("cRefBQ"   , 2, BCF_INTEGER, "see above"),
     
-    BcfFormatStruct("__ae"     , 1, BCF_SEP,     "Sum of square/10 consensus-family qualities and number of high-confidence families, and and duplication bias (aDB). All biases are percentages where 100% means no bias."), // global
-    BcfFormatStruct("cAllBQ2"  , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("cAltBQ2"  , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("cRefBQ2"  , 2, BCF_INTEGER, "see above"),
+    BcfFormatStruct("__A6"     , 1, BCF_SEP,     "Sum of square/10 consensus-family qualities and number of high-confidence families, and and duplication bias (aDB). All biases are percentages where 100% means no bias."), // global
+    //BcfFormatStruct("cAllBQ2"  , 2, BCF_INTEGER, "see above"),
+    //BcfFormatStruct("cAltBQ2"  , 2, BCF_INTEGER, "see above"),
+    //BcfFormatStruct("cRefBQ2"  , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("cAllHD"   , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("cAltHD"   , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("cRefHD"   , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("aDB"      , 2, BCF_INTEGER, "see above"),
     
+    BcfFormatStruct("__aa"     , 1, BCF_SEP,     "Sequencing-segment statistics. In aDP and aAD, the four-directions are (fw-fw, fw-rv, rv-fw, rv-rv) strand orientations corresponding to (R1+, R2-, R2+, R1-)"),
+    BcfFormatStruct("aDP"      , 4, BCF_INTEGER, "Four-direction raw depths total and summed for ALL alleles [unmerged]"),
+    BcfFormatStruct("aRD"      , 4, BCF_INTEGER, "Four-direction raw depths specific to only the ALT allele  [unmerged]"),
+    BcfFormatStruct("aAD"      , 4, BCF_INTEGER, "Four-direction raw depths specific to only the ALT allele  [unmerged]"),
+    BcfFormatStruct("aNMRD"    , 4, BCF_INTEGER, "Four-direction total numbers of mismatches (the NM sam tag) specific to only the REF allele  [unmerged"),
+    BcfFormatStruct("aNMAD"    , 4, BCF_INTEGER, "Four-direction total numbers of mismatches (the NM sam tag) specific to only the ALT allele  [unmerged"),
+    
+    BcfFormatStruct("__ab"     , 1, BCF_SEP,     "More sequencing-segment statistics."),
+    BcfFormatStruct("aPBDP"    , 3, BCF_INTEGER, "Raw depths within the left&right, left, and right regions for all the alleles [unmerged]"),
+    BcfFormatStruct("aPBAD"    , 3, BCF_INTEGER, "Raw depths within the left&right, left, and right regions for the ALT allele  [unmerged]"),
+    BcfFormatStruct("aB"       , 4, BCF_INTEGER, "For sequencing-segments: strand, left&right position, left position, and right position biases [unmerged]"),
+
     BcfFormatStruct("__ba"     , 1, BCF_SEP,     "Forward&reverse max-bias base distances to left/right end positions (T1PTL/T1PTR) and position bias (T1PBL/T1PBR) [base read, duped]"), 
     BcfFormatStruct("bPTL"     , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("bPTR"     , 2, BCF_INTEGER, "see above"),
@@ -209,21 +222,15 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("bBQ1"     , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("bBQ2"     , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("bNSB"     , 2, BCF_INTEGER, "Total number of sequenced bases on all reads covering this position [base read, duped]"), 
-    BcfFormatStruct("bEDRD"    , 2, BCF_INTEGER, "Summed Phred-scaled edit distance of reads supporting the REF where an InDel corresponds to 2 edits [base read, duped]"),
-    BcfFormatStruct("bEDAD"    , 2, BCF_INTEGER, "Summed Phred-scaled edit distance of reads supporting the ALT where an InDel corresponds to 2 edits [base read, duped]"),
+    // BcfFormatStruct("bEDRD"    , 2, BCF_INTEGER, "Summed Phred-scaled edit distance of reads supporting the REF where an InDel corresponds to 2 edits [base read, duped]"),
+    // BcfFormatStruct("bEDAD"    , 2, BCF_INTEGER, "Summed Phred-scaled edit distance of reads supporting the ALT where an InDel corresponds to 2 edits [base read, duped]"),
 
     BcfFormatStruct("__bf"     , 1, BCF_SEP,     "Forward&reverse total depth (bDPLQ), ALT depth (bADLQ), and REF depth (bRDLQ) supported by low-quality (LQ) bases [duped]"),
     BcfFormatStruct("bDPLQ"    , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("bADLQ"    , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("bRDLQ"    , 2, BCF_INTEGER, "see above"),
     
-    BcfFormatStruct("__bg"     , 1, BCF_SEP,     "Sequencing-segment statistics. In bSSDP and bSSAD, the four-directions are (fw-fw, fw-rv, rv-fw, rv-rv) strand orientations corresponding to (R1+, R2-, R2+, R1-)"),
-    BcfFormatStruct("bSSDP"    , 4, BCF_INTEGER, "Four-direction raw depths total and summed for ALL alleles [unmerged]"),
-    BcfFormatStruct("bSSAD"    , 4, BCF_INTEGER, "Four-direction raw depths specific to only the ALT allele  [unmerged]"),
-    BcfFormatStruct("bSSRDP"   , 3, BCF_INTEGER, "Raw depths within the left&right, left, and right regions for all the alleles [unmerged]"),
-    BcfFormatStruct("bSSRAD"   , 3, BCF_INTEGER, "Raw depths within the left&right, left, and right regions for the ALT allele  [unmerged]"),
-    BcfFormatStruct("bSSB"     , 4, BCF_INTEGER, "For sequencing-segments: strand, left&right position, left position, and right position biases [unmerged]"),
-       
+      
     BcfFormatStruct("__ca"     , 1, BCF_SEP,     "Same as __ba but for single-strand families instead of reads [consensus family, deduped]"),
     BcfFormatStruct("cPTL"     , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("cPTR"     , 2, BCF_INTEGER, "see above"),

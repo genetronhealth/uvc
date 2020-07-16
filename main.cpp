@@ -279,8 +279,8 @@ struct TumorKeyInfo {
     std::array<int32_t, 3> GLb = {{0}};
     std::array<int32_t, 5> EROR = {{0}};
     std::array<int32_t, 4> gapbNRD = {{0}};
-    std::array<int32_t, 3> bSSRAD = {{0}};
-    std::array<int32_t, 4> bSSAD = {{0}};
+    std::array<int32_t, 3> aPBAD = {{0}};
+    std::array<int32_t, 4> aAD = {{0}};
     // std::array<int32_t, 2> gapbNNRD = {0};
     bcf1_t *bcf1_record = NULL;
     /*
@@ -562,17 +562,17 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         }
         
         ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line,  "bSSRAD",&bcfints,&ndst_val);
-        assert((tki.bSSRAD.size() == ndst_val && tki.bSSRAD.size() == valsize) || !fprintf(stderr, "%lu == %d && %lu == %d failed for bSSRAD!\n", tki.bSSRAD.size(), ndst_val, tki.bSSRAD.size(), valsize));
-        for (size_t i = 0; i < tki.bSSRAD.size(); i++) {
-            tki.bSSRAD[i] = bcfints[i];
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "aPBAD",&bcfints,&ndst_val);
+        assert((tki.aPBAD.size() == ndst_val && tki.aPBAD.size() == valsize) || !fprintf(stderr, "%lu == %d && %lu == %d failed for aPBAD!\n", tki.aPBAD.size(), ndst_val, tki.aPBAD.size(), valsize));
+        for (size_t i = 0; i < tki.aPBAD.size(); i++) {
+            tki.aPBAD[i] = bcfints[i];
         }
         
         ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line,  "bSSAD",&bcfints,&ndst_val);
-        assert((tki.bSSAD.size() == ndst_val && tki.bSSAD.size() == valsize) || !fprintf(stderr, "%lu == %d && %lu == %d failed for bSSAD!\n", tki.bSSAD.size(), ndst_val, tki.bSSAD.size(), valsize));
-        for (size_t i = 0; i < tki.bSSAD.size(); i++) {
-            tki.bSSAD[i] = bcfints[i];
+        valsize = bcf_get_format_int32(bcf_hdr, line,  "aAD",&bcfints,&ndst_val);
+        assert((tki.aAD.size() == ndst_val && tki.aAD.size() == valsize) || !fprintf(stderr, "%lu == %d && %lu == %d failed for aAD!\n", tki.aAD.size(), ndst_val, tki.aAD.size(), valsize));
+        for (size_t i = 0; i < tki.aAD.size(); i++) {
+            tki.aAD[i] = bcfints[i];
         }
         
         /*
@@ -1071,7 +1071,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                             auto central_readlen = MAX(paramset.central_readlen, 30U); 
                             double ref_bias = (double)MIN(fmt.RefBias, central_readlen - 30U) / (double)central_readlen;
                             double con_bias = MIN(fmt.DP * 2e-4, paramset.any_mul_contam_frac);
-                            double aln_bias = MIN(0.1, (double)SUMVEC(fmt.bEDRD) / (double)SUMVEC(fmt.bNSB));
+                            double aln_bias = mathsquare((double)SUMVEC(fmt.aNMAD) / ((double)SUMVEC(fmt.aAD) + DBL_EPSILON)) / NM_MULT_NORM_COEF;
                             double biasfrac = MAX4(0.003, ref_bias, con_bias, aln_bias);
                             
                             double    ref_dep = (LINK_SYMBOL == symbolType ? (     fmt.FR  * fmt.DP) : MIN(       fmt.FR  * fmt.DP,        SUM2(fmt.bRefBQ) / (double)SUM2(fmt.bAllBQ)  * fmt.DP));
