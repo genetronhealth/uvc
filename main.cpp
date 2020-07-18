@@ -1070,16 +1070,18 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                         if (refsymbol == symbol) {
                             auto central_readlen = MAX(paramset.central_readlen, 30U); 
                             double ref_bias = (double)MIN(fmt.RefBias, central_readlen - 30U) / (double)central_readlen;
-                            double con_bias = MIN(fmt.DP * 2e-4, paramset.any_mul_contam_frac);
-                            double aln_bias = mathsquare((double)SUMVEC(fmt.aNMAD) / ((double)SUMVEC(fmt.aAD) + DBL_EPSILON)) / NM_MULT_NORM_COEF;
-                            double biasfrac = MAX4(0.003, ref_bias, con_bias, aln_bias);
-                            
+                            // double con_bias = MIN(fmt.DP * 2e-4, paramset.any_mul_contam_frac);
+                            double aln_bias = mathsquare((double)SUMVEC(fmt.aNMAD) / ((double)SUMVEC(fmt.aAD) + DBL_EPSILON) / (NM_MULT_NORM_COEF * 2.0)); // / 10.0;
+                            double biasfrac_binom = MAX3(0.004, ref_bias, aln_bias);
+                            double biasfrac_power = MAX3(0.004, ref_bias, paramset.any_mul_contam_frac);
                             double    ref_dep = (LINK_SYMBOL == symbolType ? (     fmt.FR  * fmt.DP) : MIN(       fmt.FR  * fmt.DP,        SUM2(fmt.bRefBQ) / (double)SUM2(fmt.bAllBQ)  * fmt.DP));
                             double nonref_dep = (LINK_SYMBOL == symbolType ? ((1.0-fmt.FR) * fmt.DP) : MIN((1.0 - fmt.FR) * fmt.DP, (1.0 - SUM2(fmt.bRefBQ) / (double)SUM2(fmt.bAllBQ)) * fmt.DP));
                             
                             fmt.BLODQ = MAX(0, (int)MIN(
-                                    calc_binom_10log10_likeratio(biasfrac, ref_dep, ref_dep + MAX(DBL_EPSILON, nonref_dep)),
-                                    mathsquare(ref_dep / MAX(DBL_EPSILON, ref_dep + nonref_dep) / biasfrac) * paramset.syserr_norm_devqual));
+                                    calc_binom_10log10_likeratio(biasfrac_binom, ref_dep, ref_dep + MAX(DBL_EPSILON, nonref_dep)),
+                                    // mathsquare(ref_dep / MAX(DBL_EPSILON, ref_dep + nonref_dep) / biasfrac_binom) * paramset.syserr_norm_devqual,
+                                    paramset.powlaw_exponent * 10.0/log(10.0) * log((ref_dep + 0.5) / (ref_dep + nonref_dep + 1.0)) / biasfrac_power));
+                            fmt.note += other_join(std::array<double, 4>{{ ref_bias, aln_bias, biasfrac_binom, biasfrac_power }}, "#") + "##";
                         } else {
                             fmt.BLODQ = 99999;
                         }
