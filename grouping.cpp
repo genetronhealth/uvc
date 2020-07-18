@@ -400,12 +400,44 @@ clean_fill_strand_umi_readset(
 }
 
 int 
-apply_baq(bam1_t *aln, const unsigned int baq_per_aligned_base) {
-    if (aln->core.l_qseq < (10*2)) { return -1; }
-    for (unsigned int i = 0; i < 10; i++) { 
-        auto j = aln->core.l_qseq - 1 - i;
-        (bam_get_qual(aln))[i] = min((bam_get_qual(aln))[i], baq_per_aligned_base * (i+1));
-        (bam_get_qual(aln))[j] = min((bam_get_qual(aln))[j], baq_per_aligned_base * (i+1));
+apply_baq(bam1_t *aln, const unsigned int baq_per_aligned_base, unsigned int baq_per_new_base = 1, unsigned int baq_maxinc_per_base = 1) {
+    const unsigned int max_baq_per_base = baq_per_aligned_base + baq_maxinc_per_base;
+    const uint32_t n_cigar = aln->core.n_cigar;
+    const uint32_t *cigar =  bam_get_cigar(aln);
+    if (0 == n_cigar || 0 == aln->core.l_qseq) { return -1; }
+    int read_beg = ((n_cigar > 1 && bam_cigar_op(cigar        [0]) == BAM_CSOFT_CLIP) ? bam_cigar_oplen(cigar[        0]) : 0);
+    int read_end = aln->core.l_qseq - 1 - 
+                   ((n_cigar > 1 && bam_cigar_op(cigar[n_cigar-1]) == BAM_CSOFT_CLIP) ? bam_cigar_oplen(cigar[n_cigar-1]) : 0);
+    
+    int inclu_beg_poss[2] = {read_beg, read_end};
+    int exclu_end_poss[2] = {read_end + 1, read_beg - 1};
+    int pos_incs[2] = {1, -1};
+    unsigned int qsum = 0;
+    unsigned int qnum = 0;
+    
+    unsigned int strand = ((aln->core.flag & 0x10) ? 0 : 1);
+    for (auto i = inclu_beg_poss[strand]; i != exclu_end_poss[strand]; i += pos_incs[strand]) {
+        auto q = bam_get_qual(aln)[i];
+        qsum += q;
+        qnum += 1;
+        bam_get_qual(aln)[i] = min(q, qsum / qnum + q/3);
+    }
+    
+    for (int strand = 0; strand < 2; strand++) {
+        unsigned int base2cnt[16] = {0};
+        unsigned int nbases = 0;
+        auto curr_baq_per_base = baq_per_aligned_base - 2;
+        for (auto i = inclu_beg_poss[strand]; i != exclu_end_poss[strand]; i += pos_incs[strand]) {
+            auto base = bam_get_seq(aln)[i];
+            if (0 == base2cnt[base]) {
+                curr_baq_per_base += baq_per_new_base;
+                curr_baq_per_base = min(curr_baq_per_base, max_baq_per_base);
+            }
+            base2cnt[base]++;
+            nbases++;
+            bam_get_qual(aln)[i] = min((bam_get_qual(aln))[i], baq_per_aligned_base * nbases);
+            if (baq_per_aligned_base * nbases > 48) { break; }
+        }
     }
     return 0;
 }
