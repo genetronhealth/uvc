@@ -1080,10 +1080,10 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                             fmt.BLODQ = MAX(0, (int)MIN(
                                     calc_binom_10log10_likeratio(biasfrac_binom, ref_dep, ref_dep + MAX(DBL_EPSILON, nonref_dep)),
                                     // mathsquare(ref_dep / MAX(DBL_EPSILON, ref_dep + nonref_dep) / biasfrac_binom) * paramset.syserr_norm_devqual,
-                                    paramset.powlaw_exponent * 10.0/log(10.0) * log((ref_dep + 0.5) / (ref_dep + nonref_dep + 1.0)) / biasfrac_power));
+                                    paramset.powlaw_exponent * 10.0/log(10.0) * log((ref_dep + 0.5) / (nonref_dep + 0.5) / biasfrac_power)));
                             fmt.note += other_join(std::array<double, 4>{{ ref_bias, aln_bias, biasfrac_binom, biasfrac_power }}, "#") + "##";
                         } else {
-                            fmt.BLODQ = 99999;
+                            fmt.BLODQ = 999;
                         }
                         symbol_format_vec.push_back(std::make_pair(symbol, &fmt));
                     }
