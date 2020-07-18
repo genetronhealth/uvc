@@ -148,18 +148,18 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     
     BcfFormatStruct("__A3"     , 1, BCF_SEP,     "Depth and REF/ALT allele frequency for base read and consensus family"),  
     BcfFormatStruct("bDP"      , 1, BCF_INTEGER, "Fragment depth supporting any allele [base read, duped]"),
-    BcfFormatStruct("bADR"     , BCF_NUM_R, BCF_INTEGER, "Fragment depth supporting the REF and ALT alleles [base read, duped]"),
+    BcfFormatStruct("bADR"     , BCF_NUM_R, BCF_INTEGER, "Fragment depth supporting each REF and ALT allele [base read, duped]"),
     BcfFormatStruct("cDP"      , 1, BCF_INTEGER, "Fragment depth supporting any allele [consensus family, deduped]"),
-    BcfFormatStruct("cADR"     , BCF_NUM_R, BCF_INTEGER, "Fragment depth supporting the REF and ALT alleles [consensus family, deduped]"),
+    BcfFormatStruct("cADR"     , BCF_NUM_R, BCF_INTEGER, "Fragment depth supporting each REF and ALT allele [consensus family, deduped]"),
     
     BcfFormatStruct("__A4"     , 1, BCF_SEP,     "Consensus/variant allele type/quality"),  
     BcfFormatStruct("OType"    , 1, BCF_STRING,  "The non-reference allele type with the most evidence other than the ALT allele type of this record"),
     BcfFormatStruct("ORAQs"    , 2, BCF_FLOAT,   "Qualities of OType and reference allele type"),
     BcfFormatStruct("VType"    , 1, BCF_STRING,  "Variant type for the ALT allele"),
-    BcfFormatStruct("VAQ"      , 1, BCF_FLOAT,   "Variant Allele Quality"),
-    BcfFormatStruct("VAQ2"     , 1, BCF_FLOAT,   "Variant Allele Quality of the specific form(s) of InDel in ALT assuming other forms of InDels are noise"),
+    BcfFormatStruct("VAQs"     , 2, BCF_FLOAT,   "Raw variant allele quality (VAQ) and VAQ of the specific form(s) of InDel in ALT assuming other forms of InDels are noise"),
     // BcfFormatStruct("VAQAB"    , 1, BCF_FLOAT,   "Variant Allele Quality adjusted with bias"),
-    
+    BcfFormatStruct("VAQ"      , 1, BCF_FLOAT,   "Normalized variant allele quality"),
+
     BcfFormatStruct("__A5"     , 1, BCF_SEP,     "Sum of base qualities (bAllBQ/bAltBQ/bRefBQ) and consensus-family qualities (cAllBQ/cAltBQ/cRefBQ) for ALL/ALT/REF alleles"), // global 
     BcfFormatStruct("bAllBQ"   , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("bAltBQ"   , 2, BCF_INTEGER, "see above"),
@@ -188,6 +188,8 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("aPBDP"    , 3, BCF_INTEGER, "Raw depths within the left&right, left, and right regions for all the alleles [unmerged]"),
     BcfFormatStruct("aPBAD"    , 3, BCF_INTEGER, "Raw depths within the left&right, left, and right regions for the ALT allele  [unmerged]"),
     BcfFormatStruct("aB"       , 4, BCF_INTEGER, "For sequencing-segments: strand, left&right position, left position, and right position biases [unmerged]"),
+    BcfFormatStruct("aBAQDP"   , 1, BCF_INTEGER, "Total summed base alignment quality (BAQ) of all alleles [unmerged]"),
+    BcfFormatStruct("aBAQADR"  , BCF_NUM_R, BCF_INTEGER, "Total summed base alignment quality (BAQ) of each REF and ALT allele [unmerged]"),
 
     BcfFormatStruct("__ba"     , 1, BCF_SEP,     "Forward&reverse max-bias base distances to left/right end positions (T1PTL/T1PTR) and position bias (T1PBL/T1PBR) [base read, duped]"), 
     BcfFormatStruct("bPTL"     , 2, BCF_INTEGER, "see above"),

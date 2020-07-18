@@ -177,6 +177,14 @@ struct VcStats {
     }
 };
 
+// region_pos32_unitlen8_repeatnum16_qual8_vec
+struct RegionTandemRepeat {
+    uint32_t begpos = 0;
+    uint16_t tracklen = 0;
+    uint8_t unitlen = 0;
+    // uint8_t edgeBAQ;
+};
+
 // I tried to use the following correction types in the past. 
 // However, correction types were very confusing to the end user and always missed some edge cases.
 // Hence, I used assay types, sequencing platforms, UMI-awareness, etc. instead of correction types.

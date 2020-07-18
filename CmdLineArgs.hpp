@@ -101,7 +101,8 @@ struct CommandLineArgs {
     double      t2n_add_contam_transfrac = 0.0; // 0.02; // 1e-10; // 0.025; // 0.04; // 0.125*1.5;
     
     uint32_t    phred_frac_indel_error_before_barcode_labeling = 23; // 12, 18, 24 // 23;
-    uint32_t    baq_per_aligned_base = 3; // 4; // The BAQ of 3 seems to make more sense after reading the feedback from reviewer #2
+    // uint32_t    baq_per_aligned_base = 3; // 4; // The BAQ of 3 seems to make more sense after reading the feedback from reviewer #2
+    uint32_t    baq_per_aligned_base = 4; // According to "A New Lossless DNA Compression Algorithm Based on A Single-Block Encoding Scheme" Table 7 Korea2009024, there is 2*577/800 bits of info per nucleotide for the human genome.
     
     bool        is_somatic_snv_filtered_by_any_nonref_germline_snv = true;
     bool        is_somatic_indel_filtered_by_any_nonref_germline_indel = true;

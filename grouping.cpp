@@ -423,6 +423,7 @@ apply_baq(bam1_t *aln, const unsigned int baq_per_aligned_base, unsigned int baq
         bam_get_qual(aln)[i] = min(q, qsum / qnum + q/3);
     }
     
+#if 0 // application of BAQ is too early here and is therefore disabled
     for (int strand = 0; strand < 2; strand++) {
         unsigned int base2cnt[16] = {0};
         unsigned int nbases = 0;
@@ -439,6 +440,7 @@ apply_baq(bam1_t *aln, const unsigned int baq_per_aligned_base, unsigned int baq
             if (baq_per_aligned_base * nbases > 48) { break; }
         }
     }
+#endif
     return 0;
 }
 

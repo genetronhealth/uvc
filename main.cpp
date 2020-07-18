@@ -919,6 +919,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                             // ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? paramset.phred_umi_dimret_qual : ((double)FLT_MAX)),
                             (is_umi_barcoded ? ((BASE_SYMBOL == symbolType) ? paramset.phred_umi_dimret_mult_snv : paramset.phred_umi_dimret_mult_indel) : 1.0),
                             // bq_indel_adjmax_depths,
+                            (SEQUENCING_PLATFORM_IONTORRENT == paramset.sequencing_platform ? 200.0 : ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? paramset.amp_BQ_sqr_coef : paramset.cap_BQ_sqr_coef)),
+                            paramset.phred_varcall_err_per_map_err_per_base,
                             0);
                 }
                 for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; symbol = AlignmentSymbol(1+(unsigned int)symbol)) {
@@ -1031,8 +1033,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                                 paramset.t2n_add_contam_transfrac,
                                 repeatunit, 
                                 repeatnum,
-                                SEQUENCING_PLATFORM_IONTORRENT == paramset.sequencing_platform,
-                                paramset.maxMQ,
+                                // SEQUENCING_PLATFORM_IONTORRENT == paramset.sequencing_platform,
+                                // paramset.maxMQ,
                                 paramset.central_readlen,
                                 paramset.phred_triallelic_indel,
                                 phred_max_sscs,
@@ -1042,8 +1044,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                                 paramset.vad,
                                 paramset.is_somatic_snv_filtered_by_any_nonref_germline_snv,
                                 paramset.is_somatic_indel_filtered_by_any_nonref_germline_indel,
-                                ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? paramset.amp_BQ_sqr_coef : paramset.cap_BQ_sqr_coef),
-                                paramset.phred_varcall_err_per_map_err_per_base,
+                                // ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? paramset.amp_BQ_sqr_coef : paramset.cap_BQ_sqr_coef),
+                                // paramset.phred_varcall_err_per_map_err_per_base,
                                 paramset.powlaw_exponent,
                                 paramset.powlaw_anyvar_base,
                                 paramset.syserr_maxqual,

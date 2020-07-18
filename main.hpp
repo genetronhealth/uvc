@@ -884,6 +884,40 @@ indel_phred(double ampfact, unsigned int cigar_oplen, unsigned int repeatsize_at
     // AC AC AC : repeatsize_at_max_repeatnum = 2, indel_n_units = 3
 }
 
+std::vector<RegionTandemRepeat>
+refstring2repeatvec(
+        const auto & refstring, 
+        unsigned int specialflag = 0) {
+    std::vector<RegionTandemRepeat> region_repeatvec(refstring.size());
+    for (int refpos = 0; refpos < refstring.size();) {
+        unsigned int repeatsize_at_max_repeatnum = 1;
+        unsigned int max_repeatnum = 1;
+        unsigned int repeat_endpos = refpos;
+        for (unsigned int repeatsize = 1; repeatsize <= 6; repeatsize++) {
+            unsigned int qidx = refpos;
+            while (qidx + repeatsize < refstring.size() && refstring[qidx] == refstring[qidx+repeatsize]) {
+                qidx++;
+            }
+            unsigned int repeatnum = (qidx - refpos) / repeatsize + 1;
+            if (is_indel_context_more_STR(repeatsize, repeatnum, repeatsize_at_max_repeatnum, max_repeatnum)) {
+                repeatsize_at_max_repeatnum = repeatsize;
+                max_repeatnum = repeatnum;
+                repeat_endpos = qidx + repeatsize;
+            }
+        }
+        for (unsigned int i = refpos; i != MIN(repeat_endpos, refstring.size()); i++) {
+            unsigned int tl = repeat_endpos - refpos;
+            if (tl > region_repeatvec[refpos].tracklen) {
+                region_repeatvec[refpos].begpos = refpos;
+                region_repeatvec[refpos].tracklen = tl;
+                region_repeatvec[refpos].unitlen = repeatsize_at_max_repeatnum;
+            }
+        }
+        refpos += repeatsize_at_max_repeatnum * max_repeatnum;
+    }
+    return region_repeatvec;
+}
+
 unsigned int
 ref_to_phredvalue(unsigned int & n_units, const auto & refstring, const size_t refpos, 
         const unsigned int max_phred, double ampfact, const unsigned int cigar_oplen, const auto cigar_op, const bam1_t *b) {
@@ -936,7 +970,8 @@ bam_to_phredvalue(unsigned int & n_units, const bam1_t *b, unsigned int qpos, un
 int
 dealwith_seg_regbias(unsigned int qpos1, unsigned int qpos2, const bam1_t *b, unsigned int seq_pos_bias_nbases, 
         auto & bq_dirs_count, unsigned int strand, unsigned int isrc, 
-        auto & bq_regs_count, unsigned int rpos, AlignmentSymbol symbol, auto & bq_nms_count, unsigned int nm) {
+        auto & bq_regs_count, unsigned int rpos, AlignmentSymbol symbol, auto & bq_nms_count, unsigned int nm,
+        auto & bq_baq_sum, const auto & qr_baq_vec, unsigned int specialflag = 0) {
     bq_dirs_count[strand*2+isrc].template inc<SYMBOL_COUNT_SUM>(rpos, symbol, 1, b);
     
     const bool is_lbias = (qpos1 + 1 <= seq_pos_bias_nbases);
@@ -953,6 +988,7 @@ dealwith_seg_regbias(unsigned int qpos1, unsigned int qpos2, const bam1_t *b, un
         bq_regs_count[idx].template inc<SYMBOL_COUNT_SUM>(rpos, symbol, 1, b);
     }
     bq_nms_count[strand*2+isrc].template inc<SYMBOL_COUNT_SUM>(rpos, symbol, nm, b);
+    bq_baq_sum[0].template inc<SYMBOL_COUNT_SUM>(rpos, symbol, MIN(160, qr_baq_vec.at(rpos - b->core.pos)), b);
     return idx;
 }
 
@@ -1083,6 +1119,81 @@ public:
         posToIndelToCount_inc(this->getRefPosToDlenToData(symbol), ipos, dlen, incvalue);
     };
     
+    std::vector<uint8_t> 
+    compute_qr_baq_vec(const bam1_t *b, const auto & region_repeatvec, const unsigned int region_offset, unsigned int baq_per_aligned_base) {
+        const unsigned int rbeg = b->core.pos;
+        const unsigned int rend = bam_endpos(b);
+        const uint8_t *bseq = bam_get_seq(b);
+        const uint32_t n_cigar = b->core.n_cigar;
+        const uint32_t *cigar =  bam_get_cigar(b);
+        std::vector<uint8_t> refBAQvec(1+rend-rbeg);
+        {
+            unsigned int qpos = 0;
+            unsigned int rpos = b->core.pos;
+            unsigned int baq = 0;
+            unsigned int prev_repeat_begpos = UINT_MAX;
+            for (int i = 0; i != n_cigar; i++) {
+                const uint32_t c = cigar[i];
+                const unsigned int cigar_op = bam_cigar_op(c);
+                const unsigned int cigar_oplen = bam_cigar_oplen(c);
+                if (cigar_op == BAM_CMATCH || cigar_op == BAM_CEQUAL || cigar_op == BAM_CDIFF) {
+                    for (unsigned int i2 = 0; i2 != cigar_oplen; i2++) {
+                        bool repeat_begpos = region_repeatvec[rpos - region_offset].begpos;
+                        if (prev_repeat_begpos != repeat_begpos) { baq += baq_per_aligned_base; }
+                        refBAQvec[rpos - rbeg] = baq;
+                        prev_repeat_begpos = repeat_begpos;
+                        qpos++;
+                        rpos++;
+                    }
+                } else if (cigar_op == BAM_CINS) {
+                    qpos += cigar_oplen;
+                } else if (cigar_op == BAM_CDEL) {
+                    for (unsigned int i2 = 0; i2 != cigar_oplen; i2++) {
+                        refBAQvec[rpos - rbeg] = baq;
+                        rpos++;
+                    }
+                }  else if (cigar_op == BAM_CSOFT_CLIP) {
+                    qpos += cigar_oplen;
+                }
+            }
+            assert(b->core.l_qseq == qpos);
+            assert(rend + 1 == rpos); 
+        }
+        {
+            unsigned int qpos = b->core.l_qseq - 1;
+            unsigned int rpos = rend;
+            unsigned int baq = 0;
+            unsigned int prev_repeat_begpos = UINT_MAX;
+            for (int i = n_cigar - 1; i != -1; i--) {
+                const uint32_t c = cigar[i];
+                const unsigned int cigar_op = bam_cigar_op(c);
+                const unsigned int cigar_oplen = bam_cigar_oplen(c);
+                if (cigar_op == BAM_CMATCH || cigar_op == BAM_CEQUAL || cigar_op == BAM_CDIFF) {
+                    for (unsigned int i2 = 0; i2 != cigar_oplen; i2++) {
+                        bool repeat_begpos = region_repeatvec[rpos - region_offset].begpos;
+                        if (prev_repeat_begpos != repeat_begpos) { baq += baq_per_aligned_base; }
+                        UPDATE_MIN(refBAQvec[rpos - rbeg], baq);
+                        prev_repeat_begpos = repeat_begpos;
+                        qpos--;
+                        rpos--;
+                    }
+                } else if (cigar_op == BAM_CINS) {
+                    qpos -= cigar_oplen;
+                } else if (cigar_op == BAM_CDEL) {
+                    for (unsigned int i2 = 0; i2 != cigar_oplen; i2++) {
+                        UPDATE_MIN(refBAQvec[rpos - rbeg], baq);
+                        rpos--;
+                    }
+                } else if (cigar_op == BAM_CSOFT_CLIP) {
+                    qpos -= cigar_oplen;
+                }
+            }
+            assert(-1 == qpos);
+            assert(rbeg - 1 == rpos); 
+        }
+        return refBAQvec;
+    }
+    
     template<ValueType TUpdateType, bool TIsProton, bool THasDups, bool TFillSeqDir, unsigned int TIndelAddPhred = 0*29>
     int // GenericSymbol2CountCoverage<TSymbol2Count>::
     updateByAln(const bam1_t *const b, unsigned int frag_indel_ext, 
@@ -1093,8 +1204,11 @@ public:
             std::array<GenericSymbol2CountCoverage<Symbol2Count>, 4> & bq_dirs_count,
             std::array<GenericSymbol2CountCoverage<Symbol2Count>, 3> & bq_regs_count,
             std::array<GenericSymbol2CountCoverage<Symbol2Count>, 4> & bq_nms_count,
+            std::array<GenericSymbol2CountCoverage<Symbol2Count>, 1> & bq_baq_sum,
             unsigned int sidereg_nbases,
-            uint32_t primerlen = 0) {
+            const std::vector<RegionTandemRepeat> & region_repeatvec,
+            unsigned int baq_per_aligned_base,
+            uint32_t sepcialflag = 0) {
         static_assert(BASE_QUALITY_MAX == TUpdateType || SYMBOL_COUNT_SUM == TUpdateType);
         assert(this->tid == SIGN2UNSIGN(b->core.tid));
         assert(this->getIncluBegPosition() <= SIGN2UNSIGN(b->core.pos)   || !fprintf(stderr, "%lu <= %d failed", this->getIncluBegPosition(), b->core.pos));
@@ -1112,6 +1226,7 @@ public:
         unsigned int incvalue = 1;
         
         unsigned int nm_var = 0;
+        std::vector<uint8_t> qr_baq_vec;
         if (TFillSeqDir) {
             uint8_t * bam_aux_data = bam_aux_get(b, "NM");
             if (bam_aux_data != NULL) {
@@ -1123,9 +1238,10 @@ public:
                     unsigned int cigar_oplen = bam_cigar_oplen(c);
                     if (cigar_op == BAM_CDIFF) { nm_var++ ; }
                     else if (BAM_CINS == cigar_op || BAM_CDEL == cigar_op) { nm_var += cigar_oplen; }
-                } 
+                }
             }
             nm_var = (unsigned int)floor(NM_MULT_NORM_COEF * sqrt((double)nm_var / (double)MAX(30, b->core.l_qseq) + DBL_EPSILON));
+            qr_baq_vec = compute_qr_baq_vec(b, region_repeatvec, region_offset, baq_per_aligned_base);
         }
         const unsigned int nm = nm_var;
         
@@ -1144,7 +1260,8 @@ public:
                         }
                         this->template inc<TUpdateType>(rpos, LINK_M, incvalue, b);
                         if (TFillSeqDir) {
-                            dealwith_seg_regbias(qpos, qpos, b, sidereg_nbases, bq_dirs_count, strand, isrc, bq_regs_count, rpos, LINK_M, bq_nms_count, nm);
+                            dealwith_seg_regbias(qpos, qpos, b, sidereg_nbases, bq_dirs_count, strand, isrc, bq_regs_count, rpos, LINK_M, bq_nms_count, nm, 
+                                    bq_baq_sum, qr_baq_vec, 0);
                         }
                     }
                     unsigned int base4bit = bam_seqi(bseq, qpos);
@@ -1155,7 +1272,8 @@ public:
                     }
                     this->template inc<TUpdateType>(rpos, AlignmentSymbol(base3bit), incvalue, b);
                     if (TFillSeqDir) {
-                        dealwith_seg_regbias(qpos, qpos, b, sidereg_nbases, bq_dirs_count, strand, isrc, bq_regs_count, rpos, AlignmentSymbol(base3bit), bq_nms_count, nm);
+                        dealwith_seg_regbias(qpos, qpos, b, sidereg_nbases, bq_dirs_count, strand, isrc, bq_regs_count, rpos, AlignmentSymbol(base3bit), bq_nms_count, nm,
+                                bq_baq_sum, qr_baq_vec, 0);
                     }
                     rpos += 1;
                     qpos += 1;
@@ -1184,7 +1302,8 @@ public:
                 if (!is_ins_at_read_end) {
                     this->template inc<TUpdateType>(rpos, insLenToSymbol(inslen), MAX(SIGN2UNSIGN(1), incvalue), b);
                     if (TFillSeqDir) {
-                        dealwith_seg_regbias(qpos + cigar_oplen, qpos, b, sidereg_nbases, bq_dirs_count, strand, isrc, bq_regs_count, rpos, insLenToSymbol(inslen), bq_nms_count, nm);
+                        dealwith_seg_regbias(qpos + cigar_oplen, qpos, b, sidereg_nbases, bq_dirs_count, strand, isrc, bq_regs_count, rpos, insLenToSymbol(inslen), bq_nms_count, nm,
+                                bq_baq_sum, qr_baq_vec, 0);
                     }
                     std::string iseq;
                     iseq.reserve(cigar_oplen);
@@ -1228,7 +1347,8 @@ public:
                 if (!is_del_at_read_end) {
                     this->template inc<TUpdateType>(rpos, delLenToSymbol(dellen), MAX(SIGN2UNSIGN(1), incvalue), b);
                     if (TFillSeqDir) {
-                        dealwith_seg_regbias(qpos, qpos, b, sidereg_nbases, bq_dirs_count, strand, isrc, bq_regs_count, rpos, delLenToSymbol(dellen), bq_nms_count, nm);
+                        dealwith_seg_regbias(qpos, qpos, b, sidereg_nbases, bq_dirs_count, strand, isrc, bq_regs_count, rpos, delLenToSymbol(dellen), bq_nms_count, nm,
+                                bq_baq_sum, qr_baq_vec, 0);
                     }
                     this->incDel(rpos, cigar_oplen, delLenToSymbol(dellen), MAX(SIGN2UNSIGN(1), incvalue));
                 }
@@ -1269,30 +1389,33 @@ public:
             unsigned int dflag, 
             unsigned int nogap_phred, 
             const bool is_proton, 
-            const auto & region_symbolvec, 
+            const auto & region_symbolvec,
             const unsigned int region_offset,
             std::array<GenericSymbol2CountCoverage<Symbol2Count>, 4> & bq_dirs_count, 
             std::array<GenericSymbol2CountCoverage<Symbol2Count>, 3> & bq_regs_count,
             std::array<GenericSymbol2CountCoverage<Symbol2Count>, 4> & bq_nms_count,
+            std::array<GenericSymbol2CountCoverage<Symbol2Count>, 1> & bq_baq_sum,
             unsigned int sidereg_nbases,
+            const auto & region_repeatvec,
+            unsigned int baq_per_aligned_base,
             unsigned int specialflag) {
         for (bam1_t *aln : aln_vec) {
             if (alns2size > 1 && dflag > 0) { // is barcoded and not singleton
                 if (is_proton) {
                     this->template updateByAln<TUpdateType, true , true , TFillSeqDir>(aln, frag_indel_ext, symbolType2addPhred, frag_indel_basemax, 
-                            nogap_phred, region_symbolvec, region_offset, bq_dirs_count, bq_regs_count, bq_nms_count, sidereg_nbases);
+                            nogap_phred, region_symbolvec, region_offset, bq_dirs_count, bq_regs_count, bq_nms_count, bq_baq_sum, sidereg_nbases, region_repeatvec, baq_per_aligned_base);
                 } else {
                     this->template updateByAln<TUpdateType, false, true , TFillSeqDir>(aln, frag_indel_ext, symbolType2addPhred, frag_indel_basemax, 
-                            nogap_phred, region_symbolvec, region_offset, bq_dirs_count, bq_regs_count, bq_nms_count, sidereg_nbases);
+                            nogap_phred, region_symbolvec, region_offset, bq_dirs_count, bq_regs_count, bq_nms_count, bq_baq_sum, sidereg_nbases, region_repeatvec, baq_per_aligned_base);
                 }
             } else {
                 if (is_proton) {
                     this->template updateByAln<TUpdateType, true , false, TFillSeqDir>(aln, frag_indel_ext, symbolType2addPhred, frag_indel_basemax, 
-                            nogap_phred, region_symbolvec, region_offset, bq_dirs_count, bq_regs_count, bq_nms_count, sidereg_nbases);
+                            nogap_phred, region_symbolvec, region_offset, bq_dirs_count, bq_regs_count, bq_nms_count, bq_baq_sum, sidereg_nbases, region_repeatvec, baq_per_aligned_base);
                 } else {
                     this->template updateByAln<TUpdateType, false, false, TFillSeqDir>(aln, frag_indel_ext, symbolType2addPhred, frag_indel_basemax, 
-                            nogap_phred, region_symbolvec, region_offset, bq_dirs_count, bq_regs_count, bq_nms_count, sidereg_nbases);
-                } 
+                            nogap_phred, region_symbolvec, region_offset, bq_dirs_count, bq_regs_count, bq_nms_count, bq_baq_sum, sidereg_nbases, region_repeatvec, baq_per_aligned_base);
+                }
             }
         }
         return 0;
@@ -1311,6 +1434,7 @@ struct Symbol2CountCoverageSet {
     
     std::array<Symbol2CountCoverage, 4> bq_dirs_count;
     std::array<Symbol2CountCoverage, 4> bq_nms_count;
+    std::array<Symbol2CountCoverage, 1> bq_baq_sum;
     std::array<Symbol2CountCoverage, 3> bq_regs_count;
     std::array<Symbol2CountCoverage, 4> bq_bias_sedir;
 
@@ -1391,6 +1515,7 @@ struct Symbol2CountCoverageSet {
                          Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
         , bq_nms_count ({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end),
                          Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
+        , bq_baq_sum   ({{Symbol2CountCoverage(t, beg, end)}})
         , bq_regs_count({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
         , bq_bias_sedir({Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end),
                          Symbol2CountCoverage(t, beg, end), Symbol2CountCoverage(t, beg, end)})
@@ -1875,6 +2000,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
             const unsigned int sidereg_nbases,
             uint32_t bias_flag_snv,
             uint32_t bias_flag_indel,
+            const auto & region_repeatvec, 
             unsigned int specialflag = 0) {
 
         for (const auto & alns2pair2dflag : alns3) {
@@ -1899,7 +2025,10 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                             this->bq_dirs_count, 
                             this->bq_regs_count, 
                             this->bq_nms_count,
+                            this->bq_baq_sum,
                             sidereg_nbases,
+                            region_repeatvec,
+                            baq_per_aligned_base,
                             0);
                     unsigned int normMQ = 0;
                     for (const bam1_t * b : alns1) {
@@ -1936,8 +2065,8 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                             // shared between BQ and FQ
                             con_symbols_vec[epos - read_ampBQerr_fragWithR1R2.getIncluBegPosition()][symbolType] = con_symbol;
                             this->bq_tsum_depth [strand].getRefByPos(epos).incSymbolCount(con_symbol, 1);
-                            unsigned int edge_baq = MIN(ldist, rdist) * baq_per_aligned_base;
-                            unsigned int overallq = MIN(edge_baq, phredlike);
+                            // unsigned int edge_baq = MIN(ldist, rdist) * baq_per_aligned_base;
+                            unsigned int overallq = phredlike; // MIN(edge_baq, phredlike);
                             this->bq_qual_p1sum [strand].getRefByPos(epos).incSymbolCount(con_symbol, overallq);
                             this->bq_qual_p2sum [strand].getRefByPos(epos).incSymbolCount(con_symbol, mathsquare(overallq)); // specific to BQ
                             unsigned int pbucket = phred2bucket(overallq);
@@ -2038,6 +2167,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
             const unsigned int sidereg_nbases,
             uint32_t bias_flag_snv,
             uint32_t bias_flag_indel,
+            const auto & region_repeatvec,
             unsigned int specialflag = 0) {
         
         unsigned int niters = 0;
@@ -2077,7 +2207,10 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                             this->bq_dirs_count, 
                             this->bq_regs_count,
                             this->bq_nms_count,
+                            this->bq_baq_sum,
                             sidereg_nbases,
+                            region_repeatvec,
+                            baq_per_aligned_base,
                             0);
                     read_family_con_ampl.template updateByConsensus<SYMBOL_COUNT_SUM, true>(read_ampBQerr_fragWithR1R2);
                     read_family_amplicon.updateByFiltering(read_ampBQerr_fragWithR1R2, this->bq_pass_thres[strand], 1, true, strand);
@@ -2158,7 +2291,10 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                             this->bq_dirs_count, 
                             this->bq_regs_count,
                             this->bq_nms_count,
+                            this->bq_baq_sum,
                             sidereg_nbases,
+                            region_repeatvec,
+                            baq_per_aligned_base,
                             0);
                     // The line below is similar to : read_family_amplicon.updateByConsensus<SYMBOL_COUNT_SUM>(read_ampBQerr_fragWithR1R2);
                     read_family_amplicon.updateByFiltering(read_ampBQerr_fragWithR1R2, this->bq_pass_thres[strand], 1, true, strand);
@@ -2208,8 +2344,8 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                         
                         con_symbols_vec[epos - read_family_amplicon.getIncluBegPosition()][symbolType] = con_symbol;
                         this->fq_tsum_depth [strand].getRefByPos(epos).incSymbolCount(con_symbol, 1);
-                        unsigned int edge_baq = MIN(ldist, rdist) * baq_per_aligned_base;
-                        unsigned int overallq = MIN(edge_baq, phredlike);
+                        // unsigned int edge_baq = MIN(ldist, rdist) * baq_per_aligned_base;
+                        unsigned int overallq = phredlike; // MIN(edge_baq, phredlike);
                         this->fq_qual_p1sum [strand].getRefByPos(epos).incSymbolCount(con_symbol, overallq);
                         // this->fq_qual_p2sum [strand].getRefByPos(epos).incSymbolCount(con_symbol, mathsquare(overallq));
                         if (overallq >= ((BASE_SYMBOL == symbolType) ? highqual_thres_snv : ((LINK_SYMBOL == symbolType) ? highqual_thres_indel : 0))) {
@@ -2360,6 +2496,8 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
         
         const std::array<unsigned int, NUM_SYMBOL_TYPES> symbolType2addPhred = {{bq_phred_added_misma, bq_phred_added_indel}};
         std::basic_string<AlignmentSymbol> ref_symbol_string = string2symbolseq(refstring);
+        std::vector<RegionTandemRepeat> region_repeatvec = refstring2repeatvec(refstring);
+
         updateByAlns3UsingBQ(mutform2count4map_bq, 
                 alns3, 
                 ref_symbol_string, 
@@ -2379,6 +2517,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                 regside_nbases,
                 bias_flag_snv,
                 bias_flag_indel,
+                region_repeatvec, 
                 0); // base qualities
         updateHapMap(mutform2count4map_bq, this->bq_tsum_depth);
         if (use_deduplicated_reads) {
@@ -2406,6 +2545,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                     regside_nbases,
                     bias_flag_snv,
                     bias_flag_indel,
+                    region_repeatvec,
                     0); // family qualities
             updateHapMap(mutform2count4map_fq, this->fq_tsum_depth);
         }
@@ -2471,9 +2611,12 @@ BcfFormat_init(bcfrec::BcfFormat & fmt,
         
         fmt.aNMRD[strand*2+0] = symbolDistrSets12.bq_nms_count.at(strand*2+0).getByPos(refpos).getSymbolCount(refsymbol);
         fmt.aNMRD[strand*2+1] = symbolDistrSets12.bq_nms_count.at(strand*2+1).getByPos(refpos).getSymbolCount(refsymbol);
-
+        
         // fmt.bEDRD[strand] = symbolDistrSets12.bq_n_edit_ops.at(strand).getByPos(refpos).getSymbolCount(refsymbol);
     }
+    fmt.aBAQDP = symbolDistrSets12.bq_baq_sum.at(0).getByPos(refpos).sumBySymbolType(symbolType);
+    fmt.aBAQADR = {{symbolDistrSets12.bq_baq_sum.at(0).getByPos(refpos).getSymbolCount(refsymbol), 0}};
+
     assert(fmt.aPBDP.size() == symbolDistrSets12.bq_regs_count.size());
     for (unsigned int region = 0; region < symbolDistrSets12.bq_regs_count.size(); region++) {
         fmt.aPBDP[region] = symbolDistrSets12.bq_regs_count.at(region).getByPos(refpos).sumBySymbolType(symbolType);
@@ -2695,6 +2838,10 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
         const bool is_ref_bias_aware,
         // const unsigned int phred_umi_dimret_qual, 
         const double phred_umi_dimret_mult,
+        
+        // const bool is_proton,
+        const double illumina_BQ_sqr_coef,
+        const unsigned int phred_varcall_err_per_map_err_per_base,
         const int specialflag) {
     fmt.note = symbol2CountCoverageSet12.additional_note.getByPos(refpos).at(symbol);
     uint64_t bq_qsum_sqrMQ_tot = 0; 
@@ -2738,6 +2885,8 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
         fmt.aAD[strand*2+1] = symbol2CountCoverageSet12.bq_dirs_count.at(strand*2+1).getByPos(refpos).getSymbolCount(symbol);
         fmt.aNMAD[strand*2+0] = symbol2CountCoverageSet12.bq_nms_count.at(strand*2+0).getByPos(refpos).getSymbolCount(symbol);
         fmt.aNMAD[strand*2+1] = symbol2CountCoverageSet12.bq_nms_count.at(strand*2+1).getByPos(refpos).getSymbolCount(symbol);
+        
+        fmt.aBAQADR[1] = symbol2CountCoverageSet12.bq_baq_sum.at(0).getByPos(refpos).getSymbolCount(symbol);
         
         assert(fmt.aB.size() == symbol2CountCoverageSet12.bq_bias_sedir.size());
         for (unsigned int idx = 0; idx < symbol2CountCoverageSet12.bq_bias_sedir.size(); idx++) { 
@@ -3151,7 +3300,7 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
     double vaqBQcap = ((fmt.BQ < minABQ) ? ((double)fmt.BQ) : ((double)FLT_MAX));
     // sqrt(bq_qual_p2sum / (DBL_MIN + (double)fmt.bAD1[strand]));
     
-    double vaqMQcap = ((fmt.MQ < minMQ1) ? (fmt.MQ * contig_to_frag_len_ratio) : ((double)FLT_MAX));
+    // double vaqMQcap = ((fmt.MQ < minMQ1) ? (fmt.MQ * contig_to_frag_len_ratio) : ((double)FLT_MAX));
     //double minVAQ = MIN(stdVAQs[0], stdVAQs[1]);
     //double stdVAQ = MAX(stdVAQs[0], stdVAQs[1]);
     
@@ -3168,9 +3317,15 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
     duplexVAQ = MIN(duplexVAQ, 200); // Similar to many other upper bounds, the 200 here has no theoretical foundation.
     double duprate = 1.0 - MIN(1.0, (double)(fmt.cDP + 1) / (double)(fmt.bDP + 1));
     double dimret_coef = phred_umi_dimret_mult * duprate + (1.0 - duprate);
-    fmt.VAQ = dimret_coef * MIN3(vaqMQcap, vaqBQcap, MAX(lowestVAQ, doubleVAQ + duplexVAQ)); // / 1.5;
-    fmt.VAQ2= dimret_coef * MIN3(vaqMQcap, vaqBQcap, MAX(lowestVAQ, doubleVAQ_norm + duplexVAQ)); // treat other forms of indels as background noise if matched normal is not available.
+    double rawVQ1 = dimret_coef * MIN(vaqBQcap, MAX(lowestVAQ, doubleVAQ + duplexVAQ));       // / 1.5;
+    double rawVQ2 = dimret_coef * MIN(vaqBQcap, MAX(lowestVAQ, doubleVAQ_norm + duplexVAQ));
+    fmt.VAQs = {{(float)rawVQ1, (float)rawVQ2}}; // treat other forms of indels as background noise if matched normal is not available.
+    unsigned int pcap_baq = fmt.aBAQADR[1] / MAX(SUMVEC(fmt.aAD), 1);
+    const double pcap_tbq = (isInDel ? 200.0 : (mathsquare(fmt.BQ) * illumina_BQ_sqr_coef)); // based on heuristics
+    const double pcap_tmq1 = MIN((double)maxMQ, fmt.MQ) + phred_varcall_err_per_map_err_per_base; // bases on heuristics
+    const double pcap_tmq2 = MAX(0.0, fmt.MQ - 10.0/log(10.0) * log((double)(fmt.DP + 1) / (double)(fmt.DP * fmt.FA + 0.5))) * ((double)fmt.DP * fmt.FA); // readjustment by MQ
     
+    fmt.VAQ = MIN5(fmt.VAQs[0], (double)pcap_baq, pcap_tbq, pcap_tmq1, pcap_tmq2);
     return (int)(fmt.bAD1[0] + fmt.bAD1[1]);
 };
 
@@ -3627,8 +3782,8 @@ append_vcf_record(std::string & out_string,
         const double t2n_add_contam_transfrac,
         const std::string & repeatunit, 
         const unsigned int repeatnum,
-        const bool is_proton,
-        const unsigned int maxMQ,
+        // const bool is_proton,
+        // const unsigned int maxMQ,
         const unsigned int central_readlen,
         const unsigned int phred_triallelic_indel,
         const unsigned int phred_max_sscs,
@@ -3638,8 +3793,8 @@ append_vcf_record(std::string & out_string,
         const unsigned int vad_thres,
         const bool is_somatic_snv_filtered_by_any_nonref_germline_snv,
         const bool is_somatic_indel_filtered_by_any_nonref_germline_indel,
-        const double illumina_BQ_sqr_coef,
-        const double phred_varcall_err_per_map_err_per_base,
+        // const double illumina_BQ_sqr_coef,
+        // const double phred_varcall_err_per_map_err_per_base,
         const double powlaw_exponent,
         const double powlaw_anyvar_base,
         const double syserr_maxqual,
@@ -3972,15 +4127,15 @@ append_vcf_record(std::string & out_string,
                 : 0.0);
         
         double t_indel_penal = 0.0;
-        const double pcap_tbq = ((isInDel || is_proton) ? 200.0 : (mathsquare(tki.BQ) * illumina_BQ_sqr_coef)); // based on heuristics
-        const double pcap_tmq = MIN((double)maxMQ, tki.MQ) + phred_varcall_err_per_map_err_per_base; // bases on heuristics
-        const double pcap_tmq2 = MAX(0.0, tki.MQ - 10.0/log(10.0) * log((double)(tDP0 + tDP0pc0) / (double)(tAD0+tAD0pc0))) * (double)tAD0; // readjustment by MQ
+        // const double pcap_tbq = ((isInDel || is_proton) ? 200.0 : (mathsquare(tki.BQ) * illumina_BQ_sqr_coef)); // based on heuristics
+        // const double pcap_tmq = MIN((double)maxMQ, tki.MQ) + phred_varcall_err_per_map_err_per_base; // bases on heuristics
+        // const double pcap_tmq2 = MAX(0.0, tki.MQ - 10.0/log(10.0) * log((double)(tDP0 + tDP0pc0) / (double)(tAD0+tAD0pc0))) * (double)tAD0; // readjustment by MQ
         const double tn_t_altmul = (tUseHD1 ? 1.0 : altmul);
         const double tn_t_refmul = (tUseHD1 ? 1.0 : refmul);
         const double tn_tpo1q = 10.0 / log(10.0) * log((double)(tAD0 / tn_t_altmul + tE0) / ((tDP0 - tAD0) / tn_t_refmul + tAD0 / tn_t_altmul + 2.0 * tE0)) * (pl_exponent_t) + (pcap_tmax);
         const double tn_tsamq = 40.0 * pow(0.5, MAX((double)tAD0, ((double)(tki.bDP + 1)) / ((double)(tki.DP + 1)) - 1.0));
         const double tn_tra1q = ((double)tki.VAQ); // non-intuitive prior like
-        double _tn_tpo2q = MIN4(tn_tpo1q, pcap_tmq, pcap_tbq, pcap_tmq2);
+        double _tn_tpo2q = tn_tpo1q; //MIN4(tn_tpo1q, pcap_tmq, pcap_tbq, pcap_tmq2);
         double _tn_tra2q = MAX(0.0, tn_tra1q/tn_t_altmul - tn_tsamq + somatic_var_pq); // tumor  BQ bias is stronger as raw variant (biased to high BQ) is called   from each base
         
         if (isInDel) {
@@ -4014,15 +4169,15 @@ append_vcf_record(std::string & out_string,
         const double tn_trawq = _tn_tra2q;
         // QUESTION: why BQ-bias generations are discrete? Because of the noise with each observation of BQ? why indel generations are discrete?
         
-        const double pcap_nbq = ((isInDel || is_proton) ? 200.0 : mathsquare(nfm.BQ) * illumina_BQ_sqr_coef); // based on heuristics
-        const double pcap_nmq = MIN(maxMQ, nfm.MQ) * phred_varcall_err_per_map_err_per_base; // based on heuristics
-        const double pcap_nmq2 = (nfm.MQ - 10.0/log(10.0) * log((double)(nDP0 + nDP0pc0) / (double)(nAD0+nAD0pc0))) * (double)nAD0; // readjsutment by MQ
+        // const double pcap_nbq = ((isInDel || is_proton) ? 200.0 : mathsquare(nfm.BQ) * illumina_BQ_sqr_coef); // based on heuristics
+        // const double pcap_nmq = MIN(maxMQ, nfm.MQ) * phred_varcall_err_per_map_err_per_base; // based on heuristics
+        // const double pcap_nmq2 = (nfm.MQ - 10.0/log(10.0) * log((double)(nDP0 + nDP0pc0) / (double)(nAD0+nAD0pc0))) * (double)nAD0; // readjsutment by MQ
         const double tn_n_altmul = (nUseHD1 ? 1.0 : altmul);
         const double tn_n_refmul = (nUseHD1 ? 1.0 : refmul);
         const double tn_npo1q = 10.0 / log(10.0) * log((double)(nAD0 / tn_n_altmul + nE0) / ((nDP0 - tAD0) / tn_n_refmul + tAD0 / tn_n_altmul + 2.0 * nE0)) * (pl_exponent_n) + (pcap_nmax);
         const double tn_nsamq = 40.0 * pow(0.5, MAX((double)nAD0, ((double)(nfm.bDP + 1)) / ((double)(nfm.DP + 1)) - 1.0));
         const double tn_nra1q = (double)nfm.VAQ;
-        double _tn_npo2q = MIN4(tn_npo1q, pcap_nmq, pcap_nbq, pcap_nmq2);
+        double _tn_npo2q = tn_npo1q; // MIN4(tn_npo1q, pcap_nmq, pcap_nbq, pcap_nmq2);
         double _tn_nra2q = MAX(0.0, tn_nra1q/tn_n_altmul - tn_nsamq/4.0 + somatic_var_pq); // normal BQ bias is weaker   as res variant (biased to high BQ) is filtered from each variant
         if (isInDel) {
             if (!nUseHD1) {
@@ -4223,13 +4378,15 @@ append_vcf_record(std::string & out_string,
             std::to_string(t_base_q),
             std::to_string(t_indel_penal), std::to_string(t_penal_by_nearby_indel),
         }));
-        infostring += std::string(";TSQs=") + string_join(std::array<std::string, 5>({
+        infostring += std::string(";TSQs=") + string_join(std::array<std::string, 4>({
                 std::to_string(tn_tpowq)  , std::to_string(_tn_tra2q),
-                std::to_string(tn_tpo1q)  , std::to_string(tn_tra1q), std::to_string(tn_tsamq), // std::to_string(pcap_tmax)
+                // std::to_string(tn_tpo1q)  , 
+                std::to_string(tn_tra1q), std::to_string(tn_tsamq), // std::to_string(pcap_tmax)
         }));
-        infostring += std::string(";NSQs=") + string_join(std::array<std::string, 5>({
+        infostring += std::string(";NSQs=") + string_join(std::array<std::string, 4>({
                 std::to_string(tn_npowq)  , std::to_string(_tn_nra2q),
-                std::to_string(tn_npo1q)  , std::to_string(tn_nra1q), std::to_string(tn_nsamq),
+                // std::to_string(tn_npo1q)  , 
+                std::to_string(tn_nra1q), std::to_string(tn_nsamq),
         }));
         
         infostring += std::string(";tFA=") + std::to_string(tki.FA);
