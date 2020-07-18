@@ -3454,9 +3454,9 @@ output_germline(
     
     std::array<std::pair<int, int>, 4> GL4raw = {{
         std::make_pair(0,  -phred_homref - a1LODQ - MAX(a2LODQ - phred_tri_al, 0)),
-        std::make_pair(1,  -phred_hetero - a2LODQ - MAX(a0a1LODQ, a1a0LODQ)),
+        std::make_pair(1,  -phred_hetero - MAX3(a2LODQ, a0a1LODQ, a1a0LODQ)),
         std::make_pair(2,  -phred_homalt - MAX(a0LODQ, a2LODQ)),
-        std::make_pair(3,  -phred_tri_al - MAX(a0LODQ, a3LODQ) - MAX(a1a2LODQ, a2a1LODQ))
+        std::make_pair(3,  -phred_tri_al - MAX4(a0LODQ, a3LODQ, a1a2LODQ, a2a1LODQ))
     }};
     auto GL4 = GL4raw;
     /*
@@ -3574,14 +3574,14 @@ output_germline(
         std::to_string(germ_GQ), 
         std::string("PASS"), 
         std::string("GERMLINE"),
-        std::string("GT:GQ:HQ:DP:FT:cADR:GLa:GSTa"),
-        string_join(std::array<std::string, 8>
+        std::string("GT:GQ:HQ:FT:DP:cADR:GLa:GSTa:note"),
+        string_join(std::array<std::string, 9>
         {{
             germ_GT, 
             std::to_string(germ_GQ), 
-            std::string(".,."), 
-            std::to_string(symbol_format_vec[0].second->DP),
+            std::string("0,0"), 
             string_join(germ_FT, "/"),
+            std::to_string(symbol_format_vec[0].second->DP),
             other_join(germ_ADR, std::string(",")), 
             other_join(std::array<int, 3>
             {{ 
@@ -3593,6 +3593,7 @@ output_germline(
                 a0LODQA, a0LODQB, a1LODQ, a2LODQ, a3LODQ,
                 a0a1LODQ, a1a0LODQ, a1a2LODQ, a2a1LODQ
             }}, ","),
+            ref_alt1_alt2_alt3[0].second->note
         }}, ":")
     }}, "\t") + "\n";
     out_string += bcfline;
