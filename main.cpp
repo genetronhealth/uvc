@@ -722,6 +722,9 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
     Symbol2CountCoverageSet symbolToCountCoverageSet12(tid, extended_inclu_beg_pos, extended_exclu_end_pos + 1); 
     if (is_loginfo_enabled) { LOG(logINFO)<< "Thread " << thread_id << " starts updateByRegion3Aln with " << umi_strand_readset.size() << " families"; }
     std::string refstring = load_refstring(ref_faidx, tid, extended_inclu_beg_pos, extended_exclu_end_pos);
+    std::vector<RegionalTandemRepeat> region_repeatvec = refstring2repeatvec(refstring);
+    // repeatvec_LOG(region_repeatvec, extended_inclu_beg_pos);
+
     std::vector<std::tuple<unsigned int, unsigned int, unsigned int>> adjcount_x_rpos_x_misma_vec;
     std::map<std::basic_string<std::pair<unsigned int, AlignmentSymbol>>, std::array<unsigned int, 2>> mutform2count4map_bq;
     std::map<std::basic_string<std::pair<unsigned int, AlignmentSymbol>>, std::array<unsigned int, 2>> mutform2count4map_fq;
@@ -735,7 +738,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
             mutform2count4map_bq, 
             mutform2count4map_fq,
             umi_strand_readset, 
-            refstring, 
+            refstring,
+            region_repeatvec,
             paramset.bq_phred_added_misma, 
             paramset.bq_phred_added_indel, 
             paramset.should_add_note, 
@@ -846,11 +850,17 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
         }
     }
     */
-
+    RegionalTandemRepeat defaultRTR;
+    
     for (unsigned int refpos = rpos_inclu_beg; refpos <= rpos_exclu_end; refpos++) {
         std::string repeatunit;
         unsigned int repeatnum = 0;
-        indelpos_to_context(repeatunit, repeatnum, refstring, refpos - extended_inclu_beg_pos); 
+        
+        unsigned int rridx = refpos - extended_inclu_beg_pos;
+        indelpos_to_context(repeatunit, repeatnum, refstring, rridx);
+        const RegionalTandemRepeat & rtr1 = ((rridx > 0)                           ? (region_repeatvec[rridx-1]) : defaultRTR);
+        const RegionalTandemRepeat & rtr2 = ((rridx + 1 < region_repeatvec.size()) ? (region_repeatvec[rridx+1]) : defaultRTR);
+        
         const std::array<SymbolType, 2> stype_to_immediate_prev = {{LINK_SYMBOL, BASE_SYMBOL}};
         for (SymbolType symbolType : SYMBOL_TYPES_IN_VCF_ORDER) {
             bcfrec::BcfFormat init_fmt;
@@ -1059,6 +1069,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                                 paramset.haplo_oneside_posbias_perc,
                                 paramset.haplo_twoside_posbias_perc,
                                 paramset.phred_snv_to_indel_ratio,
+                                rtr1,
+                                rtr2,
                                 0);
                     }
                 }

@@ -178,7 +178,7 @@ struct VcStats {
 };
 
 // region_pos32_unitlen8_repeatnum16_qual8_vec
-struct RegionTandemRepeat {
+struct RegionalTandemRepeat {
     uint32_t begpos = 0;
     uint16_t tracklen = 0;
     uint8_t unitlen = 0;

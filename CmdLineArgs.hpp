@@ -50,7 +50,7 @@ struct CommandLineArgs {
     double highqual_min_ratio = 2.5;
     
     // https://www.biostars.org/p/110670/
-    uint32_t    min_depth_thres = 4;
+    uint32_t    min_depth_thres = 3; // 4; // 3 is used for germline
     uint32_t    min_altdp_thres = 2;
     uint32_t    min_aln_len = 0;
     uint32_t    min_mapqual = 0; // 40; // from GATK
@@ -102,7 +102,7 @@ struct CommandLineArgs {
     
     uint32_t    phred_frac_indel_error_before_barcode_labeling = 23; // 12, 18, 24 // 23;
     // uint32_t    baq_per_aligned_base = 3; // 4; // The BAQ of 3 seems to make more sense after reading the feedback from reviewer #2
-    uint32_t    baq_per_aligned_base = 4; // According to "A New Lossless DNA Compression Algorithm Based on A Single-Block Encoding Scheme" Table 7 Korea2009024, there is 2*577/800 bits of info per nucleotide for the human genome.
+    uint32_t    baq_per_aligned_base = 6; // 5; // According to "A New Lossless DNA Compression Algorithm Based on A Single-Block Encoding Scheme" Table 7 Korea2009024, there is 2*577/800 bits of info per nucleotide for the human genome.
     
     bool        is_somatic_snv_filtered_by_any_nonref_germline_snv = true;
     bool        is_somatic_indel_filtered_by_any_nonref_germline_indel = true;

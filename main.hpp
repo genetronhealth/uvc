@@ -160,15 +160,15 @@ enum AlignmentSymbol {
     BASE_G,  //   = 2,
     BASE_T,  //   = 3,
     BASE_N,  //   = 4, // ambigous in the original sequencing data
-    BASE_NN, //  = 5, // ambigous base after collapsing different reads
+    BASE_NN, //   = 5, // ambigous base after collapsing different reads
     //BASE_P = 6; // padded in deleted sequence
     LINK_M,  //   = 6, // absence of any gap
     LINK_D3P,// = 7, // deletion of length 3 or plus
     LINK_D2, //  = 8,  // deletion of length 2
     LINK_D1, //  = 9,
-    LINK_I3P, //  = 10, // insertion of length 1 // where the inserted sequence is not a repeat
+    LINK_I3P,//  = 10, // insertion of length 1 // where the inserted sequence is not a repeat
     LINK_I2, //  = 11, 
-    LINK_I1,// = 12, 
+    LINK_I1, // = 12, 
     LINK_NN, //  = 13, // ambiguous link between bases
     // LINK_P = 13; // padded in deleted sequence
     END_ALIGNMENT_SYMBOLS,
@@ -501,7 +501,18 @@ public:
             return -1;
         }
     };
-    
+    const TInteger
+    sumBySymbolType2(const SymbolType symbolType) const {
+        if (symbolType == BASE_SYMBOL) {
+            return this->_sumBySymbolType(BASE_A, AlignmentSymbol(((unsigned int)BASE_NN) - 1));
+        } else if (symbolType == LINK_SYMBOL) {
+            return this->_sumBySymbolType(LINK_M, AlignmentSymbol(((unsigned int)LINK_NN) - 1));
+        } else {
+            abort();
+            return -1;
+        }
+    };
+
     const TInteger
     _maxBySymbolType(AlignmentSymbol beg, AlignmentSymbol end) const {
         assert (beg <= end);
@@ -884,14 +895,14 @@ indel_phred(double ampfact, unsigned int cigar_oplen, unsigned int repeatsize_at
     // AC AC AC : repeatsize_at_max_repeatnum = 2, indel_n_units = 3
 }
 
-std::vector<RegionTandemRepeat>
+std::vector<RegionalTandemRepeat>
 refstring2repeatvec(
         const auto & refstring, 
         unsigned int specialflag = 0) {
-    std::vector<RegionTandemRepeat> region_repeatvec(refstring.size());
+    std::vector<RegionalTandemRepeat> region_repeatvec(refstring.size());
     for (int refpos = 0; refpos < refstring.size();) {
-        unsigned int repeatsize_at_max_repeatnum = 1;
-        unsigned int max_repeatnum = 1;
+        unsigned int repeatsize_at_max_repeatnum = 0;
+        unsigned int max_repeatnum = 0;
         unsigned int repeat_endpos = refpos;
         for (unsigned int repeatsize = 1; repeatsize <= 6; repeatsize++) {
             unsigned int qidx = refpos;
@@ -905,17 +916,30 @@ refstring2repeatvec(
                 repeat_endpos = qidx + repeatsize;
             }
         }
+        assert(repeat_endpos > refpos);
+        unsigned int tl = MIN(repeat_endpos, refstring.size()) - refpos;
         for (unsigned int i = refpos; i != MIN(repeat_endpos, refstring.size()); i++) {
-            unsigned int tl = repeat_endpos - refpos;
-            if (tl > region_repeatvec[refpos].tracklen) {
-                region_repeatvec[refpos].begpos = refpos;
-                region_repeatvec[refpos].tracklen = tl;
-                region_repeatvec[refpos].unitlen = repeatsize_at_max_repeatnum;
+            if (tl > region_repeatvec[i].tracklen) {
+                region_repeatvec[i].begpos = refpos;
+                region_repeatvec[i].tracklen = tl;
+                region_repeatvec[i].unitlen = repeatsize_at_max_repeatnum;
             }
         }
         refpos += repeatsize_at_max_repeatnum * max_repeatnum;
     }
     return region_repeatvec;
+}
+
+void
+repeatvec_LOG(const auto & region_repeatvec, unsigned int region_offset) {
+    for (size_t i = 0; i < region_repeatvec.size(); i++) {
+        LOG(logINFO) << "RegionalTandemRepeat\t" 
+                << (region_offset + i) << "\t"
+                << region_offset << "\t"
+                << region_repeatvec[i].begpos << "\t" 
+                << region_repeatvec[i].tracklen << "\t" 
+                << region_repeatvec[i].unitlen;
+    }
 }
 
 unsigned int
@@ -1119,27 +1143,42 @@ public:
         posToIndelToCount_inc(this->getRefPosToDlenToData(symbol), ipos, dlen, incvalue);
     };
     
-    std::vector<uint8_t> 
+    std::vector<uint16_t> 
     compute_qr_baq_vec(const bam1_t *b, const auto & region_repeatvec, const unsigned int region_offset, unsigned int baq_per_aligned_base) {
         const unsigned int rbeg = b->core.pos;
         const unsigned int rend = bam_endpos(b);
         const uint8_t *bseq = bam_get_seq(b);
         const uint32_t n_cigar = b->core.n_cigar;
         const uint32_t *cigar =  bam_get_cigar(b);
-        std::vector<uint8_t> refBAQvec(1+rend-rbeg);
+        std::vector<uint16_t> refBAQvec(rend-rbeg);
         {
             unsigned int qpos = 0;
             unsigned int rpos = b->core.pos;
             unsigned int baq = 0;
-            unsigned int prev_repeat_begpos = UINT_MAX;
+            unsigned int prev_repeat_begpos = 0; // UINT_MAX;
+            unsigned int prev_rpos = rbeg;
+            // unsigned int baq_per_aligned_repeatregion = baq_per_aligned_base;
             for (int i = 0; i != n_cigar; i++) {
                 const uint32_t c = cigar[i];
                 const unsigned int cigar_op = bam_cigar_op(c);
                 const unsigned int cigar_oplen = bam_cigar_oplen(c);
                 if (cigar_op == BAM_CMATCH || cigar_op == BAM_CEQUAL || cigar_op == BAM_CDIFF) {
                     for (unsigned int i2 = 0; i2 != cigar_oplen; i2++) {
-                        bool repeat_begpos = region_repeatvec[rpos - region_offset].begpos;
-                        if (prev_repeat_begpos != repeat_begpos) { baq += baq_per_aligned_base; }
+                        unsigned int repeat_begpos = region_repeatvec.at(rpos - region_offset).begpos;
+                        assert(repeat_begpos >= prev_repeat_begpos);
+                        if (prev_repeat_begpos != repeat_begpos) {
+                            /*
+                            unsigned int rrsize = rpos - prev_rpos;
+                            if (1 < rrsize) {
+                                baq += MIN(baq_per_aligned_base * rrsize, baq_per_aligned_repeatregion);
+                                baq_per_aligned_repeatregion += 1;
+                            } else {
+                                baq += baq_per_aligned_base;
+                            }
+                            prev_rpos = rpos;
+                            */
+                            baq += baq_per_aligned_base;
+                        }
                         refBAQvec[rpos - rbeg] = baq;
                         prev_repeat_begpos = repeat_begpos;
                         qpos++;
@@ -1156,22 +1195,55 @@ public:
                     qpos += cigar_oplen;
                 }
             }
-            assert(b->core.l_qseq == qpos);
-            assert(rend + 1 == rpos); 
+            assert(b->core.l_qseq == qpos || !fprintf(stderr, "%u == %u failed for bam %s", b->core.l_qseq, qpos, bam_get_qname(b)));
+            assert(rend == rpos || !fprintf(stderr, "%u == %u failed for bam %s", rend, rpos, bam_get_qname(b))); 
         }
+#if 0
+        if (b->core.pos % 1000 == 0) {
+            LOG(logINFO) << "For readname " << bam_get_qname(b) << " at tid " << b->core.tid << " position " <<  b->core.pos;
+            std::string tmpstring = "";
+            for (auto a : refBAQvec) {
+                tmpstring += std::to_string(a) + ",";
+            }
+            LOG(logINFO) << tmpstring;
+            tmpstring = "";
+            for (unsigned int i = b->core.pos; i < bam_endpos(b); i++) {
+                tmpstring += std::to_string(region_repeatvec.at(i - region_offset).begpos) + ",";
+            }
+            LOG(logINFO) << tmpstring;
+        }
+#endif
         {
             unsigned int qpos = b->core.l_qseq - 1;
-            unsigned int rpos = rend;
+            unsigned int rpos = rend - 1;
             unsigned int baq = 0;
             unsigned int prev_repeat_begpos = UINT_MAX;
+            // unsigned int prev_rpos = rend;
+            // unsigned int baq_per_aligned_repeatregion = baq_per_aligned_base;
             for (int i = n_cigar - 1; i != -1; i--) {
                 const uint32_t c = cigar[i];
                 const unsigned int cigar_op = bam_cigar_op(c);
                 const unsigned int cigar_oplen = bam_cigar_oplen(c);
                 if (cigar_op == BAM_CMATCH || cigar_op == BAM_CEQUAL || cigar_op == BAM_CDIFF) {
                     for (unsigned int i2 = 0; i2 != cigar_oplen; i2++) {
-                        bool repeat_begpos = region_repeatvec[rpos - region_offset].begpos;
-                        if (prev_repeat_begpos != repeat_begpos) { baq += baq_per_aligned_base; }
+                        unsigned int repeat_begpos = region_repeatvec.at(rpos - region_offset).begpos;
+                        assert(repeat_begpos <= prev_repeat_begpos);
+                        if (repeat_begpos == 0) {
+                            // LOG(logWARNING) << "repeat_begpos = 0 for readname " << bam_get_qname(b) << " at tid " << b->core.tid << " position " <<  b->core.pos;
+                        }
+                        if (prev_repeat_begpos != repeat_begpos) { 
+                            /*
+                            unsigned int rrsize = prev_rpos - rpos;
+                            if (1 < rrsize) {
+                                baq += MIN(baq_per_aligned_base * rrsize, baq_per_aligned_repeatregion);
+                                baq_per_aligned_repeatregion += 1;
+                            } else {
+                                baq += baq_per_aligned_base;
+                            }
+                            prev_rpos = rpos;
+                            */
+                            baq += baq_per_aligned_base;
+                        }
                         UPDATE_MIN(refBAQvec[rpos - rbeg], baq);
                         prev_repeat_begpos = repeat_begpos;
                         qpos--;
@@ -1188,9 +1260,19 @@ public:
                     qpos -= cigar_oplen;
                 }
             }
-            assert(-1 == qpos);
-            assert(rbeg - 1 == rpos); 
+            assert(-1 == qpos || !fprintf(stderr, "-1 == %u failed for bam %s", qpos, bam_get_qname(b)));
+            assert(rbeg - 1 == rpos || !fprintf(stderr, "%u - 1 == %u failed for bam %s", rbeg, rpos, bam_get_qname(b))); 
         }
+#if 0
+        if (b->core.pos % 10000 == 0) {
+            LOG(logINFO) << "For readname " << bam_get_qname(b) << " at tid " << b->core.tid << " position " <<  b->core.pos;
+            std::string refBAQvecStr = "";
+            for (auto a : refBAQvec) {
+                refBAQvecStr += std::to_string(a) + ",";
+            }
+            LOG(logINFO) << refBAQvecStr;
+        }
+#endif
         return refBAQvec;
     }
     
@@ -1206,7 +1288,7 @@ public:
             std::array<GenericSymbol2CountCoverage<Symbol2Count>, 4> & bq_nms_count,
             std::array<GenericSymbol2CountCoverage<Symbol2Count>, 1> & bq_baq_sum,
             unsigned int sidereg_nbases,
-            const std::vector<RegionTandemRepeat> & region_repeatvec,
+            const std::vector<RegionalTandemRepeat> & region_repeatvec,
             unsigned int baq_per_aligned_base,
             uint32_t sepcialflag = 0) {
         static_assert(BASE_QUALITY_MAX == TUpdateType || SYMBOL_COUNT_SUM == TUpdateType);
@@ -1226,7 +1308,7 @@ public:
         unsigned int incvalue = 1;
         
         unsigned int nm_var = 0;
-        std::vector<uint8_t> qr_baq_vec;
+        std::vector<uint16_t> qr_baq_vec;
         if (TFillSeqDir) {
             uint8_t * bam_aux_data = bam_aux_get(b, "NM");
             if (bam_aux_data != NULL) {
@@ -1352,12 +1434,15 @@ public:
                     }
                     this->incDel(rpos, cigar_oplen, delLenToSymbol(dellen), MAX(SIGN2UNSIGN(1), incvalue));
                 }
-#if 0 
+#if 1 
 // The definition of non-ref for indel is not clearly defined, this piece of code can result in germline risk that is not in the ground truth, so it it commented out.
 // However, if we consider any position covered by the boundary of a germline indel to be non-ref, then this code should be enabled.
                 unsigned int endpos = SIGN2UNSIGN(bam_endpos(b));
                 for (unsigned int p = rpos+1; p < MIN(rpos + cigar_oplen + 1, endpos); p++) {
                     this->template inc<TUpdateType>(p, LINK_NN, MAX(SIGN2UNSIGN(1), incvalue), b);
+                }
+                for (unsigned int p = rpos; p < MIN(rpos + cigar_oplen, endpos); p++) {
+                    this->template inc<TUpdateType>(p, BASE_NN, MAX(SIGN2UNSIGN(1), incvalue), b);
                 }
 #endif
                 rpos += cigar_oplen;
@@ -1881,8 +1966,8 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
                             const auto bq_dir_vmax = (test1bias ? bq_dir_v1 : bq_dir_v0);
                             const auto bq_dir_smin = (test1bias ? bq_dir_s0 : bq_dir_s1);
                             const auto bq_dir_smax = (test1bias ? bq_dir_s1 : bq_dir_s0);
-                            const double pseudocount_1 = ((double)pseudocount) / 2.0 + (double)(symbolType == BASE_SYMBOL ? 
-                                    (MIN(2.0, 2.0 * pow(10.0, (symbval_uqual_va_avg - typesum_uqual_va_avg) / 10.0))) : 1);
+                            const double pseudocount_1 = ((double)pseudocount) / 4.0 + (double)(symbolType == BASE_SYMBOL ? 
+                                    (MIN(2.0, 2.0 * pow(10.0, (3 + symbval_uqual_va_avg - typesum_uqual_va_avg) / 10.0))) : 1);
                             auto segbias100strand = any4_to_biasfact100((double)bq_dir_smin, (double)bq_dir_smax, (double)bq_dir_vmin, (double)bq_dir_vmax, 
                                     false, pseudocount_1);
                             bq_bias_sedir[0].getRefByPos(pos).incSymbolCount(symbol, segbias100strand); 
@@ -2468,6 +2553,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
             std::map<std::basic_string<std::pair<unsigned int, AlignmentSymbol>>, std::array<unsigned int, 2>> & mutform2count4map_fq,
             const std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, int>> & alns3, 
             const std::string & refstring,
+            const std::vector<RegionalTandemRepeat> & region_repeatvec,
             unsigned int bq_phred_added_misma, 
             unsigned int bq_phred_added_indel, 
             bool should_add_note, 
@@ -2496,7 +2582,7 @@ if (SYMBOL_TYPE_TO_AMBIG[symbolType] != symbol
         
         const std::array<unsigned int, NUM_SYMBOL_TYPES> symbolType2addPhred = {{bq_phred_added_misma, bq_phred_added_indel}};
         std::basic_string<AlignmentSymbol> ref_symbol_string = string2symbolseq(refstring);
-        std::vector<RegionTandemRepeat> region_repeatvec = refstring2repeatvec(refstring);
+        // std::vector<RegionalTandemRepeat> region_repeatvec = refstring2repeatvec(refstring);
 
         updateByAlns3UsingBQ(mutform2count4map_bq, 
                 alns3, 
@@ -2562,17 +2648,17 @@ BcfFormat_init(bcfrec::BcfFormat & fmt,
         const AlignmentSymbol refsymbol) {
     
     for (unsigned int strand = 0; strand < 2; strand++) {
-        fmt.bAllBQ[strand] = (symbolDistrSets12.bq_qual_p1sum.at(strand).getByPos(refpos).sumBySymbolType(symbolType)); 
-        // fmt.bAllBQ[strand] = div_by_20(symbolDistrSets12.bq_qual_p2sum.at(strand).getByPos(refpos).sumBySymbolType(symbolType)); 
+        fmt.bAllBQ[strand] = (symbolDistrSets12.bq_qual_p1sum.at(strand).getByPos(refpos).sumBySymbolType2(symbolType)); 
+        // fmt.bAllBQ[strand] = div_by_20(symbolDistrSets12.bq_qual_p2sum.at(strand).getByPos(refpos).sumBySymbolType2(symbolType)); 
 
         if (use_deduplicated_reads) {
-            fmt.cAllBQ[strand] = (symbolDistrSets12.fq_qual_p1sum.at(strand).getByPos(refpos).sumBySymbolType(symbolType)); 
-            //fmt.cAllBQ2[strand] = div_by_20(symbolDistrSets12.fq_qual_p2sum.at(strand).getByPos(refpos).sumBySymbolType(symbolType)); 
+            fmt.cAllBQ[strand] = (symbolDistrSets12.fq_qual_p1sum.at(strand).getByPos(refpos).sumBySymbolType2(symbolType)); 
+            //fmt.cAllBQ2[strand] = div_by_20(symbolDistrSets12.fq_qual_p2sum.at(strand).getByPos(refpos).sumBySymbolType2(symbolType)); 
         } else {
             fmt.cAllBQ[strand] = fmt.bAllBQ[strand]; 
-            //fmt.cAllBQ2[strand] = div_by_20(symbolDistrSets12.bq_qual_p2sum.at(strand).getByPos(refpos).sumBySymbolType(symbolType)); 
+            //fmt.cAllBQ2[strand] = div_by_20(symbolDistrSets12.bq_qual_p2sum.at(strand).getByPos(refpos).sumBySymbolType2(symbolType)); 
         }
-        fmt.cAllHD[strand] = symbolDistrSets12.fq_hiqual_dep.at(strand).getByPos(refpos).sumBySymbolType(symbolType);
+        fmt.cAllHD[strand] = symbolDistrSets12.fq_hiqual_dep.at(strand).getByPos(refpos).sumBySymbolType2(symbolType);
         
         fmt.bRefBQ[strand] = (symbolDistrSets12.bq_qual_p1sum.at(strand).getByPos(refpos).getSymbolCount(refsymbol)); 
         // fmt.bRefBQ[strand] = div_by_20(symbolDistrSets12.bq_qual_p2sum.at(strand).getByPos(refpos).getSymbolCount(refsymbol)); 
@@ -2585,13 +2671,13 @@ BcfFormat_init(bcfrec::BcfFormat & fmt,
         }
         fmt.cRefHD[strand] = symbolDistrSets12.fq_hiqual_dep.at(strand).getByPos(refpos).getSymbolCount(refsymbol); 
         
-        fmt.bDP1[strand] = symbolDistrSets12.bq_tsum_depth.at(strand).getByPos(refpos).sumBySymbolType(symbolType);
-        fmt.cDP1[strand] = symbolDistrSets12.fq_tsum_depth.at(strand).getByPos(refpos).sumBySymbolType(symbolType);
-        fmt.bDPLQ[strand] = symbolDistrSets12.bq_tsum_LQdep.at(strand).getByPos(refpos).sumBySymbolType(symbolType);
+        fmt.bDP1[strand] = symbolDistrSets12.bq_tsum_depth.at(strand).getByPos(refpos).sumBySymbolType2(symbolType);
+        fmt.cDP1[strand] = symbolDistrSets12.fq_tsum_depth.at(strand).getByPos(refpos).sumBySymbolType2(symbolType);
+        fmt.bDPLQ[strand] = symbolDistrSets12.bq_tsum_LQdep.at(strand).getByPos(refpos).sumBySymbolType2(symbolType);
        
-        fmt.cDPTT[strand] = symbolDistrSets12.fam_total_dep.at(strand).getByPos(refpos).sumBySymbolType(symbolType);
-        fmt.cDPT1[strand] = symbolDistrSets12.fam_size1_dep.at(strand).getByPos(refpos).sumBySymbolType(symbolType);
-        auto fmt_cDPTN = symbolDistrSets12.fam_nocon_dep.at(strand).getByPos(refpos).sumBySymbolType(symbolType);
+        fmt.cDPTT[strand] = symbolDistrSets12.fam_total_dep.at(strand).getByPos(refpos).sumBySymbolType2(symbolType);
+        fmt.cDPT1[strand] = symbolDistrSets12.fam_size1_dep.at(strand).getByPos(refpos).sumBySymbolType2(symbolType);
+        auto fmt_cDPTN = symbolDistrSets12.fam_nocon_dep.at(strand).getByPos(refpos).sumBySymbolType2(symbolType);
         fmt.cDPTC[strand] = fmt.cDPTT[strand] - fmt.cDPT1[strand] - fmt_cDPTN;
         
         fmt.bRD1[strand] = symbolDistrSets12.bq_tsum_depth.at(strand).getByPos(refpos).getSymbolCount(refsymbol);
@@ -2603,8 +2689,8 @@ BcfFormat_init(bcfrec::BcfFormat & fmt,
         auto fmt_cRDTN = symbolDistrSets12.fam_nocon_dep.at(strand).getByPos(refpos).getSymbolCount(refsymbol); 
         fmt.cRDTC[strand] = fmt.cRDTT[strand] - fmt.cRDT1[strand] - fmt_cRDTN;
         
-        fmt.aDP[strand*2+0] = symbolDistrSets12.bq_dirs_count.at(strand*2+0).getByPos(refpos).sumBySymbolType(symbolType);
-        fmt.aDP[strand*2+1] = symbolDistrSets12.bq_dirs_count.at(strand*2+1).getByPos(refpos).sumBySymbolType(symbolType);
+        fmt.aDP[strand*2+0] = symbolDistrSets12.bq_dirs_count.at(strand*2+0).getByPos(refpos).sumBySymbolType2(symbolType);
+        fmt.aDP[strand*2+1] = symbolDistrSets12.bq_dirs_count.at(strand*2+1).getByPos(refpos).sumBySymbolType2(symbolType);
         
         fmt.aRD[strand*2+0] = symbolDistrSets12.bq_dirs_count.at(strand*2+0).getByPos(refpos).getSymbolCount(refsymbol);
         fmt.aRD[strand*2+1] = symbolDistrSets12.bq_dirs_count.at(strand*2+1).getByPos(refpos).getSymbolCount(refsymbol);
@@ -2614,12 +2700,12 @@ BcfFormat_init(bcfrec::BcfFormat & fmt,
         
         // fmt.bEDRD[strand] = symbolDistrSets12.bq_n_edit_ops.at(strand).getByPos(refpos).getSymbolCount(refsymbol);
     }
-    fmt.aBAQDP = symbolDistrSets12.bq_baq_sum.at(0).getByPos(refpos).sumBySymbolType(symbolType);
+    fmt.aBAQDP = symbolDistrSets12.bq_baq_sum.at(0).getByPos(refpos).sumBySymbolType2(symbolType);
     fmt.aBAQADR = {{symbolDistrSets12.bq_baq_sum.at(0).getByPos(refpos).getSymbolCount(refsymbol), 0}};
 
     assert(fmt.aPBDP.size() == symbolDistrSets12.bq_regs_count.size());
     for (unsigned int region = 0; region < symbolDistrSets12.bq_regs_count.size(); region++) {
-        fmt.aPBDP[region] = symbolDistrSets12.bq_regs_count.at(region).getByPos(refpos).sumBySymbolType(symbolType);
+        fmt.aPBDP[region] = symbolDistrSets12.bq_regs_count.at(region).getByPos(refpos).sumBySymbolType2(symbolType);
     }
     
     fmt.gapSeq.clear();
@@ -2628,7 +2714,7 @@ BcfFormat_init(bcfrec::BcfFormat & fmt,
     fmt.gapNum[0] = 0;
     fmt.gapNum[1] = 0;
 
-    fmt.dDP1 = symbolDistrSets12.duplex_tsum_depth.getByPos(refpos).sumBySymbolType(symbolType);
+    fmt.dDP1 = symbolDistrSets12.duplex_tsum_depth.getByPos(refpos).sumBySymbolType2(symbolType);
     return {fmt.bDP1[0] + fmt.bDP1[1], fmt.cDP1[0] + fmt.cDP1[1]};
 };
 
@@ -2990,6 +3076,8 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
     assert(fmt.ADHQ >= 0);
     fmt.MQ = (unsigned int)sqrt((double)bq_qsum_sqrMQ_tot / (DBL_MIN + (double)(fmt.bAD1[0] + fmt.bAD1[1])));
     
+    double refmul = 1.0;
+    double altmul = 1.0;
     bool isInDel = (isSymbolIns(symbol) || isSymbolDel(symbol));
     if (fmtAD > 0 || is_rescued) {
         assert(fmt.FA >= 0);
@@ -3047,8 +3135,8 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
         fmt.RefBias = ref_bias;
         if (!is_ref_bias_aware) { ref_bias = 0; }
         unsigned int readlen = MAX(central_readlen, 30U); // 30 is the min alignment score
-        const double altmul = (double)(readlen - MIN(readlen - 30, ref_bias)) / (double)readlen; // 50.0 / (double)(ref_bias + 50);
-        const double refmul = 2.0 - altmul;
+        altmul = (double)(readlen - MIN(readlen - 30, ref_bias)) / (double)readlen; // 50.0 / (double)(ref_bias + 50);
+        refmul = 2.0 - altmul;
         auto ref_mul_contam_frac = ((double)MIN(ref_bias, readlen/2) / (double)(readlen));
         // likelihood that the reads are generated by tumor contam, other contam, hetero genotype, homo-alt genotype, (and homo-ref genotype)
         std::array<unsigned int, 2> pranks = {{0, 0}}; // number of alleles for REF vs ALT+other and ALT vs REF+other.
@@ -3297,7 +3385,7 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
     const double contig_to_frag_len_ratio = (double)2;
     double dsBQ1 = sqrt((mathsquare(fmt.bBQ1[0]) * (double)fmt.bAD1[0] + mathsquare(fmt.bBQ1[1]) * (double)fmt.bAD1[1]) / (double)(DBL_MIN + fmt.bAD1[0] + fmt.bAD1[1])); 
     fmt.BQ = (unsigned int)dsBQ1;
-    double vaqBQcap = ((fmt.BQ < minABQ) ? ((double)fmt.BQ) : ((double)FLT_MAX));
+    // double vaqBQcap = (double)FLT_MAX; // ((fmt.BQ < minABQ) ? ((double)fmt.BQ) : ((double)FLT_MAX));
     // sqrt(bq_qual_p2sum / (DBL_MIN + (double)fmt.bAD1[strand]));
     
     // double vaqMQcap = ((fmt.MQ < minMQ1) ? (fmt.MQ * contig_to_frag_len_ratio) : ((double)FLT_MAX));
@@ -3317,14 +3405,15 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
     duplexVAQ = MIN(duplexVAQ, 200); // Similar to many other upper bounds, the 200 here has no theoretical foundation.
     double duprate = 1.0 - MIN(1.0, (double)(fmt.cDP + 1) / (double)(fmt.bDP + 1));
     double dimret_coef = phred_umi_dimret_mult * duprate + (1.0 - duprate);
-    double rawVQ1 = dimret_coef * MIN(vaqBQcap, MAX(lowestVAQ, doubleVAQ + duplexVAQ));       // / 1.5;
-    double rawVQ2 = dimret_coef * MIN(vaqBQcap, MAX(lowestVAQ, doubleVAQ_norm + duplexVAQ));
-    fmt.VAQs = {{(float)rawVQ1, (float)rawVQ2}}; // treat other forms of indels as background noise if matched normal is not available.
+    //double rawVQ1 = dimret_coef * MIN(vaqBQcap, MAX(lowestVAQ, doubleVAQ + duplexVAQ));       // / 1.5;
+    //double rawVQ2 = dimret_coef * MIN(vaqBQcap, MAX(lowestVAQ, doubleVAQ_norm + duplexVAQ));
+    double rawVQ1 = dimret_coef * MAX(lowestVAQ, doubleVAQ + duplexVAQ) / sqrt(altmul);       // / 1.5;
+    double rawVQ2 = dimret_coef * MAX(lowestVAQ, doubleVAQ_norm + duplexVAQ) / sqrt(altmul);
     unsigned int pcap_baq = fmt.aBAQADR[1] / MAX(SUMVEC(fmt.aAD), 1);
     const double pcap_tbq = (isInDel ? 200.0 : (mathsquare(fmt.BQ) * illumina_BQ_sqr_coef)); // based on heuristics
     const double pcap_tmq1 = MIN((double)maxMQ, fmt.MQ) + phred_varcall_err_per_map_err_per_base; // bases on heuristics
     const double pcap_tmq2 = MAX(0.0, fmt.MQ - 10.0/log(10.0) * log((double)(fmt.DP + 1) / (double)(fmt.DP * fmt.FA + 0.5))) * ((double)fmt.DP * fmt.FA); // readjustment by MQ
-    
+    fmt.VAQs = {{(float)rawVQ1, (float)pcap_baq}}; // rawVQ2 treat other forms of indels as background noise if matched normal is not available.
     fmt.VAQ = MIN5(fmt.VAQs[0], (double)pcap_baq, pcap_tbq, pcap_tmq1, pcap_tmq2);
     return (int)(fmt.bAD1[0] + fmt.bAD1[1]);
 };
@@ -3425,7 +3514,8 @@ generate_vcf_header(const char *ref_fasta_fname,
     // ret += "##INFO=<ID=tGLa,Number=3,Type=Integer,Description=\"Tumor-sample GLa\">\n";
     // ret += "##INFO=<ID=tGLb,Number=3,Type=Integer,Description=\"Tumor-sample GLb\">\n";
     ret += "##INFO=<ID=RU,Number=1,Type=String,Description=\"The shortest repeating unit in the reference\">\n";
-    ret += "##INFO=<ID=RC,Number=1,Type=Integer,Description=\"The number of non-interrupted RUs in the reference\">\n"; 
+    ret += "##INFO=<ID=RC,Number=1,Type=Integer,Description=\"The number of non-interrupted RUs in the reference\">\n";
+    ret += "##INFO=<ID=R3X2,Number=6,Type=Integer,Description=\"Repeat start position, repeat track length, and repeat unit size at the two positions before and after this VCF position.\">\n"; 
     
     for (unsigned int i = 0; i < bcfrec::FORMAT_NUM; i++) {
         ret += std::string("") + bcfrec::FORMAT_LINES[i] + "\n";
@@ -3808,6 +3898,8 @@ append_vcf_record(std::string & out_string,
         uint64_t haplo_oneside_posbias_perc,
         uint64_t haplo_twoside_posbias_perc,
         const double phred_snv_to_indel_ratio,
+        const RegionalTandemRepeat & rtr1,
+        const RegionalTandemRepeat & rtr2,
         const unsigned int  specialflag) {
     
     const bcfrec::BcfFormat & fmt = fmtvar; 
@@ -4136,7 +4228,7 @@ append_vcf_record(std::string & out_string,
         const double tn_tsamq = 40.0 * pow(0.5, MAX((double)tAD0, ((double)(tki.bDP + 1)) / ((double)(tki.DP + 1)) - 1.0));
         const double tn_tra1q = ((double)tki.VAQ); // non-intuitive prior like
         double _tn_tpo2q = tn_tpo1q; //MIN4(tn_tpo1q, pcap_tmq, pcap_tbq, pcap_tmq2);
-        double _tn_tra2q = MAX(0.0, tn_tra1q/tn_t_altmul - tn_tsamq + somatic_var_pq); // tumor  BQ bias is stronger as raw variant (biased to high BQ) is called   from each base
+        double _tn_tra2q = MAX(0.0, tn_tra1q /*tn_t_altmul*/ - tn_tsamq + somatic_var_pq); // tumor  BQ bias is stronger as raw variant (biased to high BQ) is called   from each base
         
         if (isInDel) {
             if (!tUseHD1) {
@@ -4178,7 +4270,7 @@ append_vcf_record(std::string & out_string,
         const double tn_nsamq = 40.0 * pow(0.5, MAX((double)nAD0, ((double)(nfm.bDP + 1)) / ((double)(nfm.DP + 1)) - 1.0));
         const double tn_nra1q = (double)nfm.VAQ;
         double _tn_npo2q = tn_npo1q; // MIN4(tn_npo1q, pcap_nmq, pcap_nbq, pcap_nmq2);
-        double _tn_nra2q = MAX(0.0, tn_nra1q/tn_n_altmul - tn_nsamq/4.0 + somatic_var_pq); // normal BQ bias is weaker   as res variant (biased to high BQ) is filtered from each variant
+        double _tn_nra2q = MAX(0.0, tn_nra1q /*tn_n_altmul*/ - tn_nsamq/4.0 + somatic_var_pq); // normal BQ bias is weaker   as res variant (biased to high BQ) is filtered from each variant
         if (isInDel) {
             if (!nUseHD1) {
                 _tn_nra2q *= ((double)nAD0a + (double)(nAD0 - nAD0a) * symbol_to_allele_frac) / ((double)nAD0);
@@ -4432,7 +4524,9 @@ append_vcf_record(std::string & out_string,
         infostring += std::string(";tRCC=") + other_join(tki.RCC);
     } 
     infostring += std::string(";RU=") + repeatunit + ";RC=" + std::to_string(repeatnum);
-     
+    auto rtr1_chrpos = ((0 == rtr1.tracklen) ? 0 : (extended_inclu_beg_pos + rtr1.begpos));
+    auto rtr2_chrpos = ((0 == rtr2.tracklen) ? 0 : (extended_inclu_beg_pos + rtr2.begpos));
+    infostring += std::string(";R3X2=") + other_join(std::array<unsigned int, 6>{{rtr1_chrpos, rtr1.tracklen, rtr1.unitlen, rtr2_chrpos, rtr2.tracklen, rtr2.unitlen}}, ",");
     if (0 == vcffilter.size()) {
         if (vcfqual < 10) {
             vcffilter += (std::string(bcfrec::FILTER_IDS[bcfrec::Q10]) + ";");
