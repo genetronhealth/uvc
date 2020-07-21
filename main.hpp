@@ -1015,7 +1015,7 @@ dealwith_seg_regbias(unsigned int qpos1, unsigned int qpos2, const bam1_t *b, un
         bq_regs_count[idx].template inc<SYMBOL_COUNT_SUM>(rpos, symbol, 1, b);
     }
     bq_nms_count[strand*2+isrc].template inc<SYMBOL_COUNT_SUM>(rpos, symbol, nm, b);
-    bq_baq_sum[0].template inc<SYMBOL_COUNT_SUM>(rpos, symbol, MIN(160, qr_baq_vec.at(rpos - b->core.pos)), b);
+    bq_baq_sum[0].template inc<SYMBOL_COUNT_SUM>(rpos, symbol, MIN(200, qr_baq_vec.at(rpos - b->core.pos)), b);
     auto qualphred = (bam_phredi(b, qpos1) + bam_phredi(b, qpos2)) / 2;
     bq_dirs_bqsum[strand*2+isrc].template inc<SYMBOL_COUNT_SUM>(rpos, symbol, qualphred, b);
     return idx;
@@ -2947,7 +2947,9 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
         // const bool is_proton,
         const double illumina_BQ_sqr_coef,
         const unsigned int phred_varcall_err_per_map_err_per_base,
+        const auto phred_snv_to_indel_ratio,
         const int specialflag) {
+
     fmt.note = symbol2CountCoverageSet12.additional_note.getByPos(refpos).at(symbol);
     uint64_t bq_qsum_sqrMQ_tot = 0; 
     for (unsigned int strand = 0; strand < 2; strand++) {
@@ -2986,13 +2988,11 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
         fmt.bQT3[strand] = symbol2CountCoverageSet12.bq_vars_thres.at(strand).getByPos(refpos).getSymbolCount(symbol); // pass  threshold
         fmt.bVQ3[strand] = symbol2CountCoverageSet12.bq_vars_vqual.at(strand).getByPos(refpos).getSymbolCount(symbol); // pass  allele depth 
         
-        fmt.aAD[strand*2+0] = symbol2CountCoverageSet12.bq_dirs_count.at(strand*2+0).getByPos(refpos).getSymbolCount(symbol);
-        fmt.aAD[strand*2+1] = symbol2CountCoverageSet12.bq_dirs_count.at(strand*2+1).getByPos(refpos).getSymbolCount(symbol);
-        fmt.aNMAD[strand*2+0] = symbol2CountCoverageSet12.bq_nms_count.at(strand*2+0).getByPos(refpos).getSymbolCount(symbol);
-        fmt.aNMAD[strand*2+1] = symbol2CountCoverageSet12.bq_nms_count.at(strand*2+1).getByPos(refpos).getSymbolCount(symbol);
-        
-        fmt.aAD[strand*2+0] = symbol2CountCoverageSet12.bq_dirs_bqsum.at(strand*2+0).getByPos(refpos).getSymbolCount(symbol);
-        
+        for (unsigned int seqdir = 0; seqdir < 2; seqdir++) {
+            fmt.aAD[strand*2+seqdir] = symbol2CountCoverageSet12.bq_dirs_count.at(strand*2+seqdir).getByPos(refpos).getSymbolCount(symbol);
+            fmt.aNMAD[strand*2+seqdir] = symbol2CountCoverageSet12.bq_nms_count.at(strand*2+seqdir).getByPos(refpos).getSymbolCount(symbol);
+            fmt.aBQAD[strand*2+seqdir] = symbol2CountCoverageSet12.bq_dirs_bqsum.at(strand*2+seqdir).getByPos(refpos).getSymbolCount(symbol);
+        }
         fmt.aBAQADR[1] = symbol2CountCoverageSet12.bq_baq_sum.at(0).getByPos(refpos).getSymbolCount(symbol);
         
         assert(fmt.aB.size() == symbol2CountCoverageSet12.bq_bias_sedir.size());
@@ -3428,19 +3428,38 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
     double dimret_coef = phred_umi_dimret_mult * duprate + (1.0 - duprate);
     //double rawVQ1 = dimret_coef * MIN(vaqBQcap, MAX(lowestVAQ, doubleVAQ + duplexVAQ));       // / 1.5;
     //double rawVQ2 = dimret_coef * MIN(vaqBQcap, MAX(lowestVAQ, doubleVAQ_norm + duplexVAQ));
-    double rawVQ1 = dimret_coef * MAX(lowestVAQ, doubleVAQ + duplexVAQ) / sqrt(altmul);       // / 1.5;
-    double rawVQ2 = dimret_coef * MAX(lowestVAQ, doubleVAQ_norm + duplexVAQ) / sqrt(altmul);
+    int somatic_var_pq = 5.0;
+    if (isInDel) {
+        std::string indelstring = indel_get_majority(fmt, prev_is_tumor, tki, false, NULL, refpos, symbol, false); 
+        somatic_var_pq = (int)MIN(indel_phred(8.0, indelstring.size(), repeatunit.size(), repeatnum), 24) + (5-3) - (int)phred_snv_to_indel_ratio;
+    }
+    double rawVQ1 = dimret_coef * MAX(lowestVAQ, doubleVAQ + duplexVAQ) / sqrt(altmul) + somatic_var_pq;       // / 1.5;
+    // double rawVQ2 = dimret_coef * MAX(lowestVAQ, doubleVAQ_norm + duplexVAQ) / sqrt(altmul) + somatic_var_pq;
+    
+    // intuition for the somatic_var_pq formula: InDel candidate with higher baseline-noise frequency is simply more likely to be a true mutation too
+    // assuming that in-vivo biological error and in-vitro technical error are positively correlated with each other. 
+    // https://doi.org/10.1007%2Fs00239-010-9377-4
+    
     unsigned int pcap_baq = fmt.aBAQADR[1] / MAX(SUMVEC(fmt.aAD), 1);
     // const double pcap_tbq = (isInDel ? 200.0 : (mathsquare(fmt.BQ) * illumina_BQ_sqr_coef - 10.0/log(10.0) * log((double)MAX(100, fmt.aB[0]) / 100.0))); // based on heuristics
     const unsigned int fwTotBQ = (fmt.aBQAD[0] + fmt.aBQAD[2]);
     const unsigned int rvTotBQ = (fmt.aBQAD[1] + fmt.aBQAD[3]);
     const unsigned int d2TotBQ = MAX(fwTotBQ, rvTotBQ) + MIN(fwTotBQ, rvTotBQ) * 5/2;
-    const double pcap_tbq = (isInDel ? 200.0 : (d2TotBQ / (SUMVEC(fmt.aAD) + 1) * illumina_BQ_sqr_coef)); // based on heuristics
+    const auto pcap_tbq = (unsigned int)(isInDel ? 200.0 : (d2TotBQ / (SUMVEC(fmt.aAD) + 1) * illumina_BQ_sqr_coef)); // based on heuristics
     
-    const double pcap_tmq1 = MIN((double)maxMQ, fmt.MQ) + phred_varcall_err_per_map_err_per_base; // bases on heuristics
-    const double pcap_tmq2 = MAX(0.0, fmt.MQ - 10.0/log(10.0) * log((double)(fmt.DP + 1) / (double)(fmt.DP * fmt.FA + 0.5))) * ((double)fmt.DP * fmt.FA); // readjustment by MQ
-    fmt.VAQs = {{(float)rawVQ1, (float)pcap_baq}}; // rawVQ2 treat other forms of indels as background noise if matched normal is not available.
-    fmt.VAQ = MIN5(fmt.VAQs[0], (double)pcap_baq, pcap_tbq, pcap_tmq1, pcap_tmq2);
+    const auto pcap_tmq1 = (unsigned int)MIN(maxMQ, fmt.MQ) + phred_varcall_err_per_map_err_per_base; // bases on heuristics
+    const auto pcap_tmq2 = (unsigned int)MAX(3.0, fmt.MQ - 10.0/log(10.0) * log((double)(fmt.DP + 1) / (double)(fmt.DP * fmt.FA + 0.5))) * ((double)fmt.DP * fmt.FA); // readjustment by MQ
+    //fmt.VAQs = {{(float)rawVQ1, (float)pcap_baq}}; // rawVQ2 treat other forms of indels as background noise if matched normal is not available.
+    //fmt.VAQ = MIN5(fmt.VAQs[0], (double)pcap_baq, pcap_tbq, pcap_tmq1, pcap_tmq2);
+    fmt.VQ1.clear();
+    fmt.VQ2.clear();
+    fmt.VQ3.clear();
+    fmt.VAQ.clear();
+    
+    fmt.VQ1.push_back((unsigned int)pcap_baq); // base alignment quality
+    fmt.VQ2.push_back((unsigned int)pcap_tbq); // base quality
+    fmt.VQ3.push_back((unsigned int)MIN(pcap_tmq1, pcap_tmq2)); // mapping quality
+    fmt.VAQ.push_back(MIN4(fmt.VQ1[0], fmt.VQ2[0], fmt.VQ3[0], rawVQ1));
     return (int)(fmt.bAD1[0] + fmt.bAD1[1]);
 };
 
@@ -3987,12 +4006,8 @@ append_vcf_record(std::string & out_string,
     }
     
     const double indel_ic = ((!isInDel) ? 0.0 : (10.0/log(10.0) * log((double)MAX(indelstring.size(), 1U) / (double)(repeatunit.size() * (repeatnum - 1) + 1))));
-    // intuition for the somatic_var_pq formula: InDel candidate with higher baseline-noise frequency is simply more likely to be a true mutation too
-    // assuming that in-vivo biological error and in-vitro technical error are positively correlated with each other. 
-    // https://doi.org/10.1007%2Fs00239-010-9377-4
-    const double somatic_var_pq = ((!isInDel) ? 5.0 : (MIN((double)indel_phred(8.0, indelstring.size(), repeatunit.size(), repeatnum), 24.0) + (5.0 - 3.0) - phred_snv_to_indel_ratio));
     
-    bool is_novar = (symbol == LINK_M || (isSymbolSubstitution(symbol) && vcfref == vcfalt));
+    const bool is_novar = (symbol == LINK_M || (isSymbolSubstitution(symbol) && vcfref == vcfalt));
     if (is_novar && (!should_let_all_pass) && (!should_output_all)) {
         //return -1;
     }
@@ -4084,7 +4099,7 @@ append_vcf_record(std::string & out_string,
     if (!prev_is_tumor) {
         ref_alt = vcfref + "\t" + vcfalt;
         tki.FTS = fmt.FTS;
-        tki.VAQ = fmt.VAQ;
+        tki.VAQ = fmt.VAQ[0];
         
         //static_assert(tki.tDPs.size() == 3);
         //static_assert(tki.nDPs.size() == 3);
@@ -4171,6 +4186,7 @@ append_vcf_record(std::string & out_string,
         if (tUseHD1 && tki.FA > DBLFLT_EPS) {
             tDP0 = MAX3(tDP0, tAD0 / tki.FA, tAD0 / ((tAltCD + 0.5) / (tAllCD + 1.0)));
         }
+        
         // double tRD0 = (double)((tUseHD) ? (tRefHD) :             tki.FR * (double)tki.DP) + DBLFLT_EPS / 2.0; 
         
         double nAD0a = nAD0 * ((isInDel && !nUseHD1) ? ((double)(nfm.gapDP4[2] + 1) / (double)(nfm.gapDP4[0] + 1)) : 1.0); // not used ?
@@ -4260,7 +4276,7 @@ append_vcf_record(std::string & out_string,
         const double tn_tsamq = 40.0 * pow(0.5, MAX((double)tAD0, ((double)(tki.bDP + 1)) / ((double)(tki.DP + 1)) - 1.0));
         const double tn_tra1q = ((double)tki.VAQ); // non-intuitive prior like
         double _tn_tpo2q = tn_tpo1q; //MIN4(tn_tpo1q, pcap_tmq, pcap_tbq, pcap_tmq2);
-        double _tn_tra2q = MAX(0.0, tn_tra1q /*tn_t_altmul*/ - tn_tsamq + somatic_var_pq); // tumor  BQ bias is stronger as raw variant (biased to high BQ) is called   from each base
+        double _tn_tra2q = MAX(0.0, tn_tra1q /*tn_t_altmul*/ - tn_tsamq); //  + somatic_var_pq); // tumor  BQ bias is stronger as raw variant (biased to high BQ) is called   from each base
         
         if (isInDel) {
             if (!tUseHD1) {
@@ -4300,9 +4316,9 @@ append_vcf_record(std::string & out_string,
         const double tn_n_refmul = (nUseHD1 ? 1.0 : refmul);
         const double tn_npo1q = 10.0 / log(10.0) * log((double)(nAD0 / tn_n_altmul + nE0) / ((nDP0 - tAD0) / tn_n_refmul + tAD0 / tn_n_altmul + 2.0 * nE0)) * (pl_exponent_n) + (pcap_nmax);
         const double tn_nsamq = 40.0 * pow(0.5, MAX((double)nAD0, ((double)(nfm.bDP + 1)) / ((double)(nfm.DP + 1)) - 1.0));
-        const double tn_nra1q = (double)nfm.VAQ;
+        const double tn_nra1q = (double)nfm.VAQ[0];
         double _tn_npo2q = tn_npo1q; // MIN4(tn_npo1q, pcap_nmq, pcap_nbq, pcap_nmq2);
-        double _tn_nra2q = MAX(0.0, tn_nra1q /*tn_n_altmul*/ - tn_nsamq/4.0 + somatic_var_pq); // normal BQ bias is weaker   as res variant (biased to high BQ) is filtered from each variant
+        double _tn_nra2q = MAX(0.0, tn_nra1q /*tn_n_altmul*/ - tn_nsamq/4.0); // + somatic_var_pq); // normal BQ bias is weaker   as res variant (biased to high BQ) is filtered from each variant
         if (isInDel) {
             if (!nUseHD1) {
                 _tn_nra2q *= ((double)nAD0a + (double)(nAD0 - nAD0a) * symbol_to_allele_frac) / ((double)nAD0);

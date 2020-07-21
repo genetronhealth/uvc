@@ -156,10 +156,13 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("OType"    , 1, BCF_STRING,  "The non-reference allele type with the most evidence other than the ALT allele type of this record"),
     BcfFormatStruct("ORAQs"    , 2, BCF_FLOAT,   "Qualities of OType and reference allele type"),
     BcfFormatStruct("VType"    , 1, BCF_STRING,  "Variant type for the ALT allele"),
-    BcfFormatStruct("VAQs"     , 2, BCF_FLOAT,   "Raw variant allele quality (VAQ) and VAQ of the specific form(s) of InDel in ALT assuming other forms of InDels are noise"),
+    // BcfFormatStruct("VAQs"     , 2, BCF_FLOAT,   "Raw variant allele quality (VAQ) and VAQ of the specific form(s) of InDel in ALT assuming other forms of InDels are noise"),
     // BcfFormatStruct("VAQAB"    , 1, BCF_FLOAT,   "Variant Allele Quality adjusted with bias"),
-    BcfFormatStruct("VAQ"      , 1, BCF_FLOAT,   "Normalized variant allele quality"),
-
+    BcfFormatStruct("VQ1"      , BCF_NUM_A, BCF_INTEGER, "Variant allele quality capped by base alignment quality"),
+    BcfFormatStruct("VQ2"      , BCF_NUM_A, BCF_INTEGER, "Variant allele quality capped by base quality"),
+    BcfFormatStruct("VQ3"      , BCF_NUM_A, BCF_INTEGER, "Variant allele quality capped by base quality"),
+    BcfFormatStruct("VAQ"      , BCF_NUM_A, BCF_INTEGER, "Variant allele quality of the call"),
+    
     BcfFormatStruct("__A5"     , 1, BCF_SEP,     "Sum of base qualities (bAllBQ/bAltBQ/bRefBQ) and consensus-family qualities (cAllBQ/cAltBQ/cRefBQ) for ALL/ALT/REF alleles"), // global 
     BcfFormatStruct("bAllBQ"   , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("bAltBQ"   , 2, BCF_INTEGER, "see above"),
