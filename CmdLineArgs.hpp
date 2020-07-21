@@ -106,8 +106,8 @@ struct CommandLineArgs {
     
     bool        is_somatic_snv_filtered_by_any_nonref_germline_snv = true;
     bool        is_somatic_indel_filtered_by_any_nonref_germline_indel = true;
-    double      amp_BQ_sqr_coef = 21.0/256.0; 
-    double      cap_BQ_sqr_coef = 32.0/256.0;
+    double      amp_BQ_sqr_coef = 2.0; // 0.09; // 22.0/256.0; 
+    double      cap_BQ_sqr_coef = 2.0; // 0.12; // .0/256.0;
     double      phred_varcall_err_per_map_err_per_base = 20.0;
     
     double      powlaw_exponent = 3.0;

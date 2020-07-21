@@ -181,10 +181,13 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("aDP"      , 4, BCF_INTEGER, "Four-direction raw depths total and summed for ALL alleles [unmerged]"),
     BcfFormatStruct("aRD"      , 4, BCF_INTEGER, "Four-direction raw depths specific to only the ALT allele  [unmerged]"),
     BcfFormatStruct("aAD"      , 4, BCF_INTEGER, "Four-direction raw depths specific to only the ALT allele  [unmerged]"),
-    BcfFormatStruct("aNMRD"    , 4, BCF_INTEGER, "Four-direction total numbers of mismatches (the NM sam tag) specific to only the REF allele  [unmerged"),
-    BcfFormatStruct("aNMAD"    , 4, BCF_INTEGER, "Four-direction total numbers of mismatches (the NM sam tag) specific to only the ALT allele  [unmerged"),
     
     BcfFormatStruct("__ab"     , 1, BCF_SEP,     "More sequencing-segment statistics."),
+    BcfFormatStruct("aNMRD"    , 4, BCF_INTEGER, "Four-direction total numbers of mismatches (the NM sam tag) specific to only the REF allele  [unmerged"),
+    BcfFormatStruct("aNMAD"    , 4, BCF_INTEGER, "Four-direction total numbers of mismatches (the NM sam tag) specific to only the ALT allele  [unmerged"),
+    BcfFormatStruct("aBQAD"    , 4, BCF_INTEGER, "Four-direction total sum of base qualities of the ALT allele  [unmerged"),
+    
+    BcfFormatStruct("__ac"     , 1, BCF_SEP,     "More sequencing-segment statistics."),
     BcfFormatStruct("aPBDP"    , 3, BCF_INTEGER, "Raw depths within the left&right, left, and right regions for all the alleles [unmerged]"),
     BcfFormatStruct("aPBAD"    , 3, BCF_INTEGER, "Raw depths within the left&right, left, and right regions for the ALT allele  [unmerged]"),
     BcfFormatStruct("aB"       , 4, BCF_INTEGER, "For sequencing-segments: strand, left&right position, left position, and right position biases [unmerged]"),
@@ -220,9 +223,9 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     
     BcfFormatStruct("__be"     , 1, BCF_SEP,     "Forward&reverse  allele root-mean-squre MQ (bMQ1) and (sum of squared MQ) / (sum of MQ) (bMQ2), where MQ is mapping quality, and the same for base quality BQ [duped]"),
     BcfFormatStruct("bMQ1"     , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("bMQ2"     , 2, BCF_INTEGER, "see above"),
+    //BcfFormatStruct("bMQ2"     , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("bBQ1"     , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("bBQ2"     , 2, BCF_INTEGER, "see above"),
+    //BcfFormatStruct("bBQ2"     , 2, BCF_INTEGER, "see above"),
     BcfFormatStruct("bNSB"     , 2, BCF_INTEGER, "Total number of sequenced bases on all reads covering this position [base read, duped]"), 
     // BcfFormatStruct("bEDRD"    , 2, BCF_INTEGER, "Summed Phred-scaled edit distance of reads supporting the REF where an InDel corresponds to 2 edits [base read, duped]"),
     // BcfFormatStruct("bEDAD"    , 2, BCF_INTEGER, "Summed Phred-scaled edit distance of reads supporting the ALT where an InDel corresponds to 2 edits [base read, duped]"),
