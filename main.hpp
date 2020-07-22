@@ -1154,7 +1154,17 @@ public:
         const unsigned int rend = bam_endpos(b);
         const uint8_t *bseq = bam_get_seq(b);
         const uint32_t n_cigar = b->core.n_cigar;
-        const uint32_t *cigar =  bam_get_cigar(b);
+        const uint32_t *cigar = bam_get_cigar(b);
+        /*
+        unsigned int baq_init = baq_per_aligned_base;
+        for (unsigned int i = 0; i != n_cigar; i++) {
+            const uint32_t c = cigar[i];
+            const unsigned int cigar_op = bam_cigar_op(c);
+            if (BAM_CINS == cigar_op || BAM_CDEL == cigar_op) {
+                baq_init = 0;
+            }
+        }
+        */
         std::vector<uint16_t> refBAQvec(rend-rbeg);
         {
             unsigned int qpos = 0;
@@ -2948,6 +2958,7 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
         const double illumina_BQ_sqr_coef,
         const unsigned int phred_varcall_err_per_map_err_per_base,
         const auto phred_snv_to_indel_ratio,
+        const bool is_proton,
         const int specialflag) {
 
     fmt.note = symbol2CountCoverageSet12.additional_note.getByPos(refpos).at(symbol);
@@ -3441,23 +3452,36 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
     // https://doi.org/10.1007%2Fs00239-010-9377-4
     
     unsigned int pcap_baq = fmt.aBAQADR[1] / MAX(SUMVEC(fmt.aAD), 1);
-    // const double pcap_tbq = (isInDel ? 200.0 : (mathsquare(fmt.BQ) * illumina_BQ_sqr_coef - 10.0/log(10.0) * log((double)MAX(100, fmt.aB[0]) / 100.0))); // based on heuristics
-    const unsigned int fwTotBQ = (fmt.aBQAD[0] + fmt.aBQAD[2]);
-    const unsigned int rvTotBQ = (fmt.aBQAD[1] + fmt.aBQAD[3]);
-    const unsigned int d2TotBQ = MAX(fwTotBQ, rvTotBQ) + MIN(fwTotBQ, rvTotBQ) * 5/2;
-    const auto pcap_tbq = (unsigned int)(isInDel ? 200.0 : (d2TotBQ / (SUMVEC(fmt.aAD) + 1) * illumina_BQ_sqr_coef)); // based on heuristics
+    // const double pcap_bcq = (isInDel ? 200.0 : (mathsquare(fmt.BQ) * illumina_BQ_sqr_coef - 10.0/log(10.0) * log((double)MAX(100, fmt.aB[0]) / 100.0))); // based on heuristics
+    //const unsigned int fwTotBQ = (fmt.aBQAD[0] + fmt.aBQAD[2]);
+    //const unsigned int rvTotBQ = (fmt.aBQAD[1] + fmt.aBQAD[3]);
+    //const unsigned int d2TotBQ = MAX(fwTotBQ, rvTotBQ) + MIN(fwTotBQ, rvTotBQ) * 5/2;
+    //const auto pcap_bcq = (unsigned int)(isInDel ? 200.0 : (d2TotBQ / ((double)SUMVEC(fmt.aAD) + DBL_EPSILON) * illumina_BQ_sqr_coef)); // based on heuristics
+    
+    const unsigned int fwTotAD = (fmt.aAD[0] + fmt.aAD[2]);
+    const unsigned int rvTotAD = (fmt.aAD[1] + fmt.aAD[3]);
+    const unsigned int fwTotOD = (fmt.aDP[0] + fmt.aDP[2]) - fwTotAD;
+    const unsigned int rvTotOD = (fmt.aDP[1] + fmt.aDP[3]) - rvTotAD;
+    double coefBQ = 0;
+    if (fwTotAD < rvTotAD) {
+        coefBQ = 2.0 + 2.0 * (fwTotAD + 0.5) / (double)(fwTotAD + rvTotAD + 2) - (fwTotOD + 0.5) / (double)(fwTotOD + rvTotOD + fwTotAD + 2); 
+    } else {
+        coefBQ = 2.0 + 2.0 * (rvTotAD + 0.5) / (double)(fwTotAD + rvTotAD + 2) - (rvTotOD + 0.5) / (double)(fwTotOD + rvTotOD + rvTotAD + 2);
+    }
+    // const auto pcap_bcq = (unsigned int)((isInDel || is_proton) ? 200.0 : (d2TotBQ / ((double)SUMVEC(fmt.aAD) + DBL_EPSILON) * illumina_BQ_sqr_coef)); 
+    const auto pcap_bcq = (unsigned int)((isInDel || is_proton) ? 200.0 : (unsigned int)(coefBQ * mathsquare(fmt.BQ) / 20.0));
     
     const auto pcap_tmq1 = (unsigned int)MIN(maxMQ, fmt.MQ) + phred_varcall_err_per_map_err_per_base; // bases on heuristics
     const auto pcap_tmq2 = (unsigned int)MAX(3.0, fmt.MQ - 10.0/log(10.0) * log((double)(fmt.DP + 1) / (double)(fmt.DP * fmt.FA + 0.5))) * ((double)fmt.DP * fmt.FA); // readjustment by MQ
     //fmt.VAQs = {{(float)rawVQ1, (float)pcap_baq}}; // rawVQ2 treat other forms of indels as background noise if matched normal is not available.
-    //fmt.VAQ = MIN5(fmt.VAQs[0], (double)pcap_baq, pcap_tbq, pcap_tmq1, pcap_tmq2);
+    //fmt.VAQ = MIN5(fmt.VAQs[0], (double)pcap_baq, pcap_bcq, pcap_tmq1, pcap_tmq2);
     fmt.VQ1.clear();
     fmt.VQ2.clear();
     fmt.VQ3.clear();
     fmt.VAQ.clear();
     
     fmt.VQ1.push_back((unsigned int)pcap_baq); // base alignment quality
-    fmt.VQ2.push_back((unsigned int)pcap_tbq); // base quality
+    fmt.VQ2.push_back((unsigned int)pcap_bcq); // base quality
     fmt.VQ3.push_back((unsigned int)MIN(pcap_tmq1, pcap_tmq2)); // mapping quality
     fmt.VAQ.push_back(MIN4(fmt.VQ1[0], fmt.VQ2[0], fmt.VQ3[0], rawVQ1));
     return (int)(fmt.bAD1[0] + fmt.bAD1[1]);
@@ -3848,10 +3872,10 @@ output_germline(
     auto vcfpos = refpos + (isSymbolSubstitution(refsymbol) ? 1 : 0);
     
     std::vector<int> germ_ADR;
-    germ_ADR.push_back(ref_alt1_alt2_alt3[0].second->cADR[1]);
-    germ_ADR.push_back(ref_alt1_alt2_alt3[1].second->cADR[1]);
+    germ_ADR.push_back(collectget(ref_alt1_alt2_alt3[0].second->cADR, 1, 0));
+    germ_ADR.push_back(collectget(ref_alt1_alt2_alt3[1].second->cADR, 1, 0));
     if (3 == GLidx) {
-        germ_ADR.push_back(ref_alt1_alt2_alt3[2].second->cADR[1]);
+        germ_ADR.push_back(collectget(ref_alt1_alt2_alt3[2].second->cADR, 1, 0));
     }
     std::vector<std::string> germ_FT;
     germ_FT.push_back(ref_alt1_alt2_alt3[0].second->FT);
@@ -4099,7 +4123,7 @@ append_vcf_record(std::string & out_string,
     if (!prev_is_tumor) {
         ref_alt = vcfref + "\t" + vcfalt;
         tki.FTS = fmt.FTS;
-        tki.VAQ = fmt.VAQ[0];
+        tki.VAQ = (fmt.VAQ.size() > 0 ? fmt.VAQ[0] : 0);
         
         //static_assert(tki.tDPs.size() == 3);
         //static_assert(tki.nDPs.size() == 3);
@@ -4267,7 +4291,7 @@ append_vcf_record(std::string & out_string,
                 : 0.0);
         
         double t_indel_penal = 0.0;
-        // const double pcap_tbq = ((isInDel || is_proton) ? 200.0 : (mathsquare(tki.BQ) * illumina_BQ_sqr_coef)); // based on heuristics
+        // const double pcap_bcq = ((isInDel || is_proton) ? 200.0 : (mathsquare(tki.BQ) * illumina_BQ_sqr_coef)); // based on heuristics
         // const double pcap_tmq = MIN((double)maxMQ, tki.MQ) + phred_varcall_err_per_map_err_per_base; // bases on heuristics
         // const double pcap_tmq2 = MAX(0.0, tki.MQ - 10.0/log(10.0) * log((double)(tDP0 + tDP0pc0) / (double)(tAD0+tAD0pc0))) * (double)tAD0; // readjustment by MQ
         const double tn_t_altmul = (tUseHD1 ? 1.0 : altmul);
@@ -4275,7 +4299,7 @@ append_vcf_record(std::string & out_string,
         const double tn_tpo1q = 10.0 / log(10.0) * log((double)(tAD0 / tn_t_altmul + tE0) / ((tDP0 - tAD0) / tn_t_refmul + tAD0 / tn_t_altmul + 2.0 * tE0)) * (pl_exponent_t) + (pcap_tmax);
         const double tn_tsamq = 40.0 * pow(0.5, MAX((double)tAD0, ((double)(tki.bDP + 1)) / ((double)(tki.DP + 1)) - 1.0));
         const double tn_tra1q = ((double)tki.VAQ); // non-intuitive prior like
-        double _tn_tpo2q = tn_tpo1q; //MIN4(tn_tpo1q, pcap_tmq, pcap_tbq, pcap_tmq2);
+        double _tn_tpo2q = tn_tpo1q; //MIN4(tn_tpo1q, pcap_tmq, pcap_bcq, pcap_tmq2);
         double _tn_tra2q = MAX(0.0, tn_tra1q /*tn_t_altmul*/ - tn_tsamq); //  + somatic_var_pq); // tumor  BQ bias is stronger as raw variant (biased to high BQ) is called   from each base
         
         if (isInDel) {
@@ -4316,7 +4340,7 @@ append_vcf_record(std::string & out_string,
         const double tn_n_refmul = (nUseHD1 ? 1.0 : refmul);
         const double tn_npo1q = 10.0 / log(10.0) * log((double)(nAD0 / tn_n_altmul + nE0) / ((nDP0 - tAD0) / tn_n_refmul + tAD0 / tn_n_altmul + 2.0 * nE0)) * (pl_exponent_n) + (pcap_nmax);
         const double tn_nsamq = 40.0 * pow(0.5, MAX((double)nAD0, ((double)(nfm.bDP + 1)) / ((double)(nfm.DP + 1)) - 1.0));
-        const double tn_nra1q = (double)nfm.VAQ[0];
+        const double tn_nra1q = (double)(nfm.VAQ.size() > 0 ? (fmt.VAQ[0]) : 0);
         double _tn_npo2q = tn_npo1q; // MIN4(tn_npo1q, pcap_nmq, pcap_nbq, pcap_nmq2);
         double _tn_nra2q = MAX(0.0, tn_nra1q /*tn_n_altmul*/ - tn_nsamq/4.0); // + somatic_var_pq); // normal BQ bias is weaker   as res variant (biased to high BQ) is filtered from each variant
         if (isInDel) {

@@ -21,6 +21,12 @@
 // #define PLEXP (3.0) // Power-law exponent of the degree distribution of the BA network
 // #define SYS_QMAX (25.0) // Is it the PHRED-scaled probability that a germline event is an outlier in terms of allele fraction?
 
+template <class T, class V>
+V
+collectget(const T & collection, unsigned int idx, V defaultval = 0) {
+    return (idx < collection.size() ? collection[idx] : defaultval);
+}
+
 template <class T>
 T
 div_by_20(T n) {

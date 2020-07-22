@@ -888,6 +888,12 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                             extended_posidx_to_is_rescued[refpos - extended_inclu_beg_pos] &&
                             (tid_pos_symb_to_tki.end() != tki_it)); 
                     unsigned int phred_max_sscs = sscs_mut_table.toPhredErrRate(refsymbol, symbol);
+                    const auto bdepth = symbolToCountCoverageSet12.bq_tsum_depth.at(0).getByPos(refpos).getSymbolCount(symbol)
+                                      + symbolToCountCoverageSet12.bq_tsum_depth.at(1).getByPos(refpos).getSymbolCount(symbol);
+                    const bool pass_thres = (bdepth >= paramset.min_altdp_thres);
+                    if ((!is_rescued) && (!pass_thres)) {
+                        continue;
+                    }
                     TumorKeyInfo tki;
                     if (is_rescued) {
                         tki = tki_it->second; 
@@ -932,10 +938,13 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                             (SEQUENCING_PLATFORM_IONTORRENT == paramset.sequencing_platform ? 200.0 : ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? paramset.amp_BQ_sqr_coef : paramset.cap_BQ_sqr_coef)),
                             paramset.phred_varcall_err_per_map_err_per_base,
                             paramset.phred_snv_to_indel_ratio,
+                            (SEQUENCING_PLATFORM_IONTORRENT == paramset.sequencing_platform), 
                             0);
                 }
                 for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; symbol = AlignmentSymbol(1+(unsigned int)symbol)) {
-                    float vaq = fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]].VAQ[0];
+                    const auto & vaqvec = fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]].VAQ;
+                    auto vaq = (vaqvec.size() == 0 ? 0 : vaqvec[0]);
+
                     if (vaq >= most_confident_qual) {
                         most_confident_symbol = symbol;
                         most_confident_qual = vaq;
@@ -1014,7 +1023,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                         auto nonref_symbol_12 = (most_confident_nonref_symbol != symbol ? most_confident_nonref_symbol : most_confident_nonref_symbol_2);
                         auto nonref_qual_12 = (most_confident_nonref_symbol != symbol ? most_confident_nonref_qual : most_confident_nonref_qual_2);
                         fmt.OType = SYMBOL_TO_DESC_ARR[nonref_symbol_12];
-                        auto ref_qual = fmts[refsymbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]].VAQ[0];
+                        const auto & vaqvec = fmts[refsymbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]].VAQ;
+                        auto ref_qual = (vaqvec.size() == 0 ? 0 : vaqvec[0]);
                         fmt.ORAQs = {{ ((float)nonref_qual_12), ((float)ref_qual) }};
                         unsigned int phred_max_sscs = sscs_mut_table.toPhredErrRate(refsymbol, symbol);
                         append_vcf_record(buf_out_string, 
