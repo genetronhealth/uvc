@@ -27,6 +27,11 @@ collectget(const T & collection, unsigned int idx, V defaultval = 0) {
     return (idx < collection.size() ? collection[idx] : defaultval);
 }
 
+void
+clear_push(auto & collection, auto v) {
+    collection.push_back(v);
+}
+
 template <class T>
 T
 div_by_20(T n) {

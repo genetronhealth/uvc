@@ -161,6 +161,8 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("VQ1"      , BCF_NUM_A, BCF_INTEGER, "Variant allele quality capped by base alignment quality"),
     BcfFormatStruct("VQ2"      , BCF_NUM_A, BCF_INTEGER, "Variant allele quality capped by base quality"),
     BcfFormatStruct("VQ3"      , BCF_NUM_A, BCF_INTEGER, "Variant allele quality capped by base quality"),
+    BcfFormatStruct("VQ4"      , BCF_NUM_A, BCF_INTEGER, "Variant allele quality capped by base quality"),
+    BcfFormatStruct("VQ5"      , BCF_NUM_A, BCF_INTEGER, "Variant allele quality capped by base quality"),
     BcfFormatStruct("VAQ"      , BCF_NUM_A, BCF_INTEGER, "Variant allele quality of the call"),
     
     BcfFormatStruct("__A5"     , 1, BCF_SEP,     "Sum of base qualities (bAllBQ/bAltBQ/bRefBQ) and consensus-family qualities (cAllBQ/cAltBQ/cRefBQ) for ALL/ALT/REF alleles"), // global 

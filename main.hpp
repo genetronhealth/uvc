@@ -814,14 +814,14 @@ is_indel_context_more_STR(unsigned int rulen1, unsigned int rc1, unsigned int ru
         return ((rulen1 < rulen2 || (rulen1 == rulen2 && rc1 > rc2))  ? true : false);
     }
     // const unsigned int rank_STR[6+1] = {0, 65, 32, 33, 34, 35, 36}; // monomer is ranked first, followed by 2xdimer, hexamer, pentamer, ..., dimer, and zero
-    const int rank_STR[6+1] = {0, 201, 196, 197, 198, 199, 200};
+    // const int rank_STR[6+1] = {0, 201, 196, 197, 198, 199, 200};
     int rank1 = (rc1 <= 1 ? (-(int)rc1 * rulen1) : ((int)(rc1 - 1) * rulen1));
     int rank2 = (rc2 <= 1 ? (-(int)rc2 * rulen1) : ((int)(rc2 - 1) * rulen2));
     if (0 == rc1 || 0 == rulen1) {
-        rank1 == -100;
+        rank1 = -100;
     }
     if (0 == rc2 || 0 == rulen2) {
-        rank2 == -100;
+        rank2 = -100;
     }
     if (rank1 > rank2) {
         return true;
@@ -2923,6 +2923,37 @@ indel_fill_rep_num_clusters(std::array<RepNumCluster<int>, RCC_NUM> & rep_num_cl
     return 0;
 }
 
+double
+penal_indel_2(double AD0a, int dst_str_units, const auto & RCC, const unsigned int phred_triallelic_indel, const double snr_data2model = 2.0, const double snr_model2data = 4.0) {
+    double max_noise = 0.0;
+    for (int c = 0; c < RCC_NUM; c++) {
+        int peakidx = c*RCC_NFS;
+        double src_str_units = RCC[peakidx];
+        if (dst_str_units == src_str_units) { continue; }
+        //const double peak_height1 = (double)RCC[peakidx+3];
+        const double deldev2 = (double)RCC[peakidx+1] * (snr_data2model * snr_data2model); // peak_height1;
+        const double deldev1 = (double)RCC[peakidx+2] * (snr_data2model); // peak_height1;
+        const double insdev1 = (double)RCC[peakidx+4] * (snr_data2model); // peak_height1;
+        const double insdev2 = (double)RCC[peakidx+5] * (snr_data2model * snr_data2model); // peak_height1;
+        double _noise = 1.0;
+        if        (src_str_units + 2 == dst_str_units) { // ins of two units wrt to peak
+            _noise = MAX3(deldev2 / 2.0, deldev1 / 4.0, insdev1 / 2.0                ) / (snr_model2data * snr_model2data);
+        } else if (src_str_units + 1 == dst_str_units) {
+            _noise = MAX3(deldev2 / 2.0, deldev1 / 4.0,                insdev2 / 2.0 ) / (snr_model2data);
+        } else if (src_str_units - 1 == dst_str_units) {
+            _noise = MAX3(deldev2      ,                insdev1 * 2.0, insdev2       ) / (snr_model2data);
+        } else if (src_str_units - 2 == dst_str_units) {
+            _noise = MAX3(               deldev1,       insdev1 * 2.0, insdev2       ) / (snr_model2data * snr_model2data);
+        } else if (src_str_units      < dst_str_units) { // is other types of ins
+            _noise = MAX4(deldev2 / 2.0, deldev1 / 4.0, insdev1 / 2.0, insdev2 / 2.0 ) / pow(snr_model2data, dst_str_units - src_str_units);
+        } else {
+            _noise = MAX4(deldev2,       deldev1,       insdev1 * 2.0, insdev2       ) / pow(snr_model2data, src_str_units - dst_str_units);
+        }
+        max_noise = MAX(max_noise, _noise);
+    }
+    return ((double)phred_triallelic_indel) / log(2.0) * log((AD0a + DBL_MIN + max_noise) / (AD0a + DBL_MIN));
+}
+
 int
 fill_by_symbol(bcfrec::BcfFormat & fmt, 
         const Symbol2CountCoverageSet & symbol2CountCoverageSet12, 
@@ -3482,17 +3513,47 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
     
     const auto pcap_tmq1 = (unsigned int)MIN(maxMQ, fmt.MQ) + phred_varcall_err_per_map_err_per_base; // bases on heuristics
     const auto pcap_tmq2 = (unsigned int)MAX(3.0, fmt.MQ - 10.0/log(10.0) * log((double)(fmt.DP + 1) / (double)(fmt.DP * fmt.FA + 0.5))) * ((double)fmt.DP * fmt.FA); // readjustment by MQ
-    //fmt.VAQs = {{(float)rawVQ1, (float)pcap_baq}}; // rawVQ2 treat other forms of indels as background noise if matched normal is not available.
-    //fmt.VAQ = MIN5(fmt.VAQs[0], (double)pcap_baq, pcap_bcq, pcap_tmq1, pcap_tmq2);
+    
+    const double pl_exponent = 3.0;
+    const double pl_cap = 90.0;
+    const bool tUseHD1 = false;
+    const double phred_triallelic_indel = 30.0;
+    
+    // aln quality, base quality, read count,
+    double normBAQAD = fmt.aBAQADR[1] / altmul;
+    double normBAQOD = (fmt.aBAQDP - fmt.aBAQADR[1]) / refmul;
+    double alsFA2 = (normBAQAD * 2 + 0.5) / (normBAQAD * 2 + normBAQOD + 1.0); // laplace smoothing
+    double blsFA1 = (fmt.bADR[1] / altmul + 0.5) / ((fmt.bDP - fmt.bADR[1]) / refmul + fmt.bADR[1] / altmul + 1.0);
+    double clsFA1 = (fmt.cADR[1] / altmul + 0.5) / ((fmt.cDP - fmt.cADR[1]) / refmul + fmt.cADR[1] / altmul + 1.0);
+    const double pl_qual = pl_exponent * 10.0 / log(10.0) * log(MIN3(alsFA2, blsFA1, clsFA1)) + pl_cap;
+    
+    const double sampling_qual = 40.0 * pow(0.5, MAX((double)fmt.bADR[1], ((double)(fmt.bDP + 1)) / ((double)(fmt.cDP + 1)) - 1.0));
+    double indel_ic = 0;
+    if (isInDel && !tUseHD1) {
+        std::string indelstring = indel_get_majority(fmt, prev_is_tumor, tki, false, NULL, refpos, symbol, false); 
+        int n_str_units = (isSymbolIns(symbol) ? 1 : (-1)) * (int)(indelstring.size() / repeatunit.size());
+        const double symbol_to_allele_frac = 1.0 - pow((isSymbolIns(symbol) ? 0.9 : (isSymbolDel(symbol) ? 0.95 : 1.0)), indelstring.size());
+        double tAD0a = fmt.cADR[1] * ((isInDel && !tUseHD1) ? ((double)(fmt.gapDP4[2] + 1) / (double)(fmt.gapDP4[0] + 1)) : 1.0);
+        rawVQ1 *= (tAD0a + (double)(fmt.cADR[1] -tAD0a) * symbol_to_allele_frac) / ((double)fmt.cADR[1]); // ad-hoc adjustment
+        rawVQ1 -= penal_indel_2(tAD0a, n_str_units, fmt.RCC, phred_triallelic_indel);
+        indel_ic = 10.0/log(10.0) * log((double)MAX(indelstring.size(), 1U) / (double)(repeatunit.size() * (repeatnum - 1) + 1));
+    }
+    
     fmt.VQ1.clear();
     fmt.VQ2.clear();
     fmt.VQ3.clear();
+    fmt.VQ4.clear();
+    fmt.VQ5.clear();
     fmt.VAQ.clear();
     
-    fmt.VQ1.push_back((unsigned int)pcap_baq); // base alignment quality
-    fmt.VQ2.push_back((unsigned int)pcap_bcq); // base quality
-    fmt.VQ3.push_back((unsigned int)MIN(pcap_tmq1, pcap_tmq2)); // mapping quality
-    fmt.VAQ.push_back(MIN4(fmt.VQ1[0], fmt.VQ2[0], fmt.VQ3[0], rawVQ1));
+    clear_push(fmt.VQ1, (unsigned int)pcap_baq); // base alignment quality
+    clear_push(fmt.VQ2, (unsigned int)pcap_bcq); // base quality
+    clear_push(fmt.VQ3, (unsigned int)MIN(pcap_tmq1, pcap_tmq2)); // mapping quality
+    clear_push(fmt.VQ4, (unsigned int)pl_qual);
+    clear_push(fmt.VQ5, (unsigned int)rawVQ1);
+    auto theVAQ = MIN5(fmt.VQ1[0], fmt.VQ2[0], fmt.VQ3[0], fmt.VQ4[0], fmt.VQ5[0]) - sampling_qual + indel_ic;
+    clear_push(fmt.VAQ, MAX(0, theVAQ));
+    fmt.ALODQ = MAX(0, fmt.VAQ[0]);
     return (int)(fmt.bAD1[0] + fmt.bAD1[1]);
 };
 
@@ -3656,37 +3717,6 @@ bcf1_to_string(const bcf_hdr_t *tki_bcf1_hdr, const bcf1_t *bcf1_record) {
     return ret;
 }
 
-double
-penal_indel_2(double AD0a, int dst_str_units, const auto & RCC, const unsigned int phred_triallelic_indel, const double snr_data2model = 2.0, const double snr_model2data = 4.0) {
-    double max_noise = 0.0;
-    for (int c = 0; c < RCC_NUM; c++) {
-        int peakidx = c*RCC_NFS;
-        double src_str_units = RCC[peakidx];
-        if (dst_str_units == src_str_units) { continue; }
-        //const double peak_height1 = (double)RCC[peakidx+3];
-        const double deldev2 = (double)RCC[peakidx+1] * (snr_data2model * snr_data2model); // peak_height1;
-        const double deldev1 = (double)RCC[peakidx+2] * (snr_data2model); // peak_height1;
-        const double insdev1 = (double)RCC[peakidx+4] * (snr_data2model); // peak_height1;
-        const double insdev2 = (double)RCC[peakidx+5] * (snr_data2model * snr_data2model); // peak_height1;
-        double _noise = 1.0;
-        if        (src_str_units + 2 == dst_str_units) { // ins of two units wrt to peak
-            _noise = MAX3(deldev2 / 2.0, deldev1 / 4.0, insdev1 / 2.0                ) / (snr_model2data * snr_model2data);
-        } else if (src_str_units + 1 == dst_str_units) {
-            _noise = MAX3(deldev2 / 2.0, deldev1 / 4.0,                insdev2 / 2.0 ) / (snr_model2data);
-        } else if (src_str_units - 1 == dst_str_units) {
-            _noise = MAX3(deldev2      ,                insdev1 * 2.0, insdev2       ) / (snr_model2data);
-        } else if (src_str_units - 2 == dst_str_units) {
-            _noise = MAX3(               deldev1,       insdev1 * 2.0, insdev2       ) / (snr_model2data * snr_model2data);
-        } else if (src_str_units      < dst_str_units) { // is other types of ins
-            _noise = MAX4(deldev2 / 2.0, deldev1 / 4.0, insdev1 / 2.0, insdev2 / 2.0 ) / pow(snr_model2data, dst_str_units - src_str_units);
-        } else {
-            _noise = MAX4(deldev2,       deldev1,       insdev1 * 2.0, insdev2       ) / pow(snr_model2data, src_str_units - dst_str_units);
-        }
-        max_noise = MAX(max_noise, _noise);
-    }
-    return ((double)phred_triallelic_indel) / log(2.0) * log((AD0a + DBL_MIN + max_noise) / (AD0a + DBL_MIN));
-}
-
 // higher allele1count (lower allele2count) results in higher LODQ if FA is above frac, meaning allele1 is more likely to be homo, and vice versa
 unsigned int hetLODQ(double allele1count, double allele2count, double frac, double powlaw_exponent = 3.0) {
     auto binomLODQ = (int)calc_binom_10log10_likeratio(frac, allele1count, allele2count);
@@ -3711,7 +3741,7 @@ double compute_norm_ad(const bcfrec::BcfFormat* fmtp, const bool isSubst) {
     }
 }
 
-void
+int
 output_germline(
         std::string & out_string,
         AlignmentSymbol refsymbol, 
@@ -3788,17 +3818,6 @@ output_germline(
         std::make_pair(3,  -phred_tri_al - MAX4(a0LODQ, a3LODQ, a1a2LODQ, a2a1LODQ))
     }};
     auto GL4 = GL4raw;
-    /*
-    std::array<std::pair<int, int>, 4> GL4 = {{
-        std::make_pair(0,  30 + MIN(a0LODQ - a1LODQ, (0 + a0a1LODQ))),
-        std::make_pair(1,   0 + MIN(a0LODQ, a1LODQ) - a2LODQ),
-        std::make_pair(2,  -2 + MIN(a1LODQ - MAX(a0LODQ, a2LODQ), MIN((0 + a1a0LODQ), (25 + a1a2LODQ)))),
-        std::make_pair(3, -25 + MIN(a1LODQ, a2LODQ) - MAX(a0LODQ, a3LODQ))
-    }};
-    */
-    // 0LODQA, a0LODQB, a1LODQ, a2LODQ, a3LODQ,
-    // a0a1LODQ, a0a2LODQ, a1a2LODQ, 0, 0
-    
     std::sort(GL4.rbegin(), GL4.rend(), PairSecondLess);
     
     size_t GLidx = GL4[0].first;
@@ -3926,6 +3945,7 @@ output_germline(
         }}, ":")
     }}, "\t") + "\n";
     out_string += bcfline;
+    return GL4raw[0].second - MAX3(GL4raw[1].second, GL4raw[2].second, GL4raw[3].second);
 }
 
 int
@@ -4038,8 +4058,7 @@ append_vcf_record(std::string & out_string,
         vcfalt = altsymbolname;
     }
     
-    const double indel_ic = ((!isInDel) ? 0.0 : (10.0/log(10.0) * log((double)MAX(indelstring.size(), 1U) / (double)(repeatunit.size() * (repeatnum - 1) + 1))));
-    
+    // const double indel_ic = ((!isInDel) ? 0.0 : (10.0/log(10.0) * log((double)MAX(indelstring.size(), 1U) / (double)(repeatunit.size() * (repeatnum - 1) + 1))));
     const bool is_novar = (symbol == LINK_M || (isSymbolSubstitution(symbol) && vcfref == vcfalt));
     if (is_novar && (!should_let_all_pass) && (!should_output_all)) {
         //return -1;
@@ -4138,12 +4157,6 @@ append_vcf_record(std::string & out_string,
         //static_assert(tki.nDPs.size() == 3);
         //static_assert(tki.tDPFs.size() == 3);
         //static_assert(tki.nDPFs.size() == 3);
-        //tki.tDPs[0] = (int)(fmt.DP * fmt.FA + 0.5);
-        //tki.tDPs[1] = (int)(fmt.DP * fmt.FR + 0.5);
-        //tki.tDPs[2] = (int)(fmt.DP);
-        //tki.tDPFs[0] = SUM2(fmt.cADTC);
-        //tki.tDPFs[1] = SUM2(fmt.cRDTC);
-        //tki.tDPFs[2] = SUM2(fmt.cDPTC);
         tki.cADTC = SUM2(fmt.cADTC);
         tki.cRDTC = SUM2(fmt.cRDTC);
         tki.cDPTC = SUM2(fmt.cDPTC);
@@ -4222,8 +4235,8 @@ append_vcf_record(std::string & out_string,
         
         // double tRD0 = (double)((tUseHD) ? (tRefHD) :             tki.FR * (double)tki.DP) + DBLFLT_EPS / 2.0; 
         
-        double nAD0a = nAD0 * ((isInDel && !nUseHD1) ? ((double)(nfm.gapDP4[2] + 1) / (double)(nfm.gapDP4[0] + 1)) : 1.0); // not used ?
-        double tAD0a = tAD0 * ((isInDel && !tUseHD1) ? ((double)(tki.gapDP4[2] + 1) / (double)(tki.gapDP4[0] + 1)) : 1.0);
+        // double nAD0a = nAD0 * ((isInDel && !nUseHD1) ? ((double)(nfm.gapDP4[2] + 1) / (double)(nfm.gapDP4[0] + 1)) : 1.0); // not used ?
+        // double tAD0a = tAD0 * ((isInDel && !tUseHD1) ? ((double)(tki.gapDP4[2] + 1) / (double)(tki.gapDP4[0] + 1)) : 1.0);
         
         double nAD1 = (nUseHD ? (highqual_thres * nAltHD) : nAltBQ) + DBLFLT_EPS / 2.0;
         double nDP1 = (nUseHD ? (highqual_thres * nAllHD) : nAllBQ) + DBLFLT_EPS;
@@ -4269,10 +4282,11 @@ append_vcf_record(std::string & out_string,
         const double nDP1pc0 = 0.5 * tnE1 / tnFA1;
         
         const double pl_exponent = powlaw_exponent;
-        const double pl_exponent_t = powlaw_exponent;
-        const double pl_exponent_n = powlaw_exponent;
         
-        const double symbol_to_allele_frac = 1.0 - pow((isSymbolIns(symbol) ? 0.9 : (isSymbolDel(symbol) ? 0.95 : 1.0)), indelstring.size());
+        // const double pl_exponent_t = powlaw_exponent;
+        // const double pl_exponent_n = powlaw_exponent;
+        
+        // const double symbol_to_allele_frac = 1.0 - pow((isSymbolIns(symbol) ? 0.9 : (isSymbolDel(symbol) ? 0.95 : 1.0)), indelstring.size());
         
         // This is the penalty induced by EROR bias. 
         // So far I do not have enough data to verify this power-law. 
@@ -4283,6 +4297,7 @@ append_vcf_record(std::string & out_string,
         // 1. What if the duplication rate is in-between the one of UMI and the one of non-UMI? 
         // 2. Does EROR bias follows a power-law distribution too? A lot of true positive UMI variants are required to see the power-law if it does.
         //    If EROR bias does follow a power-law, then what is the dimension of EROR bias (4 or 3) given that the dimension of quality is equal to 3? My intuition says it's 3.
+        /*
         const double pcap_tmax = powlaw_anyvar_base + (tUseHD1
                 ? ((tki.dAD3 > 0)
                     ? ((double)(phred_max_dscs - phred_pow_dscs_origin))
@@ -4298,29 +4313,26 @@ append_vcf_record(std::string & out_string,
                     * (double)(MAX(nfm.DP, nfm.bDP) - nfm.DP) / (double)(nfm.bDP + 1)
                     ))
                 : 0.0);
-        
-        double t_indel_penal = 0.0;
+        */
+        // double t_indel_penal = 0.0;
         // const double pcap_bcq = ((isInDel || is_proton) ? 200.0 : (mathsquare(tki.BQ) * illumina_BQ_sqr_coef)); // based on heuristics
         // const double pcap_tmq = MIN((double)maxMQ, tki.MQ) + phred_varcall_err_per_map_err_per_base; // bases on heuristics
         // const double pcap_tmq2 = MAX(0.0, tki.MQ - 10.0/log(10.0) * log((double)(tDP0 + tDP0pc0) / (double)(tAD0+tAD0pc0))) * (double)tAD0; // readjustment by MQ
-        const double tn_t_altmul = (tUseHD1 ? 1.0 : altmul);
-        const double tn_t_refmul = (tUseHD1 ? 1.0 : refmul);
-        const double tn_tpo1q = 10.0 / log(10.0) * log((double)(tAD0 / tn_t_altmul + tE0) / ((tDP0 - tAD0) / tn_t_refmul + tAD0 / tn_t_altmul + 2.0 * tE0)) * (pl_exponent_t) + (pcap_tmax);
-        const double tn_tsamq = 40.0 * pow(0.5, MAX((double)tAD0, ((double)(tki.bDP + 1)) / ((double)(tki.DP + 1)) - 1.0));
+        // const double tn_t_altmul = (tUseHD1 ? 1.0 : altmul);
+        // const double tn_t_refmul = (tUseHD1 ? 1.0 : refmul);
+        // const double tn_tpo1q = 10.0 / log(10.0) * log((double)(tAD0 / tn_t_altmul + tE0) / ((tDP0 - tAD0) / tn_t_refmul + tAD0 / tn_t_altmul + 2.0 * tE0)) * (pl_exponent_t) + (pcap_tmax);
+        // const double tn_tsamq = 40.0 * pow(0.5, MAX((double)tAD0, ((double)(tki.bDP + 1)) / ((double)(tki.DP + 1)) - 1.0));
         const double tn_tra1q = ((double)tki.VAQ); // non-intuitive prior like
-        double _tn_tpo2q = tn_tpo1q; //MIN4(tn_tpo1q, pcap_tmq, pcap_bcq, pcap_tmq2);
-        double _tn_tra2q = MAX(0.0, tn_tra1q /*tn_t_altmul*/ - tn_tsamq); //  + somatic_var_pq); // tumor  BQ bias is stronger as raw variant (biased to high BQ) is called   from each base
+        // double _tn_tpo2q = tn_tpo1q; //MIN4(tn_tpo1q, pcap_tmq, pcap_bcq, pcap_tmq2);
+        // double _tn_tra2q = MAX(0.0, tn_tra1q /*tn_t_altmul*/ - tn_tsamq); //  + somatic_var_pq); // tumor  BQ bias is stronger as raw variant (biased to high BQ) is called   from each base
         
+        /*
         if (isInDel) {
             if (!tUseHD1) {
                 int n_str_units = (isSymbolIns(symbol) ? 1 : (-1)) * (int)(indelstring.size() / repeatunit.size());
                 t_indel_penal = penal_indel_2(tAD0a, n_str_units, tki.RCC, phred_triallelic_indel);
                 _tn_tra2q *= ((double)tAD0a + (double)(tAD0 - tAD0a) * symbol_to_allele_frac) / ((double)tAD0); // ad-hoc adjustment
-            } /*else {
-                if (_tn_tra2q > phred_umi_dimret_qual) {
-                    _tn_tra2q = (double)phred_umi_dimret_qual + ((double)(_tn_tra2q - phred_umi_dimret_qual) / (double)phred_umi_dimret_mult);
-                }
-            }*/
+            }
         }
         
         double t_penal_by_nearby_indel = 0.0; 
@@ -4337,28 +4349,28 @@ append_vcf_record(std::string & out_string,
         if ((!isInDel) && !tUseHD1) {
             _tn_tpo2q -= t_penal_by_nearby_indel;
         }
-        
-        const double tn_tpowq = _tn_tpo2q;
-        const double tn_trawq = _tn_tra2q;
+        */
+        // const double tn_tpowq = _tn_tpo2q;
+        // const double tn_trawq = _tn_tra2q;
         // QUESTION: why BQ-bias generations are discrete? Because of the noise with each observation of BQ? why indel generations are discrete?
         
         // const double pcap_nbq = ((isInDel || is_proton) ? 200.0 : mathsquare(nfm.BQ) * illumina_BQ_sqr_coef); // based on heuristics
         // const double pcap_nmq = MIN(maxMQ, nfm.MQ) * phred_varcall_err_per_map_err_per_base; // based on heuristics
         // const double pcap_nmq2 = (nfm.MQ - 10.0/log(10.0) * log((double)(nDP0 + nDP0pc0) / (double)(nAD0+nAD0pc0))) * (double)nAD0; // readjsutment by MQ
-        const double tn_n_altmul = (nUseHD1 ? 1.0 : altmul);
-        const double tn_n_refmul = (nUseHD1 ? 1.0 : refmul);
-        const double tn_npo1q = 10.0 / log(10.0) * log((double)(nAD0 / tn_n_altmul + nE0) / ((nDP0 - tAD0) / tn_n_refmul + tAD0 / tn_n_altmul + 2.0 * nE0)) * (pl_exponent_n) + (pcap_nmax);
-        const double tn_nsamq = 40.0 * pow(0.5, MAX((double)nAD0, ((double)(nfm.bDP + 1)) / ((double)(nfm.DP + 1)) - 1.0));
-        const double tn_nra1q = (double)(nfm.VAQ.size() > 0 ? (fmt.VAQ[0]) : 0);
-        double _tn_npo2q = tn_npo1q; // MIN4(tn_npo1q, pcap_nmq, pcap_nbq, pcap_nmq2);
-        double _tn_nra2q = MAX(0.0, tn_nra1q /*tn_n_altmul*/ - tn_nsamq/4.0); // + somatic_var_pq); // normal BQ bias is weaker   as res variant (biased to high BQ) is filtered from each variant
-        if (isInDel) {
-            if (!nUseHD1) {
-                _tn_nra2q *= ((double)nAD0a + (double)(nAD0 - nAD0a) * symbol_to_allele_frac) / ((double)nAD0);
-            }
-        }
-        const double tn_npowq = _tn_npo2q;
-        const double tn_nrawq = _tn_nra2q;
+        // const double tn_n_altmul = (nUseHD1 ? 1.0 : altmul);
+        // const double tn_n_refmul = (nUseHD1 ? 1.0 : refmul);
+        // const double tn_npo1q = 10.0 / log(10.0) * log((double)(nAD0 / tn_n_altmul + nE0) / ((nDP0 - tAD0) / tn_n_refmul + tAD0 / tn_n_altmul + 2.0 * nE0)) * (pl_exponent_n) + (pcap_nmax);
+        //const double tn_nsamq = 40.0 * pow(0.5, MAX((double)nAD0, ((double)(nfm.bDP + 1)) / ((double)(nfm.DP + 1)) - 1.0));
+        //const double tn_nra1q = (double)(nfm.VAQ.size() > 0 ? (fmt.VAQ[0]) : 0);
+        // double _tn_npo2q = tn_npo1q; // MIN4(tn_npo1q, pcap_nmq, pcap_nbq, pcap_nmq2);
+        // double _tn_nra2q = MAX(0.0, tn_nra1q /*tn_n_altmul*/ - tn_nsamq/4.0); // + somatic_var_pq); // normal BQ bias is weaker   as res variant (biased to high BQ) is filtered from each variant
+        // if (isInDel) {
+        //    if (!nUseHD1) {
+        //        _tn_nra2q *= ((double)nAD0a + (double)(nAD0 - nAD0a) * symbol_to_allele_frac) / ((double)nAD0);
+        //    }
+        // }
+        // const double tn_npowq = _tn_npo2q;
+        // const double tn_nrawq = _tn_nra2q;
         
         double symfrac = 1.0; // degenerated
         
@@ -4384,13 +4396,7 @@ append_vcf_record(std::string & out_string,
                              / ((double)(nAD0 +           nAD0pc0) / (double)(nDP0 - nAD0 +           (nDP0pc0 - nAD0pc0)));
         const double t2n_or1 = ((double)(tAD1 + symfrac * tAD1pc0) / (double)(tDP1 - tAD1 + symfrac * (tDP1pc0 - tAD1pc0))) 
                              / ((double)(nAD1 +           nAD1pc0) / (double)(nDP1 - nAD1 +           (nDP1pc0 - nAD1pc0))); 
-        // Symmetry-generated values that do not seem to be useful so far
-        /*
-        const double n2t_or0 = ((double)(nAD0 +     0.0 * nAD0pc0) / (double)(nDP0 - nAD0 +     0.0 * (nDP0pc0 - nAD0pc0))) 
-                             / ((double)(tAD0 +           tAD0pc0) / (double)(tDP0 - tAD0 +           (tDP0pc0 - tAD0pc0)));
-        const double n2t_or1 = ((double)(nAD1 +     0.0 * nAD1pc0) / (double)(nDP1 - nAD1 +     0.0 * (nDP1pc0 - nAD1pc0))) 
-                             / ((double)(tAD1 +           tAD1pc0) / (double)(tDP1 - tAD1 +           (tDP1pc0 - tAD1pc0))); 
-        */
+        
         const double t2n_po0q0 = 10.0/log(10.0) * (1.0+log(symfrac*symfrac)/10.0) * pl_exponent * log(t2n_or0 /symfrac);
         const double t2n_po0q1 = 10.0/log(10.0) * (1.0+log(symfrac*symfrac)/10.0) * pl_exponent * log(t2n_or1 /symfrac);
         const double t2n_po2q0 = MIN(MAX(-syserr_maxqual, t2n_po0q0), syserr_maxqual + 10);
@@ -4409,61 +4415,47 @@ append_vcf_record(std::string & out_string,
         const double t3n_po2q0 = MIN(MAX(-syserr_maxqual, t3n_po0q0), syserr_maxqual + 10);
         const double t3n_po2q1 = MIN(MAX(-syserr_maxqual, t3n_po0q1), syserr_maxqual + 10);
         
-        // heuristics based on odds ratio, they do work but cannot be justified meaningfully
-        //double tn_cont_nor = MIN(2.0, ((double)(nAD0 + 1) / (double)(nDP0 - nAD0 + 1)));
-        //double tn_cont_tor = MIN(2.0, ((double)(tAD0 + 1) / (double)(tDP0 - tAD0 + 1)));
-        //double tn_cont_obs = tn_cont_nor / tn_cont_tor;
-        //double tvn_or_q = 15.0 / MIN(1.0, tn_cont_obs * tn_cont_obs) - 15.0;
-        //double tvn_st_q = 10.0/log(10.0) * log((tAD1/tDP1) / (nAD1/nDP1)) * tAD0;
-        
         double t2n_contam_q = MIN(calc_binom_10log10_likeratio(t2n_add_contam_transfrac, 
                 (isSymbolSubstitution(symbol) ? ((SUM2(nfm.cAltBQ) + DBL_MIN) / (double)(SUM2(nfm.cAllBQ) + 2.0 * DBL_MIN)) : nfm.FA) * (double)nfm.DP,
                 (isSymbolSubstitution(symbol) ? ((    (tki.cAltBQ) + DBL_MIN) / (double)(    (tki.cAllBQ) + 2.0 * DBL_MIN)) : tki.FA) * (double)tki.DP), 200.0);
-        double t2n_limq = 200.0; 
+        // double t2n_limq = 200.0; 
+        
+        /*
         if (isInDel && prev_is_tumor) {
-            // The following line does not seem to have any impact
-            // t2n_contam_q = MAX(0, t2n_contam_q - (double)10); // InDels PCR errors may look like contamination, so increase the prior strenght of contamination.
-            
             // This is an ad-hoc adjustment to lower TLODQ when there is contamination, and to further lower TLODQ if the variant has sequencing position bias (aka IGV position bias)
             // TODO: rewrite this piece of code with the sequencing position bias redefined in terms of EROR instead of simple hard filter
             // 3.0 is the tolerance for errors in contamination estimation
             double t2n_add_coontam_transfrac_low = t2n_add_contam_transfrac / 3.0;
             double t2n_nonalt_frac = ((1.0 - nfm.FA) * (double)nfm.DP + nE0) / ((1.0 - tki.FA) * (double)tki.DP + tE0);
             double max_tn_ratio = (1.0 - t2n_add_coontam_transfrac_low) / t2n_add_coontam_transfrac_low * MIN(2.0, t2n_nonalt_frac);
-            // unsigned int nearby_max_bAD = (isSymbolIns(symbol) ? tki.gapbNNRD[0] : tki.gapbNNRD[1]);
-            // unsigned int qseq_avg_edge_dist = MIN(tki.aPBAD[0], tki.aPBAD[1]) / (SUMVEC(tki.aAD) + 1);
-            // unsigned int edgedist_penal = (qseq_min_edgedist >= 24 ? 0 : (mathsquare(24 - qseq_min_edgedist) / 4));
             t2n_limq = 10.0/log(10.0) * log(MAX(max_tn_ratio, 1.0)) - ((LINK_D1 == symbol) ? 6 : 0); 
-            // - edgedist_penal; // - 10.0/log(10.0) * log((double)(nearby_max_bAD + 1) / (double)(SUM2(tki.bAD1) + 1));
-            //if (qseq_avg_edge_dist <= 20) {
-            //    t2n_limq -= MIN(MAX(0, tn_npowq), 60.0);
-            //}
             uint64_t edge_perc = 100UL * (tki.aPBAD[0] + MAX(tki.aPBAD[1], tki.aPBAD[2]));
             if (edge_perc >= 75UL * SUMVEC(tki.aAD)) {
-                t2n_limq -= MIN(MAX(0, tn_npowq), 60.0);
+                t2n_limq -= MIN(MAX(0, fmt.VAQ[0]), 60.0);
             }
         }
+        */
 #if 0   // This if branch of macro is disabled
         // The following line works well in practice but has no theory supporting it yet.
         double t2n_syserr_q0 = (isInDel ? 0.0 : MIN(MAX(0.0, MIN(tn_npowq, tn_nrawq)) * MIN(1.0, 4.0 / mathsquare(t2n_or1 + 1.0)), SYS_QMAX)); // 50.0
         // double t2n_syserr_q = (isInDel ? 0.0 : MIN(MAX(0.0, MIN3(tn_npowq, tn_nrawq, 45.0) - 20.0 * mathsquare(MAX(0.0, t2n_or1 - 1.0))), 2.0*SYS_QMAX)); // 50.0
 #else  
-        double t2n_finq = max_min01_sub02(CENTER(t2n_rawq, t2t_powq), CENTER(t2n_rawq, t2n_powq), t2n_contam_q);
-        double t2n_syserr_q0 = MIN3(syserr_maxqual, MIN(tn_npowq, tn_nrawq) - syserr_norm_devqual * mathsquare(MAX(0.0, t2n_or1 - 1.0)),
+        double t2n_reward_q0 = max_min01_sub02(CENTER(t2n_rawq, t2t_powq), CENTER(t2n_rawq, t2n_powq), t2n_contam_q);
+        double t2n_syserr_q0 = MIN3(syserr_maxqual, fmt.VAQ[0] - syserr_norm_devqual * mathsquare(MAX(0.0, t2n_or1 - 1.0)),
                 ((double)nAD0 + 1.0) * 10.0 / log(10.0) * log((double)nDP0 + 1.0));
 #endif
-        double t2n_reward_q0 = MIN(t2n_finq, t2n_limq); 
-
+        // double t2n_reward_q0 = t2n_finq; // MIN(t2n_finq, t2n_limq); 
         const bool use_reward = is_bitflag_checked(bitflag_InDel_penal_t_UMI_n_UMI, isInDel, false, tUseHD1, nUseHD1);
         double t2n_reward_q = (use_reward ? MAX(0.0, t2n_reward_q0) : 0.0);
         const bool use_penalt = is_bitflag_checked(bitflag_InDel_penal_t_UMI_n_UMI, isInDel, true,  tUseHD1, nUseHD1);
         double t2n_syserr_q = (use_penalt ? MAX(0.0, t2n_syserr_q0) : 0.0);
         
-        double t_base_q = MIN(tn_trawq, tn_tpowq + (double)indel_ic);
-        fmtvar.ALODQ = MAX(0, t_base_q);
-        if (is_novar && (!should_let_all_pass) && (!should_output_all)) {
-            return -1;
-        }
+        double t_base_q = (double)tki.VAQ;
+        // double t_base_q = MIN(tn_trawq, tn_tpowq + (double)indel_ic);
+        // fmtvar.ALODQ = MAX(0, t_base_q);
+        //if (is_novar && (!should_let_all_pass) && (!should_output_all)) {
+        //    return -1;
+        //}
         // double t2n_infodist = calc_binom_10log10_likeratio(tAD0 / (tDP0 + DBL_EPSILON), nAD0, (nDP0 + DBL_EPSILON));
         double tlodq = t_base_q + t2n_reward_q - MIN(t2n_contam_q, t2n_syserr_q);
                 
@@ -4520,7 +4512,7 @@ append_vcf_record(std::string & out_string,
         infostring += std::string(";SomaticQ=") + std::to_string(testquals[0]);
         infostring += std::string(";TLODQ=")    + std::to_string(tlodq);
         infostring += std::string(";NLODQ=")    + std::to_string(a_nogerm_q);
-        infostring += std::string(";QUAL1=")    + std::to_string(calc_non_negative(tki.VAQ));
+        // infostring += std::string(";QUAL1=")    + std::to_string(calc_non_negative(tki.VAQ));
         //unsigned int tlodq1 = (maxbias < uni_bias_thres ?(10* tlodq) : (10*tlodq*10 - 10*60));
         //infostring += std::string(";TLODQ1=")  + std::to_string((int)(tlodq1))
         infostring += std::string(";REFQs=") + string_join(std::array<std::string, 4>({
@@ -4529,10 +4521,10 @@ append_vcf_record(std::string & out_string,
         }));
         
         infostring += std::string(";TNQs=") + string_join(std::array<std::string, 4>({
-                std::to_string(t2n_finq),
-                std::to_string(t2n_limq),
-                std::to_string(t2n_contam_q),
-                std::to_string(t2n_syserr_q0)
+                std::to_string((int)t2n_reward_q0),
+                // std::to_string(t2n_limq),
+                std::to_string((int)t2n_syserr_q0),
+                std::to_string((int)t2n_contam_q)
         }));
         infostring += std::string(";TNORQs=") + string_join(std::array<std::string, 2+2*0>({
                 std::to_string(t2n_or0),     std::to_string(t2n_or1) // ,
@@ -4546,10 +4538,10 @@ append_vcf_record(std::string & out_string,
                 std::to_string(t3n_rawq0)  , std::to_string(t3n_rawq1),
                 std::to_string(t3n_po0q0)  , std::to_string(t3n_po0q1),
         }));
-        
+        /*
         infostring += std::string(";TAQs=") + string_join(std::array<std::string, 3>({
             std::to_string(t_base_q),
-            std::to_string(t_indel_penal), std::to_string(t_penal_by_nearby_indel),
+            // std::to_string(t_indel_penal), std::to_string(t_penal_by_nearby_indel),
         }));
         infostring += std::string(";TSQs=") + string_join(std::array<std::string, 4>({
                 std::to_string(tn_tpowq)  , std::to_string(_tn_tra2q),
@@ -4561,7 +4553,7 @@ append_vcf_record(std::string & out_string,
                 // std::to_string(tn_npo1q)  , 
                 std::to_string(tn_nra1q), std::to_string(tn_nsamq),
         }));
-        
+        */ 
         infostring += std::string(";tFA=") + std::to_string(tki.FA);
         // infostring += std::string(";tFR=") + std::to_string(tki.FR);
                 
