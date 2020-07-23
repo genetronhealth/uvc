@@ -813,8 +813,17 @@ is_indel_context_more_STR(unsigned int rulen1, unsigned int rc1, unsigned int ru
     if (rulen1 > 6 || rulen2 > 6) {
         return ((rulen1 < rulen2 || (rulen1 == rulen2 && rc1 > rc2))  ? true : false);
     }
-    const unsigned int rank_STR[6+1] = {0, 65, 32, 33, 34, 35, 36}; // monomer is ranked first, followed by 2xdimer, hexamer, pentamer, ..., dimer, and zero
-    if (rank_STR[rulen1] * rc1 > rank_STR[rulen2] * rc2) {
+    // const unsigned int rank_STR[6+1] = {0, 65, 32, 33, 34, 35, 36}; // monomer is ranked first, followed by 2xdimer, hexamer, pentamer, ..., dimer, and zero
+    const int rank_STR[6+1] = {0, 201, 196, 197, 198, 199, 200};
+    int rank1 = (rc1 <= 1 ? (-(int)rc1 * rulen1) : ((int)(rc1 - 1) * rulen1));
+    int rank2 = (rc2 <= 1 ? (-(int)rc2 * rulen1) : ((int)(rc2 - 1) * rulen2));
+    if (0 == rc1 || 0 == rulen1) {
+        rank1 == -100;
+    }
+    if (0 == rc2 || 0 == rulen2) {
+        rank2 == -100;
+    }
+    if (rank1 > rank2) {
         return true;
     } else {
         return false;

@@ -399,6 +399,36 @@ clean_fill_strand_umi_readset(
     return 0;
 }
 
+// ad-hoc adjustment of BQ in homopolymer region
+int 
+apply_bq_err_correction(const bam1_t *aln, unsigned int dec_per_base, unsigned int homopol_min_len, unsigned int max_dec) {
+    if (0 == aln->core.l_qseq) { return -1; }
+    
+    int inclu_beg_poss[2] = {0, aln->core.l_qseq - 1};
+    int exclu_end_poss[2] = {aln->core.l_qseq, 0 - 1};
+    int pos_incs[2] = {1, -1};
+    unsigned int qsum = 0;
+    unsigned int qnum = 0;
+    unsigned int prev_b = 0;
+    unsigned int strand = ((aln->core.flag & 0x10) ? 1 : 0);
+    unsigned int homopol_len = 1;
+    for (auto i = inclu_beg_poss[strand]; i != exclu_end_poss[strand]; i += pos_incs[strand]) {
+        auto b = bam_get_seq(aln)[i];
+        if (b == prev_b) {
+            homopol_len++;
+            if (homopol_len >= homopol_min_len) {
+                auto bam_qual_dec = min(homopol_len - homopol_min_len + 1, max_dec);
+                auto q = bam_get_qual(aln)[i];
+                bam_get_qual(aln)[i] = max(bam_qual_dec, q) - bam_qual_dec;
+            }
+        } else {
+            homopol_len = 1;
+        }
+        prev_b = b;
+    }
+    return 0;
+}
+
 int 
 apply_baq(bam1_t *aln, const unsigned int baq_per_aligned_base, unsigned int baq_per_new_base = 1, unsigned int baq_maxinc_per_base = 1) {
     const unsigned int max_baq_per_base = baq_per_aligned_base + baq_maxinc_per_base;
@@ -460,6 +490,7 @@ fill_strand_umi_readset_with_strand_to_umi_to_reads(
                 umi_strand_readset.back().first[strand].push_back(std::vector<bam1_t *>());
                 for (auto aln : alns) {
                     // apply_baq(aln, baq_per_aligned_base);
+                    apply_bq_err_correction(aln, 1, 3, 4);
                     umi_strand_readset.back().first[strand].back().push_back(aln);
                 }
             }

@@ -891,7 +891,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                     const auto bdepth = symbolToCountCoverageSet12.bq_tsum_depth.at(0).getByPos(refpos).getSymbolCount(symbol)
                                       + symbolToCountCoverageSet12.bq_tsum_depth.at(1).getByPos(refpos).getSymbolCount(symbol);
                     const bool pass_thres = (bdepth >= paramset.min_altdp_thres);
-                    if ((!is_rescued) && (!pass_thres)) {
+                    if ((!is_rescued) && (!pass_thres) && (refsymbol != symbol)) {
                         continue;
                     }
                     TumorKeyInfo tki;
@@ -1019,7 +1019,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                     if (pass_thres && symbol != refsymbol) {
                         is_probably_germline = true;
                     }
-                    if (is_rescued || pass_thres) {
+                    if (is_rescued || pass_thres || (refsymbol == symbol)) {
                         auto nonref_symbol_12 = (most_confident_nonref_symbol != symbol ? most_confident_nonref_symbol : most_confident_nonref_symbol_2);
                         auto nonref_qual_12 = (most_confident_nonref_symbol != symbol ? most_confident_nonref_qual : most_confident_nonref_qual_2);
                         fmt.OType = SYMBOL_TO_DESC_ARR[nonref_symbol_12];
@@ -1087,6 +1087,14 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                 }
                 
                 if (is_probably_germline) {
+                    int indelph = 40;
+                    if (rtr1.tracklen >= 8 && rtr1.unitlen >= 1) {
+                        indelph = MIN(indelph, 40 - (int)indel_phred(8.0*8.0, rtr1.unitlen, rtr1.unitlen, rtr1.tracklen / rtr1.unitlen));
+                    }
+                    if (rtr2.tracklen >= 8 && rtr2.unitlen >= 1) {
+                        indelph = MIN(indelph, 40 - (int)indel_phred(8.0*8.0, rtr2.unitlen, rtr2.unitlen, rtr2.tracklen / rtr2.unitlen));
+                    }
+                    indelph = MAX(6, indelph);
                     std::vector<std::pair<AlignmentSymbol, bcfrec::BcfFormat*>> symbol_format_vec;
                     for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; 
                             symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; 
@@ -1096,19 +1104,16 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                             auto central_readlen = MAX(paramset.central_readlen, 30U); 
                             double ref_bias = (double)MIN(fmt.RefBias, central_readlen - 30U) / (double)central_readlen;
                             // double con_bias = MIN(fmt.DP * 2e-4, paramset.any_mul_contam_frac);
-                            double aln_bias = mathsquare((double)SUMVEC(fmt.aNMAD) / ((double)SUMVEC(fmt.aAD) + DBL_EPSILON) / (NM_MULT_NORM_COEF * 2.0)); // / 10.0;
-                            double biasfrac_binom = MAX3(0.004, ref_bias, aln_bias);
-                            double biasfrac_power = MAX3(0.004, ref_bias, paramset.any_mul_contam_frac);
+                            double aln_bias = mathsquare((double)SUMVEC(fmt.aNMAD) / ((double)SUMVEC(fmt.aAD) + DBL_EPSILON) / (NM_MULT_NORM_COEF)) / 2.0; // / 10.0;
+                            double biasfrac_binom = MIN(0.9, MAX3(0.004, ref_bias, aln_bias) + pow(0.1, indelph/10.0));
+                            double biasfrac_power = MIN(0.9, MAX3(0.004, ref_bias, paramset.any_mul_contam_frac) + pow(0.1, indelph/10.0));
                             
                             double    ref_dep = compute_norm_ad(&fmt, BASE_SYMBOL == symbolType);
                             double nonref_dep = SUM2(fmt.cDPTT) - ref_dep;
-                            //double    ref_dep = (LINK_SYMBOL == symbolType ? (     fmt.FR  * fmt.DP) : MIN(       fmt.FR  * fmt.DP,        SUM2(fmt.bRefBQ) / (double)SUM2(fmt.bAllBQ)  * fmt.DP));
-                            //double nonref_dep = (LINK_SYMBOL == symbolType ? ((1.0-fmt.FR) * fmt.DP) : MIN((1.0 - fmt.FR) * fmt.DP, (1.0 - SUM2(fmt.bRefBQ) / (double)SUM2(fmt.bAllBQ)) * fmt.DP));
                             
                             fmt.BLODQ = MAX(0, (int)MIN(
                                     calc_binom_10log10_likeratio(biasfrac_binom, ref_dep, ref_dep + MAX(DBL_EPSILON, nonref_dep)),
-                                    // mathsquare(ref_dep / MAX(DBL_EPSILON, ref_dep + nonref_dep) / biasfrac_binom) * paramset.syserr_norm_devqual,
-                                    paramset.powlaw_exponent * 10.0/log(10.0) * log((ref_dep + 0.5) / (nonref_dep + 0.5) / biasfrac_power)));
+                                    paramset.powlaw_exponent * (10.0/log(10.0)) * log((ref_dep + 0.5) / (nonref_dep + 0.5) / biasfrac_power)));
                             fmt.note += other_join(std::array<double, 4>{{ ref_bias, aln_bias, biasfrac_binom, biasfrac_power }}, "#") + "##";
                         } else {
                             fmt.BLODQ = 999;
