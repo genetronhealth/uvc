@@ -561,5 +561,25 @@ struct _PhredToErrorProbability {
 
 const _PhredToErrorProbability THE_PHRED_TO_ERROR_PROBABILITY;
 
+std::string
+string_join(auto container, std::string sep = std::string(",")) {
+    std::string ret = "";
+    for (auto e : container) {
+        ret += e + sep;
+    }
+    ret.pop_back();
+    return ret;
+}
+
+std::string 
+other_join(auto container, std::string sep = std::string(",")) {
+    std::string ret = "";
+    for (auto e : container) {
+        ret += std::to_string(e) + sep;
+    }
+    ret.pop_back();
+    return ret;
+}
+
 #endif
 

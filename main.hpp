@@ -27,6 +27,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define THE_BAQ_MAX 200
+#define THE_MUL_PER_BAQ 3
 // T=uint32_t for deletion and T=string for insertion
 template <class T>
 uint32_t
@@ -1024,7 +1026,8 @@ dealwith_seg_regbias(unsigned int qpos1, unsigned int qpos2, const bam1_t *b, un
         bq_regs_count[idx].template inc<SYMBOL_COUNT_SUM>(rpos, symbol, 1, b);
     }
     bq_nms_count[strand*2+isrc].template inc<SYMBOL_COUNT_SUM>(rpos, symbol, nm, b);
-    bq_baq_sum[0].template inc<SYMBOL_COUNT_SUM>(rpos, symbol, MIN(200, qr_baq_vec.at(rpos - b->core.pos)), b);
+    auto baq = MIN(THE_BAQ_MAX, qr_baq_vec.at(rpos - b->core.pos));
+    bq_baq_sum[0].template inc<SYMBOL_COUNT_SUM>(rpos, symbol, mathsquare(baq) / THE_BAQ_MAX, b);
     auto qualphred = (bam_phredi(b, qpos1) + bam_phredi(b, qpos2)) / 2;
     bq_dirs_bqsum[strand*2+isrc].template inc<SYMBOL_COUNT_SUM>(rpos, symbol, qualphred, b);
     return idx;
@@ -2954,6 +2957,391 @@ penal_indel_2(double AD0a, int dst_str_units, const auto & RCC, const unsigned i
     return ((double)phred_triallelic_indel) / log(2.0) * log((AD0a + DBL_MIN + max_noise) / (AD0a + DBL_MIN));
 }
 
+// higher allele1count (lower allele2count) results in higher LODQ if FA is above frac, meaning allele1 is more likely to be homo, and vice versa
+unsigned int hetLODQ(double allele1count, double allele2count, double frac, double powlaw_exponent = 3.0) {
+    auto binomLODQ = (int)calc_binom_10log10_likeratio(frac, allele1count, allele2count);
+    auto powerLODQ = (int)(10.0/log(10.00) * powlaw_exponent * MAX(logit2(allele1count / (frac * 2.0) + 0.5, allele2count / ((1.0 - frac) * 2.0) + 0.5), 0.0));
+    return MIN(binomLODQ, powerLODQ);
+}
+
+struct {
+    template<class T1, class T2>
+    bool operator()(std::pair<T1, T2> a, std::pair<T1, T2> b) const {   
+        return (a.second < b.second) || (a.second == b.second && a.first < b.first);
+    }
+} PairSecondLess;
+
+double compute_norm_ad(const bcfrec::BcfFormat* fmtp, const bool isSubst) {
+    double fa_baq = fmtp->aBAQADR[1] * THE_MUL_PER_BAQ / ((double)(fmtp->aBAQDP + fmtp->aBAQADR[1] * (THE_MUL_PER_BAQ - 1)) + DBL_EPSILON);
+    double fa_bq  = SUM2(fmtp->bAltBQ) / ((double)SUM2(fmtp->bAllBQ) + DBL_EPSILON);
+    if (isSubst) {
+        return MIN(MIN(fa_baq, fa_bq) * SUM2(fmtp->cDPTT), (double)SUM2(fmtp->cADTT));
+    } else {
+        return MIN(fa_baq * SUM2(fmtp->cDPTT), (double)SUM2(fmtp->cADTT));
+    }
+}
+
+int
+output_germline(
+        std::string & out_string,
+        AlignmentSymbol refsymbol, 
+        std::vector<std::pair<AlignmentSymbol, bcfrec::BcfFormat*>> symbol_format_vec,
+        const char *tname,
+        const std::string & refstring,
+        unsigned int refpos,
+        unsigned int extended_inclu_beg_pos, // regionpos,
+        unsigned int central_readlen,
+        const auto & tki, unsigned int specialflag) {
+    
+    assert(symbol_format_vec.size() >= 4 || 
+            !fprintf(stderr, " The variant-type %s:%u %u has symbol_format_vec of length %u", 
+            tname, refpos, refsymbol, symbol_format_vec.size()));
+    unsigned int regionpos = refpos- extended_inclu_beg_pos;
+    struct {
+        bool operator()(std::pair<AlignmentSymbol, bcfrec::BcfFormat*> p1, std::pair<AlignmentSymbol, bcfrec::BcfFormat*> p2) const {
+            return p1.second->ALODQ < p2.second->ALODQ;
+        }
+    } SymbolBcfFormatPairLess;
+    std::sort(symbol_format_vec.rbegin(), symbol_format_vec.rend(), SymbolBcfFormatPairLess);
+    std::array<std::pair<AlignmentSymbol, bcfrec::BcfFormat*>, 4> ref_alt1_alt2_alt3 = {{std::make_pair(AlignmentSymbol(0), (bcfrec::BcfFormat*)NULL)}};
+    unsigned int allele_idx = 1;
+    for (auto symb_fmt : symbol_format_vec) {
+        if (refsymbol == symb_fmt.first) {
+            ref_alt1_alt2_alt3[0] = symb_fmt;
+        } else if (allele_idx <= 3) {
+            ref_alt1_alt2_alt3[allele_idx] = symb_fmt;
+            allele_idx++;
+        }
+    }
+    assert(ref_alt1_alt2_alt3[0].second != NULL);
+    assert(ref_alt1_alt2_alt3[3].second != NULL);
+    
+    int a0LODQA = ref_alt1_alt2_alt3[0].second->ALODQ;
+    int a0LODQB = ref_alt1_alt2_alt3[0].second->BLODQ;
+    int a0LODQ = MIN(a0LODQA, a0LODQB) + 1;
+    int a1LODQ = (ref_alt1_alt2_alt3[1].second->ALODQ);
+    int a2LODQ = (ref_alt1_alt2_alt3[2].second->ALODQ);
+    int a3LODQ = (ref_alt1_alt2_alt3[3].second->ALODQ);
+    
+    unsigned int readlen = MAX(30U, central_readlen);
+    const double alt1frac = (double)(readlen - MIN(readlen - 30, ref_alt1_alt2_alt3[1].second->RefBias)) / (double)readlen / 2.0;
+    const double alt2frac = (double)(readlen - MIN(readlen - 30, ref_alt1_alt2_alt3[2].second->RefBias)) / (double)readlen / 2.0;
+   
+    auto fmtptr0 = ref_alt1_alt2_alt3[0].second;
+    auto fmtptr1 = ref_alt1_alt2_alt3[1].second;
+    auto fmtptr2 = ref_alt1_alt2_alt3[2].second;
+    bool isSubst = isSymbolSubstitution(refsymbol);
+    double ad0 = compute_norm_ad(fmtptr0, isSubst);
+    double ad1 = compute_norm_ad(fmtptr1, isSubst);
+    double ad2 = compute_norm_ad(fmtptr2, isSubst);
+    int a0a1LODQ = hetLODQ(ad0, ad1, 1.0 - alt1frac);
+    int a1a0LODQ = hetLODQ(ad1, ad0, alt1frac);
+    int a1a2LODQ = hetLODQ(ad1, ad2, alt1frac / (alt1frac + alt2frac));
+    int a2a1LODQ = hetLODQ(ad2, ad1, alt2frac / (alt1frac + alt2frac));
+
+    std::array<std::string, 4> GTidx2GT {{
+        "0/0",
+        "0/1",
+        "1/1",
+        "1/2"
+    }};
+    
+    int phred_homref = 0; // (isSubst ? 31 : 41);
+    int phred_hetero = (isSubst ? 31 : 41);
+    int phred_homalt = (isSubst ? 33 : 43);
+    int phred_tri_al = (isSubst ? 55 : 49); // https://www.genetics.org/content/184/1/233 : triallelic-SNP-phred = 29*2-3
+    
+    const double qfrac = (isSubst ? 1.0 : 0.25);
+    std::array<std::pair<int, int>, 4> GL4raw = {{
+        std::make_pair(0,  -phred_homref - a1LODQ - MAX(a2LODQ - phred_tri_al, 0)),
+        std::make_pair(1,  -phred_hetero - MAX3(a2LODQ * qfrac, a0a1LODQ, a1a0LODQ)),
+        std::make_pair(2,  -phred_homalt - MAX(a0LODQ, a2LODQ * qfrac)),
+        std::make_pair(3,  -phred_tri_al - MAX4(a0LODQ, a3LODQ * qfrac, a1a2LODQ, a2a1LODQ))
+    }};
+    auto GL4 = GL4raw;
+    std::sort(GL4.rbegin(), GL4.rend(), PairSecondLess);
+    
+    size_t GLidx = GL4[0].first;
+    std::string germ_GT = GTidx2GT[GLidx];
+    int germ_GQ = GL4[0].second - GL4[1].second;
+    
+    std::array<std::string, 3> ref_alt1_alt2_vcfstr_arr = {{
+        SYMBOL_TO_DESC_ARR[ref_alt1_alt2_alt3[0].first],
+        SYMBOL_TO_DESC_ARR[ref_alt1_alt2_alt3[1].first],
+        SYMBOL_TO_DESC_ARR[ref_alt1_alt2_alt3[2].first]
+    }};
+    
+    std::string vcfref = "";
+    std::string vcfalt = "";
+    if (isSymbolSubstitution(refsymbol)) {
+        assert(refstring.substr(regionpos, 1) == ref_alt1_alt2_vcfstr_arr[0]);
+        vcfref = std::string(ref_alt1_alt2_vcfstr_arr[0]);
+        vcfalt = std::string(ref_alt1_alt2_vcfstr_arr[1]);
+        if (3 == GLidx) {
+            vcfalt += std::string(",") + std::string(ref_alt1_alt2_vcfstr_arr[2]);
+        }
+    } else {
+        ref_alt1_alt2_vcfstr_arr[0] = (regionpos > 0 ? refstring.substr(regionpos-1, 1) : "n");
+        AlignmentSymbol s1 = ref_alt1_alt2_alt3[1].first;
+        std::string indelstring1 = indel_get_majority(*(ref_alt1_alt2_alt3[1].second), false, tki,
+            false, tname, refpos, s1, false);
+        // if (indelstring1.size() == 0 || indelstring1[0] == '<') { vcfalt = SYMBOL_TO_DESC_ARR[s1]; }
+        if (3 != GLidx) {
+            vcfref = (regionpos > 0 ? refstring.substr(regionpos-1, 1) : "n");
+            if (indelstring1.size() == 0 || indelstring1[0] == '<') { 
+                vcfalt = SYMBOL_TO_DESC_ARR[s1]; 
+            } else {
+                vcfalt = vcfref;
+                if (isSymbolIns(s1)) {
+                    vcfalt += indelstring1;
+                } else if (isSymbolDel(s1)) {
+                    vcfref += indelstring1;
+                } else {
+                    vcfalt = SYMBOL_TO_DESC_ARR[s1];
+                }
+            }
+        } else {
+            AlignmentSymbol s2 = ref_alt1_alt2_alt3[2].first;
+            std::string indelstring2 = indel_get_majority(*(ref_alt1_alt2_alt3[2].second), false, tki,
+                false, tname, refpos, ref_alt1_alt2_alt3[2].first, false);
+            
+            auto vcfref1 = (regionpos > 0 ? refstring.substr(regionpos-1, 1) : "n");
+            auto vcfalt1 = vcfref1;
+            vcfref = vcfref1;
+            vcfalt = vcfalt1;
+            if (indelstring1.size() == 0 || indelstring1[0] == '<' || indelstring2.size() == 0 || indelstring2[0] == '<') {
+                vcfalt = std::string(SYMBOL_TO_DESC_ARR[s1]) + "," + SYMBOL_TO_DESC_ARR[s2]; 
+            } else {
+                if (isSymbolIns(s1) && isSymbolIns(s2)) {
+                    vcfalt = vcfref1 + indelstring1 + "," + vcfref1 + indelstring2;
+                } else if (isSymbolDel(s1) && isSymbolDel(s2)) {
+                    assert(indelstring1.size() != indelstring2.size());
+                    auto minsize = MIN(indelstring1.size(), indelstring2.size());
+                    assert(indelstring1.substr(0, minsize) == indelstring2.substr(0, minsize));
+                    if (indelstring1.size() > indelstring2.size()) {
+                        vcfref = vcfref1 + indelstring1;
+                        vcfalt = vcfalt1 + "," + indelstring1.substr(indelstring2.size());
+                    } else {
+                        vcfref = vcfref1 + indelstring2;
+                        vcfalt = indelstring2.substr(indelstring1.size()) + "," + vcfalt1;
+                    }
+                    // vcfref = vcfref1 + indelstring1 + "," + vcfref1 + indelstring2;
+                } else if (isSymbolIns(s1) && isSymbolDel(s2)) {
+                    vcfalt = vcfref1 + indelstring1 + indelstring2 + "," + vcfref1;
+                    vcfref = vcfref1 + indelstring2;
+                } else if (isSymbolDel(s1) && isSymbolIns(s2)) {
+                    vcfalt = vcfref1 + "," + vcfref1 + indelstring2 + indelstring1;
+                    vcfref = vcfref1 + indelstring1;
+                } else {
+                    vcfalt = std::string(SYMBOL_TO_DESC_ARR[s1]) + "," + SYMBOL_TO_DESC_ARR[s2];  
+                }
+            }
+        }
+    }
+    auto vcfpos = refpos + (isSymbolSubstitution(refsymbol) ? 1 : 0);
+    
+    std::vector<int> germ_ADR;
+    germ_ADR.push_back(collectget(ref_alt1_alt2_alt3[0].second->cADR, 1, 0));
+    germ_ADR.push_back(collectget(ref_alt1_alt2_alt3[1].second->cADR, 1, 0));
+    if (3 == GLidx) {
+        germ_ADR.push_back(collectget(ref_alt1_alt2_alt3[2].second->cADR, 1, 0));
+    }
+    std::vector<std::string> germ_FT;
+    germ_FT.push_back(ref_alt1_alt2_alt3[0].second->FT);
+    germ_FT.push_back(ref_alt1_alt2_alt3[1].second->FT);
+    if (3 == GLidx) {
+        germ_FT.push_back(ref_alt1_alt2_alt3[2].second->FT);
+    }
+    
+    std::string bcfline = string_join(std::array<std::string, 10>
+    {{
+        std::string(tname), 
+        std::to_string(vcfpos), 
+        std::string("."), 
+        vcfref, 
+        vcfalt, 
+        std::to_string(germ_GQ), 
+        std::string("PASS"), 
+        std::string("GERMLINE"),
+        std::string("GT:GQ:HQ:FT:DP:cADR:GLa:GSTa:note"),
+        string_join(std::array<std::string, 9>
+        {{
+            germ_GT, 
+            std::to_string(germ_GQ), 
+            std::string("0,0"), 
+            string_join(germ_FT, "/"),
+            std::to_string(symbol_format_vec[0].second->DP),
+            other_join(germ_ADR, std::string(",")), 
+            other_join(std::array<int, 3>
+            {{ 
+                GL4raw[0].second, GL4raw[1].second, GL4raw[2].second 
+            }}, ","),
+            other_join(std::array<int, 10>
+            {{
+                GL4raw[3].second,
+                a0LODQA, a0LODQB, a1LODQ, a2LODQ, a3LODQ,
+                a0a1LODQ, a1a0LODQ, a1a2LODQ, a2a1LODQ
+            }}, ","),
+            ref_alt1_alt2_alt3[0].second->note
+        }}, ":")
+    }}, "\t") + "\n";
+    out_string += bcfline;
+    return GL4raw[0].second - MAX3(GL4raw[1].second, GL4raw[2].second, GL4raw[3].second);
+}
+
+int
+fill_TN_germline(
+        bcfrec::BcfFormat & fmt, 
+        AlignmentSymbol symbol,
+        double powlaw_exponent,
+        double refmul,
+        double altmul,
+        double any_mul_contam_frac,
+        double ref_mul_contam_frac, 
+        double t2n_add_contam_transfrac,
+        bool prev_is_tumor, 
+        const auto & tki, 
+        bool is_novar,
+        bool somaticGT,
+        const unsigned int specialflag) {
+    
+    // likelihood that the reads are generated by tumor contam, other contam, hetero genotype, homo-alt genotype, (and homo-ref genotype)
+    std::array<unsigned int, 2> pranks = {{0, 0}}; // number of alleles for REF vs ALT+other and ALT vs REF+other.
+    for (unsigned int t = 0; t < 2; t++) {
+        auto & fmtGT = (0 == t ? fmt.GTa : fmt.GTb);
+        auto & fmtGQ = (0 == t ? fmt.GQa : fmt.GQb);
+        auto & fmtGL = (0 == t ? fmt.GLa : fmt.GLb);
+        auto & fmtGST = (0 == t ? fmt.GSTa : fmt.GSTb);
+        auto & prank = pranks[t];
+        
+        auto fmt_AD = MAX(0.0, fmt.FA) * fmt.DP;
+        auto fmt_OD = MAX(0.0, 1.0 - fmt.FA - fmt.FR) * fmt.DP;
+        auto fmt_RD = MAX(0.0, fmt.FR) * fmt.DP;
+        auto pre1AD = ((0 == t) ? fmt_AD : fmt_OD);
+        auto pre2AD = ((0 == t) ? MAX(fmt_RD, fmt_OD) : MAX(fmt_RD, fmt_AD));
+        
+        auto fmt_bAD = SUM2(fmt.bAD1);
+        auto fmt_bOD = SUM2(fmt.bDP1) - SUM2(fmt.bAD1) - SUM2(fmt.bRD1);
+        auto fmt_bRD = SUM2(fmt.bRD1);
+        auto pre1bAD = ((0 == t) ? fmt_bAD : fmt_bOD);
+        auto pre2bAD = ((0 == t) ? MAX(fmt_bRD, fmt_bOD) : MAX(fmt_bRD, fmt_bAD));
+        
+        auto fmt_bABQ = SUM2(fmt.bAltBQ);
+        auto fmt_bOBQ = SUM2(fmt.bAllBQ) - SUM2(fmt.bAltBQ) - SUM2(fmt.bRefBQ);
+        auto fmt_bRBQ = SUM2(fmt.bRefBQ);
+        auto pre1bBQ = ((0 == t) ? fmt_bABQ : fmt_bOBQ);
+        auto pre2bBQ = ((0 == t) ? MAX(fmt_bRBQ, fmt_bOBQ) : MAX(fmt_bRBQ, fmt_bABQ));
+        
+        // const double preFrac = MAX(0, (0 == t) ? (fmt.FA + MAX(fmt.FR, fmt_FO)) : (1.0 - MIN(fmt.FA, fmt.FR)));
+        // const double fa1 = MAX(0.0, ((0 == t) ? (fmtFA / (fmtFA + fmtFR)) : ((1.0 - fmtFA - fmtFR) / ()) ));
+        const double fa1 = (double)pre1AD / (double)(pre1AD + pre2AD); // / preFrac;
+        
+        const double fa_l = (pre1AD + 0.5) / (pre1AD + pre2AD + 1.0);
+        //const double da_l = fa_l * fmt.DP;
+        const double fr_l = 1.0 - fa_l;
+        //const double dr_l = fr_l * fmt.DP;
+        assert (fa_l > 0 && fa_l < 1 || !fprintf(stderr, "The fraction %lf is not a valid fa_l\n", fa_l));
+        assert (fr_l > 0 && fr_l < 1 || !fprintf(stderr, "The fraction %lf is not a valid fr_l\n", fr_l));
+        
+        const double fa_v = (pre1AD +  DBL_EPSILON) / (pre1AD + pre2AD + 2 * DBL_EPSILON);
+        const double da_v = fa_v * (pre1AD + pre2AD);
+        const double fr_v = 1.0 - fa_v;
+        const double dr_v = fr_v * (pre1AD + pre2AD);
+        
+        double t2n_conref_frac = 0.0;
+        double t2n_conalt_frac = 0.0;
+        int homref_likecon1 = -200;
+        int homalt_likecon1 = -200;
+
+        if (prev_is_tumor) {
+            double tkiFA = ((!isSymbolSubstitution(symbol) || true) ? tki.FA : (
+                         (double)(tki.cAltBQ) / (         (double)(tki.cAllBQ) + DBL_MIN)));
+            double tkiFR = ((!isSymbolSubstitution(symbol) || true) ? tki.FR : (
+                         (double)(tki.cRefBQ) / (         (double)(tki.cAllBQ) + DBL_MIN)));
+            const double tki_fa1 = MAX(0.0, ((0 == t) ? (tkiFA) : (1.0 - tkiFA - tkiFR)));
+            const double tki_fa_l = (tki_fa1 * (double)tki.DP + 0.5) / (double)(tki.DP + 1.0);
+            const double tki_fr_l = 1.0 - tki_fa_l;
+            homref_likecon1 = -(int)calc_binom_10log10_likeratio(t2n_add_contam_transfrac, fa_l * fmt.DP, tki_fa_l * tki.DP);
+            homalt_likecon1 = -(int)calc_binom_10log10_likeratio(t2n_add_contam_transfrac, fr_l * fmt.DP, tki_fr_l * tki.DP);
+            t2n_conref_frac += (tki_fr_l * any_mul_contam_frac + tki_fr_l * any_mul_contam_frac * MIN(5.0, tki.DP / (double)(fmt.DP + DBL_MIN)));
+            t2n_conalt_frac += (tki_fa_l * any_mul_contam_frac + tki_fa_l * any_mul_contam_frac * MIN(5.0, tki.DP / (double)(fmt.DP + DBL_MIN)));
+        }
+        
+        // two models (additive and multiplicative)
+        // two alleles (REF and ALT)
+        // two sources of stochasticity (heterozygosity and contamination)
+        // two genotyes (REF-with-ALT genotype and REF-with-(all-minus-REF-minus-ALT) genotype)
+        // = 16 combinations in total
+        // ContEst https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3167057/ Fig. 1 TCGA Ovarian 
+                    
+        // assuming classical preferential attachment, deviation from its theoretical distribution is translated into a phred-scaled error probability.
+        // zero minus the phred-scale probability that ALT is generated by a stochastic process of power-law error given that ref is good, higher means ref is of better quality (zero is best)
+        // logit2(theoretical-deviation, observed-deviation), higher-than-expected deviation <=> more-negative-score
+        int hetREF_likelim1 =  (int)(10.0/log(10.00) * powlaw_exponent * MIN(logit2(fr_l / refmul * (1.0 + 0.0),                                    fa_l / altmul), 0.0));
+        int hetALT_likelim1 =  (int)(10.0/log(10.00) * powlaw_exponent * MIN(logit2(fa_l / altmul * (1.0 + 0.0),                                    fr_l / refmul), 0.0));         
+        int homref_likelim1 =  (int)(10.0/log(10.00) * powlaw_exponent * MIN(logit2(fr_l / refmul * any_mul_contam_frac + t2n_conalt_frac / altmul, fa_l / altmul), 0.0));
+        int homalt_likelim1 =  (int)(10.0/log(10.00) * powlaw_exponent * MIN(logit2(fa_l / altmul * any_mul_contam_frac + t2n_conref_frac / refmul, fr_l / refmul), 0.0));
+        
+        // assuming statistical independence of reads, kl-divergence is translated into a phred-scaled error probability.
+        // binom_10log10_likeratio(theoretical-deviation-rate, number-of-deviation-signals, number-of-all-signals), higher-than-expected deviation <=> more-negative-score
+        int hetREF_likeval1 = -(int)calc_binom_10log10_likeratio(0.500 * altmul, da_v, dr_v);                                 // het-ref to ALT add error phred
+        int hetALT_likeval1 = -(int)calc_binom_10log10_likeratio(0.500 * refmul, dr_v, da_v);                                 // het-alt to REF add error phred
+        int homref_likeval1 = -(int)calc_binom_10log10_likeratio(any_mul_contam_frac * altmul + t2n_conalt_frac, da_v, dr_v); // hom-alt to REF add error phred by contamination
+        double any_mul_contam_frac2 = any_mul_contam_frac * refmul + t2n_conref_frac;
+        int homalt_likeval1 = -(int)calc_binom_10log10_likeratio(MAX(any_mul_contam_frac2, ref_mul_contam_frac), dr_v, da_v); // hom-ref to ALT add error phred by contamination
+        
+        int homref_likelim2 = MAX(homref_likelim1, homref_likecon1);
+        int homref_likeval2 = MAX(homref_likeval1, homref_likecon1);
+        
+        int homalt_likelim2 = MAX(homalt_likelim1, homalt_likecon1);
+        int homalt_likeval2 = MAX(homalt_likeval1, homalt_likecon1);
+        
+        fmtGST = {
+                -homref_likelim1, -homref_likeval1, -homref_likecon1,
+                -hetREF_likelim1, -hetALT_likeval1,
+                -hetALT_likelim1, -hetREF_likeval1,
+                -homalt_likelim1, -homalt_likeval1, -homalt_likecon1
+        };
+        int pre1bBQAvg = pre1bBQ / MAX(1, pre1bAD);
+        int pre2bBQAvg = pre2bBQ / MAX(1, pre2bAD);
+        if (0 == pre1bBQAvg || 0 == pre2bBQAvg) {
+            pre1bBQAvg = 0;
+            pre2bBQAvg = 0;
+        }
+        // An important note: two models must generate different alleles to perform model selection
+        fmtGL[0] =     MAX(homref_likelim2, homref_likeval2)                                         + pre1bBQAvg;
+        fmtGL[1] = MIN(MAX(hetREF_likelim1, hetREF_likeval1), MAX(hetALT_likelim1, hetALT_likeval1)) + MIN(pre1bBQAvg, pre2bBQAvg);
+        fmtGL[2] =     MAX(homalt_likelim2, homalt_likeval2)                                         + pre2bBQAvg;
+        
+        std::array<int, 3> likes = {{ fmtGL[0], fmtGL[1], fmtGL[2] }};
+        std::sort(likes.rbegin(), likes.rend());
+        const auto & gt_homref = (somaticGT ? TT_HOMREF : GT_HOMREF);
+        const auto & gt_homalt = (somaticGT ? TT_HOMALT : GT_HOMALT);
+        const auto & gt_hetero = (somaticGT ? TT_HETERO : GT_HETERO);
+        if        (likes[0] == fmtGL[0]) {
+            fmtGT = (is_novar ? gt_homalt[t] : gt_homref[t]);
+            prank = (is_novar ? 2 : 0);
+        } else if (likes[0] == fmtGL[1]) {
+            fmtGT = (is_novar ? gt_hetero[t] : gt_hetero[t]);
+            prank = (is_novar ? 1 : 1);
+        } else if (likes[0] == fmtGL[2]) {
+            fmtGT = (is_novar ? gt_homref[t] : gt_homalt[t]);
+            prank = (is_novar ? 0 : 2);
+        } else {
+            abort(); // should not happen
+        }
+        fmtGQ = likes[0] - likes[1];
+    }
+    // homalt (highest priority) > hetero > homref (lowest priority), tiebreak with GTa > GTb
+    if (pranks[0] > pranks[1] || (pranks[0] == pranks[1] && fmt.GQa >= fmt.GQb)) {
+        fmt.GT = fmt.GTa;
+        fmt.GQ = fmt.GQa;
+    } else {
+        fmt.GT = fmt.GTb;
+        fmt.GQ = fmt.GQb;
+    }
+}
+
 int
 fill_by_symbol(bcfrec::BcfFormat & fmt, 
         const Symbol2CountCoverageSet & symbol2CountCoverageSet12, 
@@ -3148,6 +3536,39 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
     assert(fmt.ADHQ >= 0);
     fmt.MQ = (unsigned int)sqrt((double)bq_qsum_sqrMQ_tot / (DBL_MIN + (double)(fmt.bAD1[0] + fmt.bAD1[1])));
     
+    /* Schematics of the alignment hierarchy of reads for del
+     * (012345RR89abcd) is the reference and R is the repeated sequence.
+     *  012345
+     *   12345R  reject, not realignable
+     *    2345R8  reject, partially re-alignable, clipped
+     *     345-R89 accept
+     *      45-R89a accept
+     *       5-R89ab accept
+     *         R89abc reject, partially re-alignable, clipped (not counted for depth)
+     *          89abcd reject, not realignable (not counted for depth)
+     * (012345RRR89abcd) is the reference and R is the repeated sequence.
+     *  012345
+     *   12345R reject, not realignable
+     *    2345RR reject, not realignable
+     *     345RR8 reject, partially re-alignable, clipped
+     *      45-RR89 accept
+     *       5-RR89a accept
+     *         RR89ab reject, partially re-alignable, clipped (not counted for depth)
+     *          R89abc reject, not realignable (not counted for depth)
+     *           89abcd reject, not realignable (not counted for depth)
+     */
+    /* Schematics of the alignment hierarchy of reads for ins
+     * (012345-R89abcd) is the reference and R is the repeated sequence.
+     *  012345
+     *   12345R reject, not realignable 
+     *    2345RR reject, partially realignable, clipped
+     *     345RR8 reject, fully realignable, clipped
+     *      45RR89 accept
+     *       5RR89a accept
+     *        RR89ab reject, fully realignable, clipped
+     *         R89abc reject, partially realignable, clipped (not counted for depth)
+     *          89abcd reject, not realignable (not counted for depth)
+     */
     double refmul = 1.0;
     double altmul = 1.0;
     bool isInDel = (isSymbolIns(symbol) || isSymbolDel(symbol));
@@ -3161,40 +3582,6 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
                 totsize_cnt += fmt.gapcAD1[k]; 
                 totsize_sum += fmt.gapSeq[k].size() * fmt.gapcAD1[k];
             }
-            
-            /* Schematics of the alignment hierarchy of reads for del
-             * (012345RR89abcd) is the reference and R is the repeated sequence.
-             *  012345
-             *   12345R  reject, not realignable
-             *    2345R8  reject, partially re-alignable, clipped
-             *     345-R89 accept
-             *      45-R89a accept
-             *       5-R89ab accept
-             *         R89abc reject, partially re-alignable, clipped (not counted for depth)
-             *          89abcd reject, not realignable (not counted for depth)
-             * (012345RRR89abcd) is the reference and R is the repeated sequence.
-             *  012345
-             *   12345R reject, not realignable
-             *    2345RR reject, not realignable
-             *     345RR8 reject, partially re-alignable, clipped
-             *      45-RR89 accept
-             *       5-RR89a accept
-             *         RR89ab reject, partially re-alignable, clipped (not counted for depth)
-             *          R89abc reject, not realignable (not counted for depth)
-             *           89abcd reject, not realignable (not counted for depth)
-             */
-            /* Schematics of the alignment hierarchy of reads for ins
-             * (012345-R89abcd) is the reference and R is the repeated sequence.
-             *  012345
-             *   12345R reject, not realignable 
-             *    2345RR reject, partially realignable, clipped
-             *     345RR8 reject, fully realignable, clipped
-             *      45RR89 accept
-             *       5RR89a accept
-             *        RR89ab reject, fully realignable, clipped
-             *         R89abc reject, partially realignable, clipped (not counted for depth)
-             *          89abcd reject, not realignable (not counted for depth)
-             */
             auto indel_bias_len = ((totsize_sum * 100UL) / (totsize_cnt * 100UL + 1UL));
             auto context_bias = (repeatunit.size() * MAX(1UL, repeatnum));
             // 1 = match score, 4 = mismatch-penalty, 5 = softclip-penalty, 6 = gap-open-penalty
@@ -3210,148 +3597,20 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
         altmul = (double)(readlen - MIN(readlen - 30, ref_bias)) / (double)readlen; // 50.0 / (double)(ref_bias + 50);
         refmul = 2.0 - altmul;
         auto ref_mul_contam_frac = ((double)MIN(ref_bias, readlen/2) / (double)(readlen));
-        // likelihood that the reads are generated by tumor contam, other contam, hetero genotype, homo-alt genotype, (and homo-ref genotype)
-        std::array<unsigned int, 2> pranks = {{0, 0}}; // number of alleles for REF vs ALT+other and ALT vs REF+other.
-        for (unsigned int t = 0; t < 2; t++) {
-            auto & fmtGT = (0 == t ? fmt.GTa : fmt.GTb);
-            auto & fmtGQ = (0 == t ? fmt.GQa : fmt.GQb);
-            auto & fmtGL = (0 == t ? fmt.GLa : fmt.GLb);
-            auto & fmtGST = (0 == t ? fmt.GSTa : fmt.GSTb);
-            auto & prank = pranks[t];
-            
-            //double fmtFA = ((!isSymbolSubstitution(symbol) || true) ? fmt.FA : (
-                   // MIN(1.0, (double)SUM2(fmt.cAltBQ) / (fmt.FA * (double)SUM2(fmt.cAllBQ) + DBL_EPSILON)) * 
-            //                 (double)SUM2(fmt.cAltBQ) / (         (double)SUM2(fmt.cAllBQ) + DBL_MIN)));
-            //double fmtFR = ((!isSymbolSubstitution(symbol) || true) ? fmt.FR : (
-                   // MIN(1.0, (double)SUM2(fmt.cRefBQ) / (fmt.FR * (double)SUM2(fmt.cAllBQ) + DBL_EPSILON)) * 
-            //                 (double)SUM2(fmt.cRefBQ) / (         (double)SUM2(fmt.cAllBQ) + DBL_MIN)));
-            auto fmt_AD = MAX(0.0, fmt.FA) * fmt.DP;
-            auto fmt_OD = MAX(0.0, 1.0 - fmt.FA - fmt.FR) * fmt.DP;
-            auto fmt_RD = MAX(0.0, fmt.FR) * fmt.DP;
-            auto pre1AD = ((0 == t) ? fmt_AD : fmt_OD);
-            auto pre2AD = ((0 == t) ? MAX(fmt_RD, fmt_OD) : MAX(fmt_RD, fmt_AD));
-            
-            auto fmt_bAD = SUM2(fmt.bAD1);
-            auto fmt_bOD = SUM2(fmt.bDP1) - SUM2(fmt.bAD1) - SUM2(fmt.bRD1);
-            auto fmt_bRD = SUM2(fmt.bRD1);
-            auto pre1bAD = ((0 == t) ? fmt_bAD : fmt_bOD);
-            auto pre2bAD = ((0 == t) ? MAX(fmt_bRD, fmt_bOD) : MAX(fmt_bRD, fmt_bAD));
-            
-            auto fmt_bABQ = SUM2(fmt.bAltBQ);
-            auto fmt_bOBQ = SUM2(fmt.bAllBQ) - SUM2(fmt.bAltBQ) - SUM2(fmt.bRefBQ);
-            auto fmt_bRBQ = SUM2(fmt.bRefBQ);
-            auto pre1bBQ = ((0 == t) ? fmt_bABQ : fmt_bOBQ);
-            auto pre2bBQ = ((0 == t) ? MAX(fmt_bRBQ, fmt_bOBQ) : MAX(fmt_bRBQ, fmt_bABQ));
-            
-            // const double preFrac = MAX(0, (0 == t) ? (fmt.FA + MAX(fmt.FR, fmt_FO)) : (1.0 - MIN(fmt.FA, fmt.FR)));
-            // const double fa1 = MAX(0.0, ((0 == t) ? (fmtFA / (fmtFA + fmtFR)) : ((1.0 - fmtFA - fmtFR) / ()) ));
-            const double fa1 = (double)pre1AD / (double)(pre1AD + pre2AD); // / preFrac;
-            
-            const double fa_l = (pre1AD + 1.0 / altmul) / (pre1AD + pre2AD + 2.0 / altmul);
-            //const double da_l = fa_l * fmt.DP;
-            const double fr_l = 1.0 - fa_l;
-            //const double dr_l = fr_l * fmt.DP;
-            assert (fa_l > 0 && fa_l < 1 || !fprintf(stderr, "The fraction %lf is not a valid fa_l\n", fa_l));
-            assert (fr_l > 0 && fr_l < 1 || !fprintf(stderr, "The fraction %lf is not a valid fr_l\n", fr_l));
-            
-            const double fa_v = (pre1AD +  DBL_EPSILON) / (pre1AD + pre2AD + 2 * DBL_EPSILON);
-            const double da_v = fa_v * (pre1AD + pre2AD);
-            const double fr_v = 1.0 - fa_v;
-            const double dr_v = fr_v * (pre1AD + pre2AD);
-            
-            double t2n_conref_frac = 0.0;
-            double t2n_conalt_frac = 0.0;
-            int homref_likecon1 = -200;
-            int homalt_likecon1 = -200;
-
-            if (prev_is_tumor) {
-                double tkiFA = ((!isSymbolSubstitution(symbol) || true) ? tki.FA : (
-                             (double)(tki.cAltBQ) / (         (double)(tki.cAllBQ) + DBL_MIN)));
-                double tkiFR = ((!isSymbolSubstitution(symbol) || true) ? tki.FR : (
-                             (double)(tki.cRefBQ) / (         (double)(tki.cAllBQ) + DBL_MIN)));
-                const double tki_fa1 = MAX(0.0, ((0 == t) ? (tkiFA) : (1.0 - tkiFA - tkiFR)));
-                const double tki_fa_l = (tki_fa1 * (double)tki.DP + 1.0 / altmul) / (double)(tki.DP + 2.0 / altmul);
-                const double tki_fr_l = 1.0 - tki_fa_l;
-                homref_likecon1 = -(int)calc_binom_10log10_likeratio(t2n_add_contam_transfrac, fa_l * fmt.DP, tki_fa_l * tki.DP);
-                homalt_likecon1 = -(int)calc_binom_10log10_likeratio(t2n_add_contam_transfrac, fr_l * fmt.DP, tki_fr_l * tki.DP);
-                t2n_conref_frac += (tki_fr_l * 0.02 + tki_fr_l * 0.02 * MIN(5.0, tki.DP / (double)(fmt.DP + DBL_MIN)));
-                t2n_conalt_frac += (tki_fa_l * 0.02 + tki_fa_l * 0.02 * MIN(5.0, tki.DP / (double)(fmt.DP + DBL_MIN)));
-            }
-                        
-            // two models (additive and multiplicative)
-            // two alleles (REF and ALT)
-            // two sources of stochasticity (heterozygosity and contamination)
-            // two genotyes (REF-with-ALT genotype and REF-with-(all-minus-REF-minus-ALT) genotype)
-            // = 16 combinations in total
-            // ContEst https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3167057/ Fig. 1 TCGA Ovarian 
-                        
-            // assuming classical preferential attachment, deviation from its theoretical distribution is translated into a phred-scaled error probability.
-            // zero minus the phred-scale probability that ALT is generated by a stochastic process of power-law error given that ref is good, higher means ref is of better quality (zero is best)
-            // logit2(theoretical-deviation, observed-deviation), higher-than-expected deviation <=> more-negative-score
-            int hetREF_likelim1 =  (int)(10.0/log(10.00) * powlaw_exponent * MIN(logit2(fr_l / refmul * (1.0 + 0.0),                                    fa_l / altmul), 0.0));
-            int hetALT_likelim1 =  (int)(10.0/log(10.00) * powlaw_exponent * MIN(logit2(fa_l / altmul * (1.0 + 0.0),                                    fr_l / refmul), 0.0));         
-            int homref_likelim1 =  (int)(10.0/log(10.00) * powlaw_exponent * MIN(logit2(fr_l / refmul * any_mul_contam_frac + t2n_conalt_frac / altmul, fa_l / altmul), 0.0));
-            int homalt_likelim1 =  (int)(10.0/log(10.00) * powlaw_exponent * MIN(logit2(fa_l / altmul * any_mul_contam_frac + t2n_conref_frac / refmul, fr_l / refmul), 0.0));
-            
-            // assuming statistical independence of reads, kl-divergence is translated into a phred-scaled error probability.
-            // binom_10log10_likeratio(theoretical-deviation-rate, number-of-deviation-signals, number-of-all-signals), higher-than-expected deviation <=> more-negative-score
-            int hetREF_likeval1 = -(int)calc_binom_10log10_likeratio(0.500 * altmul, da_v, dr_v);                                 // het-ref to ALT add error phred
-            int hetALT_likeval1 = -(int)calc_binom_10log10_likeratio(0.500 * refmul, dr_v, da_v);                                 // het-alt to REF add error phred
-            int homref_likeval1 = -(int)calc_binom_10log10_likeratio(any_mul_contam_frac * altmul + t2n_conalt_frac, da_v, dr_v); // hom-alt to REF add error phred by contamination
-            double any_mul_contam_frac2 = any_mul_contam_frac * refmul + t2n_conref_frac;
-            int homalt_likeval1 = -(int)calc_binom_10log10_likeratio(MAX(any_mul_contam_frac2, ref_mul_contam_frac), dr_v, da_v); // hom-ref to ALT add error phred by contamination
-            
-            int homref_likelim2 = MAX(homref_likelim1, homref_likecon1);
-            int homref_likeval2 = MAX(homref_likeval1, homref_likecon1);
-            
-            int homalt_likelim2 = MAX(homalt_likelim1, homalt_likecon1);
-            int homalt_likeval2 = MAX(homalt_likeval1, homalt_likecon1);
-            
-            fmtGST = {
-                    -homref_likelim1, -homref_likeval1, -homref_likecon1,
-                    -hetREF_likelim1, -hetALT_likeval1,
-                    -hetALT_likelim1, -hetREF_likeval1,
-                    -homalt_likelim1, -homalt_likeval1, -homalt_likecon1
-            };
-            int pre1bBQAvg = pre1bBQ / MAX(1, pre1bAD);
-            int pre2bBQAvg = pre2bBQ / MAX(1, pre2bAD);
-            if (0 == pre1bBQAvg || 0 == pre2bBQAvg) {
-                pre1bBQAvg = 0;
-                pre2bBQAvg = 0;
-            }
-            // An important note: two models must generate different alleles to perform model selection
-            fmtGL[0] =     MAX(homref_likelim2, homref_likeval2)                                         + pre1bBQAvg;
-            fmtGL[1] = MIN(MAX(hetREF_likelim1, hetREF_likeval1), MAX(hetALT_likelim1, hetALT_likeval1)) + MIN(pre1bBQAvg, pre2bBQAvg);
-            fmtGL[2] =     MAX(homalt_likelim2, homalt_likeval2)                                         + pre2bBQAvg;
-            
-            std::array<int, 3> likes = {{ fmtGL[0], fmtGL[1], fmtGL[2] }};
-            std::sort(likes.rbegin(), likes.rend());
-            const auto & gt_homref = (somaticGT ? TT_HOMREF : GT_HOMREF);
-            const auto & gt_homalt = (somaticGT ? TT_HOMALT : GT_HOMALT);
-            const auto & gt_hetero = (somaticGT ? TT_HETERO : GT_HETERO);
-            if        (likes[0] == fmtGL[0]) {
-                fmtGT = (is_novar ? gt_homalt[t] : gt_homref[t]);
-                prank = (is_novar ? 2 : 0);
-            } else if (likes[0] == fmtGL[1]) {
-                fmtGT = (is_novar ? gt_hetero[t] : gt_hetero[t]);
-                prank = (is_novar ? 1 : 1);
-            } else if (likes[0] == fmtGL[2]) {
-                fmtGT = (is_novar ? gt_homref[t] : gt_homalt[t]);
-                prank = (is_novar ? 0 : 2);
-            } else {
-                abort(); // should not happen
-            }
-            fmtGQ = likes[0] - likes[1];
-        }
-        
-        // homalt (highest priority) > hetero > homref (lowest priority), tiebreak with GTa > GTb
-        if (pranks[0] > pranks[1] || (pranks[0] == pranks[1] && fmt.GQa >= fmt.GQb)) {
-            fmt.GT = fmt.GTa;
-            fmt.GQ = fmt.GQa;
-        } else {
-            fmt.GT = fmt.GTb;
-            fmt.GQ = fmt.GQb;
-        }
+        fill_TN_germline(
+                fmt, 
+                symbol,
+                powlaw_exponent,
+                refmul,
+                altmul,
+                any_mul_contam_frac,
+                ref_mul_contam_frac, 
+                t2n_add_contam_transfrac,
+                prev_is_tumor, 
+                tki, 
+                is_novar,
+                somaticGT,
+                0); 
     } else {
         fmt.GT = "./.";
         fmt.GQ = 0;
@@ -3491,7 +3750,7 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
     // assuming that in-vivo biological error and in-vitro technical error are positively correlated with each other. 
     // https://doi.org/10.1007%2Fs00239-010-9377-4
     
-    unsigned int pcap_baq = fmt.aBAQADR[1] / MAX(SUMVEC(fmt.aAD), 1);
+    unsigned int pcap_baq = sqrt(fmt.aBAQADR[1] * (double)THE_BAQ_MAX / MAX(SUMVEC(fmt.aAD), 1));
     // const double pcap_bcq = (isInDel ? 200.0 : (mathsquare(fmt.BQ) * illumina_BQ_sqr_coef - 10.0/log(10.0) * log((double)MAX(100, fmt.aB[0]) / 100.0))); // based on heuristics
     //const unsigned int fwTotBQ = (fmt.aBQAD[0] + fmt.aBQAD[2]);
     //const unsigned int rvTotBQ = (fmt.aBQAD[1] + fmt.aBQAD[3]);
@@ -3522,7 +3781,7 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
     // aln quality, base quality, read count,
     double normBAQAD = fmt.aBAQADR[1] / altmul;
     double normBAQOD = (fmt.aBAQDP - fmt.aBAQADR[1]) / refmul;
-    double alsFA2 = (normBAQAD * 2 + 0.5) / (normBAQAD * 2 + normBAQOD + 1.0); // laplace smoothing
+    double alsFA2 = (normBAQAD * THE_MUL_PER_BAQ + 0.5) / (normBAQAD * THE_MUL_PER_BAQ + normBAQOD + 1.0); // laplace smoothing
     double blsFA1 = (fmt.bADR[1] / altmul + 0.5) / ((fmt.bDP - fmt.bADR[1]) / refmul + fmt.bADR[1] / altmul + 1.0);
     double clsFA1 = (fmt.cADR[1] / altmul + 0.5) / ((fmt.cDP - fmt.cADR[1]) / refmul + fmt.cADR[1] / altmul + 1.0);
     const double pl_qual = pl_exponent * 10.0 / log(10.0) * log(MIN3(alsFA2, blsFA1, clsFA1)) + pl_cap;
@@ -3546,12 +3805,12 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
     fmt.VQ5.clear();
     fmt.VAQ.clear();
     
-    clear_push(fmt.VQ1, (unsigned int)pcap_baq); // base alignment quality
+    clear_push(fmt.VQ1, (unsigned int)(pcap_baq + (isInDel ? 10 : 0))); // base alignment quality
     clear_push(fmt.VQ2, (unsigned int)pcap_bcq); // base quality
     clear_push(fmt.VQ3, (unsigned int)MIN(pcap_tmq1, pcap_tmq2)); // mapping quality
-    clear_push(fmt.VQ4, (unsigned int)pl_qual);
-    clear_push(fmt.VQ5, (unsigned int)rawVQ1);
-    auto theVAQ = MIN5(fmt.VQ1[0], fmt.VQ2[0], fmt.VQ3[0], fmt.VQ4[0], fmt.VQ5[0]) - sampling_qual + indel_ic;
+    clear_push(fmt.VQ4, (unsigned int)(pl_qual + + indel_ic));
+    clear_push(fmt.VQ5, (unsigned int)(rawVQ1 - sampling_qual));
+    auto theVAQ = MIN5(fmt.VQ1[0], fmt.VQ2[0], fmt.VQ3[0], fmt.VQ4[0], fmt.VQ5[0]);
     clear_push(fmt.VAQ, MAX(0, theVAQ));
     fmt.ALODQ = MAX(0, fmt.VAQ[0]);
     return (int)(fmt.bAD1[0] + fmt.bAD1[1]);
@@ -3680,26 +3939,6 @@ fmtFTSupdate(auto & maxval, std::string & ft, std::vector<unsigned int> & ftv, c
     return fval;
 }
 
-std::string 
-string_join(auto container, std::string sep = std::string(",")) {
-    std::string ret = "";
-    for (auto e : container) {
-        ret += e + sep;
-    }
-    ret.pop_back();
-    return ret;
-}
-
-std::string 
-other_join(auto container, std::string sep = std::string(",")) {
-    std::string ret = "";
-    for (auto e : container) {
-        ret += std::to_string(e) + sep;
-    }
-    ret.pop_back();
-    return ret;
-}
-
 std::string
 bcf1_to_string(const bcf_hdr_t *tki_bcf1_hdr, const bcf1_t *bcf1_record) {
     kstring_t ks = { 0, 0, NULL };
@@ -3715,237 +3954,6 @@ bcf1_to_string(const bcf_hdr_t *tki_bcf1_hdr, const bcf1_t *bcf1_record) {
     }
     // fprintf(stderr, "tumor-vcf-format=%s\n", ret.c_str());
     return ret;
-}
-
-// higher allele1count (lower allele2count) results in higher LODQ if FA is above frac, meaning allele1 is more likely to be homo, and vice versa
-unsigned int hetLODQ(double allele1count, double allele2count, double frac, double powlaw_exponent = 3.0) {
-    auto binomLODQ = (int)calc_binom_10log10_likeratio(frac, allele1count, allele2count);
-    auto powerLODQ = (int)(10.0/log(10.00) * powlaw_exponent * MAX(logit2(allele1count / (frac * 2.0) + 0.5, allele2count / ((1.0 - frac) * 2.0) + 0.5), 0.0));
-    return MIN(binomLODQ, powerLODQ);
-}
-
-struct {
-    template<class T1, class T2>
-    bool operator()(std::pair<T1, T2> a, std::pair<T1, T2> b) const {   
-        return a.second < b.second;
-    }
-} PairSecondLess;
-
-double compute_norm_ad(const bcfrec::BcfFormat* fmtp, const bool isSubst) {
-    double fa_baq = fmtp->aBAQADR[1] * 2 / ((double)(fmtp->aBAQDP + fmtp->aBAQADR[1]) + DBL_EPSILON);
-    double fa_bq  = SUM2(fmtp->bAltBQ) / ((double)SUM2(fmtp->bAllBQ) + DBL_EPSILON);
-    if (isSubst) {
-        return MIN(MIN(fa_baq, fa_bq) * SUM2(fmtp->cDPTT), (double)SUM2(fmtp->cADTT));
-    } else {
-        return MIN(fa_baq * SUM2(fmtp->cDPTT), (double)SUM2(fmtp->cADTT));
-    }
-}
-
-int
-output_germline(
-        std::string & out_string,
-        AlignmentSymbol refsymbol, 
-        std::vector<std::pair<AlignmentSymbol, bcfrec::BcfFormat*>> symbol_format_vec,
-        const char *tname,
-        const std::string & refstring,
-        unsigned int refpos,
-        unsigned int extended_inclu_beg_pos, // regionpos,
-        unsigned int central_readlen,
-        const auto & tki, unsigned int specialflag) {
-    
-    assert(symbol_format_vec.size() >= 4 || 
-            !fprintf(stderr, " The variant-type %s:%u %u has symbol_format_vec of length %u", 
-            tname, refpos, refsymbol, symbol_format_vec.size()));
-    unsigned int regionpos = refpos- extended_inclu_beg_pos;
-    struct {
-        bool operator()(std::pair<AlignmentSymbol, bcfrec::BcfFormat*> p1, std::pair<AlignmentSymbol, bcfrec::BcfFormat*> p2) const {
-            return p1.second->ALODQ < p2.second->ALODQ;
-        }
-    } SymbolBcfFormatPairLess;
-    std::sort(symbol_format_vec.rbegin(), symbol_format_vec.rend(), SymbolBcfFormatPairLess);
-    std::array<std::pair<AlignmentSymbol, bcfrec::BcfFormat*>, 4> ref_alt1_alt2_alt3 = {{std::make_pair(AlignmentSymbol(0), (bcfrec::BcfFormat*)NULL)}};
-    unsigned int allele_idx = 1;
-    for (auto symb_fmt : symbol_format_vec) {
-        if (refsymbol == symb_fmt.first) {
-            ref_alt1_alt2_alt3[0] = symb_fmt;
-        } else if (allele_idx <= 3) {
-            ref_alt1_alt2_alt3[allele_idx] = symb_fmt;
-            allele_idx++;
-        }
-    }
-    assert(ref_alt1_alt2_alt3[0].second != NULL);
-    assert(ref_alt1_alt2_alt3[3].second != NULL);
-    
-    int a0LODQA = ref_alt1_alt2_alt3[0].second->ALODQ;
-    int a0LODQB = ref_alt1_alt2_alt3[0].second->BLODQ;
-    int a0LODQ = MIN(a0LODQA, a0LODQB) + 1;
-    int a1LODQ = (ref_alt1_alt2_alt3[1].second->ALODQ);
-    int a2LODQ = (ref_alt1_alt2_alt3[2].second->ALODQ);
-    int a3LODQ = (ref_alt1_alt2_alt3[3].second->ALODQ);
-    
-    unsigned int readlen = MAX(30U, central_readlen);
-    const double alt1frac = (double)(readlen - MIN(readlen - 30, ref_alt1_alt2_alt3[1].second->RefBias)) / (double)readlen / 2.0;
-    const double alt2frac = (double)(readlen - MIN(readlen - 30, ref_alt1_alt2_alt3[2].second->RefBias)) / (double)readlen / 2.0;
-   
-    auto fmtptr0 = ref_alt1_alt2_alt3[0].second;
-    auto fmtptr1 = ref_alt1_alt2_alt3[1].second;
-    auto fmtptr2 = ref_alt1_alt2_alt3[2].second;
-    bool isSubst = isSymbolSubstitution(refsymbol);
-    double ad0 = compute_norm_ad(fmtptr0, isSubst);
-    double ad1 = compute_norm_ad(fmtptr1, isSubst);
-    double ad2 = compute_norm_ad(fmtptr2, isSubst);
-    int a0a1LODQ = hetLODQ(ad0, ad1, 1.0 - alt1frac);
-    int a1a0LODQ = hetLODQ(ad1, ad0, alt1frac);
-    int a1a2LODQ = hetLODQ(ad1, ad2, alt1frac / (alt1frac + alt2frac));
-    int a2a1LODQ = hetLODQ(ad2, ad1, alt2frac / (alt1frac + alt2frac));
-
-    std::array<std::string, 4> GTidx2GT {{
-        "0/0",
-        "0/1",
-        "1/1",
-        "1/2"
-    }};
-    
-    int phred_homref = 0; // (isSubst ? 31 : 41);
-    int phred_hetero = (isSubst ? 31 : 41);
-    int phred_homalt = (isSubst ? 33 : 43);
-    int phred_tri_al = (isSubst ? 55 : 49); // https://www.genetics.org/content/184/1/233 : triallelic-SNP-phred = 29*2-3
-    
-    std::array<std::pair<int, int>, 4> GL4raw = {{
-        std::make_pair(0,  -phred_homref - a1LODQ - MAX(a2LODQ - phred_tri_al, 0)),
-        std::make_pair(1,  -phred_hetero - MAX3(a2LODQ, a0a1LODQ, a1a0LODQ)),
-        std::make_pair(2,  -phred_homalt - MAX(a0LODQ, a2LODQ)),
-        std::make_pair(3,  -phred_tri_al - MAX4(a0LODQ, a3LODQ, a1a2LODQ, a2a1LODQ))
-    }};
-    auto GL4 = GL4raw;
-    std::sort(GL4.rbegin(), GL4.rend(), PairSecondLess);
-    
-    size_t GLidx = GL4[0].first;
-    std::string germ_GT = GTidx2GT[GLidx];
-    int germ_GQ = GL4[0].second - GL4[1].second;
-    
-    std::array<std::string, 3> ref_alt1_alt2_vcfstr_arr = {{
-        SYMBOL_TO_DESC_ARR[ref_alt1_alt2_alt3[0].first],
-        SYMBOL_TO_DESC_ARR[ref_alt1_alt2_alt3[1].first],
-        SYMBOL_TO_DESC_ARR[ref_alt1_alt2_alt3[2].first]
-    }};
-    
-    std::string vcfref = "";
-    std::string vcfalt = "";
-    if (isSymbolSubstitution(refsymbol)) {
-        assert(refstring.substr(regionpos, 1) == ref_alt1_alt2_vcfstr_arr[0]);
-        vcfref = std::string(ref_alt1_alt2_vcfstr_arr[0]);
-        vcfalt = std::string(ref_alt1_alt2_vcfstr_arr[1]);
-        if (3 == GLidx) {
-            vcfalt += std::string(",") + std::string(ref_alt1_alt2_vcfstr_arr[2]);
-        }
-    } else {
-        ref_alt1_alt2_vcfstr_arr[0] = (regionpos > 0 ? refstring.substr(regionpos-1, 1) : "n");
-        AlignmentSymbol s1 = ref_alt1_alt2_alt3[1].first;
-        std::string indelstring1 = indel_get_majority(*(ref_alt1_alt2_alt3[1].second), false, tki,
-            false, tname, refpos, s1, false);
-        // if (indelstring1.size() == 0 || indelstring1[0] == '<') { vcfalt = SYMBOL_TO_DESC_ARR[s1]; }
-        if (3 != GLidx) {
-            vcfref = (regionpos > 0 ? refstring.substr(regionpos-1, 1) : "n");
-            if (indelstring1.size() == 0 || indelstring1[0] == '<') { 
-                vcfalt = SYMBOL_TO_DESC_ARR[s1]; 
-            } else {
-                vcfalt = vcfref;
-                if (isSymbolIns(s1)) {
-                    vcfalt += indelstring1;
-                } else if (isSymbolDel(s1)) {
-                    vcfref += indelstring1;
-                } else {
-                    vcfalt = SYMBOL_TO_DESC_ARR[s1];
-                }
-            }
-        } else {
-            AlignmentSymbol s2 = ref_alt1_alt2_alt3[2].first;
-            std::string indelstring2 = indel_get_majority(*(ref_alt1_alt2_alt3[2].second), false, tki,
-                false, tname, refpos, ref_alt1_alt2_alt3[2].first, false);
-            
-            auto vcfref1 = (regionpos > 0 ? refstring.substr(regionpos-1, 1) : "n");
-            auto vcfalt1 = vcfref1;
-            vcfref = vcfref1;
-            vcfalt = vcfalt1;
-            if (indelstring1.size() == 0 || indelstring1[0] == '<' || indelstring2.size() == 0 || indelstring2[0] == '<') {
-                vcfalt = std::string(SYMBOL_TO_DESC_ARR[s1]) + "," + SYMBOL_TO_DESC_ARR[s2]; 
-            } else {
-                if (isSymbolIns(s1) && isSymbolIns(s2)) {
-                    vcfalt = vcfref1 + indelstring1 + "," + vcfref1 + indelstring2;
-                } else if (isSymbolDel(s1) && isSymbolDel(s2)) {
-                    assert(indelstring1.size() != indelstring2.size());
-                    auto minsize = MIN(indelstring1.size(), indelstring2.size());
-                    assert(indelstring1.substr(0, minsize) == indelstring2.substr(0, minsize));
-                    if (indelstring1.size() > indelstring2.size()) {
-                        vcfref = vcfref1 + indelstring1;
-                        vcfalt = vcfalt1 + "," + indelstring1.substr(indelstring2.size());
-                    } else {
-                        vcfref = vcfref1 + indelstring2;
-                        vcfalt = indelstring2.substr(indelstring1.size()) + "," + vcfalt1;
-                    }
-                    // vcfref = vcfref1 + indelstring1 + "," + vcfref1 + indelstring2;
-                } else if (isSymbolIns(s1) && isSymbolDel(s2)) {
-                    vcfalt = vcfref1 + indelstring1 + indelstring2 + "," + vcfref1;
-                    vcfref = vcfref1 + indelstring2;
-                } else if (isSymbolDel(s1) && isSymbolIns(s2)) {
-                    vcfalt = vcfref1 + "," + vcfref1 + indelstring2 + indelstring1;
-                    vcfref = vcfref1 + indelstring1;
-                } else {
-                    vcfalt = std::string(SYMBOL_TO_DESC_ARR[s1]) + "," + SYMBOL_TO_DESC_ARR[s2];  
-                }
-            }
-        }
-    }
-    auto vcfpos = refpos + (isSymbolSubstitution(refsymbol) ? 1 : 0);
-    
-    std::vector<int> germ_ADR;
-    germ_ADR.push_back(collectget(ref_alt1_alt2_alt3[0].second->cADR, 1, 0));
-    germ_ADR.push_back(collectget(ref_alt1_alt2_alt3[1].second->cADR, 1, 0));
-    if (3 == GLidx) {
-        germ_ADR.push_back(collectget(ref_alt1_alt2_alt3[2].second->cADR, 1, 0));
-    }
-    std::vector<std::string> germ_FT;
-    germ_FT.push_back(ref_alt1_alt2_alt3[0].second->FT);
-    germ_FT.push_back(ref_alt1_alt2_alt3[1].second->FT);
-    if (3 == GLidx) {
-        germ_FT.push_back(ref_alt1_alt2_alt3[2].second->FT);
-    }
-    
-    std::string bcfline = string_join(std::array<std::string, 10>
-    {{
-        std::string(tname), 
-        std::to_string(vcfpos), 
-        std::string("."), 
-        vcfref, 
-        vcfalt, 
-        std::to_string(germ_GQ), 
-        std::string("PASS"), 
-        std::string("GERMLINE"),
-        std::string("GT:GQ:HQ:FT:DP:cADR:GLa:GSTa:note"),
-        string_join(std::array<std::string, 9>
-        {{
-            germ_GT, 
-            std::to_string(germ_GQ), 
-            std::string("0,0"), 
-            string_join(germ_FT, "/"),
-            std::to_string(symbol_format_vec[0].second->DP),
-            other_join(germ_ADR, std::string(",")), 
-            other_join(std::array<int, 3>
-            {{ 
-                GL4raw[0].second, GL4raw[1].second, GL4raw[2].second 
-            }}, ","),
-            other_join(std::array<int, 10>
-            {{
-                GL4raw[3].second,
-                a0LODQA, a0LODQB, a1LODQ, a2LODQ, a3LODQ,
-                a0a1LODQ, a1a0LODQ, a1a2LODQ, a2a1LODQ
-            }}, ","),
-            ref_alt1_alt2_alt3[0].second->note
-        }}, ":")
-    }}, "\t") + "\n";
-    out_string += bcfline;
-    return GL4raw[0].second - MAX3(GL4raw[1].second, GL4raw[2].second, GL4raw[3].second);
 }
 
 int

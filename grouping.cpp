@@ -1,6 +1,7 @@
 #include "grouping.hpp"
 #include "logging.hpp"
 
+#define UPDATE_MIN(a, b) ((a) = min((a), (b)));
 // position of 5' is the starting position, but position of 3' is unreliable without mate info.
 const unsigned int ARRPOS_MARGIN = 1200;
 const int8_t ARRPOS_OUTER_RANGE = 10;
@@ -401,7 +402,30 @@ clean_fill_strand_umi_readset(
 
 // ad-hoc adjustment of BQ in homopolymer region
 int 
-apply_bq_err_correction(const bam1_t *aln, unsigned int dec_per_base, unsigned int homopol_min_len, unsigned int max_dec) {
+apply_bq_err_correction(bam1_t *aln, unsigned int homopol_minBQ_inc = 5, unsigned int homopol_min_len = 4) {
+    if (0 == aln->core.l_qseq) { return -1; }
+    unsigned int prev_b = 0;
+    unsigned int homopol_len = 1;
+    unsigned int nextpos = 0;
+    const uint8_t *seq = bam_get_seq(aln);
+    uint8_t *qual = bam_get_qual(aln);
+    for (unsigned int thispos = 0; thispos != aln->core.l_qseq; thispos = nextpos) {
+        const auto b = bam_seqi(seq, thispos);
+        uint8_t qmin = qual[thispos];
+        for (nextpos = thispos + 1; nextpos != aln->core.l_qseq && b == bam_seqi(seq, nextpos); nextpos++) {
+            qmin = min(qmin, qual[nextpos]);
+        }
+        if (nextpos - thispos >= homopol_min_len) {
+            for (unsigned int pos = thispos; pos != nextpos; pos++) {
+                qual[pos] = min(qual[pos], qmin + homopol_minBQ_inc);
+            }
+        }
+    }
+    return 0;
+}
+
+int 
+apply_bq_err_correction2(const bam1_t *aln, unsigned int dec_per_base, unsigned int homopol_min_len, unsigned int max_dec) {
     if (0 == aln->core.l_qseq) { return -1; }
     
     int inclu_beg_poss[2] = {0, aln->core.l_qseq - 1};
@@ -490,7 +514,7 @@ fill_strand_umi_readset_with_strand_to_umi_to_reads(
                 umi_strand_readset.back().first[strand].push_back(std::vector<bam1_t *>());
                 for (auto aln : alns) {
                     // apply_baq(aln, baq_per_aligned_base);
-                    apply_bq_err_correction(aln, 1, 3, 4);
+                    apply_bq_err_correction(aln); //, 1, 3, 4);
                     umi_strand_readset.back().first[strand].back().push_back(aln);
                 }
             }
