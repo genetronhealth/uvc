@@ -379,7 +379,7 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         
         // skip over all symbolic alleles
         bool should_continue = false;
-        for (unsigned int i = 1; i < line->d.m_allele; i++) {
+        for (unsigned int i = 1; i < line->n_allele; i++) {
             if ('<' == line->d.allele[i][0]) {
                 should_continue = true;
             }
@@ -389,6 +389,7 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         valsize = bcf_get_format_char(bcf_hdr, line, "VType", &bcfstring, &ndst_val);
         if (valsize <= 0) { continue; }
         assert(ndst_val == valsize);
+        assert(2 == line->n_allele || !fprintf(stderr, "Bcf line %d has %d alleles!\n", line->pos, line->n_allele));
         std::string desc(bcfstring);
         // LOG(logINFO) << "Trying to retrieve the symbol " << desc << " at pos " << line->pos << " valsize = " << valsize << " ndst_val = " << ndst_val;
         AlignmentSymbol symbol = DESC_TO_SYMBOL_MAP.at(desc);
@@ -408,9 +409,9 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         TumorKeyInfo tki;
         
         ndst_val = 0;
-        valsize = bcf_get_format_float(bcf_hdr, line, "VAQ", &bcffloats, &ndst_val);
-        assert((1 == ndst_val && 1 == valsize) || !fprintf(stderr, "1 == %d && 1 == %d failed for VAQ!\n", ndst_val, valsize));
-        tki.VAQ = bcffloats[0];
+        valsize = bcf_get_format_int32(bcf_hdr, line, "VAQ", &bcfints, &ndst_val);
+        assert((1 == ndst_val && 1 == valsize) || !fprintf(stderr, "1 == %d && 1 == %d failed for VAQ and line %d!\n", ndst_val, valsize, line->pos));
+        tki.VAQ = bcfints[0];
 
         ndst_val = 0;
         valsize = bcf_get_format_float(bcf_hdr, line,  "FA", &bcffloats,  &ndst_val);
@@ -597,7 +598,7 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         tki.FTS += std::string(";tcHap=") + std::string(bcfstring);
         
         tki.pos = line->pos;
-        tki.ref_alt = als_to_string(line->d.allele, line->d.m_allele);
+        tki.ref_alt = als_to_string(line->d.allele, line->n_allele);
         if (is_tumor_format_retrieved) {
             tki.bcf1_record = bcf_dup(line);
         }
@@ -959,7 +960,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                     }
                 }
             }
-            if (rpos_exclu_end != refpos || LINK_SYMBOL == symbolType) {
+            if ((rpos_exclu_end != refpos || LINK_SYMBOL == symbolType) && (paramset.outvar_flag & OUTVAR_NONREF)) {
                 auto bDPval = bDPcDP[0];
                 auto cDPval = bDPcDP[1];
                 auto fGTmm2 = (most_confident_GQ >= 10 ? most_confident_GT : "./.");
@@ -1019,7 +1020,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                     if (pass_thres && symbol != refsymbol) {
                         is_probably_germline = true;
                     }
-                    if (is_rescued || pass_thres || (refsymbol == symbol)) {
+                    const bool will_generate_out = (is_rescued ? (paramset.outvar_flag & OUTVAR_SOMATIC) : (pass_thres && (paramset.outvar_flag & OUTVAR_ANY)));
+                    if (will_generate_out || (refsymbol == symbol)) {
                         auto nonref_symbol_12 = (most_confident_nonref_symbol != symbol ? most_confident_nonref_symbol : most_confident_nonref_symbol_2);
                         auto nonref_qual_12 = (most_confident_nonref_symbol != symbol ? most_confident_nonref_qual : most_confident_nonref_qual_2);
                         fmt.OType = SYMBOL_TO_DESC_ARR[nonref_symbol_12];
@@ -1086,7 +1088,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                     }
                 }
                 
-                if (is_probably_germline) {
+                if (is_probably_germline && paramset.outvar_flag & OUTVAR_GERMLINE) {
                     int indelph = 40;
                     if (rtr1.tracklen >= 8 && rtr1.unitlen >= 1) {
                         indelph = MIN(indelph, 40 - (int)indel_phred(8.0*8.0, rtr1.unitlen, rtr1.unitlen, rtr1.tracklen / rtr1.unitlen));
@@ -1095,7 +1097,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                         indelph = MIN(indelph, 40 - (int)indel_phred(8.0*8.0, rtr2.unitlen, rtr2.unitlen, rtr2.tracklen / rtr2.unitlen));
                     }
                     indelph = MAX(6, indelph);
-                    std::vector<std::pair<AlignmentSymbol, bcfrec::BcfFormat*>> symbol_format_vec;
+                    std::vector<std::pair<AlignmentSymbol, bcfrec::BcfFormat&>> symbol_format_vec;
                     for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; 
                             symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; 
                             symbol = AlignmentSymbol(1+(unsigned int)symbol)) {

@@ -20,6 +20,7 @@ struct CommandLineArgs {
     std::string bed_in_fname = NOT_PROVIDED;
     // std::string tsv_primer_fname = NOT_PROVIDED;
     
+    uint32_t outvar_flag = OUTVAR_SOMATIC + OUTVAR_ANY + OUTVAR_NONREF; // 4 anyvar, 2 somatic, 1 germline
     bool somaticGT = true;
     bool is_tumor_format_retrieved = false;
     bool should_let_all_pass = false;

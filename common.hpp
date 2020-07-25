@@ -12,6 +12,11 @@
 #define RCC_NUM 2
 #define RCC_NFS 6
 
+#define OUTVAR_GERMLINE 0x1
+#define OUTVAR_SOMATIC 0x2
+#define OUTVAR_ANY 0x4
+#define OUTVAR_NONREF 0x8
+
 enum BiasType {
     BIAS_FRAG_DUP = 1,
     BIAS_FRAG_POS = 2,

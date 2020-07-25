@@ -152,6 +152,15 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
            sample_name, 
         "Sample name which is optional. ");
     ADD_OPTDEF(app, 
+        "--outvar-flag", 
+           outvar_flag, 
+        "Output-variant flag in bits specifying which type of variants are in the VCF output. "
+        "The " + std::to_string(OUTVAR_GERMLINE) + " bit indicates germline variant. ",
+        "The " + std::to_string(OUTVAR_SOMATIC) + " bit indicates somatic variant. ",
+        "The " + std::to_string(OUTVAR_ANY) + " bit indicates variant of any origin. ",
+        "The " + std::to_string(OUTVAR_NONREF) + " bit indicates non-ref symbolic region indicating the absence of variants. ");
+
+    ADD_OPTDEF(app, 
         "-q,--vqual", 
            vqual, 
         "Every variant that satisfies this minimum variant quality is in the <--output> file. ");
