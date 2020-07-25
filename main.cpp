@@ -1097,7 +1097,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tki) {
                         indelph = MIN(indelph, 40 - (int)indel_phred(8.0*8.0, rtr2.unitlen, rtr2.unitlen, rtr2.tracklen / rtr2.unitlen));
                     }
                     indelph = MAX(6, indelph);
-                    std::vector<std::pair<AlignmentSymbol, bcfrec::BcfFormat&>> symbol_format_vec;
+                    std::vector<std::pair<AlignmentSymbol, bcfrec::BcfFormat*>> symbol_format_vec;
                     for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; 
                             symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; 
                             symbol = AlignmentSymbol(1+(unsigned int)symbol)) {

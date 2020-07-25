@@ -2971,7 +2971,7 @@ struct {
     }
 } PairSecondLess;
 
-double compute_norm_ad(const bcfrec::BcfFormat* fmtp, const bool isSubst) {
+double compute_norm_ad(const bcfrec::BcfFormat *fmtp, const bool isSubst) {
     double fa_baq = fmtp->aBAQADR[1] * THE_MUL_PER_BAQ / ((double)(fmtp->aBAQDP + fmtp->aBAQADR[1] * (THE_MUL_PER_BAQ - 1)) + DBL_EPSILON);
     double fa_bq  = SUM2(fmtp->bAltBQ) / ((double)SUM2(fmtp->bAllBQ) + DBL_EPSILON);
     if (isSubst) {
@@ -2998,7 +2998,7 @@ output_germline(
             tname, refpos, refsymbol, symbol_format_vec.size()));
     unsigned int regionpos = refpos- extended_inclu_beg_pos;
     struct {
-        bool operator()(std::pair<AlignmentSymbol, bcfrec::BcfFormat*> p1, std::pair<AlignmentSymbol, bcfrec::BcfFormat*> p2) const {
+        bool operator()(std::pair<AlignmentSymbol, bcfrec::BcfFormat*> & p1, std::pair<AlignmentSymbol, bcfrec::BcfFormat*> & p2) const {
             return p1.second->ALODQ < p2.second->ALODQ;
         }
     } SymbolBcfFormatPairLess;
