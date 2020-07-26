@@ -884,7 +884,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
             float refqual = 0;
             //std::vector<bcfrec::BcfFormat> fmts(SYMBOL_TYPE_TO_INCLU_END[symbolType] - SYMBOL_TYPE_TO_INCLU_BEG[symbolType] + 1, init_fmt);
             // ., , indelstring, bdepth, tkiidx
-            std::vector<std::tuple<bcfrec::BcfFormat, AlignmentSymbol, unsigned int, std::string, unsigned int>> fmts;
+            std::vector<std::tuple<bcfrec::BcfFormat, AlignmentSymbol, unsigned int, std::string, int>> fmts;
             if (rpos_exclu_end != refpos && bDPcDP[0] >= paramset.min_depth_thres) {
                 std::vector<AlignmentSymbol> majorsymbols;
                 for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; symbol = AlignmentSymbol(1+(unsigned int)symbol)) {
@@ -926,16 +926,18 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                     std::vector<std::tuple<unsigned int, std::string, int>> bad0a_indelstring_tkiidx_vec;
                     if (isSymbolIns(symbol) || isSymbolDel(symbol)) {
                         for (size_t strand = 0; strand < 2; strand++) {
-                            fill_by_indel_info(
-                                    fmt, 
-                                    symbolToCountCoverageSet12,
-                                    strand,
-                                    refpos,
-                                    symbol,
-                                    refstring,
-                                    repeatunit,
-                                    repeatnum
-                            );
+                            if (0 < symbolToCountCoverageSet12.bq_tsum_depth.at(strand).getByPos(refpos).getSymbolCount(symbol)) {
+                                fill_by_indel_info(
+                                        fmt, 
+                                        symbolToCountCoverageSet12,
+                                        strand,
+                                        refpos,
+                                        symbol,
+                                        refstring,
+                                        repeatunit,
+                                        repeatnum
+                                );
+                            }
                         }
                         if (is_rescued) {
                             for (const auto & tki : tkis) {

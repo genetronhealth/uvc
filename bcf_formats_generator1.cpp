@@ -296,8 +296,8 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     
     BcfFormatStruct("__ea"    , 1, BCF_SEP,     "Number of indels in forward&reverse strand (gapNum), max cAD diff (gapcADD), total cAD depth (gapcADT), indel sequences (gapSeq), duped read count of each gapSeq, dedup family count of each gapSeq, and duped/deduped sub/all allele read counts (gapDP4)"), 
     BcfFormatStruct("gapNum"   , 2, BCF_INTEGER, "see above"), // 2 * number-of-alts
-    //BcfFormatStruct("gapcADD"  , 2, BCF_INTEGER, "see above"), // 2 * number-of-alts
-    //BcfFormatStruct("gapcADT"  , 2, BCF_INTEGER, "see above"), // 2 * number-of-alts
+    BcfFormatStruct("gapcADD"  , 2, BCF_INTEGER, "see above"), // 2 * number-of-alts
+    BcfFormatStruct("gapcADT"  , 2, BCF_INTEGER, "see above"), // 2 * number-of-alts
     BcfFormatStruct("gapSeq"   , BCF_NUM_D, BCF_STRING,  "see above"),
     BcfFormatStruct("gapbAD1"  , BCF_NUM_D, BCF_INTEGER, "see above"),
     BcfFormatStruct("gapcAD1"  , BCF_NUM_D, BCF_INTEGER, "see above"),
