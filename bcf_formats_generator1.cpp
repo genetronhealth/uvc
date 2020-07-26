@@ -158,12 +158,12 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("VType"    , 1, BCF_STRING,  "Variant type for the ALT allele"),
     // BcfFormatStruct("VAQs"     , 2, BCF_FLOAT,   "Raw variant allele quality (VAQ) and VAQ of the specific form(s) of InDel in ALT assuming other forms of InDels are noise"),
     // BcfFormatStruct("VAQAB"    , 1, BCF_FLOAT,   "Variant Allele Quality adjusted with bias"),
-    BcfFormatStruct("VQ1"      , BCF_NUM_A, BCF_INTEGER, "Variant allele quality capped by base alignment quality"),
-    BcfFormatStruct("VQ2"      , BCF_NUM_A, BCF_INTEGER, "Variant allele quality capped by base quality"),
-    BcfFormatStruct("VQ3"      , BCF_NUM_A, BCF_INTEGER, "Variant allele quality capped by base quality"),
-    BcfFormatStruct("VQ4"      , BCF_NUM_A, BCF_INTEGER, "Variant allele quality capped by base quality"),
-    BcfFormatStruct("VQ5"      , BCF_NUM_A, BCF_INTEGER, "Variant allele quality capped by base quality"),
-    BcfFormatStruct("VAQ"      , BCF_NUM_A, BCF_INTEGER, "Variant allele quality of the call"),
+    BcfFormatStruct("VQ1"      , BCF_NUM_A, BCF_SIG_INT, "Variant allele quality capped by base alignment quality"),
+    BcfFormatStruct("VQ2"      , BCF_NUM_A, BCF_SIG_INT, "Variant allele quality capped by base quality"),
+    BcfFormatStruct("VQ3"      , BCF_NUM_A, BCF_SIG_INT, "Variant allele quality capped by base quality"),
+    BcfFormatStruct("VQ4"      , BCF_NUM_A, BCF_SIG_INT, "Variant allele quality capped by base quality"),
+    BcfFormatStruct("VQ5"      , BCF_NUM_A, BCF_SIG_INT, "Variant allele quality capped by base quality"),
+    BcfFormatStruct("VAQ"      , BCF_NUM_A, BCF_SIG_INT, "Variant allele quality of the call"),
     
     BcfFormatStruct("__A5"     , 1, BCF_SEP,     "Sum of base qualities (bAllBQ/bAltBQ/bRefBQ) and consensus-family qualities (cAllBQ/cAltBQ/cRefBQ) for ALL/ALT/REF alleles"), // global 
     BcfFormatStruct("bAllBQ"   , 2, BCF_INTEGER, "see above"),
@@ -296,8 +296,8 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     
     BcfFormatStruct("__ea"    , 1, BCF_SEP,     "Number of indels in forward&reverse strand (gapNum), max cAD diff (gapcADD), total cAD depth (gapcADT), indel sequences (gapSeq), duped read count of each gapSeq, dedup family count of each gapSeq, and duped/deduped sub/all allele read counts (gapDP4)"), 
     BcfFormatStruct("gapNum"   , 2, BCF_INTEGER, "see above"), // 2 * number-of-alts
-    BcfFormatStruct("gapcADD"  , 2, BCF_INTEGER, "see above"), // 2 * number-of-alts
-    BcfFormatStruct("gapcADT"  , 2, BCF_INTEGER, "see above"), // 2 * number-of-alts
+    //BcfFormatStruct("gapcADD"  , 2, BCF_INTEGER, "see above"), // 2 * number-of-alts
+    //BcfFormatStruct("gapcADT"  , 2, BCF_INTEGER, "see above"), // 2 * number-of-alts
     BcfFormatStruct("gapSeq"   , BCF_NUM_D, BCF_STRING,  "see above"),
     BcfFormatStruct("gapbAD1"  , BCF_NUM_D, BCF_INTEGER, "see above"),
     BcfFormatStruct("gapcAD1"  , BCF_NUM_D, BCF_INTEGER, "see above"),

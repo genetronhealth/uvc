@@ -91,8 +91,10 @@ struct CommandLineArgs {
     uint32_t    bq_phred_added_indel = 0;
     uint32_t    bq_phred_added_misma = 0;
     bool        should_add_note = false;
-    uint32_t    phred_germline_polymorphism = 31; // +5; // 30+3; // https://www.biostars.org/p/6177/ probablity of hetero is 0.8e-3 for non-african, it should be 32 for african.
-    uint32_t    phred_triallelic_indel = 30; // +5; // 30+3; // https://www.biostars.org/p/6177/ probablity of hetero is 0.8e-3 for non-african, it should be 32 for african.
+    uint32_t    phred_germline_polymorphism = 31; // https://www.biostars.org/p/6177/ probablity of hetero is 0.8e-3 for non-african, it should be 32 for african.
+    uint32_t    phred_germline_indel = 40;        // https://www.biostars.org/p/6177/ probablity of hetero is 0.8e-3 for non-african, it should be 32 for african.
+    uint32_t    phred_triallelic_snp = 55; // 30;
+    uint32_t    phred_triallelic_indel = 48; // 30;
     
     // PMC4271055: probablity of germline call error is between 1/100kb and 1/200kb
     

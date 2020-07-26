@@ -184,82 +184,6 @@ const std::array<AlignmentSymbol, NUM_DEL_SYMBOLS> DEL_SYMBOLS = {{LINK_D1, LINK
 
 const std::array<AlignmentSymbol, (NUM_INS_SYMBOLS+NUM_DEL_SYMBOLS)> INDEL_SYMBOLS = {{LINK_I1, LINK_I2, LINK_I3P, LINK_D1, LINK_D2, LINK_D3P}};
 
-struct PhredMutationTable {
-    const unsigned int transition_CG_TA;
-    const unsigned int transition_TA_CG;
-    const unsigned int transversion_any;
-    const unsigned int indel_open;
-    const unsigned int indel_ext;
-    PhredMutationTable(unsigned int CG_TA, unsigned int TA_CG, unsigned int transversionany, unsigned int idopen, unsigned int idext)
-            : transition_CG_TA(CG_TA), transition_TA_CG(TA_CG), transversion_any(transversionany), indel_open(idopen), indel_ext(idext) 
-            {
-    }
-    const unsigned int toPhredErrRate(const AlignmentSymbol con_symbol, const AlignmentSymbol alt_symbol) const {
-        if (con_symbol == LINK_M) {
-            if (LINK_D1 == alt_symbol || LINK_I1 == alt_symbol) {
-                return indel_open; // + indel_ext * 1;
-            } else if (LINK_D2== alt_symbol || LINK_I2 == alt_symbol) {
-                return indel_open + indel_ext * 1;
-            } else {
-                return indel_open + indel_ext * 2;
-            }
-        } else if ((con_symbol == BASE_C && alt_symbol == BASE_T) || (con_symbol == BASE_G && alt_symbol == BASE_A)) {
-            return transition_CG_TA;
-        } else if ((con_symbol == BASE_T && alt_symbol == BASE_C) || (con_symbol == BASE_A && alt_symbol == BASE_G)) {
-            return transition_TA_CG;
-        }  else {
-            return transversion_any;
-        }
-    }
-};
-
-struct _CharToSymbol {
-    std::array<AlignmentSymbol, 128> data;
-    _CharToSymbol() {
-        for (int i = 0; i < 128; i++) {
-            data[i] = BASE_N;
-        }
-        data['A'] = data['a'] = BASE_A;
-        data['C'] = data['c'] = BASE_C;
-        data['G'] = data['g'] = BASE_G;
-        data['T'] = data['t'] = BASE_T;
-        data['I'] = data['i'] = LINK_M;
-        data['-'] = data['_'] = LINK_D1;
-    }
-};
-
-const _CharToSymbol CHAR_TO_SYMBOL;
-
-const unsigned int SYMBOL_TO_INDEL_N_UNITS[] = {
-    [BASE_A] = 0, [BASE_C] = 0, [BASE_G] = 0, [BASE_T] = 0, [BASE_N] = 0,
-    [BASE_NN] = 0, 
-    [LINK_M] = 0, 
-    [LINK_D3P] = 3, [LINK_D2] = 2, [LINK_D1] = 1,
-    [LINK_I3P] = 3, [LINK_I2] = 2, [LINK_I1] = 1,
-    [LINK_NN] = 0,
-};
-
-
-const char* SYMBOL_TO_DESC_ARR[] = {
-    [BASE_A] = "A", [BASE_C] = "C", [BASE_G] = "G", [BASE_T] = "T", [BASE_N] = "N",
-    [BASE_NN] = "<BN>", 
-    [LINK_M] = "<LR>", 
-    [LINK_D3P] = "<LD3P>", [LINK_D2] = "<LD2>", [LINK_D1] = "<LD1>",
-    [LINK_I3P] = "<LI3P>", [LINK_I2] = "<LI2>", [LINK_I1] = "<LI1>",
-    [LINK_NN] = "<LN>",
-};
-
-const std::map<std::string, AlignmentSymbol>
-_generateDescToSymbolMap() {
-    std::map<std::string, AlignmentSymbol> ret;
-    for (AlignmentSymbol s = AlignmentSymbol(0); s < END_ALIGNMENT_SYMBOLS; s = AlignmentSymbol(1+(unsigned int)s)) {
-        ret[SYMBOL_TO_DESC_ARR[s]] = s;
-    }
-    return ret;
-}
-
-const std::map<std::string, AlignmentSymbol> DESC_TO_SYMBOL_MAP = _generateDescToSymbolMap();
-
 bool 
 areSymbolsMutated(AlignmentSymbol ref, AlignmentSymbol alt) {
     if (alt <= BASE_NN) {
@@ -336,6 +260,86 @@ bool
 isSymbolSubstitution(AlignmentSymbol symbol) {
     return (SYMBOL_TYPE_TO_INCLU_BEG[BASE_SYMBOL] <= symbol && symbol <= SYMBOL_TYPE_TO_INCLU_END[BASE_SYMBOL]);
 }
+
+
+struct PhredMutationTable {
+    const unsigned int transition_CG_TA;
+    const unsigned int transition_TA_CG;
+    const unsigned int transversion_any;
+    const unsigned int indel_open;
+    const unsigned int indel_ext;
+    PhredMutationTable(unsigned int CG_TA, unsigned int TA_CG, unsigned int transversionany, unsigned int idopen, unsigned int idext)
+            : transition_CG_TA(CG_TA), transition_TA_CG(TA_CG), transversion_any(transversionany), indel_open(idopen), indel_ext(idext) 
+            {
+    }
+    const unsigned int toPhredErrRate(const AlignmentSymbol con_symbol, const AlignmentSymbol alt_symbol) const {
+        if (isSymbolIns(con_symbol) || isSymbolDel(con_symbol)) {
+            return indel_open;
+        } else if (con_symbol == LINK_M) {
+            if (LINK_D1 == alt_symbol || LINK_I1 == alt_symbol) {
+                return indel_open; // + indel_ext * 1;
+            } else if (LINK_D2== alt_symbol || LINK_I2 == alt_symbol) {
+                return indel_open + indel_ext * 1;
+            } else {
+                return indel_open + indel_ext * 2;
+            }
+        } else if ((con_symbol == BASE_C && alt_symbol == BASE_T) || (con_symbol == BASE_G && alt_symbol == BASE_A)) {
+            return transition_CG_TA;
+        } else if ((con_symbol == BASE_T && alt_symbol == BASE_C) || (con_symbol == BASE_A && alt_symbol == BASE_G)) {
+            return transition_TA_CG;
+        }  else {
+            return transversion_any;
+        }
+    }
+};
+
+struct _CharToSymbol {
+    std::array<AlignmentSymbol, 128> data;
+    _CharToSymbol() {
+        for (int i = 0; i < 128; i++) {
+            data[i] = BASE_N;
+        }
+        data['A'] = data['a'] = BASE_A;
+        data['C'] = data['c'] = BASE_C;
+        data['G'] = data['g'] = BASE_G;
+        data['T'] = data['t'] = BASE_T;
+        data['I'] = data['i'] = LINK_M;
+        data['-'] = data['_'] = LINK_D1;
+    }
+};
+
+const _CharToSymbol CHAR_TO_SYMBOL;
+
+const unsigned int SYMBOL_TO_INDEL_N_UNITS[] = {
+    [BASE_A] = 0, [BASE_C] = 0, [BASE_G] = 0, [BASE_T] = 0, [BASE_N] = 0,
+    [BASE_NN] = 0, 
+    [LINK_M] = 0, 
+    [LINK_D3P] = 3, [LINK_D2] = 2, [LINK_D1] = 1,
+    [LINK_I3P] = 3, [LINK_I2] = 2, [LINK_I1] = 1,
+    [LINK_NN] = 0,
+};
+
+
+const char* SYMBOL_TO_DESC_ARR[] = {
+    [BASE_A] = "A", [BASE_C] = "C", [BASE_G] = "G", [BASE_T] = "T", [BASE_N] = "N",
+    [BASE_NN] = "<BN>", 
+    [LINK_M] = "<LR>", 
+    [LINK_D3P] = "<LD3P>", [LINK_D2] = "<LD2>", [LINK_D1] = "<LD1>",
+    [LINK_I3P] = "<LI3P>", [LINK_I2] = "<LI2>", [LINK_I1] = "<LI1>",
+    [LINK_NN] = "<LN>",
+    [END_ALIGNMENT_SYMBOLS] = "<ALN_SYMBOL_END>",
+};
+
+const std::map<std::string, AlignmentSymbol>
+_generateDescToSymbolMap() {
+    std::map<std::string, AlignmentSymbol> ret;
+    for (AlignmentSymbol s = AlignmentSymbol(0); s < END_ALIGNMENT_SYMBOLS; s = AlignmentSymbol(1+(unsigned int)s)) {
+        ret[SYMBOL_TO_DESC_ARR[s]] = s;
+    }
+    return ret;
+}
+
+const std::map<std::string, AlignmentSymbol> DESC_TO_SYMBOL_MAP = _generateDescToSymbolMap();
 
 template <class T>
 class TDistribution {
@@ -2765,10 +2769,15 @@ BcfFormat_init(bcfrec::BcfFormat & fmt,
 #define INDEL_ID 2
 #include "instcode.hpp"
 std::array<unsigned int, 2>
-fill_by_indel_info(bcfrec::BcfFormat & fmt,
+fill_by_indel_info(
+        bcfrec::BcfFormat & fmt,
         const Symbol2CountCoverageSet & symbol2CountCoverageSet, 
-        const unsigned int strand, const unsigned int refpos, const AlignmentSymbol symbol, 
-        const std::string & refstring, const std::string & repeatunit, unsigned int repeatnum) {
+        const unsigned int strand, 
+        const unsigned int refpos, 
+        const AlignmentSymbol symbol, 
+        const std::string & refstring, 
+        const std::string & repeatunit, 
+        unsigned int repeatnum) {
     assert(isSymbolIns(symbol) || isSymbolDel(symbol));
     if (isSymbolIns(symbol)) {
         return fill_by_indel_info2_1(fmt, symbol2CountCoverageSet, strand, refpos, symbol,
@@ -2809,10 +2818,17 @@ mutform2count4map_to_phase(const auto & mutform2count4vec, const auto & indices,
     return phase_string;
 }
 
-const std::string 
-indel_get_majority(const bcfrec::BcfFormat & fmt, const bool prev_is_tumor, const auto & tki, 
-        bool is_rescued, const char *tname, unsigned int refpos, const AlignmentSymbol symbol, bool is_warning_generated = true) {
-    std::string indelstring = "";
+const std::vector<std::pair<unsigned int, std::string>> 
+indel_get_majority(
+        const bcfrec::BcfFormat & fmt, 
+        // const bool prev_is_tumor, const auto & tki, bool is_rescued, 
+        const char *tname, 
+        unsigned int refpos, 
+        const AlignmentSymbol symbol, 
+        bool is_warning_generated = true) {
+    // std::string indelstring = "";
+    std::vector<std::pair<unsigned int, std::string>> indelstrings;
+    /*
     if (prev_is_tumor && tki.ref_alt.size() > 3) {
         size_t midtry = tki.ref_alt.size() - 2;
         if ('\t' == tki.ref_alt[1] && tki.ref_alt[0] == tki.ref_alt[2]) {
@@ -2829,8 +2845,9 @@ indel_get_majority(const bcfrec::BcfFormat & fmt, const bool prev_is_tumor, cons
             }
             indelstring = SYMBOL_TO_DESC_ARR[symbol];
         }
-    } else if (fmt.gapNum[0] <= 0 && fmt.gapNum[1] <= 0) {
-        if (!is_rescued) {
+    } else */
+    if (fmt.gapNum[0] <= 0 && fmt.gapNum[1] <= 0) {
+        //if (!is_rescued) {
             if (is_warning_generated) {
                 std::cerr << "Invalid indel detected (invalid mutation) : " << tname << ", " << refpos << ", " << SYMBOL_TO_DESC_ARR[symbol] << std::endl;
                 std::string msg;
@@ -2838,14 +2855,37 @@ indel_get_majority(const bcfrec::BcfFormat & fmt, const bool prev_is_tumor, cons
                 std::cerr << msg << "\n";
                 // assert(false);
             }
-            indelstring = SYMBOL_TO_DESC_ARR[symbol];
+            indelstrings.push_back(std::make_pair(0, SYMBOL_TO_DESC_ARR[symbol]));
+        // }
+    } else {
+        std::map<std::string, unsigned int> indelmap;
+        for (unsigned int i = 0; i < fmt.gapNum[0] + fmt.gapNum[1]; i++) {
+            const auto & it = indelmap.find(fmt.gapSeq[i]);
+            if (it == indelmap.end()) {
+                indelmap.insert(std::make_pair(fmt.gapSeq[i], fmt.bAD1[i]));
+            } else {
+                indelmap[fmt.gapSeq[i]] = indelmap[fmt.gapSeq[i]] + fmt.bAD1[i];
+            }
         }
-    } else if (fmt.gapNum[0] <= 0 || fmt.gapNum[1] <= 0) {
+        unsigned int max_bAD1 = 0;
+        for (auto & indelit : indelmap) {
+            UPDATE_MAX(max_bAD1, indelit.second);
+        }
+        for (auto & indelit : indelmap) {
+            if (indelit.second >= (max_bAD1 + 3) / 4) {
+                indelstrings.push_back(std::make_pair(indelit.second, indelit.first));
+            }
+        }
+        std::sort(indelstrings.rbegin(), indelstrings.rend());
+    }
+    /*
+    if (fmt.gapNum[0] <= 0 || fmt.gapNum[1] <= 0) {
         indelstring = fmt.gapSeq[0];
     } else {
         indelstring = (fmt.gapbAD1[0] > fmt.gapbAD1[fmt.gapNum[0]] ? fmt.gapSeq[0] : fmt.gapSeq.at(fmt.gapNum[0]));
     }
-    return indelstring;
+    */
+    return indelstrings;
 }
 
 template <class T = int>
@@ -2954,7 +2994,7 @@ penal_indel_2(double AD0a, int dst_str_units, const auto & RCC, const unsigned i
         }
         max_noise = MAX(max_noise, _noise);
     }
-    return ((double)phred_triallelic_indel) / log(2.0) * log((AD0a + DBL_MIN + max_noise) / (AD0a + DBL_MIN));
+    return ((double)(phred_triallelic_indel)) / log(2.0) * MIN(2.0 * log(2.0), log((AD0a + DBL_MIN + max_noise) / (AD0a + DBL_MIN)));
 }
 
 // higher allele1count (lower allele2count) results in higher LODQ if FA is above frac, meaning allele1 is more likely to be homo, and vice versa
@@ -2991,7 +3031,8 @@ output_germline(
         unsigned int refpos,
         unsigned int extended_inclu_beg_pos, // regionpos,
         unsigned int central_readlen,
-        const auto & tki, unsigned int specialflag) {
+        // const auto & tki, 
+        unsigned int specialflag) {
     
     assert(symbol_format_vec.size() >= 4 || 
             !fprintf(stderr, " The variant-type %s:%u %u has symbol_format_vec of length %u", 
@@ -3062,8 +3103,6 @@ output_germline(
     std::sort(GL4.rbegin(), GL4.rend(), PairSecondLess);
     
     size_t GLidx = GL4[0].first;
-    std::string germ_GT = GTidx2GT[GLidx];
-    int germ_GQ = GL4[0].second - GL4[1].second;
     
     std::array<std::string, 3> ref_alt1_alt2_vcfstr_arr = {{
         SYMBOL_TO_DESC_ARR[ref_alt1_alt2_alt3[0].first],
@@ -3073,6 +3112,8 @@ output_germline(
     
     std::string vcfref = "";
     std::string vcfalt = "";
+    unsigned int alt1_uniallelic_phred = 200;
+    bool is_alt1_uniallelic = true;
     if (isSymbolSubstitution(refsymbol)) {
         assert(refstring.substr(regionpos, 1) == ref_alt1_alt2_vcfstr_arr[0]);
         vcfref = std::string(ref_alt1_alt2_vcfstr_arr[0]);
@@ -3083,10 +3124,17 @@ output_germline(
     } else {
         ref_alt1_alt2_vcfstr_arr[0] = (regionpos > 0 ? refstring.substr(regionpos-1, 1) : "n");
         AlignmentSymbol s1 = ref_alt1_alt2_alt3[1].first;
-        std::string indelstring1 = indel_get_majority(*(ref_alt1_alt2_alt3[1].second), false, tki,
-            false, tname, refpos, s1, false);
-        // if (indelstring1.size() == 0 || indelstring1[0] == '<') { vcfalt = SYMBOL_TO_DESC_ARR[s1]; }
-        if (3 != GLidx) {
+        std::vector<std::pair<unsigned int, std::string>> indelstrings1 = indel_get_majority(*(ref_alt1_alt2_alt3[1].second), 
+            // false, tki, false, 
+            tname, refpos, s1, false);
+        const std::string & indelstring1 = indelstrings1[0].second;
+        if (indelstrings1.size() > 1) {
+            alt1_uniallelic_phred = (phred_tri_al - phred_hetero) *  log(1.0 + (double)indelstrings1[0].first / (double)indelstrings1[1].first) / log(2.0);
+            if (a1LODQ > MAX(a0LODQ, a2LODQ) + alt1_uniallelic_phred) {
+                is_alt1_uniallelic = false;
+            }
+        }
+        if (3 != GLidx && is_alt1_uniallelic) {
             vcfref = (regionpos > 0 ? refstring.substr(regionpos-1, 1) : "n");
             if (indelstring1.size() == 0 || indelstring1[0] == '<') { 
                 vcfalt = SYMBOL_TO_DESC_ARR[s1]; 
@@ -3101,10 +3149,18 @@ output_germline(
                 }
             }
         } else {
-            AlignmentSymbol s2 = ref_alt1_alt2_alt3[2].first;
-            std::string indelstring2 = indel_get_majority(*(ref_alt1_alt2_alt3[2].second), false, tki,
-                false, tname, refpos, ref_alt1_alt2_alt3[2].first, false);
-            
+            AlignmentSymbol s2 = END_ALIGNMENT_SYMBOLS;
+            std::string indelstring2;
+            if (!is_alt1_uniallelic) {
+                s2 = ref_alt1_alt2_alt3[1].first;
+                indelstring2 = indelstrings1[1].second;
+            } else {
+                s2 = ref_alt1_alt2_alt3[2].first;
+                std::vector<std::pair<unsigned int, std::string>> indelstrings2 = indel_get_majority(*(ref_alt1_alt2_alt3[2].second), 
+                    // false, tki,false, 
+                    tname, refpos, ref_alt1_alt2_alt3[2].first, false);
+                indelstring2 = indelstrings2[0].second;
+            }
             auto vcfref1 = (regionpos > 0 ? refstring.substr(regionpos-1, 1) : "n");
             auto vcfalt1 = vcfref1;
             vcfref = vcfref1;
@@ -3139,7 +3195,8 @@ output_germline(
         }
     }
     auto vcfpos = refpos + (isSymbolSubstitution(refsymbol) ? 1 : 0);
-    
+    std::string germ_GT = GTidx2GT[(is_alt1_uniallelic ? GLidx : 3)];
+    int germ_GQ =  (is_alt1_uniallelic ? (GL4[0].second - GL4[1].second) : MIN(alt1_uniallelic_phred, GL4[0].second - GL4[1].second));
     std::vector<int> germ_ADR;
     germ_ADR.push_back(collectget(ref_alt1_alt2_alt3[0].second->cADR, 1, 0));
     germ_ADR.push_back(collectget(ref_alt1_alt2_alt3[1].second->cADR, 1, 0));
@@ -3351,7 +3408,8 @@ fill_TN_germline(
 }
 
 int
-fill_by_symbol(bcfrec::BcfFormat & fmt, 
+fill_by_symbol(bcfrec::BcfFormat & fmt,
+        // const std::vector<std::pair<AlignmentSymbol, unsigned int>> & symb_index_vec,
         const Symbol2CountCoverageSet & symbol2CountCoverageSet12, 
         unsigned int refpos, 
         const AlignmentSymbol symbol, 
@@ -3395,8 +3453,18 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
         const unsigned int phred_varcall_err_per_map_err_per_base,
         const auto phred_snv_to_indel_ratio,
         const bool is_proton,
+        
+        const double powlaw_anyvar_base, // = 90.0;
+        const bool tUseHD1, // = false;
+        const double phred_triallelic_indel, // = 30.0;
+        const double powlaw_dscs_inc,
+        const double powlaw_sscs_inc,
+        // const auto & indelstrings,
+        // const auto & bad0a_indelstring_tkiidx_vec,
+        const auto   indelbdepth,
+        const auto & indelstring,
         const int specialflag) {
-
+    
     fmt.note = symbol2CountCoverageSet12.additional_note.getByPos(refpos).at(symbol);
     uint64_t bq_qsum_sqrMQ_tot = 0; 
     for (unsigned int strand = 0; strand < 2; strand++) {
@@ -3497,9 +3565,9 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
         fmt.cADTC[strand] = fmt.cADTT[strand] - fmt.cADT1[strand] - fmt_cADTN;
         fmt.gapNum[strand] = 0;
         if ((0 < fmt.bAD1[strand]) && (isSymbolIns(symbol) || isSymbolDel(symbol))) {
-            auto cADdiff_cADtotal = fill_by_indel_info(fmt, symbol2CountCoverageSet12, strand, refpos, symbol, refstring, repeatunit, repeatnum);
-            fmt.gapcADD[strand] = cADdiff_cADtotal[0]; // diff
-            fmt.gapcADT[strand] = cADdiff_cADtotal[1];
+            // auto cADdiff_cADtotal = fill_by_indel_info(fmt, symbol2CountCoverageSet12, strand, refpos, symbol, refstring, repeatunit, repeatnum);
+            //fmt.gapcADD[strand] = cADdiff_cADtotal[0]; // diff
+            //fmt.gapcADT[strand] = cADdiff_cADtotal[1];
         }
     }
     
@@ -3736,22 +3804,37 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
     double doubleVAQrv = stdVAQs[1] + stdVAQs[0] * MIN(1.0, (weightsum - weightedQT3s[1]) / (weightedQT3s[1] + DBL_MIN));
     fmt.cVAQ2 = {(float)doubleVAQfw, (float)doubleVAQrv};
     
-    double doubleVAQ_multnorm =(double)(1 + fmt.gapcADD[0] + fmt.gapcADD[1]) / (double)(1 + fmt.gapcADT[0] + fmt.gapcADT[1]);
+    //double doubleVAQ_multnorm =(double)(1 + fmt.gapcADD[0] + fmt.gapcADD[1]) / (double)(1 + fmt.gapcADT[0] + fmt.gapcADT[1]);
     double doubleVAQ = MAX(doubleVAQfw, doubleVAQrv);
-    double doubleVAQ_norm = doubleVAQ * doubleVAQ_multnorm;
+    //double doubleVAQ_norm = doubleVAQ * doubleVAQ_multnorm;
     // double doubleVAQ = stdVAQ + (minVAQ * (phred_max_dscs - phred_max_sscs) / (double)phred_max_sscs);
     double duplexVAQ = (double)fmt.dAD3 * (double)(phred_max_dscs - phred_max_sscs) - (double)(fmt.dAD1 - fmt.dAD3); // h01_to
     duplexVAQ = MIN(duplexVAQ, 200); // Similar to many other upper bounds, the 200 here has no theoretical foundation.
     double duprate = 1.0 - MIN(1.0, (double)(fmt.cDP + 1) / (double)(fmt.bDP + 1));
     double dimret_coef = phred_umi_dimret_mult * duprate + (1.0 - duprate);
+    
+    
+    // const double pl_cap = 90.0;
+    // const bool tUseHD1 = false;
+    // const double phred_triallelic_indel = 30.0;
+    
     //double rawVQ1 = dimret_coef * MIN(vaqBQcap, MAX(lowestVAQ, doubleVAQ + duplexVAQ));       // / 1.5;
     //double rawVQ2 = dimret_coef * MIN(vaqBQcap, MAX(lowestVAQ, doubleVAQ_norm + duplexVAQ));
+    // std::string indelstring;
     int somatic_var_pq = 5.0;
     if (isInDel) {
-        std::string indelstring = indel_get_majority(fmt, prev_is_tumor, tki, false, NULL, refpos, symbol, false); 
+        /*
+        if (is_rescued) {
+            bad0a_indelstring_tkiidx_vec.
+        } else {
+            //const auto indelstrings = indel_get_majority(fmt,// prev_is_tumor, tki, false,
+            //    NULL, refpos, symbol, false);
+            indelstring = indelstrings.at(sivi).second;
+        }
+        */
         somatic_var_pq = (int)MIN(indel_phred(8.0, indelstring.size(), repeatunit.size(), repeatnum), 24) + (5-3) - (int)phred_snv_to_indel_ratio;
     }
-    double rawVQ1 = dimret_coef * MAX(lowestVAQ, doubleVAQ + duplexVAQ) / sqrt(altmul) + somatic_var_pq;       // / 1.5;
+    double rawVQ1 = dimret_coef * MAX(lowestVAQ, doubleVAQ + duplexVAQ) / (tUseHD1 ? 1.0 : sqrt(altmul)) + somatic_var_pq;       // / 1.5;
     // double rawVQ2 = dimret_coef * MAX(lowestVAQ, doubleVAQ_norm + duplexVAQ) / sqrt(altmul) + somatic_var_pq;
     
     // intuition for the somatic_var_pq formula: InDel candidate with higher baseline-noise frequency is simply more likely to be a true mutation too
@@ -3781,29 +3864,24 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
     const auto pcap_tmq1 = (unsigned int)MIN(maxMQ, fmt.MQ) + phred_varcall_err_per_map_err_per_base; // bases on heuristics
     const auto pcap_tmq2 = (unsigned int)MAX(3.0, fmt.MQ - 10.0/log(10.0) * log((double)(fmt.DP + 1) / (double)(fmt.DP * fmt.FA + 0.5))) * ((double)fmt.DP * fmt.FA); // readjustment by MQ
     
-    const double pl_exponent = 3.0;
-    const double pl_cap = 90.0;
-    const bool tUseHD1 = false;
-    const double phred_triallelic_indel = 30.0;
-    
     // aln quality, base quality, read count,
     double normBAQAD = fmt.aBAQADR[1] / altmul;
     double normBAQOD = (fmt.aBAQDP - fmt.aBAQADR[1]) / refmul;
     double alsFA2 = (normBAQAD * THE_MUL_PER_BAQ + 0.5) / (normBAQAD * THE_MUL_PER_BAQ + normBAQOD + 1.0); // laplace smoothing
     double blsFA1 = (fmt.bADR[1] / altmul + 0.5) / ((fmt.bDP - fmt.bADR[1]) / refmul + fmt.bADR[1] / altmul + 1.0);
     double clsFA1 = (fmt.cADR[1] / altmul + 0.5) / ((fmt.cDP - fmt.cADR[1]) / refmul + fmt.cADR[1] / altmul + 1.0);
-    const double pl_qual = pl_exponent * 10.0 / log(10.0) * log(MIN3(alsFA2, blsFA1, clsFA1)) + pl_cap;
+    const double powlaw_qual = powlaw_exponent * 10.0 / log(10.0) * log(MIN3(alsFA2, blsFA1, clsFA1)) + powlaw_anyvar_base;
     
     const double sampling_qual = 40.0 * pow(0.5, MAX((double)fmt.bADR[1], ((double)(fmt.bDP + 1)) / ((double)(fmt.cDP + 1)) - 1.0));
-    double indel_ic = 0;
+    double indel_ic = 0.0; // applies to SNV too
+    double indel_p2 = 0;
     if (isInDel && !tUseHD1) {
-        std::string indelstring = indel_get_majority(fmt, prev_is_tumor, tki, false, NULL, refpos, symbol, false); 
         int n_str_units = (isSymbolIns(symbol) ? 1 : (-1)) * (int)(indelstring.size() / repeatunit.size());
         const double symbol_to_allele_frac = 1.0 - pow((isSymbolIns(symbol) ? 0.9 : (isSymbolDel(symbol) ? 0.95 : 1.0)), indelstring.size());
-        double tAD0a = fmt.cADR[1] * ((isInDel && !tUseHD1) ? ((double)(fmt.gapDP4[2] + 1) / (double)(fmt.gapDP4[0] + 1)) : 1.0);
-        rawVQ1 *= (tAD0a + (double)(fmt.cADR[1] -tAD0a) * symbol_to_allele_frac) / ((double)fmt.cADR[1]); // ad-hoc adjustment
-        rawVQ1 -= penal_indel_2(tAD0a, n_str_units, fmt.RCC, phred_triallelic_indel);
-        indel_ic = 10.0/log(10.0) * log((double)MAX(indelstring.size(), 1U) / (double)(repeatunit.size() * (repeatnum - 1) + 1));
+        double tAD0a = fmt.cADR[1] * (double)(indelbdepth + 0.5) / (double)(1 + fmt.bADR[1]); // fmt.cADR[1] * ((double)(fmt.gapDP4[2] + 1) / (double)(fmt.gapDP4[0] + 1));
+        indel_p2 =  penal_indel_2(tAD0a, n_str_units, fmt.RCC, phred_triallelic_indel);
+        indel_ic = 10.0/log(10.0) * log((double)MAX(indelstring.size(), 1U) / (double)(repeatunit.size() * (MAX(1, repeatnum) - 1) + 1));
+        rawVQ1 = MIN(rawVQ1 * (tAD0a + (double)(fmt.cADR[1] - tAD0a) * symbol_to_allele_frac) / ((double)fmt.cADR[1]), rawVQ1 - indel_p2); // ad-hoc adjustment
     }
     
     fmt.VQ1.clear();
@@ -3816,12 +3894,13 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
     clear_push(fmt.VQ1, (int)(pcap_baq + (isInDel ? 10 : 0))); // base alignment quality
     clear_push(fmt.VQ2, (int)pcap_bcq); // base quality
     clear_push(fmt.VQ3, (int)MIN(pcap_tmq1, pcap_tmq2)); // mapping quality
-    clear_push(fmt.VQ4, (int)(pl_qual + indel_ic));
+    clear_push(fmt.VQ4, (int)(powlaw_qual + (tUseHD1 ? (fmt.dAD3 > 0 ? powlaw_dscs_inc : powlaw_sscs_inc) : 0) + indel_ic - indel_p2));
     clear_push(fmt.VQ5, (int)(rawVQ1 - sampling_qual));
     auto theVAQ = MIN5(fmt.VQ1[0], fmt.VQ2[0], fmt.VQ3[0], fmt.VQ4[0], fmt.VQ5[0]);
     clear_push(fmt.VAQ, MAX(0, theVAQ));
     fmt.ALODQ = MAX(0, fmt.VAQ[0]);
-    return (int)(fmt.bAD1[0] + fmt.bAD1[1]);
+    //return (int)(fmt.bAD1[0] + fmt.bAD1[1]);
+    return 0;
 };
 
 #include "version.h"
@@ -4020,6 +4099,8 @@ append_vcf_record(std::string & out_string,
         const double phred_snv_to_indel_ratio,
         const RegionalTandemRepeat & rtr1,
         const RegionalTandemRepeat & rtr2,
+        // const auto & indelbdepth,
+        const auto & indelstring,
         const unsigned int  specialflag) {
     
     const bcfrec::BcfFormat & fmt = fmtvar; 
@@ -4037,14 +4118,14 @@ append_vcf_record(std::string & out_string,
     std::string vcfalt;
     unsigned int vcfpos;
 
-    std::string indelstring;
+    // std::string indelstring;
     const bool isInDel = (isSymbolIns(symbol) || isSymbolDel(symbol));
     if (isInDel) {
         vcfpos = refpos; // refpos > 0?
         vcfref = (regionpos > 0 ? refstring.substr(regionpos-1, 1) : "n");
         vcfalt = vcfref;
-        indelstring = indel_get_majority(fmt, prev_is_tumor, tki, 
-            is_rescued, tname, refpos, symbol); 
+        //indelstring = indel_get_majority(fmt, prev_is_tumor, tki, 
+        //    is_rescued, tname, refpos, symbol); 
         fmtvar.gapDP4 = {0, 0, 0, 0};
         for (size_t si = 0; si < fmt.gapSeq.size(); si++) {
             if (fmt.gapSeq[si] == indelstring) {

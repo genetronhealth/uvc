@@ -414,13 +414,21 @@ ADD_OPTDEF(app,
         "This parameter value is automatically inferred if the sequencing platform is not ") + SEQUENCING_PLATFORM_TO_DESC[SEQUENCING_PLATFORM_OTHER]);
     
     ADD_OPTDEF(app, 
-        "--phred-homref-gt", 
+        "--phred-hetero-gt-snp", 
            phred_germline_polymorphism,
-        "Phred-scaled prior probability of germline polymorphism event at a loci. ");
+        "Phred-scaled prior probability of germline polymorphism at a genomic position for SNPs. ");
+    ADD_OPTDEF(app, 
+        "--phred-hetero-gt-indel", 
+           phred_germline_indel,
+           "hred-scaled prior probability of germline polymorphism at a genomic position for InDels."),
+    ADD_OPTDEF(app, 
+        "--phred-triallelic-snp",
+           phred_triallelic_indel,     
+        "Phred-scaled prior probability that two or more forms of germline SNPs occur at a genomic position. ");
     ADD_OPTDEF(app, 
         "--phred-triallelic-indel", 
            phred_triallelic_indel,     
-        "Phred-scaled prior probability that two or more forms of InDel occur at a loci. ");
+        "Phred-scaled prior probability that two or more forms of germline InDels occur at a genomic position. ");
     ADD_OPTDEF(app, 
         "--any-mul-contam-frac", 
            any_mul_contam_frac,
