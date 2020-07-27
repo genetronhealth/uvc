@@ -1183,10 +1183,10 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                 if (is_probably_germline && (paramset.outvar_flag & OUTVAR_GERMLINE)) {
                     int indelph = 40;
                     if (rtr1.tracklen >= 8 && rtr1.unitlen >= 1) {
-                        indelph = MIN(indelph, 40 - (int)indel_phred(8.0*8.0, rtr1.unitlen, rtr1.unitlen, rtr1.tracklen / rtr1.unitlen));
+                        indelph = MIN(indelph, 40 - (int)indel_phred(8.0*(4+1+3), rtr1.unitlen, rtr1.unitlen, rtr1.tracklen / rtr1.unitlen));
                     }
                     if (rtr2.tracklen >= 8 && rtr2.unitlen >= 1) {
-                        indelph = MIN(indelph, 40 - (int)indel_phred(8.0*8.0, rtr2.unitlen, rtr2.unitlen, rtr2.tracklen / rtr2.unitlen));
+                        indelph = MIN(indelph, 40 - (int)indel_phred(8.0*(4+1+3), rtr2.unitlen, rtr2.unitlen, rtr2.tracklen / rtr2.unitlen));
                     }
                     indelph = MAX(6, indelph);
                     std::vector<std::pair<AlignmentSymbol, bcfrec::BcfFormat*>> symbol_format_vec;
@@ -1202,8 +1202,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                             double ref_bias = (double)MIN(fmt.RefBias, central_readlen - 30U) / (double)central_readlen;
                             // double con_bias = MIN(fmt.DP * 2e-4, paramset.any_mul_contam_frac);
                             double aln_bias = mathsquare((double)SUMVEC(fmt.aNMAD) / ((double)SUMVEC(fmt.aAD) + DBL_EPSILON) / (NM_MULT_NORM_COEF)) / 2.0; // / 10.0;
-                            double biasfrac_binom = MIN(0.9, MAX3(0.004, ref_bias, aln_bias) + pow(0.1, indelph/10.0));
-                            double biasfrac_power = MIN(0.9, MAX3(0.004, ref_bias, paramset.any_mul_contam_frac) + pow(0.1, indelph/10.0));
+                            double biasfrac_binom = MIN(0.9, MAX3(0.004, ref_bias / 2.0, aln_bias) + pow(0.1, indelph/10.0));
+                            double biasfrac_power = MIN(0.9,  MAX(0.004, paramset.any_mul_contam_frac) + pow(0.1, indelph/10.0));
                             
                             double    ref_dep = compute_norm_ad(&fmt, BASE_SYMBOL == symbolType);
                             double nonref_dep = SUM2(fmt.cDPTT) - ref_dep;

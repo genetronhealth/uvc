@@ -1375,9 +1375,10 @@ public:
                     assert((rpos >= SIGN2UNSIGN(b->core.pos) && rpos < SIGN2UNSIGN(bam_endpos(b)))
                             || !fprintf(stderr, "Bam line with QNAME %s has rpos that is not within the range (%d - %d)", bam_get_qname(b), b->core.pos, bam_endpos(b)));
                     if (i2 > 0) {
+                        const bool T_update_ref_nogap = TFillSeqDir;
                         if (TUpdateType == BASE_QUALITY_MAX) {
-                            const auto noindel_phred = (TFillSeqDir ? MIN(qr_baq_vec[rpos - b->core.pos], 20) : 17); // frag_indel_basemax
-                            incvalue = (TIsProton ? (MIN3(noindel_phred, bam_phredi(b, qpos-1), bam_phredi(b, qpos))) : noindel_phred); 
+                            const auto noindel_phred = (T_update_ref_nogap ? (MIN(qr_baq_vec[rpos - b->core.pos] / 2, 17)) : 17); // frag_indel_basemax
+                            incvalue = ((TIsProton || T_update_ref_nogap) ? (MIN3(noindel_phred, bam_phredi(b, qpos-1), bam_phredi(b, qpos))) : noindel_phred); 
                             // + symbolType2addPhred[LINK_SYMBOL];
                         }
                         this->template inc<TUpdateType>(rpos, LINK_M, incvalue, b);
@@ -2762,7 +2763,7 @@ BcfFormat_init(bcfrec::BcfFormat & fmt,
     fmt.gapNum[1] = 0;
 
     fmt.dDP1 = symbolDistrSets12.duplex_tsum_depth.getByPos(refpos).sumBySymbolType2(symbolType);
-    return {fmt.bDP1[0] + fmt.bDP1[1], fmt.cDP1[0] + fmt.cDP1[1]};
+    return {fmt.bDP1[0] + fmt.bDP1[1], fmt.cDPTT[0] + fmt.cDPTT[1]};
 };
 
 #define INDEL_ID 1
@@ -3070,9 +3071,9 @@ output_germline(
     int a3LODQ = (ref_alt1_alt2_alt3[3].second->ALODQ);
     
     unsigned int readlen = MAX(30U, central_readlen);
-    const double alt1frac = (double)(readlen - MIN(readlen - 30, ref_alt1_alt2_alt3[1].second->RefBias)) / (double)readlen / 2.0;
-    const double alt2frac = (double)(readlen - MIN(readlen - 30, ref_alt1_alt2_alt3[2].second->RefBias)) / (double)readlen / 2.0;
-   
+    const double alt1frac = (double)(readlen - MIN(readlen - 30, ref_alt1_alt2_alt3[1].second->RefBias / 2.0)) / (double)readlen / 2.0;
+    const double alt2frac = (double)(readlen - MIN(readlen - 30, ref_alt1_alt2_alt3[2].second->RefBias / 2.0)) / (double)readlen / 2.0;
+    
     auto fmtptr0 = ref_alt1_alt2_alt3[0].second;
     auto fmtptr1 = ref_alt1_alt2_alt3[1].second;
     auto fmtptr2 = ref_alt1_alt2_alt3[2].second;
@@ -3782,6 +3783,7 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
         weightedQT3s[i] = (fmt.bQT3[i] * minAD1 + fmt.cQT3[i] * gapAD1) / (double)(minAD1 + gapAD1 + DBL_MIN);
         stdVAQs[i] = currVAQ;
         
+        /*
         if (fmt.bSDL[i] < fmt.bAD1[i] * min_edge_dist && fmt.cSDL[i] < fmt.cAD1[i] * min_edge_dist) {
             double edgeVAQ = ((double)baq_per_aligned_base) * MAX((double)fmt.bSDL[i] / (double)(fmt.bAD1[i] + DBL_MIN), (double)fmt.cSDL[i] / (double)(fmt.cAD1[i] + DBL_MIN));
             stdVAQs[i] = MIN(stdVAQs[i], edgeVAQ);
@@ -3790,7 +3792,8 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
             double edgeVAQ = ((double)baq_per_aligned_base) * MAX((double)fmt.bSDR[i] / (double)(fmt.bAD1[i] + DBL_MIN), (double)fmt.cSDR[i] / (double)(fmt.cAD1[i] + DBL_MIN));
             stdVAQs[i] = MIN(stdVAQs[i], edgeVAQ);
         }
-        
+        */
+        /*
         if ((fmt.bBQ1[i] < minABQ)) {
             // the following line of code is not theoretically sound
             // stdVAQs[i] = MIN(stdVAQs[i], fmt.bBQ1[i]);
@@ -3799,6 +3802,7 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
             // the following line of code is not theoretically sound
             // stdVAQs[i] = MIN(stdVAQs[i], MIN((unsigned int)(fmt.bMQ1[i] * 2), maxMQ)); // 60 is max MAPQ of bwa
         }
+        */
         fmt.cVAQ1[i] = currVAQ;
     }
     // Ideally (no read supports a variant at its border, there is no mismatch in any read other than at the variant site) the variable below has a value of 4.
