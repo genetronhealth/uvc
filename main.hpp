@@ -2859,12 +2859,14 @@ indel_get_majority(
         // }
     } else {
         std::map<std::string, unsigned int> indelmap;
+        assert(fmt.gapSeq.size() ==  fmt.gapNum[0] + fmt.gapNum[1]);
+        assert(fmt.gapbAD1.size() ==  fmt.gapNum[0] + fmt.gapNum[1]);
         for (unsigned int i = 0; i < fmt.gapNum[0] + fmt.gapNum[1]; i++) {
             const auto & it = indelmap.find(fmt.gapSeq[i]);
             if (it == indelmap.end()) {
-                indelmap.insert(std::make_pair(fmt.gapSeq[i], fmt.bAD1[i]));
+                indelmap.insert(std::make_pair(fmt.gapSeq[i], fmt.gapbAD1[i]));
             } else {
-                indelmap[fmt.gapSeq[i]] = indelmap[fmt.gapSeq[i]] + fmt.bAD1[i];
+                indelmap[fmt.gapSeq[i]] = indelmap[fmt.gapSeq[i]] + fmt.gapbAD1[i];
             }
         }
         unsigned int max_bAD1 = 0;
@@ -3094,10 +3096,10 @@ output_germline(
     
     const double qfrac = (isSubst ? 1.0 : 0.25);
     std::array<std::pair<int, int>, 4> GL4raw = {{
-        std::make_pair(0,  -phred_homref - a1LODQ - MAX(a2LODQ - phred_tri_al, 0)),
-        std::make_pair(1,  -phred_hetero - MAX3(a2LODQ * qfrac, a0a1LODQ, a1a0LODQ)),
-        std::make_pair(2,  -phred_homalt - MAX(a0LODQ, a2LODQ * qfrac)),
-        std::make_pair(3,  -phred_tri_al - MAX4(a0LODQ, a3LODQ * qfrac, a1a2LODQ, a2a1LODQ))
+        std::make_pair(0,     (-phred_homref - a1LODQ              - MAX(a2LODQ - phred_tri_al, 0))),
+        std::make_pair(1,  MIN(-phred_hetero - MAX(a0a1LODQ, a1a0LODQ), -a2LODQ)),
+        std::make_pair(2,     (-phred_homalt - MAX(a0LODQ, a2LODQ) - MAX(MIN(a0LODQ, a2LODQ) - phred_tri_al, 0))),
+        std::make_pair(3,  MIN(-phred_tri_al - MAX(a1a2LODQ, a2a1LODQ), -MAX(a0LODQ, a3LODQ)))
     }};
     auto GL4 = GL4raw;
     std::sort(GL4.rbegin(), GL4.rend(), PairSecondLess);
@@ -3131,7 +3133,7 @@ output_germline(
         if (indelstrings1.size() > 1) {
             alt1_uniallelic_phred = (phred_tri_al - phred_hetero) *  log(1.0 + (double)indelstrings1[0].first / (double)indelstrings1[1].first) / log(2.0);
             if (a1LODQ > MAX(a0LODQ, a2LODQ) + alt1_uniallelic_phred) {
-                is_alt1_uniallelic = false;
+                // is_alt1_uniallelic = false;
             }
         }
         if (3 != GLidx && is_alt1_uniallelic) {
@@ -3160,6 +3162,13 @@ output_germline(
                     // false, tki,false, 
                     tname, refpos, ref_alt1_alt2_alt3[2].first, false);
                 indelstring2 = indelstrings2[0].second;
+                if (s2 == s1) {
+                    if (indelstrings2.size() < 2) {
+                        fprintf(stderr, "Runtime error: indel at %u is invalid!\b", refpos);
+                        abort();
+                    }
+                    indelstring2 = indelstrings2[1].second;
+                }
             }
             auto vcfref1 = (regionpos > 0 ? refstring.substr(regionpos-1, 1) : "n");
             auto vcfalt1 = vcfref1;
@@ -3176,10 +3185,10 @@ output_germline(
                     assert(indelstring1.substr(0, minsize) == indelstring2.substr(0, minsize));
                     if (indelstring1.size() > indelstring2.size()) {
                         vcfref = vcfref1 + indelstring1;
-                        vcfalt = vcfalt1 + "," + indelstring1.substr(indelstring2.size());
+                        vcfalt = vcfalt1 + "," + vcfalt1 + indelstring1.substr(indelstring2.size());
                     } else {
                         vcfref = vcfref1 + indelstring2;
-                        vcfalt = indelstring2.substr(indelstring1.size()) + "," + vcfalt1;
+                        vcfalt = vcfalt1 + indelstring2.substr(indelstring1.size()) + "," + vcfalt1;
                     }
                     // vcfref = vcfref1 + indelstring1 + "," + vcfref1 + indelstring2;
                 } else if (isSymbolIns(s1) && isSymbolDel(s2)) {
@@ -3563,7 +3572,7 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
         fmt.cADT1[strand] = symbol2CountCoverageSet12.fam_size1_dep.at(strand).getByPos(refpos).getSymbolCount(symbol);
         auto fmt_cADTN = symbol2CountCoverageSet12.fam_nocon_dep.at(strand).getByPos(refpos).getSymbolCount(symbol); 
         fmt.cADTC[strand] = fmt.cADTT[strand] - fmt.cADT1[strand] - fmt_cADTN;
-        fmt.gapNum[strand] = 0;
+        // fmt.gapNum[strand] = 0;
         if ((0 < fmt.bAD1[strand]) && (isSymbolIns(symbol) || isSymbolDel(symbol))) {
             // auto cADdiff_cADtotal = fill_by_indel_info(fmt, symbol2CountCoverageSet12, strand, refpos, symbol, refstring, repeatunit, repeatnum);
             //fmt.gapcADD[strand] = cADdiff_cADtotal[0]; // diff
@@ -3881,7 +3890,8 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
         double tAD0a = fmt.cADR[1] * (double)(indelbdepth + 0.5) / (double)(1 + fmt.bADR[1]); // fmt.cADR[1] * ((double)(fmt.gapDP4[2] + 1) / (double)(fmt.gapDP4[0] + 1));
         indel_p2 =  penal_indel_2(tAD0a, n_str_units, fmt.RCC, phred_triallelic_indel);
         indel_ic = 10.0/log(10.0) * log((double)MAX(indelstring.size(), 1U) / (double)(repeatunit.size() * (MAX(1, repeatnum) - 1) + 1));
-        rawVQ1 = MIN(rawVQ1 * (tAD0a + (double)(fmt.cADR[1] - tAD0a) * symbol_to_allele_frac) / ((double)fmt.cADR[1]), rawVQ1 - indel_p2); // ad-hoc adjustment
+        // rawVQ1 = MIN(rawVQ1 * (tAD0a + (double)(fmt.cADR[1] - tAD0a) * symbol_to_allele_frac) / ((double)fmt.cADR[1]), rawVQ1 - indel_p2); // ad-hoc adjustment
+        rawVQ1 *= (tAD0a + (double)(fmt.cADR[1] - tAD0a) * symbol_to_allele_frac) / ((double)fmt.cADR[1]);
     }
     
     fmt.VQ1.clear();

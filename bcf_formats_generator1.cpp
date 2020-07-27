@@ -131,8 +131,8 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("FTSV"     , BCF_NUM_D, BCF_INTEGER, "Percent bias values for the FTS strings"),
     BcfFormatStruct("DPHQ"     , 1, BCF_INTEGER, "Fragment depth supporting any allele if low-quality bases are ignored which means only high quality (HQ) bases are used [base read, duped]"),
     BcfFormatStruct("ADHQ"     , 1, BCF_INTEGER, "Fragment depth supporting the ALT allele if low-quality bases are ignored which means only high quality (HQ) bases are used [base read, duped]"),
-    BcfFormatStruct("ALODQ"    , 1, BCF_INTEGER, "Artifact log-likelihood of data quality in PHRED-scale."),
-    BcfFormatStruct("BLODQ"    , 1, BCF_INTEGER, "Bias-of-allele log-likelihood of data quality in PHRED-scale."),
+    BcfFormatStruct("ALODQ"    , 1, BCF_SIG_INT, "Artifact log-likelihood of data quality in PHRED-scale."),
+    BcfFormatStruct("BLODQ"    , 1, BCF_SIG_INT, "Bias-of-allele log-likelihood of data quality in PHRED-scale."),
     BcfFormatStruct("EROR"     , 5, BCF_INTEGER, "Deduplication bias, position bias, strand bias, and mismatch bias of the evidence reduction odds ratio for deduplicated reads, and the maximum of all biases in FTS"), 
  
     BcfFormatStruct("__A2"     , 1, BCF_SEP,     "Dummy header (separator) for genotype-related FORMAT fields. The description of each associated FORMAT is shown below. "),

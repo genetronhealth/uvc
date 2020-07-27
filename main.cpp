@@ -891,8 +891,9 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                     auto symbol_bdepth = 
                           symbolToCountCoverageSet12.bq_tsum_depth.at(0).getByPos(refpos).getSymbolCount(symbol)
                         + symbolToCountCoverageSet12.bq_tsum_depth.at(1).getByPos(refpos).getSymbolCount(symbol);
-                    if (symbol_bdepth * 4 > bDPcDP[0]);
-                    majorsymbols.push_back(symbol);
+                    if (symbol_bdepth * 4 > bDPcDP[0]) {
+                        majorsymbols.push_back(symbol);
+                    }
                 }
                 if (majorsymbols.size() == 0) {
                     majorsymbols.push_back(refsymbol);
@@ -1106,7 +1107,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                     if (is_rescued) {
                         tkis = tid_pos_symb_to_tkis.find(std::make_tuple(tid, refpos, symbol))->second; 
                     }
-                    if (pass_thres && symbol != refsymbol) {
+                    if (pass_thres && (symbol != refsymbol)) {
                         is_probably_germline = true;
                     }
                     const bool will_generate_out = (is_rescued ? (paramset.outvar_flag & OUTVAR_SOMATIC) : (pass_thres && (paramset.outvar_flag & OUTVAR_ANY)));
@@ -1179,7 +1180,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                     }
                 }
                 
-                if (is_probably_germline && paramset.outvar_flag & OUTVAR_GERMLINE) {
+                if (is_probably_germline && (paramset.outvar_flag & OUTVAR_GERMLINE)) {
                     int indelph = 40;
                     if (rtr1.tracklen >= 8 && rtr1.unitlen >= 1) {
                         indelph = MIN(indelph, 40 - (int)indel_phred(8.0*8.0, rtr1.unitlen, rtr1.unitlen, rtr1.tracklen / rtr1.unitlen));
@@ -1216,6 +1217,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                         }
                         symbol_format_vec.push_back(std::make_pair(symbol, &fmt));
                     }
+                    clear_push(init_fmt.VAQ, -999);
+                    init_fmt.ALODQ = -999;
                     while (symbol_format_vec.size() < 4) {
                         symbol_format_vec.push_back(std::make_pair(END_ALIGNMENT_SYMBOLS, &init_fmt));
                     }
