@@ -3837,8 +3837,10 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
     //double rawVQ1 = dimret_coef * MIN(vaqBQcap, MAX(lowestVAQ, doubleVAQ + duplexVAQ));       // / 1.5;
     //double rawVQ2 = dimret_coef * MIN(vaqBQcap, MAX(lowestVAQ, doubleVAQ_norm + duplexVAQ));
     // std::string indelstring;
-    int somatic_var_pq = 5.0;
-    if (isInDel) {
+    double somatic_var_pq = 5.0;
+    if (LINK_M == refsymbol) {
+        somatic_var_pq = 0;
+    } else if (isInDel) {
         /*
         if (is_rescued) {
             bad0a_indelstring_tkiidx_vec.
@@ -3849,7 +3851,7 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
         }
         */
         somatic_var_pq = (int)MIN(indel_phred(8.0, indelstring.size(), repeatunit.size(), repeatnum), 24) + (5-3) - (int)phred_snv_to_indel_ratio;
-    }
+    } 
     double rawVQ1 = dimret_coef * MAX(lowestVAQ, doubleVAQ + duplexVAQ) / (tUseHD1 ? 1.0 : sqrt(altmul)) + somatic_var_pq;       // / 1.5;
     // double rawVQ2 = dimret_coef * MAX(lowestVAQ, doubleVAQ_norm + duplexVAQ) / sqrt(altmul) + somatic_var_pq;
     
