@@ -3096,8 +3096,8 @@ output_germline(
     int phred_homref = 0; // (isSubst ? 31 : 41);
     int phred_hetero = (isSubst ? 31 : 41);
     int phred_homalt = (isSubst ? 33 : 43);
-    int phred_tri_al = (isSubst ? 55 : 49); // https://www.genetics.org/content/184/1/233 : triallelic-SNP-phred = 29*2-3
-    
+    int phred_tri_al = (isSubst ? 55 : 49-2); // https://www.genetics.org/content/184/1/233 : triallelic-SNP-phred = 29*2-3
+    // tri_al for InDels is lower than expected because indels were already penalized for tri-allelelity in their TLODQs
     const double qfrac = (isSubst ? 1.0 : 0.25);
     std::array<std::pair<int, int>, 4> GL4raw = {{
         std::make_pair(0,     (-phred_homref - a1LODQ              - MAX(a2LODQ - phred_tri_al, 0))),
@@ -3838,7 +3838,7 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
     //double rawVQ2 = dimret_coef * MIN(vaqBQcap, MAX(lowestVAQ, doubleVAQ_norm + duplexVAQ));
     // std::string indelstring;
     double somatic_var_pq = 5.0;
-    if (LINK_M == refsymbol) {
+    if (LINK_M == symbol) {
         somatic_var_pq = 0;
     } else if (isInDel) {
         /*
