@@ -28,7 +28,8 @@
 #include <string.h>
 
 #define THE_BAQ_MAX 200
-#define THE_MUL_PER_BAQ 3
+#define INDEL_MUL_PER_BAQ 2.0
+#define SNV_MUL_PER_BAQ 3.0
 // T=uint32_t for deletion and T=string for insertion
 template <class T>
 uint32_t
@@ -1375,7 +1376,8 @@ public:
                             || !fprintf(stderr, "Bam line with QNAME %s has rpos that is not within the range (%d - %d)", bam_get_qname(b), b->core.pos, bam_endpos(b)));
                     if (i2 > 0) {
                         if (TUpdateType == BASE_QUALITY_MAX) {
-                            incvalue = (TIsProton ? (MIN3(frag_indel_basemax, bam_phredi(b, qpos-1), bam_phredi(b, qpos))) : frag_indel_basemax); 
+                            const auto noindel_phred = (TFillSeqDir ? MIN(qr_baq_vec[rpos - b->core.pos], 20) : 17); // frag_indel_basemax
+                            incvalue = (TIsProton ? (MIN3(noindel_phred, bam_phredi(b, qpos-1), bam_phredi(b, qpos))) : noindel_phred); 
                             // + symbolType2addPhred[LINK_SYMBOL];
                         }
                         this->template inc<TUpdateType>(rpos, LINK_M, incvalue, b);
@@ -3014,11 +3016,12 @@ struct {
 } PairSecondLess;
 
 double compute_norm_ad(const bcfrec::BcfFormat *fmtp, const bool isSubst) {
-    double fa_baq = fmtp->aBAQADR[1] * THE_MUL_PER_BAQ / ((double)(fmtp->aBAQDP + fmtp->aBAQADR[1] * (THE_MUL_PER_BAQ - 1)) + DBL_EPSILON);
-    double fa_bq  = SUM2(fmtp->bAltBQ) / ((double)SUM2(fmtp->bAllBQ) + DBL_EPSILON);
     if (isSubst) {
+        double fa_baq = fmtp->aBAQADR[1] * INDEL_MUL_PER_BAQ / ((double)(fmtp->aBAQDP + fmtp->aBAQADR[1] * (INDEL_MUL_PER_BAQ - 1)) + DBL_EPSILON);
+        double fa_bq  = SUM2(fmtp->bAltBQ) / ((double)SUM2(fmtp->bAllBQ) + DBL_EPSILON);
         return MIN(MIN(fa_baq, fa_bq) * SUM2(fmtp->cDPTT), (double)SUM2(fmtp->cADTT));
     } else {
+        double fa_baq = fmtp->aBAQADR[1] * SNV_MUL_PER_BAQ / ((double)(fmtp->aBAQDP + fmtp->aBAQADR[1] * (SNV_MUL_PER_BAQ - 1)) + DBL_EPSILON);
         return MIN(fa_baq * SUM2(fmtp->cDPTT), (double)SUM2(fmtp->cADTT));
     }
 }
@@ -3876,7 +3879,8 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
     // aln quality, base quality, read count,
     double normBAQAD = fmt.aBAQADR[1] / altmul;
     double normBAQOD = (fmt.aBAQDP - fmt.aBAQADR[1]) / refmul;
-    double alsFA2 = (normBAQAD * THE_MUL_PER_BAQ + 0.5) / (normBAQAD * THE_MUL_PER_BAQ + normBAQOD + 1.0); // laplace smoothing
+    const double mul_per_baq = (isInDel ? INDEL_MUL_PER_BAQ : SNV_MUL_PER_BAQ);
+    double alsFA2 = (normBAQAD * mul_per_baq + 0.5) / (normBAQAD * mul_per_baq + normBAQOD + 1.0); // laplace smoothing
     double blsFA1 = (fmt.bADR[1] / altmul + 0.5) / ((fmt.bDP - fmt.bADR[1]) / refmul + fmt.bADR[1] / altmul + 1.0);
     double clsFA1 = (fmt.cADR[1] / altmul + 0.5) / ((fmt.cDP - fmt.cADR[1]) / refmul + fmt.cADR[1] / altmul + 1.0);
     const double powlaw_qual = powlaw_exponent * 10.0 / log(10.0) * log(MIN3(alsFA2, blsFA1, clsFA1)) + powlaw_anyvar_base;
