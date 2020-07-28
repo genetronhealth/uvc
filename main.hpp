@@ -1189,7 +1189,7 @@ public:
             unsigned int baq = 0;
             unsigned int prev_repeat_begpos = 0; // UINT_MAX;
             unsigned int prev_rpos = rbeg;
-            unsigned int baq_per_aligned_repeatregion = baq_per_additional_base;
+            unsigned int baq_per_aligned_repeatregion = baq_per_aligned_base; // baq_per_additional_base;
             for (int i = 0; i != n_cigar; i++) {
                 const uint32_t c = cigar[i];
                 const unsigned int cigar_op = bam_cigar_op(c);
@@ -1254,7 +1254,7 @@ public:
             unsigned int baq = 0;
             unsigned int prev_repeat_begpos = UINT_MAX;
             // unsigned int prev_rpos = rend;
-            unsigned int baq_per_aligned_repeatregion = baq_per_additional_base;
+            unsigned int baq_per_aligned_repeatregion = baq_per_aligned_base; // baq_per_additional_base;
             for (int i = n_cigar - 1; i != -1; i--) {
                 const uint32_t c = cigar[i];
                 const unsigned int cigar_op = bam_cigar_op(c);
@@ -1280,7 +1280,7 @@ public:
                             baq += baq_per_aligned_repeatregion; // baq_per_aligned_base;
                             baq_per_aligned_repeatregion = baq_per_aligned_base;
                         } else {
-                            baq += baq_per_additional_base;
+                            baq_per_aligned_repeatregion += baq_per_additional_base;
                         }
                         UPDATE_MIN(refBAQvec[rpos - rbeg], baq);
                         prev_repeat_begpos = repeat_begpos;
@@ -1352,37 +1352,28 @@ public:
         const uint8_t *bseq = bam_get_seq(b);
         unsigned int incvalue = 1;
         
-        unsigned int nm_cnt = 0;
-        unsigned int nm_cnt_phred = 0;
-        unsigned int xm_cnt = 0;
+        unsigned int nge_cnt = 0; // number of gap extensions.
+        unsigned int ngo_cnt = 0; // number of gap opens.
+        for (unsigned int i = 0; i < n_cigar; i++) {
+            int32_t c = cigar[i];
+            unsigned int cigar_op = bam_cigar_op(c);
+            if (BAM_CINS == cigar_op || BAM_CDEL == cigar_op) { 
+                nge_cnt += bam_cigar_oplen(c); 
+                ngo_cnt++; 
+            }
+        }
+        const uint8_t *bam_aux_data = bam_aux_get(b, "NM");
+        const unsigned int nm_cnt = ((bam_aux_data != NULL) ? bam_aux2i(bam_aux_data) : nge_cnt);
+        assert (nm_cnt >= nge_cnt);
+        const unsigned int xm_cnt = nm_cnt - nge_cnt;
+        
+        unsigned nm = (unsigned int)floor(NM_MULT_NORM_COEF * sqrt((double)nm_cnt / (double)MAX(30, b->core.l_qseq) + DBL_EPSILON));
+        const unsigned int max_noindel_phred = 18 - MIN(19-1, xm_cnt * (150/3 + 1) / (b->core.l_qseq + 1));
         std::vector<uint16_t> qr_baq_vec;
         if (TFillSeqDir) {
-            uint8_t *bam_aux_data = bam_aux_get(b, "NM");
-            if (bam_aux_data != NULL) {
-                nm_cnt = bam_aux2i(bam_aux_data);
-            } else {
-                for (unsigned int i = 0; i < n_cigar; i++) {
-                    int32_t c = cigar[i];
-                    unsigned int cigar_op = bam_cigar_op(c);
-                    unsigned int cigar_oplen = bam_cigar_oplen(c);
-                    if (cigar_op == BAM_CDIFF) { nm_cnt++ ; }
-                    else if (BAM_CINS == cigar_op || BAM_CDEL == cigar_op) { nm_cnt += cigar_oplen; }
-                }
-            }
-            nm_cnt_phred = (unsigned int)floor(NM_MULT_NORM_COEF * sqrt((double)nm_cnt / (double)MAX(30, b->core.l_qseq) + DBL_EPSILON));
-            
-            bam_aux_data = bam_aux_get(b, "XM");
-            if (bam_aux_data != NULL) {
-                xm_cnt = bam_aux2i(bam_aux_data);
-            } else {
-                xm_cnt = nm_cnt;
-            }
-            
-            qr_baq_vec = compute_qr_baq_vec(b, region_repeatvec, region_offset, baq_per_aligned_base, 2);
+            qr_baq_vec = compute_qr_baq_vec(b, region_repeatvec, region_offset, baq_per_aligned_base, 0);
         }
-        const unsigned int nm = nm_cnt_phred;
-        const unsigned int max_noindel_phred = 20 - MIN(20-1, xm_cnt * (150 + 1) / (b->core.l_qseq + 1));
-        
+                
         for (unsigned int i = 0; i < n_cigar; i++) {
             uint32_t c = cigar[i];
             unsigned int cigar_op = bam_cigar_op(c);
@@ -1395,7 +1386,7 @@ public:
                         const bool T_update_ref_nogap = TFillSeqDir;
                         if (TUpdateType == BASE_QUALITY_MAX) {
                             const auto noindel_phred = (T_update_ref_nogap ? 
-                                    (MIN(MIN(qr_baq_vec[rpos - b->core.pos], qr_baq_vec[rpos - b->core.pos - 1]), max_noindel_phred)) : max_noindel_phred); // frag_indel_basemax
+                                    (MIN(MIN(qr_baq_vec[rpos - b->core.pos], qr_baq_vec[rpos - b->core.pos - 1]) / 2 + 1, max_noindel_phred)) : max_noindel_phred); // frag_indel_basemax
                             incvalue = ((TIsProton || T_update_ref_nogap) ? (MIN3(noindel_phred, bam_phredi(b, qpos-1), bam_phredi(b, qpos))) : noindel_phred); 
                             // + symbolType2addPhred[LINK_SYMBOL];
                         }

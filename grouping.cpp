@@ -455,7 +455,7 @@ apply_bq_err_correction2(const bam1_t *aln, unsigned int dec_per_base, unsigned 
 
 int 
 apply_baq(bam1_t *aln, const unsigned int baq_per_aligned_base, unsigned int baq_per_new_base = 1, unsigned int baq_maxinc_per_base = 1) {
-    const unsigned int max_baq_per_base = baq_per_aligned_base + baq_maxinc_per_base;
+    // const unsigned int max_baq_per_base = baq_per_aligned_base + baq_maxinc_per_base;
     const uint32_t n_cigar = aln->core.n_cigar;
     const uint32_t *cigar =  bam_get_cigar(aln);
     if (0 == n_cigar || 0 == aln->core.l_qseq) { return -1; }
