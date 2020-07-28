@@ -3025,13 +3025,16 @@ struct {
     }
 } PairSecondLess;
 
-double compute_norm_ad(const bcfrec::BcfFormat *fmtp, const bool isSubst) {
-    if (isSubst) {
-        double fa_baq = fmtp->aBAQADR[1] * INDEL_MUL_PER_BAQ / ((double)(fmtp->aBAQDP + fmtp->aBAQADR[1] * (INDEL_MUL_PER_BAQ - 1)) + DBL_EPSILON);
+double 
+compute_norm_ad(const bcfrec::BcfFormat *fmtp, const bool isSubst, const bool isNN = false) {
+    if (isNN) {
+        return (double)SUM2(fmtp->cADTT);
+    } else if (isSubst) {
+        double fa_baq = fmtp->aBAQADR[1] * SNV_MUL_PER_BAQ / ((double)(fmtp->aBAQDP + fmtp->aBAQADR[1] * (SNV_MUL_PER_BAQ - 1)) + DBL_EPSILON);
         double fa_bq  = SUM2(fmtp->bAltBQ) / ((double)SUM2(fmtp->bAllBQ) + DBL_EPSILON);
         return MIN(MIN(fa_baq, fa_bq) * SUM2(fmtp->cDPTT), (double)SUM2(fmtp->cADTT));
     } else {
-        double fa_baq = fmtp->aBAQADR[1] * SNV_MUL_PER_BAQ / ((double)(fmtp->aBAQDP + fmtp->aBAQADR[1] * (SNV_MUL_PER_BAQ - 1)) + DBL_EPSILON);
+        double fa_baq = fmtp->aBAQADR[1] * INDEL_MUL_PER_BAQ / ((double)(fmtp->aBAQDP + fmtp->aBAQADR[1] * (INDEL_MUL_PER_BAQ - 1)) + DBL_EPSILON);
         return MIN(fa_baq * SUM2(fmtp->cDPTT), (double)SUM2(fmtp->cADTT));
     }
 }
@@ -3088,8 +3091,8 @@ output_germline(
     auto fmtptr2 = ref_alt1_alt2_alt3[2].second;
     bool isSubst = isSymbolSubstitution(refsymbol);
     double ad0 = compute_norm_ad(fmtptr0, isSubst);
-    double ad1 = compute_norm_ad(fmtptr1, isSubst);
-    double ad2 = compute_norm_ad(fmtptr2, isSubst);
+    double ad1 = compute_norm_ad(fmtptr1, isSubst, (isSubst ? BASE_NN : LINK_NN) == ref_alt1_alt2_alt3[1].first);
+    double ad2 = compute_norm_ad(fmtptr2, isSubst, (isSubst ? BASE_NN : LINK_NN) == ref_alt1_alt2_alt3[2].first);
     int a0a1LODQ = hetLODQ(ad0, ad1, 1.0 - alt1frac);
     int a1a0LODQ = hetLODQ(ad1, ad0, alt1frac);
     int a1a2LODQ = hetLODQ(ad1, ad2, alt1frac / (alt1frac + alt2frac));
