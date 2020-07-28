@@ -1368,7 +1368,7 @@ public:
         const unsigned int xm_cnt = nm_cnt - nge_cnt;
         
         unsigned nm = (unsigned int)floor(NM_MULT_NORM_COEF * sqrt((double)nm_cnt / (double)MAX(30, b->core.l_qseq) + DBL_EPSILON));
-        const unsigned int max_noindel_phred = 18 - MIN(19-1, xm_cnt * (150/3 + 1) / (b->core.l_qseq + 1));
+        const unsigned int max_noindel_phred = 18 - MIN(18-1, xm_cnt * (150/3*2 + 1) / (b->core.l_qseq + 1));
         std::vector<uint16_t> qr_baq_vec;
         if (TFillSeqDir) {
             qr_baq_vec = compute_qr_baq_vec(b, region_repeatvec, region_offset, baq_per_aligned_base, 0);
@@ -3105,8 +3105,8 @@ output_germline(
     int phred_homref = 0; // (isSubst ? 31 : 41);
     int phred_hetero = (isSubst ? 31 : 41);
     int phred_homalt = (isSubst ? 33 : 43);
-    int phred_tri_al = (isSubst ? 55 : 49-2); // https://www.genetics.org/content/184/1/233 : triallelic-SNP-phred = 29*2-3
-    // tri_al for InDels is lower than expected because indels were already penalized for tri-allelelity in their TLODQs
+    int phred_tri_al = (isSubst ? 55 : 41); // 49 // https://www.genetics.org/content/184/1/233 : triallelic-SNP-phred = 29*2-3
+    // tri_al for InDels is lower than expected because indels were already penalized for tri-allelelity (aka triallelic InDels) in their TLODQs
     const double qfrac = (isSubst ? 1.0 : 0.25);
     std::array<std::pair<int, int>, 4> GL4raw = {{
         std::make_pair(0,     (-phred_homref - a1LODQ              - MAX(a2LODQ - phred_tri_al, 0))),
@@ -3902,15 +3902,17 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
     
     const double sampling_qual = 40.0 * pow(0.5, MAX((double)fmt.bADR[1], ((double)(fmt.bDP + 1)) / ((double)(fmt.cDP + 1)) - 1.0));
     double indel_ic = 0.0; // applies to SNV too
-    double indel_p2 = 0;
+    // double indel_p2 = 0;
+    double indel_penal4multialleles = 0.0;
     if (isInDel && !tUseHD1) {
         int n_str_units = (isSymbolIns(symbol) ? 1 : (-1)) * (int)(indelstring.size() / repeatunit.size());
         const double symbol_to_allele_frac = 1.0 - pow((isSymbolIns(symbol) ? 0.9 : (isSymbolDel(symbol) ? 0.95 : 1.0)), indelstring.size());
         double tAD0a = fmt.cADR[1] * (double)(indelbdepth + 0.5) / (double)(1 + fmt.bADR[1]); // fmt.cADR[1] * ((double)(fmt.gapDP4[2] + 1) / (double)(fmt.gapDP4[0] + 1));
-        indel_p2 =  penal_indel_2(tAD0a, n_str_units, fmt.RCC, phred_triallelic_indel);
+        // indel_p2 = penal_indel_2(tAD0a, n_str_units, fmt.RCC, phred_triallelic_indel);
         indel_ic = 10.0/log(10.0) * log((double)MAX(indelstring.size(), 1U) / (double)(repeatunit.size() * (MAX(1, repeatnum) - 1) + 1));
+        indel_penal4multialleles = log((double)(1 + fmt.cDP - fmt.cADR[0]) / (tAD00 + 0.5)) / log(2.0) * phred_triallelic_indel;
         // rawVQ1 = MIN(rawVQ1 * (tAD0a + (double)(fmt.cADR[1] - tAD0a) * symbol_to_allele_frac) / ((double)fmt.cADR[1]), rawVQ1 - indel_p2); // ad-hoc adjustment
-        rawVQ1 *= (tAD0a + (double)(fmt.cADR[1] - tAD0a) * symbol_to_allele_frac) / ((double)fmt.cADR[1]);
+        rawVQ1 = MAX(rawVQ1 * (tAD0a + (double)(fmt.cADR[1] - tAD0a) * symbol_to_allele_frac) / ((double)fmt.cADR[1]), rawVQ1 - indel_penal4multialleles);
     }
     
     fmt.VQ1.clear();
@@ -3923,7 +3925,7 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
     clear_push(fmt.VQ1, (int)(pcap_baq + (isInDel ? 10 : 0))); // base alignment quality
     clear_push(fmt.VQ2, (int)pcap_bcq); // base quality
     clear_push(fmt.VQ3, (int)MIN(pcap_tmq1, pcap_tmq2)); // mapping quality
-    clear_push(fmt.VQ4, (int)(powlaw_qual + (tUseHD1 ? (fmt.dAD3 > 0 ? powlaw_dscs_inc : powlaw_sscs_inc) : 0) + indel_ic - indel_p2));
+    clear_push(fmt.VQ4, (int)(powlaw_qual + (tUseHD1 ? (fmt.dAD3 > 0 ? powlaw_dscs_inc : powlaw_sscs_inc) : 0) + indel_ic - indel_penal4multialleles));
     clear_push(fmt.VQ5, (int)(rawVQ1 - sampling_qual));
     auto theVAQ = MIN5(fmt.VQ1[0], fmt.VQ2[0], fmt.VQ3[0], fmt.VQ4[0], fmt.VQ5[0]);
     clear_push(fmt.VAQ, MAX(0, theVAQ));
