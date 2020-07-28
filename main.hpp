@@ -3907,10 +3907,10 @@ fill_by_symbol(bcfrec::BcfFormat & fmt,
     if (isInDel && !tUseHD1) {
         int n_str_units = (isSymbolIns(symbol) ? 1 : (-1)) * (int)(indelstring.size() / repeatunit.size());
         const double symbol_to_allele_frac = 1.0 - pow((isSymbolIns(symbol) ? 0.9 : (isSymbolDel(symbol) ? 0.95 : 1.0)), indelstring.size());
-        double tAD0a = fmt.cADR[1] * (double)(indelbdepth + 0.5) / (double)(1 + fmt.bADR[1]); // fmt.cADR[1] * ((double)(fmt.gapDP4[2] + 1) / (double)(fmt.gapDP4[0] + 1));
+        double tAD0a = fmt.cADR[1] * (double)(indelbdepth + 1) / (double)(fmt.bADR[1] + 1); // fmt.cADR[1] * ((double)(fmt.gapDP4[2] + 1) / (double)(fmt.gapDP4[0] + 1));
         // indel_p2 = penal_indel_2(tAD0a, n_str_units, fmt.RCC, phred_triallelic_indel);
         indel_ic = 10.0/log(10.0) * log((double)MAX(indelstring.size(), 1U) / (double)(repeatunit.size() * (MAX(1, repeatnum) - 1) + 1));
-        indel_penal4multialleles = log((double)(1 + fmt.cDP - fmt.cADR[0]) / (tAD0a + 0.5)) / log(2.0) * phred_triallelic_indel;
+        indel_penal4multialleles = log((double)(1 + fmt.cDP - fmt.cADR[0]) / (tAD0a + 1.0)) / log(2.0) * 8.0; // phred_triallelic_indel;
         // rawVQ1 = MIN(rawVQ1 * (tAD0a + (double)(fmt.cADR[1] - tAD0a) * symbol_to_allele_frac) / ((double)fmt.cADR[1]), rawVQ1 - indel_p2); // ad-hoc adjustment
         rawVQ1 = MIN(rawVQ1 * (tAD0a + (double)(fmt.cADR[1] - tAD0a) * symbol_to_allele_frac) / ((double)fmt.cADR[1]), rawVQ1 - indel_penal4multialleles);
     }
