@@ -190,6 +190,8 @@ struct RegionalTandemRepeat {
     // uint8_t edgeBAQ;
 };
 
+#define rtr_endpos(r) ((r).begpos + (r).tracklen)
+
 // I tried to use the following correction types in the past. 
 // However, correction types were very confusing to the end user and always missed some edge cases.
 // Hence, I used assay types, sequencing platforms, UMI-awareness, etc. instead of correction types.

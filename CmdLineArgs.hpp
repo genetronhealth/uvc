@@ -143,7 +143,7 @@ struct CommandLineArgs {
     uint32_t diplo_twoside_posbias_perc = 10;
     uint32_t haplo_oneside_posbias_perc = 25;
     uint32_t haplo_twoside_posbias_perc = 15;
-    uint32_t regside_nbases = 30;
+    uint32_t regside_nbases = 10; // 30;
     uint32_t dedup_flag = 0x0;
     
     int

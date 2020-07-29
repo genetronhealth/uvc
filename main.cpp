@@ -651,14 +651,14 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
     // auto nreads = std::get<4>(tid_beg_end_e2e_tuple);
     
     std::map<uint64_t, std::pair<std::array<std::map<uint64_t, std::vector<bam1_t *>>, 2>, int>> umi_to_strand_to_reads;
-    unsigned int extended_inclu_beg_pos, extended_exclu_end_pos; 
+    unsigned int bam_inclu_beg_pos, bam_exclu_end_pos; 
     std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, int>> umi_strand_readset;
 
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts bamfname_to_strand_to_familyuid_to_reads with pair_end_merge = " << paramset.pair_end_merge; }
     std::array<unsigned int, 3> passed_pcrpassed_umipassed = bamfname_to_strand_to_familyuid_to_reads(
             umi_to_strand_to_reads,
-            extended_inclu_beg_pos,
-            extended_exclu_end_pos,
+            bam_inclu_beg_pos,
+            bam_exclu_end_pos,
             paramset.bam_input_fname,
             tid,
             incluBegPosition, 
@@ -681,7 +681,6 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
             (SEQUENCING_PLATFORM_IONTORRENT == paramset.sequencing_platform),
             paramset.dedup_flag,
             0);
-    
     unsigned int num_passed_reads = passed_pcrpassed_umipassed[0];
     unsigned int num_pcrpassed_reads = passed_pcrpassed_umipassed[1];
     unsigned int num_umipassed_reads = passed_pcrpassed_umipassed[2];
@@ -693,9 +692,11 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
     unsigned int minABQ_snv = ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? paramset.minABQ_pcr_snv : paramset.minABQ_cap_snv);
     unsigned int minABQ_indel = ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? paramset.minABQ_pcr_indel : paramset.minABQ_cap_indel);
     
-    const unsigned int rpos_inclu_beg = MAX(incluBegPosition, extended_inclu_beg_pos);
-    const unsigned int rpos_exclu_end = MIN(excluEndPosition, extended_exclu_end_pos); 
-
+    const unsigned int rpos_inclu_beg = MAX(incluBegPosition, bam_inclu_beg_pos);
+    const unsigned int rpos_exclu_end = MIN(excluEndPosition, bam_exclu_end_pos); 
+    const unsigned int extended_inclu_beg_pos = (unsigned int)MAX(0, ((int)rpos_inclu_beg) - 100);
+    const unsigned int extended_exclu_end_pos = (unsigned int)MIN(rpos_exclu_end + 100, std::get<1>(tname_tseqlen_tuple));
+    
     //std::vector<std::array<TumorKeyInfo, NUM_ALIGNMENT_SYMBOLS>> extended_posidx_to_symbol_to_tkinfo(extended_exclu_end_pos - extended_inclu_beg_pos + 1);
     const auto tkis_beg = tid_pos_symb_to_tkis.lower_bound(std::make_tuple(tid, extended_inclu_beg_pos    , AlignmentSymbol(0)));
     const auto tkis_end = tid_pos_symb_to_tkis.upper_bound(std::make_tuple(tid, extended_exclu_end_pos + 1, AlignmentSymbol(0)));
@@ -871,7 +872,14 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
             bcfrec::BcfFormat init_fmt;
             const AlignmentSymbol refsymbol = (LINK_SYMBOL == symbolType ? LINK_M : (
                     refstring.size() == (refpos - extended_inclu_beg_pos) ? BASE_NN : CHAR_TO_SYMBOL.data.at(refstring.at(refpos - extended_inclu_beg_pos))));
-            std::array<unsigned int, 2> bDPcDP = BcfFormat_init(init_fmt, symbolToCountCoverageSet12, refpos, symbolType, !paramset.disable_dup_read_merge, refsymbol);
+            std::array<unsigned int, 2> bDPcDP = BcfFormat_init(
+                    init_fmt, 
+                    symbolToCountCoverageSet12, 
+                    refpos, 
+                    symbolType, 
+                    !paramset.disable_dup_read_merge, 
+                    refsymbol, 
+                    0);
             AlignmentSymbol most_confident_symbol = END_ALIGNMENT_SYMBOLS;
             float most_confident_qual = 0;
             std::string most_confident_GT = "./.";
@@ -1201,7 +1209,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                             auto central_readlen = MAX(paramset.central_readlen, 30U); 
                             double ref_bias = (double)MIN(fmt.RefBias, central_readlen - 30U) / (double)central_readlen;
                             // double con_bias = MIN(fmt.DP * 2e-4, paramset.any_mul_contam_frac);
-                            double aln_bias = mathsquare((double)SUMVEC(fmt.aNMAD) / ((double)SUMVEC(fmt.aAD) + DBL_EPSILON) / (NM_MULT_NORM_COEF)) / 2.0; // / 10.0;
+                            double aln_bias = mathsquare((double)SUMVEC(fmt.aXMAD) / ((double)SUMVEC(fmt.aAD) + DBL_EPSILON) / (NM_XM_MULT_NORM_COEF)) / 2.0; 
+                            // / 10.0;
                             double biasfrac_binom = MIN(0.9, MAX3(0.004, ref_bias / 2.0, aln_bias) + pow(0.1, indelph/10.0));
                             double biasfrac_power = MIN(0.9,  MAX(0.004, paramset.any_mul_contam_frac) + pow(0.1, indelph/10.0));
                             

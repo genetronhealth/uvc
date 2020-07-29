@@ -186,10 +186,11 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("aDP"      , 4, BCF_INTEGER, "Four-direction raw depths total and summed for ALL alleles [unmerged]"),
     BcfFormatStruct("aRD"      , 4, BCF_INTEGER, "Four-direction raw depths specific to only the ALT allele  [unmerged]"),
     BcfFormatStruct("aAD"      , 4, BCF_INTEGER, "Four-direction raw depths specific to only the ALT allele  [unmerged]"),
+    BcfFormatStruct("aGapDPs"  , 4, BCF_INTEGER, "Raw depths for non-InDel bases, deletion symbol, estimated total and summed number of bases to the left and right sides of the InDel [unmerged]"),
     
     BcfFormatStruct("__ab"     , 1, BCF_SEP,     "More sequencing-segment statistics."),
-    BcfFormatStruct("aNMRD"    , 4, BCF_INTEGER, "Four-direction total numbers of mismatches (the NM sam tag) specific to only the REF allele  [unmerged"),
-    BcfFormatStruct("aNMAD"    , 4, BCF_INTEGER, "Four-direction total numbers of mismatches (the NM sam tag) specific to only the ALT allele  [unmerged"),
+    BcfFormatStruct("aXMRD"    , 4, BCF_INTEGER, "Four-direction total numbers of mismatches (the XM sam tag) specific to only the REF allele [unmerged]"),
+    BcfFormatStruct("aXMAD"    , 4, BCF_INTEGER, "Four-direction total numbers of mismatches (the XM sam tag) specific to only the ALT allele [unmerged]"),
     BcfFormatStruct("aBQAD"    , 4, BCF_INTEGER, "Four-direction total sum of base qualities of the ALT allele  [unmerged"),
     
     BcfFormatStruct("__ac"     , 1, BCF_SEP,     "More sequencing-segment statistics."),
