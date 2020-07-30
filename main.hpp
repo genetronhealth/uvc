@@ -27,7 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define THE_BAQ_MAX 200
+#define THE_BAQ_MAX 150 // 200
 #define INDEL_MUL_PER_BAQ 2.0
 #define SNV_MUL_PER_BAQ 3.0
 // T=uint32_t for deletion and T=string for insertion
@@ -1019,13 +1019,13 @@ update_indel_depth_arr_by_aln(
         unsigned int cigar_op = bam_cigar_op(c);
         unsigned int cigar_oplen = bam_cigar_oplen(c);
         if (cigar_op == BAM_CMATCH || cigar_op == BAM_CEQUAL || cigar_op == BAM_CDIFF) {
-            for (unsigned int i = 0; i < cigar_oplen; i++) {
+            for (unsigned int j = 0; j < cigar_oplen; j++) {
                 a_total_link_dp[rpos - roffset] += 1;
+                rpos++;
             }
-            rpos++;
         } else if (cigar_op == BAM_CINS) {
             unsigned int rtotlen = 0;
-             for (int rpos2 = rpos - cigar_oplen; rpos2 < rpos; rpos2++) {
+             for (int rpos2 = (int)rpos - (int)cigar_oplen; rpos2 < rpos; rpos2++) {
                 rtotlen++;
                 if (rpos2 >= roffset) { 
                     a_indel_rtotlen[rpos2 - roffset] = rtotlen; 
@@ -1033,32 +1033,32 @@ update_indel_depth_arr_by_aln(
                 }
             }           
             unsigned int ltotlen = cigar_oplen;
-            for (int rpos2 = rpos; rpos2 < rpos + cigar_oplen; rpos2++) {
+            for (int rpos2 = (int)rpos; rpos2 < rpos + cigar_oplen; rpos2++) {
                 if (rpos2 - roffset < a_indel_ltotlen.size()) { 
                     a_indel_ltotlen[rpos2 - roffset] = ltotlen; 
                     a_indel_dp[rpos2 - roffset] += 1;
                 }
                 ltotlen--;
             }
-            rpos += cigar_oplen;
+            //rpos += cigar_oplen;
         } else if (cigar_op == BAM_CDEL) {
             unsigned int ltotlen = 0;
             unsigned int rtotlen = 0;
-            for (int rpos2 = rpos - cigar_oplen; rpos2 < rpos; rpos2++) {
+            for (int rpos2 = (int)rpos - (int)cigar_oplen; rpos2 < rpos; rpos2++) {
                 rtotlen++;
                 if (rpos2 >= roffset) { 
                     a_indel_rtotlen[rpos2 - roffset] = rtotlen; 
                     a_indel_dp[rpos2 - roffset]++;
                 }
             }
-            for (int rpos2 = rpos; rpos2 < rpos + cigar_oplen; rpos2++) {
+            for (int rpos2 = (int)rpos; rpos2 < rpos + cigar_oplen; rpos2++) {
                 a_indel_ltotlen[rpos2 - roffset] = ltotlen;
                 a_indel_rtotlen[rpos2 - roffset] = rtotlen;
                 a_indel_dp[rpos2 - roffset] += 1;
                 rtotlen--;
                 ltotlen++;
             }
-            for (int rpos2 = rpos + cigar_oplen; rpos2 < rpos + 2*cigar_oplen; rpos2++) {
+            for (int rpos2 = (int)rpos + (int)cigar_oplen; rpos2 < rpos + 2*cigar_oplen; rpos2++) {
                 if (rpos2 - roffset < a_indel_ltotlen.size()) { 
                     a_indel_ltotlen[rpos2 - roffset] = ltotlen; 
                     a_indel_dp[rpos2 - roffset] += 1;
@@ -1076,8 +1076,10 @@ update_indel_depth_arr_by_aln(
             throw -1;
         } else {
             throw -2;
-        } 
+        }
     }
+    assert(bam_endpos(aln) == rpos || !fprintf(stderr, "%u == %u failed for bam %s at tid %d position %d", 
+            bam_endpos(aln), rpos, bam_get_qname(aln), aln->core.tid, aln->core.pos)); 
 }
 
 int
@@ -1457,7 +1459,7 @@ public:
         const unsigned int max_noindel_phred = 17 - MIN(17-1, xm_cnt * (150/3*2 + 1) / (b->core.l_qseq + 1));
         std::vector<uint16_t> qr_baq_vec;
         if (TFillSeqDir) {
-            qr_baq_vec = compute_qr_baq_vec(b, region_repeatvec, region_offset, baq_per_aligned_base, 0);
+            qr_baq_vec = compute_qr_baq_vec(b, region_repeatvec, region_offset, baq_per_aligned_base, 2);
         }
                 
         for (unsigned int i = 0; i < n_cigar; i++) {
@@ -3276,13 +3278,13 @@ output_germline(
     int phred_homref = 0; // (isSubst ? 31 : 41);
     int phred_hetero = (isSubst ? 31 : 41-1);
     int phred_homalt = (isSubst ? 33 : 43-1);
-    int phred_tri_al = (isSubst ? 55 : 41-1); // 49 // https://www.genetics.org/content/184/1/233 : triallelic-SNP-phred = 29*2-3
+    int phred_tri_al = (isSubst ? 60 : 41-1); // 49 // https://www.genetics.org/content/184/1/233 : triallelic-SNP-phred = 29*2-3
     // tri_al for InDels is lower than expected because indels were already penalized for tri-allelelity (aka triallelic InDels) in their TLODQs
     const double qfrac = (isSubst ? 1.0 : 0.25);
     std::array<std::pair<int, int>, 4> GL4raw = {{
-        std::make_pair(0,     (-phred_homref - a1LODQ              - MAX(a2LODQ - phred_tri_al, 0))),
+        std::make_pair(0,     (-phred_homref - a1LODQ              - MAX(a2LODQ - phred_hetero - 3, 0))),
         std::make_pair(1,  MIN(-phred_hetero - MAX(a0a1LODQ, a1a0LODQ), -a2LODQ)),
-        std::make_pair(2,     (-phred_homalt - MAX(a0LODQ, a2LODQ) - MAX(MIN(a0LODQ, a2LODQ) - phred_tri_al, 0))),
+        std::make_pair(2,     (-phred_homalt - MAX(a0LODQ, a2LODQ) - MAX(MIN(a0LODQ, a2LODQ) - phred_hetero - 3, 0))),
         std::make_pair(3,  MIN(-phred_tri_al - MAX(a1a2LODQ, a2a1LODQ), -MAX(a0LODQ, a3LODQ)))
     }};
     auto GL4 = GL4raw;

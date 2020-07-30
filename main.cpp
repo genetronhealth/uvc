@@ -694,8 +694,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
     
     const unsigned int rpos_inclu_beg = MAX(incluBegPosition, bam_inclu_beg_pos);
     const unsigned int rpos_exclu_end = MIN(excluEndPosition, bam_exclu_end_pos); 
-    const unsigned int extended_inclu_beg_pos = (unsigned int)MAX(0, ((int)rpos_inclu_beg) - 100);
-    const unsigned int extended_exclu_end_pos = (unsigned int)MIN(rpos_exclu_end + 100, std::get<1>(tname_tseqlen_tuple));
+    const unsigned int extended_inclu_beg_pos = (unsigned int)MAX(0, MIN(((int)incluBegPosition) - 100, (int)bam_inclu_beg_pos));
+    const unsigned int extended_exclu_end_pos = MIN(std::get<1>(tname_tseqlen_tuple), MAX(excluEndPosition + 100, bam_exclu_end_pos));
     
     //std::vector<std::array<TumorKeyInfo, NUM_ALIGNMENT_SYMBOLS>> extended_posidx_to_symbol_to_tkinfo(extended_exclu_end_pos - extended_inclu_beg_pos + 1);
     const auto tkis_beg = tid_pos_symb_to_tkis.lower_bound(std::make_tuple(tid, extended_inclu_beg_pos    , AlignmentSymbol(0)));
