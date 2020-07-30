@@ -865,8 +865,9 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
         indelpos_to_context(repeatunit, repeatnum, refstring, rridx);
         const RegionalTandemRepeat & rtr1 = ((rridx > 0)                           ? (region_repeatvec[rridx-1]) : defaultRTR);
         const RegionalTandemRepeat & rtr2 = ((rridx + 1 < region_repeatvec.size()) ? (region_repeatvec[rridx+1]) : defaultRTR);
-        
         const std::array<SymbolType, 2> stype_to_immediate_prev = {{LINK_SYMBOL, BASE_SYMBOL}};
+        
+        std::array<unsigned int, 2> stype2refqual = {{0, 0}};
         for (SymbolType symbolType : SYMBOL_TYPES_IN_VCF_ORDER) {
             TumorKeyInfo THE_DUMMY_TUMOR_KEY_INFO;
             bcfrec::BcfFormat init_fmt;
@@ -1039,7 +1040,10 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                     const auto symbol = std::get<1>(fmtinfo);
                     const auto & vaqvec = fmt.VAQ;
                     auto vaq = (vaqvec.size() == 0 ? 0 : vaqvec[0]);
-                    if (refsymbol == symbol) { refqual = vaq; }
+                    if (refsymbol == symbol) { 
+                        refqual = vaq; 
+                        stype2refqual[symbolType] = vaq;
+                    }
                     if (vaq >= most_confident_qual) {
                         most_confident_symbol = symbol;
                         most_confident_qual = vaq;
@@ -1189,6 +1193,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                 }
                 
                 if (is_probably_germline && (paramset.outvar_flag & OUTVAR_GERMLINE)) {
+#if 0                    
                     int indelph = 40;
                     if (rtr1.tracklen >= 8 && rtr1.unitlen >= 1) {
                         indelph = MIN(indelph, 40 - (int)indel_phred(8.0*(4+1+3), rtr1.unitlen, rtr1.unitlen, rtr1.tracklen / rtr1.unitlen));
@@ -1197,6 +1202,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                         indelph = MIN(indelph, 40 - (int)indel_phred(8.0*(4+1+3), rtr2.unitlen, rtr2.unitlen, rtr2.tracklen / rtr2.unitlen));
                     }
                     indelph = MAX(6, indelph);
+#endif
                     std::vector<std::pair<AlignmentSymbol, bcfrec::BcfFormat*>> symbol_format_vec;
                     //for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; 
                     //     symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; 
@@ -1204,6 +1210,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                     for (auto & fmtinfo : fmts) {
                         auto & fmt = std::get<0>(fmtinfo);
                         auto & symbol = std::get<1>(fmtinfo);
+#if 0
                         // auto & fmt = fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]];
                         if (refsymbol == symbol) {
                             auto central_readlen = MAX(paramset.central_readlen, 30U); 
@@ -1217,12 +1224,21 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                             double    ref_dep = compute_norm_ad(&fmt, BASE_SYMBOL == symbolType);
                             double nonref_dep = SUM2(fmt.cDPTT) - ref_dep;
                             
-                            fmt.BLODQ = MAX(0, (int)MIN(
+                            
+                            /* fmt.BLODQ = MAX(0, (int)MIN(
                                     calc_binom_10log10_likeratio(biasfrac_binom, ref_dep, ref_dep + MAX(DBL_EPSILON, nonref_dep)),
-                                    paramset.powlaw_exponent * (10.0/log(10.0)) * log((ref_dep + 0.5) / (nonref_dep + 0.5) / biasfrac_power)));
+                                    paramset.powlaw_exponent * (10.0/log(10.0)) * log((ref_dep + 0.5) / (nonref_dep + 0.5) / biasfrac_power))) */;
                             fmt.note += other_join(std::array<double, 4>{{ ref_bias, aln_bias, biasfrac_binom, biasfrac_power }}, "#") + "##";
                         } else {
                             fmt.BLODQ = 999;
+                        }
+#endif
+                        if (refsymbol == symbol) {
+                            if (isSymbolSubstitution(refsymbol)) {
+                                fmt.BLODQ = MIN(fmt.ALODQ, stype2refqual[LINK_SYMBOL]);
+                            } else {
+                                fmt.BLODQ = 888;
+                            }
                         }
                         symbol_format_vec.push_back(std::make_pair(symbol, &fmt));
                     }

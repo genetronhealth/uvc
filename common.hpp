@@ -187,6 +187,7 @@ struct RegionalTandemRepeat {
     uint32_t begpos = 0;
     uint16_t tracklen = 0;
     uint8_t unitlen = 0;
+    uint8_t indelphred = 40;
     // uint8_t edgeBAQ;
 };
 
