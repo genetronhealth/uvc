@@ -63,6 +63,16 @@ MIN5(auto a, auto b, auto c, auto d, auto e) {
     return MIN(a, MIN4(b, c, d, e));
 }
 
+auto
+MINVEC(auto v) {
+    assert(v.size() > 0);
+    auto ret = v[0];
+    for (auto e : v) {
+        ret = MIN(ret, e);
+    }
+    return ret;
+}
+
 auto 
 MAX(auto a, auto b) {
     return (a > b ? a :b);
@@ -374,6 +384,24 @@ h01_to_phredlike(double h0pos, double h0tot, double h1pos, double h1tot,
     return dlogval * log((h1pos * h0tot) / (h1tot * h0pos)) * (10.0 / log(10.0));
 }
 
+enum SegFiltAD {
+    SEG_R1FW_FW_AD,
+    SEG_R1FW_RV_AD,
+    SEG_R1RV_FW_AD,
+    SEG_R1RV_RV_AD,
+    SEG_LOW_BQ_AD,
+    SED_MID_BQ_AD,
+    SED_LOW_EP_AD,
+    SED_MID_EP_AD,
+    SED_LOW_XM_AD,
+    SED_MID_XM_AD,
+    SED_LOW_LI_AD,
+    SED_MID_LI_AD,
+    SED_LOW_RI_AD,
+    SED_MID_RI_AD,
+    NUM_SEF_FILT_AD
+};
+
 struct Any4Value {
     const double v1;
     const double v2;
@@ -504,6 +532,15 @@ dp4_to_sratio(double all_fw0, double all_rv0, double alt_fw0, double alt_rv0, do
     double ret = sumratio * allratio / altratio;
     assert(0 < ret);
     return ret;
+}
+
+double 
+dp4_to_pcFA(double aDPfw, double aDPrv, double aADfw, double aADrv, double refmul = 1.0, double altmul = 1.0, double powlaw_exponent = 3.0) {
+    double sor = ((aADfw + 1) * (aDPrv + 1)) / ((aADrv + 1) * (aDPfw + 1));
+    double aADpc = 2.0 * (log(2.0) * powlaw_exponent) / log(1.0 + MAX(sor, 1.0 / sor));
+    double aFAfw = ((aADfw + aADpc) / altmul + 0.5) / ((aDPfw - aADfw + aADpc) / refmul + (aADfw + aADpc) / altmul + 1.0);
+    double aFArv = ((aADrv + aADpc) / altmul + 0.5) / ((aDPrv - aADrv + aADpc) / refmul + (aADrv + aADpc) / altmul + 1.0);
+    return MIN(aFAfw, aFArv);
 }
 
 // conversion between different defintions in bioinformatics
