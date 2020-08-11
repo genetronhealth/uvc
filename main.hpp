@@ -1068,7 +1068,7 @@ update_seg_format_depth_sets(
             for (unsigned int i2 = 0; i2 < cigar_oplen; i2++) {
                 if (i2 > 0) {
                     //assert (rpos >= region_repeatvec[rpos-roffset-1].begpos);
-                    dealwith_seg_regbias(
+                    dealwith_segbias(
                             (bam_phredi(aln, qpos - 1) + bam_phredi(aln, qpos)) / 2,
                             rpos,
                             seg_format_depth_sets.getRefByPos(rpos)[LINK_M],
@@ -1081,7 +1081,7 @@ update_seg_format_depth_sets(
                 unsigned int base4bit = bam_seqi(bseq, qpos);
                 unsigned int base3bit = seq_nt16_int[base4bit];
                 AlignmentSymbol symbol = AlignmentSymbol(base3bit);
-                dealwith_seg_regbias(
+                dealwith_segbias(
                         bam_phredi(aln, qpos),
                         rpos,
                         seg_format_depth_sets.getRefByPos(rpos)[symbol],
@@ -1097,7 +1097,7 @@ update_seg_format_depth_sets(
             const bool is_ins_at_read_end = (0 == qpos || qpos + SIGN2UNSIGN(cigar_oplen) >= SIGN2UNSIGN(aln->core.l_qseq));
             if (!is_ins_at_read_end) {
                 AlignmentSymbol symbol = insLenToSymbol(SIGN2UNSIGN(cigar_oplen));
-                dealwith_seg_regbias(
+                dealwith_segbias(
                         (bam_phredi(aln, qpos) + bam_phredi(aln, qpos + cigar_oplen - 1)) / 2,
                         rpos,
                         seg_format_depth_sets.getRefByPos(rpos)[symbol],
@@ -1112,7 +1112,7 @@ update_seg_format_depth_sets(
             const bool is_del_at_read_end = (0 == qpos || qpos + SIGN2UNSIGN(cigar_oplen) >= SIGN2UNSIGN(aln->core.l_qseq));
             if (!is_del_at_read_end) {
                 AlignmentSymbol symbol = delLenToSymbol(SIGN2UNSIGN(cigar_oplen));
-                dealwith_seg_regbias(
+                dealwith_segbias(
                         (bam_phredi(aln, qpos) + bam_phredi(aln, qpos - 1)) / 2,
                         rpos,
                         seg_format_depth_sets.getRefByPos(rpos)[symbol],
@@ -1155,24 +1155,24 @@ update_seg_format_thres_from_prep_sets(
         // assert(seg_format_prep_sets.getByPos(epos)[SEG_a_LIDP] + seg_format_prep_sets.getByPos(epos)[SEG_a_RIDP] > 0);
         auto segLIDP = MAX(seg_format_prep_sets.getByPos(epos)[SEG_a_LIDP], 1);
         auto segRIDP = MAX(seg_format_prep_sets.getByPos(epos)[SEG_a_RIDP], 1);
-        seg_format_thres_sets.getRefByPos(epos)[SEG_aEP1t] = MAX(indel_len_per_DP * 2, potential_indel_len) + 20;
-        seg_format_thres_sets.getRefByPos(epos)[SEG_aEP2t] = MAX(indel_len_per_DP * 2, potential_indel_len) + 10; // the lower the strong the bias
-        seg_format_thres_sets.getRefByPos(epos)[SEG_aXM1T] = seg_format_prep_sets.getByPos(epos)[SEG_a_XM] / seg_a_dp + 4;
-        seg_format_thres_sets.getRefByPos(epos)[SEG_aXM2T] = seg_format_prep_sets.getByPos(epos)[SEG_a_XM] / seg_a_dp + 8; // the higher the stronger the bias
-        seg_format_thres_sets.getRefByPos(epos)[SEG_aLI1T] = (seg_format_prep_sets.getByPos(epos)[SEG_a_LI] * 2 / segLIDP);
-        seg_format_thres_sets.getRefByPos(epos)[SEG_aLI2T] = (seg_format_prep_sets.getByPos(epos)[SEG_a_LI] * 3 / segLIDP); // higher > stronger bias
-        seg_format_thres_sets.getRefByPos(epos)[SEG_aRI1T] = (seg_format_prep_sets.getByPos(epos)[SEG_a_RI] * 2 / segRIDP);
-        seg_format_thres_sets.getRefByPos(epos)[SEG_aRI2T] = (seg_format_prep_sets.getByPos(epos)[SEG_a_RI] * 3 / segRIDP); // higher > stronger bias
-        seg_format_thres_sets.getRefByPos(epos)[SEG_aLI1t] = (seg_format_prep_sets.getByPos(epos)[SEG_a_LI] / 2 / segLIDP);
-        seg_format_thres_sets.getRefByPos(epos)[SEG_aLI2t] = (seg_format_prep_sets.getByPos(epos)[SEG_a_LI] / 3 / segLIDP); // lower > stronger bias
-        seg_format_thres_sets.getRefByPos(epos)[SEG_aRI1t] = (seg_format_prep_sets.getByPos(epos)[SEG_a_RI] / 2 / segRIDP);
-        seg_format_thres_sets.getRefByPos(epos)[SEG_aRI2t] = (seg_format_prep_sets.getByPos(epos)[SEG_a_RI] / 3 / segRIDP); // lower > stronger bias
+        seg_format_thres_sets.getRefByPos(epos)[SEG_aEP1t] = MAX3(indel_len_per_DP * 2, potential_indel_len, 5) + 15; // easier to pass
+        seg_format_thres_sets.getRefByPos(epos)[SEG_aEP2t] = MAX3(indel_len_per_DP * 2, potential_indel_len, 5) + 25; // harder to pass, the lower the strong the bias
+        seg_format_thres_sets.getRefByPos(epos)[SEG_aXM1T] = (seg_format_prep_sets.getByPos(epos)[SEG_a_XM] / seg_a_dp + 5); // easier to pass
+        seg_format_thres_sets.getRefByPos(epos)[SEG_aXM2T] = (seg_format_prep_sets.getByPos(epos)[SEG_a_XM] / seg_a_dp + 2); // the higher the stronger the bias
+        seg_format_thres_sets.getRefByPos(epos)[SEG_aLI1T] = (seg_format_prep_sets.getByPos(epos)[SEG_a_LI] * 3 / segLIDP);
+        seg_format_thres_sets.getRefByPos(epos)[SEG_aLI2T] = (seg_format_prep_sets.getByPos(epos)[SEG_a_LI] * 2 / segLIDP); // higher > stronger bias
+        seg_format_thres_sets.getRefByPos(epos)[SEG_aRI1T] = (seg_format_prep_sets.getByPos(epos)[SEG_a_RI] * 3 / segRIDP);
+        seg_format_thres_sets.getRefByPos(epos)[SEG_aRI2T] = (seg_format_prep_sets.getByPos(epos)[SEG_a_RI] * 2 / segRIDP); // higher > stronger bias
+        seg_format_thres_sets.getRefByPos(epos)[SEG_aLI1t] = (seg_format_prep_sets.getByPos(epos)[SEG_a_LI] / 3 / segLIDP);
+        seg_format_thres_sets.getRefByPos(epos)[SEG_aLI2t] = (seg_format_prep_sets.getByPos(epos)[SEG_a_LI] / 2 / segLIDP); // lower > stronger bias
+        seg_format_thres_sets.getRefByPos(epos)[SEG_aRI1t] = (seg_format_prep_sets.getByPos(epos)[SEG_a_RI] / 3 / segRIDP);
+        seg_format_thres_sets.getRefByPos(epos)[SEG_aRI2t] = (seg_format_prep_sets.getByPos(epos)[SEG_a_RI] / 2 / segRIDP); // lower > stronger bias
     }
 }
 
 inline const
 int
-dealwith_seg_regbias(
+dealwith_segbias(
         const auto bq,
         const unsigned int rpos,
         auto & symbol_to_seg_format_depth_set,
@@ -1195,6 +1195,13 @@ dealwith_seg_regbias(
     
     const auto aSBQ = (isrc ? VQ_aSBQr : VQ_aSBQf);
     symbol_to_VQ_format_tag_set[aSBQ] += bq;
+    
+    if (bq >= 20) {
+        symbol_to_seg_format_depth_set[SEG_aBQ1] += 1;
+    }
+    if (bq >= 30) {
+        symbol_to_seg_format_depth_set[SEG_aBQ2] += 1;
+    }
     
     auto & symbol_to_seg_aDP_depth_set = (strand
         ? (isrc ? symbol_to_seg_format_depth_set[SEG_aDPrr] : symbol_to_seg_format_depth_set[SEG_aDPrf]) 
@@ -2292,6 +2299,8 @@ BcfFormat_symboltype_init(bcfrec::BcfFormat & fmt,
     fill_symboltype_fmt(fmt.ADPrf, fmt.aDPrf, symbol_to_seg_format_depth_sets, SEG_aDPrf, refpos, symbolType, refsymbol);
     fill_symboltype_fmt(fmt.ADPrr, fmt.aDPrr, symbol_to_seg_format_depth_sets, SEG_aDPrr, refpos, symbolType, refsymbol);
     
+    fill_symboltype_fmt(fmt.ABQ1, fmt.aBQ1, symbol_to_seg_format_depth_sets, SEG_aBQ1, refpos, symbolType, refsymbol);
+    fill_symboltype_fmt(fmt.ABQ2, fmt.aBQ2, symbol_to_seg_format_depth_sets, SEG_aBQ2, refpos, symbolType, refsymbol);
     fill_symboltype_fmt(fmt.AEP1, fmt.aEP1, symbol_to_seg_format_depth_sets, SEG_aEP1, refpos, symbolType, refsymbol);
     fill_symboltype_fmt(fmt.AEP2, fmt.aEP2, symbol_to_seg_format_depth_sets, SEG_aEP2, refpos, symbolType, refsymbol);
     fill_symboltype_fmt(fmt.AXM1, fmt.aXM1, symbol_to_seg_format_depth_sets, SEG_aXM1, refpos, symbolType, refsymbol);
@@ -2366,8 +2375,8 @@ BcfFormat_symbol_init(
     fill_symbol_fmt(fmt.aDPrf, symbol_to_seg_format_depth_sets, SEG_aDPrf, refpos, symbol, a);
     fill_symbol_fmt(fmt.aDPrr, symbol_to_seg_format_depth_sets, SEG_aDPrr, refpos, symbol, a);
     
-    //fill_symbol_fmt(fmt.aBQ1, symbol_to_seg_format_depth_sets, SEG_aBQ1, refpos, symbol);
-    //fill_symbol_fmt(fmt.aBQ2, symbol_to_seg_format_depth_sets, SEG_aBQ2, refpos, symbol);
+    fill_symbol_fmt(fmt.aBQ1, symbol_to_seg_format_depth_sets, SEG_aBQ1, refpos, symbol, a);
+    fill_symbol_fmt(fmt.aBQ2, symbol_to_seg_format_depth_sets, SEG_aBQ2, refpos, symbol, a);
     fill_symbol_fmt(fmt.aEP1, symbol_to_seg_format_depth_sets, SEG_aEP1, refpos, symbol, a);
     fill_symbol_fmt(fmt.aEP2, symbol_to_seg_format_depth_sets, SEG_aEP2, refpos, symbol, a);
     fill_symbol_fmt(fmt.aXM1, symbol_to_seg_format_depth_sets, SEG_aXM1, refpos, symbol, a);
@@ -2450,18 +2459,19 @@ BcfFormat_symbol_calc_DPv(
     // Non-UMI universality-based prequal allele fraction
     unsigned int ADP = fmt.ADPff[0] + fmt.ADPfr[0] + fmt.ADPrf[0] + fmt.ADPrr[0];
     unsigned int aDP = fmt.aDPff[a] + fmt.aDPfr[a] + fmt.aDPrf[a] + fmt.aDPrr[a];
-    double aEPFA = (fmt.aEP1[a] + 0.5) / (ADP - fmt.aEP1[a] - fmt.aEP2[a] - (aDP - fmt.aEP1[a]) + 1.0);
-    double aXMFA = (fmt.aXM1[a] + 0.5) / (ADP - fmt.aXM1[a] - fmt.aXM2[a] - (aDP - fmt.aXM1[a]) + 1.0);
-    double aLIFA = (fmt.aLI1[a] + 0.5) / (ADP - fmt.aLI1[a] - fmt.aLI2[a] - (aDP - fmt.aLI1[a]) + 1.0);
-    double aRIFA = (fmt.aRI1[a] + 0.5) / (ADP - fmt.aRI1[a] - fmt.aRI2[a] - (aDP - fmt.aRI1[a]) + 1.0);
+    double aBQFA = (fmt.aBQ1[a] + 0.5) / (fmt.ABQ2[0] + (fmt.aBQ1[a] - fmt.aBQ2[a]) + 1.0);
+    double aEPFA = (fmt.aEP1[a] + 0.5) / (fmt.AEP2[0] + (fmt.aEP1[a] - fmt.aEP2[a]) + 1.0);
+    double aXMFA = (fmt.aXM1[a] + 0.5) / (fmt.AXM2[0] + (fmt.aXM1[a] - fmt.aXM2[a]) + 1.0);
+    double aLIFA = (fmt.aLI1[a] + 0.5) / (fmt.ALI2[0] + (fmt.aLI1[a] - fmt.aLI2[a]) + 1.0);
+    double aRIFA = (fmt.aRI1[a] + 0.5) / (fmt.ARI2[0] + (fmt.aRI1[a] - fmt.aRI2[a]) + 1.0);
     
-    double aSSFA = dp4_to_pcFA(fmt.ADPff[0] + fmt.ADPrf[0], fmt.ADPfr[0] + fmt.ADPrr[0], fmt.aDPff[a] + fmt.aDPrf[a], fmt.aDPrf[a] + fmt.aDPff[a]);
+    double aSSFA = dp4_to_pcFA(fmt.ADPff[0] + fmt.ADPrf[0], fmt.ADPfr[0] + fmt.ADPrr[0], fmt.aDPff[a] + fmt.aDPrf[a], fmt.aDPfr[a] + fmt.aDPrr[a]);
     double aROFA = dp4_to_pcFA(fmt.ADPff[0] + fmt.ADPrr[0], fmt.ADPfr[0] + fmt.ADPrf[0], fmt.aDPff[a] + fmt.aDPrr[a], fmt.aDPfr[a] + fmt.aDPrf[a]);
     
     double bFA = (fmt.bDPa[a] + 0.5) / (fmt.BDPf[0] + fmt.BDPr[0] + 1.0);
     double cFA = (fmt.cDP1a[a] + 0.5) / (fmt.CDP1f[0] + fmt.CDP1r[0] + 1.0);
     
-    double min_aFA = MINVEC(std::array<double, 6>{{aEPFA, aXMFA, aLIFA, aRIFA, aSSFA, aROFA}});
+    double min_aFA = MINVEC(std::array<double, 7>{{aBQFA, aEPFA, aXMFA, aLIFA, aRIFA, aSSFA, aROFA}});
     double min_bcFA = MIN3(min_aFA, bFA, cFA);
     
     // UMI universality-based prequal allele fraction
@@ -2476,19 +2486,23 @@ BcfFormat_symbol_calc_DPv(
 
 int
 BcfFormat_symbol_sum_DPv(auto & fmts, const unsigned int a = 0) {
-    unsigned int CDP1v = 0;
-    unsigned int CDP2v = 0;
+    unsigned int CDP1v1 = 0;
+    unsigned int CDP2v1 = 0;
+    unsigned int CDP1v2 = 0;
+    unsigned int CDP2v2 = 0;
     for (auto & fmt : fmts) {
-        CDP1v += std::get<0>(fmt).cDP1v[a];
-        CDP2v += std::get<0>(fmt).cDP2v[a];
+        CDP1v1 += std::get<0>(fmt).cDP1v[a];
+        CDP2v1 += std::get<0>(fmt).cDP2v[a];
         if (BASE_NN == FIRST(std::get<0>(fmt).VTI) || LINK_NN == FIRST(std::get<0>(fmt).VTI)) {
-            std::get<0>(fmt).CDP1v[1] = std::get<0>(fmt).cDP1v[a];
-            std::get<0>(fmt).CDP2v[1] = std::get<0>(fmt).cDP2v[a];
+            CDP1v2 = std::get<0>(fmt).cDP1v[a];
+            CDP2v2 = std::get<0>(fmt).cDP2v[a];
         }
     }
     for (auto & fmt : fmts) {
-        std::get<0>(fmt).CDP1v[0] = CDP1v;
-        std::get<0>(fmt).CDP2v[0] = CDP2v;
+        std::get<0>(fmt).CDP1v[0] = CDP1v1;
+        std::get<0>(fmt).CDP2v[0] = CDP2v1;
+        std::get<0>(fmt).CDP1v[1] = CDP1v2;
+        std::get<0>(fmt).CDP2v[1] = CDP2v2;
     }
     return 0;
 };
@@ -2520,7 +2534,7 @@ BcfFormat_symbol_calc_qual(
     int dedup_frag_powlaw_qual = (int)(powlaw_exponent * 10.0 / log(10.0) * log(min_bcFA) + powlaw_anyvar_base + 10.0);
     double umi_cFA =  (((double)(fmt.cDP2v[a]) + 0.5) / ((double)(fmt.CDP2v[0]) + 1.0)); 
     int sscs_powlaw_qual = (int)(powlaw_exponent * 10.0 / log(10.0) * log(umi_cFA) + powlaw_anyvar_base + powlaw_sscs_inc);
-    
+    fmt.note += std::string("min_bcFA(") + std::to_string(min_bcFA) + ")cDP1v(" + std::to_string(fmt.cDP1v[a]) + ")" + "CDP1v(" + std::to_string(fmt.CDP1v[0]) + ")";
     const std::string & indelstring = fmt.gapSa[a];
     if (indelstring.size() > 0) {
         // const double symbol_to_allele_frac = 1.0 - pow((isSymbolIns(symbol) ? 0.9 : (isSymbolDel(symbol) ? 0.95 : 1.0)), indelstring.size());
@@ -3187,6 +3201,8 @@ generate_vcf_header(const char *ref_fasta_fname,
     ret += "##INFO=<ID=SomaticQ,Number=A,Type=Float,Description=\"Somatic quality of the variant, the PHRED-scale probability that this variant is not somatic.\">\n";
     ret += "##INFO=<ID=TLODQ,Number=A,Type=Float,Description=\"Tumor log-of-data-likelihood quality, the PHRED-scale probability that this variant is not of biological origin (i.e., artifactual).\">\n";
     ret += "##INFO=<ID=NLODQ,Number=A,Type=Float,Description=\"Normal log-of-data-likelihood quality, the PHRED-scale probability that this variant is of germline origin.\">\n";
+    ret += "##INFO=<ID=TNBQ4,Number=4,Type=Float,Description=\"Binomial reward, power-law reward, systematic-error penalty, and normal-adjusted tumor variant quality computed using deduplicated read fragments.\">\n";
+    ret += "##INFO=<ID=TNCQ4,Number=4,Type=Float,Description=\"Binomial reward, power-law reward, systematic-error penalty, and normal-adjusted tumor variant quality computed using consensus families of read fragments.\">\n";
     ret += "##INFO=<ID=RU,Number=1,Type=String,Description=\"The shortest repeating unit in the reference\">\n";
     ret += "##INFO=<ID=RC,Number=1,Type=Integer,Description=\"The number of non-interrupted RUs in the reference\">\n";
     ret += "##INFO=<ID=R3X2,Number=6,Type=Integer,Description=\"Repeat start position, repeat track length, and repeat unit size at the two positions before and after this VCF position.\">\n"; 
@@ -3250,7 +3266,7 @@ const auto
 calc_binom_powlaw_syserr_normv_quals(
         auto tAD, auto tDP, auto tVQ,
         auto nAD, auto nDP, auto nVQ, bool is_penal_applied) {
-    int binom_b10log10like = (int)calc_binom_10log10_likeratio((tAD + 0.5) / (tDP + 1.0), nAD, nDP);
+    int binom_b10log10like = (int)calc_binom_10log10_likeratio((tDP - tAD + 0.5) / (tDP + 1.0), nDP - nAD, nAD);
     double bjpfrac = ((tAD + 0.5) / (tDP + 1.0)) / ((nAD + 0.5) / (nDP + 1.0));
     int powlaw_b10log10like = (int)(3 * 10 / log(10) * log(bjpfrac));
     int syserr_b10log10like = (int)MAX(0, nVQ - 12.5 * mathsquare(MAX(0, bjpfrac - 1.0)));

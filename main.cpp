@@ -322,13 +322,13 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         }
         if (should_continue) { continue; }
         ndst_val = 0;
-        valsize = bcf_get_format_char(bcf_hdr, line, "VType", &bcfstring, &ndst_val);
+        valsize = bcf_get_format_int32(bcf_hdr, line, "VTI", &bcfints, &ndst_val);
         if (valsize <= 0) { continue; }
-        assert(ndst_val == valsize);
-        assert(2 == line->n_allele || !fprintf(stderr, "Bcf line %d has %d alleles!\n", line->pos, line->n_allele));
-        std::string desc(bcfstring);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for VTI and line %d!\n", ndst_val, valsize, line->pos));
+        assert((2 == line->n_allele) || !fprintf(stderr, "Bcf line %d has %d alleles!\n", line->pos, line->n_allele));
+        // std::string desc(bcfstring);
         // LOG(logINFO) << "Trying to retrieve the symbol " << desc << " at pos " << line->pos << " valsize = " << valsize << " ndst_val = " << ndst_val;
-        AlignmentSymbol symbol = DESC_TO_SYMBOL_MAP.at(desc);
+        const AlignmentSymbol symbol = AlignmentSymbol(bcfints[1]); //DESC_TO_SYMBOL_MAP.at(desc);
         
         auto symbolpos = (isSymbolSubstitution(symbol) ? (line->pos) : (line->pos + 1));
         /*
@@ -610,15 +610,14 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                     0,
                     0);
             */
-if (rpos_exclu_end != refpos && bDPcDP[0] >= paramset.min_depth_thres) {
+            if (rpos_exclu_end != refpos) {
                 std::vector<std::tuple<bcfrec::BcfFormat, TumorKeyInfo>> fmt_tki_tup_vec;
                 
                 for (AlignmentSymbol symbol : SYMBOL_TYPE_TO_SYMBOLS[symbolType]) 
                 {
-                    unsigned int phred_max_sscs_all = sscs_mut_table.toPhredErrRate(refsymbol, symbol);
-                    const bool is_rescued = (
-                            extended_posidx_to_is_rescued[refpos - extended_inclu_beg_pos] &&
-                            (tid_pos_symb_to_tkis.end() != tid_pos_symb_to_tkis.find(std::make_tuple(tid, refpos, symbol)))); 
+                    // unsigned int phred_max_sscs_all = sscs_mut_table.toPhredErrRate(refsymbol, symbol);
+                    const bool is_pos_rescued = (NOT_PROVIDED != paramset.vcf_tumor_fname && (extended_posidx_to_is_rescued[refpos - extended_inclu_beg_pos]));
+                    const bool is_var_rescued = (is_pos_rescued && (tid_pos_symb_to_tkis.end() != tid_pos_symb_to_tkis.find(std::make_tuple(tid, refpos, symbol)))); 
                     const auto bdepth = 
                             symbolToCountCoverageSet12.symbol_to_frag_format_depth_sets[0].getByPos(refpos)[symbol][FRAG_bDP]
                           + symbolToCountCoverageSet12.symbol_to_frag_format_depth_sets[1].getByPos(refpos)[symbol][FRAG_bDP];
@@ -626,18 +625,22 @@ if (rpos_exclu_end != refpos && bDPcDP[0] >= paramset.min_depth_thres) {
                             symbolToCountCoverageSet12.symbol_to_fam_format_depth_sets_2strand[0].getByPos(refpos)[symbol][FAM_cDP1]
                           + symbolToCountCoverageSet12.symbol_to_fam_format_depth_sets_2strand[1].getByPos(refpos)[symbol][FAM_cDP1];
                     
-                    if ((!is_rescued) 
+                    if ((NOT_PROVIDED == paramset.vcf_tumor_fname)
                             && (bdepth < paramset.min_altdp_thres) 
-                            && (refsymbol != symbol) 
+                            && (refsymbol != symbol)
                             && (!paramset.should_output_all)) {
                         continue;
                     }
                     
+                    if (NOT_PROVIDED != paramset.vcf_tumor_fname
+                            && (!is_pos_rescued)) {
+                        continue;
+                    }
                     const auto simplemut = std::make_pair(refpos, symbol);
                     auto indices_bq = (simplemut2indices_bq.find(simplemut) != simplemut2indices_bq.end() ? simplemut2indices_bq[simplemut] : empty_size_t_set); 
                     auto indices_fq = (simplemut2indices_fq.find(simplemut) != simplemut2indices_fq.end() ? simplemut2indices_fq[simplemut] : empty_size_t_set);
                     std::vector<TumorKeyInfo> tkis;
-                    if (is_rescued) {
+                    if (is_var_rescued) {
                         tkis = tid_pos_symb_to_tkis.find(std::make_tuple(tid, refpos, symbol))->second;
                     }
                     
@@ -659,7 +662,7 @@ if (rpos_exclu_end != refpos && bDPcDP[0] >= paramset.min_depth_thres) {
                                 );
                             }
                         }
-                        if (is_rescued) {
+                        if (is_var_rescued) {
                             for (const auto & tki : tkis) {
                                 unsigned int tabpos = tki.ref_alt.find("\t");
                                 const auto & vcfref = tki.ref_alt.substr(0, tabpos);
@@ -689,7 +692,7 @@ if (rpos_exclu_end != refpos && bDPcDP[0] >= paramset.min_depth_thres) {
                                         THE_DUMMY_TUMOR_KEY_INFO));
                             }
                         }
-                    } else if (is_rescued) {
+                    } else if (is_var_rescued) {
                         for (const auto & tki : tkis) {
                             bcad0a_indelstring_tki_vec.push_back(std::make_tuple(bdepth, cdepth, std::string(""), tki));
                         }
@@ -717,31 +720,36 @@ if (rpos_exclu_end != refpos && bDPcDP[0] >= paramset.min_depth_thres) {
                         fmt_tki_tup_vec.push_back(std::make_tuple(fmt, std::get<3>(bcad0a_indelstring_tki)));
                     }
                 }
-            
-                BcfFormat_symbol_sum_DPv(fmt_tki_tup_vec);
-                for (auto & fmt_tki_tup : fmt_tki_tup_vec) {
-                    BcfFormat_symbol_calc_qual(
-                            std::get<0>(fmt_tki_tup),
-                            repeatunit,
-                            repeatnum,
-                            0);
-                }
-                auto & reffmt = init_fmt;
-                bool is_ref_found = false;
-                for (auto & fmt_tki_tup : fmt_tki_tup_vec) {
-                    if (refsymbol == (AlignmentSymbol)(LAST(std::get<0>(fmt_tki_tup).VTI))) {  
-                        reffmt = std::get<0>(fmt_tki_tup); 
-                        is_ref_found = true; 
+                
+                if (rpos_exclu_end != refpos && fmt_tki_tup_vec.size() > 0) {
+                    BcfFormat_symbol_sum_DPv(fmt_tki_tup_vec);
+                    for (auto & fmt_tki_tup : fmt_tki_tup_vec) {
+                        BcfFormat_symbol_calc_qual(
+                                std::get<0>(fmt_tki_tup),
+                                repeatunit,
+                                repeatnum,
+                                90,
+                                3,
+                                30,
+                                20,
+                                0);
                     }
-                }
-                assert(is_ref_found || !fprintf(stderr, "The position %s:%d with symbolType %d has no ref!\n", 
-                        std::get<0>(tname_tseqlen_tuple).c_str(), refpos, symbolType));
-                for (auto & fmt_tki_tup : fmt_tki_tup_vec) {
-                    streamFrontPushBcfFormatR(std::get<0>(fmt_tki_tup), reffmt);
-                }
-
-                int nlodq = 31;
-                if (rpos_exclu_end != refpos && bDPcDP[0] >= paramset.min_depth_thres) {
+                    auto & reffmt = init_fmt;
+                    bool is_ref_found = false;
+                    for (auto & fmt_tki_tup : fmt_tki_tup_vec) {
+                        if (refsymbol == (AlignmentSymbol)(LAST(std::get<0>(fmt_tki_tup).VTI))) {  
+                            reffmt = std::get<0>(fmt_tki_tup); 
+                            is_ref_found = true; 
+                        }
+                    }
+                    assert(is_ref_found || !fprintf(stderr, "The position %s:%d with symbolType %d has no ref!\n", 
+                            std::get<0>(tname_tseqlen_tuple).c_str(), refpos, symbolType));
+                    for (auto & fmt_tki_tup : fmt_tki_tup_vec) {
+                        streamFrontPushBcfFormatR(std::get<0>(fmt_tki_tup), reffmt);
+                    }
+                    
+                    int nlodq = 31;
+                    
                     std::vector<std::pair<AlignmentSymbol, bcfrec::BcfFormat*>> symbol_format_vec;
                     for (auto & fmt_tki_tup : fmt_tki_tup_vec) {
                         auto & fmt = std::get<0>(fmt_tki_tup);
@@ -763,13 +771,15 @@ if (rpos_exclu_end != refpos && bDPcDP[0] >= paramset.min_depth_thres) {
                             paramset.central_readlen,
                             paramset.outvar_flag, // OUTVAR_GERMLINE
                             0);
-                
+                    
                     for (auto & fmt_tki_tup : fmt_tki_tup_vec) {
                         const auto & fmt = std::get<0>(fmt_tki_tup);
                         const auto & symbol = (AlignmentSymbol)(LAST(fmt.VTI)); // std::get<1>(fmtinfo);
                         auto & tki = std::get<1>(fmt_tki_tup);
-                        const bool will_generate_out = (tki.ref_alt.size() > 0 ? (paramset.outvar_flag & OUTVAR_SOMATIC) : (paramset.outvar_flag & OUTVAR_ANY));
-                        if (will_generate_out || (refsymbol == symbol)) {
+                        const bool will_generate_out = (NOT_PROVIDED == paramset.vcf_tumor_fname 
+                                ? (paramset.outvar_flag & OUTVAR_ANY)
+                                : (tki.ref_alt.size() > 0 && (paramset.outvar_flag & OUTVAR_SOMATIC)));
+                        if (will_generate_out) {
                             append_vcf_record(
                                     buf_out_string_pass,
                                     std::get<0>(tname_tseqlen_tuple).c_str(),
@@ -795,8 +805,7 @@ if (rpos_exclu_end != refpos && bDPcDP[0] >= paramset.min_depth_thres) {
                         }
                     }
                 }
-}
- 
+            }
         }    
     }
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id  << " starts destroying bam records"; }

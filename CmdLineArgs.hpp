@@ -22,7 +22,7 @@ struct CommandLineArgs {
     
     uint32_t outvar_flag = OUTVAR_SOMATIC + OUTVAR_ANY + OUTVAR_NONREF; // 4 anyvar, 2 somatic, 1 germline
     bool somaticGT = true;
-    bool is_tumor_format_retrieved = false;
+    bool is_tumor_format_retrieved = true;
     bool should_output_all = false;
     bool disable_dup_read_merge = false;
     bool  enable_dup_read_vqual = true; // set to false can result in about 10% increase in false positive (FP) variants at around 1 FP/kilobase rate.

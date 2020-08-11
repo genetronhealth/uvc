@@ -428,6 +428,8 @@ enum SegFormatDepthSet {
     SEG_aDPfr,
     SEG_aDPrf,
     SEG_aDPrr,
+    SEG_aBQ1, // base-quality bias
+    SEG_aBQ2,
     SEG_aEP1, // edge position
     SEG_aEP2,
     SEG_aXM1, // mismatch
