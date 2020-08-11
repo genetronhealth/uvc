@@ -3,6 +3,9 @@
 
 #include "common.hpp"
 
+#include "htslib/sam.h"
+#include "htslib/vcf.h"
+
 #include <algorithm>
 #include <iostream>
 
@@ -13,29 +16,28 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define DBLFLT_EPS ((double)FLT_EPSILON)
-#define MAX_IMBA_DEP ((uint32_t)INT32_MAX)
-
+//#define DBLFLT_EPS ((double)FLT_EPSILON)
+//#define MAX_IMBA_DEP ((uint32_t)INT32_MAX)
 // http://snap.stanford.edu/class/cs224w-2015/slides/04-powerlaws.pdf
 // https://cs.brynmawr.edu/Courses/cs380/spring2013/section02/slides/10_ScaleFreeNetworks.pdf
 // #define PLEXP (3.0) // Power-law exponent of the degree distribution of the BA network
 // #define SYS_QMAX (25.0) // Is it the PHRED-scaled probability that a germline event is an outlier in terms of allele fraction?
 
-template <class T, class V>
-V
-collectget(const T & collection, unsigned int idx, V defaultval = 0) {
-    return (idx < collection.size() ? collection[idx] : defaultval);
+// math functions
+
+auto MEDIAN(const auto & v) {
+    assert(v.size() > 0);
+    return (v[(v.size() - 1) / 2] + v[(v.size()) / 2]) / 2;
 }
 
-void
-clear_push(auto & collection, auto v) {
-    collection.push_back(v);
+auto LAST(const auto & v) {
+    assert(v.size() > 0);
+    return v[(v.size()-1)];
 }
 
-template <class T>
-T
-div_by_20(T n) {
-    return n / 20;    
+auto 
+non_neg_minus(auto a, auto b) {
+    return (a > b ? (a - b) : 0);
 }
 
 auto
@@ -99,12 +101,18 @@ MAX6(auto a, auto b, auto c, auto d, auto e, auto f) {
 }
 
 auto
-BETWEEN(auto v, auto a, auto b) {
-    return MIN(MAX(a, v), b);
+MAXVEC(auto v) {
+    assert(v.size() > 0);
+    auto ret = v[0];
+    for (auto e : v) {
+        ret = MAX(ret, e);
+    }
+    return ret;
 }
 
-auto add01_between_min01_max01(auto a, auto b) {
-    return BETWEEN(MIN(a, b), a + b, MAX(a ,b));
+auto
+BETWEEN(auto v, auto a, auto b) {
+    return MIN(MAX(a, v), b);
 }
 
 void 
@@ -117,12 +125,6 @@ UPDATE_MAX(auto & a, const auto & b) {
     a = MAX(a, b);
 }
 
-auto 
-SUM2(const auto & vec) {
-    static_assert (vec.size() == 2);
-    return vec[0] + vec[1];
-}
-
 auto
 SUMVEC(const auto & vec) {
     auto r = 0;
@@ -130,36 +132,6 @@ SUMVEC(const auto & vec) {
         r += vec[i];
     }
     return r;
-}
-
-void 
-UPDATE_MIN2(auto & a, const auto & b) {
-    for (int i = 0; i < 2; i++) { UPDATE_MIN(a[i], b[i]); }
-}
-
-void 
-UPDATE_MAX2(auto & a, const auto & b) {
-    for (int i = 0; i < 2; i++) { UPDATE_MAX(a[i], b[i]); }
-}
-
-template <bool TIsSorted = false>
-auto 
-MEDIAN(auto v) {
-    if (!TIsSorted) {
-        std::sort(v.begin(), v.end());
-    }
-    if (v.size() % 2 == 1) {
-        return v[v.size() / 2];
-    } else {
-        return (v[v.size() / 2] + v[v.size() / 2 - 1]) / 2;  
-    }
-}
-
-template <class V, class W>
-V
-hmean(V v1, W w1, V v2, W w2) {
-    const auto f = (1024UL * 64UL);
-    return  f * (w1 + w2) / (f * w1 / (v1+1UL) + f * w2 / (v2+1UL) + 1UL);
 }
 
 template <class T>
@@ -232,7 +204,6 @@ calc_binom_10log10_likeratio(double prob, double a, double b) {
     double A = (      prob) * (a + b);
     double B = (1.0 - prob) * (a + b);
     if (TIsBiDirectional || a > A) {
-        // likeratio = pow(a / A, a) * pow(b / B, b);
         return 10.0 / log(10.0) * (a * log(a / A) + b * log(b / B));
     } else {
         return 0.0;
@@ -248,19 +219,65 @@ max_min01_sub02(T h0, T h1, T h2) {
     return MAX(MIN(h0, h1), h0 - h2);
 }
 
-#ifdef TEST_calc_binom
-int main(int argc, char **argv) {
-    double prob = atof(argv[1]);
-    double a = atof(argv[2]);
-    double b = atof(argv[3]);
-    printf("calc_binom_10log10_likeratio(%f, %f, %f) = %f\n", prob, a, b, calc_binom_10log10_likeratio(prob, a, b));
+auto add01_between_min01_max01(auto a, auto b) {
+    return BETWEEN(MIN(a, b), a + b, MAX(a ,b));
 }
-#endif
 
 static_assert(abs(calc_binom_10log10_likeratio(0.1, 10, 90)) < 1e-4);
 static_assert(calc_binom_10log10_likeratio(0.1, 90, 10) > 763); // 10/log(10) * (90*log(9)+10*log(1/9))
 static_assert(calc_binom_10log10_likeratio(0.1, 90, 10) < 764); // 10/log(10) * (90*log(9)+10*log(1/9))
 static_assert(abs(calc_binom_10log10_likeratio(0.1, 1, 99)) < 1e-4); // 10/log(10) * (90*log(9)+10*log(1/9))
+
+double invmax(double x) { return MAX(x, 1/x); }
+
+double 
+dlog(double n, double r) {
+    return log(n * (r-1) + 1) / log(r);
+}
+
+
+// stdlib add-on functions
+
+template <class T>
+class OffsetArr {
+    std::vector<T> data;
+    unsigned int offset;
+    public:
+    
+    OffsetArr(size_t datasize, T initdata) {
+        data = std::vector<T>(datasize, initdata);
+    };
+    
+    void set(unsigned int i, T e) {
+        data[i-offset] = e;
+    };
+    
+    T get(unsigned int i) {
+        return data[i-offset];
+    };
+    
+    size_t get_inclu_beg_pos() {
+        return offset; 
+    };
+    
+    size_t get_exclu_end_pos() {
+        return offset + data.size();    
+    };
+};
+
+template <class T, class V>
+V
+collectget(const T & collection, unsigned int idx, V defaultval = 0) {
+    return (idx < collection.size() ? collection[idx] : defaultval);
+}
+
+void
+clear_push(auto & collection, auto v, unsigned int idx = 1) {
+    if (0 == idx) {
+        collection.clear();
+    }
+    collection.push_back(v);
+}
 
 template <class T> 
 void 
@@ -268,276 +285,259 @@ autoswap ( T& a, T& b ) {
     T c(a); a=b; b=c;
 }
 
-double invmax(double x) { return MAX(x, 1/x); }
-
-template <bool TRefExcludeAlt=false, bool TIsPseudocountZero = false, class T>
-double
-_any4_to_biasfact(T dp0, T dp1, T ad0, T ad1, const bool is_inv, double pseudocount) {
-    if (TRefExcludeAlt) {
-        return _any4_to_biasfact<false>(dp0 + ad0, dp1 + ad1, ad0, ad1, is_inv, pseudocount);
+std::string
+string_join(auto container, std::string sep = std::string(",")) {
+    std::string ret = "";
+    for (auto e : container) {
+        ret += e + sep;
     }
-    if (is_inv) {
-        // These assertions now result in errors when enabled due to extended possible usage
-        //assert(dp0 <= ad0 || !(std::cerr << dp0 << " <= " << ad0 << " failed!" << std::endl));
-        //assert(dp1 <= ad1 || !(std::cerr << dp1 << " <= " << ad1 << " failed!" << std::endl));
-        assert(dp0 >= -pseudocount/2);
-        assert(dp1 >= -pseudocount/2);
-    } else {
-        assert(dp0 >= ad0);
-        assert(dp1 >= ad1);
-        assert(ad0 >= -pseudocount/2);
-        assert(ad1 >= -pseudocount/2);
-    }
-    double t00 = (TIsPseudocountZero ? dp0 : (dp0 + pseudocount));
-    double t01 = (TIsPseudocountZero ? dp1 : (dp1 + pseudocount));
-    double t10 = (TIsPseudocountZero ? ad0 : (ad0 + pseudocount));
-    double t11 = (TIsPseudocountZero ? ad1 : (ad1 + pseudocount));
-    
-    double t0sum = t00 + t01;
-    double t1sum = t10 + t11;
-    
-    if (!TIsPseudocountZero) { 
-        if (t0sum > t1sum) {
-            t00 += pseudocount * (t0sum/t1sum - 1);
-            t01 += pseudocount * (t0sum/t1sum - 1);
-        } else {
-            t10 += pseudocount * (t1sum/t0sum - 1);
-            t11 += pseudocount * (t1sum/t0sum - 1);
-        }
-    }
-    double t00f = t00 / t01; // observed 
-    double t10f = t10 / t11; // expected 
-    double weight1over01 = t11 / (t10 + t11);
-    
-    double raw_biasfact = (t00f - t10f) * (weight1over01 / t10f) + 1;
-    return raw_biasfact;    
-}
-
-template <bool TRefExcludeAlt=false, class T>
-unsigned int
-any4_to_biasfact100(T dp0, T dp1, T ad0, T ad1, const bool is_inv = false, double pseudocount = 1) {
-    return floor(_any4_to_biasfact(dp0, dp1, ad0, ad1, is_inv, pseudocount) * (100 * (1 + DBL_EPSILON)));
-}
-
-double
-biasfact100_to_imba(unsigned int biasfact100) {
-    return MAX(SIGN2UNSIGN(100), biasfact100) / (double)100;
-}
-
-#ifdef TEST_any4_to_bias
-int 
-main(int argc, char **argv) {
-    double t00 = atof(argv[1]);
-    double t01 = atof(argv[2]);
-    double t10 = atof(argv[3]);
-    double t11 = atof(argv[4]);
-    double p = atof(argv[5]);
-
-    auto bf1 = any4_to_biasfact100<false>(t00, t01, t10, t11, false, p);
-    auto bf2 = any4_to_biasfact100<false>(t01, t00, t11, t10, false, p);
-    printf("any4_to_bias100(%f %f %f %f %f) == %d\n", t00, t01, t10, t11, p, bf1);
-    printf("any4_to_bias100(%f %f %f %f %f) == %d\n", t01, t00, t11, t10, p, bf2);
-}
-
-#endif
-
-double 
-geometric_sum_to_nterms(double geosum, double term1, double ratio) {
-    double ret = log(geosum * (ratio - 1) / term1 + 1) / log(ratio);
-#ifdef TEST_h01_to_phredlike
-    printf("geometric_sum_to_nterms(%f, %f, %f) = %f\n", geosum, term1, ratio, ret);
-#endif
+    ret.pop_back();
     return ret;
 }
 
-double 
-dlog(double n, double r) {
-    return log(n * (r-1) + 1) / log(r);
+std::string 
+other_join(auto container, std::string sep = std::string(",")) {
+    std::string ret = "";
+    for (auto e : container) {
+        ret += std::to_string(e) + sep;
+    }
+    ret.pop_back();
+    return ret;
 }
 
-template <bool TIsConsensual, bool TIsPseudocountZero = false, bool TIsErrAmpRatioOne = false> 
-double
-h01_to_phredlike(double h0pos, double h0tot, double h1pos, double h1tot, 
-        double pseudocount, double err_amp_ratio) {
-    assert(h0pos <  h0tot || !fprintf(stderr, "%lf <  %lf failed", h0pos, h0tot));
-    assert(h1pos <= h1tot || !fprintf(stderr, "%lf <= %lf failed", h1pos, h1tot));
-    assert(h0pos >  0     || !fprintf(stderr, "%lf >  %lf failed", h0pos, (double)0));
-    assert(h1pos >= 0     || !fprintf(stderr, "%lf >= %lf failed", h1pos, (double)0));
-    if (h1pos <= (DBL_EPSILON * pseudocount)) {
-        return 0;
-    }
-    double ratio = (h1tot) / h0tot;
-    h0tot *= ratio;
-    h0pos *= ratio;
-    double bf;
-    if (TIsPseudocountZero) {
-        bf = _any4_to_biasfact<false, true>(h0tot, h1tot, h0pos, h1pos, true, 0);
-    } else {
-        bf = _any4_to_biasfact(h0tot + pseudocount, h1tot + pseudocount, h0pos + pseudocount, h1pos, true, 0);
-    }
-    double dlogval;
-    if (TIsErrAmpRatioOne) {
-        dlogval = bf;
-    } else {
-        dlogval = dlog(bf, err_amp_ratio);
-    }
-    return dlogval * log((h1pos * h0tot) / (h1tot * h0pos)) * (10.0 / log(10.0));
-}
+#define SQR_QUAL_DIV 32
 
-enum SegFiltAD {
-    SEG_R1FW_FW_AD,
-    SEG_R1FW_RV_AD,
-    SEG_R1RV_FW_AD,
-    SEG_R1RV_RV_AD,
-    SEG_LOW_BQ_AD,
-    SED_MID_BQ_AD,
-    SED_LOW_EP_AD,
-    SED_MID_EP_AD,
-    SED_LOW_XM_AD,
-    SED_MID_XM_AD,
-    SED_LOW_LI_AD,
-    SED_MID_LI_AD,
-    SED_LOW_RI_AD,
-    SED_MID_RI_AD,
-    NUM_SEF_FILT_AD
+// variant-call data structures and functions
+
+enum AlignmentSymbol {
+    BASE_A,  //   = 0,
+    BASE_C,  //   = 1,
+    BASE_G,  //   = 2,
+    BASE_T,  //   = 3,
+    BASE_N,  //   = 4, // ambigous in the original sequencing data
+    BASE_NN, //   = 5, // ambigous base after collapsing different reads, padded in deleted sequence
+    //BASE_P = 6; // padded in deleted sequence
+    LINK_M,  //   = 6, // absence of any gap
+    LINK_D3P,// = 7, // deletion of length 3 or plus
+    LINK_D2, //  = 8,  // deletion of length 2
+    LINK_D1, //  = 9,
+    LINK_I3P,//  = 10, // insertion of length 1 // where the inserted sequence is not a repeat
+    LINK_I2, //  = 11, 
+    LINK_I1, // = 12, 
+    LINK_NN, //  = 13, // ambiguous link between bases
+    // LINK_P = 13; // padded in deleted sequence
+    END_ALIGNMENT_SYMBOLS,
 };
+    
+#define NUM_ALIGNMENT_SYMBOLS 14
+static_assert(NUM_ALIGNMENT_SYMBOLS == END_ALIGNMENT_SYMBOLS);
 
-struct Any4Value {
-    const double v1;
-    const double v2;
-    const double v3;
-    const double v4;
-    Any4Value(double v1, double v2, double v3, double v4) : v1(v1), v2(v2), v3(v3), v4(v4) {}
-    const double to_phredlike(double d, double pc = 0, double err_amp_ratio = 1+1e-5) const {
-        return (d + h01_to_phredlike<false, true, true>(v1 + d, (v2 + d) * (1 + DBL_EPSILON), v3 + d, (v4 + d) * (1 + DBL_EPSILON), pc, err_amp_ratio));
+struct _CharToSymbol {
+    std::array<AlignmentSymbol, 128> data;
+    _CharToSymbol() {
+        for (int i = 0; i < 128; i++) {
+            data[i] = BASE_N;
+        }
+        data['A'] = data['a'] = BASE_A;
+        data['C'] = data['c'] = BASE_C;
+        data['G'] = data['g'] = BASE_G;
+        data['T'] = data['t'] = BASE_T;
+        data['I'] = data['i'] = LINK_M;
+        data['-'] = data['_'] = LINK_D1;
     }
 };
 
-// retrieved from https://en.wikipedia.org/wiki/Golden-section_search
-Any4Value
-gss(const auto & any4Value, double a, double b, double tol = 0.5) {
-    Any4Value ret(0, 0, 0, 0);
-    double invphi = (sqrt(5) - 1) / 2;
-    double invphi2 = (3 - sqrt(5)) / 2;
-    double h = b - a;
-    assert(h > tol);
+const _CharToSymbol CHAR_TO_SYMBOL;
+
+struct TumorKeyInfo {
+    std::string ref_alt;
+    // std::string FTS;
+    int32_t pos = 0;
+    
+    unsigned int BDP; // 
+    unsigned int bDP; // 
+    unsigned int CDP1v;
+    unsigned int cDP1v;
+    int cVQ1;
+    unsigned int CDP2v;
+    unsigned int cDP2v;
+    int cVQ2;
+
+    bcf1_t *bcf1_record = NULL;
     /*
-    if (h <= tol) {
-        return Any4Value(a, b, 0, 0);
+    ~TumorKeyInfo() {
+        if (bcf1_record != NULL) {
+            // this line must be elsewhere apparently due to the subtle differences between C and C++.
+            // bcf_destroy(bcf1_record);
+        }
     }
     */
-    int n = (int)(ceil(log(tol/h)/log(invphi)));
-    double c = a + invphi2 * h;
-    double d = a + invphi * h;
-    double yc = any4Value.to_phredlike(c);
-    double yd = any4Value.to_phredlike(d);
-    for (int k = 0; k < n - 1; k++) {
-        if (yc < yd) {
-            b = d;
-            d = c;
-            yd = yc;
-            h = invphi*h;
-            c = a + invphi2 * h;
-            yc = any4Value.to_phredlike(c);
-        } else {
-            a = c;
-            c = d;
-            yc = yd;
-            h = invphi*h;
-            d = a + invphi * h;
-            yd = any4Value.to_phredlike(d);
-        }
-    }
-    if (yc < yd) {
-        double ya = any4Value.to_phredlike(a);
-        double yb = any4Value.to_phredlike(b);
-        return Any4Value(a, b, ya, yb);
-    } else {
-        return Any4Value(c, d, yc, yd);
-    }
-}
+};
 
-double
-sumBQ4_to_phredlike(double & bestAddValue, 
-        double normalAllBQsum, double normalAltBQsum, double tumorAllBQsum, double tumorAltBQsum) {
-    Any4Value any4Value(normalAltBQsum, normalAllBQsum, tumorAltBQsum, tumorAllBQsum);
-    Any4Value argmin2_min2 = gss(any4Value, 1, 3 + tumorAltBQsum);
-    bestAddValue = argmin2_min2.v2;
-    return argmin2_min2.v4;
-}
-
-// This function is here for regression test
-// one-way conversion of information into other measures of information (based on information theory)
-// consensual means in the same MIG, 
-// homogeneity=0 means reads are completely independent (e.g. different DNA fragments), homogeneity=1 means reads are completely dependent (e.g. in the same MIG)
-template <bool TIsConsensual = true> 
-double
-_old_h01_to_phredlike(double h0pos, double h0tot, double h1pos, double h1tot, 
-        double pseudocount = 1, double homogeneity = (TIsConsensual ? 1 : 0), double err_amp_ratio = (TIsConsensual ? 2 : pow(2, 0.5))) {
-    assert(h0pos <  h0tot || !fprintf(stderr, "%lf <  %lf failed", h0pos, h0tot));
-    assert(h1pos <= h1tot || !fprintf(stderr, "%lf <= %lf failed", h1pos, h1tot));
-    assert(h0pos >  0     || !fprintf(stderr, "%lf >  %lf failed", h0pos, 0));
-    assert(h1pos >= 0     || !fprintf(stderr, "%lf >= %lf failed", h1pos, 0));
-    
-    double h1neg = h1tot - h1pos;
-    double h0freq = ((double)(h0pos)) / ((double)(h0tot));
-    double h1freq = ((double)(h1pos)) / ((double)(h1tot));
-    h0freq = MIN(h1freq, h0freq);
-    double kldiv;
-    if (TIsConsensual) {
-        kldiv = ((h1pos <= 0 ? 0 : h1pos * log(h1freq / h0freq)) + (h1neg <= 0 ? 0 : h1neg * log((1.0 - h1freq) / (1.0 - h0freq)))) / h1tot + DBL_EPSILON;
-    } else {
-        kldiv = ((h1pos <= 0 ? 0 : log(h1freq / h0freq))) + DBL_EPSILON;
+std::basic_string<AlignmentSymbol>
+string2symbolseq(const std::string & instring) {
+    std::basic_string<AlignmentSymbol> ret;
+    ret.reserve(instring.size());
+    for (size_t i = 0; i < instring.size(); i++) {
+        ret.push_back(CHAR_TO_SYMBOL.data[instring[i]]);
     }
-    assert(kldiv >= 0 || !fprintf(stderr, "kldiv value of %lf is found for (%lf , %lf , %lf , %lf ) and TIsConsensual=%d\n", kldiv, h0pos, h0tot, h1pos, h1tot, TIsConsensual));
-    // a * (1 -r^n) / (1-r) = m, n = math.log(m*(r-1)/a + 1, r)
-    double nreads = geometric_sum_to_nterms(h1pos, h0freq * h1tot + pseudocount, err_amp_ratio);
-    return (kldiv) * nreads * (10 / log(10));
-}
-
-#ifdef TEST_h01_to_phredlike
-int 
-main(int argc, char **argv) {
-    double result1 = _old_h01_to_phredlike<true>(10, 30000, 20, 30);
-    double result2 = h01_to_phredlike<true>(10, 30000, 20, 30, 1, 1.5);
-    printf("result12 = %f %f \n", result1, result2);
-    if (argc > 4) {
-        double a1 = atof(argv[1]);
-        double a2 = atof(argv[2]);
-        double b1 = atof(argv[3]); 
-        double b2 = atof(argv[4]);
-        double pc = atof(argv[5]);
-        double ear = atof(argv[6]);
-        double result1 = _old_h01_to_phredlike<false>(a1, a2, b1, b2, pc);
-        double result2 = h01_to_phredlike<false>(a1, a2, b1, b2, pc, ear);
-        printf("result12 = %f %f \n", result1, result2);
-    }
-}
-#endif
-
-double 
-dp4_to_sratio(double all_fw0, double all_rv0, double alt_fw0, double alt_rv0, double pseudocount = 1) {
-    assert(all_fw0 >= 0 - FLT_EPSILON);
-    assert(all_rv0 >= 0 - FLT_EPSILON);
-    assert(alt_fw0 >= 0 - FLT_EPSILON);
-    assert(alt_rv0 >= 0 - FLT_EPSILON);
-    double all_fw = all_fw0 + pseudocount;
-    double all_rv = all_rv0 + pseudocount;
-    double alt_fw = alt_fw0 + pseudocount;
-    double alt_rv = alt_rv0 + pseudocount;
-    double rawratio = (all_fw * alt_rv) / (all_rv * alt_fw);
-    double sumratio = rawratio + 1.0 / rawratio;
-    double allratio = MIN(all_fw, all_rv) / MAX(all_fw, all_rv);
-    double altratio = MIN(alt_fw, alt_rv) / MAX(alt_fw, alt_rv);
-    double ret = sumratio * allratio / altratio;
-    assert(0 < ret);
     return ret;
-}
+};
+
+enum SegFormatPrepSet {
+    SEG_a_DP,
+    SEG_a_INS_L,
+    SEG_a_INS_R,
+    SEG_a_DEL_L,
+    SEG_a_DEL_R,
+    SEG_a_XM,
+    SEG_a_LI,
+    SEG_a_LIDP,
+    SEG_a_RI,
+    SEG_a_RIDP,
+
+    SEG_FORMAT_PREP_SET_END,
+};
+#define NUM_SEG_FORMAT_PREP_SETS ((size_t)SEG_FORMAT_PREP_SET_END)
+
+enum SegFormatThresSet {
+    SEG_aEP1t, // edge position, closer means more bias
+    SEG_aEP2t, 
+    SEG_aXM1T, // mismatch, higher means more bias
+    SEG_aXM2T, 
+    SEG_aLI1T, // distance to left insert end, higher means more bias
+    SEG_aLI2T, 
+    SEG_aRI1T, // distance to right insert end
+    SEG_aRI2T, 
+    SEG_aLI1t, // distance to left insert end, lower means more bias
+    SEG_aLI2t, 
+    SEG_aRI1t, // distance to right insert end, lower means more bias
+    SEG_aRI2t,  
+    SEG_FORMAT_THRES_SET_END
+};
+#define NUM_SEG_FORMAT_THRES_SETS ((size_t)SEG_FORMAT_THRES_SET_END)
+
+enum SegFormatDepthSet {
+    SEG_aDPff,
+    SEG_aDPfr,
+    SEG_aDPrf,
+    SEG_aDPrr,
+    SEG_aEP1, // edge position
+    SEG_aEP2,
+    SEG_aXM1, // mismatch
+    SEG_aXM2,
+    SEG_aLIDP, 
+    SEG_aLI1, // left insert
+    SEG_aLI2,
+    SEG_aRIDP,
+    SEG_aRI1, // right insert
+    SEG_aRI2,
+    SEG_FORMAT_DEPTH_SET_END
+};
+#define NUM_SEG_FORMAT_DEPTH_SETS ((size_t)SEG_FORMAT_DEPTH_SET_END)
+
+enum FragFormatDepthSet {
+    FRAG_bDP, // raw
+    FRAG_FORMAT_DEPTH_SET_END
+};
+#define NUM_FRAG_FORMAT_DEPTH_SETS ((size_t)FRAG_FORMAT_DEPTH_SET_END)
+
+enum FamFormatDepthSet {
+    FAM_cDP1,  // raw 
+    FAM_cDP2, //  2, 0.8, family-consensus
+    FAM_cDP3, // 10, 0.8, family-consensus
+    FAM_cDPM, // duped match
+    FAM_cDPm, // duped mismatch
+    FAM_c1DP, //  singleton
+    /*
+    FAM_cDPr,  // raw 
+    FAM_cDP1r, //  0, 0.8 
+    FAM_cDP2r, //  2, 0.8, family-consensus
+    FAM_cDP3r, // 10, 0.8, family-consensus
+    FAM_cDPMr, // duped match
+    FAM_cDPmr, // duped mismatch
+    */
+    FAM_FORMAT_DEPTH_SET_END
+};
+#define NUM_FAM_FORMAT_DEPTH_SETS ((size_t)FAM_FORMAT_DEPTH_SET_END)
+
+enum DuplexFormatDepthSet {
+    DUPLEX_dDP1,  // raw
+    DUPLEX_dDP2, // double-strand consensus
+    DUPLEX_FORMAT_TAG_SET_END
+};
+#define NUM_DUPLEX_FORMAT_DEPTH_SETS ((size_t)DUPLEX_FORMAT_TAG_SET_END)
+
+// MIN(A-BQ-syserr-QUAL-bidir (onlyIllumina),
+//     B-MQ-QUAL,
+//     // precursor A-FA-QUAL,
+//     MAX(MIN(B-FA-QUAL (base0 ), B-DPQ-iiderr-QUAL), 
+//         MIN(C-FA-QUAL (base30), C-DPQ-iiderr-QUAL-bidir))
+//         MIN(D-FA-QUAL (base60), D-DPQ-iiderr-QUAL))
+enum VQFormatTagSet {
+    //VQ_aFA,  // bias // all in phred
+    //VQ_bFA,  // duped
+    //VQ_cFA,  // deduped
+    //VQ_cFA2, // consensus
+    //VQ_cFA3, // consensus
+    // VQ_uFA,  // unified
+    VQ_ASBQf,
+    VQ_ASBQr,
+    VQ_aSBQf,
+    VQ_aSBQr,
+        
+    VQ_bMQ,
+    // VQ_bMQVQ,
+    
+    VQ_bIAQb, // prefinal
+    VQ_bIADb, 
+    VQ_bIDQb,
+    
+    VQ_cIAQf,
+    VQ_cIADf,
+    VQ_cIDQf,
+    
+    VQ_cIAQr,
+    VQ_cIADr,
+    VQ_cIDQr,
+    
+    // later computed
+    VQ_aBQQ, // prefinal
+    // VQ_bIAQ, // prefinal
+    VQ_bIAQ, // prefinal
+    VQ_cIAQ, // prefinal
+    
+    VQ_aPLQ, // preprefinal
+    VQ_c1PLQ, // prefinal, deduped
+    VQ_c2PLQ, // prefinal, consensus-applied
+    VQ_dPLQ, // prefinal less priority
+    
+    VQ_C1DPv, // 100 times higher than expected
+    VQ_c1DPv, // 100 times higher than expected
+    VQ_c1VQ,  // final VarQual
+    VQ_C2DPv, // 100 times higher than expected
+    VQ_c2DPv, // ...
+    VQ_c2VQ,  // ...
+    
+    VQ_FORMAT_TAG_SET_END
+};
+#define NUM_VQ_FORMAT_TAG_SETS ((size_t)VQ_FORMAT_TAG_SET_END)
+
+unsigned int 
+seg_format_get_ad(const auto & s) {
+    return s[SEG_aDPff] + s[SEG_aDPfr] + s[SEG_aDPrf] + s[SEG_aDPrr];
+};
+
+unsigned int
+seg_format_get_avgBQ(const auto & s, const auto & q) {
+    return (q[VQ_aSBQf] + q[VQ_aSBQr]) / MAX(1, seg_format_get_ad(s));
+};
 
 double 
 dp4_to_pcFA(double aDPfw, double aDPrv, double aADfw, double aADrv, double refmul = 1.0, double altmul = 1.0, double powlaw_exponent = 3.0) {
     double sor = ((aADfw + 1) * (aDPrv + 1)) / ((aADrv + 1) * (aDPfw + 1));
-    double aADpc = 2.0 * (log(2.0) * powlaw_exponent) / log(1.0 + MAX(sor, 1.0 / sor));
+    double aADpc = MAX(0, 3 - log(MAX(sor, 1/sor)) / log(3));
+    // double aADpc = 2.0 * (log(2.0) * powlaw_exponent) / log(1.0 + MAX(sor, 1.0 / sor));
     double aFAfw = ((aADfw + aADpc) / altmul + 0.5) / ((aDPfw - aADfw + aADpc) / refmul + (aADfw + aADpc) / altmul + 1.0);
     double aFArv = ((aADrv + aADpc) / altmul + 0.5) / ((aDPrv - aADrv + aADpc) / refmul + (aADrv + aADpc) / altmul + 1.0);
     return MIN(aFAfw, aFArv);
@@ -565,58 +565,70 @@ prob2phred(const double probvalue) {
     return floor(-10 * log(probvalue) / log(10));
 }
 
-const unsigned int 
-phred2bucket(const unsigned int phredvalue) {
-    assert(phredvalue < NUM_BUCKETS);
-    return phredvalue;
-    // With MIN(32-1, phredvalue / 2) we may some some resolution
-    // 0 - 8 -> 1, 8 - 40 -> 2, 40 - .. -> 4 ; 
-    //  0 - 10 : 1 -> 10
-    // 10 - 20 : 2 -> 5
-    // 20 - 30 : 1 -> 10
-    // 30 - 40 : 2 -> 5
-    // 40 - 60 : 4 -> 5
-    // Another binning schme is : floor(20 * log(phredvalue + 1) / log(10))
+const double 
+prob2realphred(const double probvalue) {
+    return -10 * log(probvalue) / log(10);
 }
 
-const unsigned int 
-bucket2phred(const unsigned int bucketvalue) {
-    return bucketvalue;
+void
+process_cigar(auto & qpos, auto & rpos, uint32_t cigar_op, uint32_t cigar_oplen) {
+    if (cigar_op == BAM_CREF_SKIP) {
+        rpos += cigar_oplen;
+    } else if (cigar_op == BAM_CSOFT_CLIP) {
+        qpos += cigar_oplen;
+    } else if (cigar_op == BAM_CHARD_CLIP) {
+        // pass
+    } else if (cigar_op == BAM_CPAD) {
+        // pass
+    } else if (cigar_op == BAM_CBACK) {
+        throw -1;
+    } else {
+        throw -2;
+    }
 }
 
-struct _PhredToErrorProbability {
-    const unsigned int CONST2POW16 = 256*256;
-    double data[128];
-    uint32_t over2pow16[128];
-    _PhredToErrorProbability() {
-        for (int i = 0; i < 128; i++) {
-            this->data[i] = phred2prob(i);
-            this->over2pow16[i] = ceil(this->data[i] * CONST2POW16);
+// variant-call math functions
+
+#define NUM_BUCKETS 16
+
+unsigned int
+proton_cigarlen2phred(unsigned int cigarlen) {
+    unsigned int oplen2cigar[7] = {0, 7, 13, 18, 22, 25, 27};
+    return oplen2cigar[MIN(cigarlen, 6)];
+}
+
+unsigned int 
+infer_max_qual_assuming_independence(
+        int & maxvqual,
+        unsigned int & argmaxAD,
+        unsigned int & argmaxBQ,
+        unsigned int max_qual, 
+        unsigned int dec_qual,
+        const std::array<uint32_t, NUM_BUCKETS> & qual_distr, 
+        const unsigned int totDP,
+        unsigned int specialflag) {
+    
+    int currvqual = 0;
+    unsigned int currAD = 0;
+    maxvqual = 0; 
+    argmaxAD = 0;
+    argmaxBQ = 0;
+    for (unsigned int idx = 0; idx < MIN(NUM_BUCKETS, max_qual / dec_qual); idx++) {
+        const auto currQD = qual_distr[idx];
+        if (0 == currQD) { continue; }
+        currAD += qual_distr[currQD];
+        auto currBQ = max_qual - (dec_qual * idx);
+        double expBQ = 10.0 / log(10.0) * log((double)currAD / (double)totDP);
+        currvqual = (int)(currAD * (currBQ - expBQ));
+        if (currvqual > maxvqual) {
+            argmaxAD = currAD;
+            argmaxBQ = expBQ;
+            maxvqual = currvqual;
         }
     }
-};
-
-const _PhredToErrorProbability THE_PHRED_TO_ERROR_PROBABILITY;
-
-std::string
-string_join(auto container, std::string sep = std::string(",")) {
-    std::string ret = "";
-    for (auto e : container) {
-        ret += e + sep;
-    }
-    ret.pop_back();
-    return ret;
 }
 
-std::string 
-other_join(auto container, std::string sep = std::string(",")) {
-    std::string ret = "";
-    for (auto e : container) {
-        ret += std::to_string(e) + sep;
-    }
-    ret.pop_back();
-    return ret;
-}
+
 
 #endif
 

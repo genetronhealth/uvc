@@ -166,7 +166,7 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
         "Every variant that satisfies this minimum variant quality is in the <--output> file. ");
     app.add_flag(
         "-A,--All-out", 
-           should_let_all_pass, 
+           should_output_all, 
         "All possible alleles including REF allele at each position is in <--output>. The output is base-pair resolution VCF. ");
     ADD_OPTDEF(app, 
         "-d,--min-depth", 
@@ -213,6 +213,10 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
         "--mapqual", 
            min_mapqual,
         "Minimum mapping quality below which the alignment is filtered out. ");
+    ADD_OPTDEF(app, 
+        "--v-min-alldp", 
+           vdp,
+        "Every variant at each locus with at least this total depth is in the -o file. ");
     ADD_OPTDEF(app, 
         "--v-min-altdp", 
            vad,

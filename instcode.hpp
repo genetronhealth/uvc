@@ -43,7 +43,7 @@ fill_by_indel_info2_2
 #if INDEL_ID == 1
         const std::string indelstring = indel2data4.first;
 #else
-        const std::string indelstring = refchars.substr(refpos - symbol2CountCoverageSet.duplex_tsum_depth.getIncluBegPosition(), indel2data4.first); 
+        const std::string indelstring = refchars.substr(refpos - symbol2CountCoverageSet.getUnifiedIncluBegPosition(), indel2data4.first); 
 #endif
         if (indelstring.size() == 0) {
             continue;
@@ -57,7 +57,8 @@ fill_by_indel_info2_2
     unsigned int gapbAD1sum = 0;
     unsigned int gapcAD1sum = 0;
     std::sort(bqfq_depth_mutform_tuples.rbegin(), bqfq_depth_mutform_tuples.rend());
-    fmt.gapNum[strand] = bqfq_depth_mutform_tuples.size();
+    auto & gapN = ((0 == strand) ? fmt.gapNf : fmt.gapNr);
+    gapN.push_back(bqfq_depth_mutform_tuples.size());
     unsigned int prev_gapseq_len = 0;
     unsigned int prev_gap_cAD = 0;
     unsigned int maxdiff = 0; 

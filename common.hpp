@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-#define NUM_BUCKETS (64+8)
+//#define NUM_BUCKETS (64+8)
 #define SIGN2UNSIGN(a) ((unsigned int)(a))
 
 #define VCFQUAL_NUM_BINS 120 // max vcfqual is at 105, so vcfqual that is higher than the max is reserved

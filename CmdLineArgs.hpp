@@ -23,7 +23,7 @@ struct CommandLineArgs {
     uint32_t outvar_flag = OUTVAR_SOMATIC + OUTVAR_ANY + OUTVAR_NONREF; // 4 anyvar, 2 somatic, 1 germline
     bool somaticGT = true;
     bool is_tumor_format_retrieved = false;
-    bool should_let_all_pass = false;
+    bool should_output_all = false;
     bool disable_dup_read_merge = false;
     bool  enable_dup_read_vqual = true; // set to false can result in about 10% increase in false positive (FP) variants at around 1 FP/kilobase rate.
     bool disable_duplex = false;
@@ -73,6 +73,7 @@ struct CommandLineArgs {
     double      phred_umi_dimret_mult_indel = 0.75; // 0.4;
     double      phred_snv_to_indel_ratio = 10.0;
     double      vqual = (double)15; // 10; set to 20 for less output
+    uint32_t    vdp = (uint32_t)INT_MAX;
     uint32_t    vad = (uint32_t)INT_MAX;
     uint32_t    minABQ_pcr_snv = 0;
     uint32_t    minABQ_pcr_indel = 0;
