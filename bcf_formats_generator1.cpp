@@ -138,12 +138,18 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     //BcfFormatStruct("OType"    , 1, BCF_STRING,  "The non-reference allele type with the most evidence other than the ALT allele type of this record"),
     //BcfFormatStruct("ORAQs"    , 2, BCF_FLOAT,   "Qualities of OType and reference allele type"),
         
-    BcfFormatStruct("__A0"  , 1,         BCF_SEP,     "Threshold for each type of bias (tier-1 means weak bias and tier-2 means strong bias)."),
-    BcfFormatStruct("A8"    , 8,         BCF_INTEGER, "sequencing-segment total depth, left//right insertion biases, left/right deletion biases, and average XM/LI/RI."),
+    BcfFormatStruct("__Aa"  , 1,         BCF_SEP,     "Preparation statistics for segment biases at this position."),
+    BcfFormatStruct("APDP"  , 1,         BCF_INTEGER, "Total segment depth"),
+    BcfFormatStruct("APGap" , 4,         BCF_INTEGER, "Estimated average numbers of insertion to the left and right sides (LRS) and of deletion to the LRS."),
+    BcfFormatStruct("APXM"  , 1,         BCF_INTEGER, "Average number of mismatches."),
+    BcfFormatStruct("APLRI" , 4,         BCF_INTEGER, "Summed distance to left insert end and the number of such inserts, and similarly for right insert end."),
+
+    BcfFormatStruct("__Ab"  , 1,         BCF_SEP,     "Threshold for each type of bias (tier-1 means weak bias and tier-2 means strong bias)."),
+
     BcfFormatStruct("AEPT"  , 2,         BCF_INTEGER, "Number of bases to read-segment end for tier-1 and tier-2 edge position bias."),
     BcfFormatStruct("AXMT"  , 2,         BCF_INTEGER, "Number of mismatches on read-segment for tier-1 and tier-2 mismatch bias."),
-    BcfFormatStruct("ALIT"  , 2,         BCF_INTEGER, "Number of bases to left insert end for tier-1 and tier-2 left insert bias."),
-    BcfFormatStruct("ARIT"  , 2,         BCF_INTEGER, "Number of bases to right insert end for tier-1 and tier-2 right insert bias."),
+    BcfFormatStruct("ALIT"  , 4,         BCF_INTEGER, "Number of bases to left insert end for tier-1 and tier-2 left insert bias."),
+    BcfFormatStruct("ARIT"  , 4,         BCF_INTEGER, "Number of bases to right insert end for tier-1 and tier-2 right insert bias."),
     
     BcfFormatStruct("__A1"  , 1,         BCF_SEP,     "Depths of the raw sequencing segments for (all alleles) and (the padded deletion allele)."),
     BcfFormatStruct("ADPff" , 2,         BCF_INTEGER, "Raw sequencing segment depth with the R1-forward orientation and strand."),
@@ -155,6 +161,7 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("AEP2"  , 2,         BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 edge position bias."),
     BcfFormatStruct("AXM1"  , 2,         BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 mismatch bias."),
     BcfFormatStruct("AXM2"  , 2,         BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 mismatch bias."),
+    BcfFormatStruct("__A3"  , 1,         BCF_SEP,     "As before."),
     BcfFormatStruct("ALI1"  , 2,         BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 insert bias on the left side."),
     BcfFormatStruct("ALI2"  , 2,         BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 insert bias on the right side."),
     BcfFormatStruct("ARI1"  , 2,         BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 insert bias on the left side."),
@@ -170,6 +177,7 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("aEP2"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 edge position bias."),
     BcfFormatStruct("aXM1"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 mismatch bias."),
     BcfFormatStruct("aXM2"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 mismatch bias."),
+    BcfFormatStruct("__a3"  , 1,         BCF_SEP,     "As before."),
     BcfFormatStruct("aLI1"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 insert bias on the left side."),
     BcfFormatStruct("aLI2"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 insert bias on the right side."),
     BcfFormatStruct("aRI1"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 insert bias on the left side."),
@@ -228,30 +236,36 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     // BcfFormatStruct("bMQQ"  , BCF_NUM_R, BCF_INTEGER, "Duplex depth with allele disagreement on the two strands for (all alleles) and (the padded deletion allele)."),
    
     BcfFormatStruct("__e2"  , 1,         BCF_SEP,     "Quality-related variables assuming read supports are IID (IID: independent and identically distributed) for duped reads."),
-    BcfFormatStruct("bIAQb" , BCF_NUM_R, BCF_INTEGER, "IID allele quality maximized with IAD and IDQ."),
+    BcfFormatStruct("bIAQb" , BCF_NUM_R, BCF_SIG_INT, "IID allele quality maximized with IAD and IDQ."),
     BcfFormatStruct("bIADb" , BCF_NUM_R, BCF_INTEGER, "IID allele depth (number of reads supporting each ALT)"),
-    BcfFormatStruct("bIDQb" , BCF_NUM_R, BCF_INTEGER, "IDD quality threshold per read support."),
+    BcfFormatStruct("bIDQb" , BCF_NUM_R, BCF_SIG_INT, "IDD quality threshold per read support."),
     
-    BcfFormatStruct("__e3"   , 1,         BCF_SEP,     "Quality-related variables assuming read supports are IID for deduped reads."),
-    BcfFormatStruct("cIAQf" , BCF_NUM_R, BCF_INTEGER, "IID allele quality maximized with IAD and IDQ on the forward read orientation."),
+    BcfFormatStruct("__e3"  , 1,         BCF_SEP,     "Quality-related variables assuming read supports are IID for deduped reads."),
+    BcfFormatStruct("cIAQf" , BCF_NUM_R, BCF_SIG_INT, "IID allele quality maximized with IAD and IDQ on the forward read orientation."),
     BcfFormatStruct("cIADf" , BCF_NUM_R, BCF_INTEGER, "IID allele depth (number of reads supporting each ALT) on the forward read orientation."),
-    BcfFormatStruct("cIDQf" , BCF_NUM_R, BCF_INTEGER, "IDD quality threshold per read support on the forward read orientation."),
-    BcfFormatStruct("cIAQr" , BCF_NUM_R, BCF_INTEGER, "IID allele quality maximized with IAD and IDQ on the reverse read orientation."),
-    BcfFormatStruct("cIADr" , BCF_NUM_R, BCF_INTEGER, "IID allele depth (number of reads supporting each ALT) on the reverse read orientation."),
-    BcfFormatStruct("cIDQr" , BCF_NUM_R, BCF_INTEGER, "IDD quality threshold per read support on the reverse read orientation."),
+    BcfFormatStruct("cIDQf" , BCF_NUM_R, BCF_SIG_INT, "IDD quality threshold per read support on the forward read orientation."),
     
-    BcfFormatStruct("__e4"   , 1,         BCF_SEP,     "Power-law variant qualities."),
+    BcfFormatStruct("__e4"  , 1,         BCF_SEP,     "Quality-related variables assuming read supports are IID for deduped reads."),
+    BcfFormatStruct("cIAQr" , BCF_NUM_R, BCF_SIG_INT, "IID allele quality maximized with IAD and IDQ on the reverse read orientation."),
+    BcfFormatStruct("cIADr" , BCF_NUM_R, BCF_INTEGER, "IID allele depth (number of reads supporting each ALT) on the reverse read orientation."),
+    BcfFormatStruct("cIDQr" , BCF_NUM_R, BCF_SIG+INT, "IDD quality threshold per read support on the reverse read orientation."),
+    
+    BcfFormatStruct("__e5"  , 1,         BCF_SEP,     "Power-law variant qualities."),
     //BcfFormatStruct("aPLQ"  , BCF_NUM_A, BCF_INTEGER, "The sequencing-segment power-law variant quality."),
-    BcfFormatStruct("bIAQ"  , BCF_NUM_R, BCF_INTEGER, "The duped fragment binomial variant quality by assuming statistical independence."),
-    BcfFormatStruct("cIAQ"  , BCF_NUM_R, BCF_INTEGER, "The deduplicated fragment binomial variant quality by assuming statistical independence."),
+    BcfFormatStruct("bIAQ"  , BCF_NUM_R, BCF_SIG_INT, "The duped fragment binomial variant quality by assuming statistical independence."),
+    BcfFormatStruct("cIAQ"  , BCF_NUM_R, BCF_SIG_INT, "The deduplicated fragment binomial variant quality by assuming statistical independence."),
+    
+    BcfFormatStruct("__e6"  , 1,         BCF_SEP,     "Power-law variant quality statistics for deduped read fragments."),
     BcfFormatStruct("cPLQ1" , BCF_NUM_R, BCF_SIG_INT, "The deduplicatd read fragment power-law variant allele quality."),
     BcfFormatStruct("cVQ1"  , BCF_NUM_R, BCF_SIG_INT, "The final variant quality computed with deduplicated read fragments."),
     BcfFormatStruct("cDP1v" , BCF_NUM_R, BCF_INTEGER, "The effective number of deduplicated read fragments supporting each allele multiplied by 100."),
-    BcfFormatStruct("CDP1v" , BCF_NUM_R, BCF_INTEGER, "The effective number of deduplicated read fragments supporting all alleles multiplied by 100."),
+    BcfFormatStruct("CDP1v" , 2        , BCF_INTEGER, "The effective number of deduplicated read fragments supporting all alleles multiplied by 100."),
+    
+    BcfFormatStruct("__e7"  , 1,         BCF_SEP,     "Power-law variant quality statistics for consensus barcode families."),
     BcfFormatStruct("cPLQ2" , BCF_NUM_R, BCF_SIG_INT, "The single-strand-consensus-sequence (SSCS) UMI-barcoded power-law variant allele quality."),
     BcfFormatStruct("cVQ2"  , BCF_NUM_R, BCF_SIG_INT, "The final variant allele quality computed with SSCS UMI-barcoded families"),
     BcfFormatStruct("cDP2v" , BCF_NUM_R, BCF_INTEGER, "The effective number of SSCS UMI-barcoded families supporting each allele multiplied by 100."),
-    BcfFormatStruct("CDP2v" , BCF_NUM_R, BCF_INTEGER, "The effective number of SSCS UMI-barcoded families supporting all alleles multiplied by 100."), // TODO: implement?
+    BcfFormatStruct("CDP2v" , 2        , BCF_INTEGER, "The effective number of SSCS UMI-barcoded families supporting all alleles multiplied by 100."), // TODO: implement?
     // BcfFormatStruct("dPLQ"  , BCF_NUM_A, BCF_INTEGER, "The double-strand-consensus-sequence (DSCS) power-law variant quality."),
     
     BcfFormatStruct("__gap"  , 1,        BCF_SEP,     "InDel-related information."), 
@@ -372,7 +386,7 @@ main(int argc, char **argv) {
             if (0 == fmt.number) { assert (CPP_DATA_STRING[fmt.type] == std::string("bool")); }
             std::cout << "    " << CPP_DATA_STRING[fmt.type] << " " << fmt.id << " = " << CPP_DATA_VALUES[fmt.type] << ";" << "\n";
         } else if (1 < fmt.number) {
-            std::cout << "    std::array <" << CPP_DATA_STRING[fmt.type] << ", " << fmt.number << ">" << fmt.id << ";" << "\n";
+            std::cout << "    std::array <" << CPP_DATA_STRING[fmt.type] << ", " << fmt.number << ">" << fmt.id << " = {{" << CPP_DATA_VALUES[fmt.type] << "}};" << "\n";
         } else {
             std::cout << "    std::vector<" << CPP_DATA_STRING[fmt.type] << ">" << fmt.id << ";" << "\n";
         }
@@ -394,25 +408,31 @@ main(int argc, char **argv) {
             std::cout << "        if (0 != i) { outstring += \",\"; }; outstring += " << (fmt.type == BCF_STRING ? "" : "std::to_string") 
                     << "(" << "fmt." << fmt.id << "[i]" << ");\n";
             std::cout << "    };\n";
+            /*
             if (BCF_STRING == fmt.type) {
                 std::cout << "        if (fmt. " << fmt.id << ".size() == 1 && fmt." << fmt.id << "[0].size() == 0) { outstring += \",\"; };";
             }
             if (BCF_NUM_D == fmt.type) {
                 std::cout << "        if (fmt. " << fmt.id << "[0].size() == 0) { outstring += \"0\"; };";
             }
+            */
         }
         itnum++;
     }
     std::cout << "\n    return 0;};\n";
     
+    std::cout << "#include <assert.h>\n";
     std::cout << "static int streamFrontPushBcfFormatR(BcfFormat & dst, const BcfFormat & src) {\n";
+    
     for (auto fmt : FORMAT_VEC) {
-        if (BCF_NUM_R == fmt.type) {
-            std::cout << "    assert(dst.field.size() == 1);\n";
-            std::cout << "    assert(src.field.size() == 1);\n";
-            std::cout << "    auto x = dst." << fmt.id << "[0];\n";
+        if (BCF_NUM_R == fmt.number) {
+            std::cout << "    assert(dst." << fmt.id << ".size() == 1 || !fprintf(stderr, \"\%d == 1 failed for " << fmt.id 
+                    << "\", dst." << fmt.id << ".size() ) );\n";
+            std::cout << "    assert(src." << fmt.id << ".size() == 1 || !fprintf(stderr, \"\%d == 1 failed for " << fmt.id 
+                    << "\", src." << fmt.id << ".size() ) );\n";
+            std::cout << "    auto " << fmt.id << "_tmp = dst." << fmt.id << "[0];\n";
             std::cout << "    dst." << fmt.id << "[0] = src." << fmt.id << "[0];\n";
-            std::cout << "    dst." << fmt.id << ".push_back(x);\n";
+            std::cout << "    dst." << fmt.id << ".push_back(" << fmt.id << "_tmp);\n";
         }
     }
     std::cout << "\n    return 0;};\n";

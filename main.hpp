@@ -218,6 +218,12 @@ const AlignmentSymbol SYMBOL_TYPE_TO_AMBIG[NUM_SYMBOL_TYPES] = {
     [LINK_SYMBOL] = LINK_NN,
 };
 
+// Warning: misuse can cause arr-out-of-bound error
+const AlignmentSymbol SYMBOL_TYPE_TO_NO_VAR_SYMBOL[NUM_SYMBOL_TYPES] = {
+    [BASE_SYMBOL] = BASE_NO_SNV,
+    [LINK_SYMBOL] = LINK_NO_INDEL,
+};
+
 const std::array<SymbolType, 2> SYMBOL_TYPES_IN_VCF_ORDER = {{LINK_SYMBOL, BASE_SYMBOL}};
 
 bool 
@@ -275,6 +281,8 @@ const char* SYMBOL_TO_DESC_ARR[] = {
     [LINK_I3P] = "<LI3P>", [LINK_I2] = "<LI2>", [LINK_I1] = "<LI1>",
     [LINK_NN] = "*",
     [END_ALIGNMENT_SYMBOLS] = "<ALN_SYMBOL_END>",
+    [BASE_NO_SNV] = "<NO_SNV>",
+    [LINK_NO_INDEL] = "<NO_INDEL>"
 };
 
 const std::map<std::string, AlignmentSymbol>
@@ -1144,7 +1152,7 @@ update_seg_format_thres_from_prep_sets(
                 region_repeatvec[MIN(epos-region_offset, region_repeatvec.size()-2) + 1].tracklen,
                 region_repeatvec[epos-region_offset].tracklen);
         
-        assert(seg_format_prep_sets.getByPos(epos)[SEG_a_LIDP] + seg_format_prep_sets.getByPos(epos)[SEG_a_RIDP] > 0);
+        // assert(seg_format_prep_sets.getByPos(epos)[SEG_a_LIDP] + seg_format_prep_sets.getByPos(epos)[SEG_a_RIDP] > 0);
         auto segLIDP = MAX(seg_format_prep_sets.getByPos(epos)[SEG_a_LIDP], 1);
         auto segRIDP = MAX(seg_format_prep_sets.getByPos(epos)[SEG_a_RIDP], 1);
         seg_format_thres_sets.getRefByPos(epos)[SEG_aEP1t] = MAX(indel_len_per_DP * 2, potential_indel_len) + 20;
@@ -1196,17 +1204,17 @@ dealwith_seg_regbias(
     // const auto aBQidx = (isrc ? SEG_aBQa : SEG_aBQb);
     // symbol_to_seg_format_depth_set[SEG_aBQa] += 1;
     
-    if ((seg_l_nbases < seg_format_thres_set[SEG_aEP1t]) || (seg_r_nbases < seg_format_thres_set[SEG_aEP1t])) {
+    if ((seg_l_nbases >= seg_format_thres_set[SEG_aEP1t]) || (seg_r_nbases >= seg_format_thres_set[SEG_aEP1t])) {
         symbol_to_seg_format_depth_set[SEG_aEP1] += 1; // unmerged position quality
     }
-    if ((seg_l_nbases < seg_format_thres_set[SEG_aEP2t]) || (seg_r_nbases < seg_format_thres_set[SEG_aEP2t])) {
+    if ((seg_l_nbases >= seg_format_thres_set[SEG_aEP2t]) || (seg_r_nbases >= seg_format_thres_set[SEG_aEP2t])) {
         symbol_to_seg_format_depth_set[SEG_aEP2] += 1;
     }
     
-    if (xm150 >= seg_format_thres_set[SEG_aXM1T]) {
+    if (xm150 <= seg_format_thres_set[SEG_aXM1T]) {
         symbol_to_seg_format_depth_set[SEG_aXM1] += 1; // unmerged base quality
     } 
-    if (xm150 >= seg_format_thres_set[SEG_aXM2T]) {
+    if (xm150 <= seg_format_thres_set[SEG_aXM2T]) {
         symbol_to_seg_format_depth_set[SEG_aXM2] += 1;
     }
     
@@ -1824,7 +1832,8 @@ struct Symbol2CountCoverageSet {
                 }
             }
         }
-        assert(this->symbol_to_seg_format_depth_sets.getExcluEndPosition() - this->symbol_to_seg_format_depth_sets.getIncluBegPosition() == dedup_ampDistr.size());
+        assert(this->symbol_to_seg_format_depth_sets.getIncluBegPosition() == this->dedup_ampDistr[0].getIncluBegPosition());
+        assert(this->symbol_to_seg_format_depth_sets.getExcluEndPosition() == this->dedup_ampDistr[0].getExcluEndPosition());
         for (unsigned int epos = this->getUnifiedIncluBegPosition(); epos < this->getUnifiedExcluEndPosition(); epos++) {
             for (SymbolType symbolType : SYMBOL_TYPE_ARR) {
                 for (AlignmentSymbol symbol : SYMBOL_TYPE_TO_SYMBOLS[symbolType]) {
@@ -1845,7 +1854,7 @@ struct Symbol2CountCoverageSet {
                             argmaxBQ,
                             max_qual,
                             1, 
-                            dedup_ampDistr[0].getByPos(epos).getSymbolCounts(symbol),
+                            this->dedup_ampDistr[0].getByPos(epos).getSymbolCounts(symbol),
                             totDP,
                             0);
                     this->symbol_to_VQ_format_tag_sets.getRefByPos(epos)[symbol][VQ_bIAQb] += maxvqual;
@@ -1961,7 +1970,7 @@ struct Symbol2CountCoverageSet {
                 if (alns2.size() == 0) { continue; }
                 uint32_t tid2, beg2, end2;
                 fillTidBegEndFromAlns2(tid2, beg2, end2, alns2);
-                Symbol2CountCoverage read_family_amplicon(tid2, beg2, end2);
+                Symbol2CountCoverage read_family_mmm_ampl(tid2, beg2, end2);
                 Symbol2CountCoverage read_family_con_ampl(tid2, beg2, end2);
                 for (const auto & aln_vec : alns2) {
                     uint32_t tid1, beg1, end1;
@@ -1976,26 +1985,26 @@ struct Symbol2CountCoverageSet {
                             region_symbolvec, 
                             region_repeatvec,
                             0);
-                    // The line below is similar to : read_family_amplicon.updateByConsensus<SYMBOL_COUNT_SUM>(read_ampBQerr_fragWithR1R2);
+                    // The line below is similar to : read_family_mmm_ampl.updateByConsensus<SYMBOL_COUNT_SUM>(read_ampBQerr_fragWithR1R2);
                     read_family_con_ampl.template updateByConsensus</*SYMBOL_COUNT_SUM,*/ true>(read_ampBQerr_fragWithR1R2);
                     //if (is_proton) { 
-                    read_family_amplicon.updateByMajorMinusMinor(read_ampBQerr_fragWithR1R2); 
+                    read_family_mmm_ampl.updateByMajorMinusMinor(read_ampBQerr_fragWithR1R2, false); 
                     //}
                 }
                 if ((2 == alns2pair2dflag.second) && alns2pair[0].size() > 0 && alns2pair[1].size() > 0) { // is duplex
-                    read_duplex_amplicon.template updateByConsensus</*SYMBOL_COUNT_SUM,*/ false>(read_family_amplicon);
+                    read_duplex_amplicon.template updateByConsensus</*SYMBOL_COUNT_SUM,*/ false>(read_family_mmm_ampl);
                 }
                 std::basic_string<std::pair<unsigned int, AlignmentSymbol>> pos_symbol_string;
                 //std::vector<std::array<AlignmentSymbol, NUM_SYMBOL_TYPES>> con_symbols_vec(
-                //        read_family_amplicon.getExcluEndPosition() - read_family_amplicon.getIncluBegPosition(),
+                //        read_family_mmm_ampl.getExcluEndPosition() - read_family_mmm_ampl.getIncluBegPosition(),
                 //        std::array<AlignmentSymbol, NUM_SYMBOL_TYPES>({END_ALIGNMENT_SYMBOLS, END_ALIGNMENT_SYMBOLS}));
-                for (size_t epos = read_family_amplicon.getIncluBegPosition(); 
-                        epos < read_family_amplicon.getExcluEndPosition(); 
+                for (size_t epos = read_family_mmm_ampl.getIncluBegPosition(); 
+                        epos < read_family_mmm_ampl.getExcluEndPosition(); 
                         epos++) {
                     for (SymbolType symbolType : SYMBOL_TYPES_IN_VCF_ORDER) {
                         AlignmentSymbol con_symbol; // = END_ALIGNMENT_SYMBOLS;
                         unsigned int con_count, tot_count;
-                        read_family_amplicon.getRefByPos(epos).fillConsensusCounts(con_symbol, con_count, tot_count, symbolType);
+                        read_family_mmm_ampl.getRefByPos(epos).fillConsensusCounts(con_symbol, con_count, tot_count, symbolType);
                         if (0 == tot_count) { continue; }
                         
                         unsigned int majorcount = this->symbol_to_fam_format_depth_sets_2strand[strand].getByPos(epos).at(con_symbol).at(FAM_cDPM);
@@ -2033,12 +2042,12 @@ struct Symbol2CountCoverageSet {
                         if (isSymbolIns(con_symbol)) {
                             posToIndelToCount_updateByConsensus(
                                     this->symbol_to_fam_format_depth_sets_2strand[strand].getRefPosToIseqToData(con_symbol),
-                                    read_family_amplicon.getPosToIseqToData(con_symbol), epos, 1);
+                                    read_family_con_ampl.getPosToIseqToData(con_symbol), epos, 1);
                         }
                         if (isSymbolDel(con_symbol)) {
                             posToIndelToCount_updateByConsensus(
                                     this->symbol_to_fam_format_depth_sets_2strand[strand].getRefPosToDlenToData(con_symbol),
-                                    read_family_amplicon.getPosToDlenToData(con_symbol), epos, 1);
+                                    read_family_con_ampl.getPosToDlenToData(con_symbol), epos, 1);
                         }
                     }
                 }
@@ -2068,8 +2077,8 @@ struct Symbol2CountCoverageSet {
             }
         }
         for (unsigned int strand = 0; strand < 2; strand++) {
-            assert(this->symbol_to_fam_format_depth_sets_2strand[strand].getExcluEndPosition() == dedup_ampDistr[strand].getExcluEndPosition());
-            assert(this->symbol_to_fam_format_depth_sets_2strand[strand].getIncluBegPosition() == dedup_ampDistr[strand].getIncluBegPosition()); 
+            assert(this->symbol_to_fam_format_depth_sets_2strand[strand].getExcluEndPosition() == this->dedup_ampDistr[strand].getExcluEndPosition());
+            assert(this->symbol_to_fam_format_depth_sets_2strand[strand].getIncluBegPosition() == this->dedup_ampDistr[strand].getIncluBegPosition()); 
             auto VQ_cIAQ = (strand ? VQ_cIAQr : VQ_cIAQf);
             auto VQ_cIAD = (strand ? VQ_cIADr : VQ_cIADf);
             auto VQ_cIDQ = (strand ? VQ_cIDQr : VQ_cIDQf);
@@ -2136,27 +2145,15 @@ struct Symbol2CountCoverageSet {
             unsigned int bq_phred_added_misma, 
             unsigned int bq_phred_added_indel, 
             bool should_add_note, 
-            // const unsigned int frag_indel_ext, 
             const unsigned int frag_indel_basemax,
             const PhredMutationTable & phred_max_sscs_table, 
-            //unsigned int phred_thres,
-            //const double ess_georatio_dedup, 
-            //const double ess_georatio_duped_pcr,
             bool use_deduplicated_reads, 
             // bool is_loginfo_enabled, 
             // unsigned int thread_id, 
-            // unsigned int fixedthresBQ, 
-            // unsigned int nogap_phred,
-            // unsigned int highqual_thres_snv, 
-            // unsigned int highqual_thres_indel, 
-            // unsigned int uni_bias_r_max,
             const bool is_proton, 
             // const AssayType assay_type, // unused?
             const unsigned int phred_indel_error_before_barcode_labeling,
             const unsigned int baq_per_aligned_base,
-            // const unsigned int regside_nbases,
-            // const uint32_t bias_flag_snv,
-            // const uint32_t bias_flag_indel,
             const unsigned int specialflag = 0) {
         
         const std::array<unsigned int, NUM_SYMBOL_TYPES> symbolType2addPhred = {{bq_phred_added_misma, bq_phred_added_indel}};
@@ -2246,10 +2243,10 @@ fill_symbol_VQ_fmts(
     int a_BQ_syserr_qual_fw = (int)(fmt.aSBQf[a] * 2 + fmt.aSBQr[a]) - (int)(22 * ((fmt.aDPff[a] + fmt.aDPrf[a]) * 2 + (fmt.aDPfr[a] + fmt.aDPrr[a])));
     int a_BQ_syserr_qual_rv = (int)(fmt.aSBQf[a] + fmt.aSBQr[a] * 2) - (int)(22 * ((fmt.aDPff[a] + fmt.aDPrf[a]) + (fmt.aDPfr[a] + fmt.aDPrr[a]) * 2));
     int a_BQ_avg_qual = (int)(fmt.aSBQf[a] + fmt.aSBQr[a]) - (int)(22 * (fmt.aDPff[a] + fmt.aDPrf[a] + fmt.aDPfr[a] + fmt.aDPrr[a]));
-    int a_BQ_syserr_qual = MAX3(a_BQ_syserr_qual_fw, a_BQ_syserr_qual_rv, a_BQ_avg_qual);
+    // int a_BQ_syserr_qual = MAX3(a_BQ_syserr_qual_fw, a_BQ_syserr_qual_rv, a_BQ_avg_qual);
     clear_push(fmt.aBQQ, (MAX(a_BQ_syserr_qual_fw, a_BQ_syserr_qual_rv)), a);
     fill_symbol_fmt(fmt.bMQ,  symbol_to_VQ_format_tag_sets,  VQ_bMQ,  refpos, symbol, a);
-    fmt.bMQ[a] = fmt.bMQ[a] / SQR_QUAL_DIV / MAX(fmt.bDPf[a] + fmt.bDPr[a], 1);
+    fmt.bMQ[a] = (unsigned int)floor(sqrt(fmt.bMQ[a] * SQR_QUAL_DIV / MAX(fmt.bDPf[a] + fmt.bDPr[a], 1) + 0.5));
     
     fill_symbol_fmt(fmt.bIAQb, symbol_to_VQ_format_tag_sets, VQ_bIAQb, refpos, symbol, a);
     fill_symbol_fmt(fmt.bIADb, symbol_to_VQ_format_tag_sets, VQ_bIADb, refpos, symbol, a);
@@ -2275,6 +2272,19 @@ BcfFormat_symboltype_init(bcfrec::BcfFormat & fmt,
         const unsigned int specialflag) {
     
     const auto symbolNN = SYMBOL_TYPE_TO_AMBIG[symbolType]; 
+    
+    const auto & p = symbol2CountCoverageSet12.seg_format_prep_sets.getByPos(refpos);
+    fmt.APDP = p[SEG_a_DP];
+    fmt.APGap = {{ p[SEG_a_INS_L], p[SEG_a_INS_R], p[SEG_a_DEL_L], p[SEG_a_DEL_R] }};
+    fmt.APXM = p[SEG_a_XM];
+    fmt.APLRI = {{ p[SEG_a_LI], p[SEG_a_LIDP], p[SEG_a_RI], p[SEG_a_RIDP] }};
+    
+    const auto & s = symbol2CountCoverageSet12.seg_format_thres_sets.getByPos(refpos);
+    fmt.AEPT = {{ s[SEG_aEP1t], s[SEG_aEP2t] }};
+    fmt.AXMT = {{ s[SEG_aXM1T], s[SEG_aXM2T] }};
+    fmt.ALIT = {{ s[SEG_aLI1t], s[SEG_aLI2t] , s[SEG_aLI1T], s[SEG_aLI2T] }};
+    fmt.ARIT = {{ s[SEG_aRI1t], s[SEG_aRI2t] , s[SEG_aRI1T], s[SEG_aRI2T] }};
+    
     const auto & symbol_to_seg_format_depth_sets = symbol2CountCoverageSet12.symbol_to_seg_format_depth_sets;
     
     fill_symboltype_fmt(fmt.ADPff, fmt.aDPff, symbol_to_seg_format_depth_sets, SEG_aDPff, refpos, symbolType, refsymbol);
@@ -2290,7 +2300,7 @@ BcfFormat_symboltype_init(bcfrec::BcfFormat & fmt,
     fill_symboltype_fmt(fmt.ALI2, fmt.aLI2, symbol_to_seg_format_depth_sets, SEG_aLI2, refpos, symbolType, refsymbol);
     fill_symboltype_fmt(fmt.ARI1, fmt.aRI1, symbol_to_seg_format_depth_sets, SEG_aRI1, refpos, symbolType, refsymbol);
     fill_symboltype_fmt(fmt.ARI2, fmt.aRI2, symbol_to_seg_format_depth_sets, SEG_aRI2, refpos, symbolType, refsymbol);
-    
+
     const auto & symbol_to_frag_format_depth_sets = symbol2CountCoverageSet12.symbol_to_frag_format_depth_sets;
     
     fill_symboltype_fmt(fmt.BDPf,  fmt.bDPf,  symbol_to_frag_format_depth_sets[0], FRAG_bDP, refpos, symbolType, refsymbol);
@@ -2378,8 +2388,8 @@ BcfFormat_symbol_init(
     fill_symbol_fmt(fmt.cDP2f, symbol_to_fam_format_depth_sets[0], FAM_cDP2, refpos, symbol, a);
     fill_symbol_fmt(fmt.cDP3f, symbol_to_fam_format_depth_sets[0], FAM_cDP3, refpos, symbol, a);
     fill_symbol_fmt(fmt.c1DPf, symbol_to_fam_format_depth_sets[0], FAM_c1DP, refpos, symbol, a);
-    fill_symbol_fmt(fmt.cDPMr, symbol_to_fam_format_depth_sets[0], FAM_cDPM, refpos, symbol, a);
-    fill_symbol_fmt(fmt.cDPmr, symbol_to_fam_format_depth_sets[0], FAM_cDPm, refpos, symbol, a);
+    fill_symbol_fmt(fmt.cDPMf, symbol_to_fam_format_depth_sets[0], FAM_cDPM, refpos, symbol, a);
+    fill_symbol_fmt(fmt.cDPmf, symbol_to_fam_format_depth_sets[0], FAM_cDPm, refpos, symbol, a);
     fill_symbol_fmt(fmt.cDP1r, symbol_to_fam_format_depth_sets[1], FAM_cDP1, refpos, symbol, a);
     fill_symbol_fmt(fmt.cDP2r, symbol_to_fam_format_depth_sets[1], FAM_cDP2, refpos, symbol, a);
     fill_symbol_fmt(fmt.cDP3r, symbol_to_fam_format_depth_sets[1], FAM_cDP3, refpos, symbol, a);
@@ -2403,9 +2413,9 @@ BcfFormat_symbol_init(
         fmt.bHap = mutform2count4map_to_phase(mutform2count4vec_bq, indices_bq);
         fmt.cHap = mutform2count4map_to_phase(mutform2count4vec_fq, indices_fq);
     }
-    fmt.bDPa.push_back(bDPa);
-    fmt.cDP1a.push_back(cDP1a);
-    fmt.gapSa.push_back(gapSa);
+    clear_push(fmt.bDPa, bDPa, a);
+    clear_push(fmt.cDP1a, cDP1a, a);
+    clear_push(fmt.gapSa, gapSa, a);
     return std::array<unsigned int, 2>({{fmt.bDPf[a] + fmt.bDPr[a], fmt.cDP1f[a] + fmt.cDP1r[a]}});
     /*
     std::vector<std::map<std::string, uint32_t>> iseq2cnt_vec;
@@ -2465,12 +2475,16 @@ BcfFormat_symbol_calc_DPv(
 };
 
 int
-BcfFormat_symbol_sum_DPv(auto & fmts) {
+BcfFormat_symbol_sum_DPv(auto & fmts, const unsigned int a = 0) {
     unsigned int CDP1v = 0;
     unsigned int CDP2v = 0;
     for (auto & fmt : fmts) {
-        CDP1v += std::get<0>(fmt).cDP1v[0];
-        CDP2v += std::get<0>(fmt).cDP2v[0];
+        CDP1v += std::get<0>(fmt).cDP1v[a];
+        CDP2v += std::get<0>(fmt).cDP2v[a];
+        if (BASE_NN == FIRST(std::get<0>(fmt).VTI) || LINK_NN == FIRST(std::get<0>(fmt).VTI)) {
+            std::get<0>(fmt).CDP1v[1] = std::get<0>(fmt).cDP1v[a];
+            std::get<0>(fmt).CDP2v[1] = std::get<0>(fmt).cDP2v[a];
+        }
     }
     for (auto & fmt : fmts) {
         std::get<0>(fmt).CDP1v[0] = CDP1v;
@@ -2489,8 +2503,8 @@ BcfFormat_symbol_calc_qual(
         const std::string & repeatunit,
         const unsigned int repeatnum,
         // const unsigned int a = 0,
-        double powlaw_anyvar_base = 90,
-        double powlaw_exponent = 3,
+        double powlaw_anyvar_base = (double)90,
+        double powlaw_exponent = (double)3,
         double powlaw_sscs_inc = 30,
         const unsigned int phred_varcall_err_per_map_err_per_base = 20,
         const unsigned int specialflag = 0) {
@@ -2498,13 +2512,13 @@ BcfFormat_symbol_calc_qual(
     const unsigned int a = 0;
     int duped_frag_binom_qual = fmt.bIAQb[a];
     
-    int sscs_binom_qual_fw = fmt.cIAQf[a] + fmt.cIAQr[a] * MIN(60 - fmt.cIDQf[a], fmt.cIDQr[a]) / fmt.cIDQr[a];
-    int sscs_binom_qual_rv = fmt.cIAQr[a] + fmt.cIAQf[a] * MIN(60 - fmt.cIDQr[a], fmt.cIDQf[a]) / fmt.cIDQf[a];
+    int sscs_binom_qual_fw = fmt.cIAQf[a] + fmt.cIAQr[a] * MIN(60 - fmt.cIDQf[a], fmt.cIDQr[a]) / MAX(fmt.cIDQr[a], 1);
+    int sscs_binom_qual_rv = fmt.cIAQr[a] + fmt.cIAQf[a] * MIN(60 - fmt.cIDQr[a], fmt.cIDQf[a]) / MAX(fmt.cIDQf[a], 1);
     int sscs_binom_qual = MAX(sscs_binom_qual_fw, sscs_binom_qual_rv); 
     
-    double min_bcFA = (((double)(fmt.cDP1v[a])) / ((double)(fmt.CDP1v[0]))); 
-    int dedup_frag_powlaw_qual = (unsigned int)(powlaw_exponent * 10.0 / log(10.0) * log(min_bcFA) + powlaw_anyvar_base + 10);
-    double umi_cFA = (((double)(fmt.cDP2v[a])) / ((double)(fmt.CDP2v[0]))); 
+    double min_bcFA = (((double)(fmt.cDP1v[a]) + 0.5) / ((double)(fmt.CDP1v[0]) + 1.0)); 
+    int dedup_frag_powlaw_qual = (int)(powlaw_exponent * 10.0 / log(10.0) * log(min_bcFA) + powlaw_anyvar_base + 10.0);
+    double umi_cFA =  (((double)(fmt.cDP2v[a]) + 0.5) / ((double)(fmt.CDP2v[0]) + 1.0)); 
     int sscs_powlaw_qual = (int)(powlaw_exponent * 10.0 / log(10.0) * log(umi_cFA) + powlaw_anyvar_base + powlaw_sscs_inc);
     
     const std::string & indelstring = fmt.gapSa[a];
@@ -2526,8 +2540,8 @@ BcfFormat_symbol_calc_qual(
     clear_push(fmt.cPLQ2, sscs_powlaw_qual, a);
         
     const int syserr_q = MIN(fmt.aBQQ[a], fmt.bMQ[a] + phred_varcall_err_per_map_err_per_base);
-    clear_push(fmt.cVQ1, MIN3(syserr_q, fmt.bIAQ[a], fmt.cPLQ1[a]), a);
-    clear_push(fmt.cVQ2, MIN(syserr_q, MIN(fmt.cIAQ[a], fmt.cPLQ2[a])), a);
+    clear_push(fmt.cVQ1, MIN3(syserr_q, LAST(fmt.bIAQ), LAST(fmt.cPLQ1)), a);
+    clear_push(fmt.cVQ2, MIN3(syserr_q, LAST(fmt.cIAQ), LAST(fmt.cPLQ2)), a);
     // TODO; check if reducing all allele read count to increase alt allele frac in case of ref bias makes more sense
 };
     
@@ -2797,7 +2811,7 @@ output_germline(
         std::make_pair(3,  MIN(-phred_tri_al - MAX(a1a2LODQ, a2a1LODQ), -MAX(a0LODQ, a3LODQ)))
     }};
     auto ret = GL4raw[0].second - MAX3(GL4raw[1].second, GL4raw[2].second, GL4raw[3].second);
-    if ((0x3 & outputflag) == 0) {
+    if (0 == ((OUTVAR_GERMLINE | OUTVAR_HOMREF) & outputflag)) {
         return ret;
     }
     
@@ -2805,7 +2819,9 @@ output_germline(
     std::sort(GL4.rbegin(), GL4.rend(), PairSecondLess);
     
     size_t GLidx = GL4[0].first;
-    
+    if (0 == (OUTVAR_HOMREF & outputflag) && 0 == GLidx) {
+        return ret;
+    }
     std::array<std::string, 3> ref_alt1_alt2_vcfstr_arr = {{
         SYMBOL_TO_DESC_ARR[ref_alt1_alt2_alt3[0].first],
         SYMBOL_TO_DESC_ARR[ref_alt1_alt2_alt3[1].first],
@@ -2935,8 +2951,8 @@ output_germline(
             germ_GT, 
             std::to_string(germ_GQ), 
             std::string("0,0"), 
-            string_join(germ_FT, "/"),
-            std::to_string(symbol_format_vec[0].second->DP),
+            "PASS", // string_join(germ_FT, "/"),
+            std::to_string(symbol_format_vec[0].second->CDP1f[0] + symbol_format_vec[0].second->CDP1r[0]),
             other_join(germ_ADR, std::string(",")), 
             other_join(std::array<int, 3>
             {{ 
@@ -3299,10 +3315,17 @@ append_vcf_record(
         vcfalt = SYMBOL_TO_DESC_ARR[symbol];
     }
     
+    assert (2 == fmt.cDP1v.size());
+    assert (2 == fmt.cDP2v.size());
+    assert (2 == fmt.CDP1v.size());
+    assert (2 == fmt.CDP2v.size());
+    assert (2 == fmt.cVQ1.size());
+    assert (2 == fmt.cVQ2.size());
+
     const auto b_binom_powlaw_syserr_normv_q4 = calc_binom_powlaw_syserr_normv_quals(tki.cDP1v, tki.CDP1v, tki.cVQ1,
-            nfm.cDP1v[1], nfm.CDP1v[1], nfm.cVQ1[1], (indelstring.size() > 0));
+            collectget(nfm.cDP1v, 1), collectget(nfm.CDP1v, 0), collectget(nfm.cVQ1, 1), (indelstring.size() > 0));
     const auto c_binom_powlaw_syserr_normv_q4 = calc_binom_powlaw_syserr_normv_quals(tki.cDP2v, tki.CDP2v, tki.cVQ2,
-            nfm.cDP2v[1], nfm.CDP2v[1], nfm.cVQ2[1], true);
+            collectget(nfm.cDP2v, 1), collectget(nfm.CDP2v, 0), collectget(nfm.cVQ2, 1), true);
     
     int tlodq = MAX(b_binom_powlaw_syserr_normv_q4[3], c_binom_powlaw_syserr_normv_q4[3]);
     int somaticq = MIN(tlodq, nlodq);
@@ -3342,7 +3365,7 @@ append_vcf_record(
     if (keep_var) {
         out_string += string_join(std::array<std::string, 9>{{
                 std::string(tname), std::to_string(vcfpos), ".", vcfref, vcfalt, std::to_string(vcfqual), vcffilter, 
-                infostring, bcfrec::FORMAT_STR_PER_REC}});
+                infostring, bcfrec::FORMAT_STR_PER_REC}}, "\t") + "\t";
         bcfrec::streamAppendBcfFormat(out_string, fmt);
         out_string += ((g_bcf_hdr != NULL && is_tumor_format_retrieved) ? bcf1_to_string(g_bcf_hdr, tki.bcf1_record) : std::string("")) + "\n";
     }

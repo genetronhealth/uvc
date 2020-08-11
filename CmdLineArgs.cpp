@@ -156,6 +156,7 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
            outvar_flag, 
         std::string("Output-variant flag in bits specifying which type of variants are in the VCF output. ") +
         "The " + std::to_string(OUTVAR_GERMLINE) + " bit indicates germline variant. " +
+        "The " + std::to_string(OUTVAR_HOMREF) + " bit indicates homozygous reference allele (<NO_SNV> and/or <NO_INDEL>). " +
         "The " + std::to_string(OUTVAR_SOMATIC) + " bit indicates somatic variant. " +
         "The " + std::to_string(OUTVAR_ANY) + " bit indicates variant of any origin. " +
         "The " + std::to_string(OUTVAR_NONREF) + " bit indicates non-ref symbolic region indicating the absence of variants. ");

@@ -30,6 +30,11 @@ auto MEDIAN(const auto & v) {
     return (v[(v.size() - 1) / 2] + v[(v.size()) / 2]) / 2;
 }
 
+auto FIRST(const auto & v) {
+    assert(v.size() > 0);
+    return v[0];
+}
+
 auto LAST(const auto & v) {
     assert(v.size() > 0);
     return v[(v.size()-1)];
@@ -265,14 +270,15 @@ class OffsetArr {
     };
 };
 
-template <class T, class V>
-V
-collectget(const T & collection, unsigned int idx, V defaultval = 0) {
+//template <class T, class V>
+template <class T=int>
+T
+collectget(const auto & collection, unsigned int idx, T defaultval = 0) {
     return (idx < collection.size() ? collection[idx] : defaultval);
 }
 
 void
-clear_push(auto & collection, auto v, unsigned int idx = 1) {
+clear_push(auto & collection, auto v, unsigned int idx = 0) {
     if (0 == idx) {
         collection.clear();
     }
@@ -327,11 +333,11 @@ enum AlignmentSymbol {
     LINK_NN, //  = 13, // ambiguous link between bases
     // LINK_P = 13; // padded in deleted sequence
     END_ALIGNMENT_SYMBOLS,
+    BASE_NO_SNV,
+    LINK_NO_INDEL
 };
-    
-#define NUM_ALIGNMENT_SYMBOLS 14
-static_assert(NUM_ALIGNMENT_SYMBOLS == END_ALIGNMENT_SYMBOLS);
 
+#define NUM_ALIGNMENT_SYMBOLS 14
 struct _CharToSymbol {
     std::array<AlignmentSymbol, 128> data;
     _CharToSymbol() {
@@ -616,7 +622,7 @@ infer_max_qual_assuming_independence(
     for (unsigned int idx = 0; idx < MIN(NUM_BUCKETS, max_qual / dec_qual); idx++) {
         const auto currQD = qual_distr[idx];
         if (0 == currQD) { continue; }
-        currAD += qual_distr[currQD];
+        currAD += currQD;
         auto currBQ = max_qual - (dec_qual * idx);
         double expBQ = 10.0 / log(10.0) * log((double)currAD / (double)totDP);
         currvqual = (int)(currAD * (currBQ - expBQ));

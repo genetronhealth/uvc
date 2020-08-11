@@ -1,6 +1,8 @@
 #ifndef common_hpp_INCLUDED
 #define common_hpp_INCLUDED
 
+#include "precompiled/precompiled_main.hpp"
+
 #include <array>
 #include <string>
 #include <vector>
@@ -8,14 +10,15 @@
 //#define NUM_BUCKETS (64+8)
 #define SIGN2UNSIGN(a) ((unsigned int)(a))
 
-#define VCFQUAL_NUM_BINS 120 // max vcfqual is at 105, so vcfqual that is higher than the max is reserved
-#define RCC_NUM 2
-#define RCC_NFS 6
+//#define VCFQUAL_NUM_BINS 120 // max vcfqual is at 105, so vcfqual that is higher than the max is reserved
+//#define RCC_NUM 2
+//#define RCC_NFS 6
 
 #define OUTVAR_GERMLINE 0x1
-#define OUTVAR_SOMATIC 0x2
-#define OUTVAR_ANY 0x4
-#define OUTVAR_NONREF 0x8
+#define OUTVAR_HOMREF 0x2
+#define OUTVAR_SOMATIC 0x4
+#define OUTVAR_ANY 0x8
+#define OUTVAR_NONREF 0x10
 
 enum BiasType {
     BIAS_FRAG_DUP = 1,
@@ -105,6 +108,7 @@ const std::array<std::string, 2> TT_HETERO = {{"./1", "1/."}};
 const std::array<std::string, 2> TT_HOMREF = {{"./1", "1/."}};
 const std::array<std::string, 2> TT_HOMALT = {{"1/1", "1/."}};
 
+/*
 struct TnDP4 {
     unsigned int nvars= 0;
     unsigned int tuAD = 0;
@@ -181,7 +185,7 @@ struct VcStats {
         return 0;
     }
 };
-
+*/
 // region_pos32_unitlen8_repeatnum16_qual8_vec
 struct RegionalTandemRepeat {
     uint32_t begpos = 0;
