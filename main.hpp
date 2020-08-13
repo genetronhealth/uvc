@@ -985,7 +985,7 @@ update_seg_format_prep_sets_by_aln(
                 seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_INS_R] += rtotlen;
             }           
             unsigned int ltotlen = cigar_oplen;
-            for (int rpos2 = (int)rpos; MIN(rpos2 < rpos + cigar_oplen, rend); rpos2++) {
+            for (int rpos2 = (int)rpos; rpos2 < MIN(rpos + cigar_oplen, rend); rpos2++) {
                 seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_INS_L] += ltotlen;
                 ltotlen--;
             }
@@ -2474,6 +2474,7 @@ BcfFormat_symbol_calc_DPv(
     double min_aFA = MINVEC(std::array<double, 7>{{aBQFA, aEPFA, aXMFA, aLIFA, aRIFA, aSSFA, aROFA}});
     double min_bcFA = MIN3(min_aFA, bFA, cFA);
     
+    // double duprate = (double)(fmt.BDPf[0] + fmt.BDPr[0] + 1.0) / (double)(fmt.CDP1f[0] + fmt.CDP1r[0] + 0.5);
     // UMI universality-based prequal allele fraction
     double cFA2 = ((fmt.cDP2f[a] + fmt.cDP2r[a]) + 0.5) / (fmt.CDP2f[0] + fmt.CDP2r[0] + 1.0);
     double cFA3 = ((fmt.cDP3f[a] + fmt.cDP3r[a]) + 0.5) / (fmt.CDP3f[0] + fmt.CDP3r[0] + 1.0);
@@ -2530,9 +2531,11 @@ BcfFormat_symbol_calc_qual(
     int sscs_binom_qual_rv = fmt.cIAQr[a] + fmt.cIAQf[a] * MIN(60 - fmt.cIDQr[a], fmt.cIDQf[a]) / MAX(fmt.cIDQf[a], 1);
     int sscs_binom_qual = MAX(sscs_binom_qual_fw, sscs_binom_qual_rv); 
     
+    double dup_denom_pc = mathsquare(fmt.CDP1f[0] + fmt.CDP1r[0] + 0.5) / (fmt.BDPf[0] + fmt.BDPr[0] + 1.0) * 10; // / MAX(1, duprate);
+    
     double min_bcFA = (((double)(fmt.cDP1v[a]) + 0.5) / ((double)(fmt.CDP1v[0]) + 1.0)); 
-    int dedup_frag_powlaw_qual = (int)(powlaw_exponent * 10.0 / log(10.0) * log(min_bcFA) + powlaw_anyvar_base + 10.0);
-    double umi_cFA =  (((double)(fmt.cDP2v[a]) + 0.5) / ((double)(fmt.CDP2v[0]) + 1.0)); 
+    int dedup_frag_powlaw_qual = (int)(powlaw_exponent * 10.0 / log(10.0) * log(min_bcFA) + powlaw_anyvar_base); // + 10.0 ??? 
+    double umi_cFA =  (((double)(fmt.cDP2v[a]) + 0.5) / ((double)(fmt.CDP2v[0]) + 1.0 + dup_denom_pc)); 
     int sscs_powlaw_qual = (int)(powlaw_exponent * 10.0 / log(10.0) * log(umi_cFA) + powlaw_anyvar_base + powlaw_sscs_inc);
     fmt.note += std::string("min_bcFA(") + std::to_string(min_bcFA) + ")cDP1v(" + std::to_string(fmt.cDP1v[a]) + ")" + "CDP1v(" + std::to_string(fmt.CDP1v[0]) + ")";
     const std::string & indelstring = fmt.gapSa[a];
@@ -2552,13 +2555,17 @@ BcfFormat_symbol_calc_qual(
     
     clear_push(fmt.cPLQ1, dedup_frag_powlaw_qual, a); // phred_varcall_err_per_map_err_per_base
     clear_push(fmt.cPLQ2, sscs_powlaw_qual, a);
-        
+    
     const int syserr_q = MIN(fmt.aBQQ[a], fmt.bMQ[a] + phred_varcall_err_per_map_err_per_base);
     clear_push(fmt.cVQ1, MIN3(syserr_q, LAST(fmt.bIAQ), LAST(fmt.cPLQ1)), a);
     clear_push(fmt.cVQ2, MIN3(syserr_q, LAST(fmt.cIAQ), LAST(fmt.cPLQ2)), a);
     // TODO; check if reducing all allele read count to increase alt allele frac in case of ref bias makes more sense
-};
     
+    auto binom_contam_LODQ = (int)calc_binom_10log10_likeratio(0.02, fmt.cDP1v[a], fmt.CDP1v[0]);
+    auto power_contam_LODQ = (int)(10.0/log(10.00) * powlaw_exponent * MAX(logit2(min_bcFA, 0.02), 0.0));
+    clear_push(fmt.CONTQ, MIN(binom_contam_LODQ, power_contam_LODQ), a);
+};
+
 /*      
     fmt.bHap = mutform2count4map_to_phase(mutform2count4vec_bq, indices_bq);
     fmt.cHap = mutform2count4map_to_phase(mutform2count4vec_fq, indices_fq);
@@ -2730,7 +2737,7 @@ ALODQ(const auto x) {
     return x->cVQ1[x->cVQ1.size() - 1];
 };
 
-int
+auto
 output_germline(
         std::string & out_string,
         AlignmentSymbol refsymbol, 
@@ -2742,6 +2749,7 @@ output_germline(
         unsigned int central_readlen,
         // const auto & tki, 
         unsigned int outputflag,
+        const bool is_rescued,
         unsigned int specialflag) {
     
     assert(symbol_format_vec.size() >= 4 || 
@@ -2775,6 +2783,12 @@ output_germline(
     int a2LODQ = ALODQ(ref_alt1_alt2_alt3[2].second);
     int a3LODQ = ALODQ(ref_alt1_alt2_alt3[3].second);
     
+    if (is_rescued) {
+        UPDATE_MIN(a0LODQ, ref_alt1_alt2_alt3[0].second->CONTQ[1]);
+        UPDATE_MIN(a1LODQ, ref_alt1_alt2_alt3[1].second->CONTQ[1]);
+        UPDATE_MIN(a2LODQ, ref_alt1_alt2_alt3[2].second->CONTQ[1]);
+        UPDATE_MIN(a3LODQ, ref_alt1_alt2_alt3[3].second->CONTQ[1]);
+    }
     /*
     unsigned int readlen = MAX(30U, central_readlen);
     const double alt1frac = (double)(readlen 
@@ -2800,11 +2814,12 @@ output_germline(
         ad0norm += ad2norm;
         ad2norm = 0;
     }
+    
     int a0a1LODQ = hetLODQ(ad0norm, ad1norm); //, 1.0 - alt1frac);
     int a1a0LODQ = hetLODQ(ad1norm, ad0norm); //, alt1frac);
     int a1a2LODQ = hetLODQ(ad1norm, ad2norm); //, alt1frac / (alt1frac + alt2frac));
     int a2a1LODQ = hetLODQ(ad2norm, ad1norm); //, alt2frac / (alt1frac + alt2frac));
-    
+
     std::array<std::string, 4> GTidx2GT {{
         "0/0",
         "0/1",
@@ -2826,7 +2841,7 @@ output_germline(
     }};
     auto ret = GL4raw[0].second - MAX3(GL4raw[1].second, GL4raw[2].second, GL4raw[3].second);
     if (0 == ((OUTVAR_GERMLINE | OUTVAR_HOMREF) & outputflag)) {
-        return ret;
+        return std::make_tuple(ret, fmtptr1, fmtptr2);
     }
     
     auto GL4 = GL4raw;
@@ -2834,7 +2849,7 @@ output_germline(
     
     size_t GLidx = GL4[0].first;
     if (0 == (OUTVAR_HOMREF & outputflag) && 0 == GLidx) {
-        return ret;
+        return std::make_tuple(ret, fmtptr1, fmtptr2);
     }
     std::array<std::string, 3> ref_alt1_alt2_vcfstr_arr = {{
         SYMBOL_TO_DESC_ARR[ref_alt1_alt2_alt3[0].first],
@@ -2983,7 +2998,7 @@ output_germline(
         }}, ":")
     }}, "\t") + "\n";
     out_string += bcfline;
-    return ret;
+    return std::make_tuple(ret, fmtptr1, fmtptr2);
 }
 
 /*
@@ -3300,8 +3315,8 @@ append_vcf_record(
         unsigned int specialflag) {
     
     const std::string & indelstring = LAST(fmt.gapSa);
-    const bcfrec::BcfFormat & nfm = (is_tumor_format_retrieved ? fmt : FORMAT_UNCOV);
-    if (!is_tumor_format_retrieved) {
+    const bcfrec::BcfFormat & nfm = (tki.ref_alt.size() > 0 ? fmt : FORMAT_UNCOV);
+    if (tki.ref_alt.size() == 0) {
         fill_tki(tki, fmt);
     }
     const auto regionpos = refpos - region_offset;
@@ -3337,7 +3352,10 @@ append_vcf_record(
     assert (2 == fmt.CDP2v.size());
     assert (2 == fmt.cVQ1.size());
     assert (2 == fmt.cVQ2.size());
-
+    
+    assert (tki.cDP1v <= tki.CDP1v || !fprintf(stderr, "%d <= %d failed for cDP1v tname %s pos %d aln-symbol %d\n", tki.cDP1v, tki.CDP1v, tname, refpos, symbol));
+    assert (tki.cDP2v <= tki.CDP2v || !fprintf(stderr, "%d <= %d failed for cDP2v tname %s pos %d aln-symbol %d\n", tki.cDP1v, tki.CDP1v, tname, refpos, symbol));
+    
     const auto b_binom_powlaw_syserr_normv_q4 = calc_binom_powlaw_syserr_normv_quals(tki.cDP1v, tki.CDP1v, tki.cVQ1,
             collectget(nfm.cDP1v, 1), collectget(nfm.CDP1v, 0), collectget(nfm.cVQ1, 1), (indelstring.size() > 0));
     const auto c_binom_powlaw_syserr_normv_q4 = calc_binom_powlaw_syserr_normv_quals(tki.cDP2v, tki.CDP2v, tki.cVQ2,
@@ -3345,8 +3363,8 @@ append_vcf_record(
     
     int tlodq = MAX(b_binom_powlaw_syserr_normv_q4[3], c_binom_powlaw_syserr_normv_q4[3]);
     int somaticq = MIN(tlodq, nlodq);
-    int vcfqual = (is_tumor_format_retrieved ? somaticq : tlodq);
-    std::string infostring = std::string(is_tumor_format_retrieved ? "SOMATIC" : "ANY_VAR");
+    int vcfqual = ((tki.ref_alt.size() > 0) ? somaticq : tlodq);
+    std::string infostring = std::string(tki.ref_alt.size() > 0 ? "SOMATIC" : "ANY_VAR");
     infostring += std::string(";SomaticQ=") + std::to_string(somaticq);
     infostring += std::string(";TLODQ=") + std::to_string(tlodq);
     infostring += std::string(";NLODQ=") + std::to_string(nlodq);
@@ -3383,7 +3401,7 @@ append_vcf_record(
                 std::string(tname), std::to_string(vcfpos), ".", vcfref, vcfalt, std::to_string(vcfqual), vcffilter, 
                 infostring, bcfrec::FORMAT_STR_PER_REC}}, "\t") + "\t";
         bcfrec::streamAppendBcfFormat(out_string, fmt);
-        out_string += ((g_bcf_hdr != NULL && is_tumor_format_retrieved) ? bcf1_to_string(g_bcf_hdr, tki.bcf1_record) : std::string("")) + "\n";
+        out_string += ((tki.ref_alt.size() > 0 && is_tumor_format_retrieved) ? bcf1_to_string(g_bcf_hdr, tki.bcf1_record) : std::string("")) + "\n";
     }
     return 0;
 };

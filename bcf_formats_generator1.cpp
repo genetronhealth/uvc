@@ -271,6 +271,7 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("cDP2v" , BCF_NUM_R, BCF_INTEGER, "The effective number of SSCS UMI-barcoded families supporting each allele multiplied by 100."),
     BcfFormatStruct("CDP2v" , 2        , BCF_INTEGER, "The effective number of SSCS UMI-barcoded families supporting all alleles multiplied by 100."), // TODO: implement?
     // BcfFormatStruct("dPLQ"  , BCF_NUM_A, BCF_INTEGER, "The double-strand-consensus-sequence (DSCS) power-law variant quality."),
+    BcfFormatStruct("CONTQ" , BCF_NUM_R, BCF_INTEGER, "Likelihood of the variant signal if the variant signal is contaminated."),
     
     BcfFormatStruct("__gap"  , 1,        BCF_SEP,     "InDel-related information."), 
     BcfFormatStruct("gapNf"  ,BCF_NUM_D, BCF_INTEGER, "Number of InDel sequences on the forward read orientation."),

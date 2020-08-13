@@ -760,7 +760,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                     while (symbol_format_vec.size() < 4) {
                         symbol_format_vec.push_back(std::make_pair(SYMBOL_TYPE_TO_NO_VAR_SYMBOL[symbolType], &init_fmt));
                     }
-                    nlodq = output_germline(
+                    auto nlodq_fmtptr1_fmtptr2_tup = output_germline(
                             buf_out_string_pass,
                             refsymbol,
                             symbol_format_vec,
@@ -770,16 +770,33 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                             extended_inclu_beg_pos, // regionpos,
                             paramset.central_readlen,
                             paramset.outvar_flag, // OUTVAR_GERMLINE
+                            NOT_PROVIDED != paramset.vcf_tumor_fname,
                             0);
                     
                     for (auto & fmt_tki_tup : fmt_tki_tup_vec) {
-                        const auto & fmt = std::get<0>(fmt_tki_tup);
+                        auto & fmt = std::get<0>(fmt_tki_tup);
                         const auto & symbol = (AlignmentSymbol)(LAST(fmt.VTI)); // std::get<1>(fmtinfo);
                         auto & tki = std::get<1>(fmt_tki_tup);
                         const bool will_generate_out = (NOT_PROVIDED == paramset.vcf_tumor_fname 
                                 ? (paramset.outvar_flag & OUTVAR_ANY)
                                 : (tki.ref_alt.size() > 0 && (paramset.outvar_flag & OUTVAR_SOMATIC)));
                         if (will_generate_out) {
+                            fmt.GT = TT_HETERO[0];
+                            nlodq = std::get<0>(nlodq_fmtptr1_fmtptr2_tup);
+                            assert ((NOT_PROVIDED == paramset.vcf_tumor_fname) == (0 == tki.ref_alt.size()));
+                            if (NOT_PROVIDED != paramset.vcf_tumor_fname) {
+                                auto bgerr_norm_max_ad = MAX(
+                                        std::get<1>(nlodq_fmtptr1_fmtptr2_tup)->cDP1v[1],
+                                        std::get<2>(nlodq_fmtptr1_fmtptr2_tup)->cDP1v[1]);
+                                double tAD = tki.cDP1v / 100.0;
+                                double tDP = tki.CDP1v / 100.0;
+                                double nAD = bgerr_norm_max_ad / 100.0;
+                                double nDP = fmt.CDP1v[0] / 100.0;
+                                double bjpfrac = ((tAD + 0.5) / (tDP + 1.0)) / ((nAD + 0.5) / (nDP + 1.0));
+                                int binom_b10log10like = (int)calc_binom_10log10_likeratio((tDP - tAD + 0.5) / (tDP + 1.0), nDP - nAD, nAD);
+                                int powlaw_b10log10like = (int)(3 * 10 / log(10) * log(bjpfrac));
+                                nlodq += BETWEEN(MIN(binom_b10log10like, powlaw_b10log10like), 0, 22*2);
+                            }
                             append_vcf_record(
                                     buf_out_string_pass,
                                     std::get<0>(tname_tseqlen_tuple).c_str(),
