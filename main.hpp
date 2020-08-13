@@ -2462,16 +2462,30 @@ BcfFormat_symbol_calc_DPv(
     double aBQFA = (fmt.aBQ1[a] + 0.5) / (fmt.ABQ2[0] + (fmt.aBQ1[a] - fmt.aBQ2[a]) + 1.0);
     double aEPFA = (fmt.aEP1[a] + 0.5) / (fmt.AEP2[0] + (fmt.aEP1[a] - fmt.aEP2[a]) + 1.0);
     double aXMFA = (fmt.aXM1[a] + 0.5) / (fmt.AXM2[0] + (fmt.aXM1[a] - fmt.aXM2[a]) + 1.0);
-    double aLIFA = (fmt.aLI1[a] + 0.5) / (fmt.ALI2[0] + (fmt.aLI1[a] - fmt.aLI2[a]) + 1.0);
-    double aRIFA = (fmt.aRI1[a] + 0.5) / (fmt.ARI2[0] + (fmt.aRI1[a] - fmt.aRI2[a]) + 1.0);
+    //double aLIFA = (fmt.aLI1[a] + 0.5) / (fmt.ALI2[0] + (fmt.aLI1[a] - fmt.aLI2[a]) + 1.0);
+    //double aRIFA = (fmt.aRI1[a] + 0.5) / (fmt.ARI2[0] + (fmt.aRI1[a] - fmt.aRI2[a]) + 1.0);
     
     double aSSFA = dp4_to_pcFA(fmt.ADPff[0] + fmt.ADPrf[0], fmt.ADPfr[0] + fmt.ADPrr[0], fmt.aDPff[a] + fmt.aDPrf[a], fmt.aDPfr[a] + fmt.aDPrr[a]);
     double aROFA = dp4_to_pcFA(fmt.ADPff[0] + fmt.ADPrr[0], fmt.ADPfr[0] + fmt.ADPrf[0], fmt.aDPff[a] + fmt.aDPrr[a], fmt.aDPfr[a] + fmt.aDPrf[a]);
     
+    double aLIalt = (fmt.aLI1[a] + 0.5);
+    double aLItot = (fmt.ALI2[0] + (fmt.aLI1[a] - fmt.aLI2[a]) + 1.0);
+    double aLIbias = (fmt.aDPfr[a] + fmt.aDPrr[a] + 1.0 - aLIalt) / aLIalt;
+    double aRIalt = (fmt.aRI1[a] + 0.5);
+    double aRItot = (fmt.ARI2[0] + (fmt.aRI1[a] - fmt.aRI2[a]) + 1.0);
+    double aRIbias = (fmt.aDPff[a] + fmt.aDPrf[a] + 1.0 - aRIalt) / aRIalt;
+    double a2IFA = dp4_to_pcFA(
+            MIN((aLItot - aLIalt) * aLIbias + aLIalt, 3*(aLItot)), 
+            MIN((aRItot - aRIalt) * aRIbias + aRIalt, 3*(aRItot)), 
+            aLIalt, aRIalt);
+    
     double bFA = (fmt.bDPa[a] + 0.5) / (fmt.BDPf[0] + fmt.BDPr[0] + 1.0);
     double cFA = (fmt.cDP1a[a] + 0.5) / (fmt.CDP1f[0] + fmt.CDP1r[0] + 1.0);
     
-    double min_aFA = MINVEC(std::array<double, 7>{{aBQFA, aEPFA, aXMFA, aLIFA, aRIFA, aSSFA, aROFA}});
+    double min_aFA = MINVEC(std::array<double, 7>{{aBQFA, aEPFA, aXMFA, 
+        // aLIFA, aRIFA, 
+        a2IFA,
+        aSSFA, aROFA}});
     double min_bcFA = MIN3(min_aFA, bFA, cFA);
     
     // double duprate = (double)(fmt.BDPf[0] + fmt.BDPr[0] + 1.0) / (double)(fmt.CDP1f[0] + fmt.CDP1r[0] + 0.5);
