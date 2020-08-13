@@ -2249,11 +2249,11 @@ fill_symbol_VQ_fmts(
     
     int a_BQ_syserr_qual_fw = (int)(fmt.aSBQf[a] * 2 + fmt.aSBQr[a]) - (int)(22 * ((fmt.aDPff[a] + fmt.aDPrf[a]) * 2 + (fmt.aDPfr[a] + fmt.aDPrr[a])));
     int a_BQ_syserr_qual_rv = (int)(fmt.aSBQf[a] + fmt.aSBQr[a] * 2) - (int)(22 * ((fmt.aDPff[a] + fmt.aDPrf[a]) + (fmt.aDPfr[a] + fmt.aDPrr[a]) * 2));
-    int a_BQ_avg_qual = (int)(fmt.aSBQf[a] + fmt.aSBQr[a]) - (int)(22 * (fmt.aDPff[a] + fmt.aDPrf[a] + fmt.aDPfr[a] + fmt.aDPrr[a]));
+    int a_BQ_avg_qual = (int)(fmt.aSBQf[a] + fmt.aSBQr[a]) / (int)MAX(1, fmt.aDPff[a] + fmt.aDPrf[a] + fmt.aDPfr[a] + fmt.aDPrr[a]);
     // int a_BQ_syserr_qual = MAX3(a_BQ_syserr_qual_fw, a_BQ_syserr_qual_rv, a_BQ_avg_qual);
-    clear_push(fmt.aBQQ, (MAX(a_BQ_syserr_qual_fw, a_BQ_syserr_qual_rv)), a);
+    clear_push(fmt.aBQQ, (a_BQ_avg_qual + MAX3(0, a_BQ_syserr_qual_fw, a_BQ_syserr_qual_rv)), a);
     fill_symbol_fmt(fmt.bMQ,  symbol_to_VQ_format_tag_sets,  VQ_bMQ,  refpos, symbol, a);
-    fmt.bMQ[a] = (unsigned int)floor(sqrt(fmt.bMQ[a] * SQR_QUAL_DIV / MAX(fmt.bDPf[a] + fmt.bDPr[a], 1) + 0.5));
+    fmt.bMQ[a] = (unsigned int)floor(sqrt(fmt.bMQ[a] * SQR_QUAL_DIV / MAX(fmt.bDPf[a] + fmt.bDPr[a], 1) + (1.0 - DBL_EPSILON)));
     
     fill_symbol_fmt(fmt.bIAQb, symbol_to_VQ_format_tag_sets, VQ_bIAQb, refpos, symbol, a);
     fill_symbol_fmt(fmt.bIADb, symbol_to_VQ_format_tag_sets, VQ_bIADb, refpos, symbol, a);
@@ -2549,16 +2549,16 @@ BcfFormat_symbol_calc_qual(
         dedup_frag_powlaw_qual += (int)(indel_ic); // - indel_penal4multialleles);
         duped_frag_binom_qual  -= (int)(indel_pq); // - indel_penal4multialleles);
     }
-
+    
     clear_push(fmt.bIAQ, duped_frag_binom_qual, a); 
     clear_push(fmt.cIAQ, sscs_binom_qual, a);
     
     clear_push(fmt.cPLQ1, dedup_frag_powlaw_qual, a); // phred_varcall_err_per_map_err_per_base
     clear_push(fmt.cPLQ2, sscs_powlaw_qual, a);
     
-    const int syserr_q = MIN(fmt.aBQQ[a], fmt.bMQ[a] + phred_varcall_err_per_map_err_per_base);
-    clear_push(fmt.cVQ1, MIN3(syserr_q, LAST(fmt.bIAQ), LAST(fmt.cPLQ1)), a);
-    clear_push(fmt.cVQ2, MIN3(syserr_q, LAST(fmt.cIAQ), LAST(fmt.cPLQ2)), a);
+    const int syserr_q = MIN(fmt.aBQQ[a], (int)((fmt.bMQ[a] * 11 / 10) + phred_varcall_err_per_map_err_per_base));
+    clear_push(fmt.cVQ1, MIN3(syserr_q, (int)LAST(fmt.bIAQ), (int)LAST(fmt.cPLQ1)), a);
+    clear_push(fmt.cVQ2, MIN3(syserr_q, (int)LAST(fmt.cIAQ), (int)LAST(fmt.cPLQ2)), a);
     // TODO; check if reducing all allele read count to increase alt allele frac in case of ref bias makes more sense
     
     auto binom_contam_LODQ = (int)calc_binom_10log10_likeratio(0.02, fmt.cDP1v[a], fmt.CDP1v[0]);
@@ -3281,8 +3281,8 @@ const auto
 calc_binom_powlaw_syserr_normv_quals(
         auto tAD, auto tDP, auto tVQ,
         auto nAD, auto nDP, auto nVQ, bool is_penal_applied) {
-    int binom_b10log10like = (int)calc_binom_10log10_likeratio((tDP - tAD + 0.5) / (tDP + 1.0), nDP - nAD, nAD);
-    double bjpfrac = ((tAD + 0.5) / (tDP + 1.0)) / ((nAD + 0.5) / (nDP + 1.0));
+    int binom_b10log10like = (int)calc_binom_10log10_likeratio((tDP - tAD) / (tDP), nDP - nAD, nAD);
+    double bjpfrac = ((tAD) / (tDP)) / ((nAD) / (nDP));
     int powlaw_b10log10like = (int)(3 * 10 / log(10) * log(bjpfrac));
     int syserr_b10log10like = (int)MAX(0, nVQ - 12.5 * mathsquare(MAX(0, bjpfrac - 1.0)));
     int tnVQ = tVQ + MIN(22, CENTER(binom_b10log10like, powlaw_b10log10like));
@@ -3356,10 +3356,12 @@ append_vcf_record(
     assert (tki.cDP1v <= tki.CDP1v || !fprintf(stderr, "%d <= %d failed for cDP1v tname %s pos %d aln-symbol %d\n", tki.cDP1v, tki.CDP1v, tname, refpos, symbol));
     assert (tki.cDP2v <= tki.CDP2v || !fprintf(stderr, "%d <= %d failed for cDP2v tname %s pos %d aln-symbol %d\n", tki.cDP1v, tki.CDP1v, tname, refpos, symbol));
     
-    const auto b_binom_powlaw_syserr_normv_q4 = calc_binom_powlaw_syserr_normv_quals(tki.cDP1v, tki.CDP1v, tki.cVQ1,
-            collectget(nfm.cDP1v, 1), collectget(nfm.CDP1v, 0), collectget(nfm.cVQ1, 1), (indelstring.size() > 0));
-    const auto c_binom_powlaw_syserr_normv_q4 = calc_binom_powlaw_syserr_normv_quals(tki.cDP2v, tki.CDP2v, tki.cVQ2,
-            collectget(nfm.cDP2v, 1), collectget(nfm.CDP2v, 0), collectget(nfm.cVQ2, 1), true);
+    const auto b_binom_powlaw_syserr_normv_q4 = calc_binom_powlaw_syserr_normv_quals(
+            (tki.cDP1v + 1) / 100.0, (tki.CDP1v + 2) / 100.0, tki.cVQ1,
+            (collectget(nfm.cDP1v, 1) + 1) / 100.0, (collectget(nfm.CDP1v, 0) + 2) / 100.0, collectget(nfm.cVQ1, 1), (indelstring.size() == 0));
+    const auto c_binom_powlaw_syserr_normv_q4 = calc_binom_powlaw_syserr_normv_quals(
+            (tki.cDP2v + 1) / 100.0, (tki.CDP2v + 2) / 100.0, tki.cVQ2,
+            (collectget(nfm.cDP2v, 1) + 1) / 100.0, (collectget(nfm.CDP2v, 0) + 2) / 100.0, collectget(nfm.cVQ2, 1), true);
     
     int tlodq = MAX(b_binom_powlaw_syserr_normv_q4[3], c_binom_powlaw_syserr_normv_q4[3]);
     int somaticq = MIN(tlodq, nlodq);

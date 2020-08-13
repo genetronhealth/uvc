@@ -235,8 +235,8 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("__e1"   , 1,         BCF_SEP,     "Quality-related variables."),
     BcfFormatStruct("aSBQf" , BCF_NUM_R, BCF_INTEGER, "Summed sequencing-segment base quality on the forward strand."),
     BcfFormatStruct("aSBQr" , BCF_NUM_R, BCF_INTEGER, "Summed sequencing-segment base quality on the reverse strand."),     
-    BcfFormatStruct("aBQQ"  , BCF_NUM_R, BCF_INTEGER, "Variant quality capped by raw base qualities."),
-    BcfFormatStruct("bMQ"   , BCF_NUM_R, BCF_INTEGER, "Root-mean-square mapping quality."),
+    BcfFormatStruct("aBQQ"  , BCF_NUM_R, BCF_SIG_INT, "Variant quality capped by raw base qualities."),
+    BcfFormatStruct("bMQ"   , BCF_NUM_R, BCF_SIG_INT, "Root-mean-square mapping quality."),
     // BcfFormatStruct("bMQQ"  , BCF_NUM_R, BCF_INTEGER, "Duplex depth with allele disagreement on the two strands for (all alleles) and (the padded deletion allele)."),
    
     BcfFormatStruct("__e2"  , 1,         BCF_SEP,     "Quality-related variables assuming read supports are IID (IID: independent and identically distributed) for duped reads."),
@@ -271,7 +271,7 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("cDP2v" , BCF_NUM_R, BCF_INTEGER, "The effective number of SSCS UMI-barcoded families supporting each allele multiplied by 100."),
     BcfFormatStruct("CDP2v" , 2        , BCF_INTEGER, "The effective number of SSCS UMI-barcoded families supporting all alleles multiplied by 100."), // TODO: implement?
     // BcfFormatStruct("dPLQ"  , BCF_NUM_A, BCF_INTEGER, "The double-strand-consensus-sequence (DSCS) power-law variant quality."),
-    BcfFormatStruct("CONTQ" , BCF_NUM_R, BCF_INTEGER, "Likelihood of the variant signal if the variant signal is contaminated."),
+    BcfFormatStruct("CONTQ" , BCF_NUM_R, BCF_SIG_INT, "Likelihood of the variant signal if the variant signal is contaminated."),
     
     BcfFormatStruct("__gap"  , 1,        BCF_SEP,     "InDel-related information."), 
     BcfFormatStruct("gapNf"  ,BCF_NUM_D, BCF_INTEGER, "Number of InDel sequences on the forward read orientation."),

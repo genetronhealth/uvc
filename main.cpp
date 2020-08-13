@@ -731,7 +731,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                                 90,
                                 3,
                                 30,
-                                20,
+                                paramset.phred_varcall_err_per_map_err_per_base,
                                 0);
                     }
                     auto & reffmt = init_fmt;
@@ -788,14 +788,14 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                                 auto bgerr_norm_max_ad = MAX(
                                         std::get<1>(nlodq_fmtptr1_fmtptr2_tup)->cDP1v[1],
                                         std::get<2>(nlodq_fmtptr1_fmtptr2_tup)->cDP1v[1]);
-                                double tAD = tki.cDP1v / 100.0;
-                                double tDP = tki.CDP1v / 100.0;
-                                double nAD = bgerr_norm_max_ad / 100.0;
-                                double nDP = fmt.CDP1v[0] / 100.0;
-                                double bjpfrac = ((tAD + 0.5) / (tDP + 1.0)) / ((nAD + 0.5) / (nDP + 1.0));
-                                int binom_b10log10like = (int)calc_binom_10log10_likeratio((tDP - tAD + 0.5) / (tDP + 1.0), nDP - nAD, nAD);
+                                double tAD = (tki.cDP1v + 1) / 100.0;
+                                double tDP = (tki.CDP1v + 2) / 100.0;
+                                double nAD = (bgerr_norm_max_ad + 1) / 100.0;
+                                double nDP = (fmt.CDP1v[0] + 2) / 100.0;
+                                double bjpfrac = ((tAD) / (tDP)) / ((nAD) / (nDP));
+                                int binom_b10log10like = (int)calc_binom_10log10_likeratio((tDP - tAD) / (tDP), nDP - nAD, nAD);
                                 int powlaw_b10log10like = (int)(3 * 10 / log(10) * log(bjpfrac));
-                                nlodq += BETWEEN(MIN(binom_b10log10like, powlaw_b10log10like), 0, 22*2);
+                                nlodq += BETWEEN(MIN(binom_b10log10like, powlaw_b10log10like), 0, 80);
                             }
                             append_vcf_record(
                                     buf_out_string_pass,
