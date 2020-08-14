@@ -355,6 +355,27 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         tki.bDP = bcfints[1];
         
         ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line, "CDP1f", &bcfints, &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for CDP1f and line %d!\n", ndst_val, valsize, line->pos));
+        tki.CDP1 = bcfints[0];
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line, "CDP1r", &bcfints, &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for CDP1r and line %d!\n", ndst_val, valsize, line->pos));
+        tki.CDP1 += bcfints[0];
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line, "cDP1f", &bcfints, &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cDP1f and line %d!\n", ndst_val, valsize, line->pos));
+        tki.cDP1 = bcfints[1];
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line, "cDPr", &bcfints, &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cDP1r and line %d!\n", ndst_val, valsize, line->pos));
+        tki.cDP1 += bcfints[1];
+        
+
+        ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "CDP1v", &bcfints, &ndst_val);
         assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for CDP1v and line %d!\n", ndst_val, valsize, line->pos));
         tki.CDP1v = bcfints[0];

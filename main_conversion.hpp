@@ -360,14 +360,17 @@ struct TumorKeyInfo {
     // std::string FTS;
     int32_t pos = 0;
     
-    unsigned int BDP; // 
-    unsigned int bDP; // 
-    unsigned int CDP1v;
-    unsigned int cDP1v;
-    int cVQ1;
-    unsigned int CDP2v;
-    unsigned int cDP2v;
-    int cVQ2;
+    unsigned int BDP = 0; // 
+    unsigned int bDP = 0; // 
+    unsigned int CDP1 = 0;
+    unsigned int cDP1 = 0;
+
+    unsigned int CDP1v = 0;
+    unsigned int cDP1v = 0;
+    int cVQ1 = 0;
+    unsigned int CDP2v = 0;
+    unsigned int cDP2v = 0;
+    int cVQ2 = 0;
 
     bcf1_t *bcf1_record = NULL;
     /*

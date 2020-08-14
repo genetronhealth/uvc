@@ -1155,8 +1155,8 @@ update_seg_format_thres_from_prep_sets(
         // assert(seg_format_prep_sets.getByPos(epos)[SEG_a_LIDP] + seg_format_prep_sets.getByPos(epos)[SEG_a_RIDP] > 0);
         auto segLIDP = MAX(seg_format_prep_sets.getByPos(epos)[SEG_a_LIDP], 1);
         auto segRIDP = MAX(seg_format_prep_sets.getByPos(epos)[SEG_a_RIDP], 1);
-        seg_format_thres_sets.getRefByPos(epos)[SEG_aEP1t] = MAX3(indel_len_per_DP * 2, potential_indel_len, 9) + 9; // easier to pass
-        seg_format_thres_sets.getRefByPos(epos)[SEG_aEP2t] = MAX3(indel_len_per_DP * 2, potential_indel_len, 9) + 18; // harder to pass, the lower the strong the bias
+        seg_format_thres_sets.getRefByPos(epos)[SEG_aEP1t] = MAX(indel_len_per_DP * 2, potential_indel_len) + 16; // easier to pass
+        seg_format_thres_sets.getRefByPos(epos)[SEG_aEP2t] = MAX(indel_len_per_DP * 2, potential_indel_len) + 22; // harder to pass, the lower the strong the bias
         seg_format_thres_sets.getRefByPos(epos)[SEG_aXM1T] = (seg_format_prep_sets.getByPos(epos)[SEG_a_XM]*3 / (seg_a_dp*2) + 4); // easier to pass
         seg_format_thres_sets.getRefByPos(epos)[SEG_aXM2T] = (seg_format_prep_sets.getByPos(epos)[SEG_a_XM]*5 / (seg_a_dp*4) + 1); // the higher the stronger the bias
         seg_format_thres_sets.getRefByPos(epos)[SEG_aLI1T] = (seg_format_prep_sets.getByPos(epos)[SEG_a_LI] * 3 / segLIDP);
@@ -2253,7 +2253,7 @@ fill_symbol_VQ_fmts(
     int a_BQ_syserr_qual_rv = ((int)(fmt.aSBQf[a] + fmt.aSBQr[a] * 2) - 23*(int)((fmt.aDPff[a] + fmt.aDPrf[a]) + (fmt.aDPfr[a] + fmt.aDPrr[a]) * 2)) / 2;
     int a_BQ_avg_qual = (int)(fmt.aSBQf[a] + fmt.aSBQr[a]) / (int)MAX(1, fmt.aDPff[a] + fmt.aDPrf[a] + fmt.aDPfr[a] + fmt.aDPrr[a]);
     // int a_BQ_syserr_qual = MAX3(a_BQ_syserr_qual_fw, a_BQ_syserr_qual_rv, a_BQ_avg_qual);
-    clear_push(fmt.aBQQ, MAX4(a_BQ_avg_qual, a_BQ_syserr_qual_2d + 23, a_BQ_syserr_qual_fw + 23, a_BQ_syserr_qual_rv + 23), a);
+    clear_push(fmt.aBQQ, MAX(a_BQ_avg_qual, 10 + MAX3(a_BQ_syserr_qual_2d, a_BQ_syserr_qual_fw, a_BQ_syserr_qual_rv)), a);
     fill_symbol_fmt(fmt.bMQ,  symbol_to_VQ_format_tag_sets,  VQ_bMQ,  refpos, symbol, a);
     fmt.bMQ[a] = (unsigned int)floor(sqrt(fmt.bMQ[a] * SQR_QUAL_DIV / MAX(fmt.bDPf[a] + fmt.bDPr[a], 1)) + (double)(1.0 - FLT_EPSILON));
     
@@ -2577,9 +2577,10 @@ BcfFormat_symbol_calc_qual(
     clear_push(fmt.cPLQ2, sscs_powlaw_qual, a);
     
     const int syserr_q = MIN(fmt.aBQQ[a], (int)((fmt.bMQ[a] * 7/6) + phred_varcall_err_per_map_err_per_base));
-    const int lowdepth_qual_penal = MIN(20, (int)(fmt.aSBQf[a] + fmt.aSBQr[a]) / 6) - 20;
+    double bIAQ_change_per_readcnt = (indelstring.size() > 0 ? (10.0 / log(10.0) * log(indelstring.size() / BETWEEN(repeatunit.size(), 1, indelstring.size()) + 1)) : 6);
+    const int bIAQ_lowdepth_penal = MIN(0, (int)((fmt.bDPf[a] + fmt.bDPr[a]) * bIAQ_change_per_readcnt - 10.0 / log(10.0) * log(fmt.BDPf[a] + fmt.BDPr[a] + 1.0)));
     
-    clear_push(fmt.cVQ1, MIN3(syserr_q, (int)LAST(fmt.bIAQ) - lowdepth_qual_penal, (int)LAST(fmt.cPLQ1)), a);
+    clear_push(fmt.cVQ1, MIN3(syserr_q, (int)LAST(fmt.bIAQ) - bIAQ_lowdepth_penal, (int)LAST(fmt.cPLQ1)), a);
     clear_push(fmt.cVQ2, MIN3(syserr_q, (int)LAST(fmt.cIAQ)                      , (int)LAST(fmt.cPLQ2)), a);
     // TODO; check if reducing all allele read count to increase alt allele frac in case of ref bias makes more sense
     
@@ -3238,8 +3239,10 @@ generate_vcf_header(const char *ref_fasta_fname,
     ret += "##INFO=<ID=SomaticQ,Number=A,Type=Float,Description=\"Somatic quality of the variant, the PHRED-scale probability that this variant is not somatic.\">\n";
     ret += "##INFO=<ID=TLODQ,Number=A,Type=Float,Description=\"Tumor log-of-data-likelihood quality, the PHRED-scale probability that this variant is not of biological origin (i.e., artifactual).\">\n";
     ret += "##INFO=<ID=NLODQ,Number=A,Type=Float,Description=\"Normal log-of-data-likelihood quality, the PHRED-scale probability that this variant is of germline origin.\">\n";
-    ret += "##INFO=<ID=TNBQ4,Number=4,Type=Float,Description=\"Binomial reward, power-law reward, systematic-error penalty, and normal-adjusted tumor variant quality computed using deduplicated read fragments.\">\n";
-    ret += "##INFO=<ID=TNCQ4,Number=4,Type=Float,Description=\"Binomial reward, power-law reward, systematic-error penalty, and normal-adjusted tumor variant quality computed using consensus families of read fragments.\">\n";
+    ret += "##INFO=<ID=TNBQF,Number=4,Type=Float,Description=\"Binomial reward, power-law reward, systematic-error penalty, and normal-adjusted tumor variant quality computed using deduplicated read fragments.\">\n";
+    ret += "##INFO=<ID=TNBQN,Number=4,Type=Float,Description=\"TNBQF using non-bias-adjusted deduplicated read fragments.\">\n";
+    ret += "##INFO=<ID=TNBQP,Number=1,Type=Float,Description=\"Bias-induced penalty to deduplicated read fragments after comparing tumor bias with normal bias.\">\n";
+    ret += "##INFO=<ID=TNCQF,Number=4,Type=Float,Description=\"Binomial reward, power-law reward, systematic-error penalty, and normal-adjusted tumor variant quality computed using consensus families of read fragments.\">\n";
     ret += "##INFO=<ID=RU,Number=1,Type=String,Description=\"The shortest repeating unit in the reference\">\n";
     ret += "##INFO=<ID=RC,Number=1,Type=Integer,Description=\"The number of non-interrupted RUs in the reference\">\n";
     ret += "##INFO=<ID=R3X2,Number=6,Type=Integer,Description=\"Repeat start position, repeat track length, and repeat unit size at the two positions before and after this VCF position.\">\n"; 
@@ -3307,7 +3310,7 @@ calc_binom_powlaw_syserr_normv_quals(
     double bjpfrac = ((tAD) / (tDP)) / ((nAD) / (nDP));
     int powlaw_b10log10like = (int)(3 * 10 / log(10) * log(bjpfrac));
     int syserr_b10log10like = (int)MAX(0, nVQ - 12.5 * mathsquare(MAX(0, bjpfrac - 1.0)));
-    int tnVQ = tVQ + MIN(MAX(0, (int)(tVQ/3)), CENTER(binom_b10log10like, powlaw_b10log10like));
+    int tnVQ = tVQ + MIN(MAX(0, (int)(tVQ/6 + 15)), CENTER(binom_b10log10like, powlaw_b10log10like));
     if (is_penal_applied) { tnVQ -= syserr_b10log10like; }
     return std::array<int, 4> {{binom_b10log10like, powlaw_b10log10like, syserr_b10log10like, tnVQ }};
 };
@@ -3378,22 +3381,53 @@ append_vcf_record(
     assert (tki.cDP1v <= tki.CDP1v || !fprintf(stderr, "%d <= %d failed for cDP1v tname %s pos %d aln-symbol %d\n", tki.cDP1v, tki.CDP1v, tname, refpos, symbol));
     assert (tki.cDP2v <= tki.CDP2v || !fprintf(stderr, "%d <= %d failed for cDP2v tname %s pos %d aln-symbol %d\n", tki.cDP1v, tki.CDP1v, tname, refpos, symbol));
     
-    const auto b_binom_powlaw_syserr_normv_q4 = calc_binom_powlaw_syserr_normv_quals(
-            (tki.cDP1v + 1) / 100.0, (tki.CDP1v + 2) / 100.0, tki.cVQ1,
-            (collectget(nfm.cDP1v, 1) + 1) / 100.0, (collectget(nfm.CDP1v, 0) + 2) / 100.0, collectget(nfm.cVQ1, 1), (indelstring.size() == 0));
-    const auto c_binom_powlaw_syserr_normv_q4 = calc_binom_powlaw_syserr_normv_quals(
-            (tki.cDP2v + 1) / 100.0, (tki.CDP2v + 2) / 100.0, tki.cVQ2,
-            (collectget(nfm.cDP2v, 1) + 1) / 100.0, (collectget(nfm.CDP2v, 0) + 2) / 100.0, collectget(nfm.cVQ2, 1), true);
+    double nfm_cDP1 = collectget(nfm.cDP1f, 1) + collectget(nfm.cDP1r, 1);
+    double nfm_CDP1 = collectget(nfm.CDP1f, 0) + collectget(nfm.CDP1r, 0);
+    const auto b_binom_powlaw_syserr_normv_q4nofilt = calc_binom_powlaw_syserr_normv_quals(
+            (tki.cDP1 + 0.5), 
+            (tki.CDP1 + 1), 
+            (tki.cVQ1),
+            (nfm_cDP1 + 0.5), 
+            (nfm_CDP1 + 1), 
+            (collectget(nfm.cVQ1, 1)), 
+            (indelstring.size() == 0));
     
-    int tlodq = MAX(b_binom_powlaw_syserr_normv_q4[3], c_binom_powlaw_syserr_normv_q4[3]);
+    const auto nfm_cDP1v = collectget(nfm.cDP1v, 1);
+    const auto nfm_CDP1v = collectget(nfm.CDP1v, 0);
+    const auto b_binom_powlaw_syserr_normv_q4filter = calc_binom_powlaw_syserr_normv_quals(
+            (tki.cDP1v + 0.5) / 100.0, 
+            (tki.CDP1v + 1) / 100.0, 
+            (tki.cVQ1),
+            (nfm_cDP1v + 0.5) / 100.0, 
+            (nfm_CDP1v + 1) / 100.0, 
+            (collectget(nfm.cVQ1, 1)), 
+            (indelstring.size() == 0));
+    
+    const auto b_filt_penal1 = MAX(1, MIN(
+            ((tki.cDP1) / (tki.CDP1 + 1.0)) / ((tki.cDP1v + 0.5) / (tki.CDP1v + 1.0)),
+            ((nfm_cDP1) / (nfm_CDP1 + 1.0)) / ((nfm_cDP1v + 0.5) / (nfm_CDP1v + 1.0)))); 
+    
+    const auto c_binom_powlaw_syserr_normv_q4 = calc_binom_powlaw_syserr_normv_quals(
+            (tki.cDP2v + 0.5) / 100.0, 
+            (tki.CDP2v + 1) / 100.0, 
+            (tki.cVQ2),
+            (collectget(nfm.cDP2v, 1) + 0.5) / 100.0, 
+            (collectget(nfm.CDP2v, 0) + 1) / 100.0, 
+            (collectget(nfm.cVQ2, 1)), 
+            (true));
+    
+    int b_filt_penal2 = (10.0 / log(10) * log(b_filt_penal1) * (MIN3(tki.cDP1, nfm_cDP1, 2) + 1));
+    int tlodq = MAX(MAX(b_binom_powlaw_syserr_normv_q4nofilt[3], b_binom_powlaw_syserr_normv_q4filter[3]) - MIN(20, b_filt_penal2), c_binom_powlaw_syserr_normv_q4[3]);
     int somaticq = MIN(tlodq, nlodq);
     int vcfqual = ((tki.ref_alt.size() > 0) ? somaticq : tlodq);
     std::string infostring = std::string(tki.ref_alt.size() > 0 ? "SOMATIC" : "ANY_VAR");
     infostring += std::string(";SomaticQ=") + std::to_string(somaticq);
     infostring += std::string(";TLODQ=") + std::to_string(tlodq);
     infostring += std::string(";NLODQ=") + std::to_string(nlodq);
-    infostring += std::string(";TNBQ4=") + other_join(b_binom_powlaw_syserr_normv_q4);
-    infostring += std::string(";TNCQ4=") + other_join(c_binom_powlaw_syserr_normv_q4);
+    infostring += std::string(";TNBQF=") + other_join(b_binom_powlaw_syserr_normv_q4filter);
+    infostring += std::string(";TNBQN=") + other_join(b_binom_powlaw_syserr_normv_q4nofilt);
+    infostring += std::string(";TNBQP=") + std::to_string(b_filt_penal2);
+    infostring += std::string(";TNCQF=") + other_join(c_binom_powlaw_syserr_normv_q4);
     infostring += std::string(";RU=") + repeatunit + ";RC=" + std::to_string(repeatnum);
     const auto & rtr1 =  region_repeatvec.at(MAX(refpos - region_offset, 1) - 1);
     const auto & rtr2 =  region_repeatvec.at(MIN(refpos - region_offset + 1, region_repeatvec.size() - 1));
