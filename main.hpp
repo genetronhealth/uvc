@@ -1157,8 +1157,8 @@ update_seg_format_thres_from_prep_sets(
         auto segRIDP = MAX(seg_format_prep_sets.getByPos(epos)[SEG_a_RIDP], 1);
         seg_format_thres_sets.getRefByPos(epos)[SEG_aEP1t] = MAX3(indel_len_per_DP * 2, potential_indel_len, 9) + 9; // easier to pass
         seg_format_thres_sets.getRefByPos(epos)[SEG_aEP2t] = MAX3(indel_len_per_DP * 2, potential_indel_len, 9) + 18; // harder to pass, the lower the strong the bias
-        seg_format_thres_sets.getRefByPos(epos)[SEG_aXM1T] = (seg_format_prep_sets.getByPos(epos)[SEG_a_XM]*3 / (seg_a_dp*2) + 3); // easier to pass
-        seg_format_thres_sets.getRefByPos(epos)[SEG_aXM2T] = (seg_format_prep_sets.getByPos(epos)[SEG_a_XM]*2 / (seg_a_dp*2) + 1); // the higher the stronger the bias
+        seg_format_thres_sets.getRefByPos(epos)[SEG_aXM1T] = (seg_format_prep_sets.getByPos(epos)[SEG_a_XM]*3 / (seg_a_dp*2) + 4); // easier to pass
+        seg_format_thres_sets.getRefByPos(epos)[SEG_aXM2T] = (seg_format_prep_sets.getByPos(epos)[SEG_a_XM]*5 / (seg_a_dp*4) + 1); // the higher the stronger the bias
         seg_format_thres_sets.getRefByPos(epos)[SEG_aLI1T] = (seg_format_prep_sets.getByPos(epos)[SEG_a_LI] * 3 / segLIDP);
         seg_format_thres_sets.getRefByPos(epos)[SEG_aLI2T] = (seg_format_prep_sets.getByPos(epos)[SEG_a_LI] * 2 / segLIDP); // higher > stronger bias
         seg_format_thres_sets.getRefByPos(epos)[SEG_aRI1T] = (seg_format_prep_sets.getByPos(epos)[SEG_a_RI] * 3 / segRIDP);
@@ -2253,7 +2253,7 @@ fill_symbol_VQ_fmts(
     int a_BQ_syserr_qual_rv = ((int)(fmt.aSBQf[a] + fmt.aSBQr[a] * 2) - 23*(int)((fmt.aDPff[a] + fmt.aDPrf[a]) + (fmt.aDPfr[a] + fmt.aDPrr[a]) * 2)) / 2;
     int a_BQ_avg_qual = (int)(fmt.aSBQf[a] + fmt.aSBQr[a]) / (int)MAX(1, fmt.aDPff[a] + fmt.aDPrf[a] + fmt.aDPfr[a] + fmt.aDPrr[a]);
     // int a_BQ_syserr_qual = MAX3(a_BQ_syserr_qual_fw, a_BQ_syserr_qual_rv, a_BQ_avg_qual);
-    clear_push(fmt.aBQQ, MAX4(a_BQ_avg_qual, a_BQ_syserr_qual_2d, a_BQ_syserr_qual_fw + 9, a_BQ_syserr_qual_rv + 9), a);
+    clear_push(fmt.aBQQ, MAX4(a_BQ_avg_qual, a_BQ_syserr_qual_2d + 23, a_BQ_syserr_qual_fw + 23, a_BQ_syserr_qual_rv + 23), a);
     fill_symbol_fmt(fmt.bMQ,  symbol_to_VQ_format_tag_sets,  VQ_bMQ,  refpos, symbol, a);
     fmt.bMQ[a] = (unsigned int)floor(sqrt(fmt.bMQ[a] * SQR_QUAL_DIV / MAX(fmt.bDPf[a] + fmt.bDPr[a], 1)) + (double)(1.0 - FLT_EPSILON));
     
@@ -2577,8 +2577,10 @@ BcfFormat_symbol_calc_qual(
     clear_push(fmt.cPLQ2, sscs_powlaw_qual, a);
     
     const int syserr_q = MIN(fmt.aBQQ[a], (int)((fmt.bMQ[a] * 7/6) + phred_varcall_err_per_map_err_per_base));
-    clear_push(fmt.cVQ1, MIN3(syserr_q, (int)LAST(fmt.bIAQ), (int)LAST(fmt.cPLQ1)), a);
-    clear_push(fmt.cVQ2, MIN3(syserr_q, (int)LAST(fmt.cIAQ), (int)LAST(fmt.cPLQ2)), a);
+    const int lowdepth_qual_penal = MIN(20, (int)(fmt.aSBQf[a] + fmt.aSBQr[a]) / 6) - 20;
+    
+    clear_push(fmt.cVQ1, MIN3(syserr_q, (int)LAST(fmt.bIAQ) - lowdepth_qual_penal, (int)LAST(fmt.cPLQ1)), a);
+    clear_push(fmt.cVQ2, MIN3(syserr_q, (int)LAST(fmt.cIAQ)                      , (int)LAST(fmt.cPLQ2)), a);
     // TODO; check if reducing all allele read count to increase alt allele frac in case of ref bias makes more sense
     
     auto binom_contam_LODQ = (int)calc_binom_10log10_likeratio(0.02, fmt.cDP1v[a], fmt.CDP1v[0]);

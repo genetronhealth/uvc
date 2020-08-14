@@ -633,7 +633,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                     }
                     
                     if (NOT_PROVIDED != paramset.vcf_tumor_fname
-                            && (!is_pos_rescued)) {
+                            && (!is_pos_rescued || ((!is_var_rescued) && refsymbol != symbol))) {
                         continue;
                     }
                     const auto simplemut = std::make_pair(refpos, symbol);
