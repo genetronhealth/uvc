@@ -1184,7 +1184,7 @@ dealwith_segbias(
     
     const auto rend = bam_endpos(aln); 
     const size_t seg_l_nbases = (rpos - aln->core.pos + 1);
-    const size_t seg_r_nbases = (bam_endpos(aln) - aln->core.pos);
+    const size_t seg_r_nbases = (bam_endpos(aln) - rpos);
     const size_t frag_pos_L = ((aln->core.isize != 0) ? MIN(aln->core.pos, aln->core.mpos) : aln->core.pos);
     const size_t frag_pos_R = ((aln->core.isize != 0) ? (frag_pos_L + aln->core.isize) : rend);
     const size_t frag_l_nbases = (rpos - frag_pos_L + 1); 
@@ -2248,13 +2248,13 @@ fill_symbol_VQ_fmts(
     fill_symbol_fmt(fmt.aSBQf, symbol_to_VQ_format_tag_sets, VQ_aSBQf, refpos, symbol, a);
     fill_symbol_fmt(fmt.aSBQr, symbol_to_VQ_format_tag_sets, VQ_aSBQr, refpos, symbol, a);
     
-    int a_BQ_syserr_qual_fw = (int)(fmt.aSBQf[a] * 2 + fmt.aSBQr[a]) - (int)(22 * ((fmt.aDPff[a] + fmt.aDPrf[a]) * 2 + (fmt.aDPfr[a] + fmt.aDPrr[a])));
-    int a_BQ_syserr_qual_rv = (int)(fmt.aSBQf[a] + fmt.aSBQr[a] * 2) - (int)(22 * ((fmt.aDPff[a] + fmt.aDPrf[a]) + (fmt.aDPfr[a] + fmt.aDPrr[a]) * 2));
+    int a_BQ_syserr_qual_fw = (int)(fmt.aSBQf[a] * 2 + fmt.aSBQr[a]) - (int)(23 * ((fmt.aDPff[a] + fmt.aDPrf[a]) * 2 + (fmt.aDPfr[a] + fmt.aDPrr[a])));
+    int a_BQ_syserr_qual_rv = (int)(fmt.aSBQf[a] + fmt.aSBQr[a] * 2) - (int)(23 * ((fmt.aDPff[a] + fmt.aDPrf[a]) + (fmt.aDPfr[a] + fmt.aDPrr[a]) * 2));
     int a_BQ_avg_qual = (int)(fmt.aSBQf[a] + fmt.aSBQr[a]) / (int)MAX(1, fmt.aDPff[a] + fmt.aDPrf[a] + fmt.aDPfr[a] + fmt.aDPrr[a]);
     // int a_BQ_syserr_qual = MAX3(a_BQ_syserr_qual_fw, a_BQ_syserr_qual_rv, a_BQ_avg_qual);
-    clear_push(fmt.aBQQ, (a_BQ_avg_qual + MAX3(0, a_BQ_syserr_qual_fw, a_BQ_syserr_qual_rv)), a);
+    clear_push(fmt.aBQQ, MAX3(a_BQ_avg_qual, a_BQ_syserr_qual_fw + 11, a_BQ_syserr_qual_rv + 11), a);
     fill_symbol_fmt(fmt.bMQ,  symbol_to_VQ_format_tag_sets,  VQ_bMQ,  refpos, symbol, a);
-    fmt.bMQ[a] = (unsigned int)floor(sqrt(fmt.bMQ[a] * SQR_QUAL_DIV / MAX(fmt.bDPf[a] + fmt.bDPr[a], 1) + (1.0 - DBL_EPSILON)));
+    fmt.bMQ[a] = (unsigned int)floor(sqrt(fmt.bMQ[a] * SQR_QUAL_DIV / MAX(fmt.bDPf[a] + fmt.bDPr[a], 1)) + (double)(1.0 - FLT_EPSILON));
     
     fill_symbol_fmt(fmt.bIAQb, symbol_to_VQ_format_tag_sets, VQ_bIAQb, refpos, symbol, a);
     fill_symbol_fmt(fmt.bIADb, symbol_to_VQ_format_tag_sets, VQ_bIADb, refpos, symbol, a);
@@ -2575,7 +2575,7 @@ BcfFormat_symbol_calc_qual(
     clear_push(fmt.cPLQ1, dedup_frag_powlaw_qual, a); // phred_varcall_err_per_map_err_per_base
     clear_push(fmt.cPLQ2, sscs_powlaw_qual, a);
     
-    const int syserr_q = MIN(fmt.aBQQ[a], (int)((fmt.bMQ[a] * 11 / 10) + phred_varcall_err_per_map_err_per_base));
+    const int syserr_q = MIN(fmt.aBQQ[a], (int)((fmt.bMQ[a] * 7/6) + phred_varcall_err_per_map_err_per_base));
     clear_push(fmt.cVQ1, MIN3(syserr_q, (int)LAST(fmt.bIAQ), (int)LAST(fmt.cPLQ1)), a);
     clear_push(fmt.cVQ2, MIN3(syserr_q, (int)LAST(fmt.cIAQ), (int)LAST(fmt.cPLQ2)), a);
     // TODO; check if reducing all allele read count to increase alt allele frac in case of ref bias makes more sense
@@ -3304,7 +3304,7 @@ calc_binom_powlaw_syserr_normv_quals(
     double bjpfrac = ((tAD) / (tDP)) / ((nAD) / (nDP));
     int powlaw_b10log10like = (int)(3 * 10 / log(10) * log(bjpfrac));
     int syserr_b10log10like = (int)MAX(0, nVQ - 12.5 * mathsquare(MAX(0, bjpfrac - 1.0)));
-    int tnVQ = tVQ + MIN(22, CENTER(binom_b10log10like, powlaw_b10log10like));
+    int tnVQ = tVQ + MIN(MAX(0, (int)(tVQ/3)), CENTER(binom_b10log10like, powlaw_b10log10like));
     if (is_penal_applied) { tnVQ -= syserr_b10log10like; }
     return std::array<int, 4> {{binom_b10log10like, powlaw_b10log10like, syserr_b10log10like, tnVQ }};
 };

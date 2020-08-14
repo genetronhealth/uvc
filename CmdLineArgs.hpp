@@ -112,7 +112,7 @@ struct CommandLineArgs {
     bool        is_somatic_indel_filtered_by_any_nonref_germline_indel = true;
     double      amp_BQ_sqr_coef = 2.0; // 0.09; // 22.0/256.0; 
     double      cap_BQ_sqr_coef = 2.0; // 0.12; // .0/256.0;
-    uint8_t     phred_varcall_err_per_map_err_per_base = 22;
+    uint8_t     phred_varcall_err_per_map_err_per_base = 20; // HLA pairwise sequence identity is about 1% from https://www.ebi.ac.uk/ipd/mhc/alignment/hla/
     
     double      powlaw_exponent = 3.0;
     double      powlaw_anyvar_base = (double)(60+25+5);
