@@ -612,8 +612,8 @@ infer_max_qual_assuming_independence(
         int & maxvqual,
         unsigned int & argmaxAD,
         unsigned int & argmaxBQ,
-        unsigned int max_qual, 
-        unsigned int dec_qual,
+        const unsigned int max_qual, 
+        const unsigned int dec_qual,
         const std::array<uint32_t, NUM_BUCKETS> & qual_distr, 
         const unsigned int totDP,
         unsigned int specialflag) {
@@ -628,7 +628,7 @@ infer_max_qual_assuming_independence(
         if (0 == currQD) { continue; }
         currAD += currQD;
         auto currBQ = max_qual - (dec_qual * idx);
-        double expBQ = 10.0 / log(10.0) * log((double)currAD / (double)totDP);
+        double expBQ = 10.0 / log(10.0) * log(((double)totDP / (double)currAD) + DBL_EPSILON);
         currvqual = (int)(currAD * (currBQ - expBQ));
         if (currvqual > maxvqual) {
             argmaxAD = currAD;

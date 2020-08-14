@@ -2248,11 +2248,12 @@ fill_symbol_VQ_fmts(
     fill_symbol_fmt(fmt.aSBQf, symbol_to_VQ_format_tag_sets, VQ_aSBQf, refpos, symbol, a);
     fill_symbol_fmt(fmt.aSBQr, symbol_to_VQ_format_tag_sets, VQ_aSBQr, refpos, symbol, a);
     
-    int a_BQ_syserr_qual_fw = (int)(fmt.aSBQf[a] * 2 + fmt.aSBQr[a]) - (int)(23 * ((fmt.aDPff[a] + fmt.aDPrf[a]) * 2 + (fmt.aDPfr[a] + fmt.aDPrr[a])));
-    int a_BQ_syserr_qual_rv = (int)(fmt.aSBQf[a] + fmt.aSBQr[a] * 2) - (int)(23 * ((fmt.aDPff[a] + fmt.aDPrf[a]) + (fmt.aDPfr[a] + fmt.aDPrr[a]) * 2));
+    int a_BQ_syserr_qual_2d = ((int)(fmt.aSBQf[a] + fmt.aSBQr[a]) - 23*(int)((fmt.aDPff[a] + fmt.aDPrf[a]) + (fmt.aDPfr[a] + fmt.aDPrr[a])));
+    int a_BQ_syserr_qual_fw = ((int)(fmt.aSBQf[a] * 2 + fmt.aSBQr[a]) - 23*(int)((fmt.aDPff[a] + fmt.aDPrf[a]) * 2 + (fmt.aDPfr[a] + fmt.aDPrr[a]))) / 2;
+    int a_BQ_syserr_qual_rv = ((int)(fmt.aSBQf[a] + fmt.aSBQr[a] * 2) - 23*(int)((fmt.aDPff[a] + fmt.aDPrf[a]) + (fmt.aDPfr[a] + fmt.aDPrr[a]) * 2)) / 2;
     int a_BQ_avg_qual = (int)(fmt.aSBQf[a] + fmt.aSBQr[a]) / (int)MAX(1, fmt.aDPff[a] + fmt.aDPrf[a] + fmt.aDPfr[a] + fmt.aDPrr[a]);
     // int a_BQ_syserr_qual = MAX3(a_BQ_syserr_qual_fw, a_BQ_syserr_qual_rv, a_BQ_avg_qual);
-    clear_push(fmt.aBQQ, MAX3(a_BQ_avg_qual, a_BQ_syserr_qual_fw + 11, a_BQ_syserr_qual_rv + 11), a);
+    clear_push(fmt.aBQQ, MAX4(a_BQ_avg_qual, a_BQ_syserr_qual_2d, a_BQ_syserr_qual_fw + 9, a_BQ_syserr_qual_rv + 9), a);
     fill_symbol_fmt(fmt.bMQ,  symbol_to_VQ_format_tag_sets,  VQ_bMQ,  refpos, symbol, a);
     fmt.bMQ[a] = (unsigned int)floor(sqrt(fmt.bMQ[a] * SQR_QUAL_DIV / MAX(fmt.bDPf[a] + fmt.bDPr[a], 1)) + (double)(1.0 - FLT_EPSILON));
     
