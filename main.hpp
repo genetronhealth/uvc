@@ -1147,7 +1147,7 @@ update_seg_format_thres_from_prep_sets(
                 seg_format_prep_sets.getByPos(epos)[SEG_a_DEL_L], 
                 seg_format_prep_sets.getByPos(epos)[SEG_a_DEL_R] 
                 ) / seg_a_dp;
-        const auto potential_indel_len = MIN3(
+        const auto potential_indel_len = MAX3(
                 region_repeatvec[MAX(epos-region_offset, 1) - 1].tracklen, 
                 region_repeatvec[MIN(epos-region_offset, region_repeatvec.size()-2) + 1].tracklen,
                 region_repeatvec[epos-region_offset].tracklen);
@@ -1155,10 +1155,10 @@ update_seg_format_thres_from_prep_sets(
         // assert(seg_format_prep_sets.getByPos(epos)[SEG_a_LIDP] + seg_format_prep_sets.getByPos(epos)[SEG_a_RIDP] > 0);
         auto segLIDP = MAX(seg_format_prep_sets.getByPos(epos)[SEG_a_LIDP], 1);
         auto segRIDP = MAX(seg_format_prep_sets.getByPos(epos)[SEG_a_RIDP], 1);
-        seg_format_thres_sets.getRefByPos(epos)[SEG_aEP1t] = MAX3(indel_len_per_DP * 2, potential_indel_len, 5) + 15; // easier to pass
-        seg_format_thres_sets.getRefByPos(epos)[SEG_aEP2t] = MAX3(indel_len_per_DP * 2, potential_indel_len, 5) + 25; // harder to pass, the lower the strong the bias
-        seg_format_thres_sets.getRefByPos(epos)[SEG_aXM1T] = (seg_format_prep_sets.getByPos(epos)[SEG_a_XM] / seg_a_dp + 5); // easier to pass
-        seg_format_thres_sets.getRefByPos(epos)[SEG_aXM2T] = (seg_format_prep_sets.getByPos(epos)[SEG_a_XM] / seg_a_dp + 2); // the higher the stronger the bias
+        seg_format_thres_sets.getRefByPos(epos)[SEG_aEP1t] = MAX3(indel_len_per_DP * 2, potential_indel_len, 9) + 9; // easier to pass
+        seg_format_thres_sets.getRefByPos(epos)[SEG_aEP2t] = MAX3(indel_len_per_DP * 2, potential_indel_len, 9) + 18; // harder to pass, the lower the strong the bias
+        seg_format_thres_sets.getRefByPos(epos)[SEG_aXM1T] = (seg_format_prep_sets.getByPos(epos)[SEG_a_XM]*3 / (seg_a_dp*2) + 3); // easier to pass
+        seg_format_thres_sets.getRefByPos(epos)[SEG_aXM2T] = (seg_format_prep_sets.getByPos(epos)[SEG_a_XM]*2 / (seg_a_dp*2) + 1); // the higher the stronger the bias
         seg_format_thres_sets.getRefByPos(epos)[SEG_aLI1T] = (seg_format_prep_sets.getByPos(epos)[SEG_a_LI] * 3 / segLIDP);
         seg_format_thres_sets.getRefByPos(epos)[SEG_aLI2T] = (seg_format_prep_sets.getByPos(epos)[SEG_a_LI] * 2 / segLIDP); // higher > stronger bias
         seg_format_thres_sets.getRefByPos(epos)[SEG_aRI1T] = (seg_format_prep_sets.getByPos(epos)[SEG_a_RI] * 3 / segRIDP);
@@ -1189,6 +1189,7 @@ dealwith_segbias(
     const size_t frag_pos_R = ((aln->core.isize != 0) ? (frag_pos_L + aln->core.isize) : rend);
     const size_t frag_l_nbases = (rpos - frag_pos_L + 1); 
     const size_t frag_r_nbases = (frag_pos_R - rpos);
+    const bool is_normal = ((aln->core.isize != 0) || (0 == (aln->core.flag & 0x1)));
     const bool isrc = ((aln->core.flag & 0x10) == 0x10);
     const bool isr2 = ((aln->core.flag & 0x80) == 0x80 && (aln->core.flag & 0x1) == 0x1);
     const bool strand = (isrc ^ isr2);
@@ -1211,10 +1212,10 @@ dealwith_segbias(
     // const auto aBQidx = (isrc ? SEG_aBQa : SEG_aBQb);
     // symbol_to_seg_format_depth_set[SEG_aBQa] += 1;
     
-    if ((seg_l_nbases >= seg_format_thres_set[SEG_aEP1t]) || (seg_r_nbases >= seg_format_thres_set[SEG_aEP1t])) {
+    if ((seg_l_nbases >= seg_format_thres_set[SEG_aEP1t]) && (seg_r_nbases >= seg_format_thres_set[SEG_aEP1t])) {
         symbol_to_seg_format_depth_set[SEG_aEP1] += 1; // unmerged position quality
     }
-    if ((seg_l_nbases >= seg_format_thres_set[SEG_aEP2t]) || (seg_r_nbases >= seg_format_thres_set[SEG_aEP2t])) {
+    if ((seg_l_nbases >= seg_format_thres_set[SEG_aEP2t]) && (seg_r_nbases >= seg_format_thres_set[SEG_aEP2t])) {
         symbol_to_seg_format_depth_set[SEG_aEP2] += 1;
     }
     
@@ -1226,19 +1227,19 @@ dealwith_segbias(
     }
     
     if (isrc) {
-        auto dist2iend = aln->core.pos - frag_pos_L;
-        if (dist2iend <= seg_format_thres_set[SEG_aLI1T] && dist2iend >= seg_format_thres_set[SEG_aLI1t]) {
+        auto dist2iend = frag_l_nbases; // rpos - frag_pos_L;
+        if (dist2iend <= seg_format_thres_set[SEG_aLI1T] && dist2iend >= seg_format_thres_set[SEG_aLI1t] && is_normal) {
             symbol_to_seg_format_depth_set[SEG_aLI1] += 1; // unmerged base quality
         } 
-        if (dist2iend <= seg_format_thres_set[SEG_aLI2T] && dist2iend >= seg_format_thres_set[SEG_aLI2t]) {
+        if (dist2iend <= seg_format_thres_set[SEG_aLI2T] && dist2iend >= seg_format_thres_set[SEG_aLI2t] && is_normal) {
             symbol_to_seg_format_depth_set[SEG_aLI2] += 1;
         }
     } else {
-        auto dist2iend = frag_pos_R - aln->core.pos;
-        if (dist2iend <= seg_format_thres_set[SEG_aRI1T] && dist2iend >= seg_format_thres_set[SEG_aRI1t]) {
+        auto dist2iend = frag_r_nbases; //frag_pos_R - rpos;
+        if (dist2iend <= seg_format_thres_set[SEG_aRI1T] && dist2iend >= seg_format_thres_set[SEG_aRI1t] && is_normal) {
             symbol_to_seg_format_depth_set[SEG_aRI1] += 1; // unmerged base quality
         } 
-        if (dist2iend <= seg_format_thres_set[SEG_aRI2T] && dist2iend >= seg_format_thres_set[SEG_aRI2t]) {
+        if (dist2iend <= seg_format_thres_set[SEG_aRI2T] && dist2iend >= seg_format_thres_set[SEG_aRI2t] && is_normal) {
             symbol_to_seg_format_depth_set[SEG_aRI2] += 1;
         }
     }
@@ -2462,15 +2463,18 @@ BcfFormat_symbol_calc_DPv(
     double aBQFA = (fmt.aBQ1[a] + 0.5) / (fmt.ABQ2[0] + (fmt.aBQ1[a] - fmt.aBQ2[a]) + 1.0);
     double aEPFA = (fmt.aEP1[a] + 0.5) / (fmt.AEP2[0] + (fmt.aEP1[a] - fmt.aEP2[a]) + 1.0);
     double aXMFA = (fmt.aXM1[a] + 0.5) / (fmt.AXM2[0] + (fmt.aXM1[a] - fmt.aXM2[a]) + 1.0);
-    //double aLIFA = (fmt.aLI1[a] + 0.5) / (fmt.ALI2[0] + (fmt.aLI1[a] - fmt.aLI2[a]) + 1.0);
-    //double aRIFA = (fmt.aRI1[a] + 0.5) / (fmt.ARI2[0] + (fmt.aRI1[a] - fmt.aRI2[a]) + 1.0);
+    double aLIpc = MAX((fmt.aLI1[a] + 3.5) / (fmt.aDPfr[a] + fmt.aDPrr[a] - fmt.aLI1[a] + 1.0), 0.5/3);
+    double aLIFA = (fmt.aLI1[a] + aLIpc) / (fmt.ALI2[0] + (fmt.aLI1[a] - fmt.aLI2[a]) + aLIpc + 0.5);
+    double aRIpc = MAX((fmt.aRI1[a] + 3.5) / (fmt.aDPff[a] + fmt.aDPrf[a] - fmt.aRI1[a] + 1.0), 0.5/3);
+    double aRIFA = (fmt.aRI1[a] + aRIpc) / (fmt.ARI2[0] + (fmt.aRI1[a] - fmt.aRI2[a]) + aRIpc + 0.5);
     
     double aSSFA = dp4_to_pcFA(fmt.ADPff[0] + fmt.ADPrf[0], fmt.ADPfr[0] + fmt.ADPrr[0], fmt.aDPff[a] + fmt.aDPrf[a], fmt.aDPfr[a] + fmt.aDPrr[a]);
     double aROFA = dp4_to_pcFA(fmt.ADPff[0] + fmt.ADPrr[0], fmt.ADPfr[0] + fmt.ADPrf[0], fmt.aDPff[a] + fmt.aDPrr[a], fmt.aDPfr[a] + fmt.aDPrf[a]);
     
+#if 0
     double aLIalt = (fmt.aLI1[a] + 0.5);
     double aLItot = (fmt.ALI2[0] + (fmt.aLI1[a] - fmt.aLI2[a]) + 1.0);
-    double aLIbias = (fmt.aDPfr[a] + fmt.aDPrr[a] + 1.0 - aLIalt) / aLIalt;
+    double aLIbias = (fmt.aDPfr[a] + fmt.aDPrr[a] + 1.0 - aLIalt) / (aLIalt + 1.0);
     double aRIalt = (fmt.aRI1[a] + 0.5);
     double aRItot = (fmt.ARI2[0] + (fmt.aRI1[a] - fmt.aRI2[a]) + 1.0);
     double aRIbias = (fmt.aDPff[a] + fmt.aDPrf[a] + 1.0 - aRIalt) / aRIalt;
@@ -2478,15 +2482,16 @@ BcfFormat_symbol_calc_DPv(
             MIN((aLItot - aLIalt) * aLIbias + aLIalt, 3*(aLItot)), 
             MIN((aRItot - aRIalt) * aRIbias + aRIalt, 3*(aRItot)), 
             aLIalt, aRIalt);
-    
+#endif
     double bFA = (fmt.bDPa[a] + 0.5) / (fmt.BDPf[0] + fmt.BDPr[0] + 1.0);
     double cFA = (fmt.cDP1a[a] + 0.5) / (fmt.CDP1f[0] + fmt.CDP1r[0] + 1.0);
     
-    double min_aFA = MINVEC(std::array<double, 7>{{aBQFA, aEPFA, aXMFA, 
-        // aLIFA, aRIFA, 
-        a2IFA,
-        aSSFA, aROFA}});
+    auto min_aFA_vec = std::vector<double>{{aBQFA, aEPFA, aXMFA, aLIFA, aRIFA, aSSFA, aROFA}};
+    
+    double min_aFA = MINVEC(min_aFA_vec);
     double min_bcFA = MIN3(min_aFA, bFA, cFA);
+    
+    fmt.note += other_join(min_aFA_vec, "/") + "//";
     
     // double duprate = (double)(fmt.BDPf[0] + fmt.BDPr[0] + 1.0) / (double)(fmt.CDP1f[0] + fmt.CDP1r[0] + 0.5);
     // UMI universality-based prequal allele fraction
@@ -2494,7 +2499,7 @@ BcfFormat_symbol_calc_DPv(
     double cFA3 = ((fmt.cDP3f[a] + fmt.cDP3r[a]) + 0.5) / (fmt.CDP3f[0] + fmt.CDP3r[0] + 1.0);
     double umi_cFA = MIN3(min_bcFA, cFA2, cFA3);
     
-    clear_push(fmt.cDP1v, (int)(min_bcFA * (fmt.CDP1f[0] +fmt.cDP1r[0]) * 100), a);
+    clear_push(fmt.cDP1v, (int)(min_bcFA * (fmt.CDP1f[0] +fmt.CDP1r[0]) * 100), a);
     clear_push(fmt.cDP2v, (int)(umi_cFA * (fmt.CDP2f[0] +fmt.cDP2r[0]) * 100), a);
     return 0;
 };

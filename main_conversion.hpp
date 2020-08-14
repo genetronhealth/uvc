@@ -544,7 +544,7 @@ seg_format_get_avgBQ(const auto & s, const auto & q) {
 double 
 dp4_to_pcFA(double aDPfw, double aDPrv, double aADfw, double aADrv, double refmul = 1.0, double altmul = 1.0, double powlaw_exponent = 3.0) {
     double sor = ((aADfw + 1) * (aDPrv + 1)) / ((aADrv + 1) * (aDPfw + 1));
-    double aADpc = MAX(0, 3.5 - log(MAX(sor, 1/sor) / log(3))); // / log(3));
+    double aADpc = MAX(0, 3.5 - log(MAX(sor, 1/sor)) / log(3)); // / log(3));
     // double aADpc = 2.0 * (log(2.0) * powlaw_exponent) / log(1.0 + MAX(sor, 1.0 / sor));
     //double aFAfw = ((aADfw + aADpc) / altmul + 0.5) / ((aDPfw - aADfw + aADpc) / refmul + (aADfw + aADpc) / altmul + 1.0);
     //double aFArv = ((aADrv + aADpc) / altmul + 0.5) / ((aDPrv - aADrv + aADpc) / refmul + (aADrv + aADpc) / altmul + 1.0);
