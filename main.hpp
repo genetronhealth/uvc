@@ -2538,11 +2538,12 @@ BcfFormat_symbol_calc_qual(
         const std::string & repeatunit,
         const unsigned int repeatnum,
         // const unsigned int a = 0,
-        double powlaw_anyvar_base = (double)90,
-        double powlaw_exponent = (double)3,
-        double powlaw_sscs_inc = 30,
-        const unsigned int phred_varcall_err_per_map_err_per_base = 20,
-        const unsigned int specialflag = 0) {
+        double powlaw_anyvar_base, // = (double)90,
+        double powlaw_exponent, // = (double)3,
+        double powlaw_sscs_inc, // = 30,
+        const unsigned int phred_varcall_err_per_map_err_per_base, // = 20,
+        const bool is_rescued,
+        const unsigned int specialflag) {
     
     const unsigned int a = 0;
     int duped_frag_binom_qual = fmt.bIAQb[a];
@@ -2576,12 +2577,16 @@ BcfFormat_symbol_calc_qual(
     clear_push(fmt.cPLQ1, dedup_frag_powlaw_qual, a); // phred_varcall_err_per_map_err_per_base
     clear_push(fmt.cPLQ2, sscs_powlaw_qual, a);
     
-    const int syserr_q = MIN(fmt.aBQQ[a], (int)((fmt.bMQ[a] * 7/6) + phred_varcall_err_per_map_err_per_base));
-    double bIAQ_change_per_readcnt = (indelstring.size() > 0 ? (10.0 / log(10.0) * log(indelstring.size() / BETWEEN(repeatunit.size(), 1, indelstring.size()) + 1)) : 6);
-    const int bIAQ_lowdepth_penal = MIN(0, (int)((fmt.bDPf[a] + fmt.bDPr[a]) * bIAQ_change_per_readcnt - 10.0 / log(10.0) * log(fmt.BDPf[a] + fmt.BDPr[a] + 1.0)));
+    const int syserr_q = MIN3(fmt.aBQQ[a], (int)((fmt.bMQ[a] * 7/6) + phred_varcall_err_per_map_err_per_base), (int)(fmt.bDPf[a] + fmt.bDPr[a] + (is_rescued ? 1 : 0)) * 13);
+    //int bIAQ_change_per_readcnt = 10; // (indelstring.size() > 0 ? (10.0 / log(10.0) * log(indelstring.size() / BETWEEN(repeatunit.size(), 1, indelstring.size()) + 1)) : 6);
+    //const int bIAQ_lowdepth_penal = MAX(0, 30 - (fmt.bDPf[a] + fmt.bDPr[a]) * bIAQ_change_per_readcnt);
     
-    clear_push(fmt.cVQ1, MIN3(syserr_q, (int)LAST(fmt.bIAQ) - bIAQ_lowdepth_penal, (int)LAST(fmt.cPLQ1)), a);
-    clear_push(fmt.cVQ2, MIN3(syserr_q, (int)LAST(fmt.cIAQ)                      , (int)LAST(fmt.cPLQ2)), a);
+    clear_push(fmt.cVQ1, MIN3(syserr_q, 
+            (int)LAST(fmt.bIAQ), 
+            (int)LAST(fmt.cPLQ1)), a);
+    clear_push(fmt.cVQ2, MIN3(syserr_q, 
+            (int)LAST(fmt.cIAQ), 
+            (int)LAST(fmt.cPLQ2)), a);
     // TODO; check if reducing all allele read count to increase alt allele frac in case of ref bias makes more sense
     
     auto binom_contam_LODQ = (int)calc_binom_10log10_likeratio(0.02, fmt.cDP1v[a], fmt.CDP1v[0]);
@@ -3309,8 +3314,8 @@ calc_binom_powlaw_syserr_normv_quals(
     int binom_b10log10like = (int)calc_binom_10log10_likeratio((tDP - tAD) / (tDP), nDP - nAD, nAD);
     double bjpfrac = ((tAD) / (tDP)) / ((nAD) / (nDP));
     int powlaw_b10log10like = (int)(3 * 10 / log(10) * log(bjpfrac));
-    int syserr_b10log10like = (int)MAX(0, nVQ - 12.5 * mathsquare(MAX(0, bjpfrac - 1.0)));
-    int tnVQ = tVQ + MIN(MAX(0, (int)(tVQ/6 + 15)), CENTER(binom_b10log10like, powlaw_b10log10like));
+    int syserr_b10log10like = (int)MAX(0, nVQ - 10.0 * mathsquare(MAX(0, bjpfrac - 1.0))); // it was 12.5
+    int tnVQ = tVQ + MIN(MAX(0, (int)(tVQ/6 + 15)), MIN(binom_b10log10like, powlaw_b10log10like));
     if (is_penal_applied) { tnVQ -= syserr_b10log10like; }
     return std::array<int, 4> {{binom_b10log10like, powlaw_b10log10like, syserr_b10log10like, tnVQ }};
 };
@@ -3383,41 +3388,46 @@ append_vcf_record(
     
     double nfm_cDP1 = collectget(nfm.cDP1f, 1) + collectget(nfm.cDP1r, 1);
     double nfm_CDP1 = collectget(nfm.CDP1f, 0) + collectget(nfm.CDP1r, 0);
-    const auto b_binom_powlaw_syserr_normv_q4nofilt = calc_binom_powlaw_syserr_normv_quals(
-            (tki.cDP1 + 0.5), 
-            (tki.CDP1 + 1), 
-            (tki.cVQ1),
-            (nfm_cDP1 + 0.5), 
-            (nfm_CDP1 + 1), 
-            (collectget(nfm.cVQ1, 1)), 
-            (indelstring.size() == 0));
-    
     const auto nfm_cDP1v = collectget(nfm.cDP1v, 1);
     const auto nfm_CDP1v = collectget(nfm.CDP1v, 0);
-    const auto b_binom_powlaw_syserr_normv_q4filter = calc_binom_powlaw_syserr_normv_quals(
-            (tki.cDP1v + 0.5) / 100.0, 
-            (tki.CDP1v + 1) / 100.0, 
+
+    const auto b_filt_penal1 = MAX(1, MIN(
+            ((tki.cDP1) / (tki.CDP1 + 1.0)) / ((tki.cDP1v + 0.5) / (tki.CDP1v + 1.0)),
+            ((nfm_cDP1) / (nfm_CDP1 + 1.0)) / ((nfm_cDP1v + 0.5) / (nfm_CDP1v + 1.0)))) - 1; 
+    const auto b_binom_powlaw_syserr_normv_q4nofilt = calc_binom_powlaw_syserr_normv_quals(
+            (tki.cDP1 + 1.0), 
+            (tki.CDP1 + 2.0), 
             (tki.cVQ1),
-            (nfm_cDP1v + 0.5) / 100.0, 
-            (nfm_CDP1v + 1) / 100.0, 
+            (nfm_cDP1 + 1.0 + MIN(b_filt_penal1 * 0.5, 1.5)), 
+            (nfm_CDP1 + 2.0 + MIN(b_filt_penal1 * 0.5, 1.5)), 
             (collectget(nfm.cVQ1, 1)), 
             (indelstring.size() == 0));
     
-    const auto b_filt_penal1 = MAX(1, MIN(
-            ((tki.cDP1) / (tki.CDP1 + 1.0)) / ((tki.cDP1v + 0.5) / (tki.CDP1v + 1.0)),
-            ((nfm_cDP1) / (nfm_CDP1 + 1.0)) / ((nfm_cDP1v + 0.5) / (nfm_CDP1v + 1.0)))); 
+    const auto b_binom_powlaw_syserr_normv_q4filter = calc_binom_powlaw_syserr_normv_quals(
+            (tki.cDP1v + 0.5) / 100.0 + 0.5, 
+            (tki.CDP1v + 1.0) / 100.0 + 1.0, 
+            (tki.cVQ1),
+            (nfm_cDP1v + 0.5) / 100.0 + 0.5 + MIN(b_filt_penal1 * 0.5, 1.5), 
+            (nfm_CDP1v + 1.0) / 100.0 + 1.0 + MIN(b_filt_penal1 * 0.5, 1.5), 
+            (collectget(nfm.cVQ1, 1)), 
+            (indelstring.size() == 0));
     
     const auto c_binom_powlaw_syserr_normv_q4 = calc_binom_powlaw_syserr_normv_quals(
-            (tki.cDP2v + 0.5) / 100.0, 
-            (tki.CDP2v + 1) / 100.0, 
+            (tki.cDP2v + 0.5) / 100.0 + 0.5, 
+            (tki.CDP2v + 1.0) / 100.0 + 1.0, 
             (tki.cVQ2),
-            (collectget(nfm.cDP2v, 1) + 0.5) / 100.0, 
-            (collectget(nfm.CDP2v, 0) + 1) / 100.0, 
+            (collectget(nfm.cDP2v, 1) + 0.5) / 100.0 + 0.5, 
+            (collectget(nfm.CDP2v, 0) + 1.0) / 100.0 + 1.0, 
             (collectget(nfm.cVQ2, 1)), 
             (true));
     
     int b_filt_penal2 = (10.0 / log(10) * log(b_filt_penal1) * (MIN3(tki.cDP1, nfm_cDP1, 2) + 1));
-    int tlodq = MAX(MAX(b_binom_powlaw_syserr_normv_q4nofilt[3], b_binom_powlaw_syserr_normv_q4filter[3]) - MIN(20, b_filt_penal2), c_binom_powlaw_syserr_normv_q4[3]);
+    int tlodq = MAX(
+            MAX(
+                b_binom_powlaw_syserr_normv_q4nofilt[3] - 9999, 
+                b_binom_powlaw_syserr_normv_q4filter[3] // - 9999 // - MIN(20, b_filt_penal2)
+                ),
+            c_binom_powlaw_syserr_normv_q4[3]);
     int somaticq = MIN(tlodq, nlodq);
     int vcfqual = ((tki.ref_alt.size() > 0) ? somaticq : tlodq);
     std::string infostring = std::string(tki.ref_alt.size() > 0 ? "SOMATIC" : "ANY_VAR");

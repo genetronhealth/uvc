@@ -753,6 +753,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                                 3,
                                 30,
                                 paramset.phred_varcall_err_per_map_err_per_base,
+                                NOT_PROVIDED != paramset.vcf_tumor_fname,
                                 0);
                     }
                     auto & reffmt = init_fmt;
