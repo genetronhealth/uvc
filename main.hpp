@@ -980,6 +980,7 @@ update_seg_format_prep_sets_by_aln(
             }
         } else if (cigar_op == BAM_CINS) {
             unsigned int rtotlen = 0;
+            /*
             for (int rpos2 = MAX((int)rpos - (int)cigar_oplen, aln->core.pos); rpos2 < rpos; rpos2++) {
                 rtotlen++;
                 seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_INS_R] += rtotlen;
@@ -989,17 +990,18 @@ update_seg_format_prep_sets_by_aln(
                 seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_INS_L] += ltotlen;
                 ltotlen--;
             }
+            */
             qpos += cigar_oplen;
         } else if (cigar_op == BAM_CDEL) {
-            unsigned int ltotlen = 0;
-            unsigned int rtotlen = 0;
+            //unsigned int ltotlen = 0;
+            //unsigned int rtotlen = 0;
             for (int rpos2 = MAX((int)rpos - (int)cigar_oplen, aln->core.pos); rpos2 < rpos; rpos2++) {
-                rtotlen++;
-                seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_DEL_R] += rtotlen;
+                //rtotlen++;
+                //seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_DEL_R] += rtotlen;
             }
             for (int rpos2 = (int)rpos; rpos2 < rpos + cigar_oplen; rpos2++) {
-                seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_DEL_L] += ltotlen;
-                seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_DEL_R] += rtotlen;
+                //seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_DEL_L] += ltotlen;
+                //seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_DEL_R] += rtotlen;
                 seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_DP] += 1;
                 seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_XM] += xm150;
                 if (isrc) { 
@@ -1009,13 +1011,13 @@ update_seg_format_prep_sets_by_aln(
                     seg_format_prep_sets.getRefByPos(rpos)[SEG_a_RI] += MIN(frag_pos_R - rpos    , 1200); 
                     seg_format_prep_sets.getRefByPos(rpos)[SEG_a_RIDP] += 1;
                 }
-                rtotlen--;
-                ltotlen++;
+                //rtotlen--;
+                //ltotlen++;
             }
             for (int rpos2 = (int)rpos + (int)cigar_oplen; rpos2 < MIN(rpos + 2*cigar_oplen, rend); rpos2++) {
-                seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_DEL_L] += ltotlen;
-                seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_DP] += 1;
-                ltotlen--;
+                //seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_DEL_L] += ltotlen;
+                // // seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_DP] += 1;
+                //ltotlen--;
             }
             rpos += cigar_oplen;
         } else {
@@ -1141,6 +1143,7 @@ update_seg_format_thres_from_prep_sets(
     assert(seg_format_thres_sets.getExcluEndPosition() == seg_format_prep_sets.getExcluEndPosition());
     for (size_t epos = seg_format_prep_sets.getIncluBegPosition(); epos != seg_format_prep_sets.getExcluEndPosition(); epos++) {
         const unsigned int seg_a_dp = MAX(seg_format_prep_sets.getByPos(epos)[SEG_a_DP], 1U);
+        /*
         const unsigned int indel_len_per_DP = MAX4(
                 seg_format_prep_sets.getByPos(epos)[SEG_a_INS_L], 
                 seg_format_prep_sets.getByPos(epos)[SEG_a_INS_R], 
@@ -1151,12 +1154,12 @@ update_seg_format_thres_from_prep_sets(
                 region_repeatvec[MAX(epos-region_offset, 1) - 1].tracklen, 
                 region_repeatvec[MIN(epos-region_offset, region_repeatvec.size()-2) + 1].tracklen,
                 region_repeatvec[epos-region_offset].tracklen);
-        
+        */
         // assert(seg_format_prep_sets.getByPos(epos)[SEG_a_LIDP] + seg_format_prep_sets.getByPos(epos)[SEG_a_RIDP] > 0);
         auto segLIDP = MAX(seg_format_prep_sets.getByPos(epos)[SEG_a_LIDP], 1);
         auto segRIDP = MAX(seg_format_prep_sets.getByPos(epos)[SEG_a_RIDP], 1);
-        seg_format_thres_sets.getRefByPos(epos)[SEG_aEP1t] = MAX(indel_len_per_DP * 2, potential_indel_len) + 16; // easier to pass
-        seg_format_thres_sets.getRefByPos(epos)[SEG_aEP2t] = MAX(indel_len_per_DP * 2, potential_indel_len) + 22; // harder to pass, the lower the strong the bias
+        //seg_format_thres_sets.getRefByPos(epos)[SEG_aEP1t] = MAX(indel_len_per_DP * 2, potential_indel_len) + 16; // easier to pass
+        //seg_format_thres_sets.getRefByPos(epos)[SEG_aEP2t] = MAX(indel_len_per_DP * 2, potential_indel_len) + 22; // harder to pass, the lower the strong the bias
         seg_format_thres_sets.getRefByPos(epos)[SEG_aXM1T] = (seg_format_prep_sets.getByPos(epos)[SEG_a_XM]*3 / (seg_a_dp*2) + 4); // easier to pass
         seg_format_thres_sets.getRefByPos(epos)[SEG_aXM2T] = (seg_format_prep_sets.getByPos(epos)[SEG_a_XM]*5 / (seg_a_dp*4) + 1); // the higher the stronger the bias
         seg_format_thres_sets.getRefByPos(epos)[SEG_aLI1T] = (seg_format_prep_sets.getByPos(epos)[SEG_a_LI] * 3 / segLIDP);
@@ -1183,8 +1186,9 @@ dealwith_segbias(
         const unsigned int specialflag) {
     
     const auto rend = bam_endpos(aln); 
-    const size_t seg_l_nbases = (rpos - aln->core.pos + 1);
-    const size_t seg_r_nbases = (bam_endpos(aln) - rpos);
+    //const size_t seg_l_nbases = (rpos - aln->core.pos + 1);
+    //const size_t seg_r_nbases = (bam_endpos(aln) - rpos);
+    const size_t seg_region_size = ((bam_endpos(aln) - aln->core.pos) + 4) / 10;
     const size_t frag_pos_L = ((aln->core.isize != 0) ? MIN(aln->core.pos, aln->core.mpos) : aln->core.pos);
     const size_t frag_pos_R = ((aln->core.isize != 0) ? (frag_pos_L + aln->core.isize) : rend);
     const size_t frag_l_nbases = (rpos - frag_pos_L + 1); 
@@ -1209,16 +1213,47 @@ dealwith_segbias(
         : (isrc ? symbol_to_seg_format_depth_set[SEG_aDPfr] : symbol_to_seg_format_depth_set[SEG_aDPff]));
     symbol_to_seg_aDP_depth_set += 1;
     
-    // const auto aBQidx = (isrc ? SEG_aBQa : SEG_aBQb);
-    // symbol_to_seg_format_depth_set[SEG_aBQa] += 1;
+    //const auto aBQidx = (isrc ? SEG_aBQf : SEG_aBQb);
+    //symbol_to_seg_format_depth_set[SEG_aBQidx] += 1;
     
-    if ((seg_l_nbases >= seg_format_thres_set[SEG_aEP1t]) && (seg_r_nbases >= seg_format_thres_set[SEG_aEP1t])) {
+    if (bq >= 20 && seg_region_size >= 5) {
+        const std::array<SegFormatDepthSet, 10+1> seg_region_idx_to_region = {{
+                SEG_aR1, SEG_aR2, SEG_aR2, 
+                SEG_aR3, SEG_aR3, SEG_aR3, SEG_aR3, 
+                SEG_aR4, SEG_aR4, SEG_aR5, SEG_aR5}};
+        unsigned int seg_region_idx = (rpos - aln->core.pos) / seg_region_size;
+        symbol_to_seg_format_depth_set[seg_region_idx_to_region[seg_region_idx]] += 1;
+    }
+    //if (seg_b_nbases >= mathsquare(3)) {
+    //    symbol_to_seg_format_depth_set[SEG_aEP1] += 1; // unmerged position quality
+    //}
+    
+    /*
+    if (seg_l_nbases * 7 > seg_r_nbases * 3) {
+        symbol_to_seg_format_depth_set[SEG_aDPL] += 1; // unmerged position quality
+    }
+    if (seg_r_nbases * 7 > seg_l_nbases * 3) {
+        symbol_to_seg_format_depth_set[SEG_aDPR] += 1; // unmerged position quality
+    }
+    
+    seg_b_nbases = MIN(seg_l_nbases, seg_r_nbases);
+    
+    if (seg_b_nbases >= mathsquare(3)) {
         symbol_to_seg_format_depth_set[SEG_aEP1] += 1; // unmerged position quality
     }
-    if ((seg_l_nbases >= seg_format_thres_set[SEG_aEP2t]) && (seg_r_nbases >= seg_format_thres_set[SEG_aEP2t])) {
+    if (seg_b_nbases >= mathsquare(4)) {
         symbol_to_seg_format_depth_set[SEG_aEP2] += 1;
     }
-    
+    if (seg_b_nbases >= mathsquare(5)) {
+        symbol_to_seg_format_depth_set[SEG_aEP3] += 1;
+    }
+    if (seg_b_nbases >= mathsquare(6)) {
+        symbol_to_seg_format_depth_set[SEG_aEP4] += 1;
+    }
+    if (seg_b_nbases >= mathsquare(7)) {
+        symbol_to_seg_format_depth_set[SEG_aEP5] += 1;
+    }
+    */
     if (xm150 <= seg_format_thres_set[SEG_aXM1T]) {
         symbol_to_seg_format_depth_set[SEG_aXM1] += 1; // unmerged base quality
     } 
@@ -1928,10 +1963,10 @@ struct Symbol2CountCoverageSet {
                         if (1 == tot_count) {
                             this->symbol_to_fam_format_depth_sets_2strand[strand].getRefByPos(epos)[con_symbol][FAM_c1DP] += 1;
                         }
-                        if (1 < tot_count && (con_count * 5 >= tot_count * 4)) {
+                        if (1 < tot_count && (con_count * 100 >= tot_count * 80)) {
                             this->symbol_to_fam_format_depth_sets_2strand[strand].getRefByPos(epos)[con_symbol][FAM_cDP2] += 1;
                         }
-                        if (7 < tot_count && (con_count * 5 >= tot_count * 4)) {
+                        if (2 < tot_count && (con_count * 100 >= tot_count * 85)) {
                             this->symbol_to_fam_format_depth_sets_2strand[strand].getRefByPos(epos)[con_symbol][FAM_cDP3] += 1;
                         }
                         // this->fam_total_dep[strand].getRefByPos(epos).incSymbolCount(con_symbol, 1); // for genomic region, so add DP (every type of  DP is unfiltered)
@@ -2248,12 +2283,11 @@ fill_symbol_VQ_fmts(
     fill_symbol_fmt(fmt.aSBQf, symbol_to_VQ_format_tag_sets, VQ_aSBQf, refpos, symbol, a);
     fill_symbol_fmt(fmt.aSBQr, symbol_to_VQ_format_tag_sets, VQ_aSBQr, refpos, symbol, a);
     
-    int a_BQ_syserr_qual_2d = ((int)(fmt.aSBQf[a] + fmt.aSBQr[a]) - 23*(int)((fmt.aDPff[a] + fmt.aDPrf[a]) + (fmt.aDPfr[a] + fmt.aDPrr[a])));
-    int a_BQ_syserr_qual_fw = ((int)(fmt.aSBQf[a] * 2 + fmt.aSBQr[a]) - 23*(int)((fmt.aDPff[a] + fmt.aDPrf[a]) * 2 + (fmt.aDPfr[a] + fmt.aDPrr[a]))) / 2;
-    int a_BQ_syserr_qual_rv = ((int)(fmt.aSBQf[a] + fmt.aSBQr[a] * 2) - 23*(int)((fmt.aDPff[a] + fmt.aDPrf[a]) + (fmt.aDPfr[a] + fmt.aDPrr[a]) * 2)) / 2;
+    int a_BQ_syserr_qual_fw = ((int)fmt.aSBQf[a]) - 23 * (int)(fmt.aDPff[a] + fmt.aDPrf[a]) + ((int)fmt.aSBQr[a]) - 13 * (int)(fmt.aDPfr[a] + fmt.aDPrr[a]);
+    int a_BQ_syserr_qual_rv = ((int)fmt.aSBQf[a]) - 13 * (int)(fmt.aDPff[a] + fmt.aDPrf[a]) + ((int)fmt.aSBQr[a]) - 23 * (int)(fmt.aDPfr[a] + fmt.aDPrr[a]);
+    int a_BQ_syserr_qual_2d = ((int)fmt.aSBQf[a]) - 23 * (int)(fmt.aDPff[a] + fmt.aDPrf[a]) + ((int)fmt.aSBQr[a]) - 23 * (int)(fmt.aDPfr[a] + fmt.aDPrr[a]);
     int a_BQ_avg_qual = (int)(fmt.aSBQf[a] + fmt.aSBQr[a]) / (int)MAX(1, fmt.aDPff[a] + fmt.aDPrf[a] + fmt.aDPfr[a] + fmt.aDPrr[a]);
-    // int a_BQ_syserr_qual = MAX3(a_BQ_syserr_qual_fw, a_BQ_syserr_qual_rv, a_BQ_avg_qual);
-    clear_push(fmt.aBQQ, MAX(a_BQ_avg_qual, 10 + MAX3(a_BQ_syserr_qual_2d, a_BQ_syserr_qual_fw, a_BQ_syserr_qual_rv)), a);
+    clear_push(fmt.aBQQ, MAX(a_BQ_avg_qual, 13 + MAX(a_BQ_syserr_qual_2d, MIN(a_BQ_syserr_qual_fw, a_BQ_syserr_qual_rv))), a);
     fill_symbol_fmt(fmt.bMQ,  symbol_to_VQ_format_tag_sets,  VQ_bMQ,  refpos, symbol, a);
     fmt.bMQ[a] = (unsigned int)floor(sqrt(fmt.bMQ[a] * SQR_QUAL_DIV / MAX(fmt.bDPf[a] + fmt.bDPr[a], 1)) + (double)(1.0 - FLT_EPSILON));
     
@@ -2284,12 +2318,12 @@ BcfFormat_symboltype_init(bcfrec::BcfFormat & fmt,
     
     const auto & p = symbol2CountCoverageSet12.seg_format_prep_sets.getByPos(refpos);
     fmt.APDP = p[SEG_a_DP];
-    fmt.APGap = {{ p[SEG_a_INS_L], p[SEG_a_INS_R], p[SEG_a_DEL_L], p[SEG_a_DEL_R] }};
+    // fmt.APGap = {{ p[SEG_a_INS_L], p[SEG_a_INS_R], p[SEG_a_DEL_L], p[SEG_a_DEL_R] }};
     fmt.APXM = p[SEG_a_XM];
     fmt.APLRI = {{ p[SEG_a_LI], p[SEG_a_LIDP], p[SEG_a_RI], p[SEG_a_RIDP] }};
     
     const auto & s = symbol2CountCoverageSet12.seg_format_thres_sets.getByPos(refpos);
-    fmt.AEPT = {{ s[SEG_aEP1t], s[SEG_aEP2t] }};
+    //fmt.AEPT = {{ s[SEG_aEP1t], s[SEG_aEP2t] }};
     fmt.AXMT = {{ s[SEG_aXM1T], s[SEG_aXM2T] }};
     fmt.ALIT = {{ s[SEG_aLI1t], s[SEG_aLI2t] , s[SEG_aLI1T], s[SEG_aLI2T] }};
     fmt.ARIT = {{ s[SEG_aRI1t], s[SEG_aRI2t] , s[SEG_aRI1T], s[SEG_aRI2T] }};
@@ -2301,10 +2335,15 @@ BcfFormat_symboltype_init(bcfrec::BcfFormat & fmt,
     fill_symboltype_fmt(fmt.ADPrf, fmt.aDPrf, symbol_to_seg_format_depth_sets, SEG_aDPrf, refpos, symbolType, refsymbol);
     fill_symboltype_fmt(fmt.ADPrr, fmt.aDPrr, symbol_to_seg_format_depth_sets, SEG_aDPrr, refpos, symbolType, refsymbol);
     
+    fill_symboltype_fmt(fmt.AR1, fmt.aR1, symbol_to_seg_format_depth_sets, SEG_aR1, refpos, symbolType, refsymbol);
+    fill_symboltype_fmt(fmt.AR2, fmt.aR2, symbol_to_seg_format_depth_sets, SEG_aR2, refpos, symbolType, refsymbol);
+    fill_symboltype_fmt(fmt.AR3, fmt.aR3, symbol_to_seg_format_depth_sets, SEG_aR3, refpos, symbolType, refsymbol);
+    fill_symboltype_fmt(fmt.AR4, fmt.aR4, symbol_to_seg_format_depth_sets, SEG_aR4, refpos, symbolType, refsymbol);
+    fill_symboltype_fmt(fmt.AR5, fmt.aR5, symbol_to_seg_format_depth_sets, SEG_aR5, refpos, symbolType, refsymbol);
+
     fill_symboltype_fmt(fmt.ABQ1, fmt.aBQ1, symbol_to_seg_format_depth_sets, SEG_aBQ1, refpos, symbolType, refsymbol);
     fill_symboltype_fmt(fmt.ABQ2, fmt.aBQ2, symbol_to_seg_format_depth_sets, SEG_aBQ2, refpos, symbolType, refsymbol);
-    fill_symboltype_fmt(fmt.AEP1, fmt.aEP1, symbol_to_seg_format_depth_sets, SEG_aEP1, refpos, symbolType, refsymbol);
-    fill_symboltype_fmt(fmt.AEP2, fmt.aEP2, symbol_to_seg_format_depth_sets, SEG_aEP2, refpos, symbolType, refsymbol);
+    
     fill_symboltype_fmt(fmt.AXM1, fmt.aXM1, symbol_to_seg_format_depth_sets, SEG_aXM1, refpos, symbolType, refsymbol);
     fill_symboltype_fmt(fmt.AXM2, fmt.aXM2, symbol_to_seg_format_depth_sets, SEG_aXM2, refpos, symbolType, refsymbol);
     fill_symboltype_fmt(fmt.ALI1, fmt.aLI1, symbol_to_seg_format_depth_sets, SEG_aLI1, refpos, symbolType, refsymbol);
@@ -2377,10 +2416,15 @@ BcfFormat_symbol_init(
     fill_symbol_fmt(fmt.aDPrf, symbol_to_seg_format_depth_sets, SEG_aDPrf, refpos, symbol, a);
     fill_symbol_fmt(fmt.aDPrr, symbol_to_seg_format_depth_sets, SEG_aDPrr, refpos, symbol, a);
     
+    fill_symbol_fmt(fmt.aR1, symbol_to_seg_format_depth_sets, SEG_aR1, refpos, symbol, a);
+    fill_symbol_fmt(fmt.aR2, symbol_to_seg_format_depth_sets, SEG_aR2, refpos, symbol, a);
+    fill_symbol_fmt(fmt.aR3, symbol_to_seg_format_depth_sets, SEG_aR3, refpos, symbol, a);
+    fill_symbol_fmt(fmt.aR4, symbol_to_seg_format_depth_sets, SEG_aR4, refpos, symbol, a);
+    fill_symbol_fmt(fmt.aR5, symbol_to_seg_format_depth_sets, SEG_aR5, refpos, symbol, a);
+    
     fill_symbol_fmt(fmt.aBQ1, symbol_to_seg_format_depth_sets, SEG_aBQ1, refpos, symbol, a);
     fill_symbol_fmt(fmt.aBQ2, symbol_to_seg_format_depth_sets, SEG_aBQ2, refpos, symbol, a);
-    fill_symbol_fmt(fmt.aEP1, symbol_to_seg_format_depth_sets, SEG_aEP1, refpos, symbol, a);
-    fill_symbol_fmt(fmt.aEP2, symbol_to_seg_format_depth_sets, SEG_aEP2, refpos, symbol, a);
+    
     fill_symbol_fmt(fmt.aXM1, symbol_to_seg_format_depth_sets, SEG_aXM1, refpos, symbol, a);
     fill_symbol_fmt(fmt.aXM2, symbol_to_seg_format_depth_sets, SEG_aXM2, refpos, symbol, a);
     fill_symbol_fmt(fmt.aLI1, symbol_to_seg_format_depth_sets, SEG_aLI1, refpos, symbol, a);
@@ -2420,10 +2464,10 @@ BcfFormat_symbol_init(
             refpos,
             symbol,
             a);
-    if (a > 0) {
-        fmt.bHap = mutform2count4map_to_phase(mutform2count4vec_bq, indices_bq);
-        fmt.cHap = mutform2count4map_to_phase(mutform2count4vec_fq, indices_fq);
-    }
+    //if (a >= 0) {
+    fmt.bHap = mutform2count4map_to_phase(mutform2count4vec_bq, indices_bq);
+    fmt.cHap = mutform2count4map_to_phase(mutform2count4vec_fq, indices_fq);
+    //}
     clear_push(fmt.bDPa, bDPa, a);
     clear_push(fmt.cDP1a, cDP1a, a);
     clear_push(fmt.gapSa, gapSa, a);
@@ -2462,15 +2506,45 @@ BcfFormat_symbol_calc_DPv(
     unsigned int ADP = fmt.ADPff[0] + fmt.ADPfr[0] + fmt.ADPrf[0] + fmt.ADPrr[0];
     unsigned int aDP = fmt.aDPff[a] + fmt.aDPfr[a] + fmt.aDPrf[a] + fmt.aDPrr[a];
     double aBQFA = (fmt.aBQ1[a] + 0.5) / (fmt.ABQ2[0] + (fmt.aBQ1[a] - fmt.aBQ2[a]) + 1.0);
-    double aEPFA = (fmt.aEP1[a] + 0.5) / (fmt.AEP2[0] + (fmt.aEP1[a] - fmt.aEP2[a]) + 1.0);
+    
+    const auto & f = fmt;
+    /*
+    double aRxFA = (f.aR1[a] + f.aR2[a] + f.aR3[a] + f.aR4[a] + f.aR5[a] + 0.5) / (f.AR1[0] + f.AR2[0] + f.AR3[0] + f.AR4[0] + f.AR5[0] + 1.0); */
+    double aR1FA = dp4_to_pcFA<false>(
+            f.aR2[a] + f.aR3[a] + f.aR4[a] + f.aR5[a], 
+            f.aR2[a] + f.aR1[a],          
+            f.aR2[a] + f.AR3[0] + f.AR4[0] + f.AR5[0],
+            f.aR2[a] + f.AR1[0], log(500+1));
+    double aR2FA = dp4_to_pcFA<false>(                      
+            f.aR3[a] + f.aR4[a] + f.aR5[a],
+            f.aR3[a] + f.aR1[a] + f.aR2[a],
+            f.aR3[a] + f.AR4[0] + f.AR5[0],
+            f.aR3[a] + f.AR1[0] + f.AR2[0], log(500+1));
+    double aR4FA = dp4_to_pcFA<false>(
+            f.aR3[a] + f.aR1[a] + f.aR2[a],
+            f.aR3[a] + f.aR4[a] + f.aR5[a],
+            f.aR3[a] + f.AR1[0] + f.AR2[0],
+            f.aR3[a] + f.AR4[0] + f.AR5[0], log(500+1));
+    double aR5FA = dp4_to_pcFA<false>(
+            f.aR4[a] + f.aR1[a] + f.aR2[a] + f.aR3[a], 
+            f.aR4[a] + f.aR5[a],
+            f.aR4[a] + f.AR1[0] + f.AR2[0] + f.AR3[0],
+            f.aR4[a] + f.AR5[0], log(500+1));
+    double aR3FA = dp4_to_pcFA<false>(
+            f.aR2[a] + f.aR3[a] + f.aR4[a],
+            f.aR1[a] + f.aR5[a] + MAX(f.aR2[a], f.aR4[a]),
+            MIN(f.AR2[0] + f.AR3[0] + f.aR4[a], f.aR2[a] + f.AR3[0] + f.AR4[0]),
+            f.AR1[0] + f.AR5[0] + MAX(f.aR2[a], f.aR4[a]), log(500+1));
+    
     double aXMFA = (fmt.aXM1[a] + 0.5) / (fmt.AXM2[0] + (fmt.aXM1[a] - fmt.aXM2[a]) + 1.0);
+    
     double aLIpc = MAX((fmt.aLI1[a] + 3.5) / (fmt.aDPfr[a] + fmt.aDPrr[a] - fmt.aLI1[a] + 1.0), 0.5/3);
     double aLIFA = (fmt.aLI1[a] + aLIpc) / (fmt.ALI2[0] + (fmt.aLI1[a] - fmt.aLI2[a]) + aLIpc + 0.5);
     double aRIpc = MAX((fmt.aRI1[a] + 3.5) / (fmt.aDPff[a] + fmt.aDPrf[a] - fmt.aRI1[a] + 1.0), 0.5/3);
     double aRIFA = (fmt.aRI1[a] + aRIpc) / (fmt.ARI2[0] + (fmt.aRI1[a] - fmt.aRI2[a]) + aRIpc + 0.5);
     
-    double aSSFA = dp4_to_pcFA(fmt.ADPff[0] + fmt.ADPrf[0], fmt.ADPfr[0] + fmt.ADPrr[0], fmt.aDPff[a] + fmt.aDPrf[a], fmt.aDPfr[a] + fmt.aDPrr[a]);
-    double aROFA = dp4_to_pcFA(fmt.ADPff[0] + fmt.ADPrr[0], fmt.ADPfr[0] + fmt.ADPrf[0], fmt.aDPff[a] + fmt.aDPrr[a], fmt.aDPfr[a] + fmt.aDPrf[a]);
+    double aSSFA = dp4_to_pcFA<true>(fmt.aDPff[a] + fmt.aDPrf[a], fmt.aDPfr[a] + fmt.aDPrr[a], fmt.ADPff[0] + fmt.ADPrf[0], fmt.ADPfr[0] + fmt.ADPrr[0], log(500+1));
+    double aROFA = dp4_to_pcFA<true>(fmt.aDPff[a] + fmt.aDPrr[a], fmt.aDPfr[a] + fmt.aDPrf[a], fmt.ADPff[0] + fmt.ADPrr[0], fmt.ADPfr[0] + fmt.ADPrf[0], log(500+1));
     
 #if 0
     double aLIalt = (fmt.aLI1[a] + 0.5);
@@ -2485,46 +2559,125 @@ BcfFormat_symbol_calc_DPv(
             aLIalt, aRIalt);
 #endif
     double bFA = (fmt.bDPa[a] + 0.5) / (fmt.BDPf[0] + fmt.BDPr[0] + 1.0);
-    double cFA = (fmt.cDP1a[a] + 0.5) / (fmt.CDP1f[0] + fmt.CDP1r[0] + 1.0);
+    double cFA1 = (fmt.cDP1a[a] + 0.5) / (fmt.CDP1f[0] + fmt.CDP1r[0] + 1.0);
     
-    auto min_aFA_vec = std::vector<double>{{aBQFA, aEPFA, aXMFA, aLIFA, aRIFA, aSSFA, aROFA}};
+    auto min_aFA_vec = std::vector<double>{{ aR1FA, aR2FA, aR3FA, aR4FA, aR5FA, aBQFA, aXMFA, aLIFA, aRIFA, aSSFA, aROFA }};
     
     double min_aFA = MINVEC(min_aFA_vec);
-    double min_bcFA = MIN3(min_aFA, bFA, cFA);
+    double min_bcFA = MIN3(min_aFA, bFA, cFA1);
     
     fmt.note += other_join(min_aFA_vec, "/") + "//";
     
     // double duprate = (double)(fmt.BDPf[0] + fmt.BDPr[0] + 1.0) / (double)(fmt.CDP1f[0] + fmt.CDP1r[0] + 0.5);
     // UMI universality-based prequal allele fraction
-    double cFA2 = ((fmt.cDP2f[a] + fmt.cDP2r[a]) + 0.5) / (fmt.CDP2f[0] + fmt.CDP2r[0] + 1.0);
-    double cFA3 = ((fmt.cDP3f[a] + fmt.cDP3r[a]) + 0.5) / (fmt.CDP3f[0] + fmt.CDP3r[0] + 1.0);
-    double umi_cFA = MIN3(min_bcFA, cFA2, cFA3);
+    double cFA2 = ((fmt.cDP2f[a] + fmt.cDP2r[a]) + 0.5) / (fmt.CDP1f[0] + fmt.CDP1r[0] + 1.0);
+    double cFA3 = ((fmt.cDP3f[a] + fmt.cDP3r[a]) + 0.5) / (fmt.CDP2f[0] + fmt.CDP2r[0] + 1.0);
+    double umi_cFA = MIN3(min_bcFA, cFA2, cFA3); // MIN(1.0, MAX(cFA2, cFA3) / MAX(bFA, cFA1)) * min_bcFA;
     
     clear_push(fmt.cDP1v, (int)(min_bcFA * (fmt.CDP1f[0] +fmt.CDP1r[0]) * 100), a);
+    double min_bcFA_w = MINVEC(std::vector<double>{{ aR1FA, aR2FA, aR3FA, aR4FA, aR5FA, bFA }});
+    clear_push(fmt.cDP1w, (int)(min_bcFA_w * (fmt.CDP1f[0] +fmt.CDP1r[0]) * 100), a);
+    double min_bcFA_x = MINVEC(std::vector<double>{{ aBQFA, cFA1 }});
+    clear_push(fmt.cDP1x, (int)(min_bcFA_x * (fmt.CDP1f[0] +fmt.CDP1r[0]) * 100), a);
+    
     clear_push(fmt.cDP2v, (int)(umi_cFA * (fmt.CDP2f[0] +fmt.cDP2r[0]) * 100), a);
+    double umi_cFA_w = MINVEC(std::vector<double>{{ aR1FA, aR2FA, aR3FA, aR4FA, aR5FA, bFA }});
+    clear_push(fmt.cDP2w, (int)(umi_cFA_w * (fmt.CDP1f[0] +fmt.CDP1r[0]) * 100), a);
+    double umi_cFA_x = MINVEC(std::vector<double>{{ aBQFA, cFA1, cFA2, cFA3 }});
+    clear_push(fmt.cDP2x, (int)(umi_cFA_x * (fmt.CDP1f[0] +fmt.CDP1r[0]) * 100), a);
+    
     return 0;
 };
 
+enum ReductionType {
+    REDUCTION_DP1v,
+    REDUCTION_DP1w,
+    REDUCTION_DP1x,
+    REDUCTION_DP2v,
+    REDUCTION_DP2w,
+    REDUCTION_DP2x,
+    NUM_REDUCTIONS
+};
+
+const std::array<ReductionType, NUM_REDUCTIONS> REDUCTION_DPS = {{
+    REDUCTION_DP1v,
+    REDUCTION_DP1w,
+    REDUCTION_DP1x,
+    REDUCTION_DP2v,
+    REDUCTION_DP2w,
+    REDUCTION_DP2x
+}};
+
+
+auto 
+getptr_cCDPxvV2(bcfrec::BcfFormat & f, const ReductionType fidx) {
+    if (REDUCTION_DP1v == fidx) {
+        return std::make_tuple(&(f.CDP1v), &(f.cDP1v));
+    }
+    if (REDUCTION_DP1w == fidx) {
+        return std::make_tuple(&(f.CDP1w), &(f.cDP1w));
+    }
+    if (REDUCTION_DP1x == fidx) {
+        return std::make_tuple(&(f.CDP1x), &(f.cDP1x));
+    }
+    if (REDUCTION_DP2v == fidx) {
+        return std::make_tuple(&(f.CDP2v), &(f.cDP2v));
+    }
+    if (REDUCTION_DP2w == fidx) {
+        return std::make_tuple(&(f.CDP2w), &(f.cDP2w));
+    }
+    if (REDUCTION_DP2x == fidx) {
+        return std::make_tuple(&(f.CDP2x), &(f.cDP2x));
+    }
+    abort();
+}
+
 int
 BcfFormat_symbol_sum_DPv(auto & fmts, const unsigned int a = 0) {
+    std::array<unsigned int, NUM_REDUCTIONS> cDPxx1s = {{0}};
+    std::array<unsigned int, NUM_REDUCTIONS> cDPxx2s = {{0}};
+    for (auto & fmt : fmts) {
+        for (const auto i : REDUCTION_DPS) { cDPxx1s[i] += LAST(*std::get<1>(getptr_cCDPxvV2(std::get<0>(fmt), i))); }
+        if (BASE_NN == LAST(std::get<0>(fmt).VTI) || LINK_NN == LAST(std::get<0>(fmt).VTI)) {
+            for (const auto i : REDUCTION_DPS) { cDPxx2s[i] = LAST(*std::get<1>(getptr_cCDPxvV2(std::get<0>(fmt), i))); }
+        }
+    }
+    for (auto & fmt : fmts) {
+        for (const auto i : REDUCTION_DPS) {
+            (*std::get<0>(getptr_cCDPxvV2(std::get<0>(fmt), i)))[0] = cDPxx1s[i];
+            (*std::get<0>(getptr_cCDPxvV2(std::get<0>(fmt), i)))[1] = cDPxx2s[i]; 
+        }
+    }
+    
+    /*
+    unsigned int CDP1V1 = 0;
     unsigned int CDP1v1 = 0;
     unsigned int CDP2v1 = 0;
+    
+    unsigned int CDP1V2 = 0;
     unsigned int CDP1v2 = 0;
     unsigned int CDP2v2 = 0;
+
     for (auto & fmt : fmts) {
+        CDP1V1 += std::get<0>(fmt).cDP1x[a];
         CDP1v1 += std::get<0>(fmt).cDP1v[a];
         CDP2v1 += std::get<0>(fmt).cDP2v[a];
         if (BASE_NN == FIRST(std::get<0>(fmt).VTI) || LINK_NN == FIRST(std::get<0>(fmt).VTI)) {
+            CDP1V2 = std::get<0>(fmt).cDP1x[a];
             CDP1v2 = std::get<0>(fmt).cDP1v[a];
             CDP2v2 = std::get<0>(fmt).cDP2v[a];
         }
     }
     for (auto & fmt : fmts) {
+        std::get<0>(fmt).CDP1V[0] = CDP1V1;
         std::get<0>(fmt).CDP1v[0] = CDP1v1;
         std::get<0>(fmt).CDP2v[0] = CDP2v1;
+        
+        std::get<0>(fmt).CDP1V[1] = CDP1V2;
         std::get<0>(fmt).CDP1v[1] = CDP1v2;
         std::get<0>(fmt).CDP2v[1] = CDP2v2;
     }
+    */
     return 0;
 };
 
@@ -2546,19 +2699,28 @@ BcfFormat_symbol_calc_qual(
         const unsigned int specialflag) {
     
     const unsigned int a = 0;
-    int duped_frag_binom_qual = fmt.bIAQb[a];
+    const int bIADnormcnt = (fmt.bIADb[a] * 100 + 50);
+    int duped_frag_binom_qual = fmt.bIAQb[a] * MIN(bIADnormcnt, fmt.cDP1v[a] + 50) / bIADnormcnt;
     
     int sscs_binom_qual_fw = fmt.cIAQf[a] + fmt.cIAQr[a] * MIN(60 - fmt.cIDQf[a], fmt.cIDQr[a]) / MAX(fmt.cIDQr[a], 1);
     int sscs_binom_qual_rv = fmt.cIAQr[a] + fmt.cIAQf[a] * MIN(60 - fmt.cIDQr[a], fmt.cIDQf[a]) / MAX(fmt.cIDQf[a], 1);
-    int sscs_binom_qual = MAX(sscs_binom_qual_fw, sscs_binom_qual_rv); 
+    int cIADnormcnt = (fmt.cIADf[a] * 100 + fmt.cIADr[a] * 100 + 50);
+    int sscs_binom_qual = MAX(sscs_binom_qual_fw, sscs_binom_qual_rv) * MIN(cIADnormcnt, fmt.cDP2v[a] + 50) / cIADnormcnt;
     
+    double powlaw_sscs_inc_frac = MIN(1.0, 1.0 - (fmt.CDP1f[0] + fmt.CDP1r[0] + 0.5) / (fmt.BDPf[0] + fmt.BDPr[0] + 1.0));
     double dup_denom_pc = mathsquare(fmt.CDP1f[0] + fmt.CDP1r[0] + 0.5) / (fmt.BDPf[0] + fmt.BDPr[0] + 1.0) * 10; // / MAX(1, duprate);
     
-    double min_bcFA = (((double)(fmt.cDP1v[a]) + 0.5) / ((double)(fmt.CDP1v[0]) + 1.0)); 
-    int dedup_frag_powlaw_qual = (int)(powlaw_exponent * 10.0 / log(10.0) * log(min_bcFA) + powlaw_anyvar_base); // + 10.0 ??? 
+    double min_bcFA_v = (((double)(fmt.cDP1v[a]) + 0.5) / ((double)(fmt.CDP1v[0]) + 1.0)); 
+    int dedup_frag_powlaw_qual_v = (int)(powlaw_exponent * 10.0 / log(10.0) * log(min_bcFA_v) + powlaw_anyvar_base); // + 10.0 ??? 
+    double min_bcFA_w = (((double)(fmt.cDP1w[a]) + 0.5) / ((double)(fmt.CDP1w[0]) + 1.0));
+    int dedup_frag_powlaw_qual_w = (int)(powlaw_exponent * 10.0 / log(10.0) * log(min_bcFA_w) + (powlaw_anyvar_base + 10));
+    
+
     double umi_cFA =  (((double)(fmt.cDP2v[a]) + 0.5) / ((double)(fmt.CDP2v[0]) + 1.0 + dup_denom_pc)); 
-    int sscs_powlaw_qual = (int)(powlaw_exponent * 10.0 / log(10.0) * log(umi_cFA) + powlaw_anyvar_base + powlaw_sscs_inc);
-    fmt.note += std::string("min_bcFA(") + std::to_string(min_bcFA) + ")cDP1v(" + std::to_string(fmt.cDP1v[a]) + ")" + "CDP1v(" + std::to_string(fmt.CDP1v[0]) + ")";
+    int sscs_powlaw_qual_v = (int)(powlaw_exponent * 10.0 / log(10.0) * log(umi_cFA) + powlaw_anyvar_base + (powlaw_sscs_inc * powlaw_sscs_inc_frac));
+    int sscs_powlaw_qual_w = (int)(powlaw_exponent * 10.0 / log(10.0) * log(min_bcFA_w) + powlaw_anyvar_base + (powlaw_sscs_inc * powlaw_sscs_inc_frac));
+
+    fmt.note += std::string("min_bcFA_v(") + std::to_string(min_bcFA_v) + ")cDP1v(" + std::to_string(fmt.cDP1v[a]) + ")" + "CDP1v(" + std::to_string(fmt.CDP1v[0]) + ")";
     const std::string & indelstring = fmt.gapSa[a];
     if (indelstring.size() > 0) {
         // const double symbol_to_allele_frac = 1.0 - pow((isSymbolIns(symbol) ? 0.9 : (isSymbolDel(symbol) ? 0.95 : 1.0)), indelstring.size());
@@ -2567,16 +2729,20 @@ BcfFormat_symbol_calc_qual(
         const double indel_pq = MIN(indel_phred(8.0, indelstring.size(), repeatunit.size(), repeatnum), 24) + 2 - 10; // phred_snv_to_indel_ratio;
         const double indel_ic = 10.0 / log(10.0) * log((double)MAX(indelstring.size(), 1U) / (double)(repeatunit.size() * (MAX(1, repeatnum) - 1) + 1));
         //const double indel_penal4multialleles = log((double)(1 + fmt.CDP1f[0] + fmt.CDP1r[0] - fmt.cDP1f[0] - fmt.cDP1r[0]) / (indelcdepth + 1.0)) / log(2.0) * 8.0;
-        dedup_frag_powlaw_qual += (int)(indel_ic); // - indel_penal4multialleles);
+        dedup_frag_powlaw_qual_v += (int)(indel_ic); // - indel_penal4multialleles);
+        dedup_frag_powlaw_qual_w += (int)(indel_ic);
         duped_frag_binom_qual  -= (int)(indel_pq); // - indel_penal4multialleles);
     }
     
     clear_push(fmt.bIAQ, duped_frag_binom_qual, a); 
     clear_push(fmt.cIAQ, sscs_binom_qual, a);
     
-    clear_push(fmt.cPLQ1, dedup_frag_powlaw_qual, a); // phred_varcall_err_per_map_err_per_base
-    clear_push(fmt.cPLQ2, sscs_powlaw_qual, a);
+    clear_push(fmt.cPCQ1, dedup_frag_powlaw_qual_w, a); // phred_varcall_err_per_map_err_per_base
+    clear_push(fmt.cPLQ1, dedup_frag_powlaw_qual_v, a); // phred_varcall_err_per_map_err_per_base
     
+    clear_push(fmt.cPCQ2, sscs_powlaw_qual_w, a);
+    clear_push(fmt.cPLQ2, sscs_powlaw_qual_v, a);
+
     const int syserr_q = MIN3(fmt.aBQQ[a], (int)((fmt.bMQ[a] * 7/6) + phred_varcall_err_per_map_err_per_base), (int)(fmt.bDPf[a] + fmt.bDPr[a] + (is_rescued ? 1 : 0)) * 13);
     //int bIAQ_change_per_readcnt = 10; // (indelstring.size() > 0 ? (10.0 / log(10.0) * log(indelstring.size() / BETWEEN(repeatunit.size(), 1, indelstring.size()) + 1)) : 6);
     //const int bIAQ_lowdepth_penal = MAX(0, 30 - (fmt.bDPf[a] + fmt.bDPr[a]) * bIAQ_change_per_readcnt);
@@ -2590,7 +2756,7 @@ BcfFormat_symbol_calc_qual(
     // TODO; check if reducing all allele read count to increase alt allele frac in case of ref bias makes more sense
     
     auto binom_contam_LODQ = (int)calc_binom_10log10_likeratio(0.02, fmt.cDP1v[a], fmt.CDP1v[0]);
-    auto power_contam_LODQ = (int)(10.0/log(10.00) * powlaw_exponent * MAX(logit2(min_bcFA, 0.02), 0.0));
+    auto power_contam_LODQ = (int)(10.0/log(10.00) * powlaw_exponent * MAX(logit2(min_bcFA_v, 0.02), 0.0));
     clear_push(fmt.CONTQ, MIN(binom_contam_LODQ, power_contam_LODQ), a);
 };
 
@@ -3299,24 +3465,32 @@ int
 fill_tki(auto & tki, const auto & fmt, unsigned int a = 1) {
     tki.BDP = fmt.BDPf.at(0) +fmt.BDPr.at(0); // 
     tki.bDP = fmt.bDPf.at(a) +fmt.bDPr.at(a); // 
-    tki.CDP1v = fmt.CDP1v.at(0);
-    tki.cDP1v = fmt.cDP1v.at(a);
+    
+    tki.CDP1x = fmt.CDP1v.at(0);
+    tki.cDP1x = fmt.cDP1v.at(a);
     tki.cVQ1  = fmt.cVQ1.at(a);
-    tki.CDP2v = fmt.CDP2v.at(0);
-    tki.cDP2v = fmt.cDP2v.at(a);
+    tki.cPCQ1 = fmt.cPCQ1.at(a);
+
+    tki.CDP2x = fmt.CDP2x.at(0);
+    tki.cDP2x = fmt.cDP2x.at(a);
     tki.cVQ2  = fmt.cVQ2.at(a);
+    tki.cPCQ2 = fmt.cPCQ2.at(a);
 };
 
 const auto
 calc_binom_powlaw_syserr_normv_quals(
-        auto tAD, auto tDP, auto tVQ,
-        auto nAD, auto nDP, auto nVQ, bool is_penal_applied) {
+        auto tAD, auto tDP, int tVQ, int tnVQcap,
+        auto nAD, auto nDP, int nVQ, const double penal_coef = 0.1) {
     int binom_b10log10like = (int)calc_binom_10log10_likeratio((tDP - tAD) / (tDP), nDP - nAD, nAD);
     double bjpfrac = ((tAD) / (tDP)) / ((nAD) / (nDP));
     int powlaw_b10log10like = (int)(3 * 10 / log(10) * log(bjpfrac));
-    int syserr_b10log10like = (int)MAX(0, nVQ - 10.0 * mathsquare(MAX(0, bjpfrac - 1.0))); // it was 12.5
-    int tnVQ = tVQ + MIN(MAX(0, (int)(tVQ/6 + 15)), MIN(binom_b10log10like, powlaw_b10log10like));
-    if (is_penal_applied) { tnVQ -= syserr_b10log10like; }
+    // int syserr_b10log10like = (int)MAX(0, nVQ - 10.0 * mathsquare(MAX(0, bjpfrac - 1.0))); // it was 12.5
+    int syserr_b10log10like = MAX(0, nVQ - (int)(mathsquare(MAX(tVQ - 3 - nVQ, 1)) * penal_coef));
+    int tnVQ = tVQ + CENTER(binom_b10log10like, powlaw_b10log10like); //  MIN(MAX(0, (int)(tVQ/6 + 15)), CENTER(binom_b10log10like, powlaw_b10log10like));
+    if (penal_coef < 1000) { 
+        tnVQ -= syserr_b10log10like; 
+    }
+    tnVQ = MIN(tnVQcap, tnVQ);
     return std::array<int, 4> {{binom_b10log10like, powlaw_b10log10like, syserr_b10log10like, tnVQ }};
 };
 
@@ -3383,43 +3557,46 @@ append_vcf_record(
     assert (2 == fmt.cVQ1.size());
     assert (2 == fmt.cVQ2.size());
     
-    assert (tki.cDP1v <= tki.CDP1v || !fprintf(stderr, "%d <= %d failed for cDP1v tname %s pos %d aln-symbol %d\n", tki.cDP1v, tki.CDP1v, tname, refpos, symbol));
-    assert (tki.cDP2v <= tki.CDP2v || !fprintf(stderr, "%d <= %d failed for cDP2v tname %s pos %d aln-symbol %d\n", tki.cDP1v, tki.CDP1v, tname, refpos, symbol));
+    assert (tki.cDP1x <= tki.CDP1x || !fprintf(stderr, "%d <= %d failed for cDP1x tname %s pos %d aln-symbol %d\n", tki.cDP1x, tki.CDP1x, tname, refpos, symbol));
+    assert (tki.cDP2x <= tki.CDP2x || !fprintf(stderr, "%d <= %d failed for cDP2x tname %s pos %d aln-symbol %d\n", tki.cDP1x, tki.CDP1x, tname, refpos, symbol));
     
     double nfm_cDP1 = collectget(nfm.cDP1f, 1) + collectget(nfm.cDP1r, 1);
     double nfm_CDP1 = collectget(nfm.CDP1f, 0) + collectget(nfm.CDP1r, 0);
-    const auto nfm_cDP1v = collectget(nfm.cDP1v, 1);
-    const auto nfm_CDP1v = collectget(nfm.CDP1v, 0);
+    const auto nfm_cDP1x = collectget(nfm.cDP1x, 1);
+    const auto nfm_CDP1x = collectget(nfm.CDP1x, 0);
 
-    const auto b_filt_penal1 = MAX(1, MIN(
-            ((tki.cDP1) / (tki.CDP1 + 1.0)) / ((tki.cDP1v + 0.5) / (tki.CDP1v + 1.0)),
-            ((nfm_cDP1) / (nfm_CDP1 + 1.0)) / ((nfm_cDP1v + 0.5) / (nfm_CDP1v + 1.0)))) - 1; 
+    const auto b_filt_penal1 = 0 * (MAX(1, MIN(
+            ((tki.cDP1) / (tki.CDP1 + 1.0)) / ((tki.cDP1x + 0.5) / (tki.CDP1x + 1.0)),
+            ((nfm_cDP1) / (nfm_CDP1 + 1.0)) / ((nfm_CDP1x + 0.5) / (nfm_CDP1x + 1.0)))) - 1);
     const auto b_binom_powlaw_syserr_normv_q4nofilt = calc_binom_powlaw_syserr_normv_quals(
-            (tki.cDP1 + 1.0), 
-            (tki.CDP1 + 2.0), 
+            (tki.cDP1 + 0.5),
+            (tki.CDP1 + 1.0),
             (tki.cVQ1),
-            (nfm_cDP1 + 1.0 + MIN(b_filt_penal1 * 0.5, 1.5)), 
-            (nfm_CDP1 + 2.0 + MIN(b_filt_penal1 * 0.5, 1.5)), 
+            (tki.cPCQ1),
+            (nfm_cDP1 + 0.5 + MIN(b_filt_penal1 * 0.5, 1.5)),
+            (nfm_CDP1 + 1.0 + MIN(b_filt_penal1 * 0.5, 1.5)), 
             (collectget(nfm.cVQ1, 1)), 
-            (indelstring.size() == 0));
+            (indelstring.size() == 0 ? 0.0 : 0.0));
     
     const auto b_binom_powlaw_syserr_normv_q4filter = calc_binom_powlaw_syserr_normv_quals(
-            (tki.cDP1v + 0.5) / 100.0 + 0.5, 
-            (tki.CDP1v + 1.0) / 100.0 + 1.0, 
+            (tki.cDP1x + 0.5) / 100.0 + 0.0, 
+            (tki.CDP1x + 1.0) / 100.0 + 0.0, 
             (tki.cVQ1),
-            (nfm_cDP1v + 0.5) / 100.0 + 0.5 + MIN(b_filt_penal1 * 0.5, 1.5), 
-            (nfm_CDP1v + 1.0) / 100.0 + 1.0 + MIN(b_filt_penal1 * 0.5, 1.5), 
-            (collectget(nfm.cVQ1, 1)), 
-            (indelstring.size() == 0));
+            (tki.cPCQ1),
+            (nfm_cDP1x + 0.5) / 100.0 + 0.0 + MIN(b_filt_penal1 * 0.5, 1.5), 
+            (nfm_CDP1x + 1.0) / 100.0 + 0.0 + MIN(b_filt_penal1 * 0.5, 1.5), 
+            (collectget(nfm.cVQ1, 1)),
+            (indelstring.size() == 0 ? 0.1 : 2000.0));
     
     const auto c_binom_powlaw_syserr_normv_q4 = calc_binom_powlaw_syserr_normv_quals(
-            (tki.cDP2v + 0.5) / 100.0 + 0.5, 
-            (tki.CDP2v + 1.0) / 100.0 + 1.0, 
+            (tki.cDP2x + 0.5) / 100.0 + 0.0, 
+            (tki.CDP2x + 1.0) / 100.0 + 0.0, 
             (tki.cVQ2),
-            (collectget(nfm.cDP2v, 1) + 0.5) / 100.0 + 0.5, 
-            (collectget(nfm.CDP2v, 0) + 1.0) / 100.0 + 1.0, 
+            (tki.cPCQ1) + 30,
+            (collectget(nfm.cDP2x, 1) + 0.0) / 100.0 + 0.5, 
+            (collectget(nfm.CDP2x, 0) + 0.0) / 100.0 + 1.0, 
             (collectget(nfm.cVQ2, 1)), 
-            (true));
+            (0.1));
     
     int b_filt_penal2 = (10.0 / log(10) * log(b_filt_penal1) * (MIN3(tki.cDP1, nfm_cDP1, 2) + 1));
     int tlodq = MAX(

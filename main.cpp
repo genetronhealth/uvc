@@ -376,14 +376,14 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         
 
         ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line, "CDP1v", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for CDP1v and line %d!\n", ndst_val, valsize, line->pos));
-        tki.CDP1v = bcfints[0];
+        valsize = bcf_get_format_int32(bcf_hdr, line, "CDP1x", &bcfints, &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for CDP1x and line %d!\n", ndst_val, valsize, line->pos));
+        tki.CDP1x = bcfints[0];
         
         ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line, "cDP1v", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cDP1v and line %d!\n", ndst_val, valsize, line->pos));
-        tki.cDP1v = bcfints[1];
+        valsize = bcf_get_format_int32(bcf_hdr, line, "cDP1x", &bcfints, &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cDP1x and line %d!\n", ndst_val, valsize, line->pos));
+        tki.cDP1x = bcfints[1];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "cVQ1", &bcfints, &ndst_val);
@@ -391,20 +391,30 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         tki.cVQ1 = bcfints[1];
         
         ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line, "CDP2v", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for CDP2v and line %d!\n", ndst_val, valsize, line->pos));
-        tki.CDP2v = bcfints[0];
+        valsize = bcf_get_format_int32(bcf_hdr, line, "cPCQ1", &bcfints, &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cPCQ1 and line %d!\n", ndst_val, valsize, line->pos));
+        tki.cPCQ1 = bcfints[1];
         
         ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line, "cDP2v", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cDP2v and line %d!\n", ndst_val, valsize, line->pos));
-        tki.cDP2v = bcfints[1];
+        valsize = bcf_get_format_int32(bcf_hdr, line, "CDP2x", &bcfints, &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for CDP2x and line %d!\n", ndst_val, valsize, line->pos));
+        tki.CDP2x = bcfints[0];
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line, "cDP2x", &bcfints, &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cDP2x and line %d!\n", ndst_val, valsize, line->pos));
+        tki.cDP2x = bcfints[1];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "cVQ2", &bcfints, &ndst_val);
         assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cVQ2 and line %d!\n", ndst_val, valsize, line->pos));
         tki.cVQ2 = bcfints[1];
         
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line, "cPCQ2", &bcfints, &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cPCQ2 and line %d!\n", ndst_val, valsize, line->pos));
+        tki.cPCQ2 = bcfints[1];
+
         tki.pos = line->pos;
         tki.ref_alt = als_to_string(line->d.allele, line->n_allele);
         if (is_tumor_format_retrieved) {
@@ -559,6 +569,18 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
     auto mutform2count4vec_fq = map2vector(mutform2count4map_fq);
     auto simplemut2indices_fq = mutform2count4vec_to_simplemut2indices(mutform2count4vec_fq);
     
+    LOG(logINFO) << "Thread " << thread_id << " is dealing with " << mutform2count4vec_bq.size() << " phasing units.";
+    if (mutform2count4map_bq.size() < 20) {
+        for (const auto & mutform2count : mutform2count4vec_bq) {
+            LOG(logINFO) << "Muatation " << (mutform2count.second[0]) << "," 
+                    << (mutform2count.second[1]);
+            for (const auto & pos_symb : mutform2count.first) {
+                LOG(logINFO) << (pos_symb.first) << "," 
+                        << (pos_symb.second);
+            }
+        }
+    }
+
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id  << " starts generating block gzipped vcf"; }
     
     std::string buf_out_string_pass;
@@ -569,6 +591,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
     /*
     std::array<CoveredRegion<uint32_t>, 2> bq_indel_adjmax_depths = {
         CoveredRegion<uint32_t>(tid, extended_inclu_beg_pos, extended_exclu_end_pos + 1),
+        G
         CoveredRegion<uint32_t>(tid, extended_inclu_beg_pos, extended_exclu_end_pos + 1)
     };
     for (unsigned int refpos = extended_inclu_beg_pos; refpos <= extended_exclu_end_pos; refpos++) {
@@ -808,12 +831,12 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                             assert ((NOT_PROVIDED == paramset.vcf_tumor_fname) == (0 == tki.ref_alt.size()));
                             if (NOT_PROVIDED != paramset.vcf_tumor_fname) {
                                 auto bgerr_norm_max_ad = MAX(
-                                        std::get<1>(nlodq_fmtptr1_fmtptr2_tup)->cDP1v[1],
-                                        std::get<2>(nlodq_fmtptr1_fmtptr2_tup)->cDP1v[1]);
-                                double tAD = (tki.cDP1v + 1) / 100.0;
-                                double tDP = (tki.CDP1v + 2) / 100.0;
+                                        std::get<1>(nlodq_fmtptr1_fmtptr2_tup)->cDP1x[1],
+                                        std::get<2>(nlodq_fmtptr1_fmtptr2_tup)->cDP1x[1]);
+                                double tAD = (tki.cDP1x + 1) / 100.0;
+                                double tDP = (tki.CDP1x + 2) / 100.0;
                                 double nAD = (bgerr_norm_max_ad + 1) / 100.0;
-                                double nDP = (fmt.CDP1v[0] + 2) / 100.0;
+                                double nDP = (fmt.CDP1x[0] + 2) / 100.0;
                                 double bjpfrac = ((tAD) / (tDP)) / ((nAD) / (nDP));
                                 int binom_b10log10like = (int)calc_binom_10log10_likeratio((tDP - tAD) / (tDP), nDP - nAD, nAD);
                                 int powlaw_b10log10like = (int)(3 * 10 / log(10) * log(bjpfrac));

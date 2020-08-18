@@ -133,6 +133,7 @@ struct _RevComplement {
 
 const _RevComplement THE_REV_COMPLEMENT;
 
+/*
 template <class TContainer>
 int 
 revcompln(TContainer & str, size_t len) {
@@ -150,6 +151,7 @@ int
 revcompl(TContainer & str) {
     return revcompln(str, str.size());
 }
+*/
 
 int 
 clean_fill_strand_umi_readset(

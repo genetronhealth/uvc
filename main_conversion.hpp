@@ -362,16 +362,20 @@ struct TumorKeyInfo {
     
     unsigned int BDP = 0; // 
     unsigned int bDP = 0; // 
+    
     unsigned int CDP1 = 0;
     unsigned int cDP1 = 0;
 
-    unsigned int CDP1v = 0;
-    unsigned int cDP1v = 0;
+    unsigned int CDP1x = 0;
+    unsigned int cDP1x = 0;
     int cVQ1 = 0;
-    unsigned int CDP2v = 0;
-    unsigned int cDP2v = 0;
+    int cPCQ1 = 0;
+    
+    unsigned int CDP2x = 0;
+    unsigned int cDP2x = 0;
     int cVQ2 = 0;
-
+    int cPCQ2 = 0;
+    
     bcf1_t *bcf1_record = NULL;
     /*
     ~TumorKeyInfo() {
@@ -395,10 +399,10 @@ string2symbolseq(const std::string & instring) {
 
 enum SegFormatPrepSet {
     SEG_a_DP,
-    SEG_a_INS_L,
-    SEG_a_INS_R,
-    SEG_a_DEL_L,
-    SEG_a_DEL_R,
+    //SEG_a_INS_L,
+    //SEG_a_INS_R,
+    //SEG_a_DEL_L,
+    //SEG_a_DEL_R,
     SEG_a_XM,
     SEG_a_LI,
     SEG_a_LIDP,
@@ -410,8 +414,8 @@ enum SegFormatPrepSet {
 #define NUM_SEG_FORMAT_PREP_SETS ((size_t)SEG_FORMAT_PREP_SET_END)
 
 enum SegFormatThresSet {
-    SEG_aEP1t, // edge position, closer means more bias
-    SEG_aEP2t, 
+    // SEG_aEP1t, // edge position, closer means more bias
+    // SEG_aEP2t, 
     SEG_aXM1T, // mismatch, higher means more bias
     SEG_aXM2T, 
     SEG_aLI1T, // distance to left insert end, higher means more bias
@@ -431,16 +435,21 @@ enum SegFormatDepthSet {
     SEG_aDPfr,
     SEG_aDPrf,
     SEG_aDPrr,
+    
+    SEG_aR1, // 9 edge position
+    SEG_aR2,
+    SEG_aR3, // 25 edge position
+    SEG_aR4, 
+    SEG_aR5, // 49
+    
     SEG_aBQ1, // base-quality bias
     SEG_aBQ2,
-    SEG_aEP1, // edge position
-    SEG_aEP2,
     SEG_aXM1, // mismatch
-    SEG_aXM2,
-    SEG_aLIDP, 
+    SEG_aXM2, 
+    // SEG_aLIDP, 
     SEG_aLI1, // left insert
     SEG_aLI2,
-    SEG_aRIDP,
+    // SEG_aRIDP,
     SEG_aRI1, // right insert
     SEG_aRI2,
     SEG_FORMAT_DEPTH_SET_END
@@ -555,6 +564,50 @@ dp4_to_pcFA(double aDPfw, double aDPrv, double aADfw, double aADrv, double refmu
     double aFArv = (aADrv + aADpc + 0.5) / (aDPrv + (aADpc * 2) + 1.0);
     return MIN(aFAfw, aFArv);
 }
+
+template
+<bool TBidirectional = true>
+double 
+dp4_to_pcFA(double aADpass, double aADfail, double aDPpass, double aDPfail, double n_nats = log(500+1)) {
+    assert(aADpass <= aDPpass);
+    assert(aADfail <= aDPfail);
+    
+    aDPfail += 1.0;
+    aDPpass += 1.0;
+    aADfail += 0.5;
+    aADpass += 0.5;
+    // double bothFA = (aADpass + aADfail) / (aDPpass + aDPfail);
+    if ((aADpass / aDPpass) > (aADfail / aDPfail)) {
+        if (TBidirectional) {
+            autoswap(aDPfail, aDPpass);
+            autoswap(aADfail, aADpass);
+        } else {
+            return (aADpass / aDPpass);
+        }
+    }
+    auto aBDfail = aDPfail * 3 - aADfail * 2;
+    auto aBDpass = aDPpass * 3 - aADpass * 2;
+    double aADpassfrac = aADpass / (aADpass + aADfail);
+    double aBDpassfrac = aBDpass / (aBDpass + aBDfail);
+    double infogain = aADpass * log(aADpassfrac / aBDpassfrac) + aADfail * log((1.0 - aADpassfrac) / (1.0 - aBDpassfrac));
+    double weightpass =                (infogain) * aDPpass;
+    double weightfail = MAX(0, n_nats - infogain) * aDPfail;
+    return ((aADpass / aDPpass) * weightpass + (aADfail / aDPfail) * weightfail) / (weightpass + weightfail);
+}
+
+#ifdef TEST_dp4_to_pcFA
+int 
+main(int argc, char **argv) {
+    double adpass = atof(argv[1]);
+    double adfail = atof(argv[2]);
+    double dppass = atof(argv[3]);
+    double dpfail = atof(argv[4]);
+    double entropy = atof(argv[5]);
+    double ret = dp4_to_pcFA<false>(adpass, adfail, dppass, dpfail, entropy);
+    printf("dp4_to_pcFA(%f, %f, %f, %f, %f) = %f\n", adpass, adfail, dppass, dpfail, entropy, ret);
+}   
+
+#endif
 
 // conversion between different defintions in bioinformatics
 
