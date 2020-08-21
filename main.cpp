@@ -345,15 +345,23 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         TumorKeyInfo tki;
         
         ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line, "BDP", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for BDP and line %d!\n", ndst_val, valsize, line->pos));
+        valsize = bcf_get_format_int32(bcf_hdr, line, "BDPf", &bcfints, &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for BDPf and line %d!\n", ndst_val, valsize, line->pos));
         tki.BDP = bcfints[0];
-        
         ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line, "bDP", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for bDP and line %d!\n", ndst_val, valsize, line->pos));
+        valsize = bcf_get_format_int32(bcf_hdr, line, "BDPr", &bcfints, &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for BDPr and line %d!\n", ndst_val, valsize, line->pos));
+        tki.BDP += bcfints[0];
+
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line, "bDPf", &bcfints, &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for bDPf and line %d!\n", ndst_val, valsize, line->pos));
         tki.bDP = bcfints[1];
-        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line, "bDPr", &bcfints, &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for bDPr and line %d!\n", ndst_val, valsize, line->pos));
+        tki.bDP += bcfints[1];
+
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "CDP1f", &bcfints, &ndst_val);
         assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for CDP1f and line %d!\n", ndst_val, valsize, line->pos));
@@ -370,7 +378,7 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         tki.cDP1 = bcfints[1];
         
         ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line, "cDPr", &bcfints, &ndst_val);
+        valsize = bcf_get_format_int32(bcf_hdr, line, "cDP1r", &bcfints, &ndst_val);
         assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cDP1r and line %d!\n", ndst_val, valsize, line->pos));
         tki.cDP1 += bcfints[1];
         
@@ -777,9 +785,10 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                                 30,
                                 paramset.phred_varcall_err_per_map_err_per_base,
                                 NOT_PROVIDED != paramset.vcf_tumor_fname,
+                                (is_mut_transition(refsymbol, AlignmentSymbol(LAST(std::get<0>(fmt_tki_tup).VTI))) ? 2 : 0),
                                 0);
                     }
-                    auto & reffmt = init_fmt;
+                    auto reffmt = init_fmt;
                     bool is_ref_found = false;
                     for (auto & fmt_tki_tup : fmt_tki_tup_vec) {
                         if (refsymbol == (AlignmentSymbol)(LAST(std::get<0>(fmt_tki_tup).VTI))) {  
@@ -794,14 +803,22 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                     }
                     
                     int nlodq = 31;
-                    
+                    std::string note1;
                     std::vector<std::pair<AlignmentSymbol, bcfrec::BcfFormat*>> symbol_format_vec;
                     for (auto & fmt_tki_tup : fmt_tki_tup_vec) {
                         auto & fmt = std::get<0>(fmt_tki_tup);
                         auto symbol = (AlignmentSymbol)(LAST(fmt.VTI)); // std::get<1>(fmtinfo);
-                        symbol_format_vec.push_back(std::make_pair(symbol, &fmt));
+                        note1 += std::string("/symbol/") + std::to_string(symbol) + std::string("/VAQ/") + std::to_string(LAST(fmt.cVQ1)) + "///";
+                        if (symbol != BASE_NN && symbol != LINK_NN) {
+                            symbol_format_vec.push_back(std::make_pair(symbol, &fmt));
+                        }
                     }
                     clear_push(init_fmt.cVQ1, 0); // can be a very negative number to force out all homref alleles
+                    clear_push(init_fmt.CONTQ, 0);
+                    clear_push(init_fmt.cDP1f, 0);
+                    clear_push(init_fmt.cDP1r, 0);
+                    clear_push(init_fmt.cDP1a, 0);
+                    clear_push(init_fmt.cDP1v, 50);
                     while (symbol_format_vec.size() < 4) {
                         symbol_format_vec.push_back(std::make_pair(SYMBOL_TYPE_TO_NO_VAR_SYMBOL[symbolType], &init_fmt));
                     }
@@ -831,8 +848,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                             assert ((NOT_PROVIDED == paramset.vcf_tumor_fname) == (0 == tki.ref_alt.size()));
                             if (NOT_PROVIDED != paramset.vcf_tumor_fname) {
                                 auto bgerr_norm_max_ad = MAX(
-                                        std::get<1>(nlodq_fmtptr1_fmtptr2_tup)->cDP1x[1],
-                                        std::get<2>(nlodq_fmtptr1_fmtptr2_tup)->cDP1x[1]);
+                                        collectget(std::get<1>(nlodq_fmtptr1_fmtptr2_tup)->cDP1x, 1, 50),
+                                        collectget(std::get<2>(nlodq_fmtptr1_fmtptr2_tup)->cDP1x, 1, 50));
                                 double tAD = (tki.cDP1x + 1) / 100.0;
                                 double tDP = (tki.CDP1x + 2) / 100.0;
                                 double nAD = (bgerr_norm_max_ad + 1) / 100.0;
@@ -841,6 +858,15 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                                 int binom_b10log10like = (int)calc_binom_10log10_likeratio((tDP - tAD) / (tDP), nDP - nAD, nAD);
                                 int powlaw_b10log10like = (int)(3 * 10 / log(10) * log(bjpfrac));
                                 nlodq += BETWEEN(MIN(binom_b10log10like, powlaw_b10log10like), 0, 80);
+                                fmt.note += std::string("/nlodqDeltaIs/") 
+                                        + other_join(std::array<double, 4> {{ tAD, tDP, nAD, nDP }}, "/") + "#" 
+                                        + std::to_string(std::get<0>(nlodq_fmtptr1_fmtptr2_tup)) + "///"
+                                        + other_join(std::get<1>(nlodq_fmtptr1_fmtptr2_tup)->VTI, "/") + "///"
+                                        + other_join(std::get<2>(nlodq_fmtptr1_fmtptr2_tup)->VTI, "/") + "///"
+                                        + other_join(std::get<1>(nlodq_fmtptr1_fmtptr2_tup)->cVQ1, "/") + "///"
+                                        + other_join(std::get<2>(nlodq_fmtptr1_fmtptr2_tup)->cVQ1, "/") + "///"
+                                        ;
+                                fmt.note += note1;
                             }
                             append_vcf_record(
                                     buf_out_string_pass,

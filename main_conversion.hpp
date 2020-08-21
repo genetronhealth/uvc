@@ -307,7 +307,7 @@ other_join(auto container, std::string sep = std::string(",")) {
     for (auto e : container) {
         ret += std::to_string(e) + sep;
     }
-    ret.pop_back();
+    if (ret.size() > 0) { ret.pop_back(); }
     return ret;
 }
 
@@ -408,6 +408,29 @@ enum SegFormatPrepSet {
     SEG_a_LIDP,
     SEG_a_RI,
     SEG_a_RIDP,
+    
+    SEG_a_L_DIST_SUM,
+    SEG_a_R_DIST_SUM,
+    SEG_a_INSLEN_SUM,
+    SEG_a_DELLEN_SUM,
+    
+    /*
+    SEG_a_A_DEPTH,
+    SEG_a_A_TOT_LDIST,
+    SEG_a_A_TOT_RDIST,
+    
+    SEG_a_C_DEPTH,
+    SEG_a_C_TOT_LDIST,
+    SEG_a_C_TOT_RDIST,
+    
+    SEG_a_G_DEPTH,
+    SEG_a_G_TOT_LDIST,
+    SEG_a_G_TOT_RDIST,
+    
+    SEG_a_T_DEPTH,
+    SEG_a_T_TOT_LDIST,
+    SEG_a_T_TOT_RDIST,
+    */
 
     SEG_FORMAT_PREP_SET_END,
 };
@@ -426,6 +449,23 @@ enum SegFormatThresSet {
     SEG_aLI2t, 
     SEG_aRI1t, // distance to right insert end, lower means more bias
     SEG_aRI2t,  
+    
+    SEG_aLP1t,
+    SEG_aLP2t,
+    SEG_aRP1t,
+    SEG_aRP2t,
+    
+    /*
+    SEG_A_LDIST_THRES,
+    SEG_A_RDIST_THRES,
+    SEG_C_LDIST_THRES,
+    SEG_C_RDIST_THRES,
+    SEG_G_LDIST_THRES,
+    SEG_G_RDIST_THRES,
+    SEG_T_LDIST_THRES,
+    SEG_T_RDIST_THRES,
+    */
+
     SEG_FORMAT_THRES_SET_END
 };
 #define NUM_SEG_FORMAT_THRES_SETS ((size_t)SEG_FORMAT_THRES_SET_END)
@@ -436,16 +476,34 @@ enum SegFormatDepthSet {
     SEG_aDPrf,
     SEG_aDPrr,
     
+    /*
     SEG_aR1, // 9 edge position
     SEG_aR2,
     SEG_aR3, // 25 edge position
     SEG_aR4, 
     SEG_aR5, // 49
+    */
+    /*
+    SEG_alA, // 9 edge position
+    SEG_alC,
+    SEG_alG, // 25 edge position
+    SEG_alT, 
+    SEG_arA, // 9 edge position
+    SEG_arC,
+    SEG_arG, // 25 edge position
+    SEG_arT, 
+    */
     
     SEG_aBQ1, // base-quality bias
     SEG_aBQ2,
     SEG_aXM1, // mismatch
     SEG_aXM2, 
+    SEG_aLP1, // left seg pos
+    SEG_aLP2,
+    SEG_aLPL,
+    SEG_aRP1, // right seg pos
+    SEG_aRP2,
+    SEG_aRPL,
     // SEG_aLIDP, 
     SEG_aLI1, // left insert
     SEG_aLI2,
@@ -501,10 +559,10 @@ enum VQFormatTagSet {
     //VQ_cFA2, // consensus
     //VQ_cFA3, // consensus
     // VQ_uFA,  // unified
-    VQ_ASBQf,
-    VQ_ASBQr,
-    VQ_aSBQf,
-    VQ_aSBQr,
+    VQ_a1BQf,
+    VQ_a1BQr,
+    VQ_a2BQf,
+    VQ_a2BQr,
         
     VQ_bMQ,
     // VQ_bMQVQ,
@@ -550,11 +608,48 @@ seg_format_get_ad(const auto & s) {
 
 unsigned int
 seg_format_get_avgBQ(const auto & s, const auto & q) {
-    return (q[VQ_aSBQf] + q[VQ_aSBQr]) / MAX(1, seg_format_get_ad(s));
+    return (q[VQ_a1BQf] + q[VQ_a1BQr]) / MAX(1, seg_format_get_ad(s));
 };
 
+template
+<bool TBidirectional = true>
 double 
-dp4_to_pcFA(double aDPfw, double aDPrv, double aADfw, double aADrv, double refmul = 1.0, double altmul = 1.0, double powlaw_exponent = 3.0) {
+dp4_to_pcFA(double aADpass, double aADfail, double aDPpass, double aDPfail, 
+        double pl_exponent = 3.0, double n_nats = log(500+1),
+        double aADavgKeyVal = -1, double aDPavgKeyVal = -1) {
+    assert(aADpass <= aDPpass);
+    assert(aADfail <= aDPfail);
+    aDPfail += 1.0;
+    aDPpass += 1.0;
+    aADfail += 0.5;
+    aADpass += 0.5;
+    if ((aADpass / aDPpass) >= (aADfail / aDPfail)) {
+        if (TBidirectional) {
+            autoswap(aDPfail, aDPpass);
+            autoswap(aADfail, aADpass);
+        } else {
+            return (aADpass / aDPpass);
+        }
+    }
+    auto aBDfail = aDPfail * 3 - aADfail * 2;
+    auto aBDpass = aDPpass * 3 - aADpass * 2;
+    double aADpassfrac = aADpass / (aADpass + aADfail);
+    double aBDpassfrac = aBDpass / (aBDpass + aBDfail);
+    if ((!TBidirectional) && (aADavgKeyVal >= 0) && (aDPavgKeyVal >= 0)) {
+        aADpassfrac = aADavgKeyVal / (aADavgKeyVal + aDPavgKeyVal * 0.9); // MIN(0.5, 0.5 * aADavgKeyVal / aDPavgKeyVal); // intrapolate
+        aBDpassfrac = 1.0 - aADpassfrac;
+    }
+    double infogain = aADfail * log((1.0 - aADpassfrac) / (1.0 - aBDpassfrac));
+    if (TBidirectional) { infogain += aADpass * log(aADpassfrac / aBDpassfrac); }
+    if (infogain <= n_nats) {
+        return aADfail / aDPfail;
+    } else {
+        return MAX(aADpass / aDPpass, (aADfail / aDPfail) * exp((n_nats - infogain) / pl_exponent));
+    }
+}
+
+double 
+_dp4_to_pcFA(double aDPfw, double aDPrv, double aADfw, double aADrv, double refmul = 1.0, double altmul = 1.0, double powlaw_exponent = 3.0) {
     double sor = ((aADfw + 1) * (aDPrv + 1)) / ((aADrv + 1) * (aDPfw + 1));
     double aADpc = MAX(0, 3.5 - log(MAX(sor, 1/sor)) / log(3)); // / log(3));
     // double aADpc = 2.0 * (log(2.0) * powlaw_exponent) / log(1.0 + MAX(sor, 1.0 / sor));
@@ -568,7 +663,7 @@ dp4_to_pcFA(double aDPfw, double aDPrv, double aADfw, double aADrv, double refmu
 template
 <bool TBidirectional = true>
 double 
-dp4_to_pcFA(double aADpass, double aADfail, double aDPpass, double aDPfail, double n_nats = log(500+1)) {
+_dp4_to_pcFA(double aADpass, double aADfail, double aDPpass, double aDPfail, double n_nats = log(500+1)) {
     assert(aADpass <= aDPpass);
     assert(aADfail <= aDPfail);
     
