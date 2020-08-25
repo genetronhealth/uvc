@@ -356,8 +356,15 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
                                                       "for between-sample comparison."),
     BcfFormatStruct("CDP2x" , 2        , BCF_INTEGER, "The effective number of SSCS UMI-barcoded families supporting all alleles multiplied by 100 "
                                                       "for between-sample comparison."),
-    
     BcfFormatStruct("CONTQ" , BCF_NUM_R, BCF_SIG_INT, "Likelihood of the variant signal if the variant signal is contaminated."),
+    
+    BcfFormatStruct("__f"   , 1,         BCF_SEP,     "Variant-related information."),
+    BcfFormatStruct("VTI"   , BCF_NUM_R, BCF_INTEGER, "Variant-type ID of each allele."),
+    BcfFormatStruct("VTD"   , BCF_NUM_R, BCF_STRING,  "Variant-type description of each allele"),
+    BcfFormatStruct("cVQ1M" , 2,         BCF_SIG_INT, "Consensus allele qualities for deduped fragments and UMI families"),
+    BcfFormatStruct("cVQ2M" , 2,         BCF_SIG_INT, "Consensus allele qualities for deduped fragments and UMI families"),
+    BcfFormatStruct("cVQAM" , 2,         BCF_STRING,  "Consensus allele symbolic descriptions for deduped fragments and UMI families"),
+    BcfFormatStruct("cVQSM" , 2,         BCF_STRING,  "Consensus allele InDel strings for deduped fragments and UMI families"),
     
     BcfFormatStruct("__gap"  , 1,        BCF_SEP,     "InDel-related information."), 
     BcfFormatStruct("gapNf"  ,BCF_NUM_D, BCF_INTEGER, "Number of InDel sequences on the forward read orientation."),
@@ -369,8 +376,6 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("bDPa"   ,BCF_NUM_R, BCF_INTEGER, "Number of non-deduplicated fragments supporting each ALT allele which is more precise for InDels."),
     BcfFormatStruct("cDP1a"  ,BCF_NUM_R, BCF_INTEGER, "Number of deduplicated fragments supporting each ALT allele which is more precise for InDels"),
     BcfFormatStruct("gapSa"  ,BCF_NUM_R, BCF_STRING,  "InDel string of each allele"),
-    BcfFormatStruct("VTI"    ,BCF_NUM_R, BCF_INTEGER, "Variant-type ID of each allele."),
-    BcfFormatStruct("VTD"    ,BCF_NUM_R, BCF_STRING,  "Variant-type description of each allele"),
     
     BcfFormatStruct("bHap"  , 1,         BCF_STRING,  "Duped forward&reverse linkage in the format of ((position&variantType)...depth)... "
                                                       "where ()... means more elements following the format in the preceding parenthesis. "),

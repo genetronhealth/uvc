@@ -89,7 +89,7 @@ CommandLineArgs::selfUpdateByPlatform() {
         bq_phred_added_misma += 0;
         minABQ_pcr_snv += 25;
         minABQ_pcr_indel += 15; // 18;
-        minABQ_cap_snv += 20;
+        minABQ_cap_snv += 23;
         minABQ_cap_indel += 0; // 5; // 13;
         if (0 == highqual_thres_indel) { highqual_thres_indel = highqual_thres_snv + 6; }
     }

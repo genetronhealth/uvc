@@ -606,10 +606,18 @@ seg_format_get_ad(const auto & s) {
     return s[SEG_aDPff] + s[SEG_aDPfr] + s[SEG_aDPrf] + s[SEG_aDPrr];
 };
 
+/*
 unsigned int
 seg_format_get_avgBQ(const auto & s, const auto & q) {
     return (q[VQ_a1BQf] + q[VQ_a1BQr]) / MAX(1, seg_format_get_ad(s));
 };
+*/
+
+unsigned int
+get_avgBQ(const auto & bg_seg_bqsum_conslogo, const auto & symbol_to_seg_format_depth_sets, const unsigned int epos, const auto s) {
+    const auto denom = seg_format_get_ad(symbol_to_seg_format_depth_sets.getByPos(epos)[s]);
+    return bg_seg_bqsum_conslogo.getByPos(epos).getSymbolCount(s) / MAX(1, denom);
+}
 
 template
 <bool TBidirectional = true>
@@ -633,6 +641,8 @@ dp4_to_pcFA(double aADpass, double aADfail, double aDPpass, double aDPfail,
     }
     auto aBDfail = aDPfail * 3 - aADfail * 2;
     auto aBDpass = aDPpass * 3 - aADpass * 2;
+    assert (aBDfail > 0);
+    assert (aBDpass > 0);
     double aADpassfrac = aADpass / (aADpass + aADfail);
     double aBDpassfrac = aBDpass / (aBDpass + aBDfail);
     if ((!TBidirectional) && (aADavgKeyVal >= 0) && (aDPavgKeyVal >= 0)) {
@@ -640,7 +650,13 @@ dp4_to_pcFA(double aADpass, double aADfail, double aDPpass, double aDPfail,
         aBDpassfrac = 1.0 - aADpassfrac;
     }
     double infogain = aADfail * log((1.0 - aADpassfrac) / (1.0 - aBDpassfrac));
-    if (TBidirectional) { infogain += aADpass * log(aADpassfrac / aBDpassfrac); }
+    if (TBidirectional) { 
+        infogain += aADpass * log(aADpassfrac / aBDpassfrac); 
+        // double infogain2 = (aDPpass - aADpass) * log((1.0 - aBDpassfrac) / (1.0 - aADpassfrac));
+    }
+#ifdef TEST_dp4_to_pcFA
+    printf("infogain = %f\n", infogain);
+#endif
     if (infogain <= n_nats) {
         return aADfail / aDPfail;
     } else {
@@ -698,8 +714,11 @@ main(int argc, char **argv) {
     double dppass = atof(argv[3]);
     double dpfail = atof(argv[4]);
     double entropy = atof(argv[5]);
-    double ret = dp4_to_pcFA<false>(adpass, adfail, dppass, dpfail, entropy);
-    printf("dp4_to_pcFA(%f, %f, %f, %f, %f) = %f\n", adpass, adfail, dppass, dpfail, entropy, ret);
+    double entrmax = atof(argv[6]);
+
+    double ret1 = dp4_to_pcFA<false>(adpass, adfail, dppass, dpfail, entropy, entrmax);
+    double ret2 = dp4_to_pcFA<true>(adpass, adfail, dppass, dpfail, entropy, entrmax);
+    printf("dp4_to_pcFA<false, true>(%f, %f, %f, %f, %f, %f) = <%f, %f>\n", adpass, adfail, dppass, dpfail, entropy, entrmax, ret1, ret2);
 }   
 
 #endif

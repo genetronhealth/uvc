@@ -685,7 +685,9 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                     }
                     
                     if (NOT_PROVIDED != paramset.vcf_tumor_fname
-                            && (!is_pos_rescued || ((!is_var_rescued) && refsymbol != symbol))) {
+                            && (!is_pos_rescued
+                                //  || ((!is_var_rescued) && refsymbol != symbol)
+                                )) {
                         continue;
                     }
                     const auto simplemut = std::make_pair(refpos, symbol);
@@ -765,9 +767,11 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                                 std::get<0>(bcad0a_indelstring_tki),
                                 std::get<1>(bcad0a_indelstring_tki),
                                 std::get<2>(bcad0a_indelstring_tki),
+                                (isSymbolSubstitution(symbol) ? minABQ_snv : minABQ_indel),
                                 0);
                         BcfFormat_symbol_calc_DPv(
                                 fmt,
+                                refpos,
                                 0);
                         fmt_tki_tup_vec.push_back(std::make_tuple(fmt, std::get<3>(bcad0a_indelstring_tki)));
                     }
@@ -775,18 +779,51 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                 
                 if (rpos_exclu_end != refpos && fmt_tki_tup_vec.size() > 0) {
                     BcfFormat_symbol_sum_DPv(fmt_tki_tup_vec);
+                    
+                    //int max_cVQ1 = -999;
+                    //int max_cVQ2 = -999;
+                    //AlignmentSymbol argmax_cVQ1 = END_ALIGNMENT_SYMBOLS;
+                    //AlignmentSymbol argmax_cVQ2 = END_ALIGNMENT_SYMBOLS;
+                    //std::string strmax_cVQ1 = "";
+                    //std::string strmax_cVQ2 = "";
+                    
+                    std::vector<std::tuple<int, int, int, AlignmentSymbol, std::string>> maxVQ_VQ1_VQ2_symbol_indelstr_tup_vec;
                     for (auto & fmt_tki_tup : fmt_tki_tup_vec) {
+                        AlignmentSymbol symbol = AlignmentSymbol(LAST(std::get<0>(fmt_tki_tup).VTI));
+                        unsigned int phred_max_sscs_all = sscs_mut_table.toPhredErrRate(refsymbol, symbol);
                         BcfFormat_symbol_calc_qual(
                                 std::get<0>(fmt_tki_tup),
                                 repeatunit,
                                 repeatnum,
                                 90,
                                 3,
-                                30,
+                                phred_max_sscs_all,
+                                (phred_max_sscs_all - (isSymbolSubstitution(symbol) ? paramset.phred_pow_sscs_origin : paramset.phred_pow_sscs_indel_origin)),
                                 paramset.phred_varcall_err_per_map_err_per_base,
                                 NOT_PROVIDED != paramset.vcf_tumor_fname,
                                 (is_mut_transition(refsymbol, AlignmentSymbol(LAST(std::get<0>(fmt_tki_tup).VTI))) ? 2 : 0),
                                 0);
+                        if (refsymbol != symbol) {
+                            int cVQ1 = LAST(std::get<0>(fmt_tki_tup).cVQ1);
+                            int cVQ2 = LAST(std::get<0>(fmt_tki_tup).cVQ2);
+                            maxVQ_VQ1_VQ2_symbol_indelstr_tup_vec.push_back(std::make_tuple(MAX(cVQ1, cVQ2), cVQ1, cVQ2, symbol, LAST(std::get<0>(fmt_tki_tup).gapSa)));
+                        }
+                    }
+                    std::sort(maxVQ_VQ1_VQ2_symbol_indelstr_tup_vec.rbegin(), maxVQ_VQ1_VQ2_symbol_indelstr_tup_vec.rend());
+                    for (auto & fmt_tki_tup : fmt_tki_tup_vec) {
+                        std::get<0>(fmt_tki_tup).cVQ1M = {{ -999 }};
+                        std::get<0>(fmt_tki_tup).cVQ2M = {{ -999 }};
+                        std::get<0>(fmt_tki_tup).cVQAM = {{ SYMBOL_TO_DESC_ARR[END_ALIGNMENT_SYMBOLS] }};
+                        std::get<0>(fmt_tki_tup).cVQSM = {{ "" }};
+                        size_t tup_vec_idx = 0;
+                        for (const auto & maxVQ_VQ1_VQ2_symbol_indelstr_tup : maxVQ_VQ1_VQ2_symbol_indelstr_tup_vec) {
+                            std::get<0>(fmt_tki_tup).cVQ1M[tup_vec_idx] = std::get<1>(maxVQ_VQ1_VQ2_symbol_indelstr_tup);
+                            std::get<0>(fmt_tki_tup).cVQ2M[tup_vec_idx] = std::get<2>(maxVQ_VQ1_VQ2_symbol_indelstr_tup);
+                            std::get<0>(fmt_tki_tup).cVQAM[tup_vec_idx] = SYMBOL_TO_DESC_ARR[std::get<3>(maxVQ_VQ1_VQ2_symbol_indelstr_tup)];
+                            std::get<0>(fmt_tki_tup).cVQSM[tup_vec_idx] = std::get<4>(maxVQ_VQ1_VQ2_symbol_indelstr_tup);
+                            tup_vec_idx += 1;
+                            if (std::get<0>(fmt_tki_tup).cVQ1M.size() == tup_vec_idx) { break; }
+                        }
                     }
                     auto reffmt = init_fmt;
                     bool is_ref_found = false;
@@ -847,18 +884,26 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                             nlodq = std::get<0>(nlodq_fmtptr1_fmtptr2_tup);
                             assert ((NOT_PROVIDED == paramset.vcf_tumor_fname) == (0 == tki.ref_alt.size()));
                             if (NOT_PROVIDED != paramset.vcf_tumor_fname) {
-                                auto bgerr_norm_max_ad = MAX(
-                                        collectget(std::get<1>(nlodq_fmtptr1_fmtptr2_tup)->cDP1x, 1, 50),
-                                        collectget(std::get<2>(nlodq_fmtptr1_fmtptr2_tup)->cDP1x, 1, 50));
-                                double tAD = (tki.cDP1x + 1) / 100.0;
-                                double tDP = (tki.CDP1x + 2) / 100.0;
-                                double nAD = (bgerr_norm_max_ad + 1) / 100.0;
-                                double nDP = (fmt.CDP1x[0] + 2) / 100.0;
-                                double bjpfrac = ((tAD) / (tDP)) / ((nAD) / (nDP));
-                                int binom_b10log10like = (int)calc_binom_10log10_likeratio((tDP - tAD) / (tDP), nDP - nAD, nAD);
-                                int powlaw_b10log10like = (int)(3 * 10 / log(10) * log(bjpfrac));
-                                nlodq += BETWEEN(MIN(binom_b10log10like, powlaw_b10log10like), 0, 80);
-                                fmt.note += std::string("/nlodqDeltaIs/") 
+                                int nlodq_inc = 999;
+                                const auto fmtptrs = std::vector<bcfrec::BcfFormat*> {{ std::get<1>(nlodq_fmtptr1_fmtptr2_tup), std::get<2>(nlodq_fmtptr1_fmtptr2_tup) }} ;
+                                for (const auto *fmtptr : fmtptrs) {
+                                    const AlignmentSymbol normsymbol = AlignmentSymbol(LAST(fmtptr->VTI));
+                                    auto bgerr_norm_max_ad = collectget(fmtptr->cDP1x, 1, 50); 
+                                    //auto bgerr_norm_max_ad = MAX(
+                                    //        collectget(std::get<1>(nlodq_fmtptr1_fmtptr2_tup)->cDP1x, 1, 50),
+                                    //        collectget(std::get<2>(nlodq_fmtptr1_fmtptr2_tup)->cDP1x, 1, 50));
+                                    double tAD = (tki.cDP1x + 1) / 100.0;
+                                    double tDP = (tki.CDP1x + 2) / 100.0;
+                                    double nAD = (bgerr_norm_max_ad + 1) / 100.0;
+                                    double nDP = (fmtptr->CDP1x[0] + 2) / 100.0;
+                                    double bjpfrac = ((tAD) / (tDP)) / ((nAD) / (nDP));
+                                    int binom_b10log10like = (int)calc_binom_10log10_likeratio((tDP - tAD) / (tDP), nDP - nAD, nAD);
+                                    int powlaw_b10log10like = (int)(3 * 10 / log(10) * log(bjpfrac));
+                                    int triallele_inc = ((normsymbol != symbol) ? (isSymbolSubstitution(symbol) ? 25 : 8) : 0);
+                                    const auto new_nlodq_inc = BETWEEN(MIN(binom_b10log10like, powlaw_b10log10like), 0, 80) + triallele_inc;
+                                    if (nlodq_inc > new_nlodq_inc) {
+                                        nlodq_inc = new_nlodq_inc;
+                                        fmt.note += std::string("/nlodqDeltaIs/") 
                                         + other_join(std::array<double, 4> {{ tAD, tDP, nAD, nDP }}, "/") + "#" 
                                         + std::to_string(std::get<0>(nlodq_fmtptr1_fmtptr2_tup)) + "///"
                                         + other_join(std::get<1>(nlodq_fmtptr1_fmtptr2_tup)->VTI, "/") + "///"
@@ -866,6 +911,9 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                                         + other_join(std::get<1>(nlodq_fmtptr1_fmtptr2_tup)->cVQ1, "/") + "///"
                                         + other_join(std::get<2>(nlodq_fmtptr1_fmtptr2_tup)->cVQ1, "/") + "///"
                                         ;
+                                    }
+                                }
+                                nlodq += nlodq_inc; // BETWEEN(MIN(binom_b10log10like, powlaw_b10log10like), 0, 80);
                                 fmt.note += note1;
                             }
                             append_vcf_record(
