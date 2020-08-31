@@ -90,7 +90,7 @@ CommandLineArgs::selfUpdateByPlatform() {
         minABQ_pcr_snv += 25;
         minABQ_pcr_indel += 15; // 18;
         minABQ_cap_snv += 23;
-        minABQ_cap_indel += 0; // 5; // 13;
+        minABQ_cap_indel += 13; // 5; // 13;
         if (0 == highqual_thres_indel) { highqual_thres_indel = highqual_thres_snv + 6; }
     }
     return inferred_sequencing_platform;
@@ -156,7 +156,7 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
            outvar_flag, 
         std::string("Output-variant flag in bits specifying which type of variants are in the VCF output. ") +
         "The " + std::to_string(OUTVAR_GERMLINE) + " bit indicates germline variant. " +
-        "The " + std::to_string(OUTVAR_HOMREF) + " bit indicates homozygous reference allele (<NO_SNV> and/or <NO_INDEL>). " +
+        // "The " + std::to_string(OUTVAR_HOMREF) + " bit indicates homozygous reference allele (<NO_SNV> and/or <NO_INDEL>). " +
         "The " + std::to_string(OUTVAR_SOMATIC) + " bit indicates somatic variant. " +
         "The " + std::to_string(OUTVAR_ANY) + " bit indicates variant of any origin. " +
         "The " + std::to_string(OUTVAR_NONREF) + " bit indicates non-ref symbolic region indicating the absence of variants. ");
@@ -166,9 +166,13 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
            vqual, 
         "Every variant that satisfies this minimum variant quality is in the <--output> file. ");
     app.add_flag(
-        "-A,--All-out", 
+        "-A,--all-out", 
            should_output_all, 
         "All possible alleles including REF allele at each position is in <--output>. The output is base-pair resolution VCF. ");
+    app.add_flag(
+        "--all-germline-out", 
+           should_output_all_germline,
+        "All possible alleles including REF allele at each position is in <--output> for germline variants. ");
     ADD_OPTDEF(app, 
         "-d,--min-depth", 
            min_depth_thres, 
@@ -182,6 +186,11 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
            max_cpu_num, 
         "Number of cpu cores or equivalently threads to use. ");
     
+    ADD_OPTDEF(app,
+        "--primerlen", 
+           primerlen, 
+        "Number of bases from each end of each insert that are part of the primers (for only amplicon assay). ");
+
     ADD_OPTDEF(app, 
         "--tumor-vcf", 
            vcf_tumor_fname, 

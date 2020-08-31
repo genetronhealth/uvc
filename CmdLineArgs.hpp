@@ -24,6 +24,8 @@ struct CommandLineArgs {
     bool somaticGT = true;
     bool is_tumor_format_retrieved = true;
     bool should_output_all = false;
+    bool should_output_all_germline = false;
+
     bool disable_dup_read_merge = false;
     bool  enable_dup_read_vqual = true; // set to false can result in about 10% increase in false positive (FP) variants at around 1 FP/kilobase rate.
     bool disable_duplex = false;
@@ -56,7 +58,8 @@ struct CommandLineArgs {
     uint32_t    min_aln_len = 0;
     uint8_t     min_mapqual = 0; // 40; // from GATK
     uint16_t    max_cpu_num = 8;
-    // uint32_t    primerlen = 0;
+    uint32_t    primerlen = 23;
+    
     uint8_t     phred_max_frag_indel_ext = 5; // unused
     uint8_t     phred_max_frag_indel_basemax = 30; // 39; // 34; // 40-10 // 37; // 42; // 37; // 35; // 25;
     uint8_t     phred_max_sscs_transition_CG_TA = 44; // Cytosine deamination into Uracil, especially in FFPE samples, also by UV light radiation, more upstream

@@ -35,7 +35,7 @@ auto FIRST(const auto & v) {
     return v[0];
 }
 
-auto LAST(const auto & v) {
+const auto LAST(const auto & v) {
     assert(v.size() > 0);
     return v[(v.size()-1)];
 }
@@ -215,6 +215,18 @@ calc_binom_10log10_likeratio(double prob, double a, double b) {
     }
 }
 
+#ifdef TEST_calc_binom_10log10_likeratio
+int 
+main(int argc, char **argv) {
+    double prob = atof(argv[1]);
+    double a = atof(argv[2]);
+    double b = atof(argv[3]);
+    double ret1 = calc_binom_10log10_likeratio<true>(prob, a, b);
+    double ret2 = calc_binom_10log10_likeratio<false>(prob, a, b);
+    printf("calc_binom_10log10_likeratio<false, true>(%f, %f, %f) = <%f, %f>\n", prob, a, b, ret1, ret2);
+}
+#endif
+
 // h0 and h1 are two explanations, while h2 is responsible for the absence of h1 
 // (e.g., h0 is tumor var quality, h1 is germline polymorphism, and h2 is contamination)
 // h0 and h1 are two possible causes of the outcome, while h2 inhibits h1
@@ -357,6 +369,7 @@ const _CharToSymbol CHAR_TO_SYMBOL;
 
 struct TumorKeyInfo {
     std::string ref_alt;
+    int VTI = -1;
     // std::string FTS;
     int32_t pos = 0;
     
@@ -404,6 +417,7 @@ enum SegFormatPrepSet {
     //SEG_a_DEL_L,
     //SEG_a_DEL_R,
     SEG_a_XM,
+    SEG_a_GO,
     SEG_a_LI,
     SEG_a_LIDP,
     SEG_a_RI,
@@ -414,6 +428,11 @@ enum SegFormatPrepSet {
     SEG_a_INSLEN_SUM,
     SEG_a_DELLEN_SUM,
     
+    SEG_a_NEAR_INS_DP,
+    SEG_a_NEAR_DEL_DP,
+    SEG_a_NEAR_RTR_INS_DP,
+    SEG_a_NEAR_RTR_DEL_DP,
+
     /*
     SEG_a_A_DEPTH,
     SEG_a_A_TOT_LDIST,
@@ -441,6 +460,8 @@ enum SegFormatThresSet {
     // SEG_aEP2t, 
     SEG_aXM1T, // mismatch, higher means more bias
     SEG_aXM2T, 
+    SEG_aGO1T, // gap-open, higher means more bias
+    SEG_aGO2T, 
     SEG_aLI1T, // distance to left insert end, higher means more bias
     SEG_aLI2T, 
     SEG_aRI1T, // distance to right insert end
@@ -507,9 +528,13 @@ enum SegFormatDepthSet {
     // SEG_aLIDP, 
     SEG_aLI1, // left insert
     SEG_aLI2,
+    SEG_aLILf,
+    SEG_aLILr,
     // SEG_aRIDP,
     SEG_aRI1, // right insert
     SEG_aRI2,
+    SEG_aRILf,
+    SEG_aRILr,
     SEG_FORMAT_DEPTH_SET_END
 };
 #define NUM_SEG_FORMAT_DEPTH_SETS ((size_t)SEG_FORMAT_DEPTH_SET_END)
@@ -621,7 +646,7 @@ get_avgBQ(const auto & bg_seg_bqsum_conslogo, const auto & symbol_to_seg_format_
 
 template
 <bool TBidirectional = true>
-double 
+std::array<double, 2> 
 dp4_to_pcFA(double aADpass, double aADfail, double aDPpass, double aDPfail, 
         double pl_exponent = 3.0, double n_nats = log(500+1),
         double aADavgKeyVal = -1, double aDPavgKeyVal = -1) {
@@ -631,12 +656,13 @@ dp4_to_pcFA(double aADpass, double aADfail, double aDPpass, double aDPfail,
     aDPpass += 1.0;
     aADfail += 0.5;
     aADpass += 0.5;
+    const double nobiasFA = (aADfail + aADpass) / (aDPfail + aDPpass); 
     if ((aADpass / aDPpass) >= (aADfail / aDPfail)) {
         if (TBidirectional) {
             autoswap(aDPfail, aDPpass);
             autoswap(aADfail, aADpass);
         } else {
-            return (aADpass / aDPpass);
+            return std::array<double, 2> {{ (aADpass / aDPpass), nobiasFA }};
         }
     }
     auto aBDfail = aDPfail * 3 - aADfail * 2;
@@ -658,9 +684,9 @@ dp4_to_pcFA(double aADpass, double aADfail, double aDPpass, double aDPfail,
     printf("infogain = %f\n", infogain);
 #endif
     if (infogain <= n_nats) {
-        return aADfail / aDPfail;
+        return std::array<double, 2> {{ aADfail / aDPfail, nobiasFA }};
     } else {
-        return MAX(aADpass / aDPpass, (aADfail / aDPfail) * exp((n_nats - infogain) / pl_exponent));
+        return std::array<double, 2> {{ MAX(aADpass / aDPpass, (aADfail / aDPfail) * exp((n_nats - infogain) / pl_exponent)), nobiasFA }};
     }
 }
 
@@ -715,10 +741,10 @@ main(int argc, char **argv) {
     double dpfail = atof(argv[4]);
     double entropy = atof(argv[5]);
     double entrmax = atof(argv[6]);
-
-    double ret1 = dp4_to_pcFA<false>(adpass, adfail, dppass, dpfail, entropy, entrmax);
-    double ret2 = dp4_to_pcFA<true>(adpass, adfail, dppass, dpfail, entropy, entrmax);
-    printf("dp4_to_pcFA<false, true>(%f, %f, %f, %f, %f, %f) = <%f, %f>\n", adpass, adfail, dppass, dpfail, entropy, entrmax, ret1, ret2);
+    
+    const auto ret1 = dp4_to_pcFA<false>(adpass, adfail, dppass, dpfail, entropy, entrmax);
+    const auto ret2 = dp4_to_pcFA<true>(adpass, adfail, dppass, dpfail, entropy, entrmax);
+    printf("dp4_to_pcFA<false, true>(%f, %f, %f, %f, %f, %f) = <{%f, %f}, {%f, %f}>\n", adpass, adfail, dppass, dpfail, entropy, entrmax, ret1[0], ret1[1], ret2[0], ret2[1]);
 }   
 
 #endif
@@ -773,7 +799,7 @@ process_cigar(auto & qpos, auto & rpos, uint32_t cigar_op, uint32_t cigar_oplen)
 
 unsigned int
 proton_cigarlen2phred(unsigned int cigarlen) {
-    unsigned int oplen2cigar[7] = {0, 7, 13, 18, 22, 25, 27};
+    unsigned int oplen2cigar[7] = {1, 8, 14, 19, 23, 26, 28};
     return oplen2cigar[MIN(cigarlen, 6)];
 }
 

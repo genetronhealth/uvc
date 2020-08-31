@@ -15,10 +15,12 @@
 //#define RCC_NFS 6
 
 #define OUTVAR_GERMLINE 0x1
-#define OUTVAR_HOMREF 0x2
-#define OUTVAR_SOMATIC 0x4
-#define OUTVAR_ANY 0x8
-#define OUTVAR_NONREF 0x10
+//#define OUTVAR_HOMREF 0x2
+#define OUTVAR_SOMATIC 0x2
+#define OUTVAR_ANY 0x4
+#define OUTVAR_NONREF 0x8
+
+#define MAX_INSERT_SIZE (1024*2) // https://doi.org/10.2147/AGG.S162531
 
 enum BiasType {
     BIAS_FRAG_DUP = 1,
