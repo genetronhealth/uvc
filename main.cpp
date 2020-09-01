@@ -836,8 +836,9 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                         const auto & tki = std::get<1>(fmt_tki_tup);
                         BcfFormat_symbol_calc_qual(
                                 fmt,
-                                // var_bdepth,
-                                // var_cdepth,
+                                var_bdepth,
+                                var_cdepth,
+                                
                                 ins_bdepth,
                                 ins_cdepth,
                                 del_bdepth,
@@ -847,7 +848,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                                 ins1_cdepth,
                                 del1_bdepth,
                                 del1_cdepth,
-
+                                
                                 repeatunit,
                                 repeatnum,
                                 90,
@@ -921,6 +922,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                     while (symbol_format_vec.size() < 4) {
                         symbol_format_vec.push_back(std::make_pair(SYMBOL_TYPE_TO_NO_VAR_SYMBOL[symbolType], &init_fmt));
                     }
+                    const size_t string_pass_old_size = buf_out_string_pass.size();
                     auto nlodq_fmtptr1_fmtptr2_tup = output_germline(
                             buf_out_string_pass,
                             refsymbol,
@@ -934,7 +936,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                             paramset.should_output_all_germline,
                             NOT_PROVIDED != paramset.vcf_tumor_fname,
                             0);
-                    
+                    const bool is_germline_var_generated = (buf_out_string_pass.size() > string_pass_old_size);
+
                     for (auto & fmt_tki_tup : fmt_tki_tup_vec) {
                         auto & fmt = std::get<0>(fmt_tki_tup);
                         const auto & symbol = (AlignmentSymbol)(LAST(fmt.VTI)); // std::get<1>(fmtinfo);
@@ -1001,7 +1004,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                                     paramset.vqual,
                                     paramset.vdp,
                                     paramset.vad,
-                                    paramset.should_output_all,
+                                    (paramset.should_output_all || is_germline_var_generated),
                                     bcf_hdr,
                                     0);
                         }

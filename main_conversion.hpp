@@ -584,6 +584,8 @@ enum VQFormatTagSet {
     //VQ_cFA2, // consensus
     //VQ_cFA3, // consensus
     // VQ_uFA,  // unified
+    VQ_a1XM,
+    
     VQ_a1BQf,
     VQ_a1BQr,
     VQ_a2BQf,
@@ -665,8 +667,8 @@ dp4_to_pcFA(double aADpass, double aADfail, double aDPpass, double aDPfail,
             return std::array<double, 2> {{ (aADpass / aDPpass), nobiasFA }};
         }
     }
-    auto aBDfail = aDPfail * 3 - aADfail * 2;
-    auto aBDpass = aDPpass * 3 - aADpass * 2;
+    auto aBDfail = aDPfail * 2 - aADfail * 1;
+    auto aBDpass = aDPpass * 2 - aADpass * 1;
     assert (aBDfail > 0);
     assert (aBDpass > 0);
     double aADpassfrac = aADpass / (aADpass + aADfail);
@@ -828,7 +830,7 @@ infer_max_qual_assuming_independence(
         currvqual = (int)(currAD * (currBQ - expBQ));
         if (currvqual > maxvqual) {
             argmaxAD = currAD;
-            argmaxBQ = expBQ;
+            argmaxBQ = currBQ; // This was changed from expBQ, that is a big change for UMI data TODO: re-evaluate
             maxvqual = currvqual;
         }
     }

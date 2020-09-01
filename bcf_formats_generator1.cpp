@@ -250,7 +250,7 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("aRI2"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 insert bias on the left side."),
     BcfFormatStruct("aRILf" , BCF_NUM_R, BCF_INTEGER, "Raw summed distance (number of bases) to the right-side insert end on the forward read orientation."),
     BcfFormatStruct("aRILr" , BCF_NUM_R, BCF_INTEGER, "Raw summed distance (number of bases) to the right-side insert end on the reverse read orientation."),
-    
+        
     //BcfFormatStruct("aRIL"  , BCF_NUM_R, BCF_INTEGER, "Raw summed distance (number of bases) to the right-side template-insert end."),
     
     BcfFormatStruct("__Bb"  , 1,         BCF_SEP,     "Non-deduped depths of the fragments."),
@@ -298,7 +298,10 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("dDP1"  , BCF_NUM_R, BCF_INTEGER, "Duplex depth with allele disagreement on the two strands for the REF allele and each ALT allele."),
     BcfFormatStruct("dDP2"  , BCF_NUM_R, BCF_INTEGER, "Duplex depth with allele agreement on the two strands for the REF allele and each ALT allele."),
     
-    BcfFormatStruct("__e1"   , 1,         BCF_SEP,     "Quality-related variables."),
+    BcfFormatStruct("__e1"  , 1,         BCF_SEP,     "Quality-related variables."),
+    
+    BcfFormatStruct("a1XM"  , BCF_NUM_R, BCF_INTEGER, "Total number of mismatches normalized with read length."),
+    
     BcfFormatStruct("a1BQf" , BCF_NUM_R, BCF_INTEGER, "Summed sequencing-segment base quality on the forward strand."),
     BcfFormatStruct("a1BQr" , BCF_NUM_R, BCF_INTEGER, "Summed sequencing-segment base quality on the reverse strand."),     
     BcfFormatStruct("a2BQf" , BCF_NUM_R, BCF_INTEGER, "Summed sequencing-segment base quality on the forward strand."),
