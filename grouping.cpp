@@ -514,7 +514,7 @@ fill_strand_umi_readset_with_strand_to_umi_to_reads(
                 umi_strand_readset.back().first[strand].push_back(std::vector<bam1_t *>());
                 for (auto aln : alns) {
                     // apply_baq(aln, baq_per_aligned_base);
-                    apply_bq_err_correction(aln); //, 1, 3, 4);
+                    // apply_bq_err_correction(aln); //, 1, 3, 4);
                     umi_strand_readset.back().first[strand].back().push_back(aln);
                 }
             }

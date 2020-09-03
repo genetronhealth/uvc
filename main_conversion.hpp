@@ -412,6 +412,7 @@ string2symbolseq(const std::string & instring) {
 
 enum SegFormatPrepSet {
     SEG_a_DP,
+    SEG_aBQ2_DP,
     //SEG_a_INS_L,
     //SEG_a_INS_R,
     //SEG_a_DEL_L,
@@ -514,11 +515,12 @@ enum SegFormatDepthSet {
     SEG_arG, // 25 edge position
     SEG_arT, 
     */
-    
+    SEG_aXM1,
     SEG_aBQ1, // base-quality bias
     SEG_aBQ2,
-    SEG_aXM1, // mismatch
-    SEG_aXM2, 
+    
+    SEG_aPF1, // mismatch
+    SEG_aPF2, 
     SEG_aLP1, // left seg pos
     SEG_aLP2,
     SEG_aLPL,
@@ -546,7 +548,8 @@ enum FragFormatDepthSet {
 #define NUM_FRAG_FORMAT_DEPTH_SETS ((size_t)FRAG_FORMAT_DEPTH_SET_END)
 
 enum FamFormatDepthSet {
-    FAM_cDP1,  // raw 
+    FAM_cDP0, // raw
+    FAM_cDP1, // filtered
     FAM_cDP2, //  2, 0.8, family-consensus
     FAM_cDP3, // 10, 0.8, family-consensus
     FAM_cDPM, // duped match
@@ -651,13 +654,13 @@ template
 std::array<double, 2> 
 dp4_to_pcFA(double aADpass, double aADfail, double aDPpass, double aDPfail, 
         double pl_exponent = 3.0, double n_nats = log(500+1),
-        double aADavgKeyVal = -1, double aDPavgKeyVal = -1) {
+        double aADavgKeyVal = -1, double aDPavgKeyVal = -1, double priorAD = 0.5) {
     assert(aADpass <= aDPpass);
     assert(aADfail <= aDPfail);
     aDPfail += 1.0;
     aDPpass += 1.0;
-    aADfail += 0.5;
-    aADpass += 0.5;
+    aADfail += priorAD;
+    aADpass += priorAD;
     const double nobiasFA = (aADfail + aADpass) / (aDPfail + aDPpass); 
     if ((aADpass / aDPpass) >= (aADfail / aDPfail)) {
         if (TBidirectional) {
@@ -674,7 +677,7 @@ dp4_to_pcFA(double aADpass, double aADfail, double aDPpass, double aDPfail,
     double aADpassfrac = aADpass / (aADpass + aADfail);
     double aBDpassfrac = aBDpass / (aBDpass + aBDfail);
     if ((!TBidirectional) && (aADavgKeyVal >= 0) && (aDPavgKeyVal >= 0)) {
-        aADpassfrac = aADavgKeyVal / (aADavgKeyVal + aDPavgKeyVal * 0.9); // MIN(0.5, 0.5 * aADavgKeyVal / aDPavgKeyVal); // intrapolate
+        aADpassfrac = aADavgKeyVal / (aADavgKeyVal + aDPavgKeyVal * 0.9); // it was 0.9 // MIN(0.5, 0.5 * aADavgKeyVal / aDPavgKeyVal); // intrapolate
         aBDpassfrac = 1.0 - aADpassfrac;
     }
     double infogain = aADfail * log((1.0 - aADpassfrac) / (1.0 - aBDpassfrac));

@@ -691,8 +691,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                             symbolToCountCoverageSet12.symbol_to_frag_format_depth_sets[0].getByPos(refpos)[symbol][FRAG_bDP]
                           + symbolToCountCoverageSet12.symbol_to_frag_format_depth_sets[1].getByPos(refpos)[symbol][FRAG_bDP];
                     const auto cdepth = 
-                            symbolToCountCoverageSet12.symbol_to_fam_format_depth_sets_2strand[0].getByPos(refpos)[symbol][FAM_cDP1]
-                          + symbolToCountCoverageSet12.symbol_to_fam_format_depth_sets_2strand[1].getByPos(refpos)[symbol][FAM_cDP1];
+                            symbolToCountCoverageSet12.symbol_to_fam_format_depth_sets_2strand[0].getByPos(refpos)[symbol][FAM_cDP0]
+                          + symbolToCountCoverageSet12.symbol_to_fam_format_depth_sets_2strand[1].getByPos(refpos)[symbol][FAM_cDP0];
                     if (refsymbol == symbol) {
                         var_bdepth = bDPcDP[0] - bdepth;
                         var_cdepth = bDPcDP[1] - cdepth;
@@ -917,7 +917,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                     clear_push(init_fmt.CONTQ, 0);
                     clear_push(init_fmt.cDP1f, 0);
                     clear_push(init_fmt.cDP1r, 0);
-                    clear_push(init_fmt.cDP1a, 0);
+                    clear_push(init_fmt.cDP0a, 0);
                     clear_push(init_fmt.cDP1v, 50);
                     while (symbol_format_vec.size() < 4) {
                         symbol_format_vec.push_back(std::make_pair(SYMBOL_TYPE_TO_NO_VAR_SYMBOL[symbolType], &init_fmt));
