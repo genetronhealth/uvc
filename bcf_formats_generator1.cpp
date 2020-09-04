@@ -154,7 +154,8 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("ALRIT" , 4,         BCF_INTEGER, "Number of bases to left (01) and right (23) insert ends above which there is tier-1 and tier-2 insert bias."),
     BcfFormatStruct("ALRIt" , 4,         BCF_INTEGER, "Number of bases to left (01) and right (23) insert ends below which there is tier-1 and tier-2 insert bias."),
     BcfFormatStruct("ALRPt" , 4,         BCF_INTEGER, "Number of bases to left (01) and right (23) read-segment ends below which there is tier-1 and tier-2 position bias."),
-    
+    BcfFormatStruct("ALRBt" , 4,         BCF_INTEGER, "Base alignment quality (BAQ) to left (01) and right (23) read-segment ends below which there is tier-1 and tier-2 position bias."),
+
     BcfFormatStruct("__A1"  , 1,         BCF_SEP,     "Depths of the raw sequencing segments for (all alleles) and (the padded deletion allele)."),
     BcfFormatStruct("ADPff" , 2,         BCF_INTEGER, "Raw sequencing segment depth with the R1-forward orientation and strand."),
     BcfFormatStruct("ADPfr" , 2,         BCF_INTEGER, "Raw sequencing segment depth with the R2-reverse orientation and strand."),
@@ -176,7 +177,15 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("ARP1"  , 2,         BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 right-side position bias."),
     BcfFormatStruct("ARP2"  , 2,         BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 right-side position bias."),
     BcfFormatStruct("ARPL"  , 2,         BCF_INTEGER, "Raw summed distance (number of bases) to the right-side sequencing-segment end."),
-
+    
+    BcfFormatStruct("__A2a" , 1,         BCF_SEP,     "Depths of the raw sequencing segments for (all alleles) and (the padded deletion allele)."),
+    BcfFormatStruct("ALB1"  , 2,         BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 left-side position bias."),
+    BcfFormatStruct("ALB2"  , 2,         BCF_INTEGER, "RSEaw sequencing segment depth unaffected by tier-2 left-side position bias."),
+    BcfFormatStruct("ALBL"  , 2,         BCF_INTEGER, "Raw summed distance (number of bases) to the left-side sequencing-segment end."),
+    BcfFormatStruct("ARB1"  , 2,         BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 right-side position bias."),
+    BcfFormatStruct("ARB2"  , 2,         BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 right-side position bias."),
+    BcfFormatStruct("ARBL"  , 2,         BCF_INTEGER, "Raw summed distance (number of bases) to the right-side sequencing-segment end."),
+    
     /*
     BcfFormatStruct("AlA"   , 2,         BCF_INTEGER, "Raw sequencing segment depth not filtered by left-side position bias induced by base A."),
     BcfFormatStruct("AlC"   , 2,         BCF_INTEGER, "Raw sequencing segment depth not filtered by left-side position bias induced by base C."),
@@ -235,14 +244,22 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("aRP2"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 right-side position bias."),
     BcfFormatStruct("aRPL"  , BCF_NUM_R, BCF_INTEGER, "Raw summed distance (number of bases) to the right-side sequencing-segment end."),
     
+    BcfFormatStruct("__a2a" , 1,         BCF_SEP,     "As before."),
+    BcfFormatStruct("aLB1"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 left-side position bias."),
+    BcfFormatStruct("aLB2"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 left-side position bias."),
+    BcfFormatStruct("aLBL"  , BCF_NUM_R, BCF_INTEGER, "Raw summed distance (number of bases) to the left-side sequencing-segment end."),
+    BcfFormatStruct("aRB1"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 right-side position bias."),
+    BcfFormatStruct("aRB2"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 right-side position bias."),
+    BcfFormatStruct("aRBL"  , BCF_NUM_R, BCF_INTEGER, "Raw summed distance (number of bases) to the right-side sequencing-segment end."),
+    
     BcfFormatStruct("__a3"  , 1,         BCF_SEP,     "As before."),
     //BcfFormatStruct("aBQ1"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 base quality bias."),
     BcfFormatStruct("aBQ2"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 base quality bias."),
-    BcfFormatStruct("aPF1"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 mismatch bias."),
-    BcfFormatStruct("aPF2"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 mismatch bias."),
-    BcfFormatStruct("aXM1"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 mismatch bias."),
-    //BcfFormatStruct("aXM2"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 mismatch bias."),
-
+    BcfFormatStruct("aPF1"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 relative mismatch bias and base quality bias."),
+    BcfFormatStruct("aPF2"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 relative mismatch bias and base quality bias."),
+    BcfFormatStruct("aXM1"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 absolute mismatch bias."),
+    BcfFormatStruct("aXM2"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 absolute mismatch bias."),
+    
     BcfFormatStruct("__a4"  , 1,         BCF_SEP,     "As before."),
     BcfFormatStruct("aLI1"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 insert bias on the left side."),
     BcfFormatStruct("aLI2"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 insert bias on the right side."),

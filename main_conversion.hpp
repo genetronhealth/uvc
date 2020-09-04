@@ -429,6 +429,11 @@ enum SegFormatPrepSet {
     SEG_a_INSLEN_SUM,
     SEG_a_DELLEN_SUM,
     
+    SEG_a_L_BAQ_SUM,
+    SEG_a_R_BAQ_SUM,
+    SEG_a_INSBAQ_SUM,
+    SEG_a_DELBAQ_SUM,
+    
     SEG_a_NEAR_INS_DP,
     SEG_a_NEAR_DEL_DP,
     SEG_a_NEAR_RTR_INS_DP,
@@ -477,6 +482,11 @@ enum SegFormatThresSet {
     SEG_aRP1t,
     SEG_aRP2t,
     
+    SEG_aLB1t,
+    SEG_aLB2t,
+    SEG_aRB1t,
+    SEG_aRB2t,
+    
     /*
     SEG_A_LDIST_THRES,
     SEG_A_RDIST_THRES,
@@ -516,17 +526,27 @@ enum SegFormatDepthSet {
     SEG_arT, 
     */
     SEG_aXM1,
+    SEG_aXM2,
     SEG_aBQ1, // base-quality bias
     SEG_aBQ2,
     
     SEG_aPF1, // mismatch
     SEG_aPF2, 
+    
     SEG_aLP1, // left seg pos
     SEG_aLP2,
     SEG_aLPL,
     SEG_aRP1, // right seg pos
     SEG_aRP2,
     SEG_aRPL,
+    
+    SEG_aLB1, // left seg pos
+    SEG_aLB2,
+    SEG_aLBL,
+    SEG_aRB1, // right seg pos
+    SEG_aRB2,
+    SEG_aRBL,
+    
     // SEG_aLIDP, 
     SEG_aLI1, // left insert
     SEG_aLI2,

@@ -441,6 +441,49 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
     return ret;
 }
 
+CoveredRegion<int64_t> 
+region_repeatvec_to_baq_offsetarr(
+        const std::vector<RegionalTandemRepeat> & region_repeatvec, 
+        unsigned int tid,
+        unsigned int extended_inclu_beg_pos, 
+        unsigned int extended_exclu_end_pos) {
+    auto ret = CoveredRegion<int64_t>(tid, extended_inclu_beg_pos, extended_exclu_end_pos);    
+    int64_t baq_prefixsum = 0;
+    unsigned int prev_begpos = 0;
+    unsigned int prev_tracklen = 0;
+    for (unsigned int i = extended_inclu_beg_pos; i < extended_exclu_end_pos; i++) {
+        const unsigned int rtr_idx = i - extended_inclu_beg_pos;
+        const auto & rtr = region_repeatvec[rtr_idx];
+        assert (rtr.begpos <= rtr_idx);
+        assert (rtr.unitlen > 0);
+        assert (rtr.tracklen >= rtr.unitlen);
+        if (rtr.tracklen / rtr.unitlen >= 3 || (rtr.tracklen / rtr.unitlen >= 2 && rtr.tracklen >= 8)) {
+            baq_prefixsum += (10 * 10) / (rtr.tracklen) + 1;
+            // if (((rtr_idx - rtr.begpos)) % (rtr.tracklen / 10 + 1) == 0): baq_prefixsum += 1;
+            ret.getRefByPos(i) = baq_prefixsum; // + 10 * (rtr_idx - rtr.begpos) / rtr.tracklen;
+        } else {
+            baq_prefixsum += 50;
+            prev_begpos = rtr.begpos;
+            prev_tracklen = rtr.tracklen;
+            ret.getRefByPos(i) = baq_prefixsum;
+        }
+        
+        /*
+        if ((i >= extended_inclu_beg_pos + prev_begpos + prev_tracklen) || rtr.tracklen <= 3) {
+            baq_prefixsum += 5;
+            prev_begpos = rtr.begpos;
+            prev_tracklen = rtr.tracklen;
+        } else if (i % 3 == 0) {
+            baq_prefixsum += 1;
+        }
+        */
+    }
+    for (unsigned int i = extended_inclu_beg_pos; i < extended_exclu_end_pos; i++) {
+        ret.getRefByPos(i) /= 10;
+    } 
+    return ret;
+}
+
 int 
 process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
     
@@ -545,6 +588,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
     if (is_loginfo_enabled) { LOG(logINFO)<< "Thread " << thread_id << " starts updateByRegion3Aln with " << umi_strand_readset.size() << " families"; }
     std::string refstring = load_refstring(ref_faidx, tid, extended_inclu_beg_pos, extended_exclu_end_pos);
     std::vector<RegionalTandemRepeat> region_repeatvec = refstring2repeatvec(refstring);
+    const auto & baq_offsetarr = region_repeatvec_to_baq_offsetarr(region_repeatvec, tid, extended_inclu_beg_pos, extended_exclu_end_pos);
+    
     // repeatvec_LOG(region_repeatvec, extended_inclu_beg_pos);
 
     std::vector<std::tuple<unsigned int, unsigned int, unsigned int>> adjcount_x_rpos_x_misma_vec;
@@ -562,6 +607,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
             umi_strand_readset, 
             refstring,
             region_repeatvec,
+            baq_offsetarr,
             paramset.bq_phred_added_misma, 
             paramset.bq_phred_added_indel, 
             paramset.should_add_note, 
@@ -860,8 +906,9 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                                 // (is_mut_transition(refsymbol, AlignmentSymbol(LAST(std::get<0>(fmt_tki_tup).VTI))) ? 2 : 0),
                                 region_repeatvec.at(MAX(refpos - extended_inclu_beg_pos, 3) - 3),
                                 region_repeatvec.at(MIN(refpos - extended_inclu_beg_pos + 3, region_repeatvec.size() - 3)),
-                                refpos,
                                 tid,
+                                refpos,
+                                refsymbol,
                                 ((NOT_PROVIDED != paramset.vcf_tumor_fname && (tki.VTI == LAST(fmt.VTI))) ? 
                                     ((double)(tki.cDP1x + 1) / (double)(tki.CDP1x + 2)) : -1.0), /* tpfa */
                                 0);
@@ -1006,6 +1053,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                                     paramset.vad,
                                     (paramset.should_output_all || is_germline_var_generated),
                                     bcf_hdr,
+                                    baq_offsetarr,
                                     0);
                         }
                     }
