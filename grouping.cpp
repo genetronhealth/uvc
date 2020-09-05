@@ -454,6 +454,52 @@ apply_bq_err_correction2(const bam1_t *aln, unsigned int dec_per_base, unsigned 
 }
 
 int 
+apply_bq_err_correction3(bam1_t *aln) {
+    if (0 == aln->core.l_qseq) { return -1; }
+    
+    const auto cigar = bam_get_cigar(aln);
+    const unsigned int strand = ((aln->core.flag & 0x10) ? 1 : 0);
+    int inclu_beg_poss[2] = {0, aln->core.l_qseq - 1};
+    int exclu_end_poss[2] = {aln->core.l_qseq, 0 - 1};
+    if (aln->core.n_cigar > 0) {
+        if (0 == strand && bam_get_cigar(aln)[0] == BAM_CSOFT_CLIP) {
+            inclu_beg_poss[0] += bam_cigar_oplen(bam_get_cigar(aln)[0]);
+        }
+        if (1 == strand && bam_get_cigar(aln)[aln->core.n_cigar-1] == BAM_CSOFT_CLIP) {
+            inclu_beg_poss[1] -= bam_cigar_oplen(bam_get_cigar(aln)[aln->core.n_cigar-1]);
+        }
+    }
+    
+    const int pos_incs[2] = {1, -1};
+    unsigned int qsum = 0;
+    unsigned int qnum = 0;
+    unsigned int prev_b = 0;
+    unsigned int distinct_cnt = 0;
+    int termpos = inclu_beg_poss[strand];
+    for (; termpos != exclu_end_poss[strand]; termpos += pos_incs[strand]) {
+        auto b = bam_get_seq(aln)[termpos];
+        auto q = bam_get_qual(aln)[termpos];
+        if (b != prev_b && q >= 20) {
+            prev_b = b;
+            distinct_cnt += 1;
+            if (2 == distinct_cnt) { break; }
+        }
+    }
+    unsigned int homopol_tracklen = abs((int)termpos - (int)inclu_beg_poss[strand]); 
+    unsigned int tail_penal = (homopol_tracklen > 14 ? 3 : (homopol_tracklen > 11 ? 2 : (homopol_tracklen > 8 ? 1 : 0)));
+    if (tail_penal > 0) {
+        for (int pos = inclu_beg_poss[strand]; pos != exclu_end_poss[strand] && pos != termpos; pos += pos_incs[strand]) {
+            bam_get_qual(aln)[pos] = max(bam_get_qual(aln)[pos], tail_penal + 1) - tail_penal;
+        }
+    }
+    for (unsigned int i = 0; i < aln->core.l_qseq; i++) {
+        // bam_get_qual(aln)[i] = min(bam_get_qual(aln)[i], 37);
+    }
+    return 0;
+}
+
+
+int 
 apply_baq(bam1_t *aln, const unsigned int baq_per_aligned_base, unsigned int baq_per_new_base = 1, unsigned int baq_maxinc_per_base = 1) {
     // const unsigned int max_baq_per_base = baq_per_aligned_base + baq_maxinc_per_base;
     const uint32_t n_cigar = aln->core.n_cigar;
@@ -515,6 +561,7 @@ fill_strand_umi_readset_with_strand_to_umi_to_reads(
                 for (auto aln : alns) {
                     // apply_baq(aln, baq_per_aligned_base);
                     // apply_bq_err_correction(aln); //, 1, 3, 4);
+                    apply_bq_err_correction3(aln);
                     umi_strand_readset.back().first[strand].back().push_back(aln);
                 }
             }

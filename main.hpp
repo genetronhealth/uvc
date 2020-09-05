@@ -1331,10 +1331,10 @@ update_seg_format_thres_from_prep_sets(
         auto segRIDP = MAX(seg_format_prep_sets.getByPos(epos)[SEG_a_RIDP], 1);
         //seg_format_thres_sets.getRefByPos(epos)[SEG_aEP1t] = MAX(indel_len_per_DP * 2, potential_indel_len) + 16; // easier to pass
         //seg_format_thres_sets.getRefByPos(epos)[SEG_aEP2t] = MAX(indel_len_per_DP * 2, potential_indel_len) + 22; // harder to pass, the lower the strong the bias
-        t[SEG_aXM2T] = (p[SEG_a_XM]* 5 / (seg_a_dp*10) + (30+5)); // easier to pass
-        t[SEG_aXM2T] = (p[SEG_a_XM]*10 / (seg_a_dp*10) + (15+5)); // the higher the stronger the bias
-        t[SEG_aGO1T] = (p[SEG_a_GO]* 5 / (seg_a_dp*10) + (20+5)); // easier to pass
-        t[SEG_aGO2T] = (p[SEG_a_GO]*10 / (seg_a_dp*10) + (10+5)); // the higher the stronger the bias
+        t[SEG_aXM1T] = (p[SEG_a_XM] * 5 / (seg_a_dp*10) + (30+5)); // easier to pass
+        t[SEG_aXM2T] = (p[SEG_a_XM] * 7 / (seg_a_dp*10) + (15+5)); // the higher the stronger the bias
+        t[SEG_aGO1T] = (p[SEG_a_GO] * 9 / (seg_a_dp*10) + (20+5)); // easier to pass
+        t[SEG_aGO2T] = (p[SEG_a_GO] *11 / (seg_a_dp*10) + (10+5)); // the higher the stronger the bias
         
         t[SEG_aLI1T] = (unsigned int)((uint64_t)p[SEG_a_LI] * 250/100 / segLIDP);
         t[SEG_aLI2T] = (unsigned int)((uint64_t)p[SEG_a_LI] * 200/100 / segLIDP); // higher > stronger bias
@@ -1478,36 +1478,42 @@ dealwith_segbias(
         symbol_to_seg_format_depth_set[SEG_aPF2] += 100 * mathsquare(seg_format_thres_set[SEG_aXM2T]) / mathsquare(xm150); // soft cap for XM
     }
     */
+    
+    const unsigned int const_XM1T = seg_format_thres_set[SEG_aXM1T]; // 35
+    const unsigned int const_XM2T = seg_format_thres_set[SEG_aXM2T]; // 25
+    const unsigned int const_GO1T = seg_format_thres_set[SEG_aGO1T]; // 25
+    const unsigned int const_GO2T = seg_format_thres_set[SEG_aGO2T]; // 20
+    
     if (isGap) {
-        if (xm150 <= seg_format_thres_set[SEG_aXM2T] && go150 <= seg_format_thres_set[SEG_aGO1T] && bq >= 25) {
+        if (xm150 <= const_XM1T && go150 <= const_GO1T && bq >= 25) {
             symbol_to_seg_format_depth_set[SEG_aPF1] += 100; 
         } else {
             symbol_to_seg_format_depth_set[SEG_aPF1] += MIN3(
-                    100 * mathsquare(seg_format_thres_set[SEG_aXM2T]) / MAX(1, mathsquare(xm150)), 
-                    100 * mathsquare(seg_format_thres_set[SEG_aGO1T]) / MAX(1, mathsquare(go150)),
+                    100 * mathsquare(const_XM1T) / MAX(1, mathsquare(xm150)), 
+                    100 * mathsquare(const_GO1T) / MAX(1, mathsquare(go150)),
                     100 * mathsquare(bq) / (25*25));
         } 
-        if (xm150 <= seg_format_thres_set[SEG_aXM2T] && go150 <= seg_format_thres_set[SEG_aGO2T] && bq >= 30) {
+        if (xm150 <= const_XM2T && go150 <= const_GO2T && bq >= 30) {
             symbol_to_seg_format_depth_set[SEG_aPF2] += 100; // unmerged base quality
         } else {
             symbol_to_seg_format_depth_set[SEG_aPF2] += MIN3(
-                    100 * mathsquare(seg_format_thres_set[SEG_aXM2T]) / MAX(1, mathsquare(xm150)), 
-                    100 * mathsquare(seg_format_thres_set[SEG_aGO2T]) / MAX(1, mathsquare(go150)),
+                    100 * mathsquare(const_XM2T) / MAX(1, mathsquare(xm150)), 
+                    100 * mathsquare(const_GO2T) / MAX(1, mathsquare(go150)),
                     100 * mathsquare(bq) / (30*30));
         }
-
+        
         //if (xm150 <= seg_format_thres_set[SEG_aXM2T]) {
         //     symbol_to_seg_format_depth_set[SEG_aXM2] += 100;
         //} else {
         //     symbol_to_seg_format_depth_set[SEG_aXM2] += 100 * mathsquare(seg_format_thres_set[SEG_aXM2T]) / mathsquare(xm150);
         //}
-        symbol_to_seg_format_depth_set[SEG_aXM2] += (xm150 > 40 ? (100 * mathsquare(40) / mathsquare(xm150)) : 100);
+        symbol_to_seg_format_depth_set[SEG_aXM2] += (xm150 > 35 ? (100 * mathsquare(35) / mathsquare(xm150)) : 100);
     } else {
         unsigned int ampfact1 = 100;
         unsigned int ampfact2 = 100;
 
-        if (xm150 > seg_format_thres_set[SEG_aXM2T]) {
-            ampfact1 = 100 * mathsquare(seg_format_thres_set[SEG_aXM2T]) / mathsquare(xm150);
+        if (xm150 > const_XM2T) {
+            ampfact1 = 100 * mathsquare(const_XM2T) / mathsquare(xm150);
         } else { 
             ampfact1 = 100; 
         }
@@ -1518,8 +1524,8 @@ dealwith_segbias(
         }
         symbol_to_seg_format_depth_set[SEG_aPF1] += (ampfact1 * ampfact2 / (100));
         
-        if (xm150 > seg_format_thres_set[SEG_aXM2T]) {
-            ampfact1 = 100 * mathsquare(seg_format_thres_set[SEG_aXM2T]) / mathsquare(xm150);
+        if (xm150 > const_XM1T) {
+            ampfact1 = 100 * mathsquare(const_XM1T) / mathsquare(xm150);
         } else { 
             ampfact1 = 100; 
         }
@@ -1531,7 +1537,7 @@ dealwith_segbias(
         symbol_to_seg_format_depth_set[SEG_aPF2] += (ampfact1 * ampfact2 / (100));
         
         symbol_to_seg_format_depth_set[SEG_aXM1] += (xm150 > 20 ? (100 * mathsquare(20) / mathsquare(xm150)) : 100);
-        symbol_to_seg_format_depth_set[SEG_aXM2] += (xm150 > 40 ? (100 * mathsquare(40) / mathsquare(xm150)) : 100);
+        symbol_to_seg_format_depth_set[SEG_aXM2] += (xm150 > 35 ? (100 * mathsquare(35) / mathsquare(xm150)) : 100);
         /*
         if (xm150 <= seg_format_thres_set[SEG_aXM2T] && bq >= 25) {
             symbol_to_seg_format_depth_set[SEG_aPF1] += 100; // unmerged base quality
@@ -2994,13 +3000,15 @@ fill_symbol_VQ_fmts(
     const auto a2BQr = symbol_to_VQ_format_tag_sets.getByPos(refpos)[symbol][VQ_a2BQr];
     int aDPf = fmt.aDPff[a] + fmt.aDPrf[a];
     int aDPr = fmt.aDPfr[a] + fmt.aDPrr[a];
+    int ADP = fmt.ADPff[0] + fmt.ADPrf[0] + fmt.ADPfr[0] + fmt.ADPrr[0];
     const int rssDPfBQ = (int)(aDPf * sqrt(a2BQf * SQR_QUAL_DIV / MAX(1, aDPf)));
     const int rssDPrBQ = (int)(aDPr * sqrt(a2BQr * SQR_QUAL_DIV / MAX(1, aDPr)));
     
     assert ((aDPf + aDPr) * 100 >= LAST(fmt.aXM2));
-    int64_t minABQa = minABQ + BETWEEN((int)(10 * 10/log(10.0)  // no *10
-            * log((double)(MAX(aDPf, aDPr) * 10 + 40 / MIN(aDPf + aDPr + 1, 40)) / (double)(MIN(aDPf, aDPr) * 10 + 40 / MIN(aDPf + aDPr + 1, 40)))) - 10,  0, 55);
-    minABQa += BETWEEN(10*100 * (int)((aDPf + aDPr) / MAX(1, LAST(fmt.aXM2))) - 5, 0, 55);
+    int64_t minABQa = (int)minABQ - (int)(30.0 * mathsquare(MAX(0, ((aDPf + aDPr + 0.5) * 2.0 / (ADP + 1.0) - 1.0))));
+    double sbratio = (double)(MAX(aDPf, aDPr) * 10 + 40 / MIN(aDPf + aDPr + 1, 40)) / (double)(MIN(aDPf, aDPr) * 10 + 40 / MIN(aDPf + aDPr + 1, 40));
+    minABQa += BETWEEN((int)(10 * 10/log(10.0) * log(sbratio)) - 10,  0, 55);
+    minABQa += BETWEEN(10*100 * (int)((aDPf + aDPr) / MAX(1, LAST(fmt.aXM2))) - 5, 0, 65);
     
     int a_BQ_syserr_qual_fw = (rssDPfBQ * 3 - minABQa * aDPf * 3 / 10 + rssDPrBQ - minABQa * aDPr / 10) / 3;
     int a_BQ_syserr_qual_rv = (rssDPrBQ * 3 - minABQa * aDPr * 3 / 10 + rssDPfBQ - minABQa * aDPf / 10) / 3;
@@ -3012,7 +3020,6 @@ fill_symbol_VQ_fmts(
     clear_push(fmt.a2BQf, rssDPfBQ, a);
     clear_push(fmt.a2BQr, rssDPrBQ, a);
     clear_push(fmt.aBQ, a_rmsBQ);
-    int ADP = fmt.ADPff[0] + fmt.ADPrf[0] + fmt.ADPfr[0] + fmt.ADPrr[0];
     //double aFAmax = MAX(0.5, aDPf + aDPr) / (double)MAX(1, ADP);
     //double aFAmin = 0.5 / (double)MAX(1, ADP);
     //int qmin = 3; // (10.0/log(10.0)*log(aFAmin)+90);
@@ -3344,9 +3351,9 @@ BcfFormat_symbol_calc_DPv(
     
     // substitution in indel region, substitution in indel-prone region or indel, other cases 
     double _aPprior = 1024*9/2; // 1 / probability that there is one indel at a pos
-    const bool is_in_indel_read = (   (f.APXM[1]) / 15.0      > aDP * 0.5);
-    const bool is_in_indel_len  = (MAX(f.APDP[1],  f.APDP[2]) > aDP);
-    const bool is_in_indel_rtr  = (MAX(f.APDP[3],  f.APDP[4]) > aDP);
+    const bool is_in_indel_read = (   (f.APXM[1]) / 15.0 * 2  * (1.25+1e-7) > aDP);
+    const bool is_in_indel_len  = (MAX(f.APDP[1],  f.APDP[2]) * (1.25+1e-7) > aDP);
+    const bool is_in_indel_rtr  = (MAX(f.APDP[3],  f.APDP[4]) * (1.25+1e-7) > aDP);
     const bool is_in_rtr = (MAX(rtr1.tracklen, rtr2.tracklen) > 8);
     if (is_in_indel_read)      { _aPprior /= (64+32); }
     if (is_in_indel_len)       { _aPprior /= 24; }
@@ -3360,18 +3367,19 @@ BcfFormat_symbol_calc_DPv(
     const double aIprior = log(isSymbolSubstitution(symbol) ? 1e5 : 3e2) + 1;
     const double aSBprior = log(isSymbolSubstitution(symbol) ? (pow(10.0, fmt.aBQ[a] / 10.0) + 1) : 3e2);
     
+    // const auto  = mathsquare((int64_t)aLP1[a]) / mathsquare((int64_t)aLP1[a] + 1); 
     const auto aLPFAx2 = dp4_to_pcFA<false>(f.aLP1[a], aDP, f.ALP2[0] + f.aLP1[a] - f.aLP2[a], ADP, 3.0, log(aPprior),
-            MAX(1, f.aLPL[a]) / (double)MAX(1, f.aBQ2[a]), MAX(1, f.ALPL[0]) / (double)MAX(1, f.ABQ2[0]), ((is_in_indel_read && is_in_indel_len) ? 0.25 : 0.5)); 
+            MAX(1, f.aLPL[a]) / (double)MAX(1, f.aBQ2[a]), MAX(1, f.ALPL[0]) / (double)MAX(1, f.ABQ2[0]), ((is_in_indel_read) ? 0.10 : 0.5)); 
             // use f.aBQ2[a] instead of aDP ???
     const auto aRPFAx2 = dp4_to_pcFA<false>(f.aRP1[a], aDP, f.ARP2[0] + f.aRP1[a] - f.aRP2[a], ADP, 3.0, log(aPprior),
-            MAX(1, f.aRPL[a]) / (double)MAX(1, f.aBQ2[a]), MAX(1, f.ARPL[0]) / (double)MAX(1, f.ABQ2[0]), ((is_in_indel_read && is_in_indel_len) ? 0.25 : 0.5));
+            MAX(1, f.aRPL[a]) / (double)MAX(1, f.aBQ2[a]), MAX(1, f.ARPL[0]) / (double)MAX(1, f.ABQ2[0]), ((is_in_indel_read) ? 0.10 : 0.5));
     double aLPFA = aLPFAx2[0];
     double aRPFA = aRPFAx2[0];
     
     const auto aLBFAx2 = dp4_to_pcFA<false>(f.aLB1[a], aDP, f.ALB2[0] + f.aLB1[a] - f.aLB2[a], ADP, 3.0, log(aPprior),
-            MAX(1, f.aLBL[a]) / (double)MAX(1, f.aBQ2[a]), MAX(1, f.ALBL[0]) / (double)MAX(1, f.ABQ2[0]), ((is_in_indel_read && is_in_indel_len) ? 0.25 : 0.5));
+            MAX(1, f.aLBL[a]) / (double)MAX(1, f.aBQ2[a]), MAX(1, f.ALBL[0]) / (double)MAX(1, f.ABQ2[0]), ((is_in_indel_read) ? 0.10 : 0.5));
     const auto aRBFAx2 = dp4_to_pcFA<false>(f.aRB1[a], aDP, f.ARB2[0] + f.aRB1[a] - f.aRB2[a], ADP, 3.0, log(aPprior),
-            MAX(1, f.aRBL[a]) / (double)MAX(1, f.aBQ2[a]), MAX(1, f.ARBL[0]) / (double)MAX(1, f.ABQ2[0]), ((is_in_indel_read && is_in_indel_len) ? 0.25 : 0.5));
+            MAX(1, f.aRBL[a]) / (double)MAX(1, f.aBQ2[a]), MAX(1, f.ARBL[0]) / (double)MAX(1, f.ABQ2[0]), ((is_in_indel_read) ? 0.10 : 0.5));
     double aLBFA = aLBFAx2[0];
     double aRBFA = aRBFAx2[0];
     
@@ -3429,7 +3437,7 @@ BcfFormat_symbol_calc_DPv(
             //aLPFA *= 1.25;
         }
         aLIFA = aRIFA = 2.0;
-    } else if (fmt.aXM1[a] / MAX(1, aDP) >= 75) {
+    } else if (fmt.aXM1[a] / MAX(1, aDP) >= 75 && !is_amplicon) {
         // due to the lack of mismatches, this variant is less likely to be artifactual.
         aLIFA = aRIFA = 1.5;
     }
@@ -3860,10 +3868,10 @@ BcfFormat_symbol_calc_qual(
     //const int bIAQ_lowdepth_penal = MAX(0, 30 - (fmt.bDPf[a] + fmt.bDPr[a]) * bIAQ_change_per_readcnt);
     
     clear_push(fmt.gVQ1, MAX(0, MIN3(syserr_q,
-            (int)LAST(fmt.bIAQ) - (int)(37 / mathsquare((int64_t)MAX(1, aDP))), //+ uneven_samepos_q_inc - uneven_diffpos_q_dec - (int)(6 / MAX(1, aDP)),
+            (int)LAST(fmt.bIAQ) - (int)(40 / mathsquare((int64_t)MAX(1, aDP)) - (is_mut_transition(refsymbol, symbol) ? 0 : 2)), //+ uneven_samepos_q_inc - uneven_diffpos_q_dec - (int)(6 / MAX(1, aDP)),
             (int)LAST(fmt.cPLQ1))), a);
     clear_push(fmt.cVQ1, MAX(0, MIN3(syserr_q,
-            (int)LAST(fmt.bIAQ) - (int)(37 / mathsquare((int64_t)MAX(1, aDP))), // fmt.aPF1[a], Does this correspond to in-silico mixing artifact ???
+            (int)LAST(fmt.bIAQ) - (int)(40 / mathsquare((int64_t)MAX(1, aDP)) - (is_mut_transition(refsymbol, symbol) ? 0 : 2)), // fmt.aPF1[a], Does this correspond to in-silico mixing artifact ???
             (int)LAST(fmt.cPLQ1))) - indel_penal4multialleles, a);
     
     clear_push(fmt.cVQ2, MIN3(syserr_q, 
