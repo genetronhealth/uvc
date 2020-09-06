@@ -3025,7 +3025,7 @@ fill_symbol_VQ_fmts(
     //int qmin = 3; // (10.0/log(10.0)*log(aFAmin)+90);
     //int qmax = (int)((10.0/log(10.0)*log(aFAmax)+90));
     // clear_push(fmt.aBQQ, MAX(a_rmsBQ, MIN(qmin + 3 * (aDPf + aDPr), qmax) + MAX(a_BQ_syserr_qual_2d, MAX(a_BQ_syserr_qual_fw, a_BQ_syserr_qual_rv))), a);
-    clear_push(fmt.aBQQ, a_rmsBQ + MAX4(0, a_BQ_syserr_qual_2d, a_BQ_syserr_qual_fw, a_BQ_syserr_qual_rv), a);
+    clear_push(fmt.aBQQ, a_rmsBQ + 30 + MAX4(0, a_BQ_syserr_qual_2d, a_BQ_syserr_qual_fw, a_BQ_syserr_qual_rv), a);
     
     fill_symbol_fmt(fmt.bIAQb, symbol_to_VQ_format_tag_sets, VQ_bIAQb, refpos, symbol, a);
     fill_symbol_fmt(fmt.bIADb, symbol_to_VQ_format_tag_sets, VQ_bIADb, refpos, symbol, a);
@@ -3867,18 +3867,20 @@ BcfFormat_symbol_calc_qual(
     //int bIAQ_change_per_readcnt = 10; // (indelstring.size() > 0 ? (10.0 / log(10.0) * log(indelstring.size() / BETWEEN(repeatunit.size(), 1, indelstring.size()) + 1)) : 6);
     //const int bIAQ_lowdepth_penal = MAX(0, 30 - (fmt.bDPf[a] + fmt.bDPr[a]) * bIAQ_change_per_readcnt);
     
-    clear_push(fmt.gVQ1, MAX(0, MIN3(syserr_q,
-            (int)LAST(fmt.bIAQ) - (int)(40 / mathsquare((int64_t)MAX(1, aDP)) - (is_mut_transition(refsymbol, symbol) ? 0 : 2)), //+ uneven_samepos_q_inc - uneven_diffpos_q_dec - (int)(6 / MAX(1, aDP)),
+    int penal4BQerr = (isSymbolSubstitution(symbol) ? ((int)(37 / mathsquare((int64_t)MAX(1, aDP)) - (is_mut_transition(refsymbol, symbol) ? 0 : 2))) : 0);
+    int indel_q_inc = (isSymbolSubstitution(symbol) ? 0 : 9);
+    clear_push(fmt.gVQ1, MAX(0, indel_q_inc + MIN3(syserr_q,
+            (int)LAST(fmt.bIAQ) - penal4BQerr, //+ uneven_samepos_q_inc - uneven_diffpos_q_dec - (int)(6 / MAX(1, aDP)),
             (int)LAST(fmt.cPLQ1))), a);
     clear_push(fmt.cVQ1, MAX(0, MIN3(syserr_q,
-            (int)LAST(fmt.bIAQ) - (int)(40 / mathsquare((int64_t)MAX(1, aDP)) - (is_mut_transition(refsymbol, symbol) ? 0 : 2)), // fmt.aPF1[a], Does this correspond to in-silico mixing artifact ???
+            (int)LAST(fmt.bIAQ) - penal4BQerr, // fmt.aPF1[a], Does this correspond to in-silico mixing artifact ???
             (int)LAST(fmt.cPLQ1))) - indel_penal4multialleles, a);
     
     clear_push(fmt.cVQ2, MIN3(syserr_q, 
             (int)LAST(fmt.cIAQ), 
             (int)LAST(fmt.cPLQ2)) - indel_penal4multialleles, a);
     // TODO; check if reducing all allele read count to increase alt allele frac in case of ref bias makes more sense
-    double base_contamfrac = (refsymbol == symbol ? 0.03 : 0.02);
+    double base_contamfrac = (refsymbol == symbol ? 0.02 : 0.02);
     double contamfrac = base_contamfrac + (1 - base_contamfrac) * (tpfa > 0 ? tpfa : 0) * 0.04;
     auto binom_contam_LODQ = (int)calc_binom_10log10_likeratio(contamfrac, fmt.cDP1v[a], fmt.CDP1v[0]);
     auto power_contam_LODQ = (int)(10.0/log(10.00) * powlaw_exponent * MAX(logit2(min_bcFA_v, contamfrac), 0.0));
@@ -4161,8 +4163,8 @@ output_germline(
     // every unexpected signal given a genotype reduces its likelihood
     const auto a2penal = MAX(a2LODQ - phred_hetero, 0);
     const auto a3penal = MAX(a3LODQ - phred_hetero, 0);
-    const auto a01hetp = MAX(MAX(a0a1LODQ, a1a0LODQ) - (3-0), 0);
-    const auto a12hetp = MAX(MAX(a1a2LODQ, a2a1LODQ) - (3-0), 0);
+    const auto a01hetp = MAX(MAX(a0a1LODQ, a1a0LODQ) - (0-0), 0);
+    const auto a12hetp = MAX(MAX(a1a2LODQ, a2a1LODQ) - (0-0), 0);
     const auto a03trip = MAX(a0LODQ, a3LODQ);
     //int phred_homhet = (is_rescued ? phred_hetero : phred_homref);
     std::array<std::pair<int, int>, 4> GL4raw = {{
