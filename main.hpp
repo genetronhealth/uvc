@@ -3014,6 +3014,7 @@ fill_symbol_VQ_fmts(
     int a_BQ_syserr_qual_rv = (rssDPrBQ * 3 - minABQa * aDPr * 3 / 10 + rssDPfBQ - minABQa * aDPf / 10) / 3;
     int a_BQ_syserr_qual_2d = (rssDPfBQ + rssDPrBQ) - minABQa * (aDPf + aDPr) / 10;
     const int a_rmsBQ = (rssDPfBQ + rssDPrBQ) / MAX(1, aDPf + aDPr);
+    const int a_rmsBQpc = (rssDPfBQ + rssDPrBQ + 30) / (aDPf + aDPr + 1); // pseudocount of one base with qual of 30
     fill_symbol_fmt(fmt.bMQ,  symbol_to_VQ_format_tag_sets,  VQ_bMQ,  refpos, symbol, a);
     fmt.bMQ[a] = (unsigned int)floor(sqrt(fmt.bMQ[a] * SQR_QUAL_DIV / MAX(fmt.bDPf[a] + fmt.bDPr[a], 1)) + (double)(1.0 - FLT_EPSILON));
     
@@ -3025,7 +3026,7 @@ fill_symbol_VQ_fmts(
     //int qmin = 3; // (10.0/log(10.0)*log(aFAmin)+90);
     //int qmax = (int)((10.0/log(10.0)*log(aFAmax)+90));
     // clear_push(fmt.aBQQ, MAX(a_rmsBQ, MIN(qmin + 3 * (aDPf + aDPr), qmax) + MAX(a_BQ_syserr_qual_2d, MAX(a_BQ_syserr_qual_fw, a_BQ_syserr_qual_rv))), a);
-    clear_push(fmt.aBQQ, a_rmsBQ + 30 + MAX4(0, a_BQ_syserr_qual_2d, a_BQ_syserr_qual_fw, a_BQ_syserr_qual_rv), a);
+    clear_push(fmt.aBQQ, a_rmsBQpc + MAX4(0, a_BQ_syserr_qual_2d, a_BQ_syserr_qual_fw, a_BQ_syserr_qual_rv), a);
     
     fill_symbol_fmt(fmt.bIAQb, symbol_to_VQ_format_tag_sets, VQ_bIAQb, refpos, symbol, a);
     fill_symbol_fmt(fmt.bIADb, symbol_to_VQ_format_tag_sets, VQ_bIADb, refpos, symbol, a);
