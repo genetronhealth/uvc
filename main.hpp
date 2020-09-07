@@ -3007,14 +3007,14 @@ fill_symbol_VQ_fmts(
     const int rssDPbBQ = (int)((aDPf + aDPr) * sqrt((a2BQf + a2BQr) * SQR_QUAL_DIV / MAX(1, aDPf + aDPr)));
     
     assert ((aDPf + aDPr) * 100 >= LAST(fmt.aXM2));
-    int64_t minABQa = (int)minABQ - (int)(30.0 * mathsquare(MAX(0, ((aDPf + aDPr + 0.5) * 2.0 / (ADP + 1.0) - 1.0))));
+    int64_t minABQa = (int)minABQ - (int)(50.0 * mathsquare(MAX(0, ((aDPf + aDPr + 0.5) * 2.0 / (ADP + 1.0) - 1.0))));
     // const auto dp10pc = 40 / MIN(aDPf + aDPr + 1, 40);
     const int dp10pc = 10;
     double sbratio = (double)(MAX(aDPf, aDPr) * 10 + dp10pc) / (double)(MIN(aDPf, aDPr) * 10 + dp10pc);
     // minABQa += BETWEEN((int)(10 * 10/log(10.0) * log(sbratio)) - 10,  0, 55);
     minABQa += (int)BETWEEN((int)mathsquare(sbratio) - 5, 0, 50); // 50
     const auto xmratio = 10*100 * (int)((aDPf + aDPr) / MAX(1, LAST(fmt.aXM2)));
-    minABQa += (int)BETWEEN((int)xmratio - 5, 0, 50); // 65
+    minABQa += (int)BETWEEN((int)xmratio - 5, 0, 60); // 65
     fmt.note += std::string("//minABQa/") + std::to_string(minABQa) + "/" + std::to_string(sbratio) + "/" + std::to_string(xmratio) + "//";
     int a_BQ_syserr_qual_fw = (rssDPfBQ * 3 - minABQa * aDPf * 3 / 10 + rssDPrBQ - minABQa * aDPr / 10) / 3;
     int a_BQ_syserr_qual_rv = (rssDPrBQ * 3 - minABQa * aDPr * 3 / 10 + rssDPfBQ - minABQa * aDPf / 10) / 3;
@@ -3784,14 +3784,15 @@ BcfFormat_symbol_calc_qual(
     // double dup_denom_pc = mathsquare(fmt.CDP1f[0] + fmt.CDP1r[0] + 0.5) / (fmt.BDPf[0] + fmt.BDPr[0] + 1.0) * 10; // / MAX(1, duprate);
     
     // double duped2dedup_sqr_rat = mathsquare((fmt.BDPf[0] + fmt.BDPr[0]) / (fmt.CDP1f[0] + fmt.CDP1r[0] + 300)); 
-        
+    
+    const int tn_reward = 10; // 8
     // double min_bcFA_v = (((double)(fmt.cDP1v[a]) + 0.5) / ((double)(fmt.CDP1v[0]) + 1.0)); 
     double min_bcFA_v = (((double)(fmt.cDP1v[a]) + 0.5) / (double)(fmt.CDP1f[0] * 100 + fmt.CDP1r[0] * 100 + 1.0));
     int dedup_frag_powlaw_qual_v = (int)(powlaw_exponent * 10.0 / log(10.0) * log(min_bcFA_v) + (powlaw_anyvar_base + 7)); //; - 0*MAX(0, 4 / uniq_rate - 10))); // + 10.0 ??? 
     
     // double min_bcFA_w = (((double)(fmt.cDP1w[a]) + 0.5) / ((double)(fmt.CDP1w[0]) + 1.0));
     double min_bcFA_w = ((double)(fmt.cDP1w[a] + 0.5) / (double)(fmt.CDP1f[0] * 100 + fmt.CDP1r[0] * 100 + 1.0));
-    int dedup_frag_powlaw_qual_w = (int)(powlaw_exponent * 10.0 / log(10.0) * log(min_bcFA_w) + (powlaw_anyvar_base + 7 + 8));
+    int dedup_frag_powlaw_qual_w = (int)(powlaw_exponent * 10.0 / log(10.0) * log(min_bcFA_w) + (powlaw_anyvar_base + 7 + tn_reward));
     
     int ds_vq_inc_powlaw = (int)(10/log(10)*MIN(log((fmt.cDP1f[a] + 0.5) / (fmt.CDP1f[0] + 1.0)), log((fmt.cDP1r[a] + 0.5) / (fmt.CDP1r[0] +1.0)))) 
             + (powlaw_sscs_phrederr);
@@ -3810,6 +3811,7 @@ BcfFormat_symbol_calc_qual(
     int indel_penal4multialleles = 0;
     const std::string & indelstring = fmt.gapSa[a];
     const unsigned int aDP = (fmt.aDPff[a] + fmt.aDPfr[a] + fmt.aDPrf[a] + fmt.aDPrr[a]);
+    const unsigned int ADP = (fmt.ADPff[0] + fmt.ADPrf[0] + fmt.ADPfr[0] + fmt.ADPrr[0]);
     if (indelstring.size() > 0 && fmt.cDP0a[a] > 0) {
         // const AlignmentSymbol symbol = AlignmentSymbol(LAST(fmt.VTI));
         // const double symbol_to_allele_frac = 1.0 - pow((isSymbolIns(symbol) ? 0.9 : (isSymbolDel(symbol) ? 0.95 : 1.0)), indelstring.size());
@@ -3866,15 +3868,16 @@ BcfFormat_symbol_calc_qual(
     // const int64_t qual_per_effread = (isSymbolSubstitution(AlignmentSymbol(LAST(fmt.VTI))) ? (130) : (130 + 90)) + (50 * fmt.cDP1v[a] / MAX(1, fmt.CDP1v[0]));
     
     const int syserr_q = MIN(
-            (int)((fmt.bMQ[a] * 7/6) + (int)phred_varcall_err_per_map_err_per_base),
+            (int)((fmt.bMQ[a] * 6/6) + (int)MAX(phred_varcall_err_per_map_err_per_base, 31 + 2 + (int)(10.0/log(10.0) * log((aDP + 0.5) / (double)(ADP + 1.0))))),
             (isSymbolSubstitution(AlignmentSymbol(LAST(fmt.VTI))) ? (fmt.aBQQ[a]) : (1000*1000)) // ,
             // ((int)(MIN3(100 * (int64_t)(fmt.bDPf[a] + fmt.bDPr[a]), fmt.aPF1[a], fmt.cDP1v[a] + 50)) * qual_per_effread / (100 * 10) + uneven_err_distr_qual)
             );
             // + LAST(fmt.aBQ)/2 - 20); // tiebreak with BQ
     //int bIAQ_change_per_readcnt = 10; // (indelstring.size() > 0 ? (10.0 / log(10.0) * log(indelstring.size() / BETWEEN(repeatunit.size(), 1, indelstring.size()) + 1)) : 6);
     //const int bIAQ_lowdepth_penal = MAX(0, 30 - (fmt.bDPf[a] + fmt.bDPr[a]) * bIAQ_change_per_readcnt);
+    // const int transition_reward = (int)(is_mut_transition(refsymbol, symbol) ? 0 : 0);
     
-    int penal4BQerr = (isSymbolSubstitution(symbol) ? ((int)(37 / (int)mathsquare((int64_t)MAX(1, aDP)) - (int)(is_mut_transition(refsymbol, symbol) ? 0 : 2))) : 0);
+    int penal4BQerr = (isSymbolSubstitution(symbol) ? ((int)(41 / (int)mathsquare((int64_t)MAX(1, aDP)))) : 0);
     int indel_q_inc = (isSymbolSubstitution(symbol) ? 0 : 9);
     clear_push(fmt.gVQ1, MAX(0, indel_q_inc + MIN3(syserr_q,
             (int)LAST(fmt.bIAQ) - penal4BQerr, //+ uneven_samepos_q_inc - uneven_diffpos_q_dec - (int)(6 / MAX(1, aDP)),
