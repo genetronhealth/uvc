@@ -3012,7 +3012,7 @@ fill_symbol_VQ_fmts(
     const int dp10pc = 10;
     double sbratio = (double)(MAX(aDPf, aDPr) * 10 + dp10pc) / (double)(MIN(aDPf, aDPr) * 10 + dp10pc);
     // minABQa += BETWEEN((int)(10 * 10/log(10.0) * log(sbratio)) - 10,  0, 55);
-    minABQa += (int)BETWEEN((int)mathsquare(sbratio) - 5, 0, 50); // 50
+    minABQa += (int)BETWEEN((int)mathsquare(sbratio) - 5, 0, 40); // 50
     const auto xmratio = 10*100 * (int)((aDPf + aDPr) / MAX(1, LAST(fmt.aXM2)));
     minABQa += (int)BETWEEN((int)xmratio - 5, 0, 60); // 65
     fmt.note += std::string("//minABQa/") + std::to_string(minABQa) + "/" + std::to_string(sbratio) + "/" + std::to_string(xmratio) + "//";
@@ -3032,7 +3032,8 @@ fill_symbol_VQ_fmts(
     //int qmin = 3; // (10.0/log(10.0)*log(aFAmin)+90);
     //int qmax = (int)((10.0/log(10.0)*log(aFAmax)+90));
     // clear_push(fmt.aBQQ, MAX(a_rmsBQ, MIN(qmin + 3 * (aDPf + aDPr), qmax) + MAX(a_BQ_syserr_qual_2d, MAX(a_BQ_syserr_qual_fw, a_BQ_syserr_qual_rv))), a);
-    clear_push(fmt.aBQQ, a_rmsBQ + MAX4(0, a_BQ_syserr_qual_2d, a_BQ_syserr_qual_fw, a_BQ_syserr_qual_rv), a);
+    const int sys_seq_err_phred_per_ref_bp = 30; // https://bmcbioinformatics.biomedcentral.com/articles/10.1186/1471-2105-12-451
+    clear_push(fmt.aBQQ, MAX(a_rmsBQ, sys_seq_err_phred_per_ref_bp + MAX3(a_BQ_syserr_qual_2d, a_BQ_syserr_qual_fw, a_BQ_syserr_qual_rv)), a);
     
     fill_symbol_fmt(fmt.bIAQb, symbol_to_VQ_format_tag_sets, VQ_bIAQb, refpos, symbol, a);
     fill_symbol_fmt(fmt.bIADb, symbol_to_VQ_format_tag_sets, VQ_bIADb, refpos, symbol, a);
@@ -3877,7 +3878,7 @@ BcfFormat_symbol_calc_qual(
     //const int bIAQ_lowdepth_penal = MAX(0, 30 - (fmt.bDPf[a] + fmt.bDPr[a]) * bIAQ_change_per_readcnt);
     // const int transition_reward = (int)(is_mut_transition(refsymbol, symbol) ? 0 : 0);
     
-    int penal4BQerr = (isSymbolSubstitution(symbol) ? ((int)(41 / (int)mathsquare((int64_t)MAX(1, aDP)))) : 0);
+    int penal4BQerr = (isSymbolSubstitution(symbol) ? (3 + (int)(41 / (int)mathsquare((int64_t)MAX(1, aDP)))) : 0);
     int indel_q_inc = (isSymbolSubstitution(symbol) ? 0 : 9);
     clear_push(fmt.gVQ1, MAX(0, indel_q_inc + MIN3(syserr_q,
             (int)LAST(fmt.bIAQ) - penal4BQerr, //+ uneven_samepos_q_inc - uneven_diffpos_q_dec - (int)(6 / MAX(1, aDP)),
