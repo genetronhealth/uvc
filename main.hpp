@@ -3004,17 +3004,23 @@ fill_symbol_VQ_fmts(
     const int rssDPfBQ = (int)(aDPf * sqrt(a2BQf * SQR_QUAL_DIV / MAX(1, aDPf)));
     const int rssDPrBQ = (int)(aDPr * sqrt(a2BQr * SQR_QUAL_DIV / MAX(1, aDPr)));
     
+    const int rssDPbBQ = (int)((aDPf + aDPr) * sqrt((a2BQf + a2BQr) * SQR_QUAL_DIV / MAX(1, aDPf + aDPr)));
+    
     assert ((aDPf + aDPr) * 100 >= LAST(fmt.aXM2));
     int64_t minABQa = (int)minABQ - (int)(30.0 * mathsquare(MAX(0, ((aDPf + aDPr + 0.5) * 2.0 / (ADP + 1.0) - 1.0))));
-    double sbratio = (double)(MAX(aDPf, aDPr) * 10 + 40 / MIN(aDPf + aDPr + 1, 40)) / (double)(MIN(aDPf, aDPr) * 10 + 40 / MIN(aDPf + aDPr + 1, 40));
-    minABQa += BETWEEN((int)(10 * 10/log(10.0) * log(sbratio)) - 10,  0, 55);
-    minABQa += BETWEEN(10*100 * (int)((aDPf + aDPr) / MAX(1, LAST(fmt.aXM2))) - 5, 0, 65);
-    
+    // const auto dp10pc = 40 / MIN(aDPf + aDPr + 1, 40);
+    const int dp10pc = 10;
+    double sbratio = (double)(MAX(aDPf, aDPr) * 10 + dp10pc) / (double)(MIN(aDPf, aDPr) * 10 + dp10pc);
+    // minABQa += BETWEEN((int)(10 * 10/log(10.0) * log(sbratio)) - 10,  0, 55);
+    minABQa += (int)BETWEEN((int)mathsquare(sbratio) - 5, 0, 50); // 50
+    const auto xmratio = 10*100 * (int)((aDPf + aDPr) / MAX(1, LAST(fmt.aXM2)));
+    minABQa += (int)BETWEEN((int)xmratio - 5, 0, 50); // 65
+    fmt.note += std::string("//minABQa/") + std::to_string(minABQa) + "/" + std::to_string(sbratio) + "/" + std::to_string(xmratio) + "//";
     int a_BQ_syserr_qual_fw = (rssDPfBQ * 3 - minABQa * aDPf * 3 / 10 + rssDPrBQ - minABQa * aDPr / 10) / 3;
     int a_BQ_syserr_qual_rv = (rssDPrBQ * 3 - minABQa * aDPr * 3 / 10 + rssDPfBQ - minABQa * aDPf / 10) / 3;
-    int a_BQ_syserr_qual_2d = (rssDPfBQ + rssDPrBQ) - minABQa * (aDPf + aDPr) / 10;
-    const int a_rmsBQ = (rssDPfBQ + rssDPrBQ) / MAX(1, aDPf + aDPr);
-    const int a_rmsBQpc = (rssDPfBQ + rssDPrBQ + 30) / (aDPf + aDPr + 1); // pseudocount of one base with qual of 30
+    int a_BQ_syserr_qual_2d = (rssDPbBQ) - minABQa * (aDPf + aDPr) / 10;
+    const int a_rmsBQ = (rssDPbBQ) / MAX(1, aDPf + aDPr);
+    // const int a_rmsBQpc = (rssDPfBQ + rssDPrBQ + 30) / (aDPf + aDPr + 1); // pseudocount of one base with qual of 30
     fill_symbol_fmt(fmt.bMQ,  symbol_to_VQ_format_tag_sets,  VQ_bMQ,  refpos, symbol, a);
     fmt.bMQ[a] = (unsigned int)floor(sqrt(fmt.bMQ[a] * SQR_QUAL_DIV / MAX(fmt.bDPf[a] + fmt.bDPr[a], 1)) + (double)(1.0 - FLT_EPSILON));
     
@@ -3026,7 +3032,7 @@ fill_symbol_VQ_fmts(
     //int qmin = 3; // (10.0/log(10.0)*log(aFAmin)+90);
     //int qmax = (int)((10.0/log(10.0)*log(aFAmax)+90));
     // clear_push(fmt.aBQQ, MAX(a_rmsBQ, MIN(qmin + 3 * (aDPf + aDPr), qmax) + MAX(a_BQ_syserr_qual_2d, MAX(a_BQ_syserr_qual_fw, a_BQ_syserr_qual_rv))), a);
-    clear_push(fmt.aBQQ, a_rmsBQpc + MAX4(0, a_BQ_syserr_qual_2d, a_BQ_syserr_qual_fw, a_BQ_syserr_qual_rv), a);
+    clear_push(fmt.aBQQ, a_rmsBQ + MAX4(0, a_BQ_syserr_qual_2d, a_BQ_syserr_qual_fw, a_BQ_syserr_qual_rv), a);
     
     fill_symbol_fmt(fmt.bIAQb, symbol_to_VQ_format_tag_sets, VQ_bIAQb, refpos, symbol, a);
     fill_symbol_fmt(fmt.bIADb, symbol_to_VQ_format_tag_sets, VQ_bIADb, refpos, symbol, a);
@@ -3868,7 +3874,7 @@ BcfFormat_symbol_calc_qual(
     //int bIAQ_change_per_readcnt = 10; // (indelstring.size() > 0 ? (10.0 / log(10.0) * log(indelstring.size() / BETWEEN(repeatunit.size(), 1, indelstring.size()) + 1)) : 6);
     //const int bIAQ_lowdepth_penal = MAX(0, 30 - (fmt.bDPf[a] + fmt.bDPr[a]) * bIAQ_change_per_readcnt);
     
-    int penal4BQerr = (isSymbolSubstitution(symbol) ? ((int)(37 / mathsquare((int64_t)MAX(1, aDP)) - (is_mut_transition(refsymbol, symbol) ? 0 : 2))) : 0);
+    int penal4BQerr = (isSymbolSubstitution(symbol) ? ((int)(37 / (int)mathsquare((int64_t)MAX(1, aDP)) - (int)(is_mut_transition(refsymbol, symbol) ? 0 : 2))) : 0);
     int indel_q_inc = (isSymbolSubstitution(symbol) ? 0 : 9);
     clear_push(fmt.gVQ1, MAX(0, indel_q_inc + MIN3(syserr_q,
             (int)LAST(fmt.bIAQ) - penal4BQerr, //+ uneven_samepos_q_inc - uneven_diffpos_q_dec - (int)(6 / MAX(1, aDP)),
