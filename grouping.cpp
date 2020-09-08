@@ -1,6 +1,8 @@
 #include "grouping.hpp"
 #include "logging.hpp"
 
+#include <cmath>
+
 #define UPDATE_MIN(a, b) ((a) = min((a), (b)));
 // position of 5' is the starting position, but position of 3' is unreliable without mate info.
 const unsigned int ARRPOS_MARGIN = 1200;
@@ -578,6 +580,7 @@ bamfname_to_strand_to_familyuid_to_reads(
         unsigned int regionbatch_tot_num,
         const std::string UMI_STRUCT_STRING, 
         const hts_idx_t * hts_idx,
+        const AssayType assay_type, 
         const bool is_molecule_tag_enabled,
         const bool is_pair_end_merge_enabled,
         bool disable_duplex,
@@ -727,10 +730,13 @@ bamfname_to_strand_to_familyuid_to_reads(
                 end2surrcount = max(end2surrcount, end_count);
             }
         }
-        double begfrac = (double)(beg2count + 1) / (double)(beg2surrcount + 2);
-        double endfrac = (double)(end2count + 1) / (double)(end2surrcount + 2);
+        double begfrac = (double)(beg2count + std::log2(beg2count + 2)) / (double)(beg2surrcount + std::log2(beg2count + 2));
+        double endfrac = (double)(end2count + std::log2(end2count + 2)) / (double)(end2surrcount + std::log2(end2count + 2));
         
-        const bool is_assay_amplicon = (begfrac > dedup_amplicon_count_to_surrcount_ratio || endfrac > dedup_amplicon_count_to_surrcount_ratio);
+        const bool is_assay_amplicon = (
+                ASSAY_TYPE_AMPLICON == assay_type ? 1 : 
+                (ASSAY_TYPE_CAPTURE == assay_type ? 0 : 
+                (begfrac > dedup_amplicon_count_to_surrcount_ratio || endfrac > dedup_amplicon_count_to_surrcount_ratio)));
         pcrpassed += is_assay_amplicon;
         
         // beg end qname UMI = 1 2 4 8

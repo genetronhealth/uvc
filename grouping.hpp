@@ -177,6 +177,7 @@ bamfname_to_strand_to_familyuid_to_reads(
         unsigned int regionbatch_tot_num,
         const std::string UMI_STRUCT_STRING, 
         const hts_idx_t * hts_idx,
+        const AssayType assay_type,
         const bool is_molecule_tag_enabled,
         const bool is_pair_end_merge_enabled, 
         bool disable_duplex,
