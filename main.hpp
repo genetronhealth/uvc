@@ -3399,7 +3399,7 @@ BcfFormat_symbol_calc_DPv(
                 (f.aLI1[a]), (f.aDPfr[a] + f.aDPrr[a]), 
                 (f.ALI2[0] + f.aLI1[a] - f.aLI2[a]), (f.ADPfr[0] + f.ADPrr[0]), 
                 3.0, log(aIprior), 
-                aLpd, ALpd);
+                aLpd, ALpd, 0.25);
         fmt.note += std::string("ALpd/aLpd/") + std::to_string(ALpd) + "/" + std::to_string(aLpd) + "//";
         /*
         if (refpos >= 830496 && refpos <= 830497) {
@@ -3425,7 +3425,7 @@ BcfFormat_symbol_calc_DPv(
                 (f.aRI1[a]), (f.aDPff[a] + f.aDPrf[a]), 
                 (f.ARI2[0] + f.aRI1[a] - f.aRI2[a]), (f.ADPff[0] + f.ADPrf[0]), 
                 3.0, log(aIprior),
-                aRpd, ARpd);
+                aRpd, ARpd, 0.25);
                 //(f.aRI1[a] + 0.5) / (f.aDPff[a] + f.aDPrf[a] - f.aRI1[a] + 0.5), 
                 //(f.ARI2[0] + 0.5) / (f.ADPff[0] + f.ADPrf[0] - f.ARI2[0] + 0.5));
         fmt.note += std::string("ARpd/aRpd/") + std::to_string(ARpd) + "/" + std::to_string(aRpd) + "//";
@@ -3878,7 +3878,8 @@ BcfFormat_symbol_calc_qual(
     //const int bIAQ_lowdepth_penal = MAX(0, 30 - (fmt.bDPf[a] + fmt.bDPr[a]) * bIAQ_change_per_readcnt);
     // const int transition_reward = (int)(is_mut_transition(refsymbol, symbol) ? 0 : 0);
     
-    int penal4BQerr = (isSymbolSubstitution(symbol) ? (3 + (int)(41 / (int)mathsquare((int64_t)MAX(1, aDP)))) : 0);
+    const int PENAL4LOWDEP = 37;
+    int penal4BQerr = (isSymbolSubstitution(symbol) ? (5 + (int)(PENAL4LOWDEP / (int)mathsquare((int64_t)MAX(1, aDP)))) : 0);
     int indel_q_inc = (isSymbolSubstitution(symbol) ? 0 : 9);
     clear_push(fmt.gVQ1, MAX(0, indel_q_inc + MIN3(syserr_q,
             (int)LAST(fmt.bIAQ) - penal4BQerr, //+ uneven_samepos_q_inc - uneven_diffpos_q_dec - (int)(6 / MAX(1, aDP)),

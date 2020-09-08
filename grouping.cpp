@@ -457,47 +457,77 @@ int
 apply_bq_err_correction3(bam1_t *aln) {
     if (0 == aln->core.l_qseq) { return -1; }
     
+    for (unsigned int i = 0; i < aln->core.l_qseq; i++) {
+        bam_get_qual(aln)[i] = min(bam_get_qual(aln)[i], 37);
+    }
+    
     const auto cigar = bam_get_cigar(aln);
     const unsigned int strand = ((aln->core.flag & 0x10) ? 1 : 0);
     int inclu_beg_poss[2] = {0, aln->core.l_qseq - 1};
     int exclu_end_poss[2] = {aln->core.l_qseq, 0 - 1};
     if (aln->core.n_cigar > 0) {
-        if (0 == strand && bam_get_cigar(aln)[0] == BAM_CSOFT_CLIP) {
-            inclu_beg_poss[0] += bam_cigar_oplen(bam_get_cigar(aln)[0]);
+        if (bam_get_cigar(aln)[0] == BAM_CSOFT_CLIP) {
+            if (0 == strand) {
+                inclu_beg_poss[0] += bam_cigar_oplen(bam_get_cigar(aln)[0]);
+            } else {
+                exclu_end_poss[0] += bam_cigar_oplen(bam_get_cigar(aln)[0]);
+            }
         }
-        if (1 == strand && bam_get_cigar(aln)[aln->core.n_cigar-1] == BAM_CSOFT_CLIP) {
-            inclu_beg_poss[1] -= bam_cigar_oplen(bam_get_cigar(aln)[aln->core.n_cigar-1]);
+        if (bam_get_cigar(aln)[aln->core.n_cigar-1] == BAM_CSOFT_CLIP) {
+            if (1 == strand) {
+                inclu_beg_poss[1] -= bam_cigar_oplen(bam_get_cigar(aln)[aln->core.n_cigar-1]);
+            } else {
+                exclu_end_poss[1] -= bam_cigar_oplen(bam_get_cigar(aln)[aln->core.n_cigar-1]);
+            }
         }
     }
     
     const int pos_incs[2] = {1, -1};
-    unsigned int qsum = 0;
-    unsigned int qnum = 0;
-    unsigned int prev_b = 0;
-    unsigned int distinct_cnt = 0;
-    int termpos = inclu_beg_poss[strand];
-    for (; termpos != exclu_end_poss[strand]; termpos += pos_incs[strand]) {
-        auto b = bam_get_seq(aln)[termpos];
-        auto q = bam_get_qual(aln)[termpos];
-        if (b != prev_b && q >= 20) {
-            prev_b = b;
-            distinct_cnt += 1;
-            if (2 == distinct_cnt) { break; }
+    {
+        unsigned int qsum = 0;
+        unsigned int qnum = 0;
+        unsigned int prev_b = 0;
+        unsigned int distinct_cnt = 0;
+        int termpos = exclu_end_poss[strand] - pos_incs[strand];
+        for (; termpos != inclu_beg_poss[strand] - pos_incs[strand]; termpos -= pos_incs[strand]) {
+            auto b = bam_get_seq(aln)[termpos];
+            auto q = bam_get_qual(aln)[termpos];
+            if (b != prev_b && q >= 20) {
+                prev_b = b;
+                distinct_cnt += 1;
+                if (2 == distinct_cnt) { break; }
+            }
+        }
+        unsigned int homopol_tracklen = abs((int)termpos - (int)inclu_beg_poss[strand]); 
+        unsigned int tail_penal = (homopol_tracklen > 14 ? 2 : (homopol_tracklen > 11 ? 2 : (homopol_tracklen > 8 ? 1 : 0)));
+        if (tail_penal > 0) {
+            for (int pos = inclu_beg_poss[strand]; pos != exclu_end_poss[strand] && pos != termpos; pos += pos_incs[strand]) {
+                bam_get_qual(aln)[pos] = max(bam_get_qual(aln)[pos], tail_penal + 1) - tail_penal;
+            }
         }
     }
-    unsigned int homopol_tracklen = abs((int)termpos - (int)inclu_beg_poss[strand]); 
-    unsigned int tail_penal = (homopol_tracklen > 14 ? 3 : (homopol_tracklen > 11 ? 2 : (homopol_tracklen > 8 ? 1 : 0)));
-    if (tail_penal > 0) {
-        for (int pos = inclu_beg_poss[strand]; pos != exclu_end_poss[strand] && pos != termpos; pos += pos_incs[strand]) {
-            bam_get_qual(aln)[pos] = max(bam_get_qual(aln)[pos], tail_penal + 1) - tail_penal;
+    {
+        unsigned int homopol_len = 0;
+        unsigned int prev_b = 0;
+        // https://bmcbioinformatics.biomedcentral.com/articles/10.1186/1471-2105-12-451
+        for (int pos = inclu_beg_poss[strand]; pos != exclu_end_poss[strand]; pos += pos_incs[strand]) {
+            const auto b = bam_get_seq(aln)[pos];
+            if (b == prev_b) {
+                homopol_len++;
+                if (homopol_len >= 3 && b == seq_nt16_table['G']) {
+                    bam_get_qual(aln)[pos] = max(bam_get_qual(aln)[pos], 2 + 1) - 2;
+                }
+                if (homopol_len >= 3 && b == seq_nt16_table['C']) {
+                    bam_get_qual(aln)[pos] = max(bam_get_qual(aln)[pos], 1 + 1) - 1;
+                }
+            } else {
+                prev_b = b;
+                homopol_len = 1;
+            }
         }
-    }
-    for (unsigned int i = 0; i < aln->core.l_qseq; i++) {
-        // bam_get_qual(aln)[i] = min(bam_get_qual(aln)[i], 37);
     }
     return 0;
 }
-
 
 int 
 apply_baq(bam1_t *aln, const unsigned int baq_per_aligned_base, unsigned int baq_per_new_base = 1, unsigned int baq_maxinc_per_base = 1) {
