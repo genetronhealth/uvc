@@ -499,9 +499,9 @@ apply_bq_err_correction3(bam1_t *aln) {
             }
         }
         unsigned int homopol_tracklen = abs((int)termpos - (int)inclu_beg_poss[strand]); 
-        unsigned int tail_penal = (homopol_tracklen > 14 ? 2 : (homopol_tracklen > 11 ? 2 : (homopol_tracklen > 8 ? 1 : 0)));
+        unsigned int tail_penal = (homopol_tracklen > 16 ? 2 : (homopol_tracklen > 12 ? 2 : (homopol_tracklen > 8 ? 1 : 0)));
         if (tail_penal > 0) {
-            for (int pos = inclu_beg_poss[strand]; pos != exclu_end_poss[strand] && pos != termpos; pos += pos_incs[strand]) {
+            for (int pos = exclu_end_poss[strand] - pos_incs[strand]; pos != (inclu_beg_poss[strand] - pos_incs[strand]) && pos != termpos; pos -= pos_incs[strand]) {
                 bam_get_qual(aln)[pos] = max(bam_get_qual(aln)[pos], tail_penal + 1) - tail_penal;
             }
         }
@@ -514,12 +514,14 @@ apply_bq_err_correction3(bam1_t *aln) {
             const auto b = bam_get_seq(aln)[pos];
             if (b == prev_b) {
                 homopol_len++;
-                if (homopol_len >= 3 && b == seq_nt16_table['G']) {
-                    bam_get_qual(aln)[pos] = max(bam_get_qual(aln)[pos], 2 + 1) - 2;
+                if (homopol_len >= 4 && b == seq_nt16_table['G']) {
+                    bam_get_qual(aln)[pos] = max(bam_get_qual(aln)[pos], 1 + 1) - 1;
                 }
+                /*
                 if (homopol_len >= 3 && b == seq_nt16_table['C']) {
                     bam_get_qual(aln)[pos] = max(bam_get_qual(aln)[pos], 1 + 1) - 1;
                 }
+                */
             } else {
                 prev_b = b;
                 homopol_len = 1;

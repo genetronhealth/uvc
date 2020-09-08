@@ -3399,7 +3399,7 @@ BcfFormat_symbol_calc_DPv(
                 (f.aLI1[a]), (f.aDPfr[a] + f.aDPrr[a]), 
                 (f.ALI2[0] + f.aLI1[a] - f.aLI2[a]), (f.ADPfr[0] + f.ADPrr[0]), 
                 3.0, log(aIprior), 
-                aLpd, ALpd, 0.25);
+                aLpd, ALpd, 0.5);
         fmt.note += std::string("ALpd/aLpd/") + std::to_string(ALpd) + "/" + std::to_string(aLpd) + "//";
         /*
         if (refpos >= 830496 && refpos <= 830497) {
@@ -3425,7 +3425,7 @@ BcfFormat_symbol_calc_DPv(
                 (f.aRI1[a]), (f.aDPff[a] + f.aDPrf[a]), 
                 (f.ARI2[0] + f.aRI1[a] - f.aRI2[a]), (f.ADPff[0] + f.ADPrf[0]), 
                 3.0, log(aIprior),
-                aRpd, ARpd, 0.25);
+                aRpd, ARpd, 0.5);
                 //(f.aRI1[a] + 0.5) / (f.aDPff[a] + f.aDPrf[a] - f.aRI1[a] + 0.5), 
                 //(f.ARI2[0] + 0.5) / (f.ADPff[0] + f.ADPrf[0] - f.ARI2[0] + 0.5));
         fmt.note += std::string("ARpd/aRpd/") + std::to_string(ARpd) + "/" + std::to_string(aRpd) + "//";
