@@ -739,8 +739,8 @@ bamfname_to_strand_to_familyuid_to_reads(
                 (begfrac > dedup_amplicon_count_to_surrcount_ratio || endfrac > dedup_amplicon_count_to_surrcount_ratio)));
         pcrpassed += is_assay_amplicon;
         
-        const uint8_t *bam_aux_data = bam_aux_get(aln, "NM");
-        const unsigned int nm_cnt = ((bam_aux_data != NULL) ? bam_aux2i(bam_aux_data) : 0);
+        //const uint8_t *bam_aux_data = bam_aux_get(aln, "NM");
+        //const unsigned int nm_cnt = ((bam_aux_data != NULL) ? bam_aux2i(bam_aux_data) : 0);
         // beg end qname UMI misma = 1 2 4 8 16
         // IonTorrent amplicon without UMI: beg + qname
         // IonTorrent capture  without UMI: beg + qname
@@ -773,7 +773,7 @@ bamfname_to_strand_to_familyuid_to_reads(
             } else if (is_assay_amplicon) {
                 dedup_idflag = 0x7;
             } else {
-                dedup_idflag = 0x3 + 0x10;
+                dedup_idflag = 0x3; //  + 0x10;
             }
         }
         
@@ -793,9 +793,11 @@ bamfname_to_strand_to_familyuid_to_reads(
         if (0x8 & dedup_idflag) {
             molecule_hash = hash2hash(molecule_hash, umihash); 
         }
+        /*
         if ((0x10 == (0x10 & dedup_idflag)) && nm_cnt > 0) {
             molecule_hash = hash2hash(molecule_hash, 1);
         }
+        */
         unsigned int strand = (isrc ^ isr2);
         int dflag = (is_duplex_found ? 2 : (is_umi_found ? 1 : 0));
         umi_to_strand_to_reads.insert(std::make_pair(molecule_hash, std::make_pair(std::array<std::map<uint64_t, std::vector<bam1_t *>>, 2>(), dflag)));
