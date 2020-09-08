@@ -727,6 +727,9 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
             */
             if (rpos_exclu_end != refpos) {
                 std::vector<std::tuple<bcfrec::BcfFormat, TumorKeyInfo>> fmt_tki_tup_vec;
+                const auto ref_bdepth = 
+                            symbolToCountCoverageSet12.symbol_to_frag_format_depth_sets[0].getByPos(refpos)[refsymbol][FRAG_bDP]
+                          + symbolToCountCoverageSet12.symbol_to_frag_format_depth_sets[1].getByPos(refpos)[refsymbol][FRAG_bDP];
                 
                 for (AlignmentSymbol symbol : SYMBOL_TYPE_TO_SYMBOLS[symbolType]) 
                 {
@@ -759,8 +762,9 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                         }
                     }
                     if ((NOT_PROVIDED == paramset.vcf_tumor_fname)
-                            && (bdepth < paramset.min_altdp_thres) 
-                            && (refsymbol != symbol)
+                            // && (bdepth < paramset.min_altdp_thres) 
+                            &&    (((refsymbol != symbol) && (bdepth < paramset.min_altdp_thres))
+                                || ((refsymbol == symbol) && (bDPcDP[0] - ref_bdepth < paramset.min_altdp_thres)))
                             && (!paramset.should_output_all)) {
                         continue;
                     }
