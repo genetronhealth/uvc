@@ -730,8 +730,8 @@ bamfname_to_strand_to_familyuid_to_reads(
                 end2surrcount = max(end2surrcount, end_count);
             }
         }
-        double begfrac = (double)(beg2count + std::log2(beg2count + 2)) / (double)(beg2surrcount + std::log2(beg2count + 2));
-        double endfrac = (double)(end2count + std::log2(end2count + 2)) / (double)(end2surrcount + std::log2(end2count + 2));
+        double begfrac = (double)(beg2count + 1 + 2*std::log2(beg2count + beg2surrcount + 1)) / (double)(beg2surrcount + 1 + 2*std::log2(beg2count + beg2surrcount + 1));
+        double endfrac = (double)(end2count + 1 + 2*std::log2(end2count + beg2surrcount + 1)) / (double)(end2surrcount + 1 + 2*std::log2(end2count + beg2surrcount + 1));
         
         const bool is_assay_amplicon = (
                 ASSAY_TYPE_AMPLICON == assay_type ? 1 : 
