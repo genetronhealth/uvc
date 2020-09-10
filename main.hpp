@@ -3497,8 +3497,8 @@ BcfFormat_symbol_calc_DPv(
         }
         aLIFA = aRIFA = 2.0;
     } else if (fmt.aXM2[a] / MAX(1, aDP) >= 75 && !is_amplicon) {
-        // due to the lack of mismatches, this variant is less likely to be artifactual.
-        aLIFA = aRIFA = 1.5;
+        // // due to the lack of mismatches, this variant is less likely to be artifactual.
+        // aLIFA = aRIFA = 1.5;
     }
     
 #if 0
@@ -3864,6 +3864,9 @@ BcfFormat_symbol_calc_qual(
     const std::string & indelstring = fmt.gapSa[a];
     const unsigned int aDP = (fmt.aDPff[a] + fmt.aDPfr[a] + fmt.aDPrf[a] + fmt.aDPrr[a]);
     const unsigned int ADP = (fmt.ADPff[0] + fmt.ADPrf[0] + fmt.ADPfr[0] + fmt.ADPrr[0]);
+    const unsigned int bDP = (fmt.bDPf[a] + fmt.bDPr[a]);
+    const unsigned int BDP = (fmt.BDPf[0] + fmt.BDPr[0]);
+    
     if (indelstring.size() > 0 && fmt.cDP0a[a] > 0) {
         // const AlignmentSymbol symbol = AlignmentSymbol(LAST(fmt.VTI));
         // const double symbol_to_allele_frac = 1.0 - pow((isSymbolIns(symbol) ? 0.9 : (isSymbolDel(symbol) ? 0.95 : 1.0)), indelstring.size());
@@ -3919,8 +3922,9 @@ BcfFormat_symbol_calc_qual(
     
     // const int64_t qual_per_effread = (isSymbolSubstitution(AlignmentSymbol(LAST(fmt.VTI))) ? (130) : (130 + 90)) + (50 * fmt.cDP1v[a] / MAX(1, fmt.CDP1v[0]));
     
+    const auto bMQinc = (int)MAX(phred_varcall_err_per_map_err_per_base, 31 + 2 + (int)(10.0/log(10.0) * log((bDP + 0.5) / (double)(BDP + 1.0))));
     const int syserr_q = MIN(
-            (int)((fmt.bMQ[a] * 6/6) + (int)MAX(phred_varcall_err_per_map_err_per_base, 31 + 2 + (int)(10.0/log(10.0) * log((aDP + 0.5) / (double)(ADP + 1.0))))),
+            (int)((fmt.bMQ[a]) + MIN(bMQinc, bDP * 3)),
             (isSymbolSubstitution(AlignmentSymbol(LAST(fmt.VTI))) ? (fmt.aBQQ[a]) : (1000*1000)) // ,
             // ((int)(MIN3(100 * (int64_t)(fmt.bDPf[a] + fmt.bDPr[a]), fmt.aPF1[a], fmt.cDP1v[a] + 50)) * qual_per_effread / (100 * 10) + uneven_err_distr_qual)
             );
