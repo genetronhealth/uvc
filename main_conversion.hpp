@@ -527,6 +527,8 @@ enum SegFormatDepthSet {
     */
     SEG_aXM1,
     SEG_aXM2,
+    SEG_aBM2,
+    
     SEG_aBQ1, // base-quality bias
     SEG_aBQ2,
     
@@ -674,11 +676,11 @@ template
 std::array<double, 2> 
 dp4_to_pcFA(double aADpass, double aADfail, double aDPpass, double aDPfail, 
         double pl_exponent = 3.0, double n_nats = log(500+1),
-        double aADavgKeyVal = -1, double aDPavgKeyVal = -1, double priorAD = 0.5) {
+        double aADavgKeyVal = -1, double aDPavgKeyVal = -1, double priorAD = 0.5, double priorDP = 1.0) {
     assert(aADpass <= aDPpass);
     assert(aADfail <= aDPfail);
-    aDPfail += 1.0;
-    aDPpass += 1.0;
+    aDPfail += priorDP;
+    aDPpass += priorDP;
     aADfail += priorAD;
     aADpass += priorAD;
     const double nobiasFA = (aADfail + aADpass) / (aDPfail + aDPpass); 

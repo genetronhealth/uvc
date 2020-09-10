@@ -455,29 +455,34 @@ apply_bq_err_correction2(const bam1_t *aln, unsigned int dec_per_base, unsigned 
 
 int 
 apply_bq_err_correction3(bam1_t *aln) {
-    if (0 == aln->core.l_qseq) { return -1; }
+    if ((0 == aln->core.l_qseq) || (aln->core.flag & 0x4)) { return -1; }
     
     for (unsigned int i = 0; i < aln->core.l_qseq; i++) {
         bam_get_qual(aln)[i] = min(bam_get_qual(aln)[i], 37);
     }
     
-    const auto cigar = bam_get_cigar(aln);
+    const uint32_t *cigar = bam_get_cigar(aln);
     const unsigned int strand = ((aln->core.flag & 0x10) ? 1 : 0);
     int inclu_beg_poss[2] = {0, aln->core.l_qseq - 1};
     int exclu_end_poss[2] = {aln->core.l_qseq, 0 - 1};
+    int end_clip_len = 0; 
     if (aln->core.n_cigar > 0) {
-        if (bam_get_cigar(aln)[0] == BAM_CSOFT_CLIP) {
+        auto cigar_1elem = cigar[0];
+        if (bam_cigar_op(cigar_1elem) == BAM_CSOFT_CLIP) {
             if (0 == strand) {
-                inclu_beg_poss[0] += bam_cigar_oplen(bam_get_cigar(aln)[0]);
+                inclu_beg_poss[0] += bam_cigar_oplen(cigar_1elem);
             } else {
-                exclu_end_poss[0] += bam_cigar_oplen(bam_get_cigar(aln)[0]);
+                exclu_end_poss[1] += bam_cigar_oplen(cigar_1elem);
+                end_clip_len = bam_cigar_oplen(cigar_1elem);
             }
         }
-        if (bam_get_cigar(aln)[aln->core.n_cigar-1] == BAM_CSOFT_CLIP) {
+        cigar_1elem = cigar[aln->core.n_cigar-1];
+        if (bam_cigar_op(cigar_1elem) == BAM_CSOFT_CLIP) {
             if (1 == strand) {
-                inclu_beg_poss[1] -= bam_cigar_oplen(bam_get_cigar(aln)[aln->core.n_cigar-1]);
+                inclu_beg_poss[1] -= bam_cigar_oplen(cigar_1elem);
             } else {
-                exclu_end_poss[1] -= bam_cigar_oplen(bam_get_cigar(aln)[aln->core.n_cigar-1]);
+                exclu_end_poss[0] -= bam_cigar_oplen(cigar_1elem);
+                end_clip_len = bam_cigar_oplen(cigar_1elem);
             }
         }
     }
@@ -490,7 +495,7 @@ apply_bq_err_correction3(bam1_t *aln) {
         unsigned int distinct_cnt = 0;
         int termpos = exclu_end_poss[strand] - pos_incs[strand];
         for (; termpos != inclu_beg_poss[strand] - pos_incs[strand]; termpos -= pos_incs[strand]) {
-            auto b = bam_get_seq(aln)[termpos];
+            auto b = bam_seqi(bam_get_seq(aln), termpos);
             auto q = bam_get_qual(aln)[termpos];
             if (b != prev_b && q >= 20) {
                 prev_b = b;
@@ -498,11 +503,21 @@ apply_bq_err_correction3(bam1_t *aln) {
                 if (2 == distinct_cnt) { break; }
             }
         }
-        unsigned int homopol_tracklen = abs((int)termpos - (int)inclu_beg_poss[strand]); 
-        unsigned int tail_penal = (homopol_tracklen > 16 ? 2 : (homopol_tracklen > 12 ? 2 : (homopol_tracklen > 8 ? 1 : 0)));
+        unsigned int homopol_tracklen = abs((int)termpos - (int)(exclu_end_poss[strand] - pos_incs[strand]));
+        unsigned int tail_penal = (end_clip_len >= 20 ? 1 : 0) // (end_clip_len > 16 ? 2 : (end_clip_len > 8 ? 1 : 0)) 
+                + (homopol_tracklen >= 15 ? 2 : (homopol_tracklen >= 10 ? 1 : 0)); // + ((homopol_tracklen >= 15) ? 3 : (homopol_tracklen >= 12 ? 2 : (homopol_tracklen >= 9 ? 1 : 0)));
         if (tail_penal > 0) {
+            const bool is_in_log_reg = (aln->core.tid == 0 && aln->core.pos < 9509431 && aln->core.pos > 9509400);
+            if (is_in_log_reg) {
+                LOG(logINFO) << "tail_penal = " << tail_penal << " for read " << bam_get_qname(aln);
+            }
             for (int pos = exclu_end_poss[strand] - pos_incs[strand]; pos != (inclu_beg_poss[strand] - pos_incs[strand]) && pos != termpos; pos -= pos_incs[strand]) {
+                const uint16_t q = bam_get_qual(aln)[pos];
+                // bam_get_qual(aln)[pos] = q * 5 / (5 + tail_penal);
                 bam_get_qual(aln)[pos] = max(bam_get_qual(aln)[pos], tail_penal + 1) - tail_penal;
+                if (is_in_log_reg) {
+                    LOG(logINFO) << "\tQuality adjustment at pos " << pos << " : " << (int)q << " -> " << (int)bam_get_qual(aln)[pos]; 
+                }
             }
         }
     }
@@ -511,7 +526,7 @@ apply_bq_err_correction3(bam1_t *aln) {
         unsigned int prev_b = 0;
         // https://bmcbioinformatics.biomedcentral.com/articles/10.1186/1471-2105-12-451
         for (int pos = inclu_beg_poss[strand]; pos != exclu_end_poss[strand]; pos += pos_incs[strand]) {
-            const auto b = bam_get_seq(aln)[pos];
+            const auto b = bam_seqi(bam_get_seq(aln), pos);
             if (b == prev_b) {
                 homopol_len++;
                 if (homopol_len >= 4 && b == seq_nt16_table['G']) {
