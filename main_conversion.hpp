@@ -434,11 +434,14 @@ enum SegFormatPrepSet {
     SEG_a_INSBAQ_SUM,
     SEG_a_DELBAQ_SUM,
     
+    SEG_a_AT_INS_DP,
+    SEG_a_AT_DEL_DP,
     SEG_a_NEAR_INS_DP,
     SEG_a_NEAR_DEL_DP,
     SEG_a_NEAR_RTR_INS_DP,
     SEG_a_NEAR_RTR_DEL_DP,
-
+    
+    
     /*
     SEG_a_A_DEPTH,
     SEG_a_A_TOT_LDIST,
