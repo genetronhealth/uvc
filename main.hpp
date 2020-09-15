@@ -3411,10 +3411,11 @@ BcfFormat_symbol_calc_DPv(
     const auto symbol = AlignmentSymbol(LAST(f.VTI));
     
     // substitution in indel region, substitution in indel-prone region or indel, other cases 
+    double dp_coef = (symbol == LINK_M ?  MAX(0.02, 1.0 - MAX(rtr1.tracklen, rtr2.tracklen) / (MAX3(1, f.ALPL[0], f.ARPL[0]) / MAX(1.0/150.0, f.ABQ2[0]))) : 1.0);
     double _aPprior = 1024*9/2; // 1 / probability that there is one indel at a pos
-    const bool is_in_indel_read = (   (f.APXM[1]) / 15.0 * 2  * (1.25+1e-7) > aDP);
-    const bool is_in_indel_len  = (MAX(f.APDP[1],  f.APDP[2]) * (1.25+1e-7) > aDP);
-    const bool is_in_indel_rtr  = (MAX(f.APDP[3],  f.APDP[4]) * (1.25+1e-7) > aDP);
+    const bool is_in_indel_read = (   (f.APXM[1]) / 15.0 * 2  * (1.25+1e-7) > aDP * dp_coef);
+    const bool is_in_indel_len  = (MAX(f.APDP[1],  f.APDP[2]) * (1.25+1e-7) > aDP * dp_coef);
+    const bool is_in_indel_rtr  = (MAX(f.APDP[3],  f.APDP[4]) * (1.25+1e-7) > aDP * dp_coef);
     const bool is_in_rtr = (MAX(rtr1.tracklen, rtr2.tracklen) > 8);
     if (is_in_indel_read)      { _aPprior /= (64+32); }
     if (is_in_indel_len)       { _aPprior /= 24; }
@@ -3488,7 +3489,10 @@ BcfFormat_symbol_calc_DPv(
     
     if (isSymbolIns(symbol) || isSymbolDel(symbol)) {
         const auto & indelstring = LAST(fmt.gapSa);
-        if (indelstring.size() >= 20) {
+        const bool is_in_indel_major_reg = (MAX(f.APDP[1],  f.APDP[2]) * (0.5+1e-7) < aDP);
+        if (indelstring.size() > 8 || 
+                (MAX(rtr1.tracklen, rtr2.tracklen) > 16
+                && is_in_indel_major_reg)) {
             aLPFA = 2.0;
             aRPFA = 2.0;
             aLBFA = 2.0;
@@ -3496,6 +3500,7 @@ BcfFormat_symbol_calc_DPv(
         } else {
             //aLPFA *= 1.25;
             //aLPFA *= 1.25;
+            fmt.note += std::string("rtr-tracklen/") + std::to_string(rtr1.tracklen) + "/" + std::to_string(rtr2.tracklen) + "/";
         }
         aLIFA = aRIFA = 2.0;
     } else if (fmt.aXM2[a] / MAX(1, aDP) >= 75 && !is_amplicon) {
@@ -3775,7 +3780,7 @@ BcfFormat_symbol_calc_qual(
         bcfrec::BcfFormat & fmt,
         //const AlignmentSymbol symbol,
         const unsigned int var_bdepth,
-        const unsigned int var_cdpeth,
+        const unsigned int var_cdepth,
         
         const unsigned int ins_bdepth,
         const unsigned int ins_cdepth,
@@ -3863,6 +3868,7 @@ BcfFormat_symbol_calc_qual(
     fmt.note += std::string("umi_cFA_v(") + std::to_string(umi_cFA) + ")cDP2v(" + std::to_string(fmt.cDP2v[a]) + ")" + "CDP2v(" + std::to_string(fmt.CDP2v[0]) + ")" + "cMmQ(" + std::to_string(cMmQ) + ")";
     
     int indel_penal4multialleles = 0;
+    int indel_penal4multialleles_g = 0;
     const std::string & indelstring = fmt.gapSa[a];
     const unsigned int aDP = (fmt.aDPff[a] + fmt.aDPfr[a] + fmt.aDPrf[a] + fmt.aDPrr[a]);
     const unsigned int ADP = (fmt.ADPff[0] + fmt.ADPrf[0] + fmt.ADPfr[0] + fmt.ADPrr[0]);
@@ -3886,6 +3892,7 @@ BcfFormat_symbol_calc_qual(
         if (LINK_I1 == symbol) {
             indelcdepth += del1_cdepth / 4.0;
         }
+        // const auto insdel_cdepth = ins_cdepth + del_cdepth;
         const unsigned int nearInDelDP = (isSymbolIns(symbol) ? fmt.APDP[1] : fmt.APDP[2]);
         
         // const unsigned int aDP = (fmt.aDPff[a] + fmt.aDPfr[a] + fmt.aDPrf[a] + fmt.aDPrr[a]);
@@ -3893,14 +3900,19 @@ BcfFormat_symbol_calc_qual(
         
         const auto indel_penal4multialleles1 = (int)round(11.0/log(2.0) * log((double)(indelcdepth + 1e-3) / (double)(fmt.cDP0a[a] + 1e-3)));
         const auto indel_penal4multialleles2 = (int)round( 8.0/log(2.0) * log((double)(nearInDelDP + 1e-3) / (double)(aDP + 1e-3)));
+        
+        indel_penal4multialleles_g = (int)round( 8.0/log(2.0) * log((double)(ins_cdepth + del_cdepth + 1e-3) / (double)(fmt.cDP0a[a] + 1e-3)));
         if (isSymbolIns(symbol)) {
-            indel_penal4multialleles = indel_penal4multialleles1 * 16 / (int)(16 + indelstring.size()); // - (int)round(10.0/log(10.0)*log(1.0+INS_N_ANCHOR_BASES));
+            indel_penal4multialleles = (indel_penal4multialleles1 * 16 / (int)(16 + indelstring.size())); 
+            // - (int)round(10.0/log(10.0)*log(1.0+INS_N_ANCHOR_BASES));
         } else {
             indel_penal4multialleles = MAX(indel_penal4multialleles1, indel_penal4multialleles2);
         }
         fmt.note += std::string("/indelpq/") + std::to_string(indel_pq) + "/" + indelstring + "/" + repeatunit + "/" + std::to_string(repeatnum) 
                 + std::string("/indelic/") + std::to_string(indel_ic)
-                + std::string("/indelcdepth/") + std::to_string(indelcdepth); 
+                + std::string("/indelcdepth/") + std::to_string(indelcdepth) 
+                + std::string("/indelpm/") + std::to_string(indel_penal4multialleles) + "/" + std::to_string(indel_penal4multialleles_g)
+                ;
         dedup_frag_powlaw_qual_v += (int)(indel_ic); // - indel_penal4multialleles);
         dedup_frag_powlaw_qual_w += (int)(indel_ic);
         duped_frag_binom_qual  += (int)(indel_pq); // - indel_penal4multialleles);
@@ -3910,9 +3922,9 @@ BcfFormat_symbol_calc_qual(
     // Illusion
     // const int uneven_q_inc = BETWEEN( - (int)aDP  (fmt.a1XM[a] / MAX(1, aDP)) / 15, 0, 7);
     // Real
-    const int uneven_diffpos_q_dec = BETWEEN((fmt.a1XM[a] - (int)(aDP*15)) / 15, 0, 5);
-    const int uneven_samepos_q_inc = BETWEEN(4 * (int)((int)fmt.aPF2[a] - 200) - 200 * (int)(var_bdepth), 0, 500) / 100; // + uneven_err_misma_near;
-    fmt.note += std::string("/unevenQ/") + std::to_string(uneven_samepos_q_inc) + "/" + std::to_string(uneven_diffpos_q_dec) + "//";
+    //const int uneven_diffpos_q_dec = BETWEEN((fmt.a1XM[a] - (int)(aDP*15)) / 15, 0, 5);
+    //const int uneven_samepos_q_inc = BETWEEN(4 * (int)((int)fmt.aPF2[a] - 200) - 200 * (int)(var_bdepth), 0, 500) / 100; // + uneven_err_misma_near;
+    //fmt.note += std::string("/unevenQ/") + std::to_string(uneven_samepos_q_inc) + "/" + std::to_string(uneven_diffpos_q_dec) + "//";
     clear_push(fmt.bIAQ, duped_frag_binom_qual, a);
     clear_push(fmt.cIAQ, dedup_sscs_binom_qual, a);
     
@@ -3940,11 +3952,15 @@ BcfFormat_symbol_calc_qual(
     int penal4BQerr = (isSymbolSubstitution(symbol) ? (5 + (int)(PENAL4LOWDEP / (int)mathsquare((int64_t)MAX(1, aDP + aDPpc)))) : 0);
     int indel_q_inc = (isSymbolSubstitution(symbol) ? 0 : 9);
     clear_push(fmt.gVQ1, MAX(0, indel_q_inc + MIN3(syserr_q,
-            (int)LAST(fmt.bIAQ) - penal4BQerr, //+ uneven_samepos_q_inc - uneven_diffpos_q_dec - (int)(6 / MAX(1, aDP)),
-            (int)LAST(fmt.cPLQ1))) - indel_penal4multialleles/2, a);
+            (int)LAST(fmt.bIAQ) - penal4BQerr, 
+            //+ uneven_samepos_q_inc - uneven_diffpos_q_dec - (int)(6 / MAX(1, aDP)),
+            (int)LAST(fmt.cPLQ1)) - 2 * MAX3(0, 
+                (int)indel_penal4multialleles - (int)11, 
+                (int)indel_penal4multialleles_g - (int)11
+                )), a);
     clear_push(fmt.cVQ1, MAX(0, MIN3(syserr_q,
             (int)LAST(fmt.bIAQ) - penal4BQerr, // fmt.aPF1[a], Does this correspond to in-silico mixing artifact ???
-            (int)LAST(fmt.cPLQ1))) - indel_penal4multialleles, a);
+            (int)LAST(fmt.cPLQ1)) - indel_penal4multialleles), a);
     
     clear_push(fmt.cVQ2, MIN3(syserr_q, 
             (int)LAST(fmt.cIAQ), 
