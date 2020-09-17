@@ -771,10 +771,14 @@ main(int argc, char **argv) {
     double dpfail = atof(argv[4]);
     double entropy = atof(argv[5]);
     double entrmax = atof(argv[6]);
+    double ldist = atof(argv[7]);
+    double rdist = atof(argv[8]);
+    double pca = atof(argv[9]);
+    double pcb = atof(argv[10]);
     
-    const auto ret1 = dp4_to_pcFA<false>(adpass, adfail, dppass, dpfail, entropy, entrmax);
-    const auto ret2 = dp4_to_pcFA<true>(adpass, adfail, dppass, dpfail, entropy, entrmax);
-    printf("dp4_to_pcFA<false, true>(%f, %f, %f, %f, %f, %f) = <{%f, %f}, {%f, %f}>\n", adpass, adfail, dppass, dpfail, entropy, entrmax, ret1[0], ret1[1], ret2[0], ret2[1]);
+    const auto ret1 = dp4_to_pcFA<false>(adpass, adfail, dppass, dpfail, entropy, entrmax, ldist, rdist, pca, pcb);
+    const auto ret2 = dp4_to_pcFA<true>(adpass, adfail, dppass, dpfail, entropy, entrmax, ldist, rdist, pca, pcb);
+    printf("dp4_to_pcFA<false, true>(%f, %f, %f, %f, %f, %f, %f, %f, %f, %f) = <{%f, %f}, {%f, %f}>\n", adpass, adfail, dppass, dpfail, entropy, entrmax, ldist, rdist, pca, pcb, ret1[0], ret1[1], ret2[0], ret2[1]);
 }   
 
 #endif

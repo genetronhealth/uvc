@@ -868,7 +868,7 @@ refstring2repeatvec(
                 region_repeatvec[i].begpos = refpos;
                 region_repeatvec[i].tracklen = tl;
                 region_repeatvec[i].unitlen = repeatsize_at_max_repeatnum;
-                region_repeatvec[i].indelphred = 33+10 - MIN(33+10-1, decphred);
+                region_repeatvec[i].indelphred = 30+18 - MIN(30+18-1, decphred);
             }
         }
         refpos += repeatsize_at_max_repeatnum * max_repeatnum;
@@ -917,6 +917,12 @@ ref_to_phredvalue(unsigned int & n_units,
     // Because of a lower number of PCR cycles, it is higher than the one set in Fig. 3 at https://www.ncbi.nlm.nih.gov/pmc/articles/PMC149199/
     unsigned int decphred = indel_phred(ampfact, cigar_oplen, repeatsize_at_max_repeatnum, max_repeatnum);
     n_units = ((0 == cigar_oplen % repeatsize_at_max_repeatnum) ? (cigar_oplen / repeatsize_at_max_repeatnum) : 0);
+    /*
+    const unsigned int indel_phred_lowlim = 8;
+    if (max_phred >= indel_phred_lowlim && decphred > max_phred - indel_phred_lowlim) {
+        decphred = max_phred - indel_phred_lowlim + (decphred - (max_phred - indel_phred_lowlim)) / 2;
+    }
+    */
     return max_phred - MIN(max_phred, decphred) + indel_len_rusize_phred(cigar_oplen, repeatsize_at_max_repeatnum); 
 }
 
@@ -1382,6 +1388,7 @@ dealwith_segbias(
         const auto go150,
         const auto bm150,
         const CoveredRegion<int64_t> & baq_offsetarr,
+        const unsigned int dist_to_interfering_indel,
         const unsigned int specialflag) {
     
     const auto rend = bam_endpos(aln); 
@@ -1486,8 +1493,10 @@ dealwith_segbias(
     const unsigned int const_GO2T = seg_format_thres_set[SEG_aGO2T]; // 20
     
     if (isGap) {
+        // auto inteference_perc_signal = (dist_to_interfering_indel < 100 ? (100 * (dist_to_interfering_indel + 8) / (dist_to_interfering_indel + 24)) : 100);
+        
         if (xm150 <= const_XM1T && go150 <= const_GO1T && bq >= 0*25) {
-            symbol_to_seg_format_depth_set[SEG_aPF1] += 100; 
+            symbol_to_seg_format_depth_set[SEG_aPF1] += 100;
         } else {
             symbol_to_seg_format_depth_set[SEG_aPF1] += MIN3(
                     100 * mathsquare(const_XM1T) / MAX(1, mathsquare(xm150)), 
@@ -1554,7 +1563,7 @@ dealwith_segbias(
         }
         */
     }
-    if (bq >= 20 || isGap) {
+    if (((!isGap) && bq >= 20) || (isGap && dist_to_interfering_indel >= 20)) {
         const bool is_l1_unbiased = (seg_l_nbases >= seg_format_thres_set[SEG_aLP1t]);
         const bool is_l2_unbiased = (seg_l_nbases >= seg_format_thres_set[SEG_aLP2t]);
         const bool is_r1_unbiased = (seg_r_nbases >= seg_format_thres_set[SEG_aRP1t]);
@@ -2075,7 +2084,9 @@ update_seg_format_depth_sets(
         const unsigned int xm150 = xm_cnt * 1500 / (rend - aln->core.pos);
         const unsigned int go150 = ngo_cnt * 1500 / (rend - aln->core.pos);
         
-        std::array<unsigned int, NUM_ALIGNMENT_SYMBOLS> bm_cnts = {{ 0 }};
+        std::vector<unsigned int> indel_rposs = {{ 0 }};
+        unsigned int indel_rposs_idx = 0;
+        std::array<unsigned int, NUM_ALIGNMENT_SYMBOLS> bm_cnts = {{ 0 }}; // mismatch of the same base type
         {
             unsigned int qpos = 0;
             unsigned int rpos = aln->core.pos;
@@ -2096,13 +2107,21 @@ update_seg_format_depth_sets(
                         rpos++;
                     }
                 } else if (cigar_op == BAM_CINS) {
+                    bool is_lowBQ = false;
+                    for (unsigned int qpos2 = qpos; qpos2 < qpos + cigar_oplen; qpos2++) {
+                        if (bam_phredi(aln, qpos2) < 20) { is_lowBQ = true; }
+                    }
+                    if (is_lowBQ) { indel_rposs.push_back(rpos); }
                     qpos += cigar_oplen;
                 } else if (cigar_op == BAM_CDEL) {
+                    bool is_lowBQ = (MIN(bam_phredi(aln, MAX(1, qpos) - 1), bam_phredi(aln, qpos)) < 20);
+                    if (is_lowBQ) { indel_rposs.push_back(rpos); }
                     rpos += cigar_oplen;
                 } else {
                     process_cigar(qpos, rpos, cigar_op, cigar_oplen);
                 }
             }
+            indel_rposs.push_back(INT32_MAX);
         }
         std::array<unsigned int, NUM_ALIGNMENT_SYMBOLS> bm150s = {{ 0 }};
         for (unsigned int i = 0; i < NUM_ALIGNMENT_SYMBOLS; i++) {
@@ -2116,7 +2135,7 @@ update_seg_format_depth_sets(
                 : (isrc ? non_neg_minus(rend, primerlen) : INT32_MAX));
         
         unsigned int qpos = 0;
-        unsigned int rpos = aln->core.pos;        
+        unsigned int rpos = aln->core.pos;
         unsigned int incvalue = 1;
         for (unsigned int i = 0; i < n_cigar; i++) {
             uint32_t c = cigar[i];
@@ -2133,10 +2152,15 @@ if ((0 == primerlen) || (ibeg <= rpos && rpos < iend)) {
                                 region_repeatvec[rpos-region_offset - 1].indelphred,
                                 region_repeatvec[rpos-region_offset].indelphred,
                                 40);
-                        incvalue = MIN(MIN(bam_phredi(aln, qpos-1), bam_phredi(aln, qpos)) + 1, noindel_phredvalue) + (symbolType2addPhred[LINK_SYMBOL]); 
+                        incvalue = MIN(MIN(bam_phredi(aln, qpos-1), bam_phredi(aln, qpos)) + (symbolType2addPhred[LINK_SYMBOL]), noindel_phredvalue) + 1;
                         // ((TIsProton) ? (MIN3(noindel_phred, bam_phredi(aln, qpos-1), bam_phredi(aln, qpos))) : noindel_phred); 
                         this->template inc<TUpdateType>(rpos, LINK_M, incvalue, aln);
                         if (TIsBiasUpdated) {
+                            if (indel_rposs[indel_rposs_idx] <= rpos) {
+                                indel_rposs_idx++;
+                            }
+                            unsigned int prev_indel_rpos = indel_rposs[indel_rposs_idx-1];
+                            unsigned int next_indel_rpos = indel_rposs[indel_rposs_idx];
                             dealwith_segbias<true>(
                                     incvalue,
                                     rpos,
@@ -2148,6 +2172,7 @@ if ((0 == primerlen) || (ibeg <= rpos && rpos < iend)) {
                                     go150,
                                     bm150s[LINK_M],
                                     baq_offsetarr,
+                                    MIN(rpos - prev_indel_rpos, next_indel_rpos - rpos),
                                     0);
                         }
                     }
@@ -2168,6 +2193,7 @@ if ((0 == primerlen) || (ibeg <= rpos && rpos < iend)) {
                                 go150,
                                 bm150s[symbol],
                                 baq_offsetarr,
+                                10000,
                                 0);
                     }
 }
@@ -2188,12 +2214,11 @@ if ((0 == primerlen) || (ibeg <= rpos && rpos < iend)) {
                 } else {
                     unsigned int phredvalue = ref_to_phredvalue(inslen, region_symbolvec, rpos - region_offset,
                             frag_indel_basemax, 8.0, cigar_oplen, cigar_op, aln);
-                    unsigned int add_decphred = 10.0/log(10.0) * log(
-                            (double)(seg_format_prep_sets.getByPos(rpos)[SEG_a_AT_INS_DP] + 0.5) 
-                            / (double)(MAX(seg_format_prep_sets.getByPos(rpos)[SEG_a_NEAR_INS_DP], 
-                                           seg_format_prep_sets.getByPos(rpos)[SEG_a_NEAR_RTR_INS_DP]) + 0.5));
-                    incvalue = MIN(MIN(bam_phredi(aln, qpos-1), bam_phredi(aln, qpos + cigar_oplen)) + (TIsProton ? proton_cigarlen2phred(cigar_oplen) : 1), 
-                            phredvalue) + non_neg_minus(symbolType2addPhred[LINK_SYMBOL], add_decphred);
+                    double thisdp = (double)(seg_format_prep_sets.getByPos(rpos)[SEG_a_AT_INS_DP] + 0.5); 
+                    double neardp = (double)(MAX(seg_format_prep_sets.getByPos(rpos)[SEG_a_NEAR_INS_DP], seg_format_prep_sets.getByPos(rpos)[SEG_a_NEAR_RTR_INS_DP]) + 0.5);
+                    unsigned int add_decphred = (unsigned int)round(10.0/log(10.0) * log(neardp / thisdp));
+                    incvalue = MIN(MIN(bam_phredi(aln, qpos-1), bam_phredi(aln, qpos + cigar_oplen)) + (TIsProton ? proton_cigarlen2phred(cigar_oplen) : 0), 
+                            phredvalue) + non_neg_minus(symbolType2addPhred[LINK_SYMBOL], add_decphred) + 1;
                             // + addidq; 
                 }
                 if (!is_ins_at_read_end) {
@@ -2211,6 +2236,7 @@ if ((0 == primerlen) || (ibeg <= rpos && rpos < iend)) {
                                 go150,
                                 bm150s[symbol],
                                 baq_offsetarr,
+                                10000,
                                 0);
                     }
                     std::string iseq;
@@ -2244,12 +2270,11 @@ if ((0 == primerlen) || (ibeg <= rpos && rpos < iend)) {
                 } else {
                     unsigned int phredvalue = ref_to_phredvalue(dellen, region_symbolvec, rpos - region_offset, 
                             frag_indel_basemax, 8.0, cigar_oplen, cigar_op, aln);
-                    unsigned int add_decphred = 10.0/log(10.0) * log(
-                            (double)(seg_format_prep_sets.getByPos(rpos)[SEG_a_AT_DEL_DP] + 0.5) 
-                            / (double)(MAX(seg_format_prep_sets.getByPos(rpos)[SEG_a_NEAR_DEL_DP], 
-                                           seg_format_prep_sets.getByPos(rpos)[SEG_a_NEAR_RTR_DEL_DP]) + 0.5));
-                    incvalue = MIN(MIN(bam_phredi(aln, qpos), bam_phredi(aln, qpos-1)) + (TIsProton ? proton_cigarlen2phred(cigar_oplen) : 1), 
-                            phredvalue) + non_neg_minus(symbolType2addPhred[LINK_SYMBOL], add_decphred);
+                    double thisdp = (double)(seg_format_prep_sets.getByPos(rpos)[SEG_a_AT_DEL_DP] + 0.5);
+                    double neardp = (double)(MAX(seg_format_prep_sets.getByPos(rpos)[SEG_a_NEAR_DEL_DP], seg_format_prep_sets.getByPos(rpos)[SEG_a_NEAR_RTR_DEL_DP]) + 0.5);
+                    unsigned int add_decphred = (unsigned int)round(10.0/log(10.0) * log(neardp / thisdp));
+                    incvalue = MIN(MIN(bam_phredi(aln, qpos), bam_phredi(aln, qpos-1)) + (TIsProton ? proton_cigarlen2phred(cigar_oplen) : 0), 
+                            phredvalue) + non_neg_minus(symbolType2addPhred[LINK_SYMBOL], add_decphred) + 1;
                 }
                 if (!is_del_at_read_end) {
                     AlignmentSymbol symbol = delLenToSymbol(dellen);
@@ -2266,6 +2291,7 @@ if ((0 == primerlen) || (ibeg <= rpos && rpos < iend)) {
                                 go150,
                                 bm150s[symbol],
                                 baq_offsetarr,
+                                10000,
                                 0);
                     }
                     this->incDel(rpos, cigar_oplen, delLenToSymbol(dellen), MAX(SIGN2UNSIGN(1), incvalue));
@@ -2286,6 +2312,11 @@ if ((0 == primerlen) || (ibeg <= rpos && rpos < iend)) {
                             if (p >= rend) { continue ; }
                             this->template inc<TUpdateType>(p, s, MAX(SIGN2UNSIGN(1), incvalue), aln);
                             if (TIsBiasUpdated) {
+                                if (indel_rposs[indel_rposs_idx] <= rpos) {
+                                    indel_rposs_idx++;
+                                }
+                                unsigned int prev_indel_rpos = indel_rposs[indel_rposs_idx-1];
+                                unsigned int next_indel_rpos = indel_rposs[indel_rposs_idx];
                                 dealwith_segbias<true>(
                                         MAX(SIGN2UNSIGN(1), incvalue),
                                         p,
@@ -2297,6 +2328,7 @@ if ((0 == primerlen) || (ibeg <= rpos && rpos < iend)) {
                                         go150,
                                         bm150s[s],
                                         baq_offsetarr,
+                                        MIN(rpos - prev_indel_rpos, next_indel_rpos - rpos), // 10000,
                                         0);
                             }
                         }
@@ -3444,7 +3476,11 @@ BcfFormat_symbol_calc_DPv(
             MAX(1, f.aRBL[a]) / (double)MAX(1, f.aBQ2[a]), MAX(1, f.ARBL[0]) / (double)MAX(1, f.ABQ2[0]), ((is_in_indel_read) ? 0.10 : 0.5));
     double aLBFA = aLBFAx2[0];
     double aRBFA = aRBFAx2[0];
-    
+    fmt.note += std::string("symbol/") + SYMBOL_TO_DESC_ARR[symbol] + "/";
+    fmt.note += std::string("aLBFAdetail//") + other_join(std::vector<double> {{ 
+            f.aRB1[a], aDP, f.ARB2[0] + f.aRB1[a] - f.aRB2[a], ADP, 3.0, log(aPprior),
+            MAX(1, f.aRBL[a]) / (double)MAX(1, f.aBQ2[a]), MAX(1, f.ARBL[0]) / (double)MAX(1, f.ABQ2[0]), ((is_in_indel_read) ? 0.10 : 0.5) }} , "/") + "//";
+
     std::array<double, 2> _aLIFAx2 = {{ 0, 0 }};
     {
         double ALpd = (f.ALI2[0] +                 0.5) / (f.ADPfr[0] + f.ADPrr[0] - f.ALI2[0] + 0.5);
@@ -3503,6 +3539,9 @@ BcfFormat_symbol_calc_DPv(
             fmt.note += std::string("rtr-tracklen/") + std::to_string(rtr1.tracklen) + "/" + std::to_string(rtr2.tracklen) + "/";
         }
         aLIFA = aRIFA = 2.0;
+    } else if (LINK_M == symbol || LINK_NN == symbol) {
+        aLBFA *= MAX(1, fmt.ALB1[0]) / (double)MAX(ADP, 1); // MAX(fmt.ABQ2[0], 1) / (double)MAX(ADP, 1);
+        aRBFA *= MAX(1, fmt.ARB1[0]) / (double)MAX(ADP, 1); // MAX(fmt.ABQ2[0], 1) / (double)MAX(ADP, 1);
     } else if (fmt.aXM2[a] / MAX(1, aDP) >= 75 && !is_amplicon) {
         // // due to the lack of mismatches, this variant is less likely to be artifactual.
         // aLIFA = aRIFA = 1.5;
@@ -3901,7 +3940,7 @@ BcfFormat_symbol_calc_qual(
         const auto indel_penal4multialleles1 = (int)round(11.0/log(2.0) * log((double)(indelcdepth + 1e-3) / (double)(fmt.cDP0a[a] + 1e-3)));
         const auto indel_penal4multialleles2 = (int)round( 8.0/log(2.0) * log((double)(nearInDelDP + 1e-3) / (double)(aDP + 1e-3)));
         
-        indel_penal4multialleles_g = (int)round( 8.0/log(2.0) * log((double)(ins_cdepth + del_cdepth + 1e-3) / (double)(fmt.cDP0a[a] + 1e-3)));
+        indel_penal4multialleles_g = (int)round(2 * 8.0/log(2.0) * log((double)(ins_cdepth + del_cdepth + 1e-3) / (double)(fmt.cDP0a[a] + 1e-3)));
         if (isSymbolIns(symbol)) {
             indel_penal4multialleles = (indel_penal4multialleles1 * 16 / (int)(16 + indelstring.size())); 
             // - (int)round(10.0/log(10.0)*log(1.0+INS_N_ANCHOR_BASES));
@@ -3950,13 +3989,15 @@ BcfFormat_symbol_calc_qual(
     const int PENAL4LOWDEP = 37;
     const int aDPpc = ((refsymbol == symbol) ? 1 : 0);
     int penal4BQerr = (isSymbolSubstitution(symbol) ? (5 + (int)(PENAL4LOWDEP / (int)mathsquare((int64_t)MAX(1, aDP + aDPpc)))) : 0);
+    // int penal4BQerr = (isSymbolSubstitution(symbol) ? (5 + (int)(PENAL4LOWDEP / (int)mathsquare((int64_t)MAX(1, aDP + aDPpc)))) : 
+    //        (int)(PENAL4LOWDEP / (int)mathsquare((int64_t)MAX(1, MAX(indelstring.size(), 1) * (aDP + aDPpc)))));
     int indel_q_inc = (isSymbolSubstitution(symbol) ? 0 : 9);
     clear_push(fmt.gVQ1, MAX(0, indel_q_inc + MIN3(syserr_q,
             (int)LAST(fmt.bIAQ) - penal4BQerr, 
             //+ uneven_samepos_q_inc - uneven_diffpos_q_dec - (int)(6 / MAX(1, aDP)),
             (int)LAST(fmt.cPLQ1)) - 2 * MAX3(0, 
                 (int)indel_penal4multialleles - (int)11, 
-                (int)indel_penal4multialleles_g - (int)11
+                (int)indel_penal4multialleles_g - (int)(11*2)
                 )), a);
     clear_push(fmt.cVQ1, MAX(0, MIN3(syserr_q,
             (int)LAST(fmt.bIAQ) - penal4BQerr, // fmt.aPF1[a], Does this correspond to in-silico mixing artifact ???
@@ -4173,16 +4214,25 @@ output_germline(
     std::sort(symbol_format_vec.rbegin(), symbol_format_vec.rend(), SymbolBcfFormatPairLess);
     std::array<std::pair<AlignmentSymbol, bcfrec::BcfFormat*>, 4> ref_alt1_alt2_alt3 = {{std::make_pair(END_ALIGNMENT_SYMBOLS, (bcfrec::BcfFormat*)NULL)}};
     unsigned int allele_idx = 1;
+    int ref_alodq = INT_MIN;
     for (auto symb_fmt : symbol_format_vec) {
-        if (refsymbol == symb_fmt.first) {
+        const bool isref = (refsymbol == symb_fmt.first || BASE_NN == symb_fmt.first || LINK_NN == symb_fmt.first); 
+        if (isref && ALODQ(symb_fmt.second) > ref_alodq) {
             ref_alt1_alt2_alt3[0] = symb_fmt;
-        } else if (allele_idx <= 3) {
+            ref_alodq = ALODQ(symb_fmt.second);
+        }
+        if ((!isref) && allele_idx <= 3) {
             ref_alt1_alt2_alt3[allele_idx] = symb_fmt;
             allele_idx++;
         }
     }
     assert(ref_alt1_alt2_alt3[0].second != NULL);
-    assert(ref_alt1_alt2_alt3[3].second != NULL);
+    assert(ref_alt1_alt2_alt3[3].second != NULL || !fprintf(stderr, "%d %d %d %d is invalid!\n", 
+        ref_alt1_alt2_alt3[0].first, 
+        ref_alt1_alt2_alt3[1].first,
+        ref_alt1_alt2_alt3[2].first, 
+        ref_alt1_alt2_alt3[3].first
+        ));
     
     //int a0LODQA = ref_alt1_alt2_alt3[0].second->ALODQ;
     // int a0LODQB = ref_alt1_alt2_alt3[0].second->BLODQ;

@@ -960,18 +960,22 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                         auto symbol = (AlignmentSymbol)(LAST(fmt.VTI)); // std::get<1>(fmtinfo);
                         note1 += std::string("/symb/") + std::to_string(symbol) + 
                                 std::string("/gVQ1/CONTQ/") + std::to_string(LAST(fmt.gVQ1)) + "/" + std::to_string(LAST(fmt.CONTQ))  + "//";
-                        if (symbol != BASE_NN && symbol != LINK_NN) {
+                        if (symbol != BASE_NN) { // && symbol != LINK_NN
                             symbol_format_vec.push_back(std::make_pair(symbol, &fmt));
                         }
                     }
+                    clear_push(init_fmt.VTI, (unsigned int)END_ALIGNMENT_SYMBOLS); 
                     clear_push(init_fmt.gVQ1, 0); // can be a very negative number to force out all homref alleles
                     clear_push(init_fmt.CONTQ, 0);
                     clear_push(init_fmt.cDP1f, 0);
                     clear_push(init_fmt.cDP1r, 0);
                     clear_push(init_fmt.cDP0a, 0);
                     clear_push(init_fmt.cDP1v, 50);
-                    while (symbol_format_vec.size() < 4) {
-                        symbol_format_vec.push_back(std::make_pair(SYMBOL_TYPE_TO_NO_VAR_SYMBOL[symbolType], &init_fmt));
+                    while (symbol_format_vec.size() <= 4) {
+                        symbol_format_vec.push_back(std::make_pair(
+                            // SYMBOL_TYPE_TO_NO_VAR_SYMBOL[symbolType], 
+                            END_ALIGNMENT_SYMBOLS,
+                            &init_fmt));
                     }
                     const size_t string_pass_old_size = buf_out_string_pass.size();
                     auto nlodq_fmtptr1_fmtptr2_tup = output_germline(
