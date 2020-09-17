@@ -314,14 +314,26 @@ string_join(auto container, std::string sep = std::string(",")) {
 }
 
 std::string 
-other_join(auto container, std::string sep = std::string(",")) {
+other_join(const auto container, std::string sep = std::string(",")) {
     std::string ret = "";
-    for (auto e : container) {
+    for (const auto & e : container) {
         ret += std::to_string(e) + sep;
     }
     if (ret.size() > 0) { ret.pop_back(); }
     return ret;
 }
+
+template <class T>
+std::string 
+other_join2(const std::vector<T> container, std::string sep = std::string(",")) {
+    std::string ret = "";
+    for (const auto & e : container) {
+        ret += std::to_string((T)(e)) + sep;
+    }
+    if (ret.size() > 0) { ret.pop_back(); }
+    return ret;
+}
+
 
 #define SQR_QUAL_DIV 32
 

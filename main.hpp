@@ -3477,8 +3477,8 @@ BcfFormat_symbol_calc_DPv(
     double aLBFA = aLBFAx2[0];
     double aRBFA = aRBFAx2[0];
     fmt.note += std::string("symbol/") + SYMBOL_TO_DESC_ARR[symbol] + "/";
-    fmt.note += std::string("aLBFAdetail//") + other_join(std::vector<double> {{ 
-            f.aRB1[a], aDP, f.ARB2[0] + f.aRB1[a] - f.aRB2[a], ADP, 3.0, log(aPprior),
+    fmt.note += std::string("aLBFAdetail//") + other_join2(std::vector<double> {{ 
+            (double)f.aRB1[a], (double)aDP, (double)(f.ARB2[0] + f.aRB1[a] - f.aRB2[a]), (double)ADP, 3.0, log(aPprior),
             MAX(1, f.aRBL[a]) / (double)MAX(1, f.aBQ2[a]), MAX(1, f.ARBL[0]) / (double)MAX(1, f.ABQ2[0]), ((is_in_indel_read) ? 0.10 : 0.5) }} , "/") + "//";
 
     std::array<double, 2> _aLIFAx2 = {{ 0, 0 }};
