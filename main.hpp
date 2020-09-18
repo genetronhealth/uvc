@@ -832,7 +832,7 @@ indel_phred(double ampfact, unsigned int cigar_oplen, unsigned int repeatsize_at
     unsigned int region_size = repeatsize_at_max_repeatnum * max_repeatnum;
     double num_slips = (region_size > 64 ? (double)(region_size - 8) : log1p(exp((double)region_size - (double)8))) 
             * ampfact / ((double)(repeatsize_at_max_repeatnum * repeatsize_at_max_repeatnum)); //  / indel_n_units;
-    return prob2phred((1.0 - DBL_EPSILON) / (num_slips + 1.0));
+    return prob2phred((1.0 - DBL_EPSILON) / (num_slips + 1.0)) + ((1 == cigar_oplen) ? 1 : 0);
     // AC AC AC : repeatsize_at_max_repeatnum = 2, indel_n_units = 3
 }
 
@@ -862,7 +862,7 @@ refstring2repeatvec(
         }
         assert(repeat_endpos > refpos);
         unsigned int tl = MIN(repeat_endpos, refstring.size()) - refpos;
-        const unsigned int decphred = indel_phred(8.0*8.0, repeatsize_at_max_repeatnum, repeatsize_at_max_repeatnum, tl / repeatsize_at_max_repeatnum);
+        const unsigned int decphred = indel_phred(8.0*(4.0+1.0)*log(1.0+tl/2.0)+1.0, repeatsize_at_max_repeatnum, repeatsize_at_max_repeatnum, tl / repeatsize_at_max_repeatnum);
         for (unsigned int i = refpos; i != MIN(repeat_endpos, refstring.size()); i++) {
             if (tl > region_repeatvec[i].tracklen) {
                 region_repeatvec[i].begpos = refpos;
@@ -871,7 +871,7 @@ refstring2repeatvec(
                 region_repeatvec[i].indelphred = 30+18 - MIN(30+18-1, decphred);
             }
         }
-        refpos += repeatsize_at_max_repeatnum * max_repeatnum;
+        refpos += MAX(repeatsize_at_max_repeatnum * max_repeatnum, 6+1) - 6;
     }
     return region_repeatvec;
 }
@@ -1077,22 +1077,22 @@ update_seg_format_prep_sets_by_aln(
             }
         } else if (cigar_op == BAM_CINS) {
             // unsigned int rtotlen = 0;
-            for (int rpos2 = MAX((int)rpos - (int)cigar_oplen - 1, aln->core.pos); rpos2 < rpos; rpos2++) {
+            for (int rpos2 = MAX((int)rpos - (int)cigar_oplen - 1 - 1, aln->core.pos); rpos2 < rpos; rpos2++) {
                 seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_NEAR_INS_DP] += 1;
             }           
-            for (int rpos2 = (int)rpos; rpos2 < MIN(rpos + cigar_oplen + 1, rend); rpos2++) {
+            for (int rpos2 = (int)rpos; rpos2 < MIN(rpos + cigar_oplen + 1 + 1, rend); rpos2++) {
                 seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_NEAR_INS_DP] += 1;
             }
             
             const auto & rtr1 = rtr_vec[MAX(1, rpos - region_offset) - 1];
             const auto & rtr2 = rtr_vec[MIN(rtr_vec.size() - 1, rpos - region_offset + 1)];
-            for (int rpos2 = MAX((int)rpos - (int)rtr1.tracklen - 1, aln->core.pos); rpos2 < rpos; rpos2++) {
+            for (int rpos2 = MAX((int)rpos - (int)rtr1.tracklen - 1 - 1, aln->core.pos); rpos2 < rpos; rpos2++) {
                 seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_NEAR_RTR_INS_DP] += 1;
                 //rtotlen++;
                 //seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_INS_R] += rtotlen;
             }           
             // unsigned int ltotlen = cigar_oplen;
-            for (int rpos2 = (int)rpos; rpos2 < MIN(rpos + rtr2.tracklen + 1, rend); rpos2++) {
+            for (int rpos2 = (int)rpos; rpos2 < MIN(rpos + rtr2.tracklen + 1 + 1, rend); rpos2++) {
                 seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_NEAR_RTR_INS_DP] += 1;
                 //seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_INS_L] += ltotlen;
                 //ltotlen--;
@@ -1586,19 +1586,19 @@ dealwith_segbias(
         }
         if (seg_l_baq >= 23 && seg_r_baq >= 23) {
             // if (seg_l_baq >= seg_format_thres_set[SEG_aLB1t]) {
-            if (seg_l_baq >= 45) {
+            if (seg_l_baq >= 45-10) {
                 symbol_to_seg_format_depth_set[SEG_aLB1] += 1;
             }
             //if (seg_l_baq >= seg_format_thres_set[SEG_aLB2t]) {
-            if (seg_l_baq >= 60) {
+            if (seg_l_baq >= 60-10) {
                 symbol_to_seg_format_depth_set[SEG_aLB2] += 1;
             }
             // if (seg_r_baq >= seg_format_thres_set[SEG_aRB1t]) {
-            if (seg_r_baq >= 45) {
+            if (seg_r_baq >= 45-10) {
                 symbol_to_seg_format_depth_set[SEG_aRB1] += 1;
             }
             // if (seg_r_baq >= seg_format_thres_set[SEG_aRB2t]) {
-            if (seg_r_baq >= 60) {
+            if (seg_r_baq >= 60-10) {
                 symbol_to_seg_format_depth_set[SEG_aRB2] += 1;
             }
             symbol_to_seg_format_depth_set[SEG_aLBL] += seg_l_baq;
@@ -3525,9 +3525,9 @@ BcfFormat_symbol_calc_DPv(
     
     if (isSymbolIns(symbol) || isSymbolDel(symbol)) {
         const auto & indelstring = LAST(fmt.gapSa);
-        const bool is_in_indel_major_reg = (MAX(f.APDP[1],  f.APDP[2]) * (0.5+1e-7) < aDP);
-        if (indelstring.size() > 8 || 
-                (MAX(rtr1.tracklen, rtr2.tracklen) > 16
+        const bool is_in_indel_major_reg = (MAX4(f.APDP[1],  f.APDP[2], f.APDP[3],  f.APDP[4]) * (0.5+1e-7) < aDP);
+        if ((indelstring.size() * aDPFA >= 2) || 
+                (MAX(rtr1.tracklen, rtr2.tracklen) >= 16
                 && is_in_indel_major_reg)) {
             aLPFA = 2.0;
             aRPFA = 2.0;
@@ -3852,6 +3852,12 @@ BcfFormat_symbol_calc_qual(
     
     const unsigned int a = 0;
     const auto symbol = AlignmentSymbol(LAST(fmt.VTI));
+    
+    const unsigned int aDP = (fmt.aDPff[a] + fmt.aDPfr[a] + fmt.aDPrf[a] + fmt.aDPrr[a]);
+    const unsigned int ADP = (fmt.ADPff[0] + fmt.ADPrf[0] + fmt.ADPfr[0] + fmt.ADPrr[0]);
+    const unsigned int bDP = (fmt.bDPf[a] + fmt.bDPr[a]);
+    const unsigned int BDP = (fmt.BDPf[0] + fmt.BDPr[0]);
+    
     double prior_weight;
     prior_weight = 1.0 / (fmt.cDPmf[a] + 1.0);
     double cMmQf = 10/log(10) * log((fmt.cDPMf[a] + fmt.cDPmf[a] + pow(10, 25/10.0) * prior_weight) 
@@ -3863,7 +3869,9 @@ BcfFormat_symbol_calc_qual(
     int cMmQ = sqrt((mathsquare(cMmQf) * fmt.cDP3f[a] + mathsquare(cMmQr) * fmt.cDP3r[a]) / (fmt.cDP3f[a] + fmt.cDP3r[a]));
     
     const int bIADnormcnt = (fmt.bIADb[a] * 100 + 1);
-    int duped_frag_binom_qual = fmt.bIAQb[a] * MIN(bIADnormcnt, fmt.cDP1v[a] + 1) / bIADnormcnt;
+    const unsigned int bIAQinc = ((isSymbolIns(symbol) || isSymbolDel(symbol)) ? 
+            (unsigned int)(10/log(10)*log(MIN(5, (double)(BDP + 0.5) / (double)(BDP - var_bdepth + 0.5)))): 0);
+    int duped_frag_binom_qual = (fmt.bIAQb[a] + bIAQinc) * MIN(bIADnormcnt, fmt.cDP1v[a] + 1) / bIADnormcnt;
     if (fmt.cDP1v[a] > bIADnormcnt) {
         duped_frag_binom_qual += (int)(10/log(10) * log((double)fmt.cDP1v[a] / (double)bIADnormcnt) * fmt.bIADb[a]);
     }
@@ -3909,10 +3917,6 @@ BcfFormat_symbol_calc_qual(
     int indel_penal4multialleles = 0;
     int indel_penal4multialleles_g = 0;
     const std::string & indelstring = fmt.gapSa[a];
-    const unsigned int aDP = (fmt.aDPff[a] + fmt.aDPfr[a] + fmt.aDPrf[a] + fmt.aDPrr[a]);
-    const unsigned int ADP = (fmt.ADPff[0] + fmt.ADPrf[0] + fmt.ADPfr[0] + fmt.ADPrr[0]);
-    const unsigned int bDP = (fmt.bDPf[a] + fmt.bDPr[a]);
-    const unsigned int BDP = (fmt.BDPf[0] + fmt.BDPr[0]);
     
     if (indelstring.size() > 0 && fmt.cDP0a[a] > 0) {
         // const AlignmentSymbol symbol = AlignmentSymbol(LAST(fmt.VTI));

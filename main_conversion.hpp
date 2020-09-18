@@ -880,7 +880,5 @@ infer_max_qual_assuming_independence(
     }
 }
 
-
-
 #endif
 
