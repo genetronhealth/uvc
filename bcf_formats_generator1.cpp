@@ -139,7 +139,7 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     //BcfFormatStruct("ORAQs"    , 2, BCF_FLOAT,   "Qualities of OType and reference allele type"),
         
     BcfFormatStruct("__Aa"  , 1,         BCF_SEP,     "Preparation statistics for segment biases at this position."),
-    BcfFormatStruct("APDP"  , 6,         BCF_INTEGER, "Total segment depth, segment depths within the indel length of insertion/deletion, segment depths within the tandem-repeat track length of insertion/deletion, and segment depth of high quality."),
+    BcfFormatStruct("APDP"  , 6+2,       BCF_INTEGER, "Total segment depth, segment depths within the indel length of insertion/deletion, segment depths within the tandem-repeat track length of insertion/deletion, and segment depth of high quality."),
     //BcfFormatStruct("APGap" , 4,         BCF_INTEGER, "Estimated average numbers of insertion to the left and right sides (LRS) and of deletion to the LRS."),
     BcfFormatStruct("APXM"  , 2,         BCF_INTEGER, "Total number of mismatches and total number of gap openings."),
     BcfFormatStruct("APLRI" , 4,         BCF_INTEGER, "Summed distance to left insert end and the number of such inserts, and similarly for right insert end."),

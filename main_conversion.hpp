@@ -446,6 +446,8 @@ enum SegFormatPrepSet {
     SEG_a_INSBAQ_SUM,
     SEG_a_DELBAQ_SUM,
     
+    SEG_a_NEAR_INS_LEN,
+    SEG_a_NEAR_DEL_LEN,
     SEG_a_AT_INS_DP,
     SEG_a_AT_DEL_DP,
     SEG_a_NEAR_INS_DP,
@@ -479,6 +481,8 @@ enum SegFormatPrepSet {
 enum SegFormatThresSet {
     // SEG_aEP1t, // edge position, closer means more bias
     // SEG_aEP2t, 
+    SEG_xLRPT,
+
     SEG_aXM1T, // mismatch, higher means more bias
     SEG_aXM2T, 
     SEG_aGO1T, // gap-open, higher means more bias
