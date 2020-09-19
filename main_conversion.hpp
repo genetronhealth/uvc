@@ -481,7 +481,8 @@ enum SegFormatPrepSet {
 enum SegFormatThresSet {
     // SEG_aEP1t, // edge position, closer means more bias
     // SEG_aEP2t, 
-    SEG_xLRPT,
+    SEG_aLPxT,
+    SEG_aRPxT,
 
     SEG_aXM1T, // mismatch, higher means more bias
     SEG_aXM2T, 

@@ -832,7 +832,7 @@ indel_phred(double ampfact, unsigned int cigar_oplen, unsigned int repeatsize_at
     unsigned int region_size = repeatsize_at_max_repeatnum * max_repeatnum;
     double num_slips = (region_size > 64 ? (double)(region_size - 8) : log1p(exp((double)region_size - (double)8))) 
             * ampfact / ((double)(repeatsize_at_max_repeatnum * repeatsize_at_max_repeatnum)); //  / indel_n_units;
-    return prob2phred((1.0 - DBL_EPSILON) / (num_slips + 1.0)) + ((1 == cigar_oplen) ? 2 : 0);
+    return prob2phred((1.0 - DBL_EPSILON) / (num_slips + 1.0)) + ((1 == cigar_oplen) ? 3 : 0);
     // AC AC AC : repeatsize_at_max_repeatnum = 2, indel_n_units = 3
 }
 
@@ -1079,7 +1079,7 @@ update_seg_format_prep_sets_by_aln(
             // unsigned int rtotlen = 0;
             for (int rpos2 = MAX((int)rpos - (int)cigar_oplen - 1 - 1, aln->core.pos); rpos2 < MIN(rpos + cigar_oplen + 1 + 1, rend); rpos2++) {
                 seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_NEAR_INS_DP] += 1;
-                seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_NEAR_INS_LEN] += cigar_oplen;
+                seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_NEAR_INS_LEN] += mathsquare(cigar_oplen);
             }
             
             const auto & rtr1 = rtr_vec[MAX(1, rpos - region_offset) - 1];
@@ -1135,7 +1135,7 @@ update_seg_format_prep_sets_by_aln(
             //unsigned int rtotlen = 0;
             for (int rpos2 = MAX((int)rpos - (int)cigar_oplen - 1, aln->core.pos); rpos2 < MIN(rpos + cigar_oplen + 1, rend); rpos2++) {
                 seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_NEAR_DEL_DP] += 1;
-                seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_NEAR_DEL_LEN] += cigar_oplen;
+                seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_NEAR_DEL_LEN] += mathsquare(cigar_oplen);
             }
             const auto & rtr1 = rtr_vec[MAX(1, rpos - region_offset) - 1];
             const auto & rtr2 = rtr_vec[MIN(rtr_vec.size() - 1, rpos - region_offset + 1)];
@@ -1333,8 +1333,11 @@ update_seg_format_thres_from_prep_sets(
         auto segRIDP = MAX(seg_format_prep_sets.getByPos(epos)[SEG_a_RIDP], 1);
         //seg_format_thres_sets.getRefByPos(epos)[SEG_aEP1t] = MAX(indel_len_per_DP * 2, potential_indel_len) + 16; // easier to pass
         //seg_format_thres_sets.getRefByPos(epos)[SEG_aEP2t] = MAX(indel_len_per_DP * 2, potential_indel_len) + 22; // harder to pass, the lower the strong the bias
-        t[SEG_xLRPT] = (p[SEG_a_NEAR_INS_LEN] * 8UL + 1) / (p[SEG_a_NEAR_INS_DP] * 8UL + 1) + 5;
-        
+        const auto ins_border_len = (unsigned int)ceil(sqrt((p[SEG_a_NEAR_INS_LEN]) / MAX(p[SEG_a_NEAR_INS_DP], 1)));
+        const auto del_border_len = (unsigned int)ceil(sqrt((p[SEG_a_NEAR_DEL_LEN]) / MAX(p[SEG_a_NEAR_DEL_DP], 1)));
+        t[SEG_aLPxT] =    (ins_border_len)                 * 5/4 + 5;
+        t[SEG_aRPxT] = MAX(ins_border_len, del_border_len) * 5/4 + 5;
+
         t[SEG_aXM1T] = (p[SEG_a_XM] * 5 / (seg_a_dp*10) + (30+5)); // easier to pass
         t[SEG_aXM2T] = (p[SEG_a_XM] * 7 / (seg_a_dp*10) + (15+5)); // the higher the stronger the bias
         t[SEG_aGO1T] = (p[SEG_a_GO] * 9 / (seg_a_dp*10) + (20+5)); // easier to pass
@@ -1490,7 +1493,8 @@ dealwith_segbias(
     const unsigned int const_GO1T = seg_format_thres_set[SEG_aGO1T]; // 25
     const unsigned int const_GO2T = seg_format_thres_set[SEG_aGO2T]; // 20
     
-    const unsigned int const_EDPC = seg_format_thres_set[SEG_xLRPT]; 
+    const unsigned int const_LPxT = seg_format_thres_set[SEG_aLPxT]; 
+    const unsigned int const_RPxT = seg_format_thres_set[SEG_aRPxT]; 
     // (seg_format_thres_set[SEG_a_NEAR_INS_LEN] + 1) / (seg_format_thres_set[SEG_a_NEAR_INS_DP] + 1);
     if (isGap) {
         // auto inteference_perc_signal = (dist_to_interfering_indel < 100 ? (100 * (dist_to_interfering_indel + 8) / (dist_to_interfering_indel + 24)) : 100);
@@ -1568,7 +1572,7 @@ dealwith_segbias(
         const bool is_l2_unbiased = (seg_l_nbases >= seg_format_thres_set[SEG_aLP2t]);
         const bool is_r1_unbiased = (seg_r_nbases >= seg_format_thres_set[SEG_aRP1t]);
         const bool is_r2_unbiased = (seg_r_nbases >= seg_format_thres_set[SEG_aRP2t]);
-        if ((seg_l_nbases >= const_EDPC) && (seg_r_nbases >= const_EDPC)) {
+        if ((seg_l_nbases >= const_LPxT) && (seg_r_nbases >= const_RPxT)) {
             if (is_l1_unbiased) {
                 symbol_to_seg_format_depth_set[SEG_aLP1] += 1;
             }
@@ -3972,7 +3976,9 @@ BcfFormat_symbol_calc_qual(
         const auto indel_penal4multialleles1 = (int)round(11.0/log(2.0) * log((double)(indelcdepth + 1e-3) / (double)(fmt.cDP0a[a] + 1e-3)));
         const auto indel_penal4multialleles2 = (int)round( 8.0/log(2.0) * log((double)(nearInDelDP + 1e-3) / (double)(aDP + 1e-3)));
         
-        indel_penal4multialleles_g = (int)round(2 * 8.0/log(2.0) * log((double)(ins_cdepth + del_cdepth + 1e-3) / (double)(fmt.cDP0a[a] + 1e-3)));
+        indel_penal4multialleles_g = (int)round(2 * 8.0/log(2.0) * log((double)(ins_cdepth + del_cdepth + 1e-3) / (double)(fmt.cDP0a[a] + 1e-3))) - 22;
+        // indel_penal4multialleles_g = (int)round(mathsquare(3.0 * MAX(0, (double)(ins_cdepth + del_cdepth + 1e-3) / (double)(fmt.cDP0a[a] + 1e-3) - 2.5)));
+        
         if (isSymbolIns(symbol)) {
             indel_penal4multialleles = (indel_penal4multialleles1 * 16 / (int)(16 + indelstring.size())); 
             // - (int)round(10.0/log(10.0)*log(1.0+INS_N_ANCHOR_BASES));
@@ -4029,7 +4035,7 @@ BcfFormat_symbol_calc_qual(
             //+ uneven_samepos_q_inc - uneven_diffpos_q_dec - (int)(6 / MAX(1, aDP)),
             (int)LAST(fmt.cPLQ1)) - 2 * MAX3(0, 
                 (int)indel_penal4multialleles - (int)11, 
-                (int)indel_penal4multialleles_g - (int)(11*2)
+                (int)indel_penal4multialleles_g // - (int)(11*2)
                 )), a);
     clear_push(fmt.cVQ1, MAX(0, MIN3(syserr_q,
             (int)LAST(fmt.bIAQ) - penal4BQerr, // fmt.aPF1[a], Does this correspond to in-silico mixing artifact ???
