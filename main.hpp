@@ -832,7 +832,7 @@ indel_phred(double ampfact, unsigned int cigar_oplen, unsigned int repeatsize_at
     unsigned int region_size = repeatsize_at_max_repeatnum * max_repeatnum;
     double num_slips = (region_size > 64 ? (double)(region_size - 8) : log1p(exp((double)region_size - (double)8))) 
             * ampfact / ((double)(repeatsize_at_max_repeatnum * repeatsize_at_max_repeatnum)); //  / indel_n_units;
-    return prob2phred((1.0 - DBL_EPSILON) / (num_slips + 1.0)) + ((1 == cigar_oplen) ? 3 : 0);
+    return prob2phred((1.0 - DBL_EPSILON) / (num_slips + 1.0)) + ((1 == cigar_oplen) ? 3 : 0) + ((1 == repeatsize_at_max_repeatnum) ? 1 : 0);
     // AC AC AC : repeatsize_at_max_repeatnum = 2, indel_n_units = 3
 }
 
@@ -862,7 +862,8 @@ refstring2repeatvec(
         }
         assert(repeat_endpos > refpos);
         unsigned int tl = MIN(repeat_endpos, refstring.size()) - refpos;
-        const unsigned int decphred = indel_phred(8.0*(4.0+1.0)*log(1.0+tl/2.0)+1.0, repeatsize_at_max_repeatnum, repeatsize_at_max_repeatnum, tl / repeatsize_at_max_repeatnum);
+        // log(1.0+tl/2.0);
+        const unsigned int decphred = indel_phred(8.0*(4.0+1.0), repeatsize_at_max_repeatnum, repeatsize_at_max_repeatnum, tl / repeatsize_at_max_repeatnum);
         for (unsigned int i = refpos; i != MIN(repeat_endpos, refstring.size()); i++) {
             if (tl > region_repeatvec[i].tracklen) {
                 region_repeatvec[i].begpos = refpos;
