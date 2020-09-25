@@ -740,8 +740,10 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                             symbolToCountCoverageSet12.symbol_to_frag_format_depth_sets[0].getByPos(refpos)[symbol][FRAG_bDP]
                           + symbolToCountCoverageSet12.symbol_to_frag_format_depth_sets[1].getByPos(refpos)[symbol][FRAG_bDP];
                     const auto cdepth = 
-                            symbolToCountCoverageSet12.symbol_to_fam_format_depth_sets_2strand[0].getByPos(refpos)[symbol][FAM_cDP0]
-                          + symbolToCountCoverageSet12.symbol_to_fam_format_depth_sets_2strand[1].getByPos(refpos)[symbol][FAM_cDP0];
+                            MAX(symbolToCountCoverageSet12.symbol_to_fam_format_depth_sets_2strand[0].getByPos(refpos)[symbol][FAM_cDP0],
+                                symbolToCountCoverageSet12.symbol_to_fam_format_depth_sets_2strand[0].getByPos(refpos)[symbol][FAM_cDP1])
+                          + MAX(symbolToCountCoverageSet12.symbol_to_fam_format_depth_sets_2strand[1].getByPos(refpos)[symbol][FAM_cDP0],
+                                symbolToCountCoverageSet12.symbol_to_fam_format_depth_sets_2strand[1].getByPos(refpos)[symbol][FAM_cDP1]);
                     if (refsymbol == symbol) {
                         var_bdepth = bDPcDP[0] - bdepth;
                         var_cdepth = bDPcDP[1] - cdepth;
@@ -1020,12 +1022,13 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                                     double bjpfrac = ((tAD) / (tDP)) / ((nAD) / (nDP));
                                     int binom_b10log10like = (int)calc_binom_10log10_likeratio((tDP - tAD) / (tDP), nDP - nAD, nAD);
                                     int powlaw_b10log10like = (int)(3 * 10 / log(10) * log(bjpfrac));
-                                    int triallele_inc = ((normsymbol != symbol) ? (isSymbolSubstitution(symbol) ? 25 : 6) : 0);
-                                    const auto new_nlodq_inc = BETWEEN(MIN(binom_b10log10like, powlaw_b10log10like) - 8, 0, 80) + triallele_inc;
+                                    int triallele_inc = ((normsymbol != symbol) ? (isSymbolSubstitution(symbol) ? 25 : (6+3)) : 0);
+                                    int triallele_thr = 8; // ((normsymbol != symbol) ? (8-3) : 8);
+                                    const auto new_nlodq_inc = BETWEEN(MIN(binom_b10log10like, powlaw_b10log10like) - triallele_thr, 0, 80) + triallele_inc;
                                     if (nlodq_inc > new_nlodq_inc) {
                                         nlodq_inc = new_nlodq_inc;
                                         fmt.note += std::string("/nlodqDeltaIs/") 
-                                        + other_join(std::array<double, 4> {{ tAD, tDP, nAD, nDP }}, "/") + "#" 
+                                        + other_join(std::array<double, 5> {{ tAD, tDP, nAD, nDP, nlodq_inc }}, "/") + "#" 
                                         + std::to_string(std::get<0>(nlodq_fmtptr1_fmtptr2_tup)) + "#"
                                         + SYMBOL_TO_DESC_ARR[FIRST(std::get<1>(nlodq_fmtptr1_fmtptr2_tup)->VTI)] + "//"
                                         + SYMBOL_TO_DESC_ARR[LAST(std::get<1>(nlodq_fmtptr1_fmtptr2_tup)->VTI)] + "//"

@@ -832,7 +832,7 @@ indel_phred(double ampfact, unsigned int cigar_oplen, unsigned int repeatsize_at
     unsigned int region_size = repeatsize_at_max_repeatnum * max_repeatnum;
     double num_slips = (region_size > 64 ? (double)(region_size - 8) : log1p(exp((double)region_size - (double)8))) 
             * ampfact / ((double)(repeatsize_at_max_repeatnum * repeatsize_at_max_repeatnum)); //  / indel_n_units;
-    return prob2phred((1.0 - DBL_EPSILON) / (num_slips + 1.0)) + ((1 == cigar_oplen) ? 3 : 0) + ((1 == repeatsize_at_max_repeatnum) ? 1 : 0);
+    return prob2phred((1.0 - DBL_EPSILON) / (num_slips + 1.0)); // + ((1 == cigar_oplen) ? 3 : 0) + ((1 == repeatsize_at_max_repeatnum) ? 1 : 0);
     // AC AC AC : repeatsize_at_max_repeatnum = 2, indel_n_units = 3
 }
 
@@ -1341,8 +1341,8 @@ update_seg_format_thres_from_prep_sets(
 
         t[SEG_aXM1T] = (p[SEG_a_XM] * 5 / (seg_a_dp*10) + (30+5)); // easier to pass
         t[SEG_aXM2T] = (p[SEG_a_XM] * 7 / (seg_a_dp*10) + (15+5)); // the higher the stronger the bias
-        t[SEG_aGO1T] = (p[SEG_a_GO] * 9 / (seg_a_dp*10) + (20+5)); // easier to pass
-        t[SEG_aGO2T] = (p[SEG_a_GO] *11 / (seg_a_dp*10) + (10+5)); // the higher the stronger the bias
+        t[SEG_aGO1T] = (p[SEG_a_GO] * 5 / (seg_a_dp*10) + (20+5)); // easier to pass
+        t[SEG_aGO2T] = (p[SEG_a_GO] * 7 / (seg_a_dp*10) + (10+5)); // the higher the stronger the bias
         
         t[SEG_aLI1T] = (unsigned int)((uint64_t)p[SEG_a_LI] * 250/100 / segLIDP);
         t[SEG_aLI2T] = (unsigned int)((uint64_t)p[SEG_a_LI] * 200/100 / segLIDP); // higher > stronger bias
@@ -3471,16 +3471,17 @@ BcfFormat_symbol_calc_DPv(
     double aDPFA = (aDP + pfa) / (double)(ADP + 1.0);
     
     // double aBQFA = (fmt.aBQ1[a] + pfa) / (fmt.ABQ2[0] + (fmt.aBQ1[a] - fmt.aBQ2[a]) + 1.0);
-   
+    
     const auto & f = fmt;
     const auto symbol = AlignmentSymbol(LAST(f.VTI));
     
     // substitution in indel region, substitution in indel-prone region or indel, other cases 
-    double dp_coef = (symbol == LINK_M ?  MAX(0.02, 1.0 - MAX(rtr1.tracklen, rtr2.tracklen) / (MAX3(1, f.ALPL[0], f.ARPL[0]) / MAX(1.0/150.0, f.ABQ2[0]))) : 1.0);
-    double _aPprior = 1024*9/2; // 1 / probability that there is one indel at a pos
-    const bool is_in_indel_read = (   (f.APXM[1]) / 15.0 * 2  * (1.25+1e-7) > aDP * dp_coef);
-    const bool is_in_indel_len  = (MAX(f.APDP[1],  f.APDP[2]) * (1.25+1e-7) > aDP * dp_coef);
-    const bool is_in_indel_rtr  = (MAX(f.APDP[3],  f.APDP[4]) * (1.25+1e-7) > aDP * dp_coef);
+    unsigned int aDPplus = (isSymbolSubstitution(symbol) ? 0 : ((aDP + 1) / 2));
+    double dp_coef = ((symbol == LINK_M) ?  MAX(0.02, 1.0 - MAX(rtr1.tracklen, rtr2.tracklen) / (MAX3(1, f.ALPL[0], f.ARPL[0]) / MAX(1.0/150.0, f.ABQ2[0]))) : 1.0);
+    double _aPprior = 1024*9/2 / (is_rescued ? phred2prob(8) : 1); // 1 / probability that there is one indel at a pos
+    const bool is_in_indel_read = (   (f.APXM[1]) / 15.0 * 2  * (1.25+1e-7) > (aDP + aDPplus) * dp_coef);
+    const bool is_in_indel_len  = (MAX(f.APDP[1],  f.APDP[2]) * (1.25+1e-7) > (aDP + aDPplus) * dp_coef);
+    const bool is_in_indel_rtr  = (MAX(f.APDP[3],  f.APDP[4]) * (1.25+1e-7) > (aDP + aDPplus) * dp_coef);
     const bool is_in_rtr = (MAX(rtr1.tracklen, rtr2.tracklen) > 8);
     if (is_in_indel_read)      { _aPprior /= (64+32); }
     if (is_in_indel_len)       { _aPprior /= 24; }
@@ -3731,7 +3732,7 @@ BcfFormat_symbol_calc_DPv(
             cFA0 }});
     clear_push(fmt.cDP1x, 1+(int)(
             // MIN(
-            min_abcFA_x * (fmt.CDP0f[0] +fmt.CDP0r[0]) // , 
+            min_abcFA_x * (fmt.CDP0f[0] +fmt.CDP0r[0]) * 100 // , 
             // fmt.cDP1f[a] +fmt.cDP1r[a]) * 100
             ), a);
     
@@ -3891,6 +3892,9 @@ BcfFormat_symbol_calc_qual(
     const unsigned int bDP = (fmt.bDPf[a] + fmt.bDPr[a]);
     const unsigned int BDP = (fmt.BDPf[0] + fmt.BDPr[0]);
     
+    // const unsigned int lbaq = MAX(1, fmt.aLBL[a]) / (double)MAX(1, fmt.aBQ2[a]);
+    // const unsigned int rbaq = MAX(1, fmt.aRBL[a]) / (double)MAX(1, fmt.aBQ2[a]);
+    
     double prior_weight;
     prior_weight = 1.0 / (fmt.cDPmf[a] + 1.0);
     double cMmQf = 10/log(10) * log((fmt.cDPMf[a] + fmt.cDPmf[a] + pow(10, 25/10.0) * prior_weight) 
@@ -3949,6 +3953,7 @@ BcfFormat_symbol_calc_qual(
     
     int indel_penal4multialleles = 0;
     int indel_penal4multialleles_g = 0;
+    int indel_penal4multialleles_soma = 0;
     const std::string & indelstring = fmt.gapSa[a];
     
     if (indelstring.size() > 0 && fmt.cDP0a[a] > 0) {
@@ -3982,9 +3987,11 @@ BcfFormat_symbol_calc_qual(
         
         if (isSymbolIns(symbol)) {
             indel_penal4multialleles = (indel_penal4multialleles1 * 16 / (int)(16 + indelstring.size())); 
+            indel_penal4multialleles_soma = (indel_penal4multialleles1 * 16 / (int)(16 + indelstring.size()));
             // - (int)round(10.0/log(10.0)*log(1.0+INS_N_ANCHOR_BASES));
         } else {
             indel_penal4multialleles = MAX(indel_penal4multialleles1, indel_penal4multialleles2);
+            indel_penal4multialleles_soma = indel_penal4multialleles1;
         }
         fmt.note += std::string("/indelpq/") + std::to_string(indel_pq) + "/" + indelstring + "/" + repeatunit + "/" + std::to_string(repeatnum) 
                 + std::string("/indelic/") + std::to_string(indel_ic)
@@ -4018,6 +4025,7 @@ BcfFormat_symbol_calc_qual(
     const int syserr_q = MIN(
             (int)((fmt.bMQ[a]) + MIN(bMQinc, bDP * 3)),
             (isSymbolSubstitution(AlignmentSymbol(LAST(fmt.VTI))) ? (fmt.aBQQ[a]) : (1000*1000)) // ,
+            // lbaq, rbaq
             // ((int)(MIN3(100 * (int64_t)(fmt.bDPf[a] + fmt.bDPr[a]), fmt.aPF1[a], fmt.cDP1v[a] + 50)) * qual_per_effread / (100 * 10) + uneven_err_distr_qual)
             );
             // + LAST(fmt.aBQ)/2 - 20); // tiebreak with BQ
@@ -4030,7 +4038,11 @@ BcfFormat_symbol_calc_qual(
     int penal4BQerr = (isSymbolSubstitution(symbol) ? (5 + (int)(PENAL4LOWDEP / (int)mathsquare((int64_t)MAX(1, aDP + aDPpc)))) : 0);
     // int penal4BQerr = (isSymbolSubstitution(symbol) ? (5 + (int)(PENAL4LOWDEP / (int)mathsquare((int64_t)MAX(1, aDP + aDPpc)))) : 
     //        (int)(PENAL4LOWDEP / (int)mathsquare((int64_t)MAX(1, MAX(indelstring.size(), 1) * (aDP + aDPpc)))));
-    int indel_q_inc = (isSymbolSubstitution(symbol) ? 0 : 9);
+    int penal4IQerr = 0; // (isSymbolSubstitution(symbol) ? 0 : ((int)(PENAL4LOWDEP / MAX(1, aDP * indelstring.size()))));
+    int penal4IQerr2 = 0; // (((!isSymbolSubstitution(symbol)) && indelstring.size() == 1) ? 4 : 0);
+    
+    // int indel_q_inc = ((isSymbolSubstitution(symbol) || is_rescued) ? 0 : 9);
+    int indel_q_inc = ((isSymbolSubstitution(symbol) || is_rescued) ? 0 : indel_len_rusize_phred(indelstring.size(), repeatnum));
     clear_push(fmt.gVQ1, MAX(0, indel_q_inc + MIN3(syserr_q,
             (int)LAST(fmt.bIAQ) - penal4BQerr, 
             //+ uneven_samepos_q_inc - uneven_diffpos_q_dec - (int)(6 / MAX(1, aDP)),
@@ -4038,16 +4050,18 @@ BcfFormat_symbol_calc_qual(
                 (int)indel_penal4multialleles - (int)11, 
                 (int)indel_penal4multialleles_g // - (int)(11*2)
                 )), a);
-    clear_push(fmt.cVQ1, MAX(0, MIN3(syserr_q,
-            (int)LAST(fmt.bIAQ) - penal4BQerr, // fmt.aPF1[a], Does this correspond to in-silico mixing artifact ???
-            (int)LAST(fmt.cPLQ1)) - indel_penal4multialleles), a);
     
-    clear_push(fmt.cVQ2, MIN3(syserr_q, 
-            (int)LAST(fmt.cIAQ), 
+    clear_push(fmt.cVQ1, MAX(0, MIN3(syserr_q,
+            (int)LAST(fmt.bIAQ) - penal4BQerr - penal4IQerr, // fmt.aPF1[a], Does this correspond to in-silico mixing artifact ???
+            (int)LAST(fmt.cPLQ1)) - indel_penal4multialleles_soma) - penal4IQerr2, a);
+    
+    clear_push(fmt.cVQ2, MIN3(syserr_q,
+            (int)LAST(fmt.cIAQ),
             (int)LAST(fmt.cPLQ2)) - indel_penal4multialleles, a);
+    
     // TODO; check if reducing all allele read count to increase alt allele frac in case of ref bias makes more sense
     double base_contamfrac = (refsymbol == symbol ? 0.02 : 0.02);
-    double contamfrac = base_contamfrac + (1 - base_contamfrac) * (tpfa > 0 ? tpfa : 0) * 0.04;
+    double contamfrac = base_contamfrac + (1 - base_contamfrac) * (tpfa > 0 ? tpfa : 0) * 0.05;
     double errfrac = contamfrac + (1.0 - contamfrac) * (refsymbol == symbol ? phred2prob(MIN(rtr1.indelphred, rtr2.indelphred)) : 0);
     auto binom_contam_LODQ = (int)calc_binom_10log10_likeratio(errfrac, fmt.cDP1v[a], fmt.CDP1v[0]);
     auto power_contam_LODQ = (int)(10.0/log(10.00) * powlaw_exponent * MAX(logit2(min_bcFA_v, errfrac), 0.0));
@@ -4295,7 +4309,7 @@ output_germline(
     auto fmtptr1 = ref_alt1_alt2_alt3[1].second;
     auto fmtptr2 = ref_alt1_alt2_alt3[2].second;
     const bool isSubst = isSymbolSubstitution(refsymbol);
-    const AlignmentSymbol symbolNN = BASE_NN; // (isSubst ? BASE_NN : LINK_NN);
+    const AlignmentSymbol symbolNN = ((isSubst || !is_rescued) ? BASE_NN : LINK_NN);
     double ad0norm = compute_norm_ad(fmtptr0, isSubst);
     double ad1norm = compute_norm_ad(fmtptr1, isSubst, symbolNN == ref_alt1_alt2_alt3[1].first);
     double ad2norm = compute_norm_ad(fmtptr2, isSubst, symbolNN == ref_alt1_alt2_alt3[2].first);
@@ -4326,7 +4340,6 @@ output_germline(
     int phred_tri_al = (isSubst ? (54+5) : 50-1); // 49 // https://www.genetics.org/content/184/1/233 and https://www.fsigenetics.com/article/S1872-4973(20)30003-X/fulltext : triallelic-SNP-phred = 29*2-3+5
     // tri_al for InDels is lower than expected because indels were already penalized for tri-allelelity (aka triallelic InDels) in their TLODQs
     // const double qfrac = (isSubst ? 1.0 : 0.25);
-    
     
     if (is_rescued) {
         UPDATE_MIN(a0LODQ, ref_alt1_alt2_alt3[0].second->CONTQ[1]);
@@ -4824,7 +4837,7 @@ calc_binom_powlaw_syserr_normv_quals(
     int binom_b10log10like = (int)calc_binom_10log10_likeratio((tDP - tAD) / (tDP), nDP - nAD, nAD);
     double bjpfrac = ((tAD + 0.5) / (tDP + 1.0)) / ((nAD + 0.5) / (nDP + 1.0));
     int powlaw_b10log10like = (int)(3 * 10 / log(10) * log(bjpfrac));
-    int prior_phred = ((penal_dimret_coef < 1e6) ? 8 : 1);
+    int prior_phred = ((penal_dimret_coef < 25) ? 8 : 1);
     int tnVQinc = MAX3(-prior_phred, -nAD*3, MIN(binom_b10log10like - prior_phred, powlaw_b10log10like - prior_phred));
     int tnVQdec = MAX(0, nVQ - MAX(0, MIN(binom_b10log10like - prior_phred, (int)(mathsquare(log(MAX(bjpfrac, 1.01)) / log(2)) * penal_dimret_coef))));
     
@@ -4906,7 +4919,11 @@ append_vcf_record(
     
     assert (tki.cDP1x <= tki.CDP1x || !fprintf(stderr, "%d <= %d failed for cDP1x tname %s pos %d aln-symbol %d\n", tki.cDP1x, tki.CDP1x, tname, refpos, symbol));
     assert (tki.cDP2x <= tki.CDP2x || !fprintf(stderr, "%d <= %d failed for cDP2x tname %s pos %d aln-symbol %d\n", tki.cDP2x, tki.CDP2x, tname, refpos, symbol));
-    
+    const auto & rtr1 =  region_repeatvec.at(MAX(refpos - region_offset, 3) - 3);
+    const auto & rtr2 =  region_repeatvec.at(MIN(refpos - region_offset + 3, region_repeatvec.size() - 3));
+    const auto rtr1_tpos = ((0 == rtr1.tracklen) ? 0 : (region_offset + rtr1.begpos));
+    const auto rtr2_tpos = ((0 == rtr2.tracklen) ? 0 : (region_offset + rtr2.begpos));
+
     double nfm_cDP1 = collectget(nfm.cDP1f, 1) + collectget(nfm.cDP1r, 1);
     double nfm_CDP1 = collectget(nfm.CDP1f, 0) + collectget(nfm.CDP1r, 0);
     const auto nfm_cDP1x = collectget(nfm.cDP1x, 1);
@@ -4933,8 +4950,9 @@ append_vcf_record(
             (tki.cPCQ1),
             (nfm_cDP1x + 0.5) / 100.0 + 0.0, 
             (nfm_CDP1x + 1.0) / 100.0 + 0.0, 
-            (collectget(nfm.cVQ1, 1)),
-            (indelstring.size() == 0 ? 15.0 : 2e6));
+            non_neg_minus(collectget(nfm.cVQ1, 1), (indelstring.size() == 0 ? 0 : 40)),
+            // (indelstring.size() == 0 ? 15.0 : (12 + 3 * rtr2.tracklen / MAX(1, rtr2.unitlen))) 
+            15.0);
     
     const auto c_binom_powlaw_syserr_normv_q4 = calc_binom_powlaw_syserr_normv_quals(
             (tki.cDP2x + 0.5) / 100.0 + 0.0, 
@@ -4972,10 +4990,6 @@ append_vcf_record(
     infostring += std::string(";TNCQF=") + other_join(c_binom_powlaw_syserr_normv_q4);
     infostring += std::string(";RU=") + repeatunit + ";RC=" + std::to_string(repeatnum);
     // if (isSymbolSubstitution(symbol)) { infostring += std::string(";RBAQ=") + std::to_string(baq_offsetarr.getByPos(refpos)); }
-    const auto & rtr1 =  region_repeatvec.at(MAX(refpos - region_offset, 3) - 3);
-    const auto & rtr2 =  region_repeatvec.at(MIN(refpos - region_offset + 3, region_repeatvec.size() - 3));
-    const auto rtr1_tpos = ((0 == rtr1.tracklen) ? 0 : (region_offset + rtr1.begpos));
-    const auto rtr2_tpos = ((0 == rtr2.tracklen) ? 0 : (region_offset + rtr2.begpos));
     infostring += std::string(";R3X2=") + other_join(std::array<unsigned int, 6>{{rtr1_tpos, rtr1.tracklen, rtr1.unitlen, rtr2_tpos, rtr2.tracklen, rtr2.unitlen}});
     
     std::string vcffilter = "";
