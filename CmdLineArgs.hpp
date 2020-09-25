@@ -18,7 +18,6 @@ struct CommandLineArgs {
     std::string vc_stats_fname = NOT_PROVIDED;
     std::string bed_out_fname = NOT_PROVIDED;
     std::string bed_in_fname = NOT_PROVIDED;
-    // std::string tsv_primer_fname = NOT_PROVIDED;
     
     uint32_t outvar_flag = OUTVAR_SOMATIC + OUTVAR_ANY + OUTVAR_NONREF; // 4 anyvar, 2 somatic, 1 germline
     bool somaticGT = true;
@@ -30,14 +29,15 @@ struct CommandLineArgs {
     bool  enable_dup_read_vqual = true; // set to false can result in about 10% increase in false positive (FP) variants at around 1 FP/kilobase rate.
     bool disable_duplex = false;
     bool always_log = false;
-    unsigned int nogap_phred = 8; // obsolete, not used anymore
+    // unsigned int nogap_phred = 8; // obsolete, not used anymore
     AssayType assay_type = ASSAY_TYPE_AUTO;
     MoleculeTag molecule_tag = MOLECULE_TAG_AUTO;
     SequencingPlatform sequencing_platform = SEQUENCING_PLATFORM_AUTO;
     PairEndMerge pair_end_merge = PAIR_END_MERGE_YES;
-    unsigned int fixedthresBQ = 20; // to count the number of bases with base quality of more than this value at each position
-    unsigned int uni_bias_thres = 180; // sampple FT includes the filter string if the filter value is higher than this value
-    unsigned int uni_bias_r_max = (unsigned int)(INT32_MAX); // is used as infinity here
+    
+    // unsigned int fixedthresBQ = 20; // to count the number of bases with base quality of more than this value at each position
+    // unsigned int uni_bias_thres = 180; // sampple FT includes the filter string if the filter value is higher than this value
+    // unsigned int uni_bias_r_max = (unsigned int)(INT32_MAX); // is used as infinity here
     // segment: strand, side, position
     //   duped: position, strand, mismatch, deduplication
     // deduped: position, strand, mismatch, deduplication
@@ -48,9 +48,9 @@ struct CommandLineArgs {
     uint32_t bias_flag_cap_indel = (BIAS_FRAG_DUP | BIAS_FRAG_POS | BIAS_FRAG_STR | BIAS_FRAG_MIS | BIAS_SSEG_POS | BIAS_SSEG_STR);
     
     // it is used to decide whether UMI or non-UMI tumor-vs-normal quality should be used
-    uint8_t highqual_thres_snv = 44;
-    uint8_t highqual_thres_indel = 0; // 44+6;
-    double highqual_min_ratio = 2.5;
+    // uint8_t highqual_thres_snv = 44;
+    // uint8_t highqual_thres_indel = 0; // 44+6;
+    // double highqual_min_ratio = 2.5;
     
     // https://www.biostars.org/p/110670/
     uint32_t    min_depth_thres = 3; // 4; // 3 is used for germline
@@ -60,7 +60,7 @@ struct CommandLineArgs {
     uint16_t    max_cpu_num = 8;
     uint32_t    primerlen = 23;
     
-    uint8_t     phred_max_frag_indel_ext = 5; // unused
+    // uint8_t     phred_max_frag_indel_ext = 5; // unused
     uint8_t     phred_max_frag_indel_basemax = 30; // 39; // 34; // 40-10 // 37; // 42; // 37; // 35; // 25;
     uint8_t     phred_max_sscs_transition_CG_TA = 44; // Cytosine deamination into Uracil, especially in FFPE samples, also by UV light radiation, more upstream
     uint8_t     phred_max_sscs_transition_TA_CG = 48; // https://en.wikipedia.org/wiki/DNA_oxidation, DNA synthesis error, more downstream
@@ -78,43 +78,46 @@ struct CommandLineArgs {
     double      vqual = (double)15; // 10; set to 20 for less output
     uint32_t    vdp = (uint32_t)INT_MAX;
     uint32_t    vad = (uint32_t)INT_MAX;
+    
     uint8_t     minABQ_pcr_snv = 0;
     uint8_t     minABQ_pcr_indel = 0;
     uint8_t     minABQ_cap_snv = 0;
     uint8_t     minABQ_cap_indel = 0;
     
+    /*
     double      ess_georatio_dedup_cap = 1.25;
     double      ess_georatio_dedup_amp = 1.50; // 1.5 increase to 1.65 does not help in matching empirical variant score
     double      ess_georatio_duped_pcr = 2.00;
-    
-    uint8_t     minMQ1 = 40; // from GATK
+    */
+
+    // uint8_t     minMQ1 = 40; // from GATK
     uint8_t     maxMQ  = 60; // from bwa
-    uint8_t     min_edge_dist = 15; // heuristic (may not work well in STR region)
+    // uint8_t     min_edge_dist = 15; // heuristic (may not work well in STR region)
     
     uint8_t     central_readlen = 0; // estimate from the data
     uint8_t     bq_phred_added_indel = 0;
     uint8_t     bq_phred_added_misma = 0;
     bool        should_add_note = false;
     uint8_t     phred_germline_polymorphism = 31; // https://www.biostars.org/p/6177/ probablity of hetero is 0.8e-3 for non-african, it should be 32 for african.
-    uint8_t     phred_germline_indel = 40;        // https://www.biostars.org/p/6177/ probablity of hetero is 0.8e-3 for non-african, it should be 32 for african.
-    uint8_t     phred_triallelic_snp = 55; // 30;
-    uint8_t     phred_triallelic_indel = 48; // 30;
+    uint8_t     phred_germline_indel = 41-1;      
+    uint8_t     phred_triallelic_snp = 54+5;
+    uint8_t     phred_triallelic_indel = 41-1+9;
     
     // PMC4271055: probablity of germline call error is between 1/100kb and 1/200kb
     
     double      any_mul_contam_frac = 0.02; // 1e-10; 
-    double      t2n_mul_contam_frac = 0.02; // 1e-10; // 0.050; // 0.04 * 2.0; // ;
-    double      t2n_add_contam_frac = 0.02;
-    double      t2n_add_contam_transfrac = 0.0; // 0.02; // 1e-10; // 0.025; // 0.04; // 0.125*1.5;
+    double      t2n_mul_contam_frac = 0.05; // 1e-10; // 0.050; // 0.04 * 2.0; // ;
+    //double      t2n_add_contam_frac = 0.02;
+    //double      t2n_add_contam_transfrac = 0.0; // 0.02; // 1e-10; // 0.025; // 0.04; // 0.125*1.5;
     
     uint8_t     phred_frac_indel_error_before_barcode_labeling = 23; // 12, 18, 24 // 23;
     // uint32_t    baq_per_aligned_base = 3; // 4; // The BAQ of 3 seems to make more sense after reading the feedback from reviewer #2
-    uint8_t     baq_per_aligned_base = 6; // 5; // + 2; // 7; // 6; // 5; // According to "A New Lossless DNA Compression Algorithm Based on A Single-Block Encoding Scheme" Table 7 Korea2009024, there is 2*577/800 bits of info per nucleotide for the human genome.
+    uint8_t     baq_per_aligned_base = 6; // According to "A New Lossless DNA Compression Algorithm Based on A Single-Block Encoding Scheme" Table 7 Korea2009024, there is 2*577/800 bits of info per nucleotide for the human genome.
     
     bool        is_somatic_snv_filtered_by_any_nonref_germline_snv = true;
     bool        is_somatic_indel_filtered_by_any_nonref_germline_indel = true;
-    double      amp_BQ_sqr_coef = 2.0; // 0.09; // 22.0/256.0; 
-    double      cap_BQ_sqr_coef = 2.0; // 0.12; // .0/256.0;
+    double      amp_BQ_sqr_coef = 2.0;
+    double      cap_BQ_sqr_coef = 2.0;
     uint8_t     phred_varcall_err_per_map_err_per_base = 15; // 20; // HLA pairwise sequence identity is about 1% from https://www.ebi.ac.uk/ipd/mhc/alignment/hla/
     
     double      powlaw_exponent = 3.0;
@@ -139,15 +142,16 @@ struct CommandLineArgs {
             T/DCS   1       1       1       T/DCS   0       0   1
     */
     // (1011 11?1 1011 0101 or equivalently 11 13-15 11 5)
-    uint32_t    bitflag_InDel_penal_t_UMI_n_UMI = 0xBFB5; // combine the four above hex letters in parentheses from left-to-right then top-to-bottom.
-    uint32_t    ref_bias_awareness = 0x2; // The 0x1 bit is for amplicon and the 0x2 bit is for non-amplicon
     
-    uint32_t haplo_in_diplo_allele_perc = 50;
-    uint32_t diplo_oneside_posbias_perc = 20;
-    uint32_t diplo_twoside_posbias_perc = 10;
-    uint32_t haplo_oneside_posbias_perc = 25;
-    uint32_t haplo_twoside_posbias_perc = 15;
-    uint32_t regside_nbases = 10; // 30;
+    // uint32_t    bitflag_InDel_penal_t_UMI_n_UMI = 0xBFB5; // combine the four above hex letters in parentheses from left-to-right then top-to-bottom.
+    // uint32_t    ref_bias_awareness = 0x2; // The 0x1 bit is for amplicon and the 0x2 bit is for non-amplicon
+    
+    // uint32_t haplo_in_diplo_allele_perc = 50;
+    // uint32_t diplo_oneside_posbias_perc = 20;
+    // uint32_t diplo_twoside_posbias_perc = 10;
+    // uint32_t haplo_oneside_posbias_perc = 25;
+    // uint32_t haplo_twoside_posbias_perc = 15;
+    // uint32_t regside_nbases = 10; // 30;
     uint32_t dedup_flag = 0x0;
     
     int
