@@ -405,10 +405,11 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
         "--phred-frac-indel-error-before-barcode-labeling", 
            phred_frac_indel_error_before_barcode_labeling, 
         "PHRED-scaled fraction of InDel errors that occurred before the attachment of UMI single-strand barcodes. ");
-    ADD_OPTDEF(app, 
-        "--baq-per-aligned-base", 
-           baq_per_aligned_base,
-        "PHRED-scaled base alignment quality (BAQ) for each additional base between the variant and the read edge. "); 
+    
+    //ADD_OPTDEF(app, 
+    //    "--baq-per-aligned-base", 
+    //       baq_per_aligned_base,
+    //    "PHRED-scaled base alignment quality (BAQ) for each additional base between the variant and the read edge. "); 
    
     ADD_OPTDEF(app, 
         "--is-somatic-snv-filtered-by-any-nonref-germline-snv", 
@@ -419,14 +420,14 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
            is_somatic_indel_filtered_by_any_nonref_germline_indel,
         "Set to 0 (zero, false) if reject any nonref germline and to 1 (one, true) if only reject the specific ALT germline for InDel candidate. "); 
     
-    ADD_OPTDEF(app,
-        "--amp-BQ-sqr-coef",
-           amp_BQ_sqr_coef,
-        "The square of Illumina root-mean-square base quality multiplied by this number is the max possible TLOD of variant quality for PCR-amplicon assays. "); 
-    ADD_OPTDEF(app,
-        "--cap-BQ-sqr-coef",
-           cap_BQ_sqr_coef,
-        "The square of Illumina root-mean-square base quality multiplied by this number is the max possible TLOD of variant quality for hybrid-capture assays. "); 
+    //ADD_OPTDEF(app,
+    //    "--amp-BQ-sqr-coef",
+    //       amp_BQ_sqr_coef,
+    //    "The square of Illumina root-mean-square base quality multiplied by this number is the max possible TLOD of variant quality for PCR-amplicon assays. "); 
+    //ADD_OPTDEF(app,
+    //    "--cap-BQ-sqr-coef",
+    //       cap_BQ_sqr_coef,
+    //    "The square of Illumina root-mean-square base quality multiplied by this number is the max possible TLOD of variant quality for hybrid-capture assays. "); 
     
     ADD_OPTDEF(app, 
         "--phred-varcall-err-per-map-err-per-base", 
@@ -442,15 +443,17 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
         "--powlaw-anyvar-base", 
            powlaw_anyvar_base,
         "Error probability at allele-fraction of 1 or 100%, storngly recommended to use the default value");
-    ADD_OPTDEF(app, 
-        "--syserr-maxqual", 
-           syserr_maxqual,
-            "PHRED-scaled probability that a candidate of systematic error is actually non-systematic. "); 
-    ADD_OPTDEF(app, 
-        "--syserr-norm-devqual", 
-           syserr_norm_devqual,
-        "PHRED-scaled likelihood that the observed allele fraction additively deviates from the expected allele fraction "
-        "by a multiplicative factor of two. "); 
+    
+    //ADD_OPTDEF(app, 
+    //    "--syserr-maxqual", 
+    //       syserr_maxqual,
+    //        "PHRED-scaled probability that a candidate of systematic error is actually non-systematic. "); 
+    
+    //ADD_OPTDEF(app, 
+    //    "--syserr-norm-devqual", 
+    //       syserr_norm_devqual,
+    //    "PHRED-scaled likelihood that the observed allele fraction additively deviates from the expected allele fraction "
+    //    "by a multiplicative factor of two. "); 
     
     app.add_flag(
         "--Should-add-note", 

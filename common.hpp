@@ -7,6 +7,9 @@
 #include <string>
 #include <vector>
 
+#include <float.h>
+#include <limits.h>
+
 //#define NUM_BUCKETS (64+8)
 #define SIGN2UNSIGN(a) ((unsigned int)(a))
 
@@ -21,6 +24,8 @@
 #define OUTVAR_NONREF 0x8
 
 #define MAX_INSERT_SIZE (1024*2) // https://doi.org/10.2147/AGG.S162531
+
+#define DBLFLT_EPS ((double)FLT_EPSILON)
 
 enum BiasType {
     BIAS_FRAG_DUP = 1,

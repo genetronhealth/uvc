@@ -540,14 +540,20 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " deals with " << num_rescued << " tumor-sample variants in region " << extended_inclu_beg_pos << " to " << extended_exclu_end_pos + 1 ;}
     
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts converting umi_to_strand_to_reads with is_by_capture = " << is_by_capture << "  " ;}
-    fill_strand_umi_readset_with_strand_to_umi_to_reads(umi_strand_readset, umi_to_strand_to_reads, paramset.baq_per_aligned_base);
+    fill_strand_umi_readset_with_strand_to_umi_to_reads(umi_strand_readset, umi_to_strand_to_reads, paramset.indel_nonSTR_phred_per_base);
     
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts constructing symbolToCountCoverageSet12 with " << extended_inclu_beg_pos << (" , ") << extended_exclu_end_pos; }
     // + 1 accounts for insertion at the end of the region, this should happen rarely for only re-aligned reads at around once per one billion base pairs
     Symbol2CountCoverageSet symbolToCountCoverageSet12(tid, extended_inclu_beg_pos, extended_exclu_end_pos + 1); 
     if (is_loginfo_enabled) { LOG(logINFO)<< "Thread " << thread_id << " starts updateByRegion3Aln with " << umi_strand_readset.size() << " families"; }
     std::string refstring = load_refstring(ref_faidx, tid, extended_inclu_beg_pos, extended_exclu_end_pos);
-    std::vector<RegionalTandemRepeat> region_repeatvec = refstring2repeatvec(refstring);
+    std::vector<RegionalTandemRepeat> region_repeatvec = refstring2repeatvec(
+            refstring, 
+            paramset.indel_str_repeatsize_max,
+            paramset.indel_BQ_max,
+            paramset.indel_polymerase_slip_rate,
+            paramset.indel_del_to_ins_err_ratio,
+            0);
     const auto & baq_offsetarr = region_repeatvec_to_baq_offsetarr(region_repeatvec, tid, extended_inclu_beg_pos, extended_exclu_end_pos);
     
     // repeatvec_LOG(region_repeatvec, extended_inclu_beg_pos); // disable the log by default
@@ -576,8 +582,15 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
             !paramset.disable_dup_read_merge, 
             SEQUENCING_PLATFORM_IONTORRENT == paramset.sequencing_platform,
             ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? paramset.primerlen : 0),
+            
+            //paramset.indel_str_repeatsize_max,
+            //paramset.indel_del_to_ins_err_ratio,
+            //paramset.bias_thres_highBQ,
+
             paramset.phred_frac_indel_error_before_barcode_labeling,
-            paramset.baq_per_aligned_base,
+            paramset.indel_nonSTR_phred_per_base,
+            
+            paramset,
             0);
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts analyzing phasing info"; }
     auto mutform2count4vec_bq = map2vector(mutform2count4map_bq);
@@ -595,7 +608,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
         unsigned int repeatnum = 0;
         
         unsigned int rridx = refpos - extended_inclu_beg_pos;
-        indelpos_to_context(repeatunit, repeatnum, refstring, rridx);
+        indelpos_to_context(repeatunit, repeatnum, refstring, rridx, paramset.indel_str_repeatsize_max);
         const std::array<SymbolType, 2> stype_to_immediate_prev = {{LINK_SYMBOL, BASE_SYMBOL}};
         
         std::array<unsigned int, 2> stype2refqual = {{0, 0}};
@@ -751,6 +764,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                                 std::get<1>(bcad0a_indelstring_tki),
                                 indelstring,
                                 (isSymbolSubstitution(symbol) ? minABQ_snv : minABQ_indel),
+                                paramset,
                                 0);
                         BcfFormat_symbol_calc_DPv(
                                 fmt,
@@ -759,6 +773,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                                 region_repeatvec.at(MIN(refpos - extended_inclu_beg_pos + 3, region_repeatvec.size() - 3)),
                                 ((is_var_rescued && (tki.VTI == LAST(fmt.VTI))) ? ((double)(tki.cDP1x + 1) / (double)(tki.CDP1x + 2)) : -1.0), /* tpfa */
                                 (ASSAY_TYPE_AMPLICON == inferred_assay_type),
+                                paramset,
                                 0);
                         fmt_tki_tup_vec.push_back(std::make_tuple(fmt, std::get<3>(bcad0a_indelstring_tki)));
                     }
@@ -803,6 +818,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                                 refsymbol,
                                 ((NOT_PROVIDED != paramset.vcf_tumor_fname && (tki.VTI == LAST(fmt.VTI))) ? 
                                     ((double)(tki.cDP1x + 1) / (double)(tki.CDP1x + 2)) : -1.0),
+                                paramset,
                                 0);
                         if (refsymbol != symbol) {
                             int cVQ1 = LAST(std::get<0>(fmt_tki_tup).cVQ1);
@@ -875,6 +891,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                             paramset.outvar_flag,
                             paramset.should_output_all_germline,
                             NOT_PROVIDED != paramset.vcf_tumor_fname,
+                            paramset,
                             0);
                     const bool is_germline_var_generated = (buf_out_string_pass.size() > string_pass_old_size);
 
@@ -944,6 +961,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                                     (paramset.should_output_all || is_germline_var_generated),
                                     bcf_hdr,
                                     baq_offsetarr,
+                                    paramset,
                                     0);
                         }
                     }

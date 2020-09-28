@@ -707,14 +707,14 @@ is_indel_context_more_STR(unsigned int rulen1, unsigned int rc1, unsigned int ru
 int 
 indelpos_to_context(
         std::string & repeatunit, unsigned int & max_repeatnum,
-        const std::string & refstring, unsigned int refpos) {
+        const std::string & refstring, unsigned int refpos, unsigned int indel_str_repeatsize_max) {
     max_repeatnum = 0;
     if (refpos >= refstring.size()) {
         repeatunit = "";
         return -1;
     }
     unsigned int repeatsize_at_max_repeatnum = 0;
-    for (unsigned int repeatsize = 1; repeatsize <= 6; repeatsize++) {
+    for (unsigned int repeatsize = 1; repeatsize <= indel_str_repeatsize_max; repeatsize++) {
         unsigned int qidx = refpos;
         while (qidx + repeatsize < refstring.size() && refstring[qidx] == refstring[qidx+repeatsize]) {
             qidx++;
@@ -732,6 +732,8 @@ indelpos_to_context(
 unsigned int
 indel_len_rusize_phred(unsigned int indel_len, unsigned int repeatunit_size) {
     assert (indel_len > 0 && repeatunit_size > 0);
+    // https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2734402/#bib41 suggests power law with exponent of 1.5-1.6
+    // TODO: investigate this
     // derived from the python code: for i in range(1, 20): print("{}  {}".format(  int( round(10.0/log(10.0)*log(i)) ) , i  )) 
     const std::array<unsigned int, 18+1> n_units_to_phred = {{
         0 , 
@@ -768,22 +770,26 @@ indel_phred(double ampfact, unsigned int cigar_oplen, unsigned int repeatsize_at
     double num_slips = (region_size > 64 ? (double)(region_size - 8) : log1p(exp((double)region_size - (double)8))) 
             * ampfact / ((double)(repeatsize_at_max_repeatnum * repeatsize_at_max_repeatnum));
     return prob2phred((1.0 - DBL_EPSILON) / (num_slips + 1.0));
-    // e.g. for the short tadem repeat ACACAC : repeatsize_at_max_repeatnum = 2, indel_n_units = 3, repeatunit = AC
+    // e.g. for the short tandem repeat ACACAC : repeatsize_at_max_repeatnum = 2, indel_n_units = 3, repeatunit = AC
 }
 
 std::vector<RegionalTandemRepeat>
 refstring2repeatvec(
-        const auto & refstring, 
+        const auto & refstring,
+        const unsigned int indel_str_repeatsize_max, // 6
+        const unsigned int indel_BQ_max, // 48
+        const double indel_polymerase_slip_rate, // 8.0
+        const double indel_del_to_ins_err_ratio, // 4.0
         unsigned int specialflag = 0) {
     std::vector<RegionalTandemRepeat> region_repeatvec(refstring.size());
     for (auto & rtr : region_repeatvec) {
-        rtr.indelphred = 40;
+        rtr.indelphred = indel_BQ_max;
     }
     for (int refpos = 0; refpos < refstring.size();) {
         unsigned int repeatsize_at_max_repeatnum = 0;
         unsigned int max_repeatnum = 0;
         unsigned int repeat_endpos = refpos;
-        for (unsigned int repeatsize = 1; repeatsize <= 6; repeatsize++) {
+        for (unsigned int repeatsize = 1; repeatsize <= indel_str_repeatsize_max; repeatsize++) {
             unsigned int qidx = refpos;
             while (qidx + repeatsize < refstring.size() && refstring[qidx] == refstring[qidx+repeatsize]) {
                 qidx++;
@@ -797,16 +803,17 @@ refstring2repeatvec(
         }
         assert(repeat_endpos > refpos);
         unsigned int tl = MIN(repeat_endpos, refstring.size()) - refpos;
-        const unsigned int decphred = indel_phred(8.0*(4.0+1.0), repeatsize_at_max_repeatnum, repeatsize_at_max_repeatnum, tl / repeatsize_at_max_repeatnum);
+        const unsigned int decphred = indel_phred(indel_polymerase_slip_rate * (indel_del_to_ins_err_ratio + 1.0), 
+                repeatsize_at_max_repeatnum, repeatsize_at_max_repeatnum, tl / repeatsize_at_max_repeatnum);
         for (unsigned int i = refpos; i != MIN(repeat_endpos, refstring.size()); i++) {
             if (tl > region_repeatvec[i].tracklen) {
                 region_repeatvec[i].begpos = refpos;
                 region_repeatvec[i].tracklen = tl;
                 region_repeatvec[i].unitlen = repeatsize_at_max_repeatnum;
-                region_repeatvec[i].indelphred = 30+18 - MIN(30+18-1, decphred);
+                region_repeatvec[i].indelphred = indel_BQ_max - MIN(indel_BQ_max - 1, decphred);
             }
         }
-        refpos += MAX(repeatsize_at_max_repeatnum * max_repeatnum, 6+1) - 6;
+        refpos += MAX(repeatsize_at_max_repeatnum * max_repeatnum, indel_str_repeatsize_max + 1) - indel_str_repeatsize_max;
     }
     return region_repeatvec;
 }
@@ -831,11 +838,14 @@ ref_to_phredvalue(unsigned int & n_units,
         double ampfact, 
         const unsigned int cigar_oplen, 
         const auto cigar_op, 
-        const bam1_t *b) {
+        const bam1_t *b,
+        const unsigned int indel_str_repeatsize_max,
+        const double indel_del_to_ins_err_ratio,
+        const unsigned int specialflag = 0) {
 
     unsigned int max_repeatnum = 0;
     unsigned int repeatsize_at_max_repeatnum = 0;
-    for (unsigned int repeatsize = 1; repeatsize <= 6; repeatsize++) {
+    for (unsigned int repeatsize = 1; repeatsize <= indel_str_repeatsize_max; repeatsize++) {
         unsigned int qidx = refpos;
         while (qidx + repeatsize < refstring.size() && refstring[qidx] == refstring[qidx+repeatsize]) {
             qidx++;
@@ -847,7 +857,7 @@ ref_to_phredvalue(unsigned int & n_units,
         }
     }
     if (cigar_oplen == repeatsize_at_max_repeatnum && cigar_op == BAM_CDEL) {
-        ampfact *= 4.0;
+        ampfact *= indel_del_to_ins_err_ratio;
     }
     // Because of a lower number of PCR cycles, it is higher than the one set in Fig. 3 at https://www.ncbi.nlm.nih.gov/pmc/articles/PMC149199/
     unsigned int decphred = indel_phred(ampfact, cigar_oplen, repeatsize_at_max_repeatnum, max_repeatnum);
@@ -862,6 +872,7 @@ update_seg_format_prep_sets_by_aln(
         const std::vector<RegionalTandemRepeat> & rtr_vec,
         const CoveredRegion<int64_t> & baq_offsetarr,
         const unsigned int region_offset,
+        const unsigned int bias_thres_highBQ,
         unsigned int specialflag) {
     
     const unsigned int rend = bam_endpos(aln);
@@ -930,7 +941,7 @@ update_seg_format_prep_sets_by_aln(
                 }
                 unsigned int base4bit = bam_seqi(bseq, qpos);
                 unsigned int base3bit = seq_nt16_int[base4bit];
-                if (bam_phredi(aln, qpos) >= 20) {
+                if (bam_phredi(aln, qpos) >= bias_thres_highBQ) {
                     unsigned int ldist = rpos - aln->core.pos + 1;
                     unsigned int rdist = rend - rpos;
                     
@@ -990,7 +1001,7 @@ update_seg_format_prep_sets_by_aln(
                 seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_DELLEN_SUM] += dellen_sum;
 
                 unsigned int lbaq = baq_offsetarr.getByPos(rpos) - baq_offsetarr.getByPos(aln->core.pos) + 1;
-                unsigned int rbaq = baq_offsetarr.getByPos(rend-1) - baq_offsetarr.getByPos(rpos) + 1;
+                unsigned int rbaq = baq_offsetarr.getByPos(rend - 1) - baq_offsetarr.getByPos(rpos) + 1;
                 seg_format_prep_sets.getRefByPos(rpos)[SEG_a_L_BAQ_SUM] += lbaq;
                 seg_format_prep_sets.getRefByPos(rpos)[SEG_a_R_BAQ_SUM] += rbaq;
                 
@@ -1024,7 +1035,44 @@ int
 update_seg_format_thres_from_prep_sets(
         SegFormatThresSets & seg_format_thres_sets, 
         const SegFormatPrepSets & seg_format_prep_sets, 
-        const unsigned int specialflag) {
+        const CommandLineArgs & paramset,
+/*        
+        uint32_t bias_thres_highBQ, // 20
+        uint32_t bias_thres_highBAQ, // 23
+
+        uint32_t bias_thres_aLPxT_perc, // 125 
+        uint32_t bias_thres_aLPxT_add,  // 5
+
+        uint32_t bias_thres_PFXM1T_add, // 35;
+        uint32_t bais_thres_PFXM2T_add, // 20;
+        uint32_t bias_thres_PFGO1T_add, // 35;
+        uint32_t bias_thres_PFGO2T_add, // 20;
+
+        uint32_t bias_thres_aXM1T_perc, // 50;
+        uint32_t bias_thres_aXM2T_perc, //  70;
+        uint32_t bias_thres_aGO1T_perc, // 50;
+        uint32_t bias_thres_aGO2T_perc, // 70;
+
+        uint32_t bias_thres_aLRI1T_perc, // 250;
+        uint32_t bias_thres_aLRI2T_perc, // 200;
+        uint32_t bias_thres_aLRI1t_perc, // 50;
+        uint32_t bias_thres_aLRI2t_perc, // 67;
+
+        int32_t bias_thres_aLRP1t_add, // 10;
+        int32_t bias_thres_aLRP2t_add, // 5;
+        int32_t bias_thres_aLRB1t_add, // 50;
+        int32_t bias_thres_aLRB2t_add, // 25;
+
+        // uint32_t bias_thres_PFBQ1, // = 30;
+        // uint32_t bias_thres_PFBQ2, // 25;
+        // uint32_t bias_thres_aXM1T_add, // = 30;
+        
+        // uint32_t bias_thres_interfering_indel, // 20;
+        // uint32_t bias_thres_BAQ1, // = 45-10, // ;
+        // uint32_t bias_thres_BAQ2, // = 60-10, // ;
+*/
+        const unsigned int specialflag) 
+    {
     assert(seg_format_thres_sets.getIncluBegPosition() == seg_format_prep_sets.getIncluBegPosition());
     assert(seg_format_thres_sets.getExcluEndPosition() == seg_format_prep_sets.getExcluEndPosition());
     for (size_t epos = seg_format_prep_sets.getIncluBegPosition(); epos != seg_format_prep_sets.getExcluEndPosition(); epos++) {
@@ -1036,32 +1084,32 @@ update_seg_format_thres_from_prep_sets(
         auto segRIDP = MAX(seg_format_prep_sets.getByPos(epos)[SEG_a_RIDP], 1);
         const auto ins_border_len = (unsigned int)ceil(sqrt((p[SEG_a_NEAR_INS_LEN]) / MAX(p[SEG_a_NEAR_INS_DP], 1)));
         const auto del_border_len = (unsigned int)ceil(sqrt((p[SEG_a_NEAR_DEL_LEN]) / MAX(p[SEG_a_NEAR_DEL_DP], 1)));
-        t[SEG_aLPxT] =    (ins_border_len)                 * 5/4 + 5;
-        t[SEG_aRPxT] = MAX(ins_border_len, del_border_len) * 5/4 + 5;
+        t[SEG_aLPxT] =    (ins_border_len)                 * (unsigned long)(paramset.bias_thres_aLPxT_perc) / 100 + paramset.bias_thres_aLPxT_add;
+        t[SEG_aRPxT] = MAX(ins_border_len, del_border_len) * (unsigned long)(paramset.bias_thres_aLPxT_perc) / 100 + paramset.bias_thres_aLPxT_add;
 
-        t[SEG_aXM1T] = (p[SEG_a_XM] * 5 / (seg_a_dp*10) + (30+5)); // easier to pass
-        t[SEG_aXM2T] = (p[SEG_a_XM] * 7 / (seg_a_dp*10) + (15+5)); // the higher the stronger the bias
-        t[SEG_aGO1T] = (p[SEG_a_GO] * 5 / (seg_a_dp*10) + (20+5)); // easier to pass
-        t[SEG_aGO2T] = (p[SEG_a_GO] * 7 / (seg_a_dp*10) + (10+5)); // the higher the stronger the bias
+        t[SEG_aXM1T] = (p[SEG_a_XM] * (unsigned long)paramset.bias_thres_PFXM1T_perc / (seg_a_dp * 100) + paramset.bias_thres_PFXM1T_add); // easier to pass
+        t[SEG_aXM2T] = (p[SEG_a_XM] * (unsigned long)paramset.bias_thres_PFXM2T_perc / (seg_a_dp * 100) + paramset.bias_thres_PFXM2T_add); // the higher the stronger the bias
+        t[SEG_aGO1T] = (p[SEG_a_GO] * (unsigned long)paramset.bias_thres_PFGO1T_perc / (seg_a_dp * 100) + paramset.bias_thres_PFGO1T_add); // easier to pass
+        t[SEG_aGO2T] = (p[SEG_a_GO] * (unsigned long)paramset.bias_thres_PFGO2T_perc / (seg_a_dp * 100) + paramset.bias_thres_PFGO2T_add); // the higher the stronger the bias
         
-        t[SEG_aLI1T] = (unsigned int)((uint64_t)p[SEG_a_LI] * 250/100 / segLIDP);
-        t[SEG_aLI2T] = (unsigned int)((uint64_t)p[SEG_a_LI] * 200/100 / segLIDP); // higher > stronger bias
-        t[SEG_aRI1T] = (unsigned int)((uint64_t)p[SEG_a_RI] * 250/100 / segRIDP);
-        t[SEG_aRI2T] = (unsigned int)((uint64_t)p[SEG_a_RI] * 200/100 / segRIDP); // higher > stronger bias
-        t[SEG_aLI1t] = (unsigned int)((uint64_t)p[SEG_a_LI] *  50/100 / segLIDP);
-        t[SEG_aLI2t] = (unsigned int)((uint64_t)p[SEG_a_LI] *  67/100 / segLIDP); // lower > stronger bias
-        t[SEG_aRI1t] = (unsigned int)((uint64_t)p[SEG_a_RI] *  50/100 / segRIDP);
-        t[SEG_aRI2t] = (unsigned int)((uint64_t)p[SEG_a_RI] *  67/100 / segRIDP); // lower > stronger bias
+        t[SEG_aLI1T] = (unsigned int)((uint64_t)p[SEG_a_LI] * paramset.bias_thres_aLRI1T_perc / 100 / segLIDP);
+        t[SEG_aLI2T] = (unsigned int)((uint64_t)p[SEG_a_LI] * paramset.bias_thres_aLRI2T_perc / 100 / segLIDP); // higher > stronger bias
+        t[SEG_aRI1T] = (unsigned int)((uint64_t)p[SEG_a_RI] * paramset.bias_thres_aLRI1T_perc / 100 / segRIDP);
+        t[SEG_aRI2T] = (unsigned int)((uint64_t)p[SEG_a_RI] * paramset.bias_thres_aLRI2T_perc / 100 / segRIDP); // higher > stronger bias
+        t[SEG_aLI1t] = (unsigned int)((uint64_t)p[SEG_a_LI] * paramset.bias_thres_aLRI1t_perc /100 / segLIDP);
+        t[SEG_aLI2t] = (unsigned int)((uint64_t)p[SEG_a_LI] * paramset.bias_thres_aLRI2t_perc /100 / segLIDP); // lower > stronger bias
+        t[SEG_aRI1t] = (unsigned int)((uint64_t)p[SEG_a_RI] * paramset.bias_thres_aLRI1t_perc /100 / segRIDP);
+        t[SEG_aRI2t] = (unsigned int)((uint64_t)p[SEG_a_RI] * paramset.bias_thres_aLRI2t_perc /100 / segRIDP); // lower > stronger bias
         
-        t[SEG_aLP1t] = (unsigned int)non_neg_minus(p[SEG_a_L_DIST_SUM] / MAX(1, p[SEG_aBQ2_DP]), p[SEG_a_DELLEN_SUM] / MAX(1, p[SEG_aBQ2_DP]) + 10);
-        t[SEG_aLP2t] = (unsigned int)non_neg_minus(p[SEG_a_L_DIST_SUM] / MAX(1, p[SEG_aBQ2_DP]), 5);
-        t[SEG_aRP1t] = (unsigned int)non_neg_minus(p[SEG_a_R_DIST_SUM] / MAX(1, p[SEG_aBQ2_DP]), p[SEG_a_DELLEN_SUM] / MAX(1, p[SEG_aBQ2_DP]) + 10);
-        t[SEG_aRP2t] = (unsigned int)non_neg_minus(p[SEG_a_R_DIST_SUM] / MAX(1, p[SEG_aBQ2_DP]), 5);
+        t[SEG_aLP1t] = (unsigned int)non_neg_minus(p[SEG_a_L_DIST_SUM] / MAX(1, p[SEG_aBQ2_DP]), p[SEG_a_DELLEN_SUM] / MAX(1, p[SEG_aBQ2_DP]) + paramset.bias_thres_aLRP1t_add);
+        t[SEG_aLP2t] = (unsigned int)non_neg_minus(p[SEG_a_L_DIST_SUM] / MAX(1, p[SEG_aBQ2_DP]), paramset.bias_thres_aLRP2t_add);
+        t[SEG_aRP1t] = (unsigned int)non_neg_minus(p[SEG_a_R_DIST_SUM] / MAX(1, p[SEG_aBQ2_DP]), p[SEG_a_DELLEN_SUM] / MAX(1, p[SEG_aBQ2_DP]) + paramset.bias_thres_aLRP1t_add);
+        t[SEG_aRP2t] = (unsigned int)non_neg_minus(p[SEG_a_R_DIST_SUM] / MAX(1, p[SEG_aBQ2_DP]), paramset.bias_thres_aLRP2t_add);
         
-        t[SEG_aLB1t] = (unsigned int)non_neg_minus(p[SEG_a_L_BAQ_SUM] / MAX(1, p[SEG_aBQ2_DP]), p[SEG_a_DELBAQ_SUM] / MAX(1, p[SEG_aBQ2_DP]) + 10*5);
-        t[SEG_aLB2t] = (unsigned int)non_neg_minus(p[SEG_a_L_BAQ_SUM] / MAX(1, p[SEG_aBQ2_DP]), 5*5);
-        t[SEG_aRB1t] = (unsigned int)non_neg_minus(p[SEG_a_R_BAQ_SUM] / MAX(1, p[SEG_aBQ2_DP]), p[SEG_a_DELBAQ_SUM] / MAX(1, p[SEG_aBQ2_DP]) + 10*5);
-        t[SEG_aRB2t] = (unsigned int)non_neg_minus(p[SEG_a_R_BAQ_SUM] / MAX(1, p[SEG_aBQ2_DP]), 5*5);
+        t[SEG_aLB1t] = (unsigned int)non_neg_minus(p[SEG_a_L_BAQ_SUM] / MAX(1, p[SEG_aBQ2_DP]), p[SEG_a_DELBAQ_SUM] / MAX(1, p[SEG_aBQ2_DP]) + paramset.bias_thres_aLRB1t_add);
+        t[SEG_aLB2t] = (unsigned int)non_neg_minus(p[SEG_a_L_BAQ_SUM] / MAX(1, p[SEG_aBQ2_DP]), paramset.bias_thres_aLRB2t_add);
+        t[SEG_aRB1t] = (unsigned int)non_neg_minus(p[SEG_a_R_BAQ_SUM] / MAX(1, p[SEG_aBQ2_DP]), p[SEG_a_DELBAQ_SUM] / MAX(1, p[SEG_aBQ2_DP]) + paramset.bias_thres_aLRB1t_add);
+        t[SEG_aRB2t] = (unsigned int)non_neg_minus(p[SEG_a_R_BAQ_SUM] / MAX(1, p[SEG_aBQ2_DP]), paramset.bias_thres_aLRB2t_add);
     }
 }
 
@@ -1080,6 +1128,8 @@ dealwith_segbias(
         const auto bm150,
         const CoveredRegion<int64_t> & baq_offsetarr,
         const unsigned int dist_to_interfering_indel,
+        
+        const CommandLineArgs & paramset,        
         const unsigned int specialflag) {
     
     const auto rend = bam_endpos(aln); 
@@ -1089,7 +1139,6 @@ dealwith_segbias(
     
     const size_t seg_l_nbases = (rpos - aln->core.pos + 1);
     const size_t seg_r_nbases = (bam_endpos(aln) - rpos);
-    const size_t seg_region_size = ((bam_endpos(aln) - aln->core.pos) + 4) / 10;
     const size_t frag_pos_L = ((aln->core.isize != 0) ? MIN(aln->core.pos, aln->core.mpos) : aln->core.pos);
     const size_t frag_pos_R = ((aln->core.isize != 0) ? (frag_pos_L + aln->core.isize) : rend);
     const size_t frag_l_nbases1 = rpos - frag_pos_L + 1;
@@ -1122,23 +1171,23 @@ dealwith_segbias(
     const unsigned int const_RPxT = seg_format_thres_set[SEG_aRPxT]; 
     if (isGap) {
         
-        if (xm150 <= const_XM1T && go150 <= const_GO1T && bq >= 0*25) {
+        if (xm150 <= const_XM1T && go150 <= const_GO1T) {
             symbol_to_seg_format_depth_set[SEG_aPF1] += 100;
         } else {
             symbol_to_seg_format_depth_set[SEG_aPF1] += MIN3(
                     100 * mathsquare(const_XM1T) / MAX(1, mathsquare(xm150)), 
                     100 * mathsquare(const_GO1T) / MAX(1, mathsquare(go150)),
-                    100 * mathsquare(bq) / (25*25));
+                    100 * mathsquare(bq) / mathsquare(paramset.bias_thres_PFBQ1));
         } 
-        if (xm150 <= const_XM2T && go150 <= const_GO2T && bq >= 0*30) {
+        if (xm150 <= const_XM2T && go150 <= const_GO2T) {
             symbol_to_seg_format_depth_set[SEG_aPF2] += 100;
         } else {
             symbol_to_seg_format_depth_set[SEG_aPF2] += MIN3(
                     100 * mathsquare(const_XM2T) / MAX(1, mathsquare(xm150)), 
                     100 * mathsquare(const_GO2T) / MAX(1, mathsquare(go150)),
-                    100 * mathsquare(bq) / (30*30));
+                    100 * mathsquare(bq) / mathsquare(paramset.bias_thres_PFBQ2));
         }
-        symbol_to_seg_format_depth_set[SEG_aXM1] += (xm150 > 30 ? (100 * mathsquare(30) / mathsquare(xm150)) : 100);
+        // symbol_to_seg_format_depth_set[SEG_aXM1] += (xm150 > 30 ? (100 * mathsquare(30) / mathsquare(xm150)) : 100);
     } else {
         unsigned int ampfact1 = 100;
         unsigned int ampfact2 = 100;
@@ -1148,8 +1197,8 @@ dealwith_segbias(
         } else { 
             ampfact1 = 100; 
         }
-        if (bq < 25) {
-            ampfact2 = 100 * mathsquare(bq) / (25*25);
+        if (bq < paramset.bias_thres_PFBQ1) {
+            ampfact2 = 100 * mathsquare(bq) / mathsquare(paramset.bias_thres_PFBQ1);
         } else { 
             ampfact2 = 100; 
         }
@@ -1160,18 +1209,18 @@ dealwith_segbias(
         } else { 
             ampfact1 = 100; 
         }
-        if (bq < 30) {
-            ampfact2 = 100 * mathsquare(bq) / (30*30);
+        if (bq < paramset.bias_thres_PFBQ2) {
+            ampfact2 = 100 * mathsquare(bq) / mathsquare(paramset.bias_thres_PFBQ2);
         } else { 
             ampfact2 = 100; 
         }
         symbol_to_seg_format_depth_set[SEG_aPF2] += (ampfact1 * ampfact2 / (100));
         
-        symbol_to_seg_format_depth_set[SEG_aXM1] += (xm150 > 30 ? (100 * mathsquare(30) / mathsquare(xm150)) : 100);
+        // symbol_to_seg_format_depth_set[SEG_aXM1] += (xm150 > 30 ? (100 * mathsquare(30) / mathsquare(xm150)) : 100);
         symbol_to_seg_format_depth_set[SEG_aXM2] += (xm150 > 20 ? (100 * mathsquare(20) / mathsquare(xm150)) : 100);
         symbol_to_seg_format_depth_set[SEG_aBM2] += (bm150 > 20 ? (100 * mathsquare(20) / mathsquare(bm150)) : 100);
     }
-    if (((!isGap) && bq >= 20) || (isGap && dist_to_interfering_indel >= 20)) {
+    if (((!isGap) && bq >= paramset.bias_thres_highBQ) || (isGap && dist_to_interfering_indel >= paramset.bias_thres_interfering_indel)) {
         const bool is_l1_unbiased = (seg_l_nbases >= seg_format_thres_set[SEG_aLP1t]);
         const bool is_l2_unbiased = (seg_l_nbases >= seg_format_thres_set[SEG_aLP2t]);
         const bool is_r1_unbiased = (seg_r_nbases >= seg_format_thres_set[SEG_aRP1t]);
@@ -1192,17 +1241,17 @@ dealwith_segbias(
             symbol_to_seg_format_depth_set[SEG_aLPL] += seg_l_nbases;
             symbol_to_seg_format_depth_set[SEG_aRPL] += seg_r_nbases;
         }
-        if (seg_l_baq >= 23 && seg_r_baq >= 23) {
-            if (seg_l_baq >= 45-10) {
+        if (seg_l_baq >= paramset.bias_thres_highBAQ && seg_r_baq >= paramset.bias_thres_highBAQ) {
+            if (seg_l_baq >= paramset.bias_thres_BAQ1) {
                 symbol_to_seg_format_depth_set[SEG_aLB1] += 1;
             }
-            if (seg_l_baq >= 60-10) {
+            if (seg_l_baq >= paramset.bias_thres_BAQ2) {
                 symbol_to_seg_format_depth_set[SEG_aLB2] += 1;
             }
-            if (seg_r_baq >= 45-10) {
+            if (seg_r_baq >= paramset.bias_thres_BAQ1) {
                 symbol_to_seg_format_depth_set[SEG_aRB1] += 1;
             }
-            if (seg_r_baq >= 60-10) {
+            if (seg_r_baq >= paramset.bias_thres_BAQ2) {
                 symbol_to_seg_format_depth_set[SEG_aRB2] += 1;
             }
             symbol_to_seg_format_depth_set[SEG_aLBL] += seg_l_baq;
@@ -1491,7 +1540,12 @@ public:
             const auto & seg_format_thres_sets,
             
             unsigned int primerlen,
-            uint32_t sepcialflag) {
+
+            unsigned int indel_str_repeatsize_max,
+            double indel_del_to_ins_err_ratio,
+            
+            const CommandLineArgs & paramset,
+            uint32_t specialflag) {
         
         static_assert(BASE_QUALITY_MAX == TUpdateType || SYMBOL_COUNT_SUM == TUpdateType);
         assert(this->tid == SIGN2UNSIGN(aln->core.tid));
@@ -1589,7 +1643,7 @@ if ((0 == primerlen) || (ibeg <= rpos && rpos < iend)) {
                         const auto noindel_phredvalue = MIN3(
                                 region_repeatvec[rpos-region_offset - 1].indelphred,
                                 region_repeatvec[rpos-region_offset].indelphred,
-                                40);
+                                30+18);
                         incvalue = MIN(MIN(bam_phredi(aln, qpos-1), bam_phredi(aln, qpos)) + (symbolType2addPhred[LINK_SYMBOL]), noindel_phredvalue) + 1;
                         this->template inc<TUpdateType>(rpos, LINK_M, incvalue, aln);
                         if (TIsBiasUpdated) {
@@ -1610,6 +1664,7 @@ if ((0 == primerlen) || (ibeg <= rpos && rpos < iend)) {
                                     bm150s[LINK_M],
                                     baq_offsetarr,
                                     MIN(rpos - prev_indel_rpos, next_indel_rpos - rpos),
+                                    paramset,
                                     0);
                         }
                     }
@@ -1631,6 +1686,7 @@ if ((0 == primerlen) || (ibeg <= rpos && rpos < iend)) {
                                 bm150s[symbol],
                                 baq_offsetarr,
                                 10000,
+                                paramset,
                                 0);
                     }
 }
@@ -1654,10 +1710,13 @@ if ((0 == primerlen) || (ibeg <= rpos && rpos < iend)) {
                             region_symbolvec, 
                             rpos - region_offset,
                             frag_indel_basemax, 
-                            8.0, 
+                            paramset.indel_polymerase_slip_rate,
                             cigar_oplen, 
                             cigar_op, 
-                            aln);
+                            aln,
+                            indel_str_repeatsize_max,
+                            indel_del_to_ins_err_ratio,
+                            0);
                     unsigned int thisdp = (seg_format_prep_sets.getByPos(rpos)[SEG_a_AT_INS_DP]); 
                     unsigned int neardp = (MAX(seg_format_prep_sets.getByPos(rpos)[SEG_a_NEAR_INS_DP], seg_format_prep_sets.getByPos(rpos)[SEG_a_NEAR_RTR_INS_DP]));
                     unsigned int insbase_minphred = 80;
@@ -1684,6 +1743,7 @@ if ((0 == primerlen) || (ibeg <= rpos && rpos < iend)) {
                                 bm150s[symbol],
                                 baq_offsetarr,
                                 10000,
+                                paramset,
                                 0);
                     }
                     std::string iseq;
@@ -1695,9 +1755,6 @@ if ((0 == primerlen) || (ibeg <= rpos && rpos < iend)) {
                         iseq.push_back(base8bit);
                         incvalue2 = MIN(incvalue2, SIGN2UNSIGN(bam_seqi(bseq, qpos+i2)))
                                 + (symbolType2addPhred[LINK_SYMBOL]);
-                    }
-                    if (867113 <= rpos && rpos <= 867115) {
-                        LOG(logINFO) << " rpos " << rpos << " has ins-seq " << iseq;
                     }
                     this->incIns(rpos, iseq, insLenToSymbol(inslen), MAX(SIGN2UNSIGN(1), incvalue2));
                 }
@@ -1720,10 +1777,13 @@ if ((0 == primerlen) || (ibeg <= rpos && rpos < iend)) {
                             region_symbolvec, 
                             rpos - region_offset, 
                             frag_indel_basemax, 
-                            8.0, 
+                            paramset.indel_polymerase_slip_rate, 
                             cigar_oplen, 
                             cigar_op, 
-                            aln);
+                            aln,
+                            indel_str_repeatsize_max,
+                            indel_del_to_ins_err_ratio,
+                            0);
                     unsigned int thisdp = (seg_format_prep_sets.getByPos(rpos)[SEG_a_AT_DEL_DP]);
                     unsigned int neardp = (MAX(seg_format_prep_sets.getByPos(rpos)[SEG_a_NEAR_DEL_DP], seg_format_prep_sets.getByPos(rpos)[SEG_a_NEAR_RTR_DEL_DP]));
                     unsigned int qfromBQ1 = MIN(bam_phredi(aln, qpos), bam_phredi(aln, qpos-1));
@@ -1746,6 +1806,7 @@ if ((0 == primerlen) || (ibeg <= rpos && rpos < iend)) {
                                 bm150s[symbol],
                                 baq_offsetarr,
                                 10000,
+                                paramset,
                                 0);
                     }
                     this->incDel(rpos, cigar_oplen, delLenToSymbol(dellen), MAX(SIGN2UNSIGN(1), incvalue));
@@ -1774,6 +1835,7 @@ if ((0 == primerlen) || (ibeg <= rpos && rpos < iend)) {
                                         bm150s[s],
                                         baq_offsetarr,
                                         MIN(rpos - prev_indel_rpos, next_indel_rpos - rpos),
+                                        paramset,
                                         0);
                             }
                         }
@@ -1807,6 +1869,11 @@ if ((0 == primerlen) || (ibeg <= rpos && rpos < iend)) {
             const auto & seg_format_thres_sets,
             
             unsigned int primerlen,
+
+            unsigned int indel_str_repeatsize_max,
+            double indel_del_to_ins_err_ratio,
+            
+            const auto & paramset,
             unsigned int specialflag) {
         for (const bam1_t *aln : aln_vec) {
             if (is_proton) {
@@ -1825,6 +1892,11 @@ if ((0 == primerlen) || (ibeg <= rpos && rpos < iend)) {
                         seg_format_thres_sets,
                         
                         primerlen,
+
+                        indel_str_repeatsize_max,
+                        indel_del_to_ins_err_ratio,
+                        
+                        paramset,
                         0);
             } else {
                 this->template updateByAln<false, TUpdateType, TIsBiasUpdated>(
@@ -1842,6 +1914,11 @@ if ((0 == primerlen) || (ibeg <= rpos && rpos < iend)) {
                         seg_format_thres_sets,
                         
                         primerlen,
+
+                        indel_str_repeatsize_max,
+                        indel_del_to_ins_err_ratio,
+                        
+                        paramset,
                         0);
             }
         }
@@ -1909,8 +1986,43 @@ struct Symbol2CountCoverageSet {
             const bool is_proton, 
             const auto & region_repeatvec,
             const auto & baq_offsetarr,
-
+            
             unsigned int primerlen,
+            
+            const CommandLineArgs & paramset,
+/*            
+unsigned int indel_str_repeatsize_max,
+            double indel_del_to_ins_err_ratio,
+            unsigned int bias_thres_highBQ,
+            
+            uint32_t bias_thres_highBQ, // 20
+            uint32_t bias_thres_highBAQ, // 23
+
+            uint32_t bias_thres_aLPxT_perc, // 125 
+            uint32_t bias_thres_aLPxT_add,  // 5
+
+            uint32_t bias_thres_PFXM1T_add, // 35;
+            uint32_t bias_thres_PFXM2T_add, // 20;
+            uint32_t bias_thres_PFGO1T_add, // 35;
+            uint32_t bias_thres_PFGO2T_add, // 20;
+
+            uint32_t bias_thres_aXM1T_perc, // 50;
+            uint32_t bias_thres_aXM2T_perc, //  70;
+            uint32_t bias_thres_aGO1T_perc, // 50;
+            uint32_t bias_thres_aGO2T_perc, // 70;
+
+            uint32_t bias_thres_aLRI1T_perc, // 250;
+            uint32_t bias_thres_aLRI2T_perc, // 200;
+            uint32_t bias_thres_aLRI1t_perc, // 50;
+            uint32_t bias_thres_aLRI2t_perc, // 67;
+
+            int32_t bias_thres_aLRP1t_add, // 10;
+            int32_t bias_thres_aLRP2t_add, // 5;
+            int32_t bias_thres_aLRB1t_add, // 50;
+            int32_t bias_thres_aLRB2t_add, // 25;
+            
+            const CommandLineArgs & paramset,
+*/
             unsigned int specialflag) {
         
         Symbol2CountCoverage bg_seg_bqsum_conslogo(tid, this->getUnifiedIncluBegPosition(), this->getUnifiedExcluEndPosition());
@@ -1925,6 +2037,7 @@ struct Symbol2CountCoverageSet {
                                 region_repeatvec,
                                 baq_offsetarr,
                                 this->getUnifiedIncluBegPosition(),
+                                paramset.bias_thres_highBQ,
                                 0);
                     }
                 }
@@ -1933,6 +2046,35 @@ struct Symbol2CountCoverageSet {
         update_seg_format_thres_from_prep_sets(
                 this->seg_format_thres_sets,
                 this->seg_format_prep_sets,
+                
+                paramset, 
+                /*
+                paramset.bias_thres_highBQ, // 20
+                paramset.bias_thres_highBAQ, // 23
+
+                paramset.bias_thres_aLPxT_perc, // 125 
+                paramset.bias_thres_aLPxT_add,  // 5
+
+                paramset.bias_thres_PFXM1T_add, // 35;
+                paramset.bias_thres_PFXM2T_add, // 20;
+                paramset.bias_thres_PFGO1T_add, // 35;
+                paramset.bias_thres_PFGO2T_add, // 20;
+
+                paramset.bias_thres_aXM1T_perc, // 50;
+                paramset.bias_thres_aXM2T_perc, //  70;
+                paramset.bias_thres_aGO1T_perc, // 50;
+                paramset.bias_thres_aGO2T_perc, // 70;
+
+                paramset.bias_thres_aLRI1T_perc, // 250;
+                paramset.bias_thres_aLRI2T_perc, // 200;
+                paramset.bias_thres_aLRI1t_perc, // 50;
+                paramset.bias_thres_aLRI2t_perc, // 67;
+
+                paramset.bias_thres_aLRP1t_add, // 10;
+                paramset.bias_thres_aLRP2t_add, // 5;
+                paramset.bias_thres_aLRB1t_add, // 50;
+                paramset.bias_thres_aLRB2t_add, // 25;
+                */
                 0);
         for (const auto & alns2pair2dflag : alns3) {
             for (unsigned int strand = 0; strand < 2; strand++) {
@@ -1947,13 +2089,17 @@ struct Symbol2CountCoverageSet {
                             region_symbolvec, 
                             region_repeatvec,
                             baq_offsetarr,
-
+                            
                             this->symbol_to_seg_format_depth_sets,
                             this->symbol_to_VQ_format_tag_sets,
                             this->seg_format_prep_sets,
                             this->seg_format_thres_sets,
-
+                            
                             primerlen,
+                            
+                            paramset.indel_str_repeatsize_max,
+                            paramset.indel_del_to_ins_err_ratio,
+                            paramset,
                             0);
                 }
             }
@@ -1982,6 +2128,10 @@ struct Symbol2CountCoverageSet {
                             this->seg_format_thres_sets,
                             
                             primerlen,
+                            
+                            paramset.indel_str_repeatsize_max,
+                            paramset.indel_del_to_ins_err_ratio,
+                            paramset,
                             0);
                     unsigned int normMQ = 0;
                     for (const bam1_t *aln : alns1) {
@@ -2028,7 +2178,7 @@ struct Symbol2CountCoverageSet {
                                         read_ampBQerr_fragWithR1R2.getPosToDlenToData(con_symbol), epos, 1);
                             }
                             AlignmentSymbol refsymbol = region_symbolvec[epos-this->getUnifiedIncluBegPosition()]; 
-                            if (areSymbolsMutated(refsymbol, con_symbol) && (LINK_SYMBOL == symbolType || phredlike >= 20)) {
+                            if (areSymbolsMutated(refsymbol, con_symbol) && (LINK_SYMBOL == symbolType || phredlike >= paramset.bias_thres_highBQ)) {
                                 pos_symbol_string.push_back(std::make_pair(epos, con_symbol));
                             }
                         }
@@ -2066,12 +2216,6 @@ struct Symbol2CountCoverageSet {
                     this->symbol_to_VQ_format_tag_sets.getRefByPos(epos)[symbol][VQ_bIAQb] += maxvqual;
                     this->symbol_to_VQ_format_tag_sets.getRefByPos(epos)[symbol][VQ_bIADb] += argmaxAD;
                     this->symbol_to_VQ_format_tag_sets.getRefByPos(epos)[symbol][VQ_bIDQb] += argmaxBQ;
-                    if (2358481 == epos) {
-                        LOG(logINFO) << "Symbol " << symbol << " bq distributions:";
-                        for (auto x : this->dedup_ampDistr[0].getByPos(epos).getSymbolCounts(symbol)) {
-                            LOG(logINFO) << "\t" << x;
-                        }
-                    }
                 }
             }
             this->dedup_ampDistr[0].getRefByPos(epos).clearSymbolBucketCount();
@@ -2092,8 +2236,14 @@ struct Symbol2CountCoverageSet {
             const auto & region_repeatvec,
             const auto & baq_offsetarr,
             unsigned int primerlen,
+            
+            // unsigned int indel_str_repeatsize_max,
+            // double indel_del_to_ins_err_ratio,
+            
             const unsigned int phred_indel_error_before_barcode_labeling,
-            unsigned int specialflag = 0) {
+
+            const CommandLineArgs & paramset,
+            unsigned int specialflag) {
         bool is_loginfo_enabled = true; 
         
         unsigned int niters = 0;
@@ -2127,8 +2277,12 @@ struct Symbol2CountCoverageSet {
                             this->seg_format_thres_sets,
                             
                             primerlen,
+                            
+                            paramset.indel_str_repeatsize_max,
+                            paramset.indel_del_to_ins_err_ratio,
+                            paramset,
                             0);
-                    read_family_con_ampl.updateByFiltering(read_ampBQerr_fragWithR1R2, std::array<unsigned int, NUM_SYMBOL_TYPES> {{ 25, 0 }});
+                    read_family_con_ampl.updateByFiltering(read_ampBQerr_fragWithR1R2, std::array<unsigned int, NUM_SYMBOL_TYPES> {{ paramset.fam_thres_highBQ, 0 }});
                 }
                 for (size_t epos = read_family_con_ampl.getIncluBegPosition(); epos < read_family_con_ampl.getExcluEndPosition(); epos++) {
                     const auto & con_ampl_symbol2count = read_family_con_ampl.getByPos(epos);
@@ -2141,10 +2295,10 @@ struct Symbol2CountCoverageSet {
                         if (1 == tot_count) {
                             this->symbol_to_fam_format_depth_sets_2strand[strand].getRefByPos(epos)[con_symbol][FAM_c1DP] += 1;
                         }
-                        if (1 < tot_count && (con_count * 100 >= tot_count * 80)) {
+                        if (paramset.fam_thres_dup1add <= tot_count && (con_count * 100 >= tot_count * paramset.fam_thres_dup1perc)) {
                             this->symbol_to_fam_format_depth_sets_2strand[strand].getRefByPos(epos)[con_symbol][FAM_cDP2] += 1;
                         }
-                        if (2 < tot_count && (con_count * 100 >= tot_count * 85)) {
+                        if (paramset.fam_thres_dup2add  < tot_count && (con_count * 100 >= tot_count * paramset.fam_thres_dup2perc)) {
                             this->symbol_to_fam_format_depth_sets_2strand[strand].getRefByPos(epos)[con_symbol][FAM_cDP3] += 1;
                         }
                         
@@ -2161,8 +2315,8 @@ struct Symbol2CountCoverageSet {
                         // This is one round of bootstrapping for EM. We can use a full EM algorithm to improve this estimator, but it is probably overkill
                         // 0 means no coverage, 1 means no error correction, 2 means low quality family if the symbols disagree with each other, 
                         // 3 means up to 1 erroneous basecall is tolerated, 4 means up to 2 erroneous basecalls are tolerated
-                        if (tot_count < 4) { continue; } 
-                        if (con_count * 3 < tot_count * 2) { continue; }
+                        if (tot_count < paramset.fam_thres_emperr_all_flat) { continue; } 
+                        if (con_count * 100 < tot_count * paramset.fam_thres_emperr_con_perc) { continue; }
                         for (AlignmentSymbol symbol : SYMBOL_TYPE_TO_SYMBOLS[symbolType]) {
                             if (con_symbol != symbol) {
                                 this->symbol_to_fam_format_depth_sets_2strand[strand].getRefByPos(epos)[con_symbol][FAM_cDPm] += 
@@ -2212,9 +2366,13 @@ struct Symbol2CountCoverageSet {
                             this->seg_format_thres_sets,
                             
                             primerlen,
+                            
+                            paramset.indel_str_repeatsize_max,
+                            paramset.indel_del_to_ins_err_ratio,
+                            paramset,
                             0);
                     // The line below is similar to : read_family_mmm_ampl.updateByConsensus<SYMBOL_COUNT_SUM>(read_ampBQerr_fragWithR1R2);
-                    read_family_con_ampl.updateByFiltering(read_ampBQerr_fragWithR1R2, std::array<unsigned int, NUM_SYMBOL_TYPES> {{ 25, 0 }});
+                    read_family_con_ampl.updateByFiltering(read_ampBQerr_fragWithR1R2, std::array<unsigned int, NUM_SYMBOL_TYPES> {{ paramset.fam_thres_highBQ, 0 }});
                     read_family_mmm_ampl.updateByMajorMinusMinor(read_ampBQerr_fragWithR1R2, false); 
                 }
                 if ((2 == alns2pair2dflag.second) && alns2pair[0].size() > 0 && alns2pair[1].size() > 0) { // is duplex
@@ -2249,7 +2407,7 @@ struct Symbol2CountCoverageSet {
                         }
                         
                         AlignmentSymbol ref_symbol = region_symbolvec[epos - this->getUnifiedIncluBegPosition()]; 
-                        if (areSymbolsMutated(ref_symbol, con_symbol) && (LINK_SYMBOL == symbolType || confam_qual >= 20)) {
+                        if (areSymbolsMutated(ref_symbol, con_symbol) && (LINK_SYMBOL == symbolType || confam_qual >= paramset.bias_thres_highBQ)) {
                             pos_symbol_string.push_back(std::make_pair(epos, con_symbol));
                         }
                         unsigned int max_qual = phred_max_table.toPhredErrRate(ref_symbol, con_symbol);
@@ -2357,8 +2515,15 @@ struct Symbol2CountCoverageSet {
             bool use_deduplicated_reads, 
             const bool is_proton, 
             const unsigned int primerlen,
+            
+            /*
+            unsigned int indel_str_repeatsize_max,
+            double indel_del_to_ins_err_ratio,
+            unsigned int bias_thres_highBQ,
+            */
             const unsigned int phred_indel_error_before_barcode_labeling,
             const unsigned int baq_per_aligned_base,
+            const auto & paramset,
             const unsigned int specialflag = 0) {
         
         const std::array<unsigned int, NUM_SYMBOL_TYPES> symbolType2addPhred = {{bq_phred_added_misma, bq_phred_added_indel}};
@@ -2375,7 +2540,14 @@ struct Symbol2CountCoverageSet {
                 is_proton, 
                 region_repeatvec,
                 baq_offsetarr,
+                
                 primerlen,
+
+                /*indel_str_repeatsize_max,
+                indel_del_to_ins_err_ratio,
+                bias_thres_highBQ,
+                */
+                paramset,
                 0);
         updateHapMap(mutform2count4map_bq, this->symbol_to_frag_format_depth_sets, FRAG_bDP);
         if (use_deduplicated_reads) {
@@ -2391,7 +2563,10 @@ struct Symbol2CountCoverageSet {
                     region_repeatvec,
                     baq_offsetarr,
                     primerlen,
+                    // indel_str_repeatsize_max,
+                    // indel_del_to_ins_err_ratio,
                     phred_indel_error_before_barcode_labeling,
+                    paramset,
                     0);
             updateHapMap(mutform2count4map_fq, this->symbol_to_fam_format_depth_sets_2strand, FAM_cDP0);
         }
@@ -2437,6 +2612,7 @@ fill_symbol_VQ_fmts(
         const size_t refpos,
         const AlignmentSymbol symbol,
         int minABQ,
+        const CommandLineArgs & paramset,
         const unsigned int specialflag) {
     const unsigned int a = 0;
     
@@ -2455,9 +2631,10 @@ fill_symbol_VQ_fmts(
     
     const int rssDPbBQ = (int)((aDPf + aDPr) * sqrt((a2BQf + a2BQr) * SQR_QUAL_DIV / MAX(1, aDPf + aDPr)));
     
-    assert ((aDPf + aDPr) * 100 >= LAST(fmt.aXM1));
+    // assert ((aDPf + aDPr) * 100 >= LAST(fmt.aXM1));
     assert ((aDPf + aDPr) * 100 >= LAST(fmt.aXM2));
     assert ((aDPf + aDPr) * 100 >= LAST(fmt.aBM2));
+    // TODO: what is the exact theory behind the following line of code?
     int64_t minABQa = (int)minABQ - (int)(50.0 * mathsquare(MAX(0, ((aDPf + aDPr + 0.5) * 2.0 / (ADP + 1.0) - 1.0))));
     const int dp10pc = 10;
     double sbratio = (double)(MAX(aDPf, aDPr) * 10 + dp10pc) / (double)(MIN(aDPf, aDPr) * 10 + dp10pc);
@@ -2465,11 +2642,13 @@ fill_symbol_VQ_fmts(
     const int xmratio = (int)(4*100 * (int)(aDPf + aDPr) / (int)MAX(1, LAST(fmt.aXM2)) - 0);
     const int bmratio = (int)(4*100 * (int)(aDPf + aDPr) / (int)MAX(1, LAST(fmt.aBM2)) - 0);
     minABQa += (int)BETWEEN((int)xmratio - 5, 0, 30) + (int)BETWEEN((int)bmratio - 5, 0, 40);
+    /*
     fmt.note += std::string("//minABQa/") 
             + std::to_string(minABQa) + "/" 
             + std::to_string(sbratio) + "/" 
             + std::to_string(xmratio) + "/" 
             + std::to_string(bmratio) + "//";
+    */
     int a_BQ_syserr_qual_fw = (rssDPfBQ * 3 - minABQa * aDPf * 3 / 10 + rssDPrBQ - minABQa * aDPr / 10) / 3;
     int a_BQ_syserr_qual_rv = (rssDPrBQ * 3 - minABQa * aDPr * 3 / 10 + rssDPfBQ - minABQa * aDPf / 10) / 3;
     int a_BQ_syserr_qual_2d = (rssDPbBQ) - minABQa * (aDPf + aDPr) / 10;
@@ -2480,8 +2659,8 @@ fill_symbol_VQ_fmts(
     clear_push(fmt.a2BQf, rssDPfBQ, a);
     clear_push(fmt.a2BQr, rssDPrBQ, a);
     clear_push(fmt.aBQ, a_rmsBQ);
-    const int sys_seq_err_phred_per_ref_bp = 30; // https://bmcbioinformatics.biomedcentral.com/articles/10.1186/1471-2105-12-451
-    clear_push(fmt.aBQQ, MAX(a_rmsBQ, sys_seq_err_phred_per_ref_bp + MAX3(a_BQ_syserr_qual_2d, a_BQ_syserr_qual_fw, a_BQ_syserr_qual_rv)), a);
+    // const int sys_seq_err_phred_per_ref_bp = 30; // https://bmcbioinformatics.biomedcentral.com/articles/10.1186/1471-2105-12-451
+    clear_push(fmt.aBQQ, MAX(a_rmsBQ, paramset.syserr_BQ_prior + MAX3(a_BQ_syserr_qual_2d, a_BQ_syserr_qual_fw, a_BQ_syserr_qual_rv)), a);
     
     fill_symbol_fmt(fmt.bIAQb, symbol_to_VQ_format_tag_sets, VQ_bIAQb, refpos, symbol, a);
     fill_symbol_fmt(fmt.bIADb, symbol_to_VQ_format_tag_sets, VQ_bIADb, refpos, symbol, a);
@@ -2616,6 +2795,7 @@ BcfFormat_symbol_init(
         const unsigned int cDP0a,
         const std::string & gapSa,
         unsigned int minABQ,
+        const CommandLineArgs & paramset,
         const unsigned int specialflag) {
     const unsigned int a = 0;
     
@@ -2642,7 +2822,7 @@ BcfFormat_symbol_init(
     fill_symbol_fmt(fmt.aRB2, symbol_to_seg_format_depth_sets, SEG_aRB2, refpos, symbol, a);
     fill_symbol_fmt(fmt.aRBL, symbol_to_seg_format_depth_sets, SEG_aRBL, refpos, symbol, a);
     
-    fill_symbol_fmt(fmt.aXM1, symbol_to_seg_format_depth_sets, SEG_aXM1, refpos, symbol, a);
+    // fill_symbol_fmt(fmt.aXM1, symbol_to_seg_format_depth_sets, SEG_aXM1, refpos, symbol, a);
     fill_symbol_fmt(fmt.aXM2, symbol_to_seg_format_depth_sets, SEG_aXM2, refpos, symbol, a);
     fill_symbol_fmt(fmt.aBM2, symbol_to_seg_format_depth_sets, SEG_aBM2, refpos, symbol, a);
     fill_symbol_fmt(fmt.aBQ2, symbol_to_seg_format_depth_sets, SEG_aBQ2, refpos, symbol, a);
@@ -2694,6 +2874,7 @@ BcfFormat_symbol_init(
             refpos,
             symbol,
             minABQ,
+            paramset,
             a);
     
     fmt.bHap = mutform2count4map_to_phase(mutform2count4vec_bq, indices_bq);
@@ -2716,6 +2897,7 @@ BcfFormat_symbol_calc_DPv(
         const RegionalTandemRepeat & rtr2,
         const double tpfa,
         const bool is_amplicon,
+        const CommandLineArgs & paramset,
         unsigned int specialflag) {
     
     const unsigned int a = 0;
@@ -2731,41 +2913,44 @@ BcfFormat_symbol_calc_DPv(
     const auto symbol = AlignmentSymbol(LAST(f.VTI));
     
     // substitution in indel region, substitution in indel-prone region or indel, other cases 
-    unsigned int aDPplus = (isSymbolSubstitution(symbol) ? 0 : ((aDP + 1) / 2));
+    unsigned int aDPplus = (isSymbolSubstitution(symbol) ? 0 : ((aDP + 1) * 50 / 100));
     double dp_coef = ((symbol == LINK_M) ?  MAX(0.02, 1.0 - MAX(rtr1.tracklen, rtr2.tracklen) / (MAX3(1, f.ALPL[0], f.ARPL[0]) / MAX(1.0/150.0, f.ABQ2[0]))) : 1.0);
-    double _aPprior = 1024*9/2 / (is_rescued ? phred2prob(8) : 1); // probability that there is one indel at a pos
-    const bool is_in_indel_read = (   (f.APXM[1]) / 15.0 * 2  * (1.25+1e-7) > (aDP + aDPplus) * dp_coef);
-    const bool is_in_indel_len  = (MAX(f.APDP[1],  f.APDP[2]) * (1.25+1e-7) > (aDP + aDPplus) * dp_coef);
-    const bool is_in_indel_rtr  = (MAX(f.APDP[3],  f.APDP[4]) * (1.25+1e-7) > (aDP + aDPplus) * dp_coef);
+    double _aPprior = paramset.bias_prior_pos / (is_rescued ? phred2prob(paramset.tn_q_inc_max) : 1); // probability that there is one indel at a pos
+    const bool is_in_indel_read = (   (f.APXM[1]) / 15.0 * 2  * (paramset.bias_prior_var_DP_mul) > (aDP + aDPplus) * dp_coef);
+    const bool is_in_indel_len  = (MAX(f.APDP[1],  f.APDP[2]) * (paramset.bias_prior_var_DP_mul) > (aDP + aDPplus) * dp_coef);
+    const bool is_in_indel_rtr  = (MAX(f.APDP[3],  f.APDP[4]) * (paramset.bias_prior_var_DP_mul) > (aDP + aDPplus) * dp_coef);
     const bool is_in_rtr = (MAX(rtr1.tracklen, rtr2.tracklen) > 8);
-    if (is_in_indel_read)      { _aPprior /= (64+32); }
-    if (is_in_indel_len)       { _aPprior /= 24; }
-    else if (is_in_indel_rtr)  { _aPprior /=  8; }
-    else if (is_in_rtr)        { _aPprior /=  3; }
+    if (is_in_indel_read)      { _aPprior /= paramset.bias_prior_indel_in_read_div; }
+    if (is_in_indel_len)       { _aPprior /= paramset.bias_prior_indel_in_var_div2; }
+    else if (is_in_indel_rtr)  { _aPprior /= paramset.bias_prior_indel_in_STR_div2; }
+    else if (is_in_rtr)        { _aPprior /= paramset.bias_prior_var_in_STR_div2; }
     const double aPprior = _aPprior;
     fmt.note += std::string("//aPprior/") +std::to_string(aPprior) + "//";
-    const double aIprior = log(isSymbolSubstitution(symbol) ? 1e5 : 3e2) + 1;
-    const double aSBprior = log(isSymbolSubstitution(symbol) ? (pow(10.0, fmt.aBQ[a] / 10.0) + 1) : 3e2);
+    const double aIprior = log(isSymbolSubstitution(symbol) ? paramset.bias_prior_ipos_SNV : paramset.bias_prior_ipos_InDel) + 1;
+    const double aSBprior = log(isSymbolSubstitution(symbol) 
+            ? (pow(10.0, fmt.aBQ[a] / 10.0) * paramset.bias_prior_strand_SNV_base + paramset.bias_prior_pseudocount) 
+            : (paramset.bias_prior_strand_InDel + paramset.bias_prior_pseudocount));
     
-    const auto aLPFAx2 = dp4_to_pcFA<false>(f.aLP1[a], aDP, f.ALP2[0] + f.aLP1[a] - f.aLP2[a], ADP, 3.0, log(aPprior),
-            MAX(1, f.aLPL[a]) / (double)MAX(1, f.aBQ2[a]), MAX(1, f.ALPL[0]) / (double)MAX(1, f.ABQ2[0]), ((is_in_indel_read) ? 0.10 : 0.5)); 
+    const auto aLPFAx2 = dp4_to_pcFA<false>(f.aLP1[a], aDP, f.ALP2[0] + f.aLP1[a] - f.aLP2[a], ADP, paramset.powlaw_exponent, log(aPprior),
+            MAX(1, f.aLPL[a]) / (double)MAX(1, f.aBQ2[a]), MAX(1, f.ALPL[0]) / (double)MAX(1, f.ABQ2[0]), ((is_in_indel_read) ? paramset.bias_FA_pseudocount_indel_in_read : 0.5)); 
             // use f.aBQ2[a] instead of aDP ???
-    const auto aRPFAx2 = dp4_to_pcFA<false>(f.aRP1[a], aDP, f.ARP2[0] + f.aRP1[a] - f.aRP2[a], ADP, 3.0, log(aPprior),
-            MAX(1, f.aRPL[a]) / (double)MAX(1, f.aBQ2[a]), MAX(1, f.ARPL[0]) / (double)MAX(1, f.ABQ2[0]), ((is_in_indel_read) ? 0.10 : 0.5));
+    const auto aRPFAx2 = dp4_to_pcFA<false>(f.aRP1[a], aDP, f.ARP2[0] + f.aRP1[a] - f.aRP2[a], ADP, paramset.powlaw_exponent, log(aPprior),
+            MAX(1, f.aRPL[a]) / (double)MAX(1, f.aBQ2[a]), MAX(1, f.ARPL[0]) / (double)MAX(1, f.ABQ2[0]), ((is_in_indel_read) ? paramset.bias_FA_pseudocount_indel_in_read : 0.5));
     double aLPFA = aLPFAx2[0];
     double aRPFA = aRPFAx2[0];
     
-    const auto aLBFAx2 = dp4_to_pcFA<false>(f.aLB1[a], aDP, f.ALB2[0] + f.aLB1[a] - f.aLB2[a], ADP, 3.0, log(aPprior),
-            MAX(1, f.aLBL[a]) / (double)MAX(1, f.aBQ2[a]), MAX(1, f.ALBL[0]) / (double)MAX(1, f.ABQ2[0]), ((is_in_indel_read) ? 0.10 : 0.5));
-    const auto aRBFAx2 = dp4_to_pcFA<false>(f.aRB1[a], aDP, f.ARB2[0] + f.aRB1[a] - f.aRB2[a], ADP, 3.0, log(aPprior),
-            MAX(1, f.aRBL[a]) / (double)MAX(1, f.aBQ2[a]), MAX(1, f.ARBL[0]) / (double)MAX(1, f.ABQ2[0]), ((is_in_indel_read) ? 0.10 : 0.5));
+    const auto aLBFAx2 = dp4_to_pcFA<false>(f.aLB1[a], aDP, f.ALB2[0] + f.aLB1[a] - f.aLB2[a], ADP, paramset.powlaw_exponent, log(aPprior),
+            MAX(1, f.aLBL[a]) / (double)MAX(1, f.aBQ2[a]), MAX(1, f.ALBL[0]) / (double)MAX(1, f.ABQ2[0]), ((is_in_indel_read) ? paramset.bias_FA_pseudocount_indel_in_read : 0.5));
+    const auto aRBFAx2 = dp4_to_pcFA<false>(f.aRB1[a], aDP, f.ARB2[0] + f.aRB1[a] - f.aRB2[a], ADP, paramset.powlaw_exponent, log(aPprior),
+            MAX(1, f.aRBL[a]) / (double)MAX(1, f.aBQ2[a]), MAX(1, f.ARBL[0]) / (double)MAX(1, f.ABQ2[0]), ((is_in_indel_read) ? paramset.bias_FA_pseudocount_indel_in_read : 0.5));
     double aLBFA = aLBFAx2[0];
     double aRBFA = aRBFAx2[0];
+    /*
     fmt.note += std::string("symbol/") + SYMBOL_TO_DESC_ARR[symbol] + "/";
     fmt.note += std::string("aLBFAdetail//") + other_join2(std::vector<double> {{ 
             (double)f.aRB1[a], (double)aDP, (double)(f.ARB2[0] + f.aRB1[a] - f.aRB2[a]), (double)ADP, 3.0, log(aPprior),
             MAX(1, f.aRBL[a]) / (double)MAX(1, f.aBQ2[a]), MAX(1, f.ARBL[0]) / (double)MAX(1, f.ABQ2[0]), ((is_in_indel_read) ? 0.10 : 0.5) }} , "/") + "//";
-
+    */
     std::array<double, 2> _aLIFAx2 = {{ 0, 0 }};
     {
         double ALpd = (f.ALI2[0] +                 0.5) / (f.ADPfr[0] + f.ADPrr[0] - f.ALI2[0] + 0.5);
@@ -2773,7 +2958,7 @@ BcfFormat_symbol_calc_DPv(
         _aLIFAx2 = dp4_to_pcFA<false>(
                 (f.aLI1[a]), (f.aDPfr[a] + f.aDPrr[a]), 
                 (f.ALI2[0] + f.aLI1[a] - f.aLI2[a]), (f.ADPfr[0] + f.ADPrr[0]), 
-                3.0, log(aIprior), 
+                paramset.powlaw_exponent, log(aIprior), 
                 aLpd, ALpd, 0.25, 0.5);
         fmt.note += std::string("ALpd/aLpd/") + std::to_string(ALpd) + "/" + std::to_string(aLpd) + "//";
     }
@@ -2786,7 +2971,7 @@ BcfFormat_symbol_calc_DPv(
         _aRIFAx2 = dp4_to_pcFA<false>(
                 (f.aRI1[a]), (f.aDPff[a] + f.aDPrf[a]), 
                 (f.ARI2[0] + f.aRI1[a] - f.aRI2[a]), (f.ADPff[0] + f.ADPrf[0]), 
-                3.0, log(aIprior),
+                paramset.powlaw_exponent, log(aIprior),
                 aRpd, ARpd, 0.25, 0.5);
         fmt.note += std::string("ARpd/aRpd/") + std::to_string(ARpd) + "/" + std::to_string(aRpd) + "//";
     }
@@ -2795,15 +2980,15 @@ BcfFormat_symbol_calc_DPv(
     if (isSymbolIns(symbol) || isSymbolDel(symbol)) {
         const auto & indelstring = LAST(fmt.gapSa);
         const bool is_in_indel_major_reg = ((MAX(f.APDP[1], f.APDP[3]) + MAX(f.APDP[2], f.APDP[4])) * 0.5 * (1.0+(double)FLT_EPSILON) < aDP);
-        if ((indelstring.size() * aDPFA >= 2) || 
-                (MAX(rtr1.tracklen, rtr2.tracklen) >= 16
+        if ((indelstring.size() * aDPFA >= paramset.nobias_pos_indel_lenfrac_thres) || 
+                (MAX(rtr1.tracklen, rtr2.tracklen) >= paramset.nobias_pos_indel_STR_track_len
                 && is_in_indel_major_reg)) {
             aLPFA = 2.0;
             aRPFA = 2.0;
             aLBFA = 2.0;
             aRBFA = 2.0;
         } else {
-            fmt.note += std::string("rtr-tracklen/") + std::to_string(rtr1.tracklen) + "/" + std::to_string(rtr2.tracklen) + "/";
+            // fmt.note += std::string("rtr-tracklen/") + std::to_string(rtr1.tracklen) + "/" + std::to_string(rtr2.tracklen) + "/";
         }
         aLIFA = aRIFA = 2.0;
     } else if (LINK_M == symbol || LINK_NN == symbol) {
@@ -2812,20 +2997,23 @@ BcfFormat_symbol_calc_DPv(
     } 
     
     const double aPFFA = (fmt.aPF1[a] + pfa * (is_rescued ? 100.0 : (double)(fmt.aXM2[a] / MAX(1, aDP)))) / (fmt.APF2[0] + (fmt.aPF1[a] - fmt.aPF2[a]) + 1.0*100);
-    const auto aSSFAx2 = dp4_to_pcFA<true>(fmt.aDPff[a] + fmt.aDPrf[a], fmt.aDPfr[a] + fmt.aDPrr[a], fmt.ADPff[0] + fmt.ADPrf[0], fmt.ADPfr[0] + fmt.ADPrr[0], 3.0, aSBprior);
-    const auto cROFA0x2 = dp4_to_pcFA<true>(fmt.cDP0f[a], fmt.cDP0r[a], fmt.CDP0f[0], fmt.CDP0r[0], 3.0, log(mathsquare(aDPFA) * 1e6 + 2));
-    const auto cROFA2x2 = dp4_to_pcFA<true>(fmt.cDP2f[a], fmt.cDP2r[a], fmt.CDP2f[0], fmt.CDP2r[0], 3.0, log(mathsquare(aDPFA) * 1e6 + 2));
+    const auto aSSFAx2 = dp4_to_pcFA<true>(fmt.aDPff[a] + fmt.aDPrf[a], fmt.aDPfr[a] + fmt.aDPrr[a], fmt.ADPff[0] + fmt.ADPrf[0], fmt.ADPfr[0] + fmt.ADPrr[0], 
+            paramset.powlaw_exponent, aSBprior);
+    const auto cROFA0x2 = dp4_to_pcFA<true>(fmt.cDP0f[a], fmt.cDP0r[a], fmt.CDP0f[0], fmt.CDP0r[0], paramset.powlaw_exponent, 
+            log(mathsquare(aDPFA) * paramset.bias_orientation_SNV_base + 2));
+    const auto cROFA2x2 = dp4_to_pcFA<true>(fmt.cDP2f[a], fmt.cDP2r[a], fmt.CDP2f[0], fmt.CDP2r[0], paramset.powlaw_exponent, 
+            log(mathsquare(aDPFA) * paramset.bias_orientation_SNV_base + 2));
     const double aSSFA = aSSFAx2[0];
     double cROFA0 = cROFA0x2[0];
     double cROFA2 = cROFA2x2[0];
     if ((fmt.cDP1r[a] * fmt.CDP1f[0] < fmt.cDP1f[a] * fmt.CDP1r[0]) 
-            && (MIN(fmt.aLILf[a], fmt.aRILf[a]) / MAX(fmt.aDPff[a] + fmt.aDPfr[a], 1) > 25)
-            && (MIN(fmt.ALILr[0], fmt.ARILr[0]) / MAX(fmt.ADPrf[0] + fmt.ADPrr[0], 1) < 25)) { // fw allele frac > rv allele frac
+            && (MIN(fmt.aLILf[a], fmt.aRILf[a]) / MAX(fmt.aDPff[a] + fmt.aDPfr[a], 1) > paramset.bias_orientation_counter_avg_end_len)
+            && (MIN(fmt.ALILr[0], fmt.ARILr[0]) / MAX(fmt.ADPrf[0] + fmt.ADPrr[0], 1) < paramset.bias_orientation_counter_avg_end_len)) { // fw allele frac > rv allele frac
         cROFA0 = cROFA2 = 2.0;
     }
     if ((fmt.cDP1f[a] * fmt.CDP1r[0] < fmt.cDP1r[a] * fmt.CDP1f[0]) 
-            && (MIN(fmt.aLILr[a], fmt.aRILr[a]) / MAX(fmt.aDPrr[a] + fmt.aDPrr[a], 1) > 25)
-            && (MIN(fmt.ALILf[0], fmt.ARILf[0]) / MAX(fmt.ADPff[0] + fmt.ADPfr[0], 1) < 25)) { // fw allele frac > rv allele frac
+            && (MIN(fmt.aLILr[a], fmt.aRILr[a]) / MAX(fmt.aDPrr[a] + fmt.aDPrr[a], 1) > paramset.bias_orientation_counter_avg_end_len)
+            && (MIN(fmt.ALILf[0], fmt.ARILf[0]) / MAX(fmt.ADPff[0] + fmt.ADPfr[0], 1) < paramset.bias_orientation_counter_avg_end_len)) { // fw allele frac > rv allele frac
         cROFA0 = cROFA2 = 2.0;
     }
     double bFA = (fmt.bDPa[a] + pfa) / (fmt.BDPf[0] + fmt.BDPr[0] + 1.0);
@@ -2855,6 +3043,7 @@ BcfFormat_symbol_calc_DPv(
     fmt.note += std::string("2/3//") + other_join(min_cFA23_vec, "/") + "//";
     double umi_cFA = MINVEC(min_cFA23_vec);
     
+    // TODO: find the theory for the following three lines of code.
     double frac_umi2seg = MIN(1.0, umi_cFA / aDPFA * BETWEEN(2.0 * mathsquare(min_aFA / aDPFA), 0.5, 1.0));
     fmt.note += std::string("frac_umi2seg//") + std::to_string(frac_umi2seg) + "//";
     double frac_c1_b = BETWEEN(2.5 * mathsquare(cFA0 / bFA), 0.4, 1.0);
@@ -2987,6 +3176,7 @@ BcfFormat_symbol_calc_qual(
         int refpos,
         AlignmentSymbol refsymbol,
         double tpfa,
+        const CommandLineArgs & paramset,
         const unsigned int specialflag) {
     
     const unsigned int a = 0;
@@ -2999,15 +3189,16 @@ BcfFormat_symbol_calc_qual(
     
     double prior_weight;
     prior_weight = 1.0 / (fmt.cDPmf[a] + 1.0);
-    double cMmQf = 10/log(10) * log((fmt.cDPMf[a] + fmt.cDPmf[a] + pow(10, 25/10.0) * prior_weight) 
+    double cMmQf = 10/log(10) * log((fmt.cDPMf[a] + fmt.cDPmf[a] + pow(10, paramset.fam_thres_highBQ / 10.0) * prior_weight) 
             / (fmt.cDPmf[a] + prior_weight));
     prior_weight = 1.0 / (fmt.cDPmr[a] + 1.0);
-    double cMmQr = 10/log(10) * log((fmt.cDPMr[a] + fmt.cDPmr[a] + pow(10, 25/10.0) * prior_weight) 
+    double cMmQr = 10/log(10) * log((fmt.cDPMr[a] + fmt.cDPmr[a] + pow(10, paramset.fam_thres_highBQ / 10.0) * prior_weight) 
             / (fmt.cDPmr[a] + prior_weight));
     
     int cMmQ = sqrt((mathsquare(cMmQf) * fmt.cDP3f[a] + mathsquare(cMmQr) * fmt.cDP3r[a]) / (fmt.cDP3f[a] + fmt.cDP3r[a]));
     
     const int bIADnormcnt = (fmt.bIADb[a] * 100 + 1);
+    // TODO: what is the theory behind bIAQinc ???
     const unsigned int bIAQinc = ((isSymbolIns(symbol) || isSymbolDel(symbol)) ? 
             (unsigned int)round(10/log(10)*log(MIN(5, (double)(BDP + var_bdepth + 0.5) / (double)(BDP - var_bdepth + 0.5)))): 0);
     int duped_frag_binom_qual = (fmt.bIAQb[a] + bIAQinc) * MIN(bIADnormcnt, fmt.cDP1v[a] + 1) / bIADnormcnt;
@@ -3015,27 +3206,27 @@ BcfFormat_symbol_calc_qual(
         duped_frag_binom_qual += (int)(10/log(10) * log((double)fmt.cDP1v[a] / (double)bIADnormcnt) * fmt.bIADb[a]);
     }
     
-    const int sscs_dec = (int)(mathsquare((double)(fmt.CDP1f[0] + fmt.CDP1r[0] + 300) / (double)(fmt.BDPf[0] + fmt.BDPr[0] + 300)) * 60);
+    // TODO: what is the theory behind sscs_dec ???
+    const int sscs_dec = (int)(mathsquare((double)(fmt.CDP1f[0] + fmt.CDP1r[0] + paramset.fam_pseudocount_ref) / (double)(fmt.BDPf[0] + fmt.BDPr[0] + paramset.fam_pseudocount_ref)) * 60);
     
     const int cIADnormcnt = (fmt.cIADf[a] * 100 + 1);
-    int sscs_binom_qual_fw = fmt.cIAQf[a] + fmt.cIAQr[a] * MIN(60 - fmt.cIDQf[a], fmt.cIDQr[a]) / MAX(fmt.cIDQr[a], 1);
-    int sscs_binom_qual_rv = fmt.cIAQr[a] + fmt.cIAQf[a] * MIN(60 - fmt.cIDQr[a], fmt.cIDQf[a]) / MAX(fmt.cIDQf[a], 1);
+    int sscs_binom_qual_fw = fmt.cIAQf[a] + fmt.cIAQr[a] * MIN(paramset.phred_max_dscs_all - fmt.cIDQf[a], fmt.cIDQr[a]) / MAX(fmt.cIDQr[a], 1); // phred_max_dscs_all
+    int sscs_binom_qual_rv = fmt.cIAQr[a] + fmt.cIAQf[a] * MIN(paramset.phred_max_dscs_all - fmt.cIDQr[a], fmt.cIDQf[a]) / MAX(fmt.cIDQf[a], 1);
     int dedup_sscs_binom_qual = MAX(sscs_binom_qual_fw, sscs_binom_qual_rv) * MIN(cIADnormcnt, fmt.cDP2v[a] + 1) / cIADnormcnt - sscs_dec;
     
-    const int tn_reward = 10;
     double min_bcFA_v = (((double)(fmt.cDP1v[a]) + 0.5) / (double)(fmt.CDP1f[0] * 100 + fmt.CDP1r[0] * 100 + 1.0));
-    int dedup_frag_powlaw_qual_v = (int)(powlaw_exponent * 10.0 / log(10.0) * log(min_bcFA_v) + (powlaw_anyvar_base + 7));
+    int dedup_frag_powlaw_qual_v = (int)(powlaw_exponent * 10.0 / log(10.0) * log(min_bcFA_v) + (powlaw_anyvar_base + paramset.bias_FA_powerlaw_noUMI_phred_inc));
     
     double min_bcFA_w = ((double)(fmt.cDP1w[a] + 0.5) / (double)(fmt.CDP1f[0] * 100 + fmt.CDP1r[0] * 100 + 1.0));
-    int dedup_frag_powlaw_qual_w = (int)(powlaw_exponent * 10.0 / log(10.0) * log(min_bcFA_w) + (powlaw_anyvar_base + 7 + tn_reward));
+    int dedup_frag_powlaw_qual_w = (int)(powlaw_exponent * 10.0 / log(10.0) * log(min_bcFA_w) + (powlaw_anyvar_base + paramset.bias_FA_powerlaw_noUMI_phred_inc + paramset.tn_q_inc_max));
     
     int ds_vq_inc_powlaw = (int)(10/log(10)*MIN(log((fmt.cDP1f[a] + 0.5) / (fmt.CDP1f[0] + 1.0)), log((fmt.cDP1r[a] + 0.5) / (fmt.CDP1r[0] +1.0)))) 
             + (powlaw_sscs_phrederr);
     int ds_vq_inc_binom = 3 * MIN(fmt.cDP2f[a], fmt.cDP2r[a]);
     
-    powlaw_sscs_inc += MAX(0, MIN5(sscs_binom_qual_fw, sscs_binom_qual_rv, ds_vq_inc_powlaw, ds_vq_inc_binom, 4)) + MIN(0, (int)cMmQ - 25);
+    powlaw_sscs_inc += MAX(0, MIN5(sscs_binom_qual_fw, sscs_binom_qual_rv, ds_vq_inc_powlaw, ds_vq_inc_binom, 4)) + MIN(0, (int)cMmQ - paramset.fam_thres_highBQ);
     double umi_cFA =  (((double)(fmt.cDP2v[a]) + 0.5) / ((double)(fmt.CDP2f[0] * 100 + fmt.CDP2r[0] * 100) + 1.0 + 300));
-    int sscs_base_2 = powlaw_anyvar_base + 7 + 7 + powlaw_sscs_inc - sscs_dec;
+    int sscs_base_2 = powlaw_anyvar_base + paramset.bias_FA_powerlaw_withUMI_phred_inc + powlaw_sscs_inc - sscs_dec;
     int sscs_powlaw_qual_v = (int)((powlaw_exponent * 10.0 / log(10.0) * log(umi_cFA)    + sscs_base_2));
     int sscs_powlaw_qual_w = (int)((powlaw_exponent * 10.0 / log(10.0) * log(min_bcFA_w) + sscs_base_2));
     
@@ -3048,7 +3239,8 @@ BcfFormat_symbol_calc_qual(
     const std::string & indelstring = fmt.gapSa[a];
     
     if (indelstring.size() > 0 && fmt.cDP0a[a] > 0) {
-        const double indel_pq = (double)MIN((int)indel_phred(8.0, indelstring.size(), repeatunit.size(), repeatnum), (int)24) + 2 - (double)10;
+        const double indel_pq = (double)MIN((int)indel_phred(paramset.indel_polymerase_slip_rate, 
+                indelstring.size(), repeatunit.size(), repeatnum), (int)24) + 2 - (double)10;
         const auto eff_tracklen1 = (repeatunit.size() * MAX(1, repeatnum) - repeatunit.size());
         const auto eff_tracklen2 = (MAX(rtr1.tracklen - rtr1.unitlen, rtr2.tracklen - rtr2.unitlen) / 3);
         const double indel_ic = 10.0 / log(10.0) * log((double)MAX(indelstring.size() + (isSymbolIns(symbol) ? INS_N_ANCHOR_BASES : 0), 1U) / (double)(MAX(eff_tracklen1, eff_tracklen2) + 1));
@@ -3057,19 +3249,22 @@ BcfFormat_symbol_calc_qual(
             indelcdepth += ins1_cdepth;
         }
         if (LINK_I1 == symbol) {
-            indelcdepth += del1_cdepth / 4.0;
+            indelcdepth += del1_cdepth / paramset.indel_del_to_ins_err_ratio;
         }
         const unsigned int nearInDelDP = (isSymbolIns(symbol) ? fmt.APDP[1] : fmt.APDP[2]);
         
         assert (nearInDelDP >= aDP || !fprintf(stderr, "nearInDelDP >= aDP failed ( %d >= %d failed) at tid %d pos %d!\n", nearInDelDP, aDP, tid, refpos));
+        const double eps = (double)FLT_EPSILON;
         
-        const auto indel_penal4multialleles1 = (int)round(11.0/log(2.0) * log((double)(indelcdepth + 1e-3) / (double)(fmt.cDP0a[a] + 1e-3)));
-        const auto indel_penal4multialleles2 = (int)round( 8.0/log(2.0) * log((double)(nearInDelDP + 1e-3) / (double)(aDP + 1e-3)));
-        indel_penal4multialleles_g = (int)round(2 * 8.0/log(2.0) * log((double)(ins_cdepth + del_cdepth + 1e-3) / (double)(fmt.cDP0a[a] + 1e-3))) - 22;
+        const auto indel_penal4multialleles1 = (int)round(paramset.indel_multiallele_samepos_penal / log(2.0) 
+                * log((double)(indelcdepth + eps) / (double)(fmt.cDP0a[a] + eps)));
+        const auto indel_penal4multialleles2 = (int)round(paramset.indel_multiallele_diffpos_penal / log(2.0) 
+                * log((double)(nearInDelDP + eps) / (double)(aDP + eps)));
+        indel_penal4multialleles_g = (int)round(paramset.indel_tetraallele_germline_penal_value /log(2.0) * log((double)(ins_cdepth + del_cdepth + eps) / (double)(fmt.cDP0a[a] + eps))) - paramset.indel_tetraallele_germline_penal_thres;
         
         if (isSymbolIns(symbol)) {
-            indel_penal4multialleles = (indel_penal4multialleles1 * 16 / (int)(16 + indelstring.size())); 
-            indel_penal4multialleles_soma = (indel_penal4multialleles1 * 16 / (int)(16 + indelstring.size()));
+            indel_penal4multialleles = (indel_penal4multialleles1 * paramset.indel_ins_penal_pseudocount / (int)(paramset.indel_ins_penal_pseudocount + indelstring.size())); 
+            indel_penal4multialleles_soma = (indel_penal4multialleles1 * paramset.indel_ins_penal_pseudocount / (int)(paramset.indel_ins_penal_pseudocount + indelstring.size()));
         } else {
             indel_penal4multialleles = MAX(indel_penal4multialleles1, indel_penal4multialleles2);
             indel_penal4multialleles_soma = indel_penal4multialleles1;
@@ -3093,14 +3288,13 @@ BcfFormat_symbol_calc_qual(
     clear_push(fmt.cPCQ2, sscs_powlaw_qual_w, a);
     clear_push(fmt.cPLQ2, sscs_powlaw_qual_v, a);
     
-    const auto bMQinc = (int)MAX(phred_varcall_err_per_map_err_per_base, 31 + 2 + (int)(2 * 10.0/log(10.0) * log((bDP + 0.5) / (double)(BDP + 1.0))));
+    const auto bMQinc = (int)MAX(phred_varcall_err_per_map_err_per_base, paramset.phred_germline_polymorphism + 2 + (int)(2 * 10.0/log(10.0) * log((bDP + 0.5) / (double)(BDP + 1.0))));
     const int syserr_q = MIN(
             (int)((fmt.bMQ[a]) + MIN(bMQinc, bDP * 3)),
             (isSymbolSubstitution(AlignmentSymbol(LAST(fmt.VTI))) ? (fmt.aBQQ[a]) : (1000*1000)));
     
-    const int PENAL4LOWDEP = 37;
     const int aDPpc = ((refsymbol == symbol) ? 1 : 0);
-    int penal4BQerr = (isSymbolSubstitution(symbol) ? (5 + (int)(PENAL4LOWDEP / (int)mathsquare((int64_t)MAX(1, aDP + aDPpc)))) : 0);
+    int penal4BQerr = (isSymbolSubstitution(symbol) ? (5 + (int)(paramset.penal4lowdep / (int)mathsquare((int64_t)MAX(1, aDP + aDPpc)))) : 0);
     
     int indel_q_inc = ((isSymbolSubstitution(symbol) || is_rescued) ? 0 : indel_len_rusize_phred(indelstring.size(), repeatnum));
     clear_push(fmt.gVQ1, MAX(
@@ -3110,7 +3304,7 @@ BcfFormat_symbol_calc_qual(
                 (int)LAST(fmt.bIAQ) - penal4BQerr, 
                 (int)LAST(fmt.cPLQ1)) - 2 * MAX3(
                     (int)0, 
-                    (int)indel_penal4multialleles - (int)11, 
+                    (int)indel_penal4multialleles - (int)paramset.indel_multiallele_soma_penal_thres, 
                     (int)indel_penal4multialleles_g)),
     a);
     
@@ -3128,8 +3322,8 @@ BcfFormat_symbol_calc_qual(
     a);
     
     // TODO; check if reducing all allele read count to increase alt allele frac in case of ref bias makes more sense
-    double base_contamfrac = 0.02; // ContEst https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3167057/ Fig. 1 TCGA Ovarian 
-    double contamfrac = base_contamfrac + (1 - base_contamfrac) * (tpfa > 0 ? tpfa : 0) * 0.05;
+    // double base_contamfrac = 0.02; // ContEst https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3167057/ Fig. 1 TCGA Ovarian 
+    double contamfrac = paramset.any_mul_contam_frac + (1.0 - paramset.any_mul_contam_frac) * (tpfa > 0 ? tpfa : 0) * paramset.t2n_mul_contam_frac;
     double errfrac = contamfrac + (1.0 - contamfrac) * (refsymbol == symbol ? phred2prob(MIN(rtr1.indelphred, rtr2.indelphred)) : 0);
     auto binom_contam_LODQ = (int)calc_binom_10log10_likeratio(errfrac, fmt.cDP1v[a], fmt.CDP1v[0]);
     auto power_contam_LODQ = (int)(10.0/log(10.00) * powlaw_exponent * MAX(logit2(min_bcFA_v, errfrac), 0.0));
@@ -3264,6 +3458,7 @@ output_germline(
         unsigned int outputflag,
         const bool should_output_all_germline,
         const bool is_rescued,
+        const CommandLineArgs & paramset,
         unsigned int specialflag) {
     
     assert(symbol_format_vec.size() >= 4 || 
@@ -3320,10 +3515,10 @@ output_germline(
         ad2norm = 0;
     }
     
-    int a0a1LODQ = hetLODQ(ad0norm, ad1norm, 1.0 - 0.47);
-    int a1a0LODQ = hetLODQ(ad1norm, ad0norm, 0.47);
-    int a1a2LODQ = hetLODQ(ad1norm, ad2norm, 0.5);
-    int a2a1LODQ = hetLODQ(ad2norm, ad1norm, 0.5);
+    int a0a1LODQ = hetLODQ(ad0norm, ad1norm, 1.0 - paramset.germ_hetero_FA, paramset.powlaw_exponent);
+    int a1a0LODQ = hetLODQ(ad1norm, ad0norm, paramset.germ_hetero_FA, paramset.powlaw_exponent);
+    int a1a2LODQ = hetLODQ(ad1norm, ad2norm, 0.5, paramset.powlaw_exponent);
+    int a2a1LODQ = hetLODQ(ad2norm, ad1norm, 0.5, paramset.powlaw_exponent);
     
     std::array<std::string, 4> GTidx2GT {{
         "0/0",
@@ -3333,9 +3528,9 @@ output_germline(
     }};
     
     int phred_homref = 0;
-    int phred_hetero = (isSubst ? 31     : 41-1);
-    int phred_homalt = (isSubst ? 33     : 43-1);
-    int phred_tri_al = (isSubst ? (54+5) : 50-1); 
+    int phred_hetero = (isSubst ? paramset.phred_germline_polymorphism : paramset.phred_germline_indel);
+    int phred_homalt = (isSubst ? paramset.phred_homalt_snp : paramset.phred_homalt_indel);
+    int phred_tri_al = (isSubst ? paramset.phred_triallelic_snp : paramset.phred_triallelic_indel); 
     // https://www.genetics.org/content/184/1/233 and https://www.fsigenetics.com/article/S1872-4973(20)30003-X/fulltext : triallelic-SNP-phred = 29*2-3+5
     
     if (is_rescued) {
@@ -3628,7 +3823,7 @@ fill_tki(auto & tki, const auto & fmt, unsigned int a = 1) {
 const auto
 calc_binom_powlaw_syserr_normv_quals(
         auto tAD, auto tDP, int tVQ, int tnVQcap,
-        auto nAD, auto nDP, int nVQ, const double penal_dimret_coef = 15) {
+        auto nAD, auto nDP, int nVQ, const double penal_dimret_coef) {
     int binom_b10log10like = (int)calc_binom_10log10_likeratio((tDP - tAD) / (tDP), nDP - nAD, nAD);
     double bjpfrac = ((tAD + 0.5) / (tDP + 1.0)) / ((nAD + 0.5) / (nDP + 1.0));
     int powlaw_b10log10like = (int)(3 * 10 / log(10) * log(bjpfrac));
@@ -3666,6 +3861,7 @@ append_vcf_record(
         const bool should_output_ref_allele,
         const bcf_hdr_t *g_bcf_hdr,
         const auto & baq_offsetarr,
+        const CommandLineArgs & paramset,
         unsigned int specialflag) {
     
     const std::string & indelstring = LAST(fmt.gapSa);
@@ -3710,8 +3906,8 @@ append_vcf_record(
     
     assert (tki.cDP1x <= tki.CDP1x || !fprintf(stderr, "%d <= %d failed for cDP1x tname %s pos %d aln-symbol %d\n", tki.cDP1x, tki.CDP1x, tname, refpos, symbol));
     assert (tki.cDP2x <= tki.CDP2x || !fprintf(stderr, "%d <= %d failed for cDP2x tname %s pos %d aln-symbol %d\n", tki.cDP2x, tki.CDP2x, tname, refpos, symbol));
-    const auto & rtr1 =  region_repeatvec.at(MAX(refpos - region_offset, 3) - 3);
-    const auto & rtr2 =  region_repeatvec.at(MIN(refpos - region_offset + 3, region_repeatvec.size() - 3));
+    const auto & rtr1 =  region_repeatvec.at(MAX(refpos - region_offset, paramset.indel_adj_tracklen_div) - paramset.indel_adj_tracklen_div);
+    const auto & rtr2 =  region_repeatvec.at(MIN(refpos - region_offset + paramset.indel_adj_tracklen_div, region_repeatvec.size() - paramset.indel_adj_tracklen_div));
     const auto rtr1_tpos = ((0 == rtr1.tracklen) ? 0 : (region_offset + rtr1.begpos));
     const auto rtr2_tpos = ((0 == rtr2.tracklen) ? 0 : (region_offset + rtr2.begpos));
 
@@ -3727,18 +3923,18 @@ append_vcf_record(
             (tki.cPCQ1),
             (nfm_cDP1x + 0.5) / 100.0 + 0.0, 
             (nfm_CDP1x + 1.0) / 100.0 + 0.0, 
-            non_neg_minus(collectget(nfm.cVQ1, 1), (indelstring.size() == 0 ? 0 : 40)),
-            15.0);
+            non_neg_minus(collectget(nfm.cVQ1, 1), (indelstring.size() == 0 ? 0 : 40)), // TODO: QUESTION: why 40 here?
+            paramset.tn_syserr_norm_devqual);
     
     const auto c_binom_powlaw_syserr_normv_q4 = calc_binom_powlaw_syserr_normv_quals(
             (tki.cDP2x + 0.5) / 100.0 + 0.0, 
             (tki.CDP2x + 1.0) / 100.0 + 0.0, 
             (tki.cVQ2),
-            (tki.cPCQ1) + 30,
+            (tki.cPCQ2), // tki.cPCQ1 + 30,
             (collectget(nfm.cDP2x, 1) + 0.0) / 100.0 + 0.5, 
             (collectget(nfm.CDP2x, 0) + 0.0) / 100.0 + 1.0, 
             (collectget(nfm.cVQ2, 1)), 
-            (15.0));
+            paramset.tn_syserr_norm_devqual);
     
     int tlodq = MAX(b_binom_powlaw_syserr_normv_q4filter[3], c_binom_powlaw_syserr_normv_q4[3]);
     
