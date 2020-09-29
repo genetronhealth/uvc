@@ -764,6 +764,8 @@ indel_len_rusize_phred(unsigned int indel_len, unsigned int repeatunit_size) {
     }
 }
 
+// https://www.ncbi.nlm.nih.gov/pmc/articles/PMC149199/ for artifactual errors
+// https://www.cell.com/trends/genetics/fulltext/S0168-9525(13)00070-X, ref12, for germline variants
 unsigned int
 indel_phred(double ampfact, unsigned int cigar_oplen, unsigned int repeatsize_at_max_repeatnum, unsigned int max_repeatnum) {
     unsigned int region_size = repeatsize_at_max_repeatnum * max_repeatnum;
@@ -3106,7 +3108,7 @@ BcfFormat_symbol_calc_qual(
     const int aDPpc = ((refsymbol == symbol) ? 1 : 0);
     int penal4BQerr = (isSymbolSubstitution(symbol) ? (5 + (int)(paramset.penal4lowdep / (int)mathsquare((int64_t)MAX(1, aDP + aDPpc)))) : 0);
     
-    int indel_q_inc = ((isSymbolSubstitution(symbol) || is_rescued) ? 0 : indel_len_rusize_phred(indelstring.size(), repeatnum));
+    int indel_q_inc = ((((!isSymbolIns(symbol)) && (!isSymbolDel(symbol))) || is_rescued) ? 0 : indel_len_rusize_phred(indelstring.size(), repeatnum));
     clear_push(fmt.gVQ1, MAX(
             (int)0, 
             indel_q_inc + MIN3(

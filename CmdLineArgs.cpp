@@ -761,7 +761,7 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
         "Phred-scale decrease in the variant quality subtracted from the tumor if the tumor FA (allele fraction) deviates by +100\%/-50\% from its matched normal FA.");
 
 // *** 11. parameters related to InDels.
-    
+    // https://www.ncbi.nlm.nih.gov/pmc/articles/PMC149199/
     ADD_OPTDEF(app,
         "--indel-BQ-max",
            indel_BQ_max,
@@ -773,15 +773,15 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     ADD_OPTDEF(app,
         "--indel-polymerase-size",
            indel_polymerase_size,
-        "For InDels, the number of bases that can be fit within the catalytic unit of the polymerase used for PCR.");
+        "For InDels, the number of bases that can be fit within the catalytic unit of the polymerase used for PCR (PMC149199).");
     ADD_OPTDEF(app,
         "--indel-polymerase-slip-rate",
            indel_polymerase_slip_rate,
-        "For InDels, the number of bases that can slip when processed by the catalytic unit of the polymerase used for PCR.");
+        "For InDels, the number of bases that can slip when processed by the catalytic unit of the polymerase used for PCR (PMC149199).");
     ADD_OPTDEF(app,
         "--indel-del-to-ins-err-ratio",
            indel_del_to_ins_err_ratio,
-        "For InDels, the number of times that deletion is more likely.");
+        "For InDels, the number of times that deletion is more likely (PMC149199).");
     ADD_OPTDEF(app,
         "--indel-adj-tracklen-div",
            indel_adj_tracklen_div,
@@ -790,24 +790,24 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     ADD_OPTDEF(app,
         "--indel-multiallele-samepos-penal",
            indel_multiallele_samepos_penal,
-        "For InDels, the number of times that deletion is more likely.");
+        "For InDels, the Phred-scale penalty of having more than two alleles at the same VCF position. ");
     ADD_OPTDEF(app,
         "--indel-multiallele-diffpos-penal",
            indel_multiallele_diffpos_penal,
-        "For InDels, the number of times that the STR track length of nearby STR is divided for the track length to be effective for this position.");
+        "For InDels, the Phred-scale penalty of having more than two alelles that are overlapping with each other. ");
    
     ADD_OPTDEF(app,
         "--indel-multiallele-soma-penal-thres",
            indel_multiallele_soma_penal_thres,
-        "For InDels, the number of times that the STR track length of nearby STR is divided for the track length to be effective for this position.");
+        "For InDels, the Phred-scale penalty threshold above which penalty applies for somatic variants. ");
     ADD_OPTDEF(app,
-        "--indel-tetraallele-germline-penal-value",
+        "--indel-tetraallele-germ-penal-value",
            indel_tetraallele_germline_penal_value,
-        "For InDels, the number of times that the STR track length of nearby STR is divided for the track length to be effective for this position.");
+        "For InDels, the Phres-scale penalty of having more than three alleles at the same VCF position for germline variants. ");
     ADD_OPTDEF(app,
-        "--indel-tetraallele-germline-penal-thres",
+        "--indel-tetraallele-germ-penal-thres",
            indel_tetraallele_germline_penal_thres,
-        "For InDels, the number of times that the STR track length of nearby STR is divided for the track length to be effective for this position.");
+        "For InDels, the Phred-scale penalty threshold above which penalty applies for germline variants. ");
     
     ADD_OPTDEF(app,
         "--indel-ins-penal-pseudocount",
