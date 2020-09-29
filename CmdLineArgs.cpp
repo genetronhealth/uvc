@@ -78,19 +78,19 @@ CommandLineArgs::selfUpdateByPlatform() {
     if (SEQUENCING_PLATFORM_IONTORRENT == inferred_sequencing_platform && SEQUENCING_PLATFORM_OTHER != this->sequencing_platform) {
         bq_phred_added_indel += 0;
         bq_phred_added_misma += 4; // it was 6
-        minABQ_pcr_snv += 0;
-        minABQ_pcr_indel += 0;
-        minABQ_cap_snv += 0;
-        minABQ_cap_indel += 0;
+        syserr_minABQ_pcr_snv += 0;
+        syserr_minABQ_pcr_indel += 0;
+        syserr_minABQ_cap_snv += 0;
+        syserr_minABQ_cap_indel += 0;
         // if (0 == highqual_thres_indel) { highqual_thres_indel = highqual_thres_snv - 4; }
     }
     if (SEQUENCING_PLATFORM_ILLUMINA == inferred_sequencing_platform && SEQUENCING_PLATFORM_OTHER != this->sequencing_platform) {
         bq_phred_added_indel += 14; // 17-1; // 18; // 16; // 17; // 18; // 19; // 17; // 10; // 0; // 6; //10;
         bq_phred_added_misma += 0;
-        minABQ_pcr_snv += 190; // 190; // 180; // 19; // 25;
-        minABQ_pcr_indel += minABQ_pcr_snv - 90; // 110; // 90; // 10; // 15; // 18;
-        minABQ_cap_snv += 190; // 190; // 180; // 19; // 23;
-        minABQ_cap_indel += minABQ_cap_snv - 90; // 110; // 90; // 10; // 5; // 13;
+        syserr_minABQ_pcr_snv += 19 * 10; // 190; // 180; // 19; // 25;
+        syserr_minABQ_pcr_indel += syserr_minABQ_pcr_snv - 9 * 10; // 110; // 90; // 10; // 15; // 18;
+        syserr_minABQ_cap_snv += 19 * 10; // 190; // 180; // 19; // 23;
+        syserr_minABQ_cap_indel += syserr_minABQ_cap_snv - 9 * 10; // 110; // 90; // 10; // 5; // 13;
         // if (0 == highqual_thres_indel) { highqual_thres_indel = highqual_thres_snv + 6; }
     }
     return inferred_sequencing_platform;
@@ -123,8 +123,15 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     };
     CLI::App app{(std::string("UVC version ") + VERSION_DETAIL)};
     
+    unsigned int assay_type_uint = (unsigned int)assay_type;
+    unsigned int molecule_tag_uint = (unsigned int)molecule_tag;
+    unsigned int sequencing_platform_uint = (unsigned int)sequencing_platform;
+    unsigned int pair_end_merge_uint = (unsigned int)pair_end_merge;
+    
     // more frequently used options
     app.add_flag_function("-v,--version", version_cb, "Show the version of this program. ");
+    
+// *** 00. frequently used parameters
     ADD_OPTDEF(app, 
         "inputBAM", 
            bam_input_fname, 
@@ -133,11 +140,11 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
         "-f,--fasta", 
            fasta_ref_fname, 
         "Input reference fasta file, where the special value NA means not available. ");
-    
     ADD_OPTDEF(app, 
         "-o,--output", 
            vcf_out_pass_fname, 
         "Output bgzipped VCF file in the format of blocked gVCF. ");
+    
     ADD_OPTDEF(app, 
         "-R,--regions-file", 
            bed_region_fname, 
@@ -146,9 +153,21 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
         "This overrides the -t parameter. Please ensure that each region here is small enough to prevent memory exhaustion. "
         "Typically, each region covers one exon. ")->check(CLI::ExistingFile);
     ADD_OPTDEF(app, 
+        "--targets", 
+           tier1_target_region, 
+        "Optional input region string (for example, chr1:2-3 or chr1) "
+        "which globally delimits the genomic region to call variants from, "
+        "if not provided then call variants from all the sequenced genomic regions. This parameter does not affect memory consumption. ");
+    ADD_OPTDEF(app, 
         "-s,--sample", 
            sample_name, 
         "Sample name which is optional. ");
+    
+    ADD_OPTDEF(app, 
+        "-t,--threads", 
+           max_cpu_num, 
+        "Number of cpu cores or equivalently threads to use. ");
+    
     ADD_OPTDEF(app, 
         "--outvar-flag", 
            outvar_flag, 
@@ -157,11 +176,6 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
         "The " + std::to_string(OUTVAR_SOMATIC) + " bit indicates somatic variant. " +
         "The " + std::to_string(OUTVAR_ANY) + " bit indicates variant of any origin. " +
         "The " + std::to_string(OUTVAR_NONREF) + " bit indicates non-ref symbolic region indicating the absence of variants. ");
-
-    ADD_OPTDEF(app, 
-        "-q,--vqual", 
-           vqual, 
-        "Every variant that satisfies this minimum variant quality is in the <--output> file. ");
     app.add_flag(
         "-A,--all-out", 
            should_output_all, 
@@ -171,34 +185,55 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
            should_output_all_germline,
         "All possible alleles including REF allele at each position is in <--output> for germline variants. ");
     ADD_OPTDEF(app, 
-        "-d,--min-depth", 
-           min_depth_thres, 
-        "Minimum depth below which results are fitlered out and therefore not in the output VCF. ");
-    ADD_OPTDEF(app, 
-        "-a,--min-altdp", 
-           min_altdp_thres, 
-        "Minimum depth of ALT below which results are filtered out. ");
-    ADD_OPTDEF(app, 
-        "-t,--threads", 
-           max_cpu_num, 
-        "Number of cpu cores or equivalently threads to use. ");
+        "-q,--vqual", 
+           vqual, 
+        "Every variant that satisfies this minimum variant quality is in the <--output> file. ");
     
     ADD_OPTDEF(app,
-        "--primerlen", 
-           primerlen, 
-        "Number of bases from each end of each insert that are part of the primers (for only amplicon assay). ");
-
+        "--assay-type", 
+           assay_type_uint, 
+        "Assay type. " + stringvec_to_descstring(ASSAY_TYPE_TO_MSG));
+    
+    ADD_OPTDEF(app,
+        "--fam-thres-highBQ", 
+           fam_thres_highBQ,
+        "Threshold of base quality below which the base support is discarded in a barcode family. ");
+    ADD_OPTDEF(app,
+        "--fam-thres-dup1add", 
+           fam_thres_dup1add,
+        "Tier-1 threshold of barcode-family size. ");
+    ADD_OPTDEF(app,
+        "--fam-thres-dup1perc", 
+           fam_thres_dup1perc,
+        "Tier-1 threshold of barcode-family percent identity derived from allele consensus. ");
+    ADD_OPTDEF(app,
+        "--fam-thres-dup2add", 
+           fam_thres_dup2add,
+        "Tier-2 threshold of barcode-family size. ");
+    ADD_OPTDEF(app,
+        "--fam-thres-dup2perc", 
+           fam_thres_dup2perc,
+        "Tier-2 threshold of barcode-family percent identity derived from allele consensus. ");
+    
+// *** 01. parameters of the names of files, samples, regions, etc
+    
     ADD_OPTDEF(app, 
-        "--tumor-vcf", 
-           vcf_tumor_fname, 
+        "--tumor-vcf",
+           vcf_tumor_fname,
         "Block-gzipped VCF file of the tumor sample as input to the BAM file of normal sample. "
         "If specified/unspecified, then the input BAM is considered to be from normal/tumor. ");
-    ADD_OPTDEF(app, 
-        "--targets", 
-           tier1_target_region, 
-        "Optional input region string (for example, chr1:2-3 or chr1) "
-        "which globally delimits the genomic region to call variants from, "
-        "if not provided then call variants from all the sequenced genomic regions. This parameter does not affect memory consumption. ");
+    ADD_OPTDEF(app,
+        "--bed-outfname",
+           bed_out_fname,
+        "The BED file to which genomic-region information will be written. "
+        "Empty string means no output is written. This BED file can be generated by tumor and used by normal. ");
+    ADD_OPTDEF(app,
+        "--bed-infname",
+           bed_in_fname,
+        "The BED file from which genomic-region information is read. Empty string means no input is read. "
+        "This BED file can be generated by tumor and used by normal. This param overrides the -R param. ");
+   
+// *** 02. parameters that control input, output, and logs (driven by computational requirements and resources)
     
     ADD_OPTDEF(app, 
         "--somaticGT", 
@@ -212,7 +247,8 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
         "Boolean (0: false, 1: true) indicating if the format from the tumor VCF should be retrieved in the tumor-normal comparison. "
         "This boolean is only useful if tumor VCF is provided. "
         "Notice that a true value for this boolean disables the generation of genomic block so that the output is no longer gvcf. ");
-    ADD_OPTDEF(app, 
+    
+    ADD_OPTDEF(app,
         "--alnlen", 
            min_aln_len,
         "Minimum alignment length below which the alignment is filtered out. ");
@@ -221,262 +257,33 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
            min_mapqual,
         "Minimum mapping quality below which the alignment is filtered out. ");
     ADD_OPTDEF(app, 
+        "-d,--min-depth", 
+           min_depth_thres, 
+        "Minimum depth of all alleles below which results are fitlered out and therefore not in the output VCF. ");
+    ADD_OPTDEF(app, 
+        "-a,--min-altdp", 
+           min_altdp_thres, 
+        "Minimum depth of ALT below which results are filtered out. ");
+    ADD_OPTDEF(app, 
         "--v-min-alldp", 
            vdp,
-        "Every variant at each locus with at least this total depth is in the -o file. ");
+        "Every variant at each locus with at least this total depth is always in the -o file. ");
     ADD_OPTDEF(app, 
         "--v-min-altdp", 
            vad,
-        "Every variant that satisfies this minimum allele depth is in the -o file. ");
-    
-    ADD_OPTDEF(app, 
-        "--dedup-flag", 
-           dedup_flag, 
-        "Flag determinating what information is used for dedupping. "
-        "(0x1: read begin position. 0x2: read end position. 0x4: read QNAME. 0x8: UMI molecular-barcode). "
-        "If this flag is zero, then infer such information from sequencing data. "
-        "For example, if set to 0x3, then reads having the same begin and end positions are considered to be duplicates of each other. ");
-    
-    // less frequently used options
-    ADD_OPTDEF(app, 
-        "--bed-outfname", 
-           bed_out_fname, 
-        "The BED file to which genomic-region information will be written. "
-        "Empty string means no output is written. This BED file can be generated by tumor and used by normal. ");
-    ADD_OPTDEF(app,
-        "--bed-infname",
-           bed_in_fname,
-        "The BED file from which genomic-region information is read. Empty string means no input is read. "
-        "This BED file can be generated by tumor and used by normal. This param overrides the -R param. ");
-    
-    ADD_OPTDEF(app,
-        "--bias-flag-amp-snv", 
-           bias_flag_amp_snv, 
-        "Flag where each bit enables evidence reduction by each bias for SNVs and amplicon assay. "
-        + stringvec_to_descstring(BIAS_TYPE_TO_MSG));
-    ADD_OPTDEF(app,
-        "--bias-flag-amp-indel", 
-           bias_flag_amp_indel, 
-        "Flag where each bit enables evidence reduction by each bias for InDels and amplicon assay. ");
-    ADD_OPTDEF(app,
-        "--bias-flag-cap-snv", 
-           bias_flag_cap_snv, 
-        "Flag where each bit enables evidence reduction by each bias for SNVs and capture assay. ");
-    ADD_OPTDEF(app,
-        "--bias-flag-cap-indel", 
-           bias_flag_cap_indel, 
-        "Flag where each bit enables evidence reduction by each bias for InDels and capture assay. ");
-    
-    ADD_OPTDEF(app, 
-        "--phred-frag-indel-basemax", 
-           phred_max_frag_indel_basemax,
-        "Maximum phred score for the opening of an indel (including the one base required for opening indel). ");
-    ADD_OPTDEF(app, 
-        "--phred-sscs-transition-CG-TA", 
-           phred_max_sscs_transition_CG_TA, 
-        "Maximum phred score for single-strand consensus sequences (SSCSs) for C:G > T:A transition");
-    ADD_OPTDEF(app, 
-        "--phred-sscs-transition-TA-CG", 
-           phred_max_sscs_transition_TA_CG, 
-        "Maximum phred score for single-strand consensus sequences (SSCSs) for T:A > C:G transition");
-    ADD_OPTDEF(app, 
-        "--phred-sscs-transversion-any", 
-           phred_max_sscs_transversion_any, 
-        "Maximum phred score for single-strand consensus sequences (SSCSs) for any transversion");
-    ADD_OPTDEF(app, 
-        "--phred-sscs-indel-open", 
-           phred_max_sscs_indel_open, 
-        "Maximum phred score for single-strand consensus sequences (SSCSs) for the opening of indel gap "
-        "(the opening includes the insertion/deletion of one base)");
-    ADD_OPTDEF(app, 
-        "--phred-sscs-indel-ext", 
-           phred_max_sscs_indel_ext, 
-        "Maximum phred score for single-strand consensus sequences (SSCSs) for the extension of indel gap "
-        "(excluding the extension of one base) per base");
-    ADD_OPTDEF(app, 
-        "--phred-dscs-all", 
-           phred_max_dscs_all, 
-        "Maximum phred score for double-strand consensus sequences (DSCSs) for all types of mutations");
-    ADD_OPTDEF(app, 
-        "--phred-pow-sscs-origin", 
-           phred_pow_sscs_origin, 
-        "The phred-score that is subtracted from phred-sscs to get the power-law quality adjustment for SNVs");
-    ADD_OPTDEF(app, 
-        "--phred-pow-sscs-indel-origin", 
-           phred_pow_sscs_indel_origin, 
-        "The phred-score that is subtracted from phred-sscs to get the power-law quality adjustment for InDels");
-    ADD_OPTDEF(app, 
-        "--phred-pow-dscs-origin", 
-           phred_pow_dscs_origin, 
-        "The phred-score that is subtracted from phred-dscs to get the power-law quality adjustment");
-    
-    ADD_OPTDEF(app, 
-        "--phred-snv-to-indel-ratio", 
-           phred_snv_to_indel_ratio,
-        "The phred-score for the ratio of SNVs to InDels. ");
-    
-    ADD_OPTDEF(app, 
-        "--phred-umi-dimret-mult-snv", 
-           phred_umi_dimret_mult_snv,
-        "The diminishing-return factor for the PHRED-scaled raw variant quality for amplicon SNVs");
-    ADD_OPTDEF(app, 
-        "--phred-umi-dimret-mult-indel", 
-           phred_umi_dimret_mult_indel,
-        "The diminishing-return factor for the PHRED-scaled raw variant quality for amplicon InDels");
-    
-    ADD_OPTDEF(app, 
-        "--minABQ-pcr-snv", 
-           minABQ_pcr_snv, 
-        "Average base quality (ABQ) below which variant quality is capped to ABQ for SNVs and PCR amplicon, "
-        "recommend 25 for Illumina and 0 for IonTorrent. "); 
-    ADD_OPTDEF(app, 
-        "--minABQ-pcr-indel", 
-           minABQ_pcr_indel, 
-        "Average base quality (ABQ) below which variant quality is capped to ABQ for InDels and PCR amplicon, "
-        "recommend 18 for Illumina and 0 for IonTorrent. ");
-    ADD_OPTDEF(app, 
-        "--minABQ-cap-snv", 
-           minABQ_cap_snv, 
-        "Average base quality (ABQ) below which variant quality is capped to ABQ for SNVs and hybrid selection, "
-        "recommend 20 for Illumina and 0 for IonTorrent. ");
-    ADD_OPTDEF(app, 
-        "--minABQ-cap-indel", 
-           minABQ_cap_indel, 
-        "Average base quality (ABQ) below which variant quality is capped to ABQ for InDels and hybrid selection, "
-        "recommend 13 for Illumina and 0 for IonTorrent. ");
-    
-    ADD_OPTDEF(app, 
-        "--maxMQ",
-           maxMQ,
-        "Maximum mapping quality (MQ) of the aligned reads, highly recommended to be the 60 from BWA. ");
-    
-    ADD_OPTDEF(app, 
-        "--central-readlen", 
-           central_readlen, 
-        "Central (median) value for read lengths, 0 means estimate from the data. ");
-    
-    ADD_OPTDEF(app, 
-        "--bq-phred-added-misma", 
-           bq_phred_added_misma,
-        std::string("Additional base-quality phred score added to match and mismatch, recommend 4 for IonTorrent from Life Technologies. "
-        "This parameter value is automatically inferred if the sequencing platform is not ") + SEQUENCING_PLATFORM_TO_DESC[SEQUENCING_PLATFORM_OTHER]);
-    
-    ADD_OPTDEF(app, 
-        "--bq-phred-added-indel", 
-           bq_phred_added_indel, 
-        std::string("Additional base-quality phred score added to indel and no-indel, recommend 17 for Illumina and BGI. "
-        "This parameter value is automatically inferred if the sequencing platform is not ") + SEQUENCING_PLATFORM_TO_DESC[SEQUENCING_PLATFORM_OTHER]);
-    
-    ADD_OPTDEF(app, 
-        "--phred-hetero-gt-snp", 
-           phred_germline_polymorphism,
-        "Phred-scaled prior probability of germline polymorphism at a genomic position for SNPs. ");
-    ADD_OPTDEF(app, 
-        "--phred-hetero-gt-indel", 
-           phred_germline_indel,
-           "hred-scaled prior probability of germline polymorphism at a genomic position for InDels."),
-    ADD_OPTDEF(app, 
-        "--phred-triallelic-snp",
-           phred_triallelic_snp,     
-        "Phred-scaled prior probability that two or more forms of germline SNPs occur at a genomic position. ");
-    ADD_OPTDEF(app, 
-        "--phred-triallelic-indel", 
-           phred_triallelic_indel,     
-        "Phred-scaled prior probability that two or more forms of germline InDels occur at a genomic position. ");
-    ADD_OPTDEF(app, 
-        "--any-mul-contam-frac", 
-           any_mul_contam_frac,
-        "Multiplicative contamination rate for the fraction of reads generated by any source of contamination in any sample");
-    ADD_OPTDEF(app, 
-        "--t2n-mul-contam-frac", 
-           t2n_mul_contam_frac,         
-        "Multiplicative contamination rate for the fraction of tumor reads in the normal"); 
-    /*
-    ADD_OPTDEF(app, 
-        "--t2n-add-contam-frac", 
-           t2n_add_contam_frac,         
-        "Additive contamination rate for the fraction of tumor reads in the normal");
-    ADD_OPTDEF(app, 
-        "--t2n-add-contam-transfrac", 
-           t2n_add_contam_transfrac, 
-        "Additive contamination rate for the fraction of tumor reads in the normal by read transfer");
-    */
-    ADD_OPTDEF(app, 
-        "--phred-frac-indel-error-before-barcode-labeling", 
-           phred_frac_indel_error_before_barcode_labeling, 
-        "PHRED-scaled fraction of InDel errors that occurred before the attachment of UMI single-strand barcodes. ");
-    
-    //ADD_OPTDEF(app, 
-    //    "--baq-per-aligned-base", 
-    //       baq_per_aligned_base,
-    //    "PHRED-scaled base alignment quality (BAQ) for each additional base between the variant and the read edge. "); 
-   
-    ADD_OPTDEF(app, 
-        "--is-somatic-snv-filtered-by-any-nonref-germline-snv", 
-           is_somatic_snv_filtered_by_any_nonref_germline_snv,
-        "Set to 0 (zero, false) if reject any nonref germline and to 1 (one, true) if only reject the specific ALT germline for SNV candidate. "); 
-    ADD_OPTDEF(app, 
-        "--is-somatic-indel-filtered-by-any-nonref-germline-indel", 
-           is_somatic_indel_filtered_by_any_nonref_germline_indel,
-        "Set to 0 (zero, false) if reject any nonref germline and to 1 (one, true) if only reject the specific ALT germline for InDel candidate. "); 
-    
-    //ADD_OPTDEF(app,
-    //    "--amp-BQ-sqr-coef",
-    //       amp_BQ_sqr_coef,
-    //    "The square of Illumina root-mean-square base quality multiplied by this number is the max possible TLOD of variant quality for PCR-amplicon assays. "); 
-    //ADD_OPTDEF(app,
-    //    "--cap-BQ-sqr-coef",
-    //       cap_BQ_sqr_coef,
-    //    "The square of Illumina root-mean-square base quality multiplied by this number is the max possible TLOD of variant quality for hybrid-capture assays. "); 
-    
-    ADD_OPTDEF(app, 
-        "--phred-varcall-err-per-map-err-per-base", 
-           phred_varcall_err_per_map_err_per_base,
-        "The root-mean square mapping quality added by this number is the maximum possible TLOD part of variant quality. "); 
-
-    ADD_OPTDEF(app, 
-        "--powlaw-exponent", 
-           powlaw_exponent,
-        "Exponent of the power-law relationship between error probability and allele-fraction deviation, "
-        "strongly recommended to use the default value. ");
-    ADD_OPTDEF(app, 
-        "--powlaw-anyvar-base", 
-           powlaw_anyvar_base,
-        "Error probability at allele-fraction of 1 or 100%, storngly recommended to use the default value");
-    
-    //ADD_OPTDEF(app, 
-    //    "--syserr-maxqual", 
-    //       syserr_maxqual,
-    //        "PHRED-scaled probability that a candidate of systematic error is actually non-systematic. "); 
-    
-    //ADD_OPTDEF(app, 
-    //    "--syserr-norm-devqual", 
-    //       syserr_norm_devqual,
-    //    "PHRED-scaled likelihood that the observed allele fraction additively deviates from the expected allele fraction "
-    //    "by a multiplicative factor of two. "); 
+        "Every variant that satisfies this minimum allele depth is always in the -o file. ");
     
     app.add_flag(
         "--Should-add-note", 
            should_add_note, 
         "Flag indicating if the program generates more detail (can be used for debugging) in the VCF result file. ");
+    app.add_flag(
+        "--always-log", 
+           always_log, 
+        "Flag indicating if the program should generate detailed log results to stderr");
     
-    ADD_OPTDEF(app, 
-        "--disable-dup-read-merge", 
-           disable_dup_read_merge, 
-        "Boolean (0: false, 1: true) indicating if the program should disable the merge of duplicate reads. ");
-    ADD_OPTDEF(app, 
-        "--enable-dup-read-vqual", 
-           enable_dup_read_vqual, 
-        "Boolean (0: false, 1: true) indicating if the program should enable the use of raw non-dedupped reads in the calculation of variant quality. ");
+// *** 03. parameters that are driven by the properties of the assay
     
-    unsigned int assay_type_uint = (unsigned int)assay_type;
-    unsigned int molecule_tag_uint = (unsigned int)molecule_tag;
-    unsigned int sequencing_platform_uint = (unsigned int)sequencing_platform;
-    unsigned int pair_end_merge_uint = (unsigned int)pair_end_merge;
-    ADD_OPTDEF(app, 
-        "--assay-type", 
-           assay_type_uint, 
-        "Assay type. " + stringvec_to_descstring(ASSAY_TYPE_TO_MSG));
     ADD_OPTDEF(app, 
         "--molecule-tag", 
            molecule_tag_uint, 
@@ -495,10 +302,43 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
         "Flag indicating if the program should disable the merge of "
         "two SSCSs (single-strand-consensus-sequences) into one DSCS (double-strand-consensus-sequence). "
         "The UMI of the duplex tag should be in the form of <alpha>+<beta>. ");
-    app.add_flag(
-        "--always-log", 
-           always_log, 
-        "Flag indicating if the program should generate detailed log results to stderr");
+    ADD_OPTDEF(app,
+        "--primerlen",
+           primerlen,
+        "Number of bases from each end of each insert that are part of the primers (for only amplicon assay). ");
+    
+    ADD_OPTDEF(app, 
+        "--central-readlen", 
+           central_readlen, 
+        "Central (median) value for read lengths, 0 means estimate from the data. ");
+    ADD_OPTDEF(app, 
+        "--bq-phred-added-misma", 
+           bq_phred_added_misma,
+        std::string("Additional base-quality phred score added to match and mismatch, recommend 4 for IonTorrent from Life Technologies. "
+        "This parameter value is automatically inferred if the sequencing platform is not ") + SEQUENCING_PLATFORM_TO_DESC[SEQUENCING_PLATFORM_OTHER]);
+    ADD_OPTDEF(app,
+        "--bq-phred-added-indel", 
+           bq_phred_added_indel, 
+        std::string("Additional base-quality phred score added to indel and no-indel, recommend 17 for Illumina and BGI. "
+        "This parameter value is automatically inferred if the sequencing platform is not ") + SEQUENCING_PLATFORM_TO_DESC[SEQUENCING_PLATFORM_OTHER]);
+    
+    ADD_OPTDEF(app, 
+        "--powlaw-exponent", 
+           powlaw_exponent,
+        "Exponent of the power-law relationship between error probability and allele-fraction deviation, "
+        "strongly recommended to use the default value. ");
+    ADD_OPTDEF(app, 
+        "--powlaw-anyvar-base", 
+           powlaw_anyvar_base,
+        "Error probability at allele-fraction of 1 or 100%, "
+        "strongly recommended to use the default value");
+    
+    ADD_OPTDEF(app, 
+        "--penal4lowdep",
+           penal4lowdep,
+        "Maximum penalty in variant quality for low read support.");
+        
+// *** 04. parameters for dedupping reads
     
     ADD_OPTDEF(app, 
         "--dedup-center-mult", 
@@ -513,50 +353,492 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
         "--dedup-amplicon-end2end-ratio", 
            dedup_amplicon_end2end_ratio,
         "oneEndSegmentCount/otherEndSegmentCount above which the assay is inferred to be amplicon UMI");
+    ADD_OPTDEF(app, 
+        "--dedup-flag", 
+           dedup_flag, 
+        "Flag determinating what information is used for dedupping. "
+        "(0x1: read begin position. 0x2: read end position. 0x4: read QNAME. 0x8: UMI molecular-barcode). "
+        "If this flag is zero, then infer such information from sequencing data. "
+        "For example, if set to 0x3, then reads having the same begin and end positions are considered to be duplicates of each other. ");
     
+// *** 05. parameters related to bias thresholds
+    
+    ADD_OPTDEF(app,
+        "--bias-flag-amp-snv", 
+           bias_flag_amp_snv, 
+        "Flag where each bit enables evidence reduction by each bias for SNVs and amplicon assay. "
+        + stringvec_to_descstring(BIAS_TYPE_TO_MSG));
+    ADD_OPTDEF(app,
+        "--bias-flag-amp-indel", 
+           bias_flag_amp_indel, 
+        "Flag where each bit enables evidence reduction by each bias for InDels and amplicon assay. ");
+    ADD_OPTDEF(app,
+        "--bias-flag-cap-snv", 
+           bias_flag_cap_snv, 
+        "Flag where each bit enables evidence reduction by each bias for SNVs and capture assay. ");
+    ADD_OPTDEF(app,
+        "--bias-flag-cap-indel", 
+           bias_flag_cap_indel, 
+        "Flag where each bit enables evidence reduction by each bias for InDels and capture assay. ");
+   
+    ADD_OPTDEF(app,
+        "--bias-thres-highBQ", 
+           bias_thres_highBQ, 
+        "Threshold of base quality (BQ) above which the base is considered to be of good BQ.");
+    ADD_OPTDEF(app,
+        "--bias-thres-highBAQ", 
+           bias_thres_highBAQ, 
+        "Threshold of base alignment quality (BAQ) above which the base is considered to be of good BAQ.");
+    
+    ADD_OPTDEF(app,
+        "--bias-thres-aLPxT-add",
+           bias_thres_aLPxT_add,
+        "The threshold for the number of bases to the left/right sequenced-segment end below which the segment is considered to be affected by position bias.");
+    ADD_OPTDEF(app,
+        "--bias-thres-aLPxT-perc",
+           bias_thres_aLPxT_perc,
+        "The threshold --bias_thres_aLPxT_add is increased by thisparam/100 times the average length of nearby InDels.");
+    
+    ADD_OPTDEF(app,
+        "--bias-thres-PFXM1T-add",
+           bias_thres_PFXM1T_add,
+        "The tier1-threshold of 10x mismatch (XM) below which the estimated 100x number of passing-filter (PF) reads decreases according to the inverse-square law. ");
+    ADD_OPTDEF(app,
+        "--bias-thres-PFXM2T-add",
+           bias_thres_PFXM1T_add,
+        "The tier2-threshold of 10x mismatch (XM) below which the estimated 100x number of passing-filter (PF) reads decreases quadratically. ");
+    ADD_OPTDEF(app,
+        "--bias-thres-PFGO1T-add",
+           bias_thres_PFGO1T_add,
+        "The tier1-threshold of 10x gap-opening (GO) below which the estimated 100x number of PF reads decreases according to the inverse-square law. ");
+    ADD_OPTDEF(app,
+        "--bias-thres-PFGO2T-add",
+           bias_thres_PFGO2T_add,
+        "The tier2-threshold of 10x gap-opening (GO) below which the estimated 100x number of PF reads decreases according to the inverse-square law. ");
+    
+    ADD_OPTDEF(app,
+        "--bias-thres-PFXM1T-perc",
+           bias_thres_PFXM1T_perc,
+        "The percent increase in the corresponding threshold relative to the background noise level. ");
+    ADD_OPTDEF(app,
+        "--bias-thres-PFXM2T-perc",
+           bias_thres_PFXM1T_perc,
+        "The percent increase in the corresponding threshold relative to the background noise level. ");
+    ADD_OPTDEF(app,
+        "--bias-thres-PFGO1T-perc",
+           bias_thres_PFGO1T_perc,
+        "The percent increase in the corresponding threshold relative to the background noise level. ");
+    ADD_OPTDEF(app,
+        "--bias-thres-PFGO2T-perc",
+           bias_thres_PFGO2T_perc,
+        "The percent increase in the corresponding threshold relative to the background noise level. ");
+    
+    ADD_OPTDEF(app,
+        "--bias-thres-aLRP1t-add",
+           bias_thres_aLRP1t_add,
+        "The tier-1-threshold of the number of bases to the left/right segment ends (LRP) below which the read support is not effective. ");
+    ADD_OPTDEF(app,
+        "--bias-thres-aLRP2t-add",
+           bias_thres_aLRP2t_add,
+        "The tier-2-threshold of the number of bases to the left/right segment ends (LRP) below which the read support is not effective. ");
+    ADD_OPTDEF(app,
+        "--bias-thres-aLRB1t-add",
+           bias_thres_aLRB1t_add,
+        "The tier-1-threshold of BAQ (base alignment quality) to the left/right segment ends (LRP) below which the read support is not effective. ");
+    ADD_OPTDEF(app,
+        "--bias-thres-aLRB2t-add",
+           bias_thres_aLRB2t_add,
+        "The tier-1-threshold of BAQ (base alignment quality) to the left/right segment ends (LRP) below which the read support is not effective. ");
+    
+    ADD_OPTDEF(app,
+        "--bias-thres-aLRI1T-perc",
+           bias_thres_aLRI1T_perc,
+        "The tier1-threshold of the number of bases to the left/right insert ends (LRI) below which the read support is not effective. ");
+    ADD_OPTDEF(app,
+        "--bias-thres-aLRI2T-perc",
+           bias_thres_aLRI2T_perc,
+        "The tier2-threshold of 10x mismatch (XM) below which the estimated 100x number of passing-filter (PF) reads decreases quadratically. ");
+    ADD_OPTDEF(app,
+        "--bias-thres-aLRI1t-perc",
+           bias_thres_aLRI1t_perc,
+        "The percent increase in the corresponding threshold relative to the background noise level. ");
+    ADD_OPTDEF(app,
+        "--bias-thres-aLRI2t-perc",
+           bias_thres_aLRI2t_perc,
+        "The percent increase in the corresponding threshold relative to the background noise level. ");
+    
+    ADD_OPTDEF(app,
+        "--bias-thres-PFBQ1",
+           bias_thres_PFBQ1,
+        "The tier-1-threshold of base quality (BQ) below which the estimated 100x number of PF reads decreases according to the inverse-square law. ");
+    ADD_OPTDEF(app,
+        "--bias-thres-PFBQ2",
+           bias_thres_PFBQ2,
+        "The tier-2-threshold of base quality (BQ) below which the estimated 100x number of PF reads decreases according to the inverse-square law. ");
+    
+    ADD_OPTDEF(app,
+        "--bias-thres-aXM1T-add",
+           bias_thres_aXM1T_add,
+        "The tier-1-threshold of 10x mismatch (XM) below which the read support is not effective. ");
+    
+    ADD_OPTDEF(app,
+        "--bias-thres-interfering-indel",
+           bias_thres_interfering_indel,
+        "If the reference allele is at most this number of bases away from the nearest InDel, then this reference allele is interfered by this InDel. ");
+    ADD_OPTDEF(app,
+        "--bias-thres-BAQ1",
+           bias_thres_BAQ1,
+        "The tier-1-threshold of base alignment quality (BAQ) below which the read support is not effective. ");
+    ADD_OPTDEF(app,
+        "--bias-thres-BAQ2",
+           bias_thres_BAQ2,
+        "The tier-2-threshold of base alignment quality (BAQ) below which the read support is not effective. ");
+    
+// *** 06. parameters related to the priors of bias
+    
+    ADD_OPTDEF(app,
+        "--bias-prior-pseudocount",
+           bias_prior_pseudocount,
+        "The minimum prior weight of the null hypothesis that there is no bias. ");
+    
+    ADD_OPTDEF(app,
+        "--bias-prior-DPadd-perc",
+           bias_prior_DPadd_perc,
+        "The percentage of variant InDel read support that is not considered when checking if any InDel is nearby. ");
+    ADD_OPTDEF(app,
+        "--bias-prior-pos",
+           bias_prior_pos,
+        "The prior weight of the null hypothesis that there is no segment position bias given no other information. ");
+    ADD_OPTDEF(app,
+        "--bias-prior-indel-in-read-div",
+           bias_prior_indel_in_read_div,
+        "Reduction in the prior weight of the null hypothesis that there is no segment position bias, given that the reads support both the ALT allele and some InDel allele(s). ");
+    ADD_OPTDEF(app,
+        "--bias-prior-indel-in-var-div2",
+           bias_prior_indel_in_var_div2,
+        "Additional reduction in the prior weight of the null hypothesis of no segment position bias, given that some InDel allele and this ALT allle overlap. ");
+    ADD_OPTDEF(app,
+        "--bias-prior-indel-in-STR-div2",
+           bias_prior_indel_in_var_div2,
+        "Additional reduction in the prior weight of the null hypothesis of no segment position bias, given that the variant is in an InDel region. ");
+    ADD_OPTDEF(app,
+        "--bias-prior-var-in-STR-div2",
+           bias_prior_var_in_STR_div2,
+        "Additional reduction in the prior weight of the null hypothesis of no segment position bias, given that this variant is in a STR region. ");
+    
+    ADD_OPTDEF(app,
+        "--bias-prior-var-DP-mul",
+           bias_prior_var_DP_mul,
+        "Minimum read depth odds ratio of nearby InDel allele to the variant allele above which the additional reduction in the prior weight is in effect. ");
+    
+    ADD_OPTDEF(app,
+        "--bias-prior-ipos-snv",
+           bias_prior_ipos_SNV,
+        "Prior weight of the null hypothesis of no insert position bias for SNVs. ");
+    ADD_OPTDEF(app,
+        "--bias-prior-ipos-indel",
+           bias_prior_ipos_InDel,
+        "Prior weight of the null hypothesis of no insert position bias for InDels. ");
+    ADD_OPTDEF(app,
+        "--bias-prior-strand-snv-base",
+           bias_prior_strand_SNV_base,
+        "Prior weight of the null hypothesis of no strand bias for SNVs at the average base quality of zero. ");
+    ADD_OPTDEF(app,
+        "--bias-prior-strand-indel",
+           bias_prior_strand_InDel,
+        "Prior weight of the null hypothesis of no strand bias for InDels. ");
+    
+    ADD_OPTDEF(app,
+        "--bias-FA-pseudocount-indel-in-read",
+          bias_FA_pseudocount_indel_in_read,
+        "Pseudocount of the effective variant allele depth for segment position bias in read regions affected by InDels. ");
+    
+    ADD_OPTDEF(app,
+        "--bias-removal-pos-indel-lenfrac-thres",
+           nobias_pos_indel_lenfrac_thres,
+        "Threshold of (F*L) above which segment position bias is removed, where F is allele fraction and L is indel length (aka number of gap extensions). ");
+    ADD_OPTDEF(app,
+        "--bias-removal-pos-indel-STR-track-len",
+           nobias_pos_indel_STR_track_len,
+        "Threshold of short tandem repeat (STR) track length above which segment position bias is removed if the variant is also the majority in the STR track. ");
+    
+    ADD_OPTDEF(app,
+        "--bias-prior-orientation-snv-base",
+           bias_prior_orientation_SNV_base,
+        "The prior weight of the null hypothesis of no read-orientation bias at 100\% allele fraction for SNVs. ");
+    ADD_OPTDEF(app,
+        "--bias-prior-orientation-indel-base",
+           bias_prior_orientation_InDel_base,
+        "The prior weight of the null hypothesis of no read-orientation bias at 100\% allele fraction for InDels. ");
+    ADD_OPTDEF(app,
+        "--bias-removal-orientation-avg-end-len",
+           bias_orientation_counter_avg_end_len,
+        "If the number of bases to segment end for the ALT allele is at least this param and the one for all alleles is at most this param, then read-orientation bias is removed ");
+    
+    ADD_OPTDEF(app,
+        "--bias-FA-powerlaw-noUMI-phred-inc",
+           bias_FA_powerlaw_noUMI_phred_inc,
+        "The Phred-scale decrease in false positive rates applied on top of universality for non-UMI data. ");
+    ADD_OPTDEF(app,
+        "--bias-FA-powerlaw-withUMI-phred-inc",
+           bias_FA_powerlaw_withUMI_phred_inc,
+        "The Phred-scale decrease in false positive rates applied on top of universality for UMI data. ");
+    
+// *** 07. parameters related to read families
+    
+    ADD_OPTDEF(app,
+        "--fam-thres-emperr-all-flat",
+           fam_thres_emperr_all_flat, 
+        "Maximum phred score for single-strand consensus sequences (SSCSs) for C:G > T:A transition");
+    ADD_OPTDEF(app,
+        "--fam-thres-emperr-con-perc",
+           fam_thres_emperr_con_perc,
+        "Maximum phred score for single-strand consensus sequences (SSCSs) for C:G > T:A transition");
+     ADD_OPTDEF(app,
+        "--fam-pseudocount-ref",
+           fam_pseudocount_ref,
+        "Maximum phred score for single-strand consensus sequences (SSCSs) for C:G > T:A transition");
+    
+    ADD_OPTDEF(app,
+        "--fam-phred-indel-err-before-barcode-labeling",
+           fam_phred_indel_err_before_barcode_labeling,
+        "PHRED-scaled fraction of InDel errors that occurred before the attachment of UMI single-strand barcodes. ");
+    
+    ADD_OPTDEF(app, 
+        "--fam-phred-sscs-transition-CG-TA", 
+           fam_phred_sscs_transition_CG_TA, 
+        "Maximum phred score for single-strand consensus sequences (SSCSs) for C:G > T:A transition");
+    ADD_OPTDEF(app, 
+        "--fam-phred-sscs-transition-TA-CG", 
+           fam_phred_sscs_transition_TA_CG, 
+        "Maximum phred score for single-strand consensus sequences (SSCSs) for T:A > C:G transition");
+    ADD_OPTDEF(app, 
+        "--fam-phred-sscs-transversion-any", 
+           fam_phred_sscs_transversion_any, 
+        "Maximum phred score for single-strand consensus sequences (SSCSs) for any transversion");
+    ADD_OPTDEF(app, 
+        "--fam-phred-sscs-indel-open", 
+           fam_phred_sscs_indel_open, 
+        "Maximum phred score for single-strand consensus sequences (SSCSs) for the opening of indel gap "
+        "(the opening includes the insertion/deletion of one base)");
+    ADD_OPTDEF(app, 
+        "--fam-phred-sscs-indel-ext", 
+           fam_phred_sscs_indel_ext, 
+        "Maximum phred score for single-strand consensus sequences (SSCSs) for the extension of indel gap "
+        "(excluding the extension of one base) per base");
+    ADD_OPTDEF(app,
+        "--fam-phred-dscs-all", 
+           fam_phred_dscs_all, 
+        "Maximum phred score for double-strand consensus sequences (DSCSs) for all types of mutations");
+    
+    ADD_OPTDEF(app, 
+        "--fam-phred-pow-sscs-snv-origin",
+           fam_phred_pow_sscs_SNV_origin, 
+        "The phred-score that is subtracted from phred-sscs to get the power-law quality adjustment for SNVs");
+    ADD_OPTDEF(app, 
+        "--fam-phred-pow-sscs-indel-origin", 
+           fam_phred_pow_sscs_indel_origin, 
+        "The phred-score that is subtracted from phred-sscs to get the power-law quality adjustment for InDels");
+    ADD_OPTDEF(app, 
+        "--fam-phred-pow-dscs-all-origin", 
+           fam_phred_pow_dscs_all_origin,
+        "The phred-score that is subtracted from phred-dscs to get the power-law quality adjustment");
+    
+// *** 08. parameters related to systematic errors
+    
+    ADD_OPTDEF(app,
+        "--syserr-BQ-prior", 
+           syserr_BQ_prior, 
+        "Phred-scale probability of the systematic error mentioned at https://bmcbioinformatics.biomedcentral.com/articles/10.1186/1471-2105-12-451"); 
+    
+    ADD_OPTDEF(app,
+        "--syserr-BQ-smratio-q-add",
+           syserr_BQ_smratio_q_add,
+        "Squared relative deviation for the odds ratio of strand read support by which the threshold of low-quality bases is increased."); 
+    ADD_OPTDEF(app,
+        "--syserr-BQ-smratio-q-max",
+           syserr_BQ_smratio_q_max,
+        "The maximum increased quality for the odds ratio of strand read support by which the threshold of low-quality bases is increased."); 
+    ADD_OPTDEF(app,
+        "--syserr-BQ-xmratio-q-add",
+           syserr_BQ_xmratio_q_add,
+        "Squared relative deviation for the odds ratio of mismatch by which the threshold of low-quality bases is increased."); 
+    ADD_OPTDEF(app,
+        "--syserr-BQ-xmratio-q-max",
+           syserr_BQ_xmratio_q_max,
+        "The maximum increased quality for the odds ratio of mismatch by which the threshold of low-quality bases is increased."); 
+    ADD_OPTDEF(app,
+        "--syserr-BQ-bmratio-q-add",
+           syserr_BQ_bmratio_q_add,
+        "Squared relative deviation for the odds ratio of same-base mismatch by which the threshold of low-quality bases is increased."); 
+    ADD_OPTDEF(app,
+        "--syserr-BQ-bmratio-q-max",
+           syserr_BQ_bmratio_q_max,
+        "The maximum increased quality for the odds ratio of same-base mismatch by which the threshold of low-quality bases is increased."); 
+    
+    ADD_OPTDEF(app,
+        "--syserr-minABQ-pcr-snv", 
+           syserr_minABQ_pcr_snv, 
+        "Average base quality (ABQ) below which variant quality is capped to ABQ for SNVs and PCR amplicon, "
+        "recommend 25 for Illumina and 0 for IonTorrent. "); 
+    ADD_OPTDEF(app, 
+        "--syserr-minABQ-pcr-indel", 
+           syserr_minABQ_pcr_indel, 
+        "Average base quality (ABQ) below which variant quality is capped to ABQ for InDels and PCR amplicon, "
+        "recommend 18 for Illumina and 0 for IonTorrent. ");
+    ADD_OPTDEF(app, 
+        "--syserr-minABQ-cap-snv", 
+           syserr_minABQ_cap_snv, 
+        "Average base quality (ABQ) below which variant quality is capped to ABQ for SNVs and hybrid selection, "
+        "recommend 20 for Illumina and 0 for IonTorrent. ");
+    ADD_OPTDEF(app,
+        "--syserr-minABQ-cap-indel", 
+           syserr_minABQ_cap_indel, 
+        "Average base quality (ABQ) below which variant quality is capped to ABQ for InDels and hybrid selection, "
+        "recommend 13 for Illumina and 0 for IonTorrent. ");
+    
+    ADD_OPTDEF(app,
+        "--syserr-maxMQ",
+           syserr_maxMQ,
+        "Maximum mapping quality (MQ) of the aligned reads, highly recommended to be the 60 from BWA. ");
+    ADD_OPTDEF(app, 
+        "--syserr-phred-varcall-err-per-map-err-per-base", 
+           syserr_phred_varcall_err_per_map_err_per_base,
+        "The root-mean square mapping quality added by this number is the maximum possible TLOD part of variant quality. "); 
 
-    //ADD_OPTDEF(app, 
-    //    "--bitflag-InDel-penal-t-UMI-n-UMI", 
-    //        bitflag_InDel_penal_t_UMI_n_UMI, 
-    //     "Advanced flag for comparing tumor with normal"); 
-    //ADD_OPTDEF(app, 
-    //    "--ref-bias-awareness", 
-    //       ref_bias_awareness, 
-    //    "Boolean bit-vector indicating if germline calls are aware of reference bias. "
-    //    "The 0x1 bit is for amplicon and the 0x2 bit is for non-amplicon. ");
+// *** 09. parameters related to germline vars 
+    
+    ADD_OPTDEF(app, 
+        "--germ-hetero-FA", 
+           germ_hetero_FA,
+        "Phred-scaled prior probability of germline polymorphism at a genomic position for SNPs.");
+    
+    ADD_OPTDEF(app,
+        "--germ-phred-hetero-snp", 
+           germ_phred_hetero_snp,
+        "Phred-scaled prior probability of 0/1 heterozygous germline polymorphism at a genomic position for SNPs.");
+    ADD_OPTDEF(app, 
+        "--germ-phred-hetero-indel", 
+           germ_phred_hetero_indel,
+        "Phred-scaled prior probability of 0/1 heterozygous germline polymorphism at a genomic position for SNPs."),
+    ADD_OPTDEF(app, 
+        "--germ-phred-homalt-snp", 
+           germ_phred_homalt_snp,
+        "Phred-scaled prior probability of 1/1 homozygous germline polymorphism at a genomic position for SNPs.");
+    ADD_OPTDEF(app, 
+        "--germ-phred-homalt-indel", 
+           germ_phred_homalt_indel,
+        "Phred-scaled prior probability of 1/1 homozygous germline polymorphism at a genomic position for InDels."),
+    ADD_OPTDEF(app, 
+        "--germ-phred-het3al-snp",
+           germ_phred_het3al_snp,     
+        "Phred-scaled prior probability of 1/2 heterozygous germline polymorphism at a genomic position for SNPs.");
+    ADD_OPTDEF(app, 
+        "--germ-phred-het3al-indel", 
+           germ_phred_het3al_indel,   
+        "Phred-scaled prior probability of 1/2 heterozygous germline polymorphism at a genomic position for SNPs.");
     
     /*
     ADD_OPTDEF(app, 
-        "--haplo-in-diplo-allele-perc", 
-           haplo_in_diplo_allele_perc, 
-        "Percent allele of a haplotype observed in a diploid sample");
+        "--is-somatic-snv-filtered-by-any-nonref-germline-snv", 
+           is_somatic_snv_filtered_by_any_nonref_germline_snv,
+        "Set to 0 (zero, false) if reject any nonref germline and to 1 (one, true) if only reject the specific ALT germline for SNV candidate. "); 
     ADD_OPTDEF(app, 
-        "--diplo-oneside-posbias-perc", 
-           diplo_oneside_posbias_perc, 
-        "Percent ratio of sequencing-segments not biased to either left or right side "
-        "below which position bias is added to the germline filter for homozygous variants");
-    ADD_OPTDEF(app, 
-        "--diplo-twoside-posbias-perc", 
-           diplo_twoside_posbias_perc, 
-        "Percent ratio of sequencing-segments not biased to both left and right sides "
-        "below which position bias is added to the germline filter for homozygous variants");
-    ADD_OPTDEF(app, 
-        "--haplo-oneside-posbias-perc", 
-           haplo_oneside_posbias_perc, 
-        "Percent ratio of sequencing-segments not biased to either left or right side "
-        "below which position bias is added to the germline filter for heterozygous variants");
+        "--is-somatic-indel-filtered-by-any-nonref-germline-indel", 
+           is_somatic_indel_filtered_by_any_nonref_germline_indel,
+        "Set to 0 (zero, false) if reject any nonref germline and to 1 (one, true) if only reject the specific ALT germline for InDel candidate. "); 
+    */ 
+
+
+// *** 10. parameters related to tumor-normal-pairs.
+    ADD_OPTDEF(app,
+        "--tn-q-inc-max",
+           tn_q_inc_max,
+        "Maximum increase in variant quality by comparing the tumor with its matched normal.");
+    ADD_OPTDEF(app,
+        "--tn-syserr-norm-devqual",
+           tn_syserr_norm_devqual,
+        "Phred-scale decrease in the variant quality subtracted from the tumor if the tumor FA (allele fraction) deviates by +100\%/-50\% from its matched normal FA.");
+
+// *** 11. parameters related to InDels.
+    
+    ADD_OPTDEF(app,
+        "--indel-BQ-max",
+           indel_BQ_max,
+        "For InDels, the maximum base quality of the indel of one base.");
+    ADD_OPTDEF(app,
+        "--indel-str-repeatsize-max",
+           indel_str_repeatsize_max,
+        "For InDels, the maximum length of a repeating substring for the repeat to be considered as eligible for short tandem repeat (STR).");
+    ADD_OPTDEF(app,
+        "--indel-polymerase-size",
+           indel_polymerase_size,
+        "For InDels, the number of bases that can be fit within the catalytic unit of the polymerase used for PCR.");
+    ADD_OPTDEF(app,
+        "--indel-polymerase-slip-rate",
+           indel_polymerase_slip_rate,
+        "For InDels, the number of bases that can slip when processed by the catalytic unit of the polymerase used for PCR.");
+    ADD_OPTDEF(app,
+        "--indel-del-to-ins-err-ratio",
+           indel_del_to_ins_err_ratio,
+        "For InDels, the number of times that deletion is more likely.");
+    ADD_OPTDEF(app,
+        "--indel-adj-tracklen-div",
+           indel_adj_tracklen_div,
+        "For InDels, the number of times that the STR track length of nearby STR is divided for the track length to be effective for this position.");
+    
+    ADD_OPTDEF(app,
+        "--indel-multiallele-samepos-penal",
+           indel_multiallele_samepos_penal,
+        "For InDels, the number of times that deletion is more likely.");
+    ADD_OPTDEF(app,
+        "--indel-multiallele-diffpos-penal",
+           indel_multiallele_diffpos_penal,
+        "For InDels, the number of times that the STR track length of nearby STR is divided for the track length to be effective for this position.");
+   
+    ADD_OPTDEF(app,
+        "--indel-multiallele-soma-penal-thres",
+           indel_multiallele_soma_penal_thres,
+        "For InDels, the number of times that the STR track length of nearby STR is divided for the track length to be effective for this position.");
+    ADD_OPTDEF(app,
+        "--indel-tetraallele-germline-penal-value",
+           indel_tetraallele_germline_penal_value,
+        "For InDels, the number of times that the STR track length of nearby STR is divided for the track length to be effective for this position.");
+    ADD_OPTDEF(app,
+        "--indel-tetraallele-germline-penal-thres",
+           indel_tetraallele_germline_penal_thres,
+        "For InDels, the number of times that the STR track length of nearby STR is divided for the track length to be effective for this position.");
+    
+    ADD_OPTDEF(app,
+        "--indel-ins-penal-pseudocount",
+           indel_ins_penal_pseudocount,
+        "For InDels, the length of inserted sequence at which at most half of the inserted sequences are erroneous.");
+    
+    ADD_OPTDEF(app,
+        "--indel-str-dist",
+           indel_STR_dist,
+        "For InDels, the number of bases to the closest STR (short tandem repeat) below which the InDel is considered to be affected by this STR.");
+    ADD_OPTDEF(app,
+        "--indel-nonSTR-phred-per-base",
+           indel_nonSTR_phred_per_base,
+        "The Phred quality per each additional base to the sequenced-segment left/right end in non-STR regions");
+    ADD_OPTDEF(app,
+        "--indel-STR-phred-per-region",
+           indel_STR_phred_per_region,
+        "The Phred quality per each additional STR track to the sequenced-segment left/right end");
+        
+// *** 12. parameters related to contamination
     
     ADD_OPTDEF(app, 
-        "--haplo-twoside-posbias-perc", 
-           haplo_twoside_posbias_perc, 
-        "Percent ratio of sequencing-segments not biased to both left and right sides "
-        "below which position bias is added to the germline filter for heterozygous variants");
+        "--contam-any-mul-frac", 
+           contam_any_mul_frac,
+        "Multiplicative contamination rate for the fraction of reads generated by any source of contamination in any sample");
     ADD_OPTDEF(app, 
-        "--regside-nbases", 
-           regside_nbases, 
-        "A variant is in the side region (left, right, or both) if and only if "
-        "the number of bases to the sequencing-segment end is at most this number. ");
-    */
+        "--contam-t2n-mul-frac", 
+           contam_t2n_mul_frac,
+        "Multiplicative contamination rate for the fraction of tumor reads in the normal"); 
+    
+/// *** end
 
     app.callback([&]() {
         assay_type = (AssayType)assay_type_uint;

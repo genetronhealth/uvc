@@ -420,7 +420,8 @@ region_repeatvec_to_baq_offsetarr(
         const std::vector<RegionalTandemRepeat> & region_repeatvec, 
         unsigned int tid,
         unsigned int extended_inclu_beg_pos, 
-        unsigned int extended_exclu_end_pos) {
+        unsigned int extended_exclu_end_pos,
+        const CommandLineArgs & paramset) {
     auto ret = CoveredRegion<int64_t>(tid, extended_inclu_beg_pos, extended_exclu_end_pos);    
     int64_t baq_prefixsum = 0;
     unsigned int prev_begpos = 0;
@@ -431,11 +432,11 @@ region_repeatvec_to_baq_offsetarr(
         assert (rtr.begpos <= rtr_idx);
         assert (rtr.unitlen > 0);
         assert (rtr.tracklen >= rtr.unitlen);
-        if (rtr.tracklen / rtr.unitlen >= 3 || (rtr.tracklen / rtr.unitlen >= 2 && rtr.tracklen >= 8)) {
-            baq_prefixsum += (10 * 10) / (rtr.tracklen) + 1;
+        if (rtr.tracklen / rtr.unitlen >= 3 || (rtr.tracklen / rtr.unitlen >= 2 && rtr.tracklen >= (unsigned int)round(paramset.indel_polymerase_size))) {
+            baq_prefixsum += (paramset.indel_STR_phred_per_region * 10) / (rtr.tracklen) + 1;
             ret.getRefByPos(i) = baq_prefixsum;
         } else {
-            baq_prefixsum += 50;
+            baq_prefixsum += paramset.indel_nonSTR_phred_per_base * 10;
             prev_begpos = rtr.begpos;
             prev_tracklen = rtr.tracklen;
             ret.getRefByPos(i) = baq_prefixsum;
@@ -443,7 +444,7 @@ region_repeatvec_to_baq_offsetarr(
     }
     for (unsigned int i = extended_inclu_beg_pos; i < extended_exclu_end_pos; i++) {
         ret.getRefByPos(i) /= 10;
-    } 
+    }
     return ret;
 }
 
@@ -513,8 +514,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
     const AssayType inferred_assay_type = ((ASSAY_TYPE_AUTO == paramset.assay_type) ? (is_by_capture ? ASSAY_TYPE_CAPTURE : ASSAY_TYPE_AMPLICON) : (paramset.assay_type));
     
     if (0 == num_passed_reads) { return -1; };
-    unsigned int minABQ_snv = ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? paramset.minABQ_pcr_snv : paramset.minABQ_cap_snv);
-    unsigned int minABQ_indel = ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? paramset.minABQ_pcr_indel : paramset.minABQ_cap_indel);
+    unsigned int minABQ_snv = ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? paramset.syserr_minABQ_pcr_snv : paramset.syserr_minABQ_cap_snv);
+    unsigned int minABQ_indel = ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? paramset.syserr_minABQ_pcr_indel : paramset.syserr_minABQ_cap_indel);
     
     const unsigned int rpos_inclu_beg = MAX(incluBegPosition, bam_inclu_beg_pos);
     const unsigned int rpos_exclu_end = MIN(excluEndPosition, bam_exclu_end_pos); 
@@ -554,41 +555,22 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
             paramset.indel_polymerase_slip_rate,
             paramset.indel_del_to_ins_err_ratio,
             0);
-    const auto & baq_offsetarr = region_repeatvec_to_baq_offsetarr(region_repeatvec, tid, extended_inclu_beg_pos, extended_exclu_end_pos);
+    const auto & baq_offsetarr = region_repeatvec_to_baq_offsetarr(region_repeatvec, tid, extended_inclu_beg_pos, extended_exclu_end_pos, paramset);
     
     // repeatvec_LOG(region_repeatvec, extended_inclu_beg_pos); // disable the log by default
 
     std::vector<std::tuple<unsigned int, unsigned int, unsigned int>> adjcount_x_rpos_x_misma_vec;
     std::map<std::basic_string<std::pair<unsigned int, AlignmentSymbol>>, std::array<unsigned int, 2>> mutform2count4map_bq;
     std::map<std::basic_string<std::pair<unsigned int, AlignmentSymbol>>, std::array<unsigned int, 2>> mutform2count4map_fq;
-    const PhredMutationTable sscs_mut_table(
-                paramset.phred_max_sscs_transition_CG_TA, 
-                paramset.phred_max_sscs_transition_TA_CG, 
-                paramset.phred_max_sscs_transversion_any,
-                paramset.phred_max_sscs_indel_open,
-                paramset.phred_max_sscs_indel_ext);
+    
     symbolToCountCoverageSet12.updateByRegion3Aln(
             mutform2count4map_bq, 
             mutform2count4map_fq,
             umi_strand_readset, 
+            
             refstring,
             region_repeatvec,
             baq_offsetarr,
-            paramset.bq_phred_added_misma, 
-            paramset.bq_phred_added_indel, 
-            paramset.should_add_note, 
-            paramset.phred_max_frag_indel_basemax, 
-            sscs_mut_table,
-            !paramset.disable_dup_read_merge, 
-            SEQUENCING_PLATFORM_IONTORRENT == paramset.sequencing_platform,
-            ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? paramset.primerlen : 0),
-            
-            //paramset.indel_str_repeatsize_max,
-            //paramset.indel_del_to_ins_err_ratio,
-            //paramset.bias_thres_highBQ,
-
-            paramset.phred_frac_indel_error_before_barcode_labeling,
-            paramset.indel_nonSTR_phred_per_base,
             
             paramset,
             0);
@@ -622,7 +604,6 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                     symbolToCountCoverageSet12, 
                     refpos, 
                     symbolType, 
-                    !paramset.disable_dup_read_merge, 
                     refsymbol, 
                     0);
             unsigned int var_bdepth = bDPcDP[0];
@@ -785,7 +766,6 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                     std::vector<std::tuple<int, int, int, AlignmentSymbol, std::string>> maxVQ_VQ1_VQ2_symbol_indelstr_tup_vec;
                     for (auto & fmt_tki_tup : fmt_tki_tup_vec) {
                         AlignmentSymbol symbol = AlignmentSymbol(LAST(std::get<0>(fmt_tki_tup).VTI));
-                        unsigned int phred_max_sscs_all = sscs_mut_table.toPhredErrRate(refsymbol, symbol);
                         auto & fmt = std::get<0>(fmt_tki_tup);
                         const auto & tki = std::get<1>(fmt_tki_tup);
                         BcfFormat_symbol_calc_qual(
@@ -805,11 +785,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                                 
                                 repeatunit,
                                 repeatnum,
-                                90,
-                                3,
-                                phred_max_sscs_all,
-                                (phred_max_sscs_all - (isSymbolSubstitution(symbol) ? paramset.phred_pow_sscs_origin : paramset.phred_pow_sscs_indel_origin)),
-                                paramset.phred_varcall_err_per_map_err_per_base,
+                                
                                 NOT_PROVIDED != paramset.vcf_tumor_fname,
                                 region_repeatvec.at(MAX(refpos - extended_inclu_beg_pos, 3) - 3),
                                 region_repeatvec.at(MIN(refpos - extended_inclu_beg_pos + 3, region_repeatvec.size() - 3)),
@@ -953,11 +929,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                                     symbol,
                                     fmt,
                                     tki,
-                                    paramset.is_tumor_format_retrieved,
                                     nlodq,
-                                    paramset.vqual,
-                                    paramset.vdp,
-                                    paramset.vad,
                                     (paramset.should_output_all || is_germline_var_generated),
                                     bcf_hdr,
                                     baq_offsetarr,
@@ -1012,7 +984,8 @@ main(int argc, char **argv) {
     samfname_to_tid_to_tname_tseq_tup_vec(tid_to_tname_tseqlen_tuple_vec, paramset.bam_input_fname);
     
     const unsigned int nthreads = paramset.max_cpu_num;
-    bool is_vcf_out_empty_string = (std::string("") == paramset.vcf_output_fname);
+    bool is_vcf_out_empty_string = true; // (std::string("") == paramset.vcf_output_fname);
+    /*
     BGZF *fp_allp = NULL;
     if (!is_vcf_out_empty_string) { 
         fp_allp = bgzf_open(paramset.vcf_output_fname.c_str(), "w");
@@ -1021,6 +994,7 @@ main(int argc, char **argv) {
             exit(-8);
         }
     }
+    */
     bool is_vcf_out_pass_empty_string = (std::string("") == paramset.vcf_out_pass_fname);
     bool is_vcf_out_pass_to_stdout = (std::string("-") == paramset.vcf_out_pass_fname);
     BGZF *fp_pass = NULL;
@@ -1099,7 +1073,7 @@ main(int argc, char **argv) {
             paramset.sample_name.c_str(), 
             g_sample, 
             paramset.is_tumor_format_retrieved);
-    clearstring<false>(fp_allp, header_outstring);
+    // clearstring<false>(fp_allp, header_outstring);
     clearstring<false>(fp_pass, header_outstring, is_vcf_out_pass_to_stdout);
 
     std::vector<std::tuple<unsigned int, unsigned int, unsigned int, bool, unsigned int>> tid_beg_end_e2e_tuple_vec1;
@@ -1255,9 +1229,10 @@ main(int argc, char **argv) {
         }
 #endif
         for (unsigned int beg_end_pair_idx = 0; beg_end_pair_idx < beg_end_pair_vec.size(); beg_end_pair_idx++) {
+            /*
             if (batchargs[beg_end_pair_idx].outstring_allp.size() > 0) {
                 clearstring<true>(fp_allp, batchargs[beg_end_pair_idx].outstring_allp); // empty string means end of file
-            }
+            }*/
             if (batchargs[beg_end_pair_idx].outstring_pass.size() > 0) {
                 clearstring<true>(fp_pass, batchargs[beg_end_pair_idx].outstring_pass); // empty string means end of file
             }
@@ -1274,7 +1249,7 @@ main(int argc, char **argv) {
         autoswap(tid_pos_symb_to_tkis1, tid_pos_symb_to_tkis2);
     }
     
-    clearstring<true>(fp_allp, std::string("")); // write end of file
+    // clearstring<true>(fp_allp, std::string("")); // write end of file
     clearstring<true>(fp_pass, std::string(""), is_vcf_out_pass_to_stdout);
     bam_hdr_destroy(samheader);
     if (NULL != g_bcf_hdr) {
@@ -1295,16 +1270,18 @@ main(int argc, char **argv) {
         }
     }
     // bgzf_flush is internally called by bgzf_close
+    /*
     if (fp_allp) {
         int closeresult = bgzf_close(fp_allp);
         if (closeresult != 0) {
             LOG(logERROR) << "Unable to close the bgzip file " << paramset.vcf_output_fname;
         }
     }
+    */
     if (fp_pass) {
         int closeresult = bgzf_close(fp_pass);
         if (closeresult != 0) {
-            LOG(logERROR) << "Unable to close the bgzip file " << paramset.vcf_output_fname;
+            LOG(logERROR) << "Unable to close the bgzip file " << paramset.vcf_out_pass_fname;
         }
     }
     std::clock_t c_end = std::clock();

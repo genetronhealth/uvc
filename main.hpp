@@ -1035,42 +1035,8 @@ int
 update_seg_format_thres_from_prep_sets(
         SegFormatThresSets & seg_format_thres_sets, 
         const SegFormatPrepSets & seg_format_prep_sets, 
-        const CommandLineArgs & paramset,
-/*        
-        uint32_t bias_thres_highBQ, // 20
-        uint32_t bias_thres_highBAQ, // 23
-
-        uint32_t bias_thres_aLPxT_perc, // 125 
-        uint32_t bias_thres_aLPxT_add,  // 5
-
-        uint32_t bias_thres_PFXM1T_add, // 35;
-        uint32_t bais_thres_PFXM2T_add, // 20;
-        uint32_t bias_thres_PFGO1T_add, // 35;
-        uint32_t bias_thres_PFGO2T_add, // 20;
-
-        uint32_t bias_thres_aXM1T_perc, // 50;
-        uint32_t bias_thres_aXM2T_perc, //  70;
-        uint32_t bias_thres_aGO1T_perc, // 50;
-        uint32_t bias_thres_aGO2T_perc, // 70;
-
-        uint32_t bias_thres_aLRI1T_perc, // 250;
-        uint32_t bias_thres_aLRI2T_perc, // 200;
-        uint32_t bias_thres_aLRI1t_perc, // 50;
-        uint32_t bias_thres_aLRI2t_perc, // 67;
-
-        int32_t bias_thres_aLRP1t_add, // 10;
-        int32_t bias_thres_aLRP2t_add, // 5;
-        int32_t bias_thres_aLRB1t_add, // 50;
-        int32_t bias_thres_aLRB2t_add, // 25;
-
-        // uint32_t bias_thres_PFBQ1, // = 30;
-        // uint32_t bias_thres_PFBQ2, // 25;
-        // uint32_t bias_thres_aXM1T_add, // = 30;
         
-        // uint32_t bias_thres_interfering_indel, // 20;
-        // uint32_t bias_thres_BAQ1, // = 45-10, // ;
-        // uint32_t bias_thres_BAQ2, // = 60-10, // ;
-*/
+        const CommandLineArgs & paramset,
         const unsigned int specialflag) 
     {
     assert(seg_format_thres_sets.getIncluBegPosition() == seg_format_prep_sets.getIncluBegPosition());
@@ -1527,8 +1493,7 @@ public:
     int // GenericSymbol2CountCoverage<TSymbol2Count>::
     updateByAln(
             const bam1_t *const aln, 
-            const std::array<unsigned int, NUM_SYMBOL_TYPES> & symbolType2addPhredArg, 
-            unsigned int frag_indel_basemax,
+            
             const unsigned int region_offset,
             const auto & region_symbolvec, 
             const std::vector<RegionalTandemRepeat> & region_repeatvec,
@@ -1538,11 +1503,6 @@ public:
             auto & symbol_to_VQ_format_tag_sets,
             const auto & seg_format_prep_sets,
             const auto & seg_format_thres_sets,
-            
-            unsigned int primerlen,
-
-            unsigned int indel_str_repeatsize_max,
-            double indel_del_to_ins_err_ratio,
             
             const CommandLineArgs & paramset,
             uint32_t specialflag) {
@@ -1556,8 +1516,7 @@ public:
         const uint32_t *cigar = bam_get_cigar(aln);
         const uint8_t *bseq = bam_get_seq(aln);
         const uint32_t rend = bam_endpos(aln);
-        const auto symbolType2addPhred = symbolType2addPhredArg;
-        // const auto roffset = bq_baq_sum.at(0).getIncluBegPosition();
+        const std::array<unsigned int, NUM_SYMBOL_TYPES> symbolType2addPhred = {{paramset.bq_phred_added_misma, paramset.bq_phred_added_indel}};
         
         unsigned int nge_cnt = 0; // number of gap extensions.
         unsigned int ngo_cnt = 0; // number of gap opens.
@@ -1622,9 +1581,9 @@ public:
         }
         
         const bool isrc = ((aln->core.flag & 0x10) == 0x10);
-        const unsigned int ibeg = ((aln->core.isize != 0) ? (MIN(aln->core.pos, aln->core.mpos) + primerlen) : (isrc ? 0 : (aln->core.pos + primerlen)));
-        const unsigned int iend = ((aln->core.isize != 0) ? non_neg_minus(MIN(aln->core.pos, aln->core.mpos) + abs(aln->core.isize),  primerlen) 
-                : (isrc ? non_neg_minus(rend, primerlen) : INT32_MAX));
+        const unsigned int ibeg = ((aln->core.isize != 0) ? (MIN(aln->core.pos, aln->core.mpos) + paramset.primerlen) : (isrc ? 0 : (aln->core.pos + paramset.primerlen)));
+        const unsigned int iend = ((aln->core.isize != 0) ? non_neg_minus(MIN(aln->core.pos, aln->core.mpos) + abs(aln->core.isize),  paramset.primerlen) 
+                : (isrc ? non_neg_minus(rend, paramset.primerlen) : INT32_MAX));
         
         unsigned int qpos = 0;
         unsigned int rpos = aln->core.pos;
@@ -1638,7 +1597,7 @@ public:
                     assert((rpos >= SIGN2UNSIGN(aln->core.pos) && rpos < SIGN2UNSIGN(bam_endpos(aln)))
                             || !fprintf(stderr, "Bam line with QNAME %s has rpos %d which is not the in range (%d - %d)", 
                             bam_get_qname(aln), rpos, aln->core.pos, bam_endpos(aln)));
-if ((0 == primerlen) || (ibeg <= rpos && rpos < iend)) {
+if ((ASSAY_TYPE_AMPLICON != paramset.assay_type) || (0 == paramset.primerlen) || (ibeg <= rpos && rpos < iend)) {
                     if (i2 > 0) {
                         const auto noindel_phredvalue = MIN3(
                                 region_repeatvec[rpos-region_offset - 1].indelphred,
@@ -1694,7 +1653,7 @@ if ((0 == primerlen) || (ibeg <= rpos && rpos < iend)) {
                     qpos += 1;
                 }
             } else if (cigar_op == BAM_CINS) {
-if ((0 == primerlen) || (ibeg <= rpos && rpos < iend)) {
+if ((ASSAY_TYPE_AMPLICON != paramset.assay_type) || (0 == paramset.primerlen) || (ibeg <= rpos && rpos < iend)) {
                 const bool is_ins_at_read_end = (0 == qpos || qpos + SIGN2UNSIGN(cigar_oplen) >= SIGN2UNSIGN(aln->core.l_qseq));
                 unsigned int inslen = SIGN2UNSIGN(cigar_oplen);
                 if (is_ins_at_read_end) {
@@ -1709,13 +1668,13 @@ if ((0 == primerlen) || (ibeg <= rpos && rpos < iend)) {
                             inslen, 
                             region_symbolvec, 
                             rpos - region_offset,
-                            frag_indel_basemax, 
+                            paramset.indel_BQ_max,
                             paramset.indel_polymerase_slip_rate,
                             cigar_oplen, 
                             cigar_op, 
                             aln,
-                            indel_str_repeatsize_max,
-                            indel_del_to_ins_err_ratio,
+                            paramset.indel_str_repeatsize_max,
+                            paramset.indel_del_to_ins_err_ratio,
                             0);
                     unsigned int thisdp = (seg_format_prep_sets.getByPos(rpos)[SEG_a_AT_INS_DP]); 
                     unsigned int neardp = (MAX(seg_format_prep_sets.getByPos(rpos)[SEG_a_NEAR_INS_DP], seg_format_prep_sets.getByPos(rpos)[SEG_a_NEAR_RTR_INS_DP]));
@@ -1761,7 +1720,7 @@ if ((0 == primerlen) || (ibeg <= rpos && rpos < iend)) {
 }
                 qpos += cigar_oplen;
             } else if (cigar_op == BAM_CDEL) {
-if ((0 == primerlen) || (ibeg <= rpos && rpos < iend)) {
+if ((ASSAY_TYPE_AMPLICON != paramset.assay_type) || (0 == paramset.primerlen) || (ibeg <= rpos && rpos < iend)) {
                 const bool is_del_at_read_end = (0 == qpos || qpos + SIGN2UNSIGN(cigar_oplen) >= SIGN2UNSIGN(aln->core.l_qseq));
                 unsigned int dellen = SIGN2UNSIGN(cigar_oplen);
                 if (is_del_at_read_end) {
@@ -1776,13 +1735,13 @@ if ((0 == primerlen) || (ibeg <= rpos && rpos < iend)) {
                             dellen, 
                             region_symbolvec, 
                             rpos - region_offset, 
-                            frag_indel_basemax, 
+                            paramset.indel_BQ_max,
                             paramset.indel_polymerase_slip_rate, 
                             cigar_oplen, 
                             cigar_op, 
                             aln,
-                            indel_str_repeatsize_max,
-                            indel_del_to_ins_err_ratio,
+                            paramset.indel_str_repeatsize_max,
+                            paramset.indel_del_to_ins_err_ratio,
                             0);
                     unsigned int thisdp = (seg_format_prep_sets.getByPos(rpos)[SEG_a_AT_DEL_DP]);
                     unsigned int neardp = (MAX(seg_format_prep_sets.getByPos(rpos)[SEG_a_NEAR_DEL_DP], seg_format_prep_sets.getByPos(rpos)[SEG_a_NEAR_RTR_DEL_DP]));
@@ -1855,9 +1814,7 @@ if ((0 == primerlen) || (ibeg <= rpos && rpos < iend)) {
     int // GenericSymbol2CountCoverage<TSymbol2Count>::
     updateByRead1Aln(
             const std::vector<bam1_t *> & aln_vec,
-            const std::array<unsigned int, NUM_SYMBOL_TYPES> & symbolType2addPhred, 
-            const unsigned int frag_indel_basemax, 
-            const bool is_proton, 
+            
             const unsigned int region_offset,
             const auto & region_symbolvec,
             const auto & region_repeatvec,
@@ -1868,19 +1825,12 @@ if ((0 == primerlen) || (ibeg <= rpos && rpos < iend)) {
             const auto & seg_format_prep_sets,
             const auto & seg_format_thres_sets,
             
-            unsigned int primerlen,
-
-            unsigned int indel_str_repeatsize_max,
-            double indel_del_to_ins_err_ratio,
-            
             const auto & paramset,
             unsigned int specialflag) {
         for (const bam1_t *aln : aln_vec) {
-            if (is_proton) {
+            if (SEQUENCING_PLATFORM_IONTORRENT == paramset.sequencing_platform) {
                 this->template updateByAln<true, TUpdateType, TIsBiasUpdated>(
                         aln, 
-                        symbolType2addPhred, 
-                        frag_indel_basemax, 
                         region_offset, 
                         region_symbolvec, 
                         region_repeatvec, 
@@ -1890,19 +1840,12 @@ if ((0 == primerlen) || (ibeg <= rpos && rpos < iend)) {
                         symbol_to_VQ_format_tag_sets,
                         seg_format_prep_sets,
                         seg_format_thres_sets,
-                        
-                        primerlen,
-
-                        indel_str_repeatsize_max,
-                        indel_del_to_ins_err_ratio,
                         
                         paramset,
                         0);
             } else {
                 this->template updateByAln<false, TUpdateType, TIsBiasUpdated>(
                         aln, 
-                        symbolType2addPhred, 
-                        frag_indel_basemax, 
                         region_offset, 
                         region_symbolvec, 
                         region_repeatvec, 
@@ -1912,11 +1855,6 @@ if ((0 == primerlen) || (ibeg <= rpos && rpos < iend)) {
                         symbol_to_VQ_format_tag_sets,
                         seg_format_prep_sets,
                         seg_format_thres_sets,
-                        
-                        primerlen,
-
-                        indel_str_repeatsize_max,
-                        indel_del_to_ins_err_ratio,
                         
                         paramset,
                         0);
@@ -1978,51 +1916,12 @@ struct Symbol2CountCoverageSet {
     updateByAlns3UsingBQ(
             std::map<std::basic_string<std::pair<unsigned int, AlignmentSymbol>>, std::array<unsigned int, 2>> & mutform2count4map,
             const std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, int>> & alns3, 
+            
             const std::basic_string<AlignmentSymbol> & region_symbolvec,
-            const std::array<unsigned int, NUM_SYMBOL_TYPES> & symbolType2addPhred,
-            bool should_add_note, 
-            unsigned int frag_indel_basemax,
-            const PhredMutationTable & phred_max_table, 
-            const bool is_proton, 
             const auto & region_repeatvec,
             const auto & baq_offsetarr,
             
-            unsigned int primerlen,
-            
             const CommandLineArgs & paramset,
-/*            
-unsigned int indel_str_repeatsize_max,
-            double indel_del_to_ins_err_ratio,
-            unsigned int bias_thres_highBQ,
-            
-            uint32_t bias_thres_highBQ, // 20
-            uint32_t bias_thres_highBAQ, // 23
-
-            uint32_t bias_thres_aLPxT_perc, // 125 
-            uint32_t bias_thres_aLPxT_add,  // 5
-
-            uint32_t bias_thres_PFXM1T_add, // 35;
-            uint32_t bias_thres_PFXM2T_add, // 20;
-            uint32_t bias_thres_PFGO1T_add, // 35;
-            uint32_t bias_thres_PFGO2T_add, // 20;
-
-            uint32_t bias_thres_aXM1T_perc, // 50;
-            uint32_t bias_thres_aXM2T_perc, //  70;
-            uint32_t bias_thres_aGO1T_perc, // 50;
-            uint32_t bias_thres_aGO2T_perc, // 70;
-
-            uint32_t bias_thres_aLRI1T_perc, // 250;
-            uint32_t bias_thres_aLRI2T_perc, // 200;
-            uint32_t bias_thres_aLRI1t_perc, // 50;
-            uint32_t bias_thres_aLRI2t_perc, // 67;
-
-            int32_t bias_thres_aLRP1t_add, // 10;
-            int32_t bias_thres_aLRP2t_add, // 5;
-            int32_t bias_thres_aLRB1t_add, // 50;
-            int32_t bias_thres_aLRB2t_add, // 25;
-            
-            const CommandLineArgs & paramset,
-*/
             unsigned int specialflag) {
         
         Symbol2CountCoverage bg_seg_bqsum_conslogo(tid, this->getUnifiedIncluBegPosition(), this->getUnifiedExcluEndPosition());
@@ -2046,35 +1945,7 @@ unsigned int indel_str_repeatsize_max,
         update_seg_format_thres_from_prep_sets(
                 this->seg_format_thres_sets,
                 this->seg_format_prep_sets,
-                
                 paramset, 
-                /*
-                paramset.bias_thres_highBQ, // 20
-                paramset.bias_thres_highBAQ, // 23
-
-                paramset.bias_thres_aLPxT_perc, // 125 
-                paramset.bias_thres_aLPxT_add,  // 5
-
-                paramset.bias_thres_PFXM1T_add, // 35;
-                paramset.bias_thres_PFXM2T_add, // 20;
-                paramset.bias_thres_PFGO1T_add, // 35;
-                paramset.bias_thres_PFGO2T_add, // 20;
-
-                paramset.bias_thres_aXM1T_perc, // 50;
-                paramset.bias_thres_aXM2T_perc, //  70;
-                paramset.bias_thres_aGO1T_perc, // 50;
-                paramset.bias_thres_aGO2T_perc, // 70;
-
-                paramset.bias_thres_aLRI1T_perc, // 250;
-                paramset.bias_thres_aLRI2T_perc, // 200;
-                paramset.bias_thres_aLRI1t_perc, // 50;
-                paramset.bias_thres_aLRI2t_perc, // 67;
-
-                paramset.bias_thres_aLRP1t_add, // 10;
-                paramset.bias_thres_aLRP2t_add, // 5;
-                paramset.bias_thres_aLRB1t_add, // 50;
-                paramset.bias_thres_aLRB2t_add, // 25;
-                */
                 0);
         for (const auto & alns2pair2dflag : alns3) {
             for (unsigned int strand = 0; strand < 2; strand++) {
@@ -2082,9 +1953,7 @@ unsigned int indel_str_repeatsize_max,
                 for (const auto & alns1 : alns2) {
                     bg_seg_bqsum_conslogo.updateByRead1Aln<SYMBOL_COUNT_SUM, true>(
                             alns1, 
-                            symbolType2addPhred, 
-                            frag_indel_basemax, 
-                            is_proton, 
+                            
                             this->getUnifiedIncluBegPosition(), 
                             region_symbolvec, 
                             region_repeatvec,
@@ -2095,10 +1964,6 @@ unsigned int indel_str_repeatsize_max,
                             this->seg_format_prep_sets,
                             this->seg_format_thres_sets,
                             
-                            primerlen,
-                            
-                            paramset.indel_str_repeatsize_max,
-                            paramset.indel_del_to_ins_err_ratio,
                             paramset,
                             0);
                 }
@@ -2114,9 +1979,7 @@ unsigned int indel_str_repeatsize_max,
                     Symbol2CountCoverage read_ampBQerr_fragWithR1R2(tid, beg2, end2);
                     read_ampBQerr_fragWithR1R2.updateByRead1Aln(
                             alns1, 
-                            symbolType2addPhred, 
-                            frag_indel_basemax, 
-                            is_proton, 
+                            
                             this->getUnifiedIncluBegPosition(), 
                             region_symbolvec,
                             region_repeatvec,
@@ -2127,10 +1990,6 @@ unsigned int indel_str_repeatsize_max,
                             this->seg_format_prep_sets,
                             this->seg_format_thres_sets,
                             
-                            primerlen,
-                            
-                            paramset.indel_str_repeatsize_max,
-                            paramset.indel_del_to_ins_err_ratio,
                             paramset,
                             0);
                     unsigned int normMQ = 0;
@@ -2227,24 +2086,20 @@ unsigned int indel_str_repeatsize_max,
     updateByAlns3UsingFQ(
             std::map<std::basic_string<std::pair<unsigned int, AlignmentSymbol>>, std::array<unsigned int, 2>> & mutform2count4map,
             const auto & alns3, 
+            
             const std::basic_string<AlignmentSymbol> & region_symbolvec,
-            const std::array<unsigned int, NUM_SYMBOL_TYPES> & symbolType2addPhred, 
-            bool should_add_note,
-            const unsigned int frag_indel_basemax,
-            const PhredMutationTable & phred_max_table,
-            const bool is_proton, 
             const auto & region_repeatvec,
             const auto & baq_offsetarr,
-            unsigned int primerlen,
             
-            // unsigned int indel_str_repeatsize_max,
-            // double indel_del_to_ins_err_ratio,
-            
-            const unsigned int phred_indel_error_before_barcode_labeling,
-
             const CommandLineArgs & paramset,
             unsigned int specialflag) {
         bool is_loginfo_enabled = true; 
+        const PhredMutationTable sscs_mut_table(
+                paramset.fam_phred_sscs_transition_CG_TA,
+                paramset.fam_phred_sscs_transition_TA_CG,
+                paramset.fam_phred_sscs_transversion_any,
+                paramset.fam_phred_sscs_indel_open,
+                paramset.fam_phred_sscs_indel_ext);
         
         unsigned int niters = 0;
         for (const auto & alns2pair2dflag : alns3) {
@@ -2263,9 +2118,7 @@ unsigned int indel_str_repeatsize_max,
                     Symbol2CountCoverage read_ampBQerr_fragWithR1R2(tid1, beg1, end1);
                     read_ampBQerr_fragWithR1R2.updateByRead1Aln(
                             alns1, 
-                            symbolType2addPhred, 
-                            frag_indel_basemax, 
-                            is_proton, 
+                            
                             this->getUnifiedIncluBegPosition(), 
                             region_symbolvec,
                             region_repeatvec,
@@ -2276,10 +2129,6 @@ unsigned int indel_str_repeatsize_max,
                             this->seg_format_prep_sets,
                             this->seg_format_thres_sets,
                             
-                            primerlen,
-                            
-                            paramset.indel_str_repeatsize_max,
-                            paramset.indel_del_to_ins_err_ratio,
                             paramset,
                             0);
                     read_family_con_ampl.updateByFiltering(read_ampBQerr_fragWithR1R2, std::array<unsigned int, NUM_SYMBOL_TYPES> {{ paramset.fam_thres_highBQ, 0 }});
@@ -2352,9 +2201,7 @@ unsigned int indel_str_repeatsize_max,
                     Symbol2CountCoverage read_ampBQerr_fragWithR1R2(tid1, beg1, end1);
                     read_ampBQerr_fragWithR1R2.updateByRead1Aln(
                             aln_vec,
-                            symbolType2addPhred, 
-                            frag_indel_basemax, 
-                            is_proton, 
+                            
                             this->getUnifiedIncluBegPosition(), 
                             region_symbolvec, 
                             region_repeatvec,
@@ -2364,11 +2211,6 @@ unsigned int indel_str_repeatsize_max,
                             this->symbol_to_VQ_format_tag_sets,
                             this->seg_format_prep_sets,
                             this->seg_format_thres_sets,
-                            
-                            primerlen,
-                            
-                            paramset.indel_str_repeatsize_max,
-                            paramset.indel_del_to_ins_err_ratio,
                             paramset,
                             0);
                     // The line below is similar to : read_family_mmm_ampl.updateByConsensus<SYMBOL_COUNT_SUM>(read_ampBQerr_fragWithR1R2);
@@ -2398,7 +2240,7 @@ unsigned int indel_str_repeatsize_max,
                             double effective_nreads = log((double)(con_count + 1) / (double)(tot_count - con_count + 1)) / log(2); // PCR errors
                             double prior_weight = 1.0 / (minorcount + 1.0);
                             double realphred = prob2realphred((minorcount + prior_weight) / (majorcount + minorcount + prior_weight / phred2prob(confam_qual)));
-                            confam_qual = (unsigned int)MIN(effective_nreads * realphred, phred_indel_error_before_barcode_labeling + realphred);
+                            confam_qual = (unsigned int)MIN(effective_nreads * realphred, paramset.fam_phred_indel_err_before_barcode_labeling + realphred);
                         } else {
                             double effective_nreads = (double)read_family_con_ampl.getByPos(epos).getSymbolCount(con_symbol);
                             double prior_weight = 1.0 / (minorcount + 1.0);
@@ -2410,7 +2252,7 @@ unsigned int indel_str_repeatsize_max,
                         if (areSymbolsMutated(ref_symbol, con_symbol) && (LINK_SYMBOL == symbolType || confam_qual >= paramset.bias_thres_highBQ)) {
                             pos_symbol_string.push_back(std::make_pair(epos, con_symbol));
                         }
-                        unsigned int max_qual = phred_max_table.toPhredErrRate(ref_symbol, con_symbol);
+                        unsigned int max_qual = sscs_mut_table.toPhredErrRate(ref_symbol, con_symbol);
                         unsigned int confam_qual2 = MIN(confam_qual, max_qual);
                         
                         int pbucket = (max_qual - confam_qual2 + 2) / 4;
@@ -2451,7 +2293,7 @@ unsigned int indel_str_repeatsize_max,
                     AlignmentSymbol ref_symbol = region_symbolvec[epos - this->getUnifiedIncluBegPosition()];
                     const auto totDP = formatSumBySymbolType(this->symbol_to_fam_format_depth_sets_2strand[strand].getRefByPos(epos), symbolType, FAM_cDP0);
                     for (AlignmentSymbol symbol : SYMBOL_TYPE_TO_SYMBOLS[symbolType]) {
-                        const unsigned int max_qual = phred_max_table.toPhredErrRate(ref_symbol, symbol);
+                        const unsigned int max_qual = sscs_mut_table.toPhredErrRate(ref_symbol, symbol);
                         int maxvqual = 0;
                         unsigned int argmaxAD = 0;
                         unsigned int argmaxBQ = 0;
@@ -2504,72 +2346,38 @@ unsigned int indel_str_repeatsize_max,
             std::map<std::basic_string<std::pair<unsigned int, AlignmentSymbol>>, std::array<unsigned int, 2>> & mutform2count4map_bq,
             std::map<std::basic_string<std::pair<unsigned int, AlignmentSymbol>>, std::array<unsigned int, 2>> & mutform2count4map_fq,
             const std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, int>> & alns3, 
+            
             const std::string & refstring,
             const std::vector<RegionalTandemRepeat> & region_repeatvec,
             const CoveredRegion<int64_t> & baq_offsetarr,
-            unsigned int bq_phred_added_misma, 
-            unsigned int bq_phred_added_indel, 
-            bool should_add_note, 
-            const unsigned int frag_indel_basemax,
-            const PhredMutationTable & phred_max_sscs_table, 
-            bool use_deduplicated_reads, 
-            const bool is_proton, 
-            const unsigned int primerlen,
             
-            /*
-            unsigned int indel_str_repeatsize_max,
-            double indel_del_to_ins_err_ratio,
-            unsigned int bias_thres_highBQ,
-            */
-            const unsigned int phred_indel_error_before_barcode_labeling,
-            const unsigned int baq_per_aligned_base,
             const auto & paramset,
-            const unsigned int specialflag = 0) {
+            const unsigned int specialflag) {
         
-        const std::array<unsigned int, NUM_SYMBOL_TYPES> symbolType2addPhred = {{bq_phred_added_misma, bq_phred_added_indel}};
         std::basic_string<AlignmentSymbol> ref_symbol_string = string2symbolseq(refstring);
         
         updateByAlns3UsingBQ(
                 mutform2count4map_bq, 
                 alns3, 
-                ref_symbol_string, 
-                symbolType2addPhred, 
-                should_add_note, 
-                frag_indel_basemax, 
-                phred_max_sscs_table, 
-                is_proton, 
+                ref_symbol_string,
+
                 region_repeatvec,
                 baq_offsetarr,
                 
-                primerlen,
-
-                /*indel_str_repeatsize_max,
-                indel_del_to_ins_err_ratio,
-                bias_thres_highBQ,
-                */
                 paramset,
                 0);
         updateHapMap(mutform2count4map_bq, this->symbol_to_frag_format_depth_sets, FRAG_bDP);
-        if (use_deduplicated_reads) {
-            updateByAlns3UsingFQ(
-                    mutform2count4map_fq, 
-                    alns3,
-                    ref_symbol_string, 
-                    symbolType2addPhred, 
-                    should_add_note, 
-                    frag_indel_basemax, 
-                    phred_max_sscs_table, 
-                    is_proton, 
-                    region_repeatvec,
-                    baq_offsetarr,
-                    primerlen,
-                    // indel_str_repeatsize_max,
-                    // indel_del_to_ins_err_ratio,
-                    phred_indel_error_before_barcode_labeling,
-                    paramset,
-                    0);
-            updateHapMap(mutform2count4map_fq, this->symbol_to_fam_format_depth_sets_2strand, FAM_cDP0);
-        }
+        updateByAlns3UsingFQ(
+                mutform2count4map_fq, 
+                alns3,
+                
+                ref_symbol_string, 
+                region_repeatvec,
+                baq_offsetarr,
+                
+                paramset,
+                0);
+        updateHapMap(mutform2count4map_fq, this->symbol_to_fam_format_depth_sets_2strand, FAM_cDP0);
         return 0;
     };
 };
@@ -2659,7 +2467,6 @@ fill_symbol_VQ_fmts(
     clear_push(fmt.a2BQf, rssDPfBQ, a);
     clear_push(fmt.a2BQr, rssDPrBQ, a);
     clear_push(fmt.aBQ, a_rmsBQ);
-    // const int sys_seq_err_phred_per_ref_bp = 30; // https://bmcbioinformatics.biomedcentral.com/articles/10.1186/1471-2105-12-451
     clear_push(fmt.aBQQ, MAX(a_rmsBQ, paramset.syserr_BQ_prior + MAX3(a_BQ_syserr_qual_2d, a_BQ_syserr_qual_fw, a_BQ_syserr_qual_rv)), a);
     
     fill_symbol_fmt(fmt.bIAQb, symbol_to_VQ_format_tag_sets, VQ_bIAQb, refpos, symbol, a);
@@ -2681,7 +2488,6 @@ BcfFormat_symboltype_init(bcfrec::BcfFormat & fmt,
         const Symbol2CountCoverageSet & symbol2CountCoverageSet12, 
         unsigned int refpos, 
         const SymbolType symbolType,
-        bool use_deduplicated_reads, 
         const AlignmentSymbol refsymbol,
         const unsigned int specialflag) {
     
@@ -2822,7 +2628,6 @@ BcfFormat_symbol_init(
     fill_symbol_fmt(fmt.aRB2, symbol_to_seg_format_depth_sets, SEG_aRB2, refpos, symbol, a);
     fill_symbol_fmt(fmt.aRBL, symbol_to_seg_format_depth_sets, SEG_aRBL, refpos, symbol, a);
     
-    // fill_symbol_fmt(fmt.aXM1, symbol_to_seg_format_depth_sets, SEG_aXM1, refpos, symbol, a);
     fill_symbol_fmt(fmt.aXM2, symbol_to_seg_format_depth_sets, SEG_aXM2, refpos, symbol, a);
     fill_symbol_fmt(fmt.aBM2, symbol_to_seg_format_depth_sets, SEG_aBM2, refpos, symbol, a);
     fill_symbol_fmt(fmt.aBQ2, symbol_to_seg_format_depth_sets, SEG_aBQ2, refpos, symbol, a);
@@ -2913,7 +2718,7 @@ BcfFormat_symbol_calc_DPv(
     const auto symbol = AlignmentSymbol(LAST(f.VTI));
     
     // substitution in indel region, substitution in indel-prone region or indel, other cases 
-    unsigned int aDPplus = (isSymbolSubstitution(symbol) ? 0 : ((aDP + 1) * 50 / 100));
+    unsigned int aDPplus = (isSymbolSubstitution(symbol) ? 0 : ((aDP + 1) * paramset.bias_prior_DPadd_perc / 100));
     double dp_coef = ((symbol == LINK_M) ?  MAX(0.02, 1.0 - MAX(rtr1.tracklen, rtr2.tracklen) / (MAX3(1, f.ALPL[0], f.ARPL[0]) / MAX(1.0/150.0, f.ABQ2[0]))) : 1.0);
     double _aPprior = paramset.bias_prior_pos / (is_rescued ? phred2prob(paramset.tn_q_inc_max) : 1); // probability that there is one indel at a pos
     const bool is_in_indel_read = (   (f.APXM[1]) / 15.0 * 2  * (paramset.bias_prior_var_DP_mul) > (aDP + aDPplus) * dp_coef);
@@ -3000,9 +2805,9 @@ BcfFormat_symbol_calc_DPv(
     const auto aSSFAx2 = dp4_to_pcFA<true>(fmt.aDPff[a] + fmt.aDPrf[a], fmt.aDPfr[a] + fmt.aDPrr[a], fmt.ADPff[0] + fmt.ADPrf[0], fmt.ADPfr[0] + fmt.ADPrr[0], 
             paramset.powlaw_exponent, aSBprior);
     const auto cROFA0x2 = dp4_to_pcFA<true>(fmt.cDP0f[a], fmt.cDP0r[a], fmt.CDP0f[0], fmt.CDP0r[0], paramset.powlaw_exponent, 
-            log(mathsquare(aDPFA) * paramset.bias_orientation_SNV_base + 2));
+            log(mathsquare(aDPFA) * paramset.bias_prior_orientation_SNV_base + 2));
     const auto cROFA2x2 = dp4_to_pcFA<true>(fmt.cDP2f[a], fmt.cDP2r[a], fmt.CDP2f[0], fmt.CDP2r[0], paramset.powlaw_exponent, 
-            log(mathsquare(aDPFA) * paramset.bias_orientation_SNV_base + 2));
+            log(mathsquare(aDPFA) * paramset.bias_prior_orientation_SNV_base + 2));
     const double aSSFA = aSSFAx2[0];
     double cROFA0 = cROFA0x2[0];
     double cROFA2 = cROFA2x2[0];
@@ -3164,11 +2969,6 @@ BcfFormat_symbol_calc_qual(
         
         const std::string & repeatunit,
         const unsigned int repeatnum,
-        double powlaw_anyvar_base, // is approx (double)90,
-        double powlaw_exponent, // is approx (double)3,
-        double powlaw_sscs_phrederr,
-        double powlaw_sscs_inc, // is approx 30,
-        const unsigned int phred_varcall_err_per_map_err_per_base, // is approx 20,
         const bool is_rescued,
         const auto & rtr1,
         const auto & rtr2,
@@ -3179,8 +2979,18 @@ BcfFormat_symbol_calc_qual(
         const CommandLineArgs & paramset,
         const unsigned int specialflag) {
     
+        
     const unsigned int a = 0;
     const auto symbol = AlignmentSymbol(LAST(fmt.VTI));
+    
+    const PhredMutationTable sscs_mut_table(
+            paramset.fam_phred_sscs_transition_CG_TA,
+            paramset.fam_phred_sscs_transition_TA_CG,
+            paramset.fam_phred_sscs_transversion_any,
+            paramset.fam_phred_sscs_indel_open,
+            paramset.fam_phred_sscs_indel_ext);
+    const unsigned int powlaw_sscs_phrederr = sscs_mut_table.toPhredErrRate(refsymbol, symbol);
+    const unsigned int powlaw_sscs_inc = (powlaw_sscs_phrederr  - (isSymbolSubstitution(symbol) ? paramset.fam_phred_pow_sscs_SNV_origin : paramset.fam_phred_pow_sscs_indel_origin));
     
     const unsigned int aDP = (fmt.aDPff[a] + fmt.aDPfr[a] + fmt.aDPrf[a] + fmt.aDPrr[a]);
     const unsigned int ADP = (fmt.ADPff[0] + fmt.ADPrf[0] + fmt.ADPfr[0] + fmt.ADPrr[0]);
@@ -3210,25 +3020,25 @@ BcfFormat_symbol_calc_qual(
     const int sscs_dec = (int)(mathsquare((double)(fmt.CDP1f[0] + fmt.CDP1r[0] + paramset.fam_pseudocount_ref) / (double)(fmt.BDPf[0] + fmt.BDPr[0] + paramset.fam_pseudocount_ref)) * 60);
     
     const int cIADnormcnt = (fmt.cIADf[a] * 100 + 1);
-    int sscs_binom_qual_fw = fmt.cIAQf[a] + fmt.cIAQr[a] * MIN(paramset.phred_max_dscs_all - fmt.cIDQf[a], fmt.cIDQr[a]) / MAX(fmt.cIDQr[a], 1); // phred_max_dscs_all
-    int sscs_binom_qual_rv = fmt.cIAQr[a] + fmt.cIAQf[a] * MIN(paramset.phred_max_dscs_all - fmt.cIDQr[a], fmt.cIDQf[a]) / MAX(fmt.cIDQf[a], 1);
+    int sscs_binom_qual_fw = fmt.cIAQf[a] + fmt.cIAQr[a] * MIN(paramset.fam_phred_dscs_all - fmt.cIDQf[a], fmt.cIDQr[a]) / MAX(fmt.cIDQr[a], 1);
+    int sscs_binom_qual_rv = fmt.cIAQr[a] + fmt.cIAQf[a] * MIN(paramset.fam_phred_dscs_all - fmt.cIDQr[a], fmt.cIDQf[a]) / MAX(fmt.cIDQf[a], 1);
     int dedup_sscs_binom_qual = MAX(sscs_binom_qual_fw, sscs_binom_qual_rv) * MIN(cIADnormcnt, fmt.cDP2v[a] + 1) / cIADnormcnt - sscs_dec;
     
     double min_bcFA_v = (((double)(fmt.cDP1v[a]) + 0.5) / (double)(fmt.CDP1f[0] * 100 + fmt.CDP1r[0] * 100 + 1.0));
-    int dedup_frag_powlaw_qual_v = (int)(powlaw_exponent * 10.0 / log(10.0) * log(min_bcFA_v) + (powlaw_anyvar_base + paramset.bias_FA_powerlaw_noUMI_phred_inc));
+    int dedup_frag_powlaw_qual_v = (int)(paramset.powlaw_exponent * 10.0 / log(10.0) * log(min_bcFA_v) + (paramset.powlaw_anyvar_base + paramset.bias_FA_powerlaw_noUMI_phred_inc));
     
     double min_bcFA_w = ((double)(fmt.cDP1w[a] + 0.5) / (double)(fmt.CDP1f[0] * 100 + fmt.CDP1r[0] * 100 + 1.0));
-    int dedup_frag_powlaw_qual_w = (int)(powlaw_exponent * 10.0 / log(10.0) * log(min_bcFA_w) + (powlaw_anyvar_base + paramset.bias_FA_powerlaw_noUMI_phred_inc + paramset.tn_q_inc_max));
+    int dedup_frag_powlaw_qual_w = (int)(paramset.powlaw_exponent * 10.0 / log(10.0) * log(min_bcFA_w) + (paramset.powlaw_anyvar_base + paramset.bias_FA_powerlaw_noUMI_phred_inc + paramset.tn_q_inc_max));
     
     int ds_vq_inc_powlaw = (int)(10/log(10)*MIN(log((fmt.cDP1f[a] + 0.5) / (fmt.CDP1f[0] + 1.0)), log((fmt.cDP1r[a] + 0.5) / (fmt.CDP1r[0] +1.0)))) 
             + (powlaw_sscs_phrederr);
     int ds_vq_inc_binom = 3 * MIN(fmt.cDP2f[a], fmt.cDP2r[a]);
     
-    powlaw_sscs_inc += MAX(0, MIN5(sscs_binom_qual_fw, sscs_binom_qual_rv, ds_vq_inc_powlaw, ds_vq_inc_binom, 4)) + MIN(0, (int)cMmQ - paramset.fam_thres_highBQ);
+    const auto powlaw_sscs_inc2 = MAX(0, MIN5(sscs_binom_qual_fw, sscs_binom_qual_rv, ds_vq_inc_powlaw, ds_vq_inc_binom, 4)) + MIN(0, (int)cMmQ - paramset.fam_thres_highBQ);
     double umi_cFA =  (((double)(fmt.cDP2v[a]) + 0.5) / ((double)(fmt.CDP2f[0] * 100 + fmt.CDP2r[0] * 100) + 1.0 + 300));
-    int sscs_base_2 = powlaw_anyvar_base + paramset.bias_FA_powerlaw_withUMI_phred_inc + powlaw_sscs_inc - sscs_dec;
-    int sscs_powlaw_qual_v = (int)((powlaw_exponent * 10.0 / log(10.0) * log(umi_cFA)    + sscs_base_2));
-    int sscs_powlaw_qual_w = (int)((powlaw_exponent * 10.0 / log(10.0) * log(min_bcFA_w) + sscs_base_2));
+    int sscs_base_2 = paramset.powlaw_anyvar_base + paramset.bias_FA_powerlaw_withUMI_phred_inc + powlaw_sscs_inc + powlaw_sscs_inc2 - sscs_dec;
+    int sscs_powlaw_qual_v = (int)((paramset.powlaw_exponent * 10.0 / log(10.0) * log(umi_cFA)    + sscs_base_2));
+    int sscs_powlaw_qual_w = (int)((paramset.powlaw_exponent * 10.0 / log(10.0) * log(min_bcFA_w) + sscs_base_2));
     
     fmt.note += std::string("min_bcFA_v(") + std::to_string(min_bcFA_v) + ")cDP1v(" + std::to_string(fmt.cDP1v[a]) + ")" + "CDP1v(" + std::to_string(fmt.CDP1v[0]) + ")";
     fmt.note += std::string("umi_cFA_v(") + std::to_string(umi_cFA) + ")cDP2v(" + std::to_string(fmt.cDP2v[a]) + ")" + "CDP2v(" + std::to_string(fmt.CDP2v[0]) + ")" + "cMmQ(" + std::to_string(cMmQ) + ")";
@@ -3288,7 +3098,7 @@ BcfFormat_symbol_calc_qual(
     clear_push(fmt.cPCQ2, sscs_powlaw_qual_w, a);
     clear_push(fmt.cPLQ2, sscs_powlaw_qual_v, a);
     
-    const auto bMQinc = (int)MAX(phred_varcall_err_per_map_err_per_base, paramset.phred_germline_polymorphism + 2 + (int)(2 * 10.0/log(10.0) * log((bDP + 0.5) / (double)(BDP + 1.0))));
+    const auto bMQinc = (int)MAX(paramset.syserr_phred_varcall_err_per_map_err_per_base, paramset.germ_phred_homalt_snp + 2 + (int)(2 * 10.0/log(10.0) * log((bDP + 0.5) / (double)(BDP + 1.0))));
     const int syserr_q = MIN(
             (int)((fmt.bMQ[a]) + MIN(bMQinc, bDP * 3)),
             (isSymbolSubstitution(AlignmentSymbol(LAST(fmt.VTI))) ? (fmt.aBQQ[a]) : (1000*1000)));
@@ -3323,10 +3133,10 @@ BcfFormat_symbol_calc_qual(
     
     // TODO; check if reducing all allele read count to increase alt allele frac in case of ref bias makes more sense
     // double base_contamfrac = 0.02; // ContEst https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3167057/ Fig. 1 TCGA Ovarian 
-    double contamfrac = paramset.any_mul_contam_frac + (1.0 - paramset.any_mul_contam_frac) * (tpfa > 0 ? tpfa : 0) * paramset.t2n_mul_contam_frac;
+    double contamfrac = paramset.contam_any_mul_frac + (1.0 - paramset.contam_any_mul_frac) * (tpfa > 0 ? tpfa : 0) * paramset.contam_t2n_mul_frac;
     double errfrac = contamfrac + (1.0 - contamfrac) * (refsymbol == symbol ? phred2prob(MIN(rtr1.indelphred, rtr2.indelphred)) : 0);
     auto binom_contam_LODQ = (int)calc_binom_10log10_likeratio(errfrac, fmt.cDP1v[a], fmt.CDP1v[0]);
-    auto power_contam_LODQ = (int)(10.0/log(10.00) * powlaw_exponent * MAX(logit2(min_bcFA_v, errfrac), 0.0));
+    auto power_contam_LODQ = (int)(10.0/log(10.00) * paramset.powlaw_exponent * MAX(logit2(min_bcFA_v, errfrac), 0.0));
     clear_push(fmt.CONTQ, MIN(binom_contam_LODQ, power_contam_LODQ), a);
 };
 
@@ -3436,7 +3246,6 @@ struct {
 
 double 
 compute_norm_ad(const bcfrec::BcfFormat *fmtp, const bool isSubst, const bool isNN = false) {
-    // return (double)(fmtp->cDP1f[fmtp->cDP1f.size()-1] + fmtp->cDP1r[fmtp->cDP1r.size()-1]) / 100.0;
     return fmtp->cDP1v[fmtp->cDP1v.size()-1] / 100.0;
 }
 
@@ -3528,9 +3337,9 @@ output_germline(
     }};
     
     int phred_homref = 0;
-    int phred_hetero = (isSubst ? paramset.phred_germline_polymorphism : paramset.phred_germline_indel);
-    int phred_homalt = (isSubst ? paramset.phred_homalt_snp : paramset.phred_homalt_indel);
-    int phred_tri_al = (isSubst ? paramset.phred_triallelic_snp : paramset.phred_triallelic_indel); 
+    int phred_hetero = (isSubst ? paramset.germ_phred_hetero_snp : paramset.germ_phred_hetero_indel);
+    int phred_homalt = (isSubst ? paramset.germ_phred_homalt_snp : paramset.germ_phred_homalt_indel);
+    int phred_tri_al = (isSubst ? paramset.germ_phred_het3al_snp : paramset.germ_phred_het3al_indel); 
     // https://www.genetics.org/content/184/1/233 and https://www.fsigenetics.com/article/S1872-4973(20)30003-X/fulltext : triallelic-SNP-phred = 29*2-3+5
     
     if (is_rescued) {
@@ -3845,22 +3654,22 @@ append_vcf_record(
         const char *tname,
         const unsigned int refpos,
         const unsigned int region_offset,
+        
         const std::string & refstring,
         const std::vector<RegionalTandemRepeat> & region_repeatvec,
         const std::string & repeatunit,
         const unsigned int repeatnum,
+        
         const AlignmentSymbol refsymbol,
         const AlignmentSymbol symbol,
         const bcfrec::BcfFormat & fmt,
         auto & tki,
-        const bool is_tumor_format_retrieved,
+
         const int nlodq,
-        const double vcfqual_thres,
-        const unsigned int all_allele_depth_thres,
-        const unsigned int var_allele_depth_thres,
         const bool should_output_ref_allele,
         const bcf_hdr_t *g_bcf_hdr,
         const auto & baq_offsetarr,
+        
         const CommandLineArgs & paramset,
         unsigned int specialflag) {
     
@@ -3969,13 +3778,13 @@ append_vcf_record(
     }
     vcffilter.pop_back();
     
-    const bool keep_var = (((vcfqual >= vcfqual_thres) || (tki.BDP >= all_allele_depth_thres) || (tki.bDP >= var_allele_depth_thres)) && (symbol != refsymbol || should_output_ref_allele));
+    const bool keep_var = (((vcfqual >= paramset.vqual) || (tki.BDP >= paramset.vdp) || (tki.bDP >= paramset.vad)) && (symbol != refsymbol || should_output_ref_allele));
     if (keep_var) {
         out_string += string_join(std::array<std::string, 9>{{
                 std::string(tname), std::to_string(vcfpos), ".", vcfref, vcfalt, std::to_string(vcfqual), vcffilter, 
                 infostring, bcfrec::FORMAT_STR_PER_REC}}, "\t") + "\t";
         bcfrec::streamAppendBcfFormat(out_string, fmt);
-        out_string += ((tki.ref_alt.size() > 0 && is_tumor_format_retrieved) ? bcf1_to_string(g_bcf_hdr, tki.bcf1_record) : std::string("")) + "\n";
+        out_string += ((tki.ref_alt.size() > 0 && paramset.is_tumor_format_retrieved) ? bcf1_to_string(g_bcf_hdr, tki.bcf1_record) : std::string("")) + "\n";
     }
     return 0;
 };
