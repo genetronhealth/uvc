@@ -843,7 +843,7 @@ ref_to_phredvalue(unsigned int & n_units,
         const bam1_t *b,
         const unsigned int indel_str_repeatsize_max,
         const double indel_del_to_ins_err_ratio,
-        const unsigned int specialflag = 0) {
+        const unsigned int specialflag) {
 
     unsigned int max_repeatnum = 0;
     unsigned int repeatsize_at_max_repeatnum = 0;
@@ -863,6 +863,13 @@ ref_to_phredvalue(unsigned int & n_units,
     }
     // Because of a lower number of PCR cycles, it is higher than the one set in Fig. 3 at https://www.ncbi.nlm.nih.gov/pmc/articles/PMC149199/
     unsigned int decphred = indel_phred(ampfact, cigar_oplen, repeatsize_at_max_repeatnum, max_repeatnum);
+    if (0x1 == (specialflag & 0x1)) { 
+        LOG(logINFO) << "indel_phred(" 
+                << ampfact << ", " 
+                << cigar_oplen << ", " 
+                << repeatsize_at_max_repeatnum << ", "
+                << max_repeatnum << ") = " << decphred; 
+    }
     n_units = ((0 == cigar_oplen % repeatsize_at_max_repeatnum) ? (cigar_oplen / repeatsize_at_max_repeatnum) : 0);
     return max_phred - MIN(max_phred, decphred) + indel_len_rusize_phred(cigar_oplen, repeatsize_at_max_repeatnum); 
 }
@@ -1605,7 +1612,8 @@ if ((ASSAY_TYPE_AMPLICON != paramset.assay_type) || (0 == paramset.primerlen) ||
                                 region_repeatvec[rpos-region_offset - 1].indelphred,
                                 region_repeatvec[rpos-region_offset].indelphred,
                                 30+18);
-                        incvalue = MIN(MIN(bam_phredi(aln, qpos-1), bam_phredi(aln, qpos)) + (symbolType2addPhred[LINK_SYMBOL]), noindel_phredvalue) + 1;
+                        // incvalue = MIN(MIN(bam_phredi(aln, qpos-1), bam_phredi(aln, qpos)) + (symbolType2addPhred[LINK_SYMBOL]), noindel_phredvalue) + 1;
+                        incvalue = MAX(MIN(bam_phredi(aln, qpos-1), bam_phredi(aln, qpos)), noindel_phredvalue) + 1;
                         this->template inc<TUpdateType>(rpos, LINK_M, incvalue, aln);
                         if (TIsBiasUpdated) {
                             if (indel_rposs[indel_rposs_idx] <= rpos) {
@@ -1749,7 +1757,35 @@ if ((ASSAY_TYPE_AMPLICON != paramset.assay_type) || (0 == paramset.primerlen) ||
                     unsigned int neardp = (MAX(seg_format_prep_sets.getByPos(rpos)[SEG_a_NEAR_DEL_DP], seg_format_prep_sets.getByPos(rpos)[SEG_a_NEAR_RTR_DEL_DP]));
                     unsigned int qfromBQ1 = MIN(bam_phredi(aln, qpos), bam_phredi(aln, qpos-1));
                     unsigned int qfromBQ2 = ((thisdp * 2 < neardp) ? qfromBQ1 : (TIsProton ? (qfromBQ1 + proton_cigarlen2phred(cigar_oplen)) : 80));
-                    incvalue = MIN(qfromBQ2, phredvalue + symbolType2addPhred[LINK_SYMBOL]) + 1;
+                    double delFA = ((double)(thisdp + 0.5) / (double)(seg_format_prep_sets.getByPos(rpos)[SEG_a_DP] + 1));
+                    int delFAQ = MAX(0, 10+9 + (int)round(3 * 10/log(10) * log(delFA * 10)));
+                    
+                    // int prev_cigar_op = ((0 == i) ? 0 : (cigar_op(cigar[i-1])));
+                    // int prev_cigar_oplen = (0 == i) ? 0 : (cigar_oplen(cigar[i-1]));
+                    // int next_cigar_op = ((n_cigar - 1 == i) ? 0 : (cigar_op(cigar[i+1])));
+                    // int next_cigar_oplen = (n_cigar - 1 == i) ? 0 : (cigar_oplen(cigar[i+1]));
+                    int prev_cidx = i;
+                    int prev_rpos = rpos;
+                    while ((0 != prev_cidx) && (BAM_CINS != bam_cigar_op(cigar[prev_cidx]) || cigar_oplen != bam_cigar_oplen(cigar[prev_cidx]))) { 
+                        prev_cidx--;
+                        if (BAM_CMATCH == bam_cigar_op(cigar[prev_cidx]) || BAM_CEQUAL == bam_cigar_op(cigar[prev_cidx]) || BAM_CDIFF == bam_cigar_op(cigar[prev_cidx]) 
+                                || BAM_CDEL == bam_cigar_op(cigar[prev_cidx])) {
+                            prev_rpos -= bam_cigar_oplen(cigar[prev_cidx]);
+                        }
+                    }
+                    int next_cidx = i;
+                    int next_rpos = rpos + cigar_oplen;
+                    while ((n_cigar - 1 != next_cidx) && (BAM_CINS != bam_cigar_op(cigar[next_cidx]) || cigar_oplen != bam_cigar_oplen(cigar[next_cidx]))) { 
+                        next_cidx++;
+                        if (BAM_CMATCH == bam_cigar_op(cigar[next_cidx]) || BAM_CEQUAL == bam_cigar_op(cigar[next_cidx]) || BAM_CDIFF == bam_cigar_op(cigar[next_cidx])
+                                || BAM_CDEL == bam_cigar_op(cigar[next_cidx])) {
+                            next_rpos += bam_cigar_oplen(cigar[next_cidx]);
+                        }
+                    }
+                    int qfromBAQl = baq_offsetarr.getByPos(rpos) - baq_offsetarr.getByPos(prev_rpos);
+                    int qfromBAQr = baq_offsetarr.getByPos(next_rpos) - baq_offsetarr.getByPos(rpos + cigar_oplen);
+                    int qfromBAQ = MAX3(delFAQ, qfromBQ1, MIN(qfromBAQl, qfromBAQr));
+                    incvalue = MIN3(qfromBQ2, qfromBAQ, phredvalue + symbolType2addPhred[LINK_SYMBOL]) + 1;
                 }
                 if (!is_del_at_read_end) {
                     AlignmentSymbol symbol = delLenToSymbol(dellen);
@@ -3027,10 +3063,12 @@ BcfFormat_symbol_calc_qual(
     int dedup_sscs_binom_qual = MAX(sscs_binom_qual_fw, sscs_binom_qual_rv) * MIN(cIADnormcnt, fmt.cDP2v[a] + 1) / cIADnormcnt - sscs_dec;
     
     double min_bcFA_v = (((double)(fmt.cDP1v[a]) + 0.5) / (double)(fmt.CDP1f[0] * 100 + fmt.CDP1r[0] * 100 + 1.0));
-    int dedup_frag_powlaw_qual_v = (int)(paramset.powlaw_exponent * 10.0 / log(10.0) * log(min_bcFA_v) + (paramset.powlaw_anyvar_base + paramset.bias_FA_powerlaw_noUMI_phred_inc));
+    const auto pl_noUMI_phred_inc = paramset.powlaw_anyvar_base 
+            + (isSymbolSubstitution(symbol) ? paramset.bias_FA_powerlaw_noUMI_phred_inc_snv : paramset.bias_FA_powerlaw_noUMI_phred_inc_indel);
+    int dedup_frag_powlaw_qual_v = (int)(paramset.powlaw_exponent * 10.0 / log(10.0) * log(min_bcFA_v) + (pl_noUMI_phred_inc));
     
     double min_bcFA_w = ((double)(fmt.cDP1w[a] + 0.5) / (double)(fmt.CDP1f[0] * 100 + fmt.CDP1r[0] * 100 + 1.0));
-    int dedup_frag_powlaw_qual_w = (int)(paramset.powlaw_exponent * 10.0 / log(10.0) * log(min_bcFA_w) + (paramset.powlaw_anyvar_base + paramset.bias_FA_powerlaw_noUMI_phred_inc + paramset.tn_q_inc_max));
+    int dedup_frag_powlaw_qual_w = (int)(paramset.powlaw_exponent * 10.0 / log(10.0) * log(min_bcFA_w) + (pl_noUMI_phred_inc + paramset.tn_q_inc_max));
     
     int ds_vq_inc_powlaw = (int)(10/log(10)*MIN(log((fmt.cDP1f[a] + 0.5) / (fmt.CDP1f[0] + 1.0)), log((fmt.cDP1r[a] + 0.5) / (fmt.CDP1r[0] +1.0)))) 
             + (powlaw_sscs_phrederr);
@@ -3038,9 +3076,11 @@ BcfFormat_symbol_calc_qual(
     
     const auto powlaw_sscs_inc2 = MAX(0, MIN5(sscs_binom_qual_fw, sscs_binom_qual_rv, ds_vq_inc_powlaw, ds_vq_inc_binom, 4)) + MIN(0, (int)cMmQ - paramset.fam_thres_highBQ);
     double umi_cFA =  (((double)(fmt.cDP2v[a]) + 0.5) / ((double)(fmt.CDP2f[0] * 100 + fmt.CDP2r[0] * 100) + 1.0 + 300));
-    int sscs_base_2 = paramset.powlaw_anyvar_base + paramset.bias_FA_powerlaw_withUMI_phred_inc + powlaw_sscs_inc + powlaw_sscs_inc2 - sscs_dec;
+    const auto pl_withUMI_phred_inc = paramset.powlaw_anyvar_base 
+            + (isSymbolSubstitution(symbol) ? paramset.bias_FA_powerlaw_withUMI_phred_inc_snv : paramset.bias_FA_powerlaw_withUMI_phred_inc_indel);
+    int sscs_base_2 = pl_withUMI_phred_inc + powlaw_sscs_inc + powlaw_sscs_inc2 - sscs_dec;
     int sscs_powlaw_qual_v = (int)((paramset.powlaw_exponent * 10.0 / log(10.0) * log(umi_cFA)    + sscs_base_2));
-    int sscs_powlaw_qual_w = (int)((paramset.powlaw_exponent * 10.0 / log(10.0) * log(min_bcFA_w) + sscs_base_2));
+    int sscs_powlaw_qual_w = (int)((paramset.powlaw_exponent * 10.0 / log(10.0) * log(min_bcFA_w) + sscs_base_2 + paramset.tn_q_inc_max));
     
     fmt.note += std::string("min_bcFA_v(") + std::to_string(min_bcFA_v) + ")cDP1v(" + std::to_string(fmt.cDP1v[a]) + ")" + "CDP1v(" + std::to_string(fmt.CDP1v[0]) + ")";
     fmt.note += std::string("umi_cFA_v(") + std::to_string(umi_cFA) + ")cDP2v(" + std::to_string(fmt.cDP2v[a]) + ")" + "CDP2v(" + std::to_string(fmt.CDP2v[0]) + ")" + "cMmQ(" + std::to_string(cMmQ) + ")";
@@ -3638,14 +3678,14 @@ calc_binom_powlaw_syserr_normv_quals(
     int binom_b10log10like = (int)calc_binom_10log10_likeratio((tDP - tAD) / (tDP), nDP - nAD, nAD);
     double bjpfrac = ((tAD + 0.5) / (tDP + 1.0)) / ((nAD + 0.5) / (nDP + 1.0));
     int powlaw_b10log10like = (int)(3 * 10 / log(10) * log(bjpfrac));
-    int prior_phred = ((penal_dimret_coef < 25) ? 8 : 1);
-    int tnVQinc = MAX3(-prior_phred, -nAD*3, MIN(binom_b10log10like - prior_phred, powlaw_b10log10like - prior_phred));
-    int tnVQdec = MAX(0, nVQ - MAX(0, MIN(binom_b10log10like - prior_phred, (int)(mathsquare(log(MAX(bjpfrac, 1.01)) / log(2)) * penal_dimret_coef))));
+    int prior_phred = 3; // ((penal_dimret_coef < 25) ? 8 : 1);
+    int tnVQinc = MAX3(-prior_phred, (-(int)nAD)*3, MIN(binom_b10log10like - prior_phred, powlaw_b10log10like - prior_phred));
+    int tnVQdec = MAX(0, nVQ - MAX(0, MIN(binom_b10log10like - prior_phred, (int)(mathsquare(log(MAX(bjpfrac, 1.001)) / log(2)) * penal_dimret_coef))));
     
-    int tnVQ = tVQ + tnVQinc; 
-    if (penal_dimret_coef < 1e6) {
-        tnVQ -= tnVQdec;
-    }
+    int tnVQ = tVQ + tnVQinc - tnVQdec; 
+    //if (penal_dimret_coef < 1e6) {
+    //tnVQ -= tnVQdec;
+    //}
     tnVQ = MIN(tnVQcap, tnVQ);
     return std::array<int, 4> {{binom_b10log10like, powlaw_b10log10like, tnVQdec, tnVQ }};
 };
@@ -3727,6 +3767,9 @@ append_vcf_record(
     const auto nfm_cDP1x = collectget(nfm.cDP1x, 1);
     const auto nfm_CDP1x = collectget(nfm.CDP1x, 0);
 
+    int phred_het3al_chance_inc_snp = 2*(int)paramset.germ_phred_hetero_snp - (int)paramset.germ_phred_het3al_snp;
+    int phred_het3al_chance_inc_indel = 2*(int)paramset.germ_phred_hetero_indel - (int)paramset.germ_phred_het3al_indel;
+    
     const auto b_binom_powlaw_syserr_normv_q4filter = calc_binom_powlaw_syserr_normv_quals(
             (tki.cDP1x + 0.5) / 100.0 + 0.0, 
             (tki.CDP1x + 1.0) / 100.0 + 0.0, 
@@ -3734,7 +3777,8 @@ append_vcf_record(
             (tki.cPCQ1),
             (nfm_cDP1x + 0.5) / 100.0 + 0.0, 
             (nfm_CDP1x + 1.0) / 100.0 + 0.0, 
-            non_neg_minus(collectget(nfm.cVQ1, 1), (indelstring.size() == 0 ? 0 : 40)), // TODO: QUESTION: why 40 here?
+            non_neg_minus(collectget(nfm.cVQ1, 1), (isSymbolSubstitution(symbol) ? phred_het3al_chance_inc_snp : phred_het3al_chance_inc_indel)), 
+            // TODO: QUESTION: why 0 and 40 here?
             paramset.tn_syserr_norm_devqual);
     
     const auto c_binom_powlaw_syserr_normv_q4 = calc_binom_powlaw_syserr_normv_quals(

@@ -894,10 +894,14 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                                     double nDP = (fmtptr->CDP1x[0] + 2) / 100.0;
                                     double bjpfrac = ((tAD) / (tDP)) / ((nAD) / (nDP));
                                     int binom_b10log10like = (int)calc_binom_10log10_likeratio((tDP - tAD) / (tDP), nDP - nAD, nAD);
-                                    int powlaw_b10log10like = (int)(3 * 10 / log(10) * log(bjpfrac));
-                                    int triallele_inc = ((normsymbol != symbol) ? (isSymbolSubstitution(symbol) ? 25 : (6+3)) : 0);
-                                    int triallele_thr = 8;
-                                    const auto new_nlodq_inc = BETWEEN(MIN(binom_b10log10like, powlaw_b10log10like) - triallele_thr, 0, 80) + triallele_inc;
+                                    int powlaw_b10log10like = (int)(paramset.powlaw_exponent * 10 / log(10) * log(bjpfrac));
+                                    int phred_het3al_chance_inc_snp = 2*(int)paramset.germ_phred_hetero_snp - (int)paramset.germ_phred_het3al_snp;
+                                    int phred_het3al_chance_inc_indel = 2*(int)paramset.germ_phred_hetero_indel - (int)paramset.germ_phred_het3al_indel;
+                                    int triallele_inc = ((normsymbol != symbol) ? 
+                                            (isSymbolSubstitution(symbol) ? phred_het3al_chance_inc_snp : phred_het3al_chance_inc_indel) : 0);
+                                    int triallele_thr = 3; // 8;
+                                    const auto new_nlodq_inc = BETWEEN(MIN(binom_b10log10like, powlaw_b10log10like), -triallele_thr, paramset.powlaw_anyvar_base) 
+                                            + triallele_inc;
                                     if (nlodq_inc > new_nlodq_inc) {
                                         nlodq_inc = new_nlodq_inc;
                                         fmt.note += std::string("/nlodqDeltaIs/") 

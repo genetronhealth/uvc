@@ -85,7 +85,7 @@ CommandLineArgs::selfUpdateByPlatform() {
         // if (0 == highqual_thres_indel) { highqual_thres_indel = highqual_thres_snv - 4; }
     }
     if (SEQUENCING_PLATFORM_ILLUMINA == inferred_sequencing_platform && SEQUENCING_PLATFORM_OTHER != this->sequencing_platform) {
-        bq_phred_added_indel += 14; // 17-1; // 18; // 16; // 17; // 18; // 19; // 17; // 10; // 0; // 6; //10;
+        bq_phred_added_indel += 0; // 14; // 17-1; // 18; // 16; // 17; // 18; // 19; // 17; // 10; // 0; // 6; //10;
         bq_phred_added_misma += 0;
         syserr_minABQ_pcr_snv += 19 * 10; // 190; // 180; // 19; // 25;
         syserr_minABQ_pcr_indel += syserr_minABQ_pcr_snv - 9 * 10; // 110; // 90; // 10; // 15; // 18;
@@ -576,14 +576,22 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
         "If the number of bases to segment end for the ALT allele is at least this param and the one for all alleles is at most this param, then read-orientation bias is removed ");
     
     ADD_OPTDEF(app,
-        "--bias-FA-powerlaw-noUMI-phred-inc",
-           bias_FA_powerlaw_noUMI_phred_inc,
-        "The Phred-scale decrease in false positive rates applied on top of universality for non-UMI data. ");
+        "--bias-FA-powerlaw-noUMI-phred-inc-snv",
+           bias_FA_powerlaw_noUMI_phred_inc_snv,
+        "The Phred-scale decrease in false positive rates applied on top of universality for non-UMI SNVs. ");
     ADD_OPTDEF(app,
-        "--bias-FA-powerlaw-withUMI-phred-inc",
-           bias_FA_powerlaw_withUMI_phred_inc,
-        "The Phred-scale decrease in false positive rates applied on top of universality for UMI data. ");
-    
+        "--bias-FA-powerlaw-noUMI-phred-inc-indel",
+           bias_FA_powerlaw_noUMI_phred_inc_indel,
+        "The Phred-scale decrease in false positive rates applied on top of universality for non-UMI InDels. ");
+    ADD_OPTDEF(app,
+        "--bias-FA-powerlaw-withUMI-phred-inc-snv",
+           bias_FA_powerlaw_withUMI_phred_inc_snv,
+        "The Phred-scale decrease in false positive rates applied on top of universality for UMI SNVs. ");
+    ADD_OPTDEF(app,
+        "--bias-FA-powerlaw-withUMI-phred-inc-indel",
+           bias_FA_powerlaw_withUMI_phred_inc_indel,
+        "The Phred-scale decrease in false positive rates applied on top of universality for UMI Indels. ");
+
 // *** 07. parameters related to read families
     
     ADD_OPTDEF(app,

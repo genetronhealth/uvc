@@ -116,8 +116,8 @@ struct CommandLineArgs {
         
     uint32_t bias_thres_PFXM1T_add = 35;
     uint32_t bias_thres_PFXM2T_add = 20;
-    uint32_t bias_thres_PFGO1T_add = 35;
-    uint32_t bias_thres_PFGO2T_add = 20;
+    uint32_t bias_thres_PFGO1T_add = 25;
+    uint32_t bias_thres_PFGO2T_add = 15;
     
     uint32_t bias_thres_PFXM1T_perc = 50;
     uint32_t bias_thres_PFXM2T_perc = 70;
@@ -170,9 +170,12 @@ struct CommandLineArgs {
     double   bias_prior_orientation_InDel_base = 1e5;
     double   bias_orientation_counter_avg_end_len = 25;
     
-    int32_t  bias_FA_powerlaw_noUMI_phred_inc = 7;
-    int32_t  bias_FA_powerlaw_withUMI_phred_inc = 7+7;
+    int32_t  bias_FA_powerlaw_noUMI_phred_inc_snv = 7;
+    int32_t  bias_FA_powerlaw_noUMI_phred_inc_indel = 7; // this is actually the intrinsic lower error rate of indel instead of the one after reduction by bias.
     
+    int32_t  bias_FA_powerlaw_withUMI_phred_inc_snv = 7+7;
+    int32_t  bias_FA_powerlaw_withUMI_phred_inc_indel = 7+7;
+
 // *** 07. parameters related to read families
     
     uint32_t fam_thres_emperr_all_flat = 4;
@@ -228,18 +231,18 @@ struct CommandLineArgs {
 
 // *** 10. parameters related to tumor-normal-pairs.
     
-    uint32_t    tn_q_inc_max = 10;
+    uint32_t    tn_q_inc_max = 9; // 10;
     // PHRED-scaled likelihood that the observed allele fraction additively deviates from the expected allele fraction by a mul factor of 2
     double      tn_syserr_norm_devqual = 15.0; // (double)(12.5); 
     
 
 // *** 11. parameters related to InDels.
     
-    uint32_t    indel_BQ_max = 44; // 48;
+    uint32_t    indel_BQ_max = 44-2; // + 14; // 48;
     uint32_t    indel_str_repeatsize_max = 6;
     double      indel_polymerase_size = 8.0;
     double      indel_polymerase_slip_rate = 8.0;
-    double      indel_del_to_ins_err_ratio = 4.0;
+    double      indel_del_to_ins_err_ratio = 4.0; // 4.0;
     uint32_t    indel_adj_tracklen_div = 3;
     
     double      indel_multiallele_samepos_penal = 11.0;
@@ -258,12 +261,16 @@ struct CommandLineArgs {
     uint32_t    indel_STR_phred_per_region = 5*2;
     
     // https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2734402/#bib41 : powlaw exponent of 1.5-1.6 for mut rate vs indel len.
-    
+    // https://pubmed.ncbi.nlm.nih.gov/18641631/ : SNV mutation rate near (up to a few hundred bp) heterozygous InDels are higher than expected.
+
 // *** 12. parameters related to contamination
     
     double      contam_any_mul_frac = 0.02; // 1e-10; 
     double      contam_t2n_mul_frac = 0.05; // 1e-10; // 0.050; // 0.04 * 2.0; // ;
-    
+
+// *** extra useful info
+    // https://www.biostars.org/p/254467/#254868 : Question: Are these false somatic variants? Visual inspection with IGV
+    // HDR and kataegis ???
 // *** end 
     
     int
