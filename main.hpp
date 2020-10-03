@@ -805,7 +805,7 @@ refstring2repeatvec(
         }
         assert(repeat_endpos > refpos);
         unsigned int tl = MIN(repeat_endpos, refstring.size()) - refpos;
-        const unsigned int decphred = indel_phred(indel_polymerase_slip_rate * (indel_del_to_ins_err_ratio + 1.0), 
+        const unsigned int decphred = indel_phred(indel_polymerase_slip_rate * (indel_del_to_ins_err_ratio), 
                 repeatsize_at_max_repeatnum, repeatsize_at_max_repeatnum, tl / repeatsize_at_max_repeatnum);
         for (unsigned int i = refpos; i != MIN(repeat_endpos, refstring.size()); i++) {
             if (tl > region_repeatvec[i].tracklen) {
@@ -1042,12 +1042,16 @@ update_seg_format_prep_sets_by_aln(
 
 int
 update_seg_format_thres_from_prep_sets(
+        auto region_repeatvec,
         SegFormatThresSets & seg_format_thres_sets, 
         const SegFormatPrepSets & seg_format_prep_sets, 
         
         const CommandLineArgs & paramset,
-        const unsigned int specialflag) 
-    {
+        const unsigned int specialflag) {
+    
+    assert(seg_format_thres_sets.getIncluBegPosition() + region_repeatvec.size() + 1 == seg_format_thres_sets.getExcluEndPosition() 
+            || !fprintf(stderr, "%d + %d + 1 == %d failed", 
+           seg_format_thres_sets.getIncluBegPosition(),  region_repeatvec.size(),   seg_format_thres_sets.getExcluEndPosition()));
     assert(seg_format_thres_sets.getIncluBegPosition() == seg_format_prep_sets.getIncluBegPosition());
     assert(seg_format_thres_sets.getExcluEndPosition() == seg_format_prep_sets.getExcluEndPosition());
     for (size_t epos = seg_format_prep_sets.getIncluBegPosition(); epos != seg_format_prep_sets.getExcluEndPosition(); epos++) {
@@ -1059,6 +1063,11 @@ update_seg_format_thres_from_prep_sets(
         auto segRIDP = MAX(seg_format_prep_sets.getByPos(epos)[SEG_a_RIDP], 1);
         const auto ins_border_len = (unsigned int)ceil(sqrt((p[SEG_a_NEAR_INS_LEN]) / MAX(p[SEG_a_NEAR_INS_DP], 1)));
         const auto del_border_len = (unsigned int)ceil(sqrt((p[SEG_a_NEAR_DEL_LEN]) / MAX(p[SEG_a_NEAR_DEL_DP], 1)));
+        
+        if (p[SEG_a_NEAR_INS_DP] * paramset.indel_del_to_ins_err_ratio < p[SEG_a_NEAR_DEL_DP]) {
+            region_repeatvec[epos - seg_format_prep_sets.getIncluBegPosition()].indelphred += (int)round(10/log(10.0) * log(paramset.indel_del_to_ins_err_ratio));
+        }
+        
         t[SEG_aLPxT] =    (ins_border_len)                 * (unsigned long)(paramset.bias_thres_aLPxT_perc) / 100 + paramset.bias_thres_aLPxT_add;
         t[SEG_aRPxT] = MAX(ins_border_len, del_border_len) * (unsigned long)(paramset.bias_thres_aLPxT_perc) / 100 + paramset.bias_thres_aLPxT_add;
 
@@ -1608,10 +1617,9 @@ public:
                             bam_get_qname(aln), rpos, aln->core.pos, bam_endpos(aln)));
 if ((ASSAY_TYPE_AMPLICON != paramset.assay_type) || (0 == paramset.primerlen) || (ibeg <= rpos && rpos < iend)) {
                     if (i2 > 0) {
-                        const auto noindel_phredvalue = MIN3(
+                        const auto noindel_phredvalue = MIN(
                                 region_repeatvec[rpos-region_offset - 1].indelphred,
-                                region_repeatvec[rpos-region_offset].indelphred,
-                                30+18);
+                                region_repeatvec[rpos-region_offset    ].indelphred);
                         // incvalue = MIN(MIN(bam_phredi(aln, qpos-1), bam_phredi(aln, qpos)) + (symbolType2addPhred[LINK_SYMBOL]), noindel_phredvalue) + 1;
                         incvalue = MAX(MIN(bam_phredi(aln, qpos-1), bam_phredi(aln, qpos)), noindel_phredvalue) + 1;
                         this->template inc<TUpdateType>(rpos, LINK_M, incvalue, aln);
@@ -1632,7 +1640,13 @@ if ((ASSAY_TYPE_AMPLICON != paramset.assay_type) || (0 == paramset.primerlen) ||
                                     go150,
                                     bm150s[LINK_M],
                                     baq_offsetarr,
-                                    MIN(rpos - prev_indel_rpos, next_indel_rpos - rpos),
+                                    MIN(
+                                        non_neg_minus(rpos - prev_indel_rpos, MAX(
+                                            region_repeatvec[rpos-region_offset - 1].tracklen,
+                                            seg_format_thres_sets.getByPos(rpos)[SEG_aLP1t])), 
+                                        non_neg_minus(next_indel_rpos - rpos, MAX(
+                                            region_repeatvec[rpos-region_offset    ].tracklen,
+                                            seg_format_thres_sets.getByPos(rpos)[SEG_aRP1t]))),
                                     paramset,
                                     0);
                         }
@@ -1956,7 +1970,7 @@ struct Symbol2CountCoverageSet {
             const std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, int>> & alns3, 
             
             const std::basic_string<AlignmentSymbol> & region_symbolvec,
-            const auto & region_repeatvec,
+            auto & region_repeatvec,
             const auto & baq_offsetarr,
             
             const CommandLineArgs & paramset,
@@ -1981,9 +1995,10 @@ struct Symbol2CountCoverageSet {
             }
         }
         update_seg_format_thres_from_prep_sets(
+                region_repeatvec,
                 this->seg_format_thres_sets,
                 this->seg_format_prep_sets,
-                paramset, 
+                paramset,
                 0);
         for (const auto & alns2pair2dflag : alns3) {
             for (unsigned int strand = 0; strand < 2; strand++) {
@@ -2386,7 +2401,7 @@ struct Symbol2CountCoverageSet {
             const std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, int>> & alns3, 
             
             const std::string & refstring,
-            const std::vector<RegionalTandemRepeat> & region_repeatvec,
+            std::vector<RegionalTandemRepeat> & region_repeatvec,
             const CoveredRegion<int64_t> & baq_offsetarr,
             
             const auto & paramset,

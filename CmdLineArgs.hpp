@@ -139,9 +139,9 @@ struct CommandLineArgs {
     
     uint32_t bias_thres_aXM1T_add = 30;
     
-    uint32_t bias_thres_interfering_indel = 20;
-    uint32_t bias_thres_BAQ1 = 45-10;
-    uint32_t bias_thres_BAQ2 = 60-10;
+    uint32_t bias_thres_interfering_indel = 5; // 8; 20;
+    uint32_t bias_thres_BAQ1 = 23; // 45-10;
+    uint32_t bias_thres_BAQ2 = 33; // 60-10;
     
 // *** 06. parameters related to the priors of bias
     
