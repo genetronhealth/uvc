@@ -805,7 +805,7 @@ refstring2repeatvec(
         }
         assert(repeat_endpos > refpos);
         unsigned int tl = MIN(repeat_endpos, refstring.size()) - refpos;
-        const unsigned int decphred = indel_phred(indel_polymerase_slip_rate * (indel_del_to_ins_err_ratio), 
+        const unsigned int decphred = indel_phred(indel_polymerase_slip_rate * (indel_del_to_ins_err_ratio + 1.0), 
                 repeatsize_at_max_repeatnum, repeatsize_at_max_repeatnum, tl / repeatsize_at_max_repeatnum);
         for (unsigned int i = refpos; i != MIN(repeat_endpos, refstring.size()); i++) {
             if (tl > region_repeatvec[i].tracklen) {
@@ -815,7 +815,8 @@ refstring2repeatvec(
                 region_repeatvec[i].indelphred = indel_BQ_max - MIN(indel_BQ_max - 1, decphred);
             }
         }
-        refpos += MAX(repeatsize_at_max_repeatnum * max_repeatnum, indel_str_repeatsize_max + 1) - indel_str_repeatsize_max;
+        const auto nbases_to_next = indel_str_repeatsize_max + repeatsize_at_max_repeatnum;
+        refpos += MAX(repeatsize_at_max_repeatnum * max_repeatnum, nbases_to_next + 1) - (nbases_to_next);
     }
     return region_repeatvec;
 }
@@ -978,14 +979,19 @@ update_seg_format_prep_sets_by_aln(
                 seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_NEAR_INS_LEN] += mathsquare(cigar_oplen);
             }
             
-            const auto & rtr1 = rtr_vec[MAX(1, rpos - region_offset) - 1];
-            const auto & rtr2 = rtr_vec[MIN(rtr_vec.size() - 1, rpos - region_offset + 1)];
+            const auto & rtr1 = rtr_vec[MAX(3, rpos - region_offset) - 3];
+            const auto & rtr2 = rtr_vec[MIN(rpos - region_offset + 3, rtr_vec.size() - 1)];
+            for (int rpos2 = MAX((int)(region_offset + rtr1.begpos) - 3, aln->core.pos); rpos2 < MIN((int)(region_offset + rtr2.begpos + rtr2.tracklen) + 3, rend); rpos2++) {
+                seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_NEAR_RTR_INS_DP] += 1;
+            }
+            /*
             for (int rpos2 = MAX((int)rpos - (int)rtr1.tracklen - 1 - 1, aln->core.pos); rpos2 < rpos; rpos2++) {
                 seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_NEAR_RTR_INS_DP] += 1;
             }           
             for (int rpos2 = (int)rpos; rpos2 < MIN(rpos + rtr2.tracklen + 1 + 1, rend); rpos2++) {
                 seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_NEAR_RTR_INS_DP] += 1;
             }
+            */
             seg_format_prep_sets.getRefByPos(rpos)[SEG_a_AT_INS_DP] += 1;
             qpos += cigar_oplen;
         } else if (cigar_op == BAM_CDEL) {
@@ -1022,14 +1028,19 @@ update_seg_format_prep_sets_by_aln(
                 seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_NEAR_DEL_DP] += 1;
                 seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_NEAR_DEL_LEN] += mathsquare(cigar_oplen);
             }
-            const auto & rtr1 = rtr_vec[MAX(1, rpos - region_offset) - 1];
-            const auto & rtr2 = rtr_vec[MIN(rtr_vec.size() - 1, rpos - region_offset + 1)];
+            const auto & rtr1 = rtr_vec[MAX(3, rpos - region_offset) - 3];
+            const auto & rtr2 = rtr_vec[MIN(rpos - region_offset + 3, rtr_vec.size() - 1)];
+            for (int rpos2 = MAX((int)(region_offset + rtr1.begpos) - 3, aln->core.pos); rpos2 < MIN((int)(region_offset + rtr2.begpos + rtr2.tracklen) + 3, rend); rpos2++) {
+                seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_NEAR_RTR_DEL_DP] += 1;
+            }
+            /*
             for (int rpos2 = MAX((int)rpos - (int)rtr1.tracklen - 1, aln->core.pos); rpos2 < rpos; rpos2++) {
                 seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_NEAR_RTR_DEL_DP] += 1;
             }
             for (int rpos2 = (int)rpos; rpos2 < MIN(rpos + rtr2.tracklen + 1, rend); rpos2++) {
                 seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_NEAR_RTR_DEL_DP] += 1;
             }
+            */
             seg_format_prep_sets.getRefByPos(rpos)[SEG_a_AT_DEL_DP] += 1;
             rpos += cigar_oplen;
         } else {
@@ -1042,7 +1053,7 @@ update_seg_format_prep_sets_by_aln(
 
 int
 update_seg_format_thres_from_prep_sets(
-        auto region_repeatvec,
+        auto & region_repeatvec,
         SegFormatThresSets & seg_format_thres_sets, 
         const SegFormatPrepSets & seg_format_prep_sets, 
         
@@ -1064,10 +1075,14 @@ update_seg_format_thres_from_prep_sets(
         const auto ins_border_len = (unsigned int)ceil(sqrt((p[SEG_a_NEAR_INS_LEN]) / MAX(p[SEG_a_NEAR_INS_DP], 1)));
         const auto del_border_len = (unsigned int)ceil(sqrt((p[SEG_a_NEAR_DEL_LEN]) / MAX(p[SEG_a_NEAR_DEL_DP], 1)));
         
+        auto & rtr = region_repeatvec[epos - seg_format_prep_sets.getIncluBegPosition()];
         if (p[SEG_a_NEAR_INS_DP] * paramset.indel_del_to_ins_err_ratio < p[SEG_a_NEAR_DEL_DP]) {
-            region_repeatvec[epos - seg_format_prep_sets.getIncluBegPosition()].indelphred += (int)round(10/log(10.0) * log(paramset.indel_del_to_ins_err_ratio));
+            rtr.indelphred += (int)round(10/log(10.0) * log(paramset.indel_del_to_ins_err_ratio));
         }
-        
+        const auto pc = (unsigned int)round(3 * sqrt(p[SEG_a_NEAR_INS_LEN] + p[SEG_a_NEAR_DEL_LEN]) / MAX(1, p[SEG_a_NEAR_INS_DP] + p[SEG_a_NEAR_DEL_DP])) / MAX(1, rtr.unitlen);
+        const auto pc_inc = (BETWEEN(pc, 3, 3 + 3) - 3);
+        region_repeatvec[epos - seg_format_prep_sets.getIncluBegPosition()].indelphred += pc_inc;
+        // LOG(logINFO) << " indelphred_pc = " << pc << " " << pc_inc << " at " << epos;
         t[SEG_aLPxT] =    (ins_border_len)                 * (unsigned long)(paramset.bias_thres_aLPxT_perc) / 100 + paramset.bias_thres_aLPxT_add;
         t[SEG_aRPxT] = MAX(ins_border_len, del_border_len) * (unsigned long)(paramset.bias_thres_aLPxT_perc) / 100 + paramset.bias_thres_aLPxT_add;
 
@@ -1578,7 +1593,7 @@ public:
                     }
                 } else if (cigar_op == BAM_CINS) {
                     bool is_lowBQ = false;
-                    for (unsigned int qpos2 = qpos; qpos2 < qpos + cigar_oplen; qpos2++) {
+                    for (unsigned int qpos2 = qpos - MIN(qpos, 1); qpos2 < MIN(qpos + cigar_oplen + 1, rend); qpos2++) {
                         if (bam_phredi(aln, qpos2) < 20) { is_lowBQ = true; }
                     }
                     if (is_lowBQ) { indel_rposs.push_back(rpos); }
@@ -1606,6 +1621,9 @@ public:
         unsigned int qpos = 0;
         unsigned int rpos = aln->core.pos;
         unsigned int incvalue = 1;
+        unsigned int lclip_len = ((n_cigar > 0 && bam_cigar_op(cigar[0]) == BAM_CSOFT_CLIP) ? bam_cigar_oplen(cigar[0]) : 0);
+        unsigned int rclip_len = ((n_cigar > 0 && bam_cigar_op(cigar[n_cigar - 1]) == BAM_CSOFT_CLIP) ? bam_cigar_oplen(cigar[n_cigar - 1]) : 0);
+        // unsigned int tail_clip_len = (isrc ? lclip_len : rclip_len);
         for (unsigned int i = 0; i < n_cigar; i++) {
             uint32_t c = cigar[i];
             unsigned int cigar_op = bam_cigar_op(c);
@@ -1627,8 +1645,20 @@ if ((ASSAY_TYPE_AMPLICON != paramset.assay_type) || (0 == paramset.primerlen) ||
                             if (indel_rposs[indel_rposs_idx] <= rpos) {
                                 indel_rposs_idx++;
                             }
-                            unsigned int prev_indel_rpos = indel_rposs[indel_rposs_idx-1];
+                            unsigned int prev_indel_rpos = indel_rposs[indel_rposs_idx - 1];
                             unsigned int next_indel_rpos = indel_rposs[indel_rposs_idx];
+                            const auto & rtr1 = region_repeatvec[MAX(rpos-region_offset, 1 + 1) - 1 - 1];
+                            const auto & rtr2 = region_repeatvec[MIN(rpos-region_offset + 1, region_repeatvec.size() - 1)];
+                            const auto dist_to_interfering_indel = MIN(
+                                non_neg_minus(rpos - prev_indel_rpos, MAX(
+                                    rpos - (region_offset + rtr1.begpos),
+                                    seg_format_thres_sets.getByPos(rpos)[SEG_aLP1t])),
+                                non_neg_minus(next_indel_rpos - rpos, MAX(
+                                    (region_offset + rtr2.begpos + rtr2.tracklen) - rpos,
+                                    seg_format_thres_sets.getByPos(rpos)[SEG_aRP1t])));
+                            assert (rpos >= (region_offset + rtr1.begpos));
+                            assert ((region_offset + rtr2.begpos + rtr2.tracklen) >= rpos);
+                            // if (22913273 <= rpos && rpos <= 22913274+1) { LOG(logINFO) << "dist_to_interfering_indel = " << dist_to_interfering_indel << " at zero-based pos " << rpos << " for read " << bam_get_qname(aln); }
                             dealwith_segbias<true>(
                                     incvalue,
                                     rpos,
@@ -1640,13 +1670,7 @@ if ((ASSAY_TYPE_AMPLICON != paramset.assay_type) || (0 == paramset.primerlen) ||
                                     go150,
                                     bm150s[LINK_M],
                                     baq_offsetarr,
-                                    MIN(
-                                        non_neg_minus(rpos - prev_indel_rpos, MAX(
-                                            region_repeatvec[rpos-region_offset - 1].tracklen,
-                                            seg_format_thres_sets.getByPos(rpos)[SEG_aLP1t])), 
-                                        non_neg_minus(next_indel_rpos - rpos, MAX(
-                                            region_repeatvec[rpos-region_offset    ].tracklen,
-                                            seg_format_thres_sets.getByPos(rpos)[SEG_aRP1t]))),
+                                    dist_to_interfering_indel,
                                     paramset,
                                     0);
                         }
@@ -1703,11 +1727,16 @@ if ((ASSAY_TYPE_AMPLICON != paramset.assay_type) || (0 == paramset.primerlen) ||
                     unsigned int thisdp = (seg_format_prep_sets.getByPos(rpos)[SEG_a_AT_INS_DP]); 
                     unsigned int neardp = (MAX(seg_format_prep_sets.getByPos(rpos)[SEG_a_NEAR_INS_DP], seg_format_prep_sets.getByPos(rpos)[SEG_a_NEAR_RTR_INS_DP]));
                     unsigned int insbase_minphred = 80;
+                    //unsigned int base4bit = bam_seqi(bseq, qpos);
+                    //unsigned int base3bit = seq_nt16_int[base4bit];
+                    //AlignmentSymbol isymbol = AlignmentSymbol(base3bit);
                     for (unsigned int qpos2 = qpos; qpos2 < qpos + cigar_oplen; qpos2++) {
                         UPDATE_MIN(insbase_minphred, bam_phredi(aln, qpos2));
                     }
                     unsigned int qfromBQ1 = insbase_minphred; //  + (TIsProton ? proton_cigarlen2phred(cigar_oplen) : 0);
-                    unsigned int qfromBQ2 = ((thisdp * 2 < neardp) ? qfromBQ1 : (TIsProton ? (qfromBQ1 + proton_cigarlen2phred(cigar_oplen)) : 80));
+                    unsigned int qfromBQ2 = ((thisdp * 2 <= neardp || (1 == cigar_oplen && 
+                                (xm150 >= 7 || ((lclip_len + 5 >= rpos - aln->core.pos) && isrc) || ((rclip_len + 5 >= rend - aln->core.pos) && !isrc)))) 
+                            ? qfromBQ1 : (TIsProton ? (qfromBQ1 + proton_cigarlen2phred(cigar_oplen)) : 80));
                     incvalue = MIN(qfromBQ2, phredvalue + symbolType2addPhred[LINK_SYMBOL]) + 1;
                 }
                 if (!is_ins_at_read_end) {
@@ -1770,7 +1799,7 @@ if ((ASSAY_TYPE_AMPLICON != paramset.assay_type) || (0 == paramset.primerlen) ||
                     unsigned int thisdp = (seg_format_prep_sets.getByPos(rpos)[SEG_a_AT_DEL_DP]);
                     unsigned int neardp = (MAX(seg_format_prep_sets.getByPos(rpos)[SEG_a_NEAR_DEL_DP], seg_format_prep_sets.getByPos(rpos)[SEG_a_NEAR_RTR_DEL_DP]));
                     unsigned int qfromBQ1 = MIN(bam_phredi(aln, qpos), bam_phredi(aln, qpos-1));
-                    unsigned int qfromBQ2 = ((thisdp * 2 < neardp) ? qfromBQ1 : (TIsProton ? (qfromBQ1 + proton_cigarlen2phred(cigar_oplen)) : 80));
+                    unsigned int qfromBQ2 = ((thisdp * 2 <= neardp) ? qfromBQ1 : (TIsProton ? (qfromBQ1 + proton_cigarlen2phred(cigar_oplen)) : 80));
                     double delFA = ((double)(thisdp + 0.5) / (double)(seg_format_prep_sets.getByPos(rpos)[SEG_a_DP] + 1));
                     int delFAQ = MAX(0, 10+9 + (int)round(3 * 10/log(10) * log(delFA * 10)));
                     
@@ -2774,16 +2803,33 @@ BcfFormat_symbol_calc_DPv(
     unsigned int aDPplus = (isSymbolSubstitution(symbol) ? 0 : ((aDP + 1) * paramset.bias_prior_DPadd_perc / 100));
     double dp_coef = ((symbol == LINK_M) ?  MAX(0.02, 1.0 - MAX(rtr1.tracklen, rtr2.tracklen) / (MAX3(1, f.ALPL[0], f.ARPL[0]) / MAX(1.0/150.0, f.ABQ2[0]))) : 1.0);
     double _aPprior = paramset.bias_prior_pos / (is_rescued ? phred2prob(paramset.tn_q_inc_max) : 1); // probability that there is one indel at a pos
+    double _aBprior = _aPprior;
     const bool is_in_indel_read = (   (f.APXM[1]) / 15.0 * 2  * (paramset.bias_prior_var_DP_mul) > (aDP + aDPplus) * dp_coef);
     const bool is_in_indel_len  = (MAX(f.APDP[1],  f.APDP[2]) * (paramset.bias_prior_var_DP_mul) > (aDP + aDPplus) * dp_coef);
     const bool is_in_indel_rtr  = (MAX(f.APDP[3],  f.APDP[4]) * (paramset.bias_prior_var_DP_mul) > (aDP + aDPplus) * dp_coef);
     const bool is_in_rtr = (MAX(rtr1.tracklen, rtr2.tracklen) > 8);
-    if (is_in_indel_read)      { _aPprior /= paramset.bias_prior_indel_in_read_div; }
-    if (is_in_indel_len)       { _aPprior /= paramset.bias_prior_indel_in_var_div2; }
-    else if (is_in_indel_rtr)  { _aPprior /= paramset.bias_prior_indel_in_STR_div2; }
-    else if (is_in_rtr)        { _aPprior /= paramset.bias_prior_var_in_STR_div2; }
+    
+    // read level, affecting both
+    if (is_in_indel_read) {
+        _aPprior /= paramset.bias_prior_indel_in_read_div; 
+        _aBprior /= paramset.bias_prior_indel_in_read_div;
+    } else if ((isSymbolIns(symbol) || isSymbolDel(symbol)) && fmt.APXM[0] > fmt.APXM[1] * 4) {
+        _aPprior /= paramset.bias_prior_indel_in_read_div; 
+        _aBprior /= paramset.bias_prior_indel_in_read_div;
+    }
+    // regional level, affecting only aBprior for LINK_M
+    if (is_in_indel_len)           { _aBprior /= paramset.bias_prior_indel_in_var_div2; }
+    else if (is_in_indel_rtr)      { _aBprior /= paramset.bias_prior_indel_in_STR_div2; }
+    else if (is_in_rtr)            { _aBprior /= paramset.bias_prior_var_in_STR_div2; }
+    if (LINK_M != symbol && LINK_NN != symbol) { 
+        if (is_in_indel_len)       { _aPprior /= paramset.bias_prior_indel_in_var_div2; }
+        else if (is_in_indel_rtr)  { _aPprior /= paramset.bias_prior_indel_in_STR_div2; }
+        else if (is_in_rtr)        { _aPprior /= paramset.bias_prior_var_in_STR_div2; }
+    }
     const double aPprior = _aPprior;
-    fmt.note += std::string("//aPprior/") +std::to_string(aPprior) + "//";
+    const double aBprior = _aBprior;
+    fmt.note += std::string("//aPprior/") +std::to_string(aPprior) + "//" + std::string("//aBprior/") +std::to_string(aBprior) + "//";;
+    
     const double aIprior = log(isSymbolSubstitution(symbol) ? paramset.bias_prior_ipos_SNV : paramset.bias_prior_ipos_InDel) + 1;
     const double aSBprior = log(isSymbolSubstitution(symbol) 
             ? (pow(10.0, fmt.aBQ[a] / 10.0) * paramset.bias_prior_strand_SNV_base + paramset.bias_prior_pseudocount) 
@@ -2797,9 +2843,9 @@ BcfFormat_symbol_calc_DPv(
     double aLPFA = aLPFAx2[0];
     double aRPFA = aRPFAx2[0];
     
-    const auto aLBFAx2 = dp4_to_pcFA<false>(f.aLB1[a], aDP, f.ALB2[0] + f.aLB1[a] - f.aLB2[a], ADP, paramset.powlaw_exponent, log(aPprior),
+    const auto aLBFAx2 = dp4_to_pcFA<false>(f.aLB1[a], aDP, f.ALB2[0] + f.aLB1[a] - f.aLB2[a], ADP, paramset.powlaw_exponent, log(aBprior),
             MAX(1, f.aLBL[a]) / (double)MAX(1, f.aBQ2[a]), MAX(1, f.ALBL[0]) / (double)MAX(1, f.ABQ2[0]), ((is_in_indel_read) ? paramset.bias_FA_pseudocount_indel_in_read : 0.5));
-    const auto aRBFAx2 = dp4_to_pcFA<false>(f.aRB1[a], aDP, f.ARB2[0] + f.aRB1[a] - f.aRB2[a], ADP, paramset.powlaw_exponent, log(aPprior),
+    const auto aRBFAx2 = dp4_to_pcFA<false>(f.aRB1[a], aDP, f.ARB2[0] + f.aRB1[a] - f.aRB2[a], ADP, paramset.powlaw_exponent, log(aBprior),
             MAX(1, f.aRBL[a]) / (double)MAX(1, f.aBQ2[a]), MAX(1, f.ARBL[0]) / (double)MAX(1, f.ABQ2[0]), ((is_in_indel_read) ? paramset.bias_FA_pseudocount_indel_in_read : 0.5));
     double aLBFA = aLBFAx2[0];
     double aRBFA = aRBFAx2[0];
@@ -2848,10 +2894,14 @@ BcfFormat_symbol_calc_DPv(
         } else {
             // fmt.note += std::string("rtr-tracklen/") + std::to_string(rtr1.tracklen) + "/" + std::to_string(rtr2.tracklen) + "/";
         }
-        aLIFA = aRIFA = 2.0;
+        if (LAST(fmt.bMQ) >= 50 && LAST(fmt.aXM2) * 100 >= aDP * 100 * 50) { aLIFA = aRIFA = 2.0; }
     } else if (LINK_M == symbol || LINK_NN == symbol) {
-        aLBFA *= MAX(1, fmt.ALB1[0]) / (double)MAX(ADP, 1);
-        aRBFA *= MAX(1, fmt.ARB1[0]) / (double)MAX(ADP, 1);
+        aLBFA = (double)MIN(aLBFA, MAX(1, LAST(fmt.aLB1)) / (double)MAX(1, ADP));
+        aRBFA = (double)MIN(aRBFA, MAX(1, LAST(fmt.aRB1)) / (double)MAX(1, ADP));
+        // aLBFA = (double)MIN(aLBFA, MAX(1, LAST(fmt.aLB1)) / (double)MAX(1, (FIRST(fmt.ALB2) + LAST(fmt.aLB1) - LAST(fmt.aLB2))));
+        // aRBFA = (double)MIN(aRBFA, MAX(1, LAST(fmt.aRB1)) / (double)MAX(1, (FIRST(fmt.ARB2) + LAST(fmt.aRB1) - LAST(fmt.aRB2))));
+        // aLBFA *= MAX(1, fmt.ALB2[0]) / (double)MAX(ADP, 1);
+        // aRBFA *= MAX(1, fmt.ARB2[0]) / (double)MAX(ADP, 1);
     } 
     
     const double aPFFA = (fmt.aPF1[a] + pfa * (is_rescued ? 100.0 : (double)(fmt.aXM2[a] / MAX(1, aDP)))) / (fmt.APF2[0] + (fmt.aPF1[a] - fmt.aPF2[a]) + 1.0*100);

@@ -788,7 +788,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                                 
                                 NOT_PROVIDED != paramset.vcf_tumor_fname,
                                 region_repeatvec.at(MAX(refpos - extended_inclu_beg_pos, 3) - 3),
-                                region_repeatvec.at(MIN(refpos - extended_inclu_beg_pos + 3, region_repeatvec.size() - 3)),
+                                region_repeatvec.at(MIN(refpos - extended_inclu_beg_pos + 3, region_repeatvec.size() - 1)),
                                 tid,
                                 refpos,
                                 refsymbol,
