@@ -555,7 +555,9 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
             paramset.indel_polymerase_slip_rate,
             paramset.indel_del_to_ins_err_ratio,
             0);
-    const auto & baq_offsetarr = region_repeatvec_to_baq_offsetarr(region_repeatvec, tid, extended_inclu_beg_pos, extended_exclu_end_pos, paramset);
+    const auto & baq_offsetarr = region_repeatvec_to_baq_offsetarr(region_repeatvec, tid, extended_inclu_beg_pos, extended_exclu_end_pos + 1, paramset);
+    assert(baq_offsetarr.getExcluEndPosition() - baq_offsetarr.getIncluBegPosition() == region_repeatvec.size() 
+            || !fprintf(stderr, "%d - %d == %d failed (baq == repeat in size)!\n", baq_offsetarr.getExcluEndPosition(), baq_offsetarr.getIncluBegPosition(), region_repeatvec.size()));
     
     // repeatvec_LOG(region_repeatvec, extended_inclu_beg_pos); // disable the log by default
 

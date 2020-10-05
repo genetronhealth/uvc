@@ -448,6 +448,9 @@ enum SegFormatPrepSet {
     
     SEG_a_NEAR_INS_LEN,
     SEG_a_NEAR_DEL_LEN,
+    SEG_a_NEAR_INS_INV100LEN,
+    SEG_a_NEAR_DEL_INV100LEN,
+
     SEG_a_AT_INS_DP,
     SEG_a_AT_DEL_DP,
     SEG_a_NEAR_INS_DP,

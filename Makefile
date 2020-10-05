@@ -40,11 +40,11 @@ uvc.cppt.out : $(HDR) $(SRC) $(DEP)
 
 # single-thread executable with runtime assertions and debug symbols, very useful for debugging
 uvc.st.out : $(HDR) $(SRC) $(DEP)
-	$(CXX) -O2 -g -p    -o uvc.st.out   $(CXXFLAGS) $(VERFLAGS) $(SRC) $(HTSFLAGS) 
+	$(CXX) -O2 -g -p    -o uvc.st.out   $(CXXFLAGS) $(VERFLAGS) $(SRC) $(HTSFLAGS) -fsanitize=address 
 
 # multi-thread executable with runtime assertions and debug symbols, useful for debugging
 uvc.mt.out : $(HDR) $(SRC) $(DEP)
-	$(CXX) -O2 -g -p    -o uvc.mt.out   $(CXXFLAGS) $(VERFLAGS) $(SRC) $(HTSFLAGS) -fopenmp
+	$(CXX) -O2 -g -p    -o uvc.mt.out   $(CXXFLAGS) $(VERFLAGS) $(SRC) $(HTSFLAGS) -fopenmp -fsanitize=address 
 
 # generator for bcf templates
 bcf_formats_generator1.out : bcf_formats_generator1.cpp version.h 

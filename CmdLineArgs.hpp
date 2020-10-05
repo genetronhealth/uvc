@@ -112,7 +112,7 @@ struct CommandLineArgs {
     uint32_t bias_thres_highBAQ = 23;
 
     uint32_t bias_thres_aLPxT_add = 5;
-    uint32_t bias_thres_aLPxT_perc = 125;
+    uint32_t bias_thres_aLPxT_perc = 160;
         
     uint32_t bias_thres_PFXM1T_add = 35;
     uint32_t bias_thres_PFXM2T_add = 20;
@@ -210,10 +210,13 @@ struct CommandLineArgs {
     int16_t  syserr_minABQ_cap_snv = 0;
     int16_t  syserr_minABQ_cap_indel = 0;
     
-    uint16_t syserr_maxMQ  = 60; // from bwa
+    uint16_t syserr_maxMQ = 60; // from bwa
     // HLA pairwise sequence identity is about 1% from https://www.ebi.ac.uk/ipd/mhc/alignment/hla/ 
-    uint16_t syserr_phred_varcall_err_per_map_err_per_base = 15; // 20; 
-
+    uint16_t syserr_phred_varcall_err_per_map_err_per_base = 10; // 15; // 20; // this is the max phred probability of varcall error per base per mapping error
+    
+    // Make sure that, by default, all variants (which usually include hotspot variants) are found in the vcf output regardless of mapping quality.
+    uint16_t syserr_minMQ = ((vqual > syserr_phred_varcall_err_per_map_err_per_base) ? (vqual - syserr_phred_varcall_err_per_map_err_per_base) : 0); 
+ 
 // *** 09. parameters related to germline vars // PMC4271055: probablity of germline call error is between 1/100kb and 1/200kb
 
     double      germ_hetero_FA = 0.47;
@@ -243,14 +246,15 @@ struct CommandLineArgs {
     double      indel_polymerase_size = 8.0;
     double      indel_polymerase_slip_rate = 8.0;
     double      indel_del_to_ins_err_ratio = 4.0; // 4.0;
-    uint32_t    indel_adj_tracklen_div = 3;
-    
+    uint32_t    indel_adj_tracklen_div = 6;
+    uint32_t    indel_adj_indellen_mul = 160; 
+
     double      indel_multiallele_samepos_penal = 11.0;
     double      indel_multiallele_diffpos_penal = 8.0;
     double      indel_multiallele_soma_penal_thres = 11.0;
     double      indel_tetraallele_germline_penal_value = 8.0 * 2;
     double      indel_tetraallele_germline_penal_thres = 22.0;
-
+    
     
     uint32_t    indel_ins_penal_pseudocount = 16;
     
