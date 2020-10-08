@@ -80,6 +80,7 @@ struct CommandLineArgs {
     // so more accurate dedupping requires us to consider these cases. This constant is good enough for the general case.
     uint16_t    dedup_center_mult = 5; 
     uint16_t    dedup_amplicon_count_to_surrcount_ratio = 16;
+    uint16_t    dedup_amplicon_count_to_surrcount_ratio_twosided = 6;
     double      dedup_amplicon_end2end_ratio = 1.5;
     
     uint32_t    dedup_flag = 0x0;
@@ -133,13 +134,17 @@ struct CommandLineArgs {
     uint32_t bias_thres_aLRI2T_perc = 200;
     uint32_t bias_thres_aLRI1t_perc = 50;
     uint32_t bias_thres_aLRI2t_perc = 67;
+    uint32_t bias_thres_aLRI1t_perc_pcr = 67;
+    uint32_t bias_thres_aLRI2t_perc_pcr = 75;
     
+
     uint32_t bias_thres_PFBQ1 = 25;
     uint32_t bias_thres_PFBQ2 = 30;
     
     uint32_t bias_thres_aXM1T_add = 30;
     
     uint32_t bias_thres_interfering_indel = 5; // 8; 20;
+    int32_t bias_thres_interfering_indel_BQ = 21; // 8; 20;
     uint32_t bias_thres_BAQ1 = 23; // 45-10;
     uint32_t bias_thres_BAQ2 = 33; // 60-10;
     
@@ -170,7 +175,7 @@ struct CommandLineArgs {
     double   bias_prior_orientation_InDel_base = 1e5;
     double   bias_orientation_counter_avg_end_len = 25;
     
-    int32_t  bias_FA_powerlaw_noUMI_phred_inc_snv = 7;
+    int32_t  bias_FA_powerlaw_noUMI_phred_inc_snv = 5;
     int32_t  bias_FA_powerlaw_noUMI_phred_inc_indel = 7; // this is actually the intrinsic lower error rate of indel instead of the one after reduction by bias.
     
     int32_t  bias_FA_powerlaw_withUMI_phred_inc_snv = 7+7;
@@ -245,7 +250,7 @@ struct CommandLineArgs {
     uint32_t    indel_str_repeatsize_max = 6;
     double      indel_polymerase_size = 8.0;
     double      indel_polymerase_slip_rate = 8.0;
-    double      indel_del_to_ins_err_ratio = 4.0; // 4.0;
+    double      indel_del_to_ins_err_ratio = 5.0; // 4.0; // https://www.ncbi.nlm.nih.gov/pmc/articles/PMC149199/ Table 1 homopolymer error
     uint32_t    indel_adj_tracklen_div = 6;
     uint32_t    indel_adj_indellen_mul = 160; 
 

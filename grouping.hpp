@@ -185,6 +185,7 @@ bamfname_to_strand_to_familyuid_to_reads(
         size_t thread_id,
         unsigned int dedup_center_mult,
         unsigned int dedup_amplicon_count_to_surrcount_ratio,
+        unsigned int dedup_amplicon_count_to_surrcount_ratio_twosided,
         double dedup_amplicon_end2end_ratio,
         bool always_log,
         bool is_proton,

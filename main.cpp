@@ -495,12 +495,13 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
             regionbatch_tot_num,
             UMI_STRUCT_STRING,
             hts_idx,
-            ASSAY_TYPE_CAPTURE != paramset.assay_type,
+            MOLECULE_TAG_NONE != paramset.molecule_tag, //  ASSAY_TYPE_CAPTURE != paramset.assay_type,
             PAIR_END_MERGE_NO != paramset.pair_end_merge,
             paramset.disable_duplex,
             thread_id,
             paramset.dedup_center_mult,
             paramset.dedup_amplicon_count_to_surrcount_ratio,
+            paramset.dedup_amplicon_count_to_surrcount_ratio_twosided,
             paramset.dedup_amplicon_end2end_ratio,
             paramset.always_log,
             (SEQUENCING_PLATFORM_IONTORRENT == paramset.sequencing_platform),
@@ -756,6 +757,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                                 region_repeatvec.at(MIN(refpos - extended_inclu_beg_pos + 3, region_repeatvec.size() - 3)),
                                 ((is_var_rescued && (tki.VTI == LAST(fmt.VTI))) ? ((double)(tki.cDP1x + 1) / (double)(tki.CDP1x + 2)) : -1.0), /* tpfa */
                                 (ASSAY_TYPE_AMPLICON == inferred_assay_type),
+                                refsymbol,
                                 paramset,
                                 0);
                         fmt_tki_tup_vec.push_back(std::make_tuple(fmt, std::get<3>(bcad0a_indelstring_tki)));

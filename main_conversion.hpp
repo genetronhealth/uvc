@@ -526,6 +526,8 @@ enum SegFormatThresSet {
 #define NUM_SEG_FORMAT_THRES_SETS ((size_t)SEG_FORMAT_THRES_SET_END)
 
 enum SegFormatDepthSet {
+    SEG_aMQs,
+
     SEG_aDPff,
     SEG_aDPfr,
     SEG_aDPrf,

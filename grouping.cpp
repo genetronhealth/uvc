@@ -678,6 +678,7 @@ bamfname_to_strand_to_familyuid_to_reads(
         size_t thread_id,
         unsigned int dedup_center_mult,
         unsigned int dedup_amplicon_count_to_surrcount_ratio,
+        unsigned int dedup_amplicon_count_to_surrcount_ratio_twosided,
         double dedup_amplicon_end2end_ratio,
         bool always_log,
         bool is_proton,
@@ -824,7 +825,8 @@ bamfname_to_strand_to_familyuid_to_reads(
         double begfrac = (double)(beg2count + 1) / (double)(beg2surrcount + 2);
         double endfrac = (double)(end2count + 1) / (double)(end2surrcount + 2);
         
-        const bool is_assay_amplicon = (begfrac > dedup_amplicon_count_to_surrcount_ratio || endfrac > dedup_amplicon_count_to_surrcount_ratio);
+        const bool is_assay_amplicon = ((begfrac > dedup_amplicon_count_to_surrcount_ratio) || (endfrac > dedup_amplicon_count_to_surrcount_ratio)
+                || (min(begfrac, endfrac) > dedup_amplicon_count_to_surrcount_ratio_twosided));
         pcrpassed += is_assay_amplicon;
         
         // beg end qname UMI = 1 2 4 8
