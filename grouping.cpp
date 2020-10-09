@@ -883,7 +883,7 @@ bamfname_to_strand_to_familyuid_to_reads(
         }
         
         unsigned int strand = (isrc ^ isr2);
-        int dflag = (is_duplex_found ? 2 : (is_umi_found ? 1 : 0));
+        int dflag = (is_umi_found ? 1 : 0) + (is_duplex_found ? 2 : 0) + (is_assay_amplicon ? 4 : 0);
         umi_to_strand_to_reads.insert(std::make_pair(molecule_hash, std::make_pair(std::array<std::map<uint64_t, std::vector<bam1_t *>>, 2>(), dflag)));
         umi_to_strand_to_reads[molecule_hash].first[strand].insert(std::make_pair(qname_hash, std::vector<bam1_t *>()));
         umi_to_strand_to_reads[molecule_hash].first[strand][qname_hash].push_back(bam_dup1(aln));

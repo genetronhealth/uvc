@@ -434,21 +434,21 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
         "The percent increase in the corresponding threshold relative to the background noise level. ");
     
     ADD_OPTDEF(app,
-        "--bias-thres-aLRP1t-add",
-           bias_thres_aLRP1t_add,
-        "The tier-1-threshold of the number of bases to the left/right segment ends (LRP) below which the read support is not effective. ");
+        "--bias-thres-aLRP1t-minus",
+           bias_thres_aLRP1t_minus,
+        "The tier-1-threshold of the number of bases to the left/right segment ends (LRP) below which the read support is not effective, substracted from the average. ");
     ADD_OPTDEF(app,
-        "--bias-thres-aLRP2t-add",
-           bias_thres_aLRP2t_add,
-        "The tier-2-threshold of the number of bases to the left/right segment ends (LRP) below which the read support is not effective. ");
+        "--bias-thres-aLRP2t-minus",
+           bias_thres_aLRP2t_minus,
+        "The tier-2-threshold of the number of bases to the left/right segment ends (LRP) below which the read support is not effective, substracted from the average. ");
     ADD_OPTDEF(app,
-        "--bias-thres-aLRB1t-add",
-           bias_thres_aLRB1t_add,
-        "The tier-1-threshold of BAQ (base alignment quality) to the left/right segment ends (LRP) below which the read support is not effective. ");
+        "--bias-thres-aLRB1t-minus",
+           bias_thres_aLRB1t_minus,
+        "The tier-1-threshold of BAQ (base alignment quality) to the left/right segment ends (LRP) below which the read support is not effective, substracted from the average. ");
     ADD_OPTDEF(app,
-        "--bias-thres-aLRB2t-add",
-           bias_thres_aLRB2t_add,
-        "The tier-1-threshold of BAQ (base alignment quality) to the left/right segment ends (LRP) below which the read support is not effective. ");
+        "--bias-thres-aLRB2t-minus",
+           bias_thres_aLRB2t_minus,
+        "The tier-1-threshold of BAQ (base alignment quality) to the left/right segment ends (LRP) below which the read support is not effective, substracted from the average. ");
     
     ADD_OPTDEF(app,
         "--bias-thres-aLRI1T-perc",

@@ -80,7 +80,7 @@ struct CommandLineArgs {
     // so more accurate dedupping requires us to consider these cases. This constant is good enough for the general case.
     uint16_t    dedup_center_mult = 5; 
     uint16_t    dedup_amplicon_count_to_surrcount_ratio = 16;
-    uint16_t    dedup_amplicon_count_to_surrcount_ratio_twosided = 6;
+    uint16_t    dedup_amplicon_count_to_surrcount_ratio_twosided = 4; // 6;
     double      dedup_amplicon_end2end_ratio = 1.5;
     
     uint32_t    dedup_flag = 0x0;
@@ -111,7 +111,10 @@ struct CommandLineArgs {
     
     uint32_t bias_thres_highBQ = 20;
     uint32_t bias_thres_highBAQ = 23;
-
+    
+    uint32_t bias_thres_veryhighBQ = 20;
+    uint32_t bias_thres_veryhighBQ_pcr = 20;
+    
     uint32_t bias_thres_aLPxT_add = 5;
     uint32_t bias_thres_aLPxT_perc = 160;
         
@@ -125,19 +128,30 @@ struct CommandLineArgs {
     uint32_t bias_thres_PFGO1T_perc = 50;
     uint32_t bias_thres_PFGO2T_perc = 70;
     
-    int32_t  bias_thres_aLRP1t_add = 10;
-    int32_t  bias_thres_aLRP2t_add = 5;
-    int32_t  bias_thres_aLRB1t_add = 50;
-    int32_t  bias_thres_aLRB2t_add = 25;
+    int32_t  bias_thres_aLRP1t_minus = 10; // 10;
+    int32_t  bias_thres_aLRP2t_minus = 5; // 5;
+    int32_t  bias_thres_aLRB1t_minus = 50; // 50;
+    int32_t  bias_thres_aLRB2t_minus = 25; // 25;
     
-    uint32_t bias_thres_aLRI1T_perc = 250;
-    uint32_t bias_thres_aLRI2T_perc = 200;
+    std::array<uint32_t, 2> bias_thres_aLRP1t_avgmul_percs = {{100, 100}}; // 60 for PCR
+    std::array<uint32_t, 2> bias_thres_aLRP2t_avgmul_percs = {{100, 100}};
+    std::array<uint32_t, 2> bias_thres_aLRB1t_avgmul_percs = {{100, 100}}; // 60 for PCR
+    std::array<uint32_t, 2> bias_thres_aLRB2t_avgmul_percs = {{100, 100}};
+    
+    uint32_t bias_thres_aLRI1T_perc = 200; // 250;
+    uint32_t bias_thres_aLRI2T_perc = 150; // 200;
     uint32_t bias_thres_aLRI1t_perc = 50;
     uint32_t bias_thres_aLRI2t_perc = 67;
-    uint32_t bias_thres_aLRI1t_perc_pcr = 67;
-    uint32_t bias_thres_aLRI2t_perc_pcr = 75;
+    uint32_t bias_thres_aLRI1T_add = 250;
+    uint32_t bias_thres_aLRI2T_add = 150;
     
-
+    uint32_t bias_thres_aLRI1T_perc_pcr = 200; // 250;
+    uint32_t bias_thres_aLRI2T_perc_pcr = 150; // 200;
+    uint32_t bias_thres_aLRI1t_perc_pcr = 50; // 67
+    uint32_t bias_thres_aLRI2t_perc_pcr = 67; // 75
+    uint32_t bias_thres_aLRI1T_add_pcr = 250; // 350 for pcr
+    uint32_t bias_thres_aLRI2T_add_pcr = 150; // 250 for pcr
+    
     uint32_t bias_thres_PFBQ1 = 25;
     uint32_t bias_thres_PFBQ2 = 30;
     
@@ -178,8 +192,8 @@ struct CommandLineArgs {
     int32_t  bias_FA_powerlaw_noUMI_phred_inc_snv = 5;
     int32_t  bias_FA_powerlaw_noUMI_phred_inc_indel = 7; // this is actually the intrinsic lower error rate of indel instead of the one after reduction by bias.
     
-    int32_t  bias_FA_powerlaw_withUMI_phred_inc_snv = 7+7;
-    int32_t  bias_FA_powerlaw_withUMI_phred_inc_indel = 7+7;
+    int32_t  bias_FA_powerlaw_withUMI_phred_inc_snv = 5+3; // 7+7;
+    int32_t  bias_FA_powerlaw_withUMI_phred_inc_indel = 7+3; // 7+7;
 
 // *** 07. parameters related to read families
     
