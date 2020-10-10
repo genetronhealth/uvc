@@ -145,7 +145,7 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
                               "sum of squares of insertion lengths, sum of squares of deletion lengths, sum of the inverses of insertion lengths, sum of the inverses of deletion lengths, "
                               "and total segment depth of PCR amplicons."),
     //BcfFormatStruct("APGap" , 4,         BCF_INTEGER, "Estimated average numbers of insertion to the left and right sides (LRS) and of deletion to the LRS."),
-    BcfFormatStruct("APXM"  , 2,         BCF_INTEGER, "Total number of mismatches and total number of gap openings."),
+    BcfFormatStruct("APXM"  , 2+1,       BCF_INTEGER, "Total number of mismatches and total number of gap openings."),
     BcfFormatStruct("APLRI" , 4,         BCF_INTEGER, "Summed distance to left insert end and the number of such inserts, and similarly for right insert end."),
     BcfFormatStruct("APLRP" , 4,         BCF_INTEGER, "Summed distance to left and right ends, summed insertion length, and summed deletion length."),
     //BcfFormatStruct("APBP12",12,         BCF_INTEGER, "Depth, left-side, and right-side total number of bases for the A, C, G, and T alleles (corresponding to indices 0-2, 3-5, 6-8, and 9-11)."),
@@ -162,6 +162,9 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
 
     BcfFormatStruct("__A1"  , 1,         BCF_SEP,     "Depths of the raw sequencing segments for (all alleles) and (the padded deletion allele)."),
     BcfFormatStruct("AMQs"  , 2,         BCF_INTEGER, "Raw sequencing segment sum of mapping qualities."),
+    BcfFormatStruct("AXMp1" , 2,         BCF_INTEGER, "Raw sequencing segment sum of 100x depths normalized by the arithmetic inverse of mismatches in a 150-bp region window "
+                              "(zero or one mismatch counts as 100, two mismatches count as 100/2=50, threee mismatches count as 100/3=33, etc.)."),
+    
     BcfFormatStruct("ADPff" , 2,         BCF_INTEGER, "Raw sequencing segment depth with the R1-forward orientation and strand."),
     BcfFormatStruct("ADPfr" , 2,         BCF_INTEGER, "Raw sequencing segment depth with the R2-reverse orientation and strand."),
     BcfFormatStruct("ADPrf" , 2,         BCF_INTEGER, "Raw sequencing segment depth with the R2-forward orientation and strand."),
@@ -219,6 +222,9 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
 
     BcfFormatStruct("__a1"  , 1,         BCF_SEP,     "Depths of the raw sequencing segments for the REF and each ALT allele."),
     BcfFormatStruct("aMQs"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment sum of mapping qualities."),
+    BcfFormatStruct("aXMp1" , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment sum of 100x depths normalized by the arithmetic inverse of mismatches in a 150-bp region window "
+                              "(zero or one mismatch counts as 100, two mismatches count as 100/2=50, threee mismatches count as 100/3=33, etc.)."),
+    
     BcfFormatStruct("aDPff" , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth with the R1-forward orientation and strand."),
     BcfFormatStruct("aDPfr" , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth with the R2-reverse orientation and strand."),
     BcfFormatStruct("aDPrf" , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth with the R2-forward orientation and strand."),

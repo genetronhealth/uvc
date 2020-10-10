@@ -147,8 +147,8 @@ struct CommandLineArgs {
     
     uint32_t bias_thres_aLRI1T_perc_pcr = 200; // 250;
     uint32_t bias_thres_aLRI2T_perc_pcr = 150; // 200;
-    uint32_t bias_thres_aLRI1t_perc_pcr = 50; // 67
-    uint32_t bias_thres_aLRI2t_perc_pcr = 67; // 75
+    uint32_t bias_thres_aLRI1t_perc_pcr = 50; // 67; // 67
+    uint32_t bias_thres_aLRI2t_perc_pcr = 67; // 75; // 75
     uint32_t bias_thres_aLRI1T_add_pcr = 250; // 350 for pcr
     uint32_t bias_thres_aLRI2T_add_pcr = 150; // 250 for pcr
     
@@ -202,9 +202,9 @@ struct CommandLineArgs {
     uint32_t fam_pseudocount_ref = 300;
     
     uint16_t fam_phred_indel_err_before_barcode_labeling = 23; // phred_frac_indel_error_before_barcode_labeling = 23; // 12, 18, 24 // 23;
-    uint16_t fam_phred_sscs_transition_CG_TA = 44; // Cytosine deamination into Uracil, especially in FFPE samples, also by UV light radiation, more upstream
-    uint16_t fam_phred_sscs_transition_TA_CG = 48; // https://en.wikipedia.org/wiki/DNA_oxidation, DNA synthesis error, more downstream
-    uint16_t fam_phred_sscs_transversion_any = 52;
+    uint16_t fam_phred_sscs_transition_CG_TA = 44; // 44; // Cytosine deamination into Uracil, especially in FFPE samples, also by UV light radiation, more upstream
+    uint16_t fam_phred_sscs_transition_TA_CG = 48; // 48; // https://en.wikipedia.org/wiki/DNA_oxidation, DNA synthesis error, more downstream
+    uint16_t fam_phred_sscs_transversion_any = 52; // 52;
     uint16_t fam_phred_sscs_indel_open = 60; // 34;
     uint16_t fam_phred_sscs_indel_ext  = 0; // 5; // 0;  // 5;
     uint16_t fam_phred_dscs_all = 60;

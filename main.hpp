@@ -951,6 +951,7 @@ update_seg_format_prep_sets_by_aln(
                 seg_format_prep_sets.getRefByPos(rpos)[SEG_a_PCR_DP] += pcr_dp_inc;
                 seg_format_prep_sets.getRefByPos(rpos)[SEG_a_DP] += 1;
                 seg_format_prep_sets.getRefByPos(rpos)[SEG_a_XM] += xm150;
+                seg_format_prep_sets.getRefByPos(rpos)[SEG_a_XM100INV] += 100 * 10 / MAX(10, xm150);
                 seg_format_prep_sets.getRefByPos(rpos)[SEG_a_GO] += go150;
                 if (isrc) { 
                     seg_format_prep_sets.getRefByPos(rpos)[SEG_a_LI] += MIN(rpos - frag_pos_L + 1, MAX_INSERT_SIZE); 
@@ -1125,12 +1126,12 @@ update_seg_format_thres_from_prep_sets(
         
         const bool is_assay_amplicon = (p[SEG_a_PCR_DP] * 2 > p[SEG_a_DP]);
         
-        const auto bias_thres_aLRI1t_perc = (is_assay_amplicon ? paramset.bias_thres_aLRI1t_perc : paramset.bias_thres_aLRI1t_perc_pcr);
-        const auto bias_thres_aLRI2t_perc = (is_assay_amplicon ? paramset.bias_thres_aLRI2t_perc : paramset.bias_thres_aLRI2t_perc_pcr);
-        const auto bias_thres_aLRI1T_perc = (is_assay_amplicon ? paramset.bias_thres_aLRI1T_perc : paramset.bias_thres_aLRI1T_perc_pcr);
-        const auto bias_thres_aLRI2T_perc = (is_assay_amplicon ? paramset.bias_thres_aLRI2T_perc : paramset.bias_thres_aLRI2T_perc_pcr);
-        const auto bias_thres_aLRI1T_add  = (is_assay_amplicon ? paramset.bias_thres_aLRI1T_add  : paramset.bias_thres_aLRI1T_add_pcr);
-        const auto bias_thres_aLRI2T_add  = (is_assay_amplicon ? paramset.bias_thres_aLRI2T_add  : paramset.bias_thres_aLRI2T_add_pcr);
+        const auto bias_thres_aLRI1t_perc = (is_assay_amplicon ? paramset.bias_thres_aLRI1t_perc_pcr : paramset.bias_thres_aLRI1t_perc);
+        const auto bias_thres_aLRI2t_perc = (is_assay_amplicon ? paramset.bias_thres_aLRI2t_perc_pcr : paramset.bias_thres_aLRI2t_perc);
+        const auto bias_thres_aLRI1T_perc = (is_assay_amplicon ? paramset.bias_thres_aLRI1T_perc_pcr : paramset.bias_thres_aLRI1T_perc);
+        const auto bias_thres_aLRI2T_perc = (is_assay_amplicon ? paramset.bias_thres_aLRI2T_perc_pcr : paramset.bias_thres_aLRI2T_perc);
+        const auto bias_thres_aLRI1T_add  = (is_assay_amplicon ? paramset.bias_thres_aLRI1T_add_pcr  : paramset.bias_thres_aLRI1T_add);
+        const auto bias_thres_aLRI2T_add  = (is_assay_amplicon ? paramset.bias_thres_aLRI2T_add_pcr  : paramset.bias_thres_aLRI2T_add);
         
         t[SEG_aLI1T] = (unsigned int)((uint64_t)p[SEG_a_LI] * bias_thres_aLRI1T_perc / 100 / segLIDP + bias_thres_aLRI1T_add);
         t[SEG_aLI2T] = (unsigned int)((uint64_t)p[SEG_a_LI] * bias_thres_aLRI2T_perc / 100 / segLIDP + bias_thres_aLRI2T_add); // higher > stronger bias
@@ -1142,7 +1143,7 @@ update_seg_format_thres_from_prep_sets(
         t[SEG_aRI1t] = (unsigned int)((uint64_t)p[SEG_a_RI] * bias_thres_aLRI1t_perc / 100 / segRIDP);
         t[SEG_aRI2t] = (unsigned int)((uint64_t)p[SEG_a_RI] * bias_thres_aLRI2t_perc / 100 / segRIDP); // lower > stronger bias
         
-        const int assay_idx = (is_amplicon ? 1 : 0);
+        const int assay_idx = (is_assay_amplicon ? 1 : 0);
         const unsigned int aLRP1t_avgmul = paramset.bias_thres_aLRP1t_avgmul_percs[assay_idx];
         const unsigned int aLRP2t_avgmul = paramset.bias_thres_aLRP2t_avgmul_percs[assay_idx];
         const unsigned int aLRB1t_avgmul = paramset.bias_thres_aLRB1t_avgmul_percs[assay_idx];
@@ -1220,6 +1221,8 @@ dealwith_segbias(
         : (isrc ? symbol_to_seg_format_depth_set[SEG_aDPfr] : symbol_to_seg_format_depth_set[SEG_aDPff]));
     symbol_to_seg_aDP_depth_set += 1;
     
+    symbol_to_seg_format_depth_set[SEG_aXMp1] += 1000 / MAX(xm150, 10);
+
     const unsigned int const_XM1T = seg_format_thres_set[SEG_aXM1T];
     const unsigned int const_XM2T = seg_format_thres_set[SEG_aXM2T];
     const unsigned int const_GO1T = seg_format_thres_set[SEG_aGO1T];
@@ -2701,7 +2704,11 @@ BcfFormat_symboltype_init(bcfrec::BcfFormat & fmt,
         p[SEG_a_PCR_DP],
         }};
     
-    fmt.APXM  = {{ p[SEG_a_XM], p[SEG_a_GO] }};
+    fmt.APXM  = {{ 
+        p[SEG_a_XM], // / MAX(1, p[SEG_a_DP]), 
+        p[SEG_a_GO], // / MAX(1, p[SEG_a_DP]), 
+        p[SEG_a_XM100INV], // p[SEG_a_DP] * (100 * 10) / MAX(1, p[SEG_a_XM100INV]),
+    }};
     fmt.APLRI = {{ p[SEG_a_LI], p[SEG_a_LIDP], p[SEG_a_RI], p[SEG_a_RIDP] }};
     fmt.APLRP = {{ p[SEG_a_L_DIST_SUM], p[SEG_a_R_DIST_SUM], p[SEG_a_INSLEN_SUM], p[SEG_a_DELLEN_SUM] }};
     
@@ -2714,6 +2721,7 @@ BcfFormat_symboltype_init(bcfrec::BcfFormat & fmt,
     
     const auto & symbol_to_seg_format_depth_sets = symbol2CountCoverageSet12.symbol_to_seg_format_depth_sets;
     fill_symboltype_fmt(fmt.AMQs,  fmt.aMQs,  symbol_to_seg_format_depth_sets, SEG_aMQs,  refpos, symbolType, refsymbol); // this MQ can be used for addition and substraction.
+    fill_symboltype_fmt(fmt.AXMp1, fmt.aXMp1, symbol_to_seg_format_depth_sets, SEG_aXMp1, refpos, symbolType, refsymbol);
     
     fill_symboltype_fmt(fmt.ADPff, fmt.aDPff, symbol_to_seg_format_depth_sets, SEG_aDPff, refpos, symbolType, refsymbol);
     fill_symboltype_fmt(fmt.ADPfr, fmt.aDPfr, symbol_to_seg_format_depth_sets, SEG_aDPfr, refpos, symbolType, refsymbol);
@@ -2808,7 +2816,8 @@ BcfFormat_symbol_init(
     
     const auto & symbol_to_seg_format_depth_sets = symbol2CountCoverageSet12.symbol_to_seg_format_depth_sets;
     fill_symbol_fmt(fmt.aMQs,  symbol_to_seg_format_depth_sets, SEG_aMQs,  refpos, symbol, a);
-
+    fill_symbol_fmt(fmt.aXMp1, symbol_to_seg_format_depth_sets, SEG_aXMp1, refpos, symbol, a);
+    
     fill_symbol_fmt(fmt.aDPff, symbol_to_seg_format_depth_sets, SEG_aDPff, refpos, symbol, a);
     fill_symbol_fmt(fmt.aDPfr, symbol_to_seg_format_depth_sets, SEG_aDPfr, refpos, symbol, a);
     fill_symbol_fmt(fmt.aDPrf, symbol_to_seg_format_depth_sets, SEG_aDPrf, refpos, symbol, a);
@@ -3066,7 +3075,9 @@ BcfFormat_symbol_calc_DPv(
     fmt.note += std::string("b/c/o1/o2//") + other_join(std::vector<double> {{ bFA, cFA0, cROFA0, cROFA2 }}, "/") + "//";
     
     double cFA2 = (fmt.cDP2f[a] + fmt.cDP2r[a] + pfa) / (fmt.CDP2f[0] + fmt.CDP2r[0] + 1.0);
-    double cFA3 = (fmt.cDP3f[a] + fmt.cDP3r[a] + pfa + 1) / (fmt.CDP3f[0] + fmt.CDP3r[0] + 1.0 + 1);
+    // The following code without + 1 pseudocount in both nominator and denominator can result in false negative calls at low allele fraction (it is rare but can happen).
+    // double cFA3 = (fmt.cDP3f[a] + fmt.cDP3r[a] + pfa + 1) / (fmt.CDP3f[0] + fmt.CDP3r[0] + 1.0 + 1);
+    double cFA3 = (fmt.cDP3f[a] + fmt.cDP3r[a] + pfa) / (fmt.CDP3f[0] + fmt.CDP3r[0] + 1.0);
     assert( cFA2 > 0);
     assert( cFA2 < 1);
     assert( cFA3 > 0);

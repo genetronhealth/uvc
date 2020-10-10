@@ -432,6 +432,7 @@ enum SegFormatPrepSet {
     //SEG_a_DEL_R,
     SEG_a_XM,
     SEG_a_GO,
+    SEG_a_XM100INV,
     SEG_a_LI,
     SEG_a_LIDP,
     SEG_a_RI,
@@ -487,7 +488,7 @@ enum SegFormatThresSet {
     // SEG_aEP2t, 
     SEG_aLPxT,
     SEG_aRPxT,
-
+    
     SEG_aXM1T, // mismatch, higher means more bias
     SEG_aXM2T, 
     SEG_aGO1T, // gap-open, higher means more bias
@@ -528,6 +529,7 @@ enum SegFormatThresSet {
 
 enum SegFormatDepthSet {
     SEG_aMQs,
+    SEG_aXMp1,
 
     SEG_aDPff,
     SEG_aDPfr,
