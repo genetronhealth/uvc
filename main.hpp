@@ -1222,7 +1222,7 @@ dealwith_segbias(
     symbol_to_seg_aDP_depth_set += 1;
     
     symbol_to_seg_format_depth_set[SEG_aXMp1] += 1000 / MAX(xm150, 10);
-
+    
     const unsigned int const_XM1T = seg_format_thres_set[SEG_aXM1T];
     const unsigned int const_XM2T = seg_format_thres_set[SEG_aXM2T];
     const unsigned int const_GO1T = seg_format_thres_set[SEG_aGO1T];
@@ -2321,7 +2321,11 @@ struct Symbol2CountCoverageSet {
 
                             paramset,
                             0);
-                    read_family_con_ampl.updateByFiltering(read_ampBQerr_fragWithR1R2, std::array<unsigned int, NUM_SYMBOL_TYPES> {{ paramset.fam_thres_highBQ, 0 }});
+
+                    read_family_con_ampl.updateByFiltering(read_ampBQerr_fragWithR1R2, std::array<unsigned int, NUM_SYMBOL_TYPES> {{ 
+                            paramset.fam_thres_highBQ_snv, 
+                            ((SEQUENCING_PLATFORM_IONTORRENT != paramset.sequencing_platform) ? paramset.fam_thres_highBQ_indel : 0)
+                    }});
                 }
                 for (size_t epos = read_family_con_ampl.getIncluBegPosition(); epos < read_family_con_ampl.getExcluEndPosition(); epos++) {
                     const auto & con_ampl_symbol2count = read_family_con_ampl.getByPos(epos);
@@ -2354,8 +2358,12 @@ struct Symbol2CountCoverageSet {
                         // This is one round of bootstrapping for EM. We can use a full EM algorithm to improve this estimator, but it is probably overkill
                         // 0 means no coverage, 1 means no error correction, 2 means low quality family if the symbols disagree with each other, 
                         // 3 means up to 1 erroneous basecall is tolerated, 4 means up to 2 erroneous basecalls are tolerated
-                        if (tot_count < paramset.fam_thres_emperr_all_flat) { continue; } 
-                        if (con_count * 100 < tot_count * paramset.fam_thres_emperr_con_perc) { continue; }
+                        const auto fam_thres_emperr_all_flat = (isSymbolSubstitution(con_symbol) ? 
+                                paramset.fam_thres_emperr_all_flat_snv : paramset.fam_thres_emperr_all_flat_indel);
+                        const auto fam_thres_emperr_con_perc = (isSymbolSubstitution(con_symbol) ? 
+                                paramset.fam_thres_emperr_con_perc_snv : paramset.fam_thres_emperr_con_perc_indel);
+                        if (tot_count < fam_thres_emperr_all_flat) { continue; } 
+                        if (con_count * 100 < tot_count * fam_thres_emperr_con_perc) { continue; }
                         for (AlignmentSymbol symbol : SYMBOL_TYPE_TO_SYMBOLS[symbolType]) {
                             if (con_symbol != symbol) {
                                 this->symbol_to_fam_format_depth_sets_2strand[strand].getRefByPos(epos)[con_symbol][FAM_cDPm] += 
@@ -2406,7 +2414,10 @@ struct Symbol2CountCoverageSet {
                             paramset,
                             0);
                     // The line below is similar to : read_family_mmm_ampl.updateByConsensus<SYMBOL_COUNT_SUM>(read_ampBQerr_fragWithR1R2);
-                    read_family_con_ampl.updateByFiltering(read_ampBQerr_fragWithR1R2, std::array<unsigned int, NUM_SYMBOL_TYPES> {{ paramset.fam_thres_highBQ, 0 }});
+                    read_family_con_ampl.updateByFiltering(read_ampBQerr_fragWithR1R2, std::array<unsigned int, NUM_SYMBOL_TYPES> {{ 
+                            paramset.fam_thres_highBQ_snv, 
+                            ((SEQUENCING_PLATFORM_IONTORRENT != paramset.sequencing_platform) ? paramset.fam_thres_highBQ_indel : 0)
+                    }});
                     read_family_mmm_ampl.updateByMajorMinusMinor(read_ampBQerr_fragWithR1R2, false); 
                 }
                 if ((0x2 == (alns2pair2dflag.second & 0x2)) && alns2pair[0].size() > 0 && alns2pair[1].size() > 0) { // is duplex
@@ -2429,10 +2440,15 @@ struct Symbol2CountCoverageSet {
                         if (LINK_SYMBOL == symbolType) {
                             unsigned int con_count = read_family_con_ampl.getByPos(epos).getSymbolCount(con_symbol);
                             unsigned int tot_count = read_family_con_ampl.getByPos(epos).sumBySymbolType(symbolType);
-                            double effective_nreads = log((double)(con_count + 1) / (double)(tot_count - con_count + 1)) / log(2); // PCR errors
+                            unsigned int fam_n_mmm_reads = MAX(con_count * 2, tot_count + 1) - tot_count; // major minus minor
+                            unsigned int fam_n_minor_reads = (tot_count - con_count + 1);
+                            double effective_nreads = log((double)(fam_n_mmm_reads + fam_n_minor_reads) / (double)(fam_n_minor_reads)) / log(2); // PCR errors
                             double prior_weight = 1.0 / (minorcount + 1.0);
                             double realphred = prob2realphred((minorcount + prior_weight) / (majorcount + minorcount + prior_weight / phred2prob(confam_qual)));
-                            confam_qual = (unsigned int)MIN(effective_nreads * realphred, paramset.fam_phred_indel_err_before_barcode_labeling + realphred);
+                            // unsigned int n_units =  SYMBOL_TO_INDEL_N_UNITS[con_symbol];
+                            confam_qual = (unsigned int)ceil(MIN(
+                                    effective_nreads * realphred, 
+                                    MIN(paramset.fam_phred_indel_err_before_barcode_labeling /*+ n_units * 3 - 3*/, non_neg_minus(con_count, 1) * 3) + realphred));
                         } else {
                             double effective_nreads = (double)read_family_con_ampl.getByPos(epos).getSymbolCount(con_symbol);
                             double prior_weight = 1.0 / (minorcount + 1.0);
@@ -3228,8 +3244,10 @@ BcfFormat_symbol_calc_qual(
             paramset.fam_phred_sscs_transversion_any,
             paramset.fam_phred_sscs_indel_open,
             paramset.fam_phred_sscs_indel_ext);
-    const unsigned int powlaw_sscs_phrederr = sscs_mut_table.toPhredErrRate(refsymbol, symbol);
-    const unsigned int powlaw_sscs_inc1 = (powlaw_sscs_phrederr  - (isSymbolSubstitution(symbol) ? paramset.fam_phred_pow_sscs_SNV_origin : paramset.fam_phred_pow_sscs_indel_origin));
+    const int powlaw_sscs_phrederr = sscs_mut_table.toPhredErrRate(refsymbol, symbol);
+    const int powlaw_sscs_inc1 = (powlaw_sscs_phrederr  - (isSymbolSubstitution(symbol) ? paramset.fam_phred_pow_sscs_SNV_origin : paramset.fam_phred_pow_sscs_indel_origin));
+    const auto pl_withUMI_phred_inc = paramset.powlaw_anyvar_base 
+            + (isSymbolSubstitution(symbol) ? paramset.bias_FA_powerlaw_withUMI_phred_inc_snv : paramset.bias_FA_powerlaw_withUMI_phred_inc_indel);
     
     const unsigned int aDP = (fmt.aDPff[a] + fmt.aDPfr[a] + fmt.aDPrf[a] + fmt.aDPrr[a]);
     const unsigned int ADP = (fmt.ADPff[0] + fmt.ADPrf[0] + fmt.ADPfr[0] + fmt.ADPrr[0]);
@@ -3248,9 +3266,10 @@ BcfFormat_symbol_calc_qual(
     int cMmQ = sqrt((mathsquare(cMmQf) * fmt.cDP3f[a] + mathsquare(cMmQr) * fmt.cDP3r[a] ) / (fmt.cDP3f[a] + fmt.cDP3r[a]));
     */
     double prior_weight = 1.0 / (fmt.cDPmf[a] + fmt.cDPmr[a] + 1.0);
-    int cMmQ = (int)round(10/log(10) * log((fmt.cDPMf[a] + fmt.cDPmf[a] + fmt.cDPMr[a] + fmt.cDPmr[a] + pow(10, paramset.fam_thres_highBQ / 10.0) * prior_weight) 
+    const unsigned int fam_thres_highBQ = (isSymbolSubstitution(symbol) ? paramset.fam_thres_highBQ_snv : paramset.fam_thres_highBQ_indel); 
+    int cMmQ = (int)round(10/log(10) * log((fmt.cDPMf[a] + fmt.cDPmf[a] + fmt.cDPMr[a] + fmt.cDPmr[a] + pow(10, fam_thres_highBQ / 10.0) * prior_weight) 
             / (fmt.cDPmf[a] + fmt.cDPmr[a] + prior_weight)));
-
+    
 #if 0
     const int bIADnormcnt = (fmt.bIADb[a] * 100 + 1);
     // TODO: what is the theory behind bIAQinc ???
@@ -3270,13 +3289,21 @@ BcfFormat_symbol_calc_qual(
     int perbase_likeratio_q_x10_2 = perbase_likeratio_q_x10_1 + (int)round(10 * 10/log(10) * log((double)nbases_x100_2 / (double)nbases_x100_1));
     int duped_frag_binom_qual = ((isSymbolIns(symbol) || isSymbolDel(symbol)) ? perbase_likeratio_q_x10_1 : perbase_likeratio_q_x10_2) * nbases_x100_2 / (10 * 100);
     
-    // TODO: what is the theory behind sscs_dec ???
-    const int sscs_dec1 = (int)(mathsquare((double)(fmt.CDP1f[0] + fmt.CDP1r[0] + paramset.fam_pseudocount_ref) / (double)(fmt.BDPf[0] + fmt.BDPr[0] + paramset.fam_pseudocount_ref)) * 60);
-    const int sscs_dec2 = non_neg_minus((int)paramset.fam_thres_highBQ, cMmQ);
-    const int cIADnormcnt = (fmt.cIADf[a] * 100 + 1);
+    // sscs_dec1 requires at least 3 ng (900 genomic copies) of DNA starting material and an average of 3-fold of over-sequencing to become zero
+    // const int sscs_dec1 = (int)(mathsquare((double)(fmt.CDP1f[0] + fmt.CDP1r[0] + paramset.fam_pseudocount_ref) / (double)(fmt.BDPf[0] + fmt.BDPr[0] + paramset.fam_pseudocount_ref)) * 60);
+    const int normCDP1 = (fmt.CDP1f[0] + fmt.CDP1r[0] + 1);
+    const int normBDP = (fmt.BDPf[0] + fmt.BDPr[0] + 1);
+    const int sscs_dec1a = 2 * non_neg_minus(paramset.fam_min_n_copies, normCDP1)                             * (powlaw_sscs_inc1 + 3) 
+            / (paramset.fam_min_n_copies);
+    const int sscs_dec1b = 2 * non_neg_minus(normCDP1 * (paramset.fam_min_overseq_perc + 100) / 100, normBDP) * (powlaw_sscs_inc1 + 3) 
+            / MAX(1, normCDP1 * (paramset.fam_min_overseq_perc / 2 + 100) / 100);
+    const int sscs_dec1 = MAX(sscs_dec1a, sscs_dec1b);
+    
+    const int sscs_dec2 = non_neg_minus((int)fam_thres_highBQ, cMmQ);
+    const int cIADnormcnt = (fmt.cIADf[a] + fmt.cIADr[a]) * 100 + 1;
     int sscs_binom_qual_fw = fmt.cIAQf[a] + fmt.cIAQr[a] * MIN(paramset.fam_phred_dscs_all - fmt.cIDQf[a], fmt.cIDQr[a]) / MAX(fmt.cIDQr[a], 1);
     int sscs_binom_qual_rv = fmt.cIAQr[a] + fmt.cIAQf[a] * MIN(paramset.fam_phred_dscs_all - fmt.cIDQr[a], fmt.cIDQf[a]) / MAX(fmt.cIDQf[a], 1);
-    int dedup_sscs_binom_qual = MAX(sscs_binom_qual_fw, sscs_binom_qual_rv) * MIN(cIADnormcnt, fmt.cDP2v[a] + 1) / cIADnormcnt - sscs_dec1 - sscs_dec2;
+    int sscs_binom_qual = MAX(sscs_binom_qual_fw, sscs_binom_qual_rv) * MIN(cIADnormcnt, fmt.cDP2v[a] + 1) / cIADnormcnt - sscs_dec1 - sscs_dec2;
     
     double min_bcFA_v = (((double)(fmt.cDP1v[a]) + 0.5) / (double)(fmt.CDP1f[0] * 100 + fmt.CDP1r[0] * 100 + 1.0));
     const auto pl_noUMI_phred_inc = paramset.powlaw_anyvar_base 
@@ -3286,14 +3313,13 @@ BcfFormat_symbol_calc_qual(
     double min_bcFA_w = ((double)(fmt.cDP1w[a] + 0.5) / (double)(fmt.CDP1f[0] * 100 + fmt.CDP1r[0] * 100 + 1.0));
     int dedup_frag_powlaw_qual_w = (int)(paramset.powlaw_exponent * 10.0 / log(10.0) * log(min_bcFA_w) + (pl_noUMI_phred_inc + paramset.tn_q_inc_max));
     
-    int ds_vq_inc_powlaw = (int)(10/log(10)*MIN(log((fmt.cDP1f[a] + 0.5) / (fmt.CDP1f[0] + 1.0)), log((fmt.cDP1r[a] + 0.5) / (fmt.CDP1r[0] +1.0)))) 
+    int ds_vq_inc_powlaw = (int)(10/log(10)*MIN(log((fmt.cDP1f[a] + 0.5) / (fmt.CDP1f[0] + 1.0)), log((fmt.cDP1r[a] + 0.5) / (fmt.CDP1r[0] + 1.0)))) 
             + (powlaw_sscs_phrederr);
     int ds_vq_inc_binom = 3 * MIN(fmt.cDP2f[a], fmt.cDP2r[a]);
     
     const int powlaw_sscs_inc2 = (int)MAX(0, MIN5(sscs_binom_qual_fw, sscs_binom_qual_rv, ds_vq_inc_powlaw, ds_vq_inc_binom, 3));
     double umi_cFA =  (((double)(fmt.cDP2v[a]) + 0.5) / ((double)(fmt.CDP2f[0] * 100 + fmt.CDP2r[0] * 100) + 1.0 + 300));
-    const auto pl_withUMI_phred_inc = paramset.powlaw_anyvar_base 
-            + (isSymbolSubstitution(symbol) ? paramset.bias_FA_powerlaw_withUMI_phred_inc_snv : paramset.bias_FA_powerlaw_withUMI_phred_inc_indel);
+    
     int sscs_base_2 = pl_withUMI_phred_inc + powlaw_sscs_inc1 + powlaw_sscs_inc2 - sscs_dec1 - sscs_dec2;
     int sscs_powlaw_qual_v = (int)((paramset.powlaw_exponent * 10.0 / log(10.0) * log(umi_cFA)    + sscs_base_2));
     int sscs_powlaw_qual_w = (int)((paramset.powlaw_exponent * 10.0 / log(10.0) * log(min_bcFA_w) + sscs_base_2 + paramset.tn_q_inc_max));
@@ -3344,11 +3370,19 @@ BcfFormat_symbol_calc_qual(
                 ;
         dedup_frag_powlaw_qual_v += (int)(indel_ic);
         dedup_frag_powlaw_qual_w += (int)(indel_ic);
-        duped_frag_binom_qual  += (int)(indel_pq);
+        duped_frag_binom_qual += (int)(indel_pq);
+        
+        // assume that first PCR-cycle InDel error rate approx equals to in-vivo error rate over multiple cell generations.
+        // const double sscs_indel_ic = 2 * 10.0 / log(10.0) * log((double)MAX(indelstring.size() + (isSymbolIns(symbol) ? INS_N_ANCHOR_BASES : 0), 1U) / (double)(MAX(repeatunit.size(), 1)));
+        const double sscs_indel_ic = 10.0 / log(10.0) * log((double)mathsquare(MAX(indelstring.size() + (isSymbolIns(symbol) ? INS_N_ANCHOR_BASES : 0), 1U)) / (double)(MAX(eff_tracklen1, eff_tracklen2) + 1));
+        
+        sscs_powlaw_qual_v += (int)(sscs_indel_ic); // + (isSymbolIns(symbol) ? 3 : -3); // (int)MAX(0, indel_ic - paramset.bias_FA_powerlaw_noUMI_phred_inc_indel);
+        sscs_powlaw_qual_w += (int)(sscs_indel_ic); // + (isSymbolIns(symbol) ? 3 : -3); // (int)MAX(0, indel_ic - paramset.bias_FA_powerlaw_noUMI_phred_inc_indel);
+        sscs_binom_qual += (int)(indel_pq);
     }
     
     clear_push(fmt.bIAQ, duped_frag_binom_qual, a);
-    clear_push(fmt.cIAQ, dedup_sscs_binom_qual, a);
+    clear_push(fmt.cIAQ, sscs_binom_qual, a);
     
     clear_push(fmt.cPCQ1, dedup_frag_powlaw_qual_w, a);
     clear_push(fmt.cPLQ1, dedup_frag_powlaw_qual_v, a);

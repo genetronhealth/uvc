@@ -195,9 +195,13 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
         "Assay type. " + stringvec_to_descstring(ASSAY_TYPE_TO_MSG));
     
     ADD_OPTDEF(app,
-        "--fam-thres-highBQ", 
-           fam_thres_highBQ,
-        "Threshold of base quality below which the base support is discarded in a barcode family. ");
+        "--fam-thres-highBQ-snv", 
+           fam_thres_highBQ_snv,
+        "Threshold of base quality below which the base support is discarded in a barcode family for SNVs. ");
+    ADD_OPTDEF(app,
+        "--fam-thres-highBQ-indel", 
+           fam_thres_highBQ_indel,
+        "Threshold of base quality below which the base support is discarded in a barcode family for InDels. ");
     ADD_OPTDEF(app,
         "--fam-thres-dup1add", 
            fam_thres_dup1add,
@@ -595,18 +599,32 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
 // *** 07. parameters related to read families
     
     ADD_OPTDEF(app,
-        "--fam-thres-emperr-all-flat",
-           fam_thres_emperr_all_flat, 
-        "Maximum phred score for single-strand consensus sequences (SSCSs) for C:G > T:A transition");
+        "--fam-thres-emperr-all-flat-snv",
+           fam_thres_emperr_all_flat_snv, 
+        "Mininum number of read support of all alleles needed to compute the empirical basecall error for SNVs");
     ADD_OPTDEF(app,
-        "--fam-thres-emperr-con-perc",
-           fam_thres_emperr_con_perc,
-        "Maximum phred score for single-strand consensus sequences (SSCSs) for C:G > T:A transition");
-     ADD_OPTDEF(app,
-        "--fam-pseudocount-ref",
-           fam_pseudocount_ref,
-        "Maximum phred score for single-strand consensus sequences (SSCSs) for C:G > T:A transition");
+        "--fam-thres-emperr-all-flat-indel",
+           fam_thres_emperr_all_flat_indel, 
+        "Mininum number of read support of all alleles needed to compute the empirical basecall-like error for InDels");
+    ADD_OPTDEF(app,
+        "--fam-thres-emperr-con-perc-snv",
+           fam_thres_emperr_con_perc_snv,
+        "Mininum percent of read support of consensus allele needed to compute the empirical basecall error for SNVs");
+    ADD_OPTDEF(app,
+        "--fam-thres-emperr-con-perc-indel",
+           fam_thres_emperr_con_perc_indel, 
+        "Mininum percent of read support of consensus alllele needed to compute the empirical basecall-like error for InDels");
     
+    ADD_OPTDEF(app,
+        "--fam-min-n-copies",
+           fam_min_n_copies,
+        "Mininum number of DNA copies (1 ng contains approximately 300 copies of human genome) to have zero penalty for UMI-labeled barcode-family.");
+    ADD_OPTDEF(app,
+        "--fam-min-overseq-perc",
+           fam_min_overseq_perc,
+        "Mininum percentage of over-sequencing (one plus average family size) to have zero penalty for UMI-labeled barcode-family.");
+    
+
     ADD_OPTDEF(app,
         "--fam-phred-indel-err-before-barcode-labeling",
            fam_phred_indel_err_before_barcode_labeling,

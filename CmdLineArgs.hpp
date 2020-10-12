@@ -27,7 +27,8 @@ struct CommandLineArgs {
     
     AssayType assay_type = ASSAY_TYPE_AUTO;
     
-    uint32_t fam_thres_highBQ = 25;
+    uint32_t fam_thres_highBQ_snv = 25;
+    uint32_t fam_thres_highBQ_indel = 13;
     uint32_t fam_thres_dup1add = 2;
     uint32_t fam_thres_dup1perc = 80;
     uint32_t fam_thres_dup2add = 3;
@@ -192,16 +193,22 @@ struct CommandLineArgs {
     int32_t  bias_FA_powerlaw_noUMI_phred_inc_snv = 5;
     int32_t  bias_FA_powerlaw_noUMI_phred_inc_indel = 7; // this is actually the intrinsic lower error rate of indel instead of the one after reduction by bias.
     
-    int32_t  bias_FA_powerlaw_withUMI_phred_inc_snv = 5+3; // 7+7;
-    int32_t  bias_FA_powerlaw_withUMI_phred_inc_indel = 7+3; // 7+7;
+    int32_t  bias_FA_powerlaw_withUMI_phred_inc_snv = 5; // +3; // 7+7;
+    int32_t  bias_FA_powerlaw_withUMI_phred_inc_indel = 7; // +3; // 7+7;
 
 // *** 07. parameters related to read families
     
-    uint32_t fam_thres_emperr_all_flat = 4;
-    uint32_t fam_thres_emperr_con_perc = 67;
-    uint32_t fam_pseudocount_ref = 300;
+    uint32_t fam_thres_emperr_all_flat_snv = 4;
+    uint32_t fam_thres_emperr_con_perc_snv = 67;
+    uint32_t fam_thres_emperr_all_flat_indel = 4; // 5;
+    uint32_t fam_thres_emperr_con_perc_indel = 67; // 75;
     
-    uint16_t fam_phred_indel_err_before_barcode_labeling = 23; // phred_frac_indel_error_before_barcode_labeling = 23; // 12, 18, 24 // 23;
+    int32_t fam_min_n_copies = 300 * 3; // three nanograms
+    int32_t fam_min_overseq_perc = 300; // three-fold over-sequencing (average of four reads per family)
+
+    // 10: error of 10 PCR cycles using low-fidelity polymerase, https://www.nature.com/articles/s41598-020-63102-8
+    // 13: reduction in error by using high-fidelity polymerase for UMI assay, https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3287198/ 
+    uint16_t fam_phred_indel_err_before_barcode_labeling = 10+13; // 23; // phred_frac_indel_error_before_barcode_labeling = 23; // 12, 18, 24 // 23;
     uint16_t fam_phred_sscs_transition_CG_TA = 44; // 44; // Cytosine deamination into Uracil, especially in FFPE samples, also by UV light radiation, more upstream
     uint16_t fam_phred_sscs_transition_TA_CG = 48; // 48; // https://en.wikipedia.org/wiki/DNA_oxidation, DNA synthesis error, more downstream
     uint16_t fam_phred_sscs_transversion_any = 52; // 52;
@@ -210,7 +217,7 @@ struct CommandLineArgs {
     uint16_t fam_phred_dscs_all = 60;
     
     double   fam_phred_pow_sscs_SNV_origin = 48 - 41; // 10*log((2.7e-3-3.5e-5)/(1.5e-4-3.5e-5))/log(10)*3 = 41 from https://doi.org/10.1073/pnas.1208715109
-    double   fam_phred_pow_sscs_indel_origin = 60 - 60; // 60 - 38; 
+    double   fam_phred_pow_sscs_indel_origin = fam_phred_sscs_indel_open - (fam_phred_indel_err_before_barcode_labeling + 13 * 2); // 60; // 60 - 38; 
     double   fam_phred_pow_dscs_all_origin = 0;
     
 // *** 08. parameters related to systematic errors
