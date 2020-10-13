@@ -34,7 +34,7 @@ SequencingPlatform
 CommandLineArgs::selfUpdateByPlatform() {
     SequencingPlatform inferred_sequencing_platform = this->sequencing_platform;
     if (SEQUENCING_PLATFORM_AUTO == this->sequencing_platform || SEQUENCING_PLATFORM_OTHER == this->sequencing_platform) {
-        samFile *sam_infile = sam_open(this->bam_input_fname.c_str(), "r"); // AlignmentFile(samfname, "rb")
+        samFile *sam_infile = sam_open(this->bam_input_fname.c_str(), "r");
         if (NULL == sam_infile) {
             fprintf(stderr, "Failed to open the file %s", this->bam_input_fname.c_str());
             exit(-32);
@@ -77,21 +77,19 @@ CommandLineArgs::selfUpdateByPlatform() {
     }
     if (SEQUENCING_PLATFORM_IONTORRENT == inferred_sequencing_platform && SEQUENCING_PLATFORM_OTHER != this->sequencing_platform) {
         bq_phred_added_indel += 0;
-        bq_phred_added_misma += 4; // it was 6
+        bq_phred_added_misma += 4;
         syserr_minABQ_pcr_snv += 0;
         syserr_minABQ_pcr_indel += 0;
         syserr_minABQ_cap_snv += 0;
         syserr_minABQ_cap_indel += 0;
-        // if (0 == highqual_thres_indel) { highqual_thres_indel = highqual_thres_snv - 4; }
     }
     if (SEQUENCING_PLATFORM_ILLUMINA == inferred_sequencing_platform && SEQUENCING_PLATFORM_OTHER != this->sequencing_platform) {
-        bq_phred_added_indel += 0; // 14; // 17-1; // 18; // 16; // 17; // 18; // 19; // 17; // 10; // 0; // 6; //10;
+        bq_phred_added_indel += 0;
         bq_phred_added_misma += 0;
-        syserr_minABQ_pcr_snv += 19 * 10; // 190; // 180; // 19; // 25;
-        syserr_minABQ_pcr_indel += syserr_minABQ_pcr_snv - 9 * 10; // 110; // 90; // 10; // 15; // 18;
-        syserr_minABQ_cap_snv += 19 * 10; // 190; // 180; // 19; // 23;
-        syserr_minABQ_cap_indel += syserr_minABQ_cap_snv - 9 * 10; // 110; // 90; // 10; // 5; // 13;
-        // if (0 == highqual_thres_indel) { highqual_thres_indel = highqual_thres_snv + 6; }
+        syserr_minABQ_pcr_snv += 19 * 10;
+        syserr_minABQ_pcr_indel += syserr_minABQ_pcr_snv - 9 * 10;
+        syserr_minABQ_cap_snv += 19 * 10;
+        syserr_minABQ_cap_indel += syserr_minABQ_cap_snv - 9 * 10;
     }
     return inferred_sequencing_platform;
 }
@@ -128,7 +126,6 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     unsigned int sequencing_platform_uint = (unsigned int)sequencing_platform;
     unsigned int pair_end_merge_uint = (unsigned int)pair_end_merge;
     
-    // more frequently used options
     app.add_flag_function("-v,--version", version_cb, "Show the version of this program. ");
     
 // *** 00. frequently used parameters
@@ -201,7 +198,7 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     ADD_OPTDEF(app,
         "--fam-thres-highBQ-indel", 
            fam_thres_highBQ_indel,
-        "Threshold of base quality below which the base support is discarded in a barcode family for InDels. ");
+        "Threshold of base quality below which the base support is discarded in a barcode family for InDels for the Illumina/BGI platforms. ");
     ADD_OPTDEF(app,
         "--fam-thres-dup1add", 
            fam_thres_dup1add,
@@ -260,6 +257,7 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
         "--mapqual", 
            min_mapqual,
         "Minimum mapping quality below which the alignment is filtered out. ");
+    
     ADD_OPTDEF(app, 
         "-d,--min-depth", 
            min_depth_thres, 
@@ -354,6 +352,12 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
         "centroidCount/surroundingCount of reads ending at a position above which the assay is inferred to be amplicon. "
         "Assay type can be override on command-line");
     ADD_OPTDEF(app, 
+        "--dedup-amplicon-count-to-surrcount-ratio-twosided", 
+           dedup_amplicon_count_to_surrcount_ratio_twosided, 
+        "centroidCount/surroundingCount of reads ending at a position above which the assay is inferred to be amplicon. "
+        "Assay type can be override on command-line");
+    
+    ADD_OPTDEF(app, 
         "--dedup-amplicon-end2end-ratio", 
            dedup_amplicon_end2end_ratio,
         "oneEndSegmentCount/otherEndSegmentCount above which the assay is inferred to be amplicon UMI");
@@ -367,24 +371,6 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     
 // *** 05. parameters related to bias thresholds
     
-    ADD_OPTDEF(app,
-        "--bias-flag-amp-snv", 
-           bias_flag_amp_snv, 
-        "Flag where each bit enables evidence reduction by each bias for SNVs and amplicon assay. "
-        + stringvec_to_descstring(BIAS_TYPE_TO_MSG));
-    ADD_OPTDEF(app,
-        "--bias-flag-amp-indel", 
-           bias_flag_amp_indel, 
-        "Flag where each bit enables evidence reduction by each bias for InDels and amplicon assay. ");
-    ADD_OPTDEF(app,
-        "--bias-flag-cap-snv", 
-           bias_flag_cap_snv, 
-        "Flag where each bit enables evidence reduction by each bias for SNVs and capture assay. ");
-    ADD_OPTDEF(app,
-        "--bias-flag-cap-indel", 
-           bias_flag_cap_indel, 
-        "Flag where each bit enables evidence reduction by each bias for InDels and capture assay. ");
-   
     ADD_OPTDEF(app,
         "--bias-thres-highBQ", 
            bias_thres_highBQ, 
@@ -455,30 +441,64 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
         "The tier-1-threshold of BAQ (base alignment quality) to the left/right segment ends (LRP) below which the read support is not effective, substracted from the average. ");
     
     ADD_OPTDEF(app,
+        "--bias-thres-aLRP1t-avgmul-perc",
+           bias_thres_aLRP1t_avgmul_perc,
+        "The percent of the tier-1 average number of bases to the left/right segment ends (LRP) below which the read support is not effective. ");
+    ADD_OPTDEF(app,
+        "--bias-thres-aLRP2t-avgmul-perc",
+           bias_thres_aLRP2t_avgmul_perc,
+        "The percent of the tier-2 average number of bases to the left/right segment ends (LRP) below which the read support is not effective. ");
+    ADD_OPTDEF(app,
+        "--bias-thres-aLRB1t-avgmul-perc",
+           bias_thres_aLRB1t_avgmul_perc,
+        "The percent of the tier-1 average BAQ to the left/right segment ends (LRB) below which the read support is not effective. ");
+    ADD_OPTDEF(app,
+        "--bias-thres-aLRB2t-avgmul-perc",
+           bias_thres_aLRB2t_avgmul_perc,
+        "The percent of the tier-2 average BAQ to the left/right segment ends (LRB) below which the read support is not effective. ");
+
+    ADD_OPTDEF(app,
         "--bias-thres-aLRI1T-perc",
            bias_thres_aLRI1T_perc,
-        "The tier1-threshold of the number of bases to the left/right insert ends (LRI) below which the read support is not effective. ");
+        "Tier-1 percent coefficient of the average number of bases to the left/right insert ends (LRI), "
+        "used for determinating the threshold below which the read support is not effective. ");
     ADD_OPTDEF(app,
         "--bias-thres-aLRI2T-perc",
            bias_thres_aLRI2T_perc,
-        "The tier2-threshold of 10x mismatch (XM) below which the estimated 100x number of passing-filter (PF) reads decreases quadratically. ");
+        "Tier-2 percent coefficient of the average number of bases to the left/right insert ends (LRI), "
+        "used for determinating the threshold below which the read support is not effective. ");
     ADD_OPTDEF(app,
         "--bias-thres-aLRI1t-perc",
            bias_thres_aLRI1t_perc,
-        "The percent increase in the corresponding threshold relative to the background noise level. ");
+        "Tier-1 percent coefficient of the average BAQ (base alignment quality) to the left/right insert ends (LRI), "
+        "used for determinating the threshold below which the read support is not effective. ");
     ADD_OPTDEF(app,
         "--bias-thres-aLRI2t-perc",
            bias_thres_aLRI2t_perc,
-        "The percent increase in the corresponding threshold relative to the background noise level. ");
+        "Tier-2 percent coefficient of the average BAQ (base alignment quality) to the left/right insert ends (LRI), "
+        "used for determinating the threshold below which the read support is not effective. ");
+    
+    ADD_OPTDEF(app,
+        "--bias-thres-aLRI1T-add",
+           bias_thres_aLRI1T_add,
+        "Tier-1 additive constant to the number of bases to the left/right insert ends (LRI), "
+        "used for determinating the threshold below which the read support is not effective. ");
+    ADD_OPTDEF(app,
+        "--bias-thres-aLRI2T-add",
+           bias_thres_aLRI2T_add,
+        "Tier-2 additive constant to the number of bases to the left/right insert ends (LRI), "
+        "used for determinating the threshold below which the read support is not effective. ");
     
     ADD_OPTDEF(app,
         "--bias-thres-PFBQ1",
            bias_thres_PFBQ1,
-        "The tier-1-threshold of base quality (BQ) below which the estimated 100x number of PF reads decreases according to the inverse-square law. ");
+        "The tier-1 threshold of base quality (BQ) below which "
+        "the estimated 100x number of PF (passing filter) reads decreases according to the inverse-square law. ");
     ADD_OPTDEF(app,
         "--bias-thres-PFBQ2",
            bias_thres_PFBQ2,
-        "The tier-2-threshold of base quality (BQ) below which the estimated 100x number of PF reads decreases according to the inverse-square law. ");
+        "The tier-2 threshold of base quality (BQ) below which "
+        "the estimated 100x number of PF (passing filter) reads decreases according to the inverse-square law. ");
     
     ADD_OPTDEF(app,
         "--bias-thres-aXM1T-add",
@@ -488,7 +508,13 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     ADD_OPTDEF(app,
         "--bias-thres-interfering-indel",
            bias_thres_interfering_indel,
-        "If the reference allele is at most this number of bases away from the nearest InDel, then this reference allele is interfered by this InDel. ");
+        "If the reference allele is at most this number of bases away from the nearest low-quality InDel, then this reference allele is interfered by this InDel. ");
+    ADD_OPTDEF(app,
+        "--bias-thres-interfering-indel-BQ",
+           bias_thres_interfering_indel_BQ,
+        "The nearby InDel is of low-quality if the minimum BQ (base quality) of the two bases anchoring the InDel (plus all inserted bases if applicable) "
+        "is lower than this value. ");
+    
     ADD_OPTDEF(app,
         "--bias-thres-BAQ1",
            bias_thres_BAQ1,
@@ -504,11 +530,11 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
         "--bias-prior-pseudocount",
            bias_prior_pseudocount,
         "The minimum prior weight of the null hypothesis that there is no bias. ");
-    
     ADD_OPTDEF(app,
         "--bias-prior-DPadd-perc",
            bias_prior_DPadd_perc,
         "The percentage of variant InDel read support that is not considered when checking if any InDel is nearby. ");
+    
     ADD_OPTDEF(app,
         "--bias-prior-pos",
            bias_prior_pos,
@@ -629,7 +655,6 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
         "--fam-phred-indel-err-before-barcode-labeling",
            fam_phred_indel_err_before_barcode_labeling,
         "PHRED-scaled fraction of InDel errors that occurred before the attachment of UMI single-strand barcodes. ");
-    
     ADD_OPTDEF(app, 
         "--fam-phred-sscs-transition-CG-TA", 
            fam_phred_sscs_transition_CG_TA, 
@@ -763,19 +788,7 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
         "--germ-phred-het3al-indel", 
            germ_phred_het3al_indel,   
         "Phred-scaled prior probability of 1/2 heterozygous germline polymorphism at a genomic position for SNPs.");
-    
-    /*
-    ADD_OPTDEF(app, 
-        "--is-somatic-snv-filtered-by-any-nonref-germline-snv", 
-           is_somatic_snv_filtered_by_any_nonref_germline_snv,
-        "Set to 0 (zero, false) if reject any nonref germline and to 1 (one, true) if only reject the specific ALT germline for SNV candidate. "); 
-    ADD_OPTDEF(app, 
-        "--is-somatic-indel-filtered-by-any-nonref-germline-indel", 
-           is_somatic_indel_filtered_by_any_nonref_germline_indel,
-        "Set to 0 (zero, false) if reject any nonref germline and to 1 (one, true) if only reject the specific ALT germline for InDel candidate. "); 
-    */ 
-
-
+        
 // *** 10. parameters related to tumor-normal-pairs.
     ADD_OPTDEF(app,
         "--tn-q-inc-max",
@@ -809,9 +822,14 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
            indel_del_to_ins_err_ratio,
         "For InDels, the number of times that deletion is more likely (PMC149199).");
     ADD_OPTDEF(app,
-        "--indel-adj-tracklen-div",
-           indel_adj_tracklen_div,
-        "For InDels, the number of times that the STR track length of nearby STR is divided for the track length to be effective for this position.");
+        "--indel-adj-tracklen-dist",
+           indel_adj_tracklen_dist,
+        "InDels within this number of bases of each other are considered to be close to each other.");
+    ADD_OPTDEF(app,
+        "--indel-adj-indellen-perc",
+           indel_adj_indellen_perc,
+        "For InDels, the multiplicative percent coefficient of the InDel length used to determine the base-distance threshold, "
+        "other InDels found within this threshold make the InDel at this position more likely to be false positive.");
     
     ADD_OPTDEF(app,
         "--indel-multiallele-samepos-penal",
@@ -821,7 +839,6 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
         "--indel-multiallele-diffpos-penal",
            indel_multiallele_diffpos_penal,
         "For InDels, the Phred-scale penalty of having more than two alelles that are overlapping with each other. ");
-   
     ADD_OPTDEF(app,
         "--indel-multiallele-soma-penal-thres",
            indel_multiallele_soma_penal_thres,
@@ -840,10 +857,6 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
            indel_ins_penal_pseudocount,
         "For InDels, the length of inserted sequence at which at most half of the inserted sequences are erroneous.");
     
-    ADD_OPTDEF(app,
-        "--indel-str-dist",
-           indel_STR_dist,
-        "For InDels, the number of bases to the closest STR (short tandem repeat) below which the InDel is considered to be affected by this STR.");
     ADD_OPTDEF(app,
         "--indel-nonSTR-phred-per-base",
            indel_nonSTR_phred_per_base,

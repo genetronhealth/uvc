@@ -67,8 +67,8 @@ struct CommandLineArgs {
     uint32_t    primerlen = 23;
     
     uint16_t    central_readlen = 0; // estimate from the data
-    uint16_t    bq_phred_added_indel = 0; // estimate from the data
     uint16_t    bq_phred_added_misma = 0; // estiamte from the data
+    uint16_t    bq_phred_added_indel = 0; // estimate from the data
     
     double      powlaw_exponent = 3.0; // universality constant
     double      powlaw_anyvar_base = (double)(60+25+5); // universality constant
@@ -85,43 +85,18 @@ struct CommandLineArgs {
     double      dedup_amplicon_end2end_ratio = 1.5;
     
     uint32_t    dedup_flag = 0x0;
-    /*      Reward                                  Penalty         
-            
-            (B)     N/raw   N/UMI   N/DCS   (D-F)   N/raw   N/UMI   N/DCS
-    SNV:    T/raw   1       no      no      T/raw   1       yes yes
-            T/UMI   1       1       no      T/UMI   0.5     1   yes
-            T/DCS   1       1       1       T/DCS   0       0   1
-        
-    InDel   (B)     N/raw   N/UMI   N/DCS   (5)     N/raw   N/UMI   N/DCS
-            T/raw   1       no      no      T/raw   0       yes yes
-            T/UMI   1       1       no      T/UMI   0       1   yes
-            T/DCS   1       1       1       T/DCS   0       0   1
-    */
-    // (1011 11?1 1011 0101 or equivalently 11 13-15 11 5)
-    
-    // uint32_t    bitflag_InDel_penal_t_UMI_n_UMI eq 0xBFB5; // combine the four above hex letters in parentheses from left-to-right then top-to-bottom.
-    // uint32_t    ref_bias_awareness eq 0x2; // The 0x1 bit is for amplicon and the 0x2 bit is for non-amplicon
-    
     
 // *** 05. parameters related to bias thresholds
-    
-    uint32_t bias_flag_amp_snv = (BIAS_FRAG_DUP | BIAS_FRAG_POS | BIAS_FRAG_STR | BIAS_FRAG_MIS);
-    uint32_t bias_flag_amp_indel = (BIAS_FRAG_DUP | BIAS_FRAG_POS | BIAS_FRAG_STR | BIAS_FRAG_MIS);
-    uint32_t bias_flag_cap_snv = (BIAS_FRAG_DUP | BIAS_FRAG_POS | BIAS_FRAG_STR | BIAS_FRAG_MIS | BIAS_SSEG_POS | BIAS_SSEG_STR);
-    uint32_t bias_flag_cap_indel = (BIAS_FRAG_DUP | BIAS_FRAG_POS | BIAS_FRAG_STR | BIAS_FRAG_MIS | BIAS_SSEG_POS | BIAS_SSEG_STR);
     
     uint32_t bias_thres_highBQ = 20;
     uint32_t bias_thres_highBAQ = 23;
     
-    uint32_t bias_thres_veryhighBQ = 20;
-    uint32_t bias_thres_veryhighBQ_pcr = 20;
-    
     uint32_t bias_thres_aLPxT_add = 5;
     uint32_t bias_thres_aLPxT_perc = 160;
         
-    uint32_t bias_thres_PFXM1T_add = 35;
+    uint32_t bias_thres_PFXM1T_add = 35; // set very high to disable mismatch bias
     uint32_t bias_thres_PFXM2T_add = 20;
-    uint32_t bias_thres_PFGO1T_add = 25;
+    uint32_t bias_thres_PFGO1T_add = 25; // set very high to disable gap bias
     uint32_t bias_thres_PFGO2T_add = 15;
     
     uint32_t bias_thres_PFXM1T_perc = 50;
@@ -129,70 +104,63 @@ struct CommandLineArgs {
     uint32_t bias_thres_PFGO1T_perc = 50;
     uint32_t bias_thres_PFGO2T_perc = 70;
     
-    int32_t  bias_thres_aLRP1t_minus = 10; // 10;
-    int32_t  bias_thres_aLRP2t_minus = 5; // 5;
-    int32_t  bias_thres_aLRB1t_minus = 50; // 50;
-    int32_t  bias_thres_aLRB2t_minus = 25; // 25;
+    int32_t  bias_thres_aLRP1t_minus = 10;
+    int32_t  bias_thres_aLRP2t_minus = 5;
+    int32_t  bias_thres_aLRB1t_minus = 50;
+    int32_t  bias_thres_aLRB2t_minus = 25;
     
-    std::array<uint32_t, 2> bias_thres_aLRP1t_avgmul_percs = {{100, 100}}; // 60 for PCR
-    std::array<uint32_t, 2> bias_thres_aLRP2t_avgmul_percs = {{100, 100}};
-    std::array<uint32_t, 2> bias_thres_aLRB1t_avgmul_percs = {{100, 100}}; // 60 for PCR
-    std::array<uint32_t, 2> bias_thres_aLRB2t_avgmul_percs = {{100, 100}};
+    uint32_t bias_thres_aLRP1t_avgmul_perc = 100;
+    uint32_t bias_thres_aLRP2t_avgmul_perc = 100;
+    uint32_t bias_thres_aLRB1t_avgmul_perc = 100;
+    uint32_t bias_thres_aLRB2t_avgmul_perc = 100;
     
-    uint32_t bias_thres_aLRI1T_perc = 200; // 250;
-    uint32_t bias_thres_aLRI2T_perc = 150; // 200;
+    uint32_t bias_thres_aLRI1T_perc = 200;
+    uint32_t bias_thres_aLRI2T_perc = 150;
     uint32_t bias_thres_aLRI1t_perc = 50;
     uint32_t bias_thres_aLRI2t_perc = 67;
-    uint32_t bias_thres_aLRI1T_add = 250;
-    uint32_t bias_thres_aLRI2T_add = 150;
     
-    uint32_t bias_thres_aLRI1T_perc_pcr = 200; // 250;
-    uint32_t bias_thres_aLRI2T_perc_pcr = 150; // 200;
-    uint32_t bias_thres_aLRI1t_perc_pcr = 50; // 67; // 67
-    uint32_t bias_thres_aLRI2t_perc_pcr = 67; // 75; // 75
-    uint32_t bias_thres_aLRI1T_add_pcr = 250; // 350 for pcr
-    uint32_t bias_thres_aLRI2T_add_pcr = 150; // 250 for pcr
+    uint32_t bias_thres_aLRI1T_add = 180;
+    uint32_t bias_thres_aLRI2T_add = 150;
     
     uint32_t bias_thres_PFBQ1 = 25;
     uint32_t bias_thres_PFBQ2 = 30;
     
     uint32_t bias_thres_aXM1T_add = 30;
     
-    uint32_t bias_thres_interfering_indel = 5; // 8; 20;
-    int32_t bias_thres_interfering_indel_BQ = 21; // 8; 20;
-    uint32_t bias_thres_BAQ1 = 23; // 45-10;
-    uint32_t bias_thres_BAQ2 = 33; // 60-10;
+    uint32_t bias_thres_interfering_indel = 5;
+    int32_t bias_thres_interfering_indel_BQ = 21;
+    uint32_t bias_thres_BAQ1 = 23;
+    uint32_t bias_thres_BAQ2 = 33;
     
 // *** 06. parameters related to the priors of bias
     
-    double   bias_prior_pseudocount = 2;
-    
+    double   bias_prior_pseudocount = 2; // set very high to disable position, mismatch, and 
     uint32_t bias_prior_DPadd_perc = 50;
-    uint32_t bias_prior_pos = 1024*9/2;
-    uint32_t bias_prior_indel_in_read_div = 32+64;
-    uint32_t bias_prior_indel_in_var_div2 = 24;
-    uint32_t bias_prior_indel_in_STR_div2 = 8;
-    uint32_t bias_prior_var_in_STR_div2 = 3;
+   
+    double bias_prior_pos = 1024*9/2; // set very high to disable position bias, insert-end bias, strand bias, and orientation bias.
+    double bias_prior_indel_in_read_div = 32+64;
+    double bias_prior_indel_in_var_div2 = 24;
+    double bias_prior_indel_in_STR_div2 = 8;
+    double bias_prior_var_in_STR_div2 = 3;
     
     double   bias_prior_var_DP_mul = 1.25 + DBLFLT_EPS;
     
-    uint32_t bias_prior_ipos_SNV = 1e5;
+    uint32_t bias_prior_ipos_SNV = 1e5; // set very high to disable insert-end bias
     uint32_t bias_prior_ipos_InDel = 3e3;
-    uint32_t bias_prior_strand_SNV_base = 10;
+    uint32_t bias_prior_strand_SNV_base = 10; // set very high to disable strand bias
     uint32_t bias_prior_strand_InDel = 3e3;
     
     double   bias_FA_pseudocount_indel_in_read = 0.1;
     
-    double   nobias_pos_indel_lenfrac_thres = 2.0;
+    double   nobias_pos_indel_lenfrac_thres = 2.0; // set very low to disable position bias for InDels
     uint32_t nobias_pos_indel_STR_track_len = 16;
 
-    double   bias_prior_orientation_SNV_base = 1e5;
-    double   bias_prior_orientation_InDel_base = 1e5;
+    double   bias_prior_orientation_SNV_base = 1e5; // set very high to disable orientation bias
+    double   bias_prior_orientation_InDel_base = 1e5; 
     double   bias_orientation_counter_avg_end_len = 25;
     
     int32_t  bias_FA_powerlaw_noUMI_phred_inc_snv = 5;
     int32_t  bias_FA_powerlaw_noUMI_phred_inc_indel = 7; // this is actually the intrinsic lower error rate of indel instead of the one after reduction by bias.
-    
     int32_t  bias_FA_powerlaw_withUMI_phred_inc_snv = 5; // +3; // 7+7;
     int32_t  bias_FA_powerlaw_withUMI_phred_inc_indel = 7; // +3; // 7+7;
 
@@ -203,9 +171,9 @@ struct CommandLineArgs {
     uint32_t fam_thres_emperr_all_flat_indel = 4; // 5;
     uint32_t fam_thres_emperr_con_perc_indel = 67; // 75;
     
-    int32_t fam_min_n_copies = 300 * 3; // three nanograms
-    int32_t fam_min_overseq_perc = 300; // three-fold over-sequencing (average of four reads per family)
-
+    int32_t fam_min_n_copies = 300 * 3; // 300 DNA copies per nanogram of DNA
+    int32_t fam_min_overseq_perc = 250; // percent fold of over-sequencing
+    
     // 10: error of 10 PCR cycles using low-fidelity polymerase, https://www.nature.com/articles/s41598-020-63102-8
     // 13: reduction in error by using high-fidelity polymerase for UMI assay, https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3287198/ 
     uint16_t fam_phred_indel_err_before_barcode_labeling = 10+13; // 23; // phred_frac_indel_error_before_barcode_labeling = 23; // 12, 18, 24 // 23;
@@ -237,8 +205,7 @@ struct CommandLineArgs {
     int16_t  syserr_minABQ_cap_indel = 0;
     
     uint16_t syserr_maxMQ = 60; // from bwa
-    // HLA pairwise sequence identity is about 1% from https://www.ebi.ac.uk/ipd/mhc/alignment/hla/ 
-    uint16_t syserr_phred_varcall_err_per_map_err_per_base = 10; // 15; // 20; // this is the max phred probability of varcall error per base per mapping error
+    uint16_t syserr_phred_varcall_err_per_map_err_per_base = 10; // this is the max phred probability of varcall error per base per mapping error
     
     // Make sure that, by default, all variants (which usually include hotspot variants) are found in the vcf output regardless of mapping quality.
     uint16_t syserr_minMQ = ((vqual > syserr_phred_varcall_err_per_map_err_per_base) ? (vqual - syserr_phred_varcall_err_per_map_err_per_base) : 0); 
@@ -246,8 +213,8 @@ struct CommandLineArgs {
 // *** 09. parameters related to germline vars // PMC4271055: probablity of germline call error is between 1/100kb and 1/200kb
 
     double      germ_hetero_FA = 0.47;
-    // https://www.biostars.org/p/6177/ probablity of hetero is 0.8e-3 for non-african, it should be 32 for african.
     
+    // https://www.biostars.org/p/6177/ probablity of hetero is 0.8e-3 for non-african, it should be 32 for african.
     uint16_t    germ_phred_hetero_snp = 31; 
     uint16_t    germ_phred_hetero_indel = 41-1;
     uint16_t    germ_phred_homalt_snp = 31+2;
@@ -255,25 +222,22 @@ struct CommandLineArgs {
     uint16_t    germ_phred_het3al_snp = 54+5;
     uint16_t    germ_phred_het3al_indel = 41-1+9;
     
-    bool        germ_is_somatic_snv_filtered_by_any_nonref_germline_snv = true;
-    bool        germ_is_somatic_indel_filtered_by_any_nonref_germline_indel = true;
-
 // *** 10. parameters related to tumor-normal-pairs.
     
-    uint32_t    tn_q_inc_max = 9; // 10;
-    // PHRED-scaled likelihood that the observed allele fraction additively deviates from the expected allele fraction by a mul factor of 2
+    uint32_t    tn_q_inc_max = 9;
+    // PHRED-scaled likelihood that the observed allele fraction additively deviates from the expected allele fraction by a multiplicative factor of 2
     double      tn_syserr_norm_devqual = 15.0; // (double)(12.5); 
     
 
 // *** 11. parameters related to InDels.
     
-    uint32_t    indel_BQ_max = 44-2; // + 14; // 48;
+    uint32_t    indel_BQ_max = 43-1;
     uint32_t    indel_str_repeatsize_max = 6;
     double      indel_polymerase_size = 8.0;
     double      indel_polymerase_slip_rate = 8.0;
     double      indel_del_to_ins_err_ratio = 5.0; // 4.0; // https://www.ncbi.nlm.nih.gov/pmc/articles/PMC149199/ Table 1 homopolymer error
-    uint32_t    indel_adj_tracklen_div = 6;
-    uint32_t    indel_adj_indellen_mul = 160; 
+    uint32_t    indel_adj_tracklen_dist = 6;
+    uint32_t    indel_adj_indellen_perc = 160; 
 
     double      indel_multiallele_samepos_penal = 11.0;
     double      indel_multiallele_diffpos_penal = 8.0;
@@ -281,26 +245,24 @@ struct CommandLineArgs {
     double      indel_tetraallele_germline_penal_value = 8.0 * 2;
     double      indel_tetraallele_germline_penal_thres = 22.0;
     
-    
     uint32_t    indel_ins_penal_pseudocount = 16;
     
-    uint32_t    indel_STR_dist = 3;
     // According to "A New Lossless DNA Compression Algorithm Based on A Single-Block Encoding Scheme" Table 7 Korea2009024, 
     // there is 2*577/800 bits of info per nucleotide for the human genome.
     uint32_t    indel_nonSTR_phred_per_base = 5;
-    uint32_t    indel_STR_phred_per_region = 5*2;
+    uint32_t    indel_STR_phred_per_region = 5*2; // 15, set to 10 to allow some correlation, https://genomebiology.biomedcentral.com/articles/10.1186/s13059-018-1505-2
     
     // https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2734402/#bib41 : powlaw exponent of 1.5-1.6 for mut rate vs indel len.
     // https://pubmed.ncbi.nlm.nih.gov/18641631/ : SNV mutation rate near (up to a few hundred bp) heterozygous InDels are higher than expected.
-
+    
 // *** 12. parameters related to contamination
     
-    double      contam_any_mul_frac = 0.02; // 1e-10; 
-    double      contam_t2n_mul_frac = 0.05; // 1e-10; // 0.050; // 0.04 * 2.0; // ;
+    double      contam_any_mul_frac = 0.02; // from the ContEst paper at https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3167057/
+    double      contam_t2n_mul_frac = 0.05; // from the DeTiN paper at https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6528031/ 
 
 // *** extra useful info
     // https://www.biostars.org/p/254467/#254868 : Question: Are these false somatic variants? Visual inspection with IGV
-    // HDR and kataegis ???
+    // How to tell the difference between HDR and kataegis?
 // *** end 
     
     int

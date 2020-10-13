@@ -863,7 +863,7 @@ ref_to_phredvalue(unsigned int & n_units,
     if (cigar_oplen == repeatsize_at_max_repeatnum && cigar_op == BAM_CDEL) {
         ampfact *= indel_del_to_ins_err_ratio;
     }
-    // Because of a lower number of PCR cycles, it is higher than the one set in Fig. 3 at https://www.ncbi.nlm.nih.gov/pmc/articles/PMC149199/
+    // Because of a higher number of PCR cycles, it is higher than the one set in Fig. 3 at https://www.ncbi.nlm.nih.gov/pmc/articles/PMC149199/
     unsigned int decphred = indel_phred(ampfact, cigar_oplen, repeatsize_at_max_repeatnum, max_repeatnum);
     if (0x1 == (specialflag & 0x1)) { 
         LOG(logINFO) << "indel_phred(" 
@@ -884,12 +884,9 @@ update_seg_format_prep_sets_by_aln(
         const CoveredRegion<int64_t> & baq_offsetarr,
         const unsigned int region_offset,
         const auto dflag,
-        // const unsigned int bias_thres_highBQ,
         const CommandLineArgs & paramset,
         unsigned int specialflag) {
     
-    // LOG(logINFO) << "Temp-msg: processing read " << bam_get_qname(aln) << " which has " << aln->core.n_cigar << " cigar ops";
-
     const unsigned int rend = bam_endpos(aln);
     const auto cigar = bam_get_cigar(aln);
     const auto *bseq = bam_get_seq(aln);
@@ -985,29 +982,21 @@ update_seg_format_prep_sets_by_aln(
                 rpos++;
             }
         } else if (cigar_op == BAM_CINS) {
-            const auto & rtr1 = rtr_vec[MAX((int)paramset.indel_adj_tracklen_div, (int)rpos - (int)region_offset) - (int)paramset.indel_adj_tracklen_div];
-            const auto & rtr2 = rtr_vec[MIN((int)rpos - (int)region_offset + (int)paramset.indel_adj_tracklen_div, (int)rtr_vec.size() - 1)];
+            const auto & rtr1 = rtr_vec[MAX((int)paramset.indel_adj_tracklen_dist, (int)rpos - (int)region_offset) - (int)paramset.indel_adj_tracklen_dist];
+            const auto & rtr2 = rtr_vec[MIN((int)rpos - (int)region_offset + (int)paramset.indel_adj_tracklen_dist, (int)rtr_vec.size() - 1)];
             const auto unitlen2 = MAX(1, (rtr1.tracklen > rtr2.tracklen) ? rtr1.unitlen : rtr2.unitlen);
-            const int nbases = (int)(cigar_oplen * paramset.indel_adj_indellen_mul / 100);
+            const int nbases = (int)(cigar_oplen * paramset.indel_adj_indellen_perc / 100);
             for (int rpos2 = MAX((int)rpos - nbases, aln->core.pos); rpos2 < MIN((int)rpos + nbases, rend); rpos2++) {
                 seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_NEAR_INS_DP] += 1;
                 seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_NEAR_INS_LEN] += mathsquare(cigar_oplen);
                 seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_NEAR_INS_INV100LEN] += 100 / ((0 == cigar_oplen % unitlen2) ? (cigar_oplen / unitlen2) : 4);
             }
             
-            for (int rpos2 = MAX((int)(region_offset + rtr1.begpos) - paramset.indel_adj_tracklen_div, aln->core.pos); 
-                    rpos2 < MIN((int)(region_offset + rtr2.begpos + rtr2.tracklen) + paramset.indel_adj_tracklen_div, rend); 
+            for (int rpos2 = MAX((int)(region_offset + rtr1.begpos) - paramset.indel_adj_tracklen_dist, aln->core.pos); 
+                    rpos2 < MIN((int)(region_offset + rtr2.begpos + rtr2.tracklen) + paramset.indel_adj_tracklen_dist, rend); 
                     rpos2++) {
                 seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_NEAR_RTR_INS_DP] += 1;
             }
-            /*
-            for (int rpos2 = MAX((int)rpos - (int)rtr1.tracklen - 1 - 1, aln->core.pos); rpos2 < rpos; rpos2++) {
-                seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_NEAR_RTR_INS_DP] += 1;
-            }           
-            for (int rpos2 = (int)rpos; rpos2 < MIN(rpos + rtr2.tracklen + 1 + 1, rend); rpos2++) {
-                seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_NEAR_RTR_INS_DP] += 1;
-            }
-            */
             seg_format_prep_sets.getRefByPos(rpos)[SEG_a_AT_INS_DP] += 1;
             qpos += cigar_oplen;
         } else if (cigar_op == BAM_CDEL) {
@@ -1041,33 +1030,22 @@ update_seg_format_prep_sets_by_aln(
                 seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_DELBAQ_SUM] += delbaq_sum;
             }
 
-            const auto & rtr1 = rtr_vec[MAX((int)paramset.indel_adj_tracklen_div, (int)rpos - (int)region_offset) - (int)paramset.indel_adj_tracklen_div];
-            const auto & rtr2 = rtr_vec[MIN((int)rpos - (int)region_offset + (int)paramset.indel_adj_tracklen_div, (int)rtr_vec.size() - 1)];
+            const auto & rtr1 = rtr_vec[MAX((int)paramset.indel_adj_tracklen_dist, (int)rpos - (int)region_offset) - (int)paramset.indel_adj_tracklen_dist];
+            const auto & rtr2 = rtr_vec[MIN((int)rpos - (int)region_offset + (int)paramset.indel_adj_tracklen_dist, (int)rtr_vec.size() - 1)];
             assert (rtr1.begpos <= rtr2.begpos || !fprintf(stderr, "AssertionError: %d <= %d failed for rtr1 and rtr2!\n", rtr1.begpos, rtr2.begpos));
-            //if (18273318 < rpos && rpos < 18273358) {
-            //    LOG(logINFO) << "Temp-msg: the read " << bam_get_qname(aln) << " with del at pos " << rpos << " influences nearby regional tandem repeat from " << MAX((int)(region_offset + rtr1.begpos) - 3, aln->core.pos) << " to " <<  MIN((int)(region_offset + rtr2.begpos + rtr2.tracklen) + 3, rend);
-            //}
             const auto unitlen2 = MAX(1, (rtr1.tracklen > rtr2.tracklen) ? rtr1.unitlen : rtr2.unitlen);
-            const int nbases = (int)(cigar_oplen * paramset.indel_adj_indellen_mul / 100);
+            const int nbases = (int)(cigar_oplen * paramset.indel_adj_indellen_perc / 100);
             for (int rpos2 = MAX((int)rpos - nbases, aln->core.pos); rpos2 < MIN((int)rpos + nbases, rend); rpos2++) {
                 seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_NEAR_DEL_DP] += 1;
                 seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_NEAR_DEL_LEN] += mathsquare(cigar_oplen);
                 seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_NEAR_DEL_INV100LEN] += 100 / ((0 == cigar_oplen % unitlen2) ? (cigar_oplen / unitlen2) : 4);
             }
             
-            for (int rpos2 = MAX((int)(region_offset + rtr1.begpos) - paramset.indel_adj_tracklen_div, aln->core.pos); 
-                    rpos2 < MIN((int)(region_offset + rtr2.begpos + rtr2.tracklen) + paramset.indel_adj_tracklen_div, rend); 
+            for (int rpos2 = MAX((int)(region_offset + rtr1.begpos) - paramset.indel_adj_tracklen_dist, aln->core.pos); 
+                    rpos2 < MIN((int)(region_offset + rtr2.begpos + rtr2.tracklen) + paramset.indel_adj_tracklen_dist, rend); 
                     rpos2++) {
                 seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_NEAR_RTR_DEL_DP] += 1;
             }
-            /*
-            for (int rpos2 = MAX((int)rpos - (int)rtr1.tracklen - 1, aln->core.pos); rpos2 < rpos; rpos2++) {
-                seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_NEAR_RTR_DEL_DP] += 1;
-            }
-            for (int rpos2 = (int)rpos; rpos2 < MIN(rpos + rtr2.tracklen + 1, rend); rpos2++) {
-                seg_format_prep_sets.getRefByPos(rpos2)[SEG_a_NEAR_RTR_DEL_DP] += 1;
-            }
-            */
             seg_format_prep_sets.getRefByPos(rpos)[SEG_a_AT_DEL_DP] += 1;
             rpos += cigar_oplen;
         } else {
@@ -1083,7 +1061,6 @@ update_seg_format_thres_from_prep_sets(
         auto & region_repeatvec,
         SegFormatThresSets & seg_format_thres_sets, 
         const SegFormatPrepSets & seg_format_prep_sets, 
-        // const auto is_assay_amplicon,
         const CommandLineArgs & paramset,
         const unsigned int specialflag) {
     
@@ -1106,16 +1083,12 @@ update_seg_format_thres_from_prep_sets(
         if (p[SEG_a_NEAR_INS_DP] * paramset.indel_del_to_ins_err_ratio < p[SEG_a_NEAR_DEL_DP]) {
             rtr.indelphred += (int)round(10/log(10.0) * log(paramset.indel_del_to_ins_err_ratio));
         }
-        // const auto pc_max = ((MAX4(p[SEG_a_NEAR_INS_DP], p[SEG_a_NEAR_DEL_DP], p[SEG_a_NEAR_RTR_INS_DP], p[SEG_a_NEAR_RTR_DEL_DP]) * 150 > p[SEG_a_DP] * 100) ? 5 : (3 + 5));
-        // const auto pc_inc1 = (int)round(3 * sqrt(p[SEG_a_NEAR_INS_LEN] + p[SEG_a_NEAR_DEL_LEN]) / MAX(1, p[SEG_a_NEAR_INS_DP] + p[SEG_a_NEAR_DEL_DP])) / MAX(1, rtr.unitlen);
         const auto pc_inc1 = (int)(3 * 100 * MAX(1, p[SEG_a_NEAR_INS_DP] + p[SEG_a_NEAR_DEL_DP])
                 / (MAX(1, p[SEG_a_NEAR_INS_INV100LEN] + p[SEG_a_NEAR_DEL_INV100LEN]))) - 3;
-        // const auto pc_inc2 = (int)(10/log(10) * log((double)MAX(1, p[SEG_a_DP]) / (double)MAX5(1, p[SEG_a_NEAR_INS_DP], p[SEG_a_NEAR_DEL_DP], p[SEG_a_NEAR_RTR_INS_DP], p[SEG_a_NEAR_RTR_DEL_DP])));
         assert (epos >= seg_format_prep_sets.getIncluBegPosition() || !fprintf(stderr, "%d >= %d failed!", epos, seg_format_prep_sets.getIncluBegPosition()));
         assert (epos - seg_format_prep_sets.getIncluBegPosition() < region_repeatvec.size() 
                 || !fprintf(stderr, "%d - %d < %d failed!", epos, seg_format_prep_sets.getIncluBegPosition(), region_repeatvec.size()));
-        region_repeatvec[epos - seg_format_prep_sets.getIncluBegPosition()].indelphred += BETWEEN(pc_inc1, 0, 6); // + BETWEEN(pc_inc2, 0, 3);
-        // LOG(logINFO) << " indelphred_pc = " << pc << " " << pc_inc << " at " << epos;
+        region_repeatvec[epos - seg_format_prep_sets.getIncluBegPosition()].indelphred += BETWEEN(pc_inc1, 0, 6);
         t[SEG_aLPxT] =    (ins_border_len)                 * (unsigned long)(paramset.bias_thres_aLPxT_perc) / 100 + paramset.bias_thres_aLPxT_add;
         t[SEG_aRPxT] = MAX(ins_border_len, del_border_len) * (unsigned long)(paramset.bias_thres_aLPxT_perc) / 100 + paramset.bias_thres_aLPxT_add;
 
@@ -1124,30 +1097,20 @@ update_seg_format_thres_from_prep_sets(
         t[SEG_aGO1T] = (p[SEG_a_GO] * (unsigned long)paramset.bias_thres_PFGO1T_perc / (seg_a_dp * 100) + paramset.bias_thres_PFGO1T_add); // easier to pass
         t[SEG_aGO2T] = (p[SEG_a_GO] * (unsigned long)paramset.bias_thres_PFGO2T_perc / (seg_a_dp * 100) + paramset.bias_thres_PFGO2T_add); // the higher the stronger the bias
         
-        const bool is_assay_amplicon = (p[SEG_a_PCR_DP] * 2 > p[SEG_a_DP]);
-        
-        const auto bias_thres_aLRI1t_perc = (is_assay_amplicon ? paramset.bias_thres_aLRI1t_perc_pcr : paramset.bias_thres_aLRI1t_perc);
-        const auto bias_thres_aLRI2t_perc = (is_assay_amplicon ? paramset.bias_thres_aLRI2t_perc_pcr : paramset.bias_thres_aLRI2t_perc);
-        const auto bias_thres_aLRI1T_perc = (is_assay_amplicon ? paramset.bias_thres_aLRI1T_perc_pcr : paramset.bias_thres_aLRI1T_perc);
-        const auto bias_thres_aLRI2T_perc = (is_assay_amplicon ? paramset.bias_thres_aLRI2T_perc_pcr : paramset.bias_thres_aLRI2T_perc);
-        const auto bias_thres_aLRI1T_add  = (is_assay_amplicon ? paramset.bias_thres_aLRI1T_add_pcr  : paramset.bias_thres_aLRI1T_add);
-        const auto bias_thres_aLRI2T_add  = (is_assay_amplicon ? paramset.bias_thres_aLRI2T_add_pcr  : paramset.bias_thres_aLRI2T_add);
-        
-        t[SEG_aLI1T] = (unsigned int)((uint64_t)p[SEG_a_LI] * bias_thres_aLRI1T_perc / 100 / segLIDP + bias_thres_aLRI1T_add);
-        t[SEG_aLI2T] = (unsigned int)((uint64_t)p[SEG_a_LI] * bias_thres_aLRI2T_perc / 100 / segLIDP + bias_thres_aLRI2T_add); // higher > stronger bias
-        t[SEG_aLI1t] = (unsigned int)((uint64_t)p[SEG_a_LI] * bias_thres_aLRI1t_perc / 100 / segLIDP);
-        t[SEG_aLI2t] = (unsigned int)((uint64_t)p[SEG_a_LI] * bias_thres_aLRI2t_perc / 100 / segLIDP); // lower > stronger bias
+        t[SEG_aLI1T] = (unsigned int)((uint64_t)p[SEG_a_LI] * paramset.bias_thres_aLRI1T_perc / 100 / segLIDP + paramset.bias_thres_aLRI1T_add);
+        t[SEG_aLI2T] = (unsigned int)((uint64_t)p[SEG_a_LI] * paramset.bias_thres_aLRI2T_perc / 100 / segLIDP + paramset.bias_thres_aLRI2T_add); // higher > stronger bias
+        t[SEG_aLI1t] = (unsigned int)((uint64_t)p[SEG_a_LI] * paramset.bias_thres_aLRI1t_perc / 100 / segLIDP);
+        t[SEG_aLI2t] = (unsigned int)((uint64_t)p[SEG_a_LI] * paramset.bias_thres_aLRI2t_perc / 100 / segLIDP); // lower > stronger bias
 
-        t[SEG_aRI1T] = (unsigned int)((uint64_t)p[SEG_a_RI] * bias_thres_aLRI1T_perc / 100 / segRIDP + bias_thres_aLRI1T_add);
-        t[SEG_aRI2T] = (unsigned int)((uint64_t)p[SEG_a_RI] * bias_thres_aLRI2T_perc / 100 / segRIDP + bias_thres_aLRI2T_add); // higher > stronger bias
-        t[SEG_aRI1t] = (unsigned int)((uint64_t)p[SEG_a_RI] * bias_thres_aLRI1t_perc / 100 / segRIDP);
-        t[SEG_aRI2t] = (unsigned int)((uint64_t)p[SEG_a_RI] * bias_thres_aLRI2t_perc / 100 / segRIDP); // lower > stronger bias
+        t[SEG_aRI1T] = (unsigned int)((uint64_t)p[SEG_a_RI] * paramset.bias_thres_aLRI1T_perc / 100 / segRIDP + paramset.bias_thres_aLRI1T_add);
+        t[SEG_aRI2T] = (unsigned int)((uint64_t)p[SEG_a_RI] * paramset.bias_thres_aLRI2T_perc / 100 / segRIDP + paramset.bias_thres_aLRI2T_add); // higher > stronger bias
+        t[SEG_aRI1t] = (unsigned int)((uint64_t)p[SEG_a_RI] * paramset.bias_thres_aLRI1t_perc / 100 / segRIDP);
+        t[SEG_aRI2t] = (unsigned int)((uint64_t)p[SEG_a_RI] * paramset.bias_thres_aLRI2t_perc / 100 / segRIDP); // lower > stronger bias
         
-        const int assay_idx = (is_assay_amplicon ? 1 : 0);
-        const unsigned int aLRP1t_avgmul = paramset.bias_thres_aLRP1t_avgmul_percs[assay_idx];
-        const unsigned int aLRP2t_avgmul = paramset.bias_thres_aLRP2t_avgmul_percs[assay_idx];
-        const unsigned int aLRB1t_avgmul = paramset.bias_thres_aLRB1t_avgmul_percs[assay_idx];
-        const unsigned int aLRB2t_avgmul = paramset.bias_thres_aLRB2t_avgmul_percs[assay_idx];
+        const unsigned int aLRP1t_avgmul = paramset.bias_thres_aLRP1t_avgmul_perc;
+        const unsigned int aLRP2t_avgmul = paramset.bias_thres_aLRP2t_avgmul_perc;
+        const unsigned int aLRB1t_avgmul = paramset.bias_thres_aLRB1t_avgmul_perc;
+        const unsigned int aLRB2t_avgmul = paramset.bias_thres_aLRB2t_avgmul_perc;
         
         /*
         t[SEG_aLP1t] = (unsigned int)non_neg_minus(p[SEG_a_L_DIST_SUM] / MAX(1, p[SEG_aBQ2_DP]), p[SEG_a_DELLEN_SUM] / MAX(1, p[SEG_aBQ2_DP]) + paramset.bias_thres_aLRP1t_add);
@@ -1719,8 +1682,8 @@ if ((!is_assay_amplicon) || (0 == paramset.primerlen) || (ibeg <= rpos && rpos <
                             unsigned int next_indel_rpos = indel_rposs[indel_rposs_idx];
                             unsigned int dist_to_interfering_indel = 10000;
                             if (nge_cnt > 0) {
-                                const auto & rtr1 = region_repeatvec[MAX(rpos-region_offset, paramset.indel_adj_tracklen_div) - paramset.indel_adj_tracklen_div];
-                                const auto & rtr2 = region_repeatvec[MIN(rpos-region_offset + paramset.indel_adj_tracklen_div, region_repeatvec.size() - 1)];
+                                const auto & rtr1 = region_repeatvec[MAX(rpos-region_offset, paramset.indel_adj_tracklen_dist) - paramset.indel_adj_tracklen_dist];
+                                const auto & rtr2 = region_repeatvec[MIN(rpos-region_offset + paramset.indel_adj_tracklen_dist, region_repeatvec.size() - 1)];
                                 dist_to_interfering_indel = MIN(
                                     non_neg_minus(rpos - prev_indel_rpos, MAX(
                                         rpos - (region_offset + rtr1.begpos),
@@ -3094,6 +3057,7 @@ BcfFormat_symbol_calc_DPv(
     // The following code without + 1 pseudocount in both nominator and denominator can result in false negative calls at low allele fraction (it is rare but can happen).
     // double cFA3 = (fmt.cDP3f[a] + fmt.cDP3r[a] + pfa + 1) / (fmt.CDP3f[0] + fmt.CDP3r[0] + 1.0 + 1);
     double cFA3 = (fmt.cDP3f[a] + fmt.cDP3r[a] + pfa) / (fmt.CDP3f[0] + fmt.CDP3r[0] + 1.0);
+    
     assert( cFA2 > 0);
     assert( cFA2 < 1);
     assert( cFA3 > 0);
@@ -3104,9 +3068,12 @@ BcfFormat_symbol_calc_DPv(
     double umi_cFA = MINVEC(min_cFA23_vec);
     
     // TODO: find the theory for the following three lines of code.
-    double frac_umi2seg = MIN(1.0, umi_cFA / aDPFA * BETWEEN(2.0 * mathsquare(min_aFA / aDPFA), 0.5, 1.0));
-    fmt.note += std::string("frac_umi2seg//") + std::to_string(frac_umi2seg) + "//";
-    double frac_c1_b = BETWEEN(2.5 * mathsquare(cFA0 / bFA), 0.4, 1.0);
+    double frac_umi2seg1 = MIN(1.0, umi_cFA / aDPFA); // * BETWEEN(2.0 * mathsquare(min_aFA / aDPFA), 0.5, 1.0)); // UMI-QUESTION: how does this work?
+    double frac_umi2seg2 = MIN(1.0, cFA0 / umi_cFA);
+
+    fmt.note += std::string("frac_umi2seg1//") + std::to_string(frac_umi2seg1) + "/" + std::to_string(frac_umi2seg2) + std::to_string(frac_umi2seg1) + "//";
+    double frac_umi2seg = (frac_umi2seg1 * frac_umi2seg2);
+    double frac_c1_b = 1.0; // BETWEEN(2.5 * mathsquare(cFA0 / bFA), 0.4, 1.0); // UMI-QUESTION: how does this work?
     
     double refbias = 0;
     if ((isSymbolIns(symbol) || isSymbolDel(symbol)) && is_rescued) {
@@ -3289,8 +3256,12 @@ BcfFormat_symbol_calc_qual(
     int perbase_likeratio_q_x10_2 = perbase_likeratio_q_x10_1 + (int)round(10 * 10/log(10) * log((double)nbases_x100_2 / (double)nbases_x100_1));
     int duped_frag_binom_qual = ((isSymbolIns(symbol) || isSymbolDel(symbol)) ? perbase_likeratio_q_x10_1 : perbase_likeratio_q_x10_2) * nbases_x100_2 / (10 * 100);
     
-    // sscs_dec1 requires at least 3 ng (900 genomic copies) of DNA starting material and an average of 3-fold of over-sequencing to become zero
-    // const int sscs_dec1 = (int)(mathsquare((double)(fmt.CDP1f[0] + fmt.CDP1r[0] + paramset.fam_pseudocount_ref) / (double)(fmt.BDPf[0] + fmt.BDPr[0] + paramset.fam_pseudocount_ref)) * 60);
+    /*
+    const int fam_pseudocount_ref = 300; // paramset.fam_pseudocount_ref
+    const int sscs_dec1 = (int)(mathsquare((double)(fmt.CDP1f[0] + fmt.CDP1r[0] + fam_pseudocount_ref) / (double)(fmt.BDPf[0] + fmt.BDPr[0] + fam_pseudocount_ref)) * 60);
+    */
+    // sscs_dec1 requires at least 3 ng (900 genomic copies) of DNA starting material and an average of some fold of over-sequencing to become zero
+    ///*
     const int normCDP1 = (fmt.CDP1f[0] + fmt.CDP1r[0] + 1);
     const int normBDP = (fmt.BDPf[0] + fmt.BDPr[0] + 1);
     const int sscs_dec1a = 2 * non_neg_minus(paramset.fam_min_n_copies, normCDP1)                             * (powlaw_sscs_inc1 + 3) 
@@ -3298,7 +3269,7 @@ BcfFormat_symbol_calc_qual(
     const int sscs_dec1b = 2 * non_neg_minus(normCDP1 * (paramset.fam_min_overseq_perc + 100) / 100, normBDP) * (powlaw_sscs_inc1 + 3) 
             / MAX(1, normCDP1 * (paramset.fam_min_overseq_perc / 2 + 100) / 100);
     const int sscs_dec1 = MAX(sscs_dec1a, sscs_dec1b);
-    
+    // */
     const int sscs_dec2 = non_neg_minus((int)fam_thres_highBQ, cMmQ);
     const int cIADnormcnt = (fmt.cIADf[a] + fmt.cIADr[a]) * 100 + 1;
     int sscs_binom_qual_fw = fmt.cIAQf[a] + fmt.cIAQr[a] * MIN(paramset.fam_phred_dscs_all - fmt.cIDQf[a], fmt.cIDQr[a]) / MAX(fmt.cIDQr[a], 1);
@@ -3318,7 +3289,7 @@ BcfFormat_symbol_calc_qual(
     int ds_vq_inc_binom = 3 * MIN(fmt.cDP2f[a], fmt.cDP2r[a]);
     
     const int powlaw_sscs_inc2 = (int)MAX(0, MIN5(sscs_binom_qual_fw, sscs_binom_qual_rv, ds_vq_inc_powlaw, ds_vq_inc_binom, 3));
-    double umi_cFA =  (((double)(fmt.cDP2v[a]) + 0.5) / ((double)(fmt.CDP2f[0] * 100 + fmt.CDP2r[0] * 100) + 1.0 + 300));
+    double umi_cFA =  (((double)(fmt.cDP2v[a]) + 0.5) / ((double)(fmt.CDP2f[0] * 100 + fmt.CDP2r[0] * 100) + 1.0)); // + 300 // UMI-QUESTION: how does this work?
     
     int sscs_base_2 = pl_withUMI_phred_inc + powlaw_sscs_inc1 + powlaw_sscs_inc2 - sscs_dec1 - sscs_dec2;
     int sscs_powlaw_qual_v = (int)((paramset.powlaw_exponent * 10.0 / log(10.0) * log(umi_cFA)    + sscs_base_2));
@@ -4024,8 +3995,8 @@ append_vcf_record(
     
     assert (tki.cDP1x <= tki.CDP1x || !fprintf(stderr, "%d <= %d failed for cDP1x tname %s pos %d aln-symbol %d\n", tki.cDP1x, tki.CDP1x, tname, refpos, symbol));
     assert (tki.cDP2x <= tki.CDP2x || !fprintf(stderr, "%d <= %d failed for cDP2x tname %s pos %d aln-symbol %d\n", tki.cDP2x, tki.CDP2x, tname, refpos, symbol));
-    const auto & rtr1 =  region_repeatvec.at(MAX(refpos - region_offset, paramset.indel_adj_tracklen_div) - paramset.indel_adj_tracklen_div);
-    const auto & rtr2 =  region_repeatvec.at(MIN(refpos - region_offset + paramset.indel_adj_tracklen_div, region_repeatvec.size() - paramset.indel_adj_tracklen_div));
+    const auto & rtr1 =  region_repeatvec.at(MAX(refpos - region_offset, paramset.indel_adj_tracklen_dist) - paramset.indel_adj_tracklen_dist);
+    const auto & rtr2 =  region_repeatvec.at(MIN(refpos - region_offset + paramset.indel_adj_tracklen_dist, region_repeatvec.size() - paramset.indel_adj_tracklen_dist));
     const auto rtr1_tpos = ((0 == rtr1.tracklen) ? 0 : (region_offset + rtr1.begpos));
     const auto rtr2_tpos = ((0 == rtr2.tracklen) ? 0 : (region_offset + rtr2.begpos));
 
