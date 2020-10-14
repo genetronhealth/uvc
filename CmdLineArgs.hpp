@@ -157,7 +157,7 @@ struct CommandLineArgs {
 
     double   bias_prior_orientation_SNV_base = 1e5; // set very high to disable orientation bias
     double   bias_prior_orientation_InDel_base = 1e5; 
-    double   bias_orientation_counter_avg_end_len = 25;
+    double   bias_orientation_counter_avg_end_len = 20;
     
     int32_t  bias_FA_powerlaw_noUMI_phred_inc_snv = 5;
     int32_t  bias_FA_powerlaw_noUMI_phred_inc_indel = 7; // this is actually the intrinsic lower error rate of indel instead of the one after reduction by bias.
@@ -176,16 +176,22 @@ struct CommandLineArgs {
     
     // 10: error of 10 PCR cycles using low-fidelity polymerase, https://www.nature.com/articles/s41598-020-63102-8
     // 13: reduction in error by using high-fidelity polymerase for UMI assay, https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3287198/ 
-    uint16_t fam_phred_indel_err_before_barcode_labeling = 10+13; // 23; // phred_frac_indel_error_before_barcode_labeling = 23; // 12, 18, 24 // 23;
-    uint16_t fam_phred_sscs_transition_CG_TA = 44; // 44; // Cytosine deamination into Uracil, especially in FFPE samples, also by UV light radiation, more upstream
-    uint16_t fam_phred_sscs_transition_TA_CG = 48; // 48; // https://en.wikipedia.org/wiki/DNA_oxidation, DNA synthesis error, more downstream
-    uint16_t fam_phred_sscs_transversion_any = 52; // 52;
-    uint16_t fam_phred_sscs_indel_open = 60; // 34;
-    uint16_t fam_phred_sscs_indel_ext  = 0; // 5; // 0;  // 5;
+    // https://www.bio-rad.com/webroot/web/pdf/lsr/literature/Bulletin_7076.pdf
+    // uint16_t fam_phred_indel_err_red_by_high_fidelity_pol = 10; // 10 + 13;
+    // https://www.nature.com/articles/s41598-018-31064-7 : All libraries included PCR steps totaling 37 cycles. During Step 4, at cycles 21, 23, 25, 27,
+    // https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3111315/ : Following 25 additional cycles of PCR, There were 19 cycles of PCR 
+    uint16_t fam_phred_indel_inc_before_barcode_labeling = 13; // 10 + 13;
+    // https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3616734/ : all major library-prep artifacts
+    uint16_t fam_phred_sscs_transition_CG_TA = 44; // Cytosine deamination into Uracil, especially in FFPE samples, also by UV light radiation, more upstream
+    uint16_t fam_phred_sscs_transition_TA_CG = 48; // https://en.wikipedia.org/wiki/DNA_oxidation, DNA synthesis error, more downstream
+    uint16_t fam_phred_sscs_transversion_CG_AT = 52; // https://www.pnas.org/content/109/36/14508 : there can be C->A artifact
+    uint16_t fam_phred_sscs_transversion_any = 52;
+    uint16_t fam_phred_sscs_indel_open = 60;
+    uint16_t fam_phred_sscs_indel_ext  = 0;
     uint16_t fam_phred_dscs_all = 60;
     
     double   fam_phred_pow_sscs_SNV_origin = 48 - 41; // 10*log((2.7e-3-3.5e-5)/(1.5e-4-3.5e-5))/log(10)*3 = 41 from https://doi.org/10.1073/pnas.1208715109
-    double   fam_phred_pow_sscs_indel_origin = fam_phred_sscs_indel_open - (fam_phred_indel_err_before_barcode_labeling + 13 * 2); // 60; // 60 - 38; 
+    double   fam_phred_pow_sscs_indel_origin = fam_phred_sscs_indel_open - (fam_phred_indel_inc_before_barcode_labeling * 3);
     double   fam_phred_pow_dscs_all_origin = 0;
     
 // *** 08. parameters related to systematic errors
