@@ -306,9 +306,13 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
         "two SSCSs (single-strand-consensus-sequences) into one DSCS (double-strand-consensus-sequence). "
         "The UMI of the duplex tag should be in the form of <alpha>+<beta>. ");
     ADD_OPTDEF(app,
-        "--primerlen",
-           primerlen,
-        "Number of bases from each end of each insert that are part of the primers (for only amplicon assay). ");
+        "--primerlen-min",
+           primerlen_min,
+        "Minimum number of bases from each end of each insert that are part of the primers (for only amplicon assay). ");
+    ADD_OPTDEF(app,
+        "--primerlen-max",
+           primerlen_max,
+        "Maximum number of bases from each end of each insert that are part of the primers (for only amplicon assay). ");
     
     ADD_OPTDEF(app, 
         "--central-readlen", 

@@ -424,6 +424,9 @@ string2symbolseq(const std::string & instring) {
 
 enum SegFormatPrepSet {
     SEG_a_DP,
+    SEG_a_DPf,
+    SEG_a_DPr,
+    
     SEG_a_PCR_DP,
     SEG_aBQ2_DP,
     //SEG_a_INS_L,

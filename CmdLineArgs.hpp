@@ -64,7 +64,8 @@ struct CommandLineArgs {
     SequencingPlatform sequencing_platform = SEQUENCING_PLATFORM_AUTO;
     PairEndMerge pair_end_merge = PAIR_END_MERGE_YES;
     bool        disable_duplex = false;
-    uint32_t    primerlen = 23;
+    uint32_t    primerlen_min = 18; // https://genome.cshlp.org/content/3/3/S30.full.pdf , 18 - 24
+    uint32_t    primerlen_max = 24;  
     
     uint16_t    central_readlen = 0; // estimate from the data
     uint16_t    bq_phred_added_misma = 0; // estiamte from the data
@@ -80,8 +81,8 @@ struct CommandLineArgs {
     // PCR stutter noise at (di,tri,tetra,...)-nucleotide generates +-(2,3,4...) shift in read end position, 
     // so more accurate dedupping requires us to consider these cases. This constant is good enough for the general case.
     uint16_t    dedup_center_mult = 5; 
-    uint16_t    dedup_amplicon_count_to_surrcount_ratio = 16;
-    uint16_t    dedup_amplicon_count_to_surrcount_ratio_twosided = 4; // 6;
+    uint16_t    dedup_amplicon_count_to_surrcount_ratio = 20; // 16;
+    uint16_t    dedup_amplicon_count_to_surrcount_ratio_twosided = 5; // 4; // 6;
     double      dedup_amplicon_end2end_ratio = 1.5;
     
     uint32_t    dedup_flag = 0x0;
@@ -119,7 +120,7 @@ struct CommandLineArgs {
     uint32_t bias_thres_aLRI1t_perc = 50;
     uint32_t bias_thres_aLRI2t_perc = 67;
     
-    uint32_t bias_thres_aLRI1T_add = 180;
+    uint32_t bias_thres_aLRI1T_add = 200;
     uint32_t bias_thres_aLRI2T_add = 150;
     
     uint32_t bias_thres_PFBQ1 = 25;
@@ -179,8 +180,8 @@ struct CommandLineArgs {
     // https://www.bio-rad.com/webroot/web/pdf/lsr/literature/Bulletin_7076.pdf
     // uint16_t fam_phred_indel_err_red_by_high_fidelity_pol = 10; // 10 + 13;
     // https://www.nature.com/articles/s41598-018-31064-7 : All libraries included PCR steps totaling 37 cycles. During Step 4, at cycles 21, 23, 25, 27,
-    // https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3111315/ : Following 25 additional cycles of PCR, There were 19 cycles of PCR 
-    uint16_t fam_phred_indel_inc_before_barcode_labeling = 14; // 10 + 13;
+    // 14: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3111315/ : Following 25 additional cycles of PCR, There were 19 cycles of PCR 
+    uint16_t fam_phred_indel_inc_before_barcode_labeling = 13 + 14; // 10 + 13;
     // https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3616734/ : all major library-prep artifacts
     uint16_t fam_phred_sscs_transition_CG_TA = 44; // Cytosine deamination into Uracil, especially in FFPE samples, also by UV light radiation, more upstream
     uint16_t fam_phred_sscs_transition_TA_CG = 48; // https://en.wikipedia.org/wiki/DNA_oxidation, DNA synthesis error, more downstream
@@ -191,7 +192,7 @@ struct CommandLineArgs {
     uint16_t fam_phred_dscs_all = 60;
     
     double   fam_phred_pow_sscs_SNV_origin = 48 - 41; // 10*log((2.7e-3-3.5e-5)/(1.5e-4-3.5e-5))/log(10)*3 = 41 from https://doi.org/10.1073/pnas.1208715109
-    double   fam_phred_pow_sscs_indel_origin = fam_phred_sscs_indel_open - (fam_phred_indel_inc_before_barcode_labeling * 3);
+    double   fam_phred_pow_sscs_indel_origin = fam_phred_sscs_indel_open - (13 * 3);
     double   fam_phred_pow_dscs_all_origin = 0;
     
 // *** 08. parameters related to systematic errors

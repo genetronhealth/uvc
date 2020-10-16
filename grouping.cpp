@@ -4,8 +4,8 @@
 #define UPDATE_MIN(a, b) ((a) = min((a), (b)));
 // position of 5' is the starting position, but position of 3' is unreliable without mate info.
 const unsigned int ARRPOS_MARGIN = 1200;
-const int8_t ARRPOS_OUTER_RANGE = 10;
-const int8_t ARRPOS_INNER_RANGE = 3;
+const int8_t ARRPOS_OUTER_RANGE = 12; // 10;
+const int8_t ARRPOS_INNER_RANGE = 6 - 1; // 3;
 
 bool 
 ispowof2(auto num) {
