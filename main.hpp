@@ -1307,21 +1307,22 @@ dealwith_segbias(
     */
     const bool is_l_nonbiased = ((0 == (aln->core.flag & 0x8)) && seg_l_nbases > seg_r_nbases);
     const bool is_r_nonbiased = ((0 == (aln->core.flag & 0x8)) && seg_l_nbases < seg_r_nbases);
+    // rc : test if the left-side of the insert is biased, and vice versa.
     if (isrc) {
         auto dist2iend = frag_l_nbases2;
         if ((dist2iend >= seg_format_thres_set[SEG_aLI1t]) && (dist2iend <= seg_format_thres_set[SEG_aLI1T] || isGap || is_l_nonbiased) && (is_normal || isGap || is_l_nonbiased)) {
-            symbol_to_seg_format_depth_set[SEG_aLI1] += 1;
+            symbol_to_seg_format_depth_set[SEG_aLI1] += 1; // aLI1
         } 
         if ((dist2iend >= seg_format_thres_set[SEG_aLI2t]) && (dist2iend <= seg_format_thres_set[SEG_aLI2T] || isGap) && (is_normal || isGap)) {
-            symbol_to_seg_format_depth_set[SEG_aLI2] += 1;
+            symbol_to_seg_format_depth_set[SEG_aLI2] += 1; // aLI2
         }
     } else {
         auto dist2iend = frag_r_nbases2;
         if ((dist2iend >= seg_format_thres_set[SEG_aRI1t]) && (dist2iend <= seg_format_thres_set[SEG_aRI1T] || isGap || is_r_nonbiased) && (is_normal || isGap || is_r_nonbiased)) {
-            symbol_to_seg_format_depth_set[SEG_aRI1] += 1;
+            symbol_to_seg_format_depth_set[SEG_aRI1] += 1; // aRI1
         } 
         if ((dist2iend >= seg_format_thres_set[SEG_aRI2t]) && (dist2iend <= seg_format_thres_set[SEG_aRI2T] || isGap) && (is_normal || isGap)) {
-            symbol_to_seg_format_depth_set[SEG_aRI2] += 1;
+            symbol_to_seg_format_depth_set[SEG_aRI2] += 1; // aRI2
         }
     }
     
@@ -1660,7 +1661,7 @@ public:
         
         unsigned int primerlen_lside = paramset.primerlen_min;
         unsigned int primerlen_rside = paramset.primerlen_min;
-        
+        /*
         if (aln->core.pos + paramset.primerlen_min < rend) {
             const auto & prepl = seg_format_prep_sets.getByPos(aln->core.pos + paramset.primerlen_min);
             const int64_t minADPl = MIN(prepl[SEG_a_DPf], prepl[SEG_a_DPr]);
@@ -1672,11 +1673,13 @@ public:
             primerlen_lside = ((minADPl * 20 > maxADPl) ? paramset.primerlen_max : paramset.primerlen_min);
             primerlen_rside = ((minADPr * 20 > maxADPr) ? paramset.primerlen_max : paramset.primerlen_min);
         }
-        
+        */
+        // NOTE: if insert size is zero, then assume that the whole insert including the two primers are sequenced
+        // A correct pair of primers should not generate zero insert size
         const unsigned int ibeg = ((aln->core.isize != 0) ? (MIN(aln->core.pos, aln->core.mpos) + primerlen_lside) 
-                : (isrc ? 0 : (aln->core.pos + primerlen_lside)));
+                : ((isrc && (0x0 == (0x1 & aln->core.flag))) ? 0 : (aln->core.pos + primerlen_lside)));
         const unsigned int iend = ((aln->core.isize != 0) ? non_neg_minus(MIN(aln->core.pos, aln->core.mpos) + abs(aln->core.isize), primerlen_rside) 
-                : (isrc ? non_neg_minus(rend, primerlen_rside) : INT32_MAX));
+                : ((isrc && (0x0 == (0x1 & aln->core.flag))) ? non_neg_minus(rend, primerlen_rside) : INT32_MAX));
         
         unsigned int qpos = 0;
         unsigned int rpos = aln->core.pos;
@@ -3383,7 +3386,14 @@ BcfFormat_symbol_calc_qual(
     const unsigned int ADP = (fmt.ADPff[0] + fmt.ADPrf[0] + fmt.ADPfr[0] + fmt.ADPrr[0]);
     const unsigned int bDP = (fmt.bDPf[a] + fmt.bDPr[a]);
     const unsigned int BDP = (fmt.BDPf[0] + fmt.BDPr[0]);
-    
+    const unsigned int cDP2 = (fmt.cDP2f[a] + fmt.cDP2r[a]);
+    const unsigned int CDP2 = (fmt.CDP2f[0] + fmt.CDP2r[0]);
+    const bool is_cytosine_deanim_CT = ((BASE_C == refsymbol && BASE_T == symbol) || (BASE_G == refsymbol && BASE_A == symbol));
+    const bool is_cytosine_deanim_FA = (int64mul(cDP2, 1000) < (int64_t)CDP2);
+    const bool is_cysotine_deanimation = (is_cytosine_deanim_CT && is_cytosine_deanim_FA);
+    int64_t non_duplex_binom_dec_x10 = ((is_cysotine_deanimation)
+            ? (10 * 12 * ((int64_t)CDP2 - int64mul(cDP2, 1000)) / CDP2) : 0);
+    fmt.note += std::string("non_duplex_binom_dec_x10(" + std::to_string(non_duplex_binom_dec_x10) + ")");
     /*
     double prior_weight;
     prior_weight = 1.0 / (fmt.cDPmf[a] + 1.0);
@@ -3415,9 +3425,9 @@ BcfFormat_symbol_calc_qual(
 #endif
     int64_t nbases_x100_1 = fmt.bIADb[a] * 100 + 1;
     int64_t nbases_x100_2 = MIN(nbases_x100_1, fmt.cDP1v[a] + 1);
-    int perbase_likeratio_q_x10_1 = 10 * fmt.bIAQb[a] / MAX(1, fmt.bIADb[a]);
-    int perbase_likeratio_q_x10_2 = perbase_likeratio_q_x10_1 + (int)round(10 * 10/log(10) * log((double)nbases_x100_2 / (double)nbases_x100_1));
-    int duped_frag_binom_qual = ((isSymbolIns(symbol) || isSymbolDel(symbol)) ? perbase_likeratio_q_x10_1 : perbase_likeratio_q_x10_2) * nbases_x100_2 / (10 * 100);
+    int64_t perbase_likeratio_q_x10_1 = 10 * fmt.bIAQb[a] / MAX(1, fmt.bIADb[a]);
+    int64_t perbase_likeratio_q_x10_2 = perbase_likeratio_q_x10_1 + (int)round(10 * 10/log(10) * log((double)nbases_x100_2 / (double)nbases_x100_1)) - non_duplex_binom_dec_x10;
+    int64_t duped_frag_binom_qual = ((isSymbolIns(symbol) || isSymbolDel(symbol)) ? perbase_likeratio_q_x10_1 : perbase_likeratio_q_x10_2) * nbases_x100_2 / (10 * 100);
     
     /*
     const int fam_pseudocount_ref = 300; // paramset.fam_pseudocount_ref
@@ -3425,25 +3435,26 @@ BcfFormat_symbol_calc_qual(
     */
     // sscs_dec1 requires at least 3 ng (900 genomic copies) of DNA starting material and an average of some fold of over-sequencing to become zero
     ///*
-    const int normCDP1 = (fmt.CDP1f[0] + fmt.CDP1r[0] + 1);
-    const int normBDP = (fmt.BDPf[0] + fmt.BDPr[0] + 1);
-    const int sscs_dec1a = 2 * non_neg_minus(paramset.fam_min_n_copies, normCDP1)                             * (powlaw_sscs_inc1 + 3) 
-            / (paramset.fam_min_n_copies);
-    const int sscs_dec1b = 2 * non_neg_minus(normCDP1 * (paramset.fam_min_overseq_perc + 100) / 100, normBDP) * (powlaw_sscs_inc1 + 3) 
-            / MAX(1, normCDP1 * (paramset.fam_min_overseq_perc / 2 + 100) / 100);
-    const int sscs_dec1 = MAX(sscs_dec1a, sscs_dec1b);
+    const int64_t normCDP1 = (fmt.CDP1f[0] + fmt.CDP1r[0] + 1);
+    const int64_t normBDP = (fmt.BDPf[0] + fmt.BDPr[0] + 1);
+    const int64_t sscs_dec1a = 2 * int64mul(non_neg_minus(paramset.fam_min_n_copies, normCDP1),                             (powlaw_sscs_inc1 + 3))
+            / (int64_t)(paramset.fam_min_n_copies);
+    const int64_t sscs_dec1b = 2 * int64mul(non_neg_minus(normCDP1 * (paramset.fam_min_overseq_perc + 100) / 100, normBDP), (powlaw_sscs_inc1 + 3))
+            / (int64_t)MAX(1, normCDP1 * (paramset.fam_min_overseq_perc / 2 + 100) / 100);
+    const int64_t sscs_dec1 = MAX(sscs_dec1a, sscs_dec1b);
     
     // how to reduce qual by bias: div first, then minus
     const int64_t sscs_dec2 = non_neg_minus((int)fam_thres_highBQ, cMmQ);
-    const int64_t cIADnormcnt = (fmt.cIADf[a] + fmt.cIADr[a]) * 100 + 1;
-    const int64_t cIADmincnt = MIN(cIADnormcnt, fmt.cDP2v[a] + 1); 
-    const int64_t sscs_binom_qual_fw = fmt.cIAQf[a] + (int64_t)fmt.cIAQr[a] * (int64_t)MIN(paramset.fam_phred_dscs_all - fmt.cIDQf[a], fmt.cIDQr[a]) / MAX(fmt.cIDQr[a], 1);
-    const int64_t sscs_binom_qual_rv = fmt.cIAQr[a] + (int64_t)fmt.cIAQf[a] * (int64_t)MIN(paramset.fam_phred_dscs_all - fmt.cIDQr[a], fmt.cIDQf[a]) / MAX(fmt.cIDQf[a], 1);
-    const int64_t dec_by_bias = (int64_t)round(10/log(10) * log((double)cIADnormcnt / (double)cIADmincnt) * cIADmincnt / 100);
-    int sscs_binom_qual = MAX(sscs_binom_qual_fw, sscs_binom_qual_rv) * cIADmincnt / cIADnormcnt - sscs_dec1 - sscs_dec2 
+    const int64_t cIADnormcnt = int64mul(fmt.cIADf[a] + fmt.cIADr[a], 100) + 1;
+    const int64_t cIADmincnt = MIN(cIADnormcnt, int64mul((fmt.CDP2f[0] + fmt.CDP2r[0]) * 100UL + 1, fmt.cDP1v[a] + 1) / (int64_t)(fmt.CDP1v[0] + 1) + 1);
+    const int64_t sscs_binom_qual_fw = fmt.cIAQf[a] + int64mul(fmt.cIAQr[a], MIN(paramset.fam_phred_dscs_all - fmt.cIDQf[a], fmt.cIDQr[a])) / MAX(fmt.cIDQr[a], 1);
+    const int64_t sscs_binom_qual_rv = fmt.cIAQr[a] + int64mul(fmt.cIAQf[a], MIN(paramset.fam_phred_dscs_all - fmt.cIDQr[a], fmt.cIDQf[a])) / MAX(fmt.cIDQf[a], 1);
+    int64_t dec_by_bias = (int64_t)round(10/log(10) * log((double)cIADnormcnt / (double)cIADmincnt) * cIADmincnt / 100) + int64mul(non_duplex_binom_dec_x10, cIADmincnt) / 1000;
+    
+    int sscs_binom_qual = int64mul(MAX(sscs_binom_qual_fw, sscs_binom_qual_rv), cIADmincnt) / cIADnormcnt - sscs_dec1 - sscs_dec2 
             - ((isSymbolIns(symbol) || isSymbolDel(symbol)) ? 0 :  dec_by_bias);
     
-    double min_bcFA_v = (((double)(fmt.cDP1v[a]) + 0.5) / (double)(fmt.CDP1f[0] * 100 + fmt.CDP1r[0] * 100 + 1.0));
+    double min_bcFA_v = (((double)(fmt.cDP1v[a]) + 0.5) / (double)(fmt.CDP0f[0] * 100 + fmt.CDP0r[0] * 100 + 1.0));
     const auto pl_noUMI_phred_inc = paramset.powlaw_anyvar_base 
             + (isSymbolSubstitution(symbol) ? MIN(paramset.bias_FA_powerlaw_noUMI_phred_inc_snv, aDP/2) : paramset.bias_FA_powerlaw_noUMI_phred_inc_indel);
     int dedup_frag_powlaw_qual_v = (int)(paramset.powlaw_exponent * 10.0 / log(10.0) * log(min_bcFA_v) + (pl_noUMI_phred_inc));
@@ -3469,7 +3480,8 @@ BcfFormat_symbol_calc_qual(
     }
     
     fmt.note += std::string("dec_by_bias(") + std::to_string(dec_by_bias) 
-            + ")sscs_binom_qual_fr(" + std::to_string(sscs_binom_qual_fw) + "," + std::to_string(sscs_binom_qual_rv) + ")";
+            + ")sscs_binom_qual_fr(" + std::to_string(sscs_binom_qual_fw) + "," + std::to_string(sscs_binom_qual_rv) 
+            + ")cIAD_mincnt/normcnt(" + std::to_string(cIADmincnt) + "/" + std::to_string(cIADnormcnt) + ")sscs_dec1(" + std::to_string(sscs_dec1) + ")";
     fmt.note += std::string("min_bcFA_v(") + std::to_string(min_bcFA_v) + ")cDP1v(" + std::to_string(fmt.cDP1v[a]) + ")" + "CDP1v(" + std::to_string(fmt.CDP1v[0]) + ")";
     fmt.note += std::string("umi_cFA_v(") + std::to_string(umi_cFA) + ")cDP2v(" + std::to_string(fmt.cDP2v[a]) + ")" + "CDP2v(" + std::to_string(fmt.CDP2v[0]) + ")" + "cMmQ(" + std::to_string(cMmQ) + ")";
      
@@ -3514,17 +3526,17 @@ BcfFormat_symbol_calc_qual(
                 + std::string("/indelcdepth/") + std::to_string(indelcdepth) 
                 + std::string("/indelpm/") + std::to_string(indel_penal4multialleles) + "/" + std::to_string(indel_penal4multialleles_g)
                 ;
-        dedup_frag_powlaw_qual_v += (int)(indel_ic);
-        dedup_frag_powlaw_qual_w += (int)(indel_ic);
-        duped_frag_binom_qual += (int)(indel_pq);
+        dedup_frag_powlaw_qual_v += (int64_t)floor(indel_ic);
+        dedup_frag_powlaw_qual_w += (int64_t)floor(indel_ic);
+        duped_frag_binom_qual += (int64_t)floor(indel_pq);
         
         // assume that first PCR-cycle InDel error rate approx equals to in-vivo error rate over multiple cell generations.
         // const double sscs_indel_ic = 2 * 10.0 / log(10.0) * log((double)MAX(indelstring.size() + (isSymbolIns(symbol) ? INS_N_ANCHOR_BASES : 0), 1U) / (double)(MAX(repeatunit.size(), 1)));
         const double sscs_indel_ic = 10.0 / log(10.0) * log((double)mathsquare(MAX(indelstring.size() + (isSymbolIns(symbol) ? INS_N_ANCHOR_BASES : 0), 1U)) / (double)(MAX(eff_tracklen1, eff_tracklen2) + 1));
         
-        sscs_powlaw_qual_v += (int)(sscs_indel_ic); // + (isSymbolIns(symbol) ? 3 : -3); // (int)MAX(0, indel_ic - paramset.bias_FA_powerlaw_noUMI_phred_inc_indel);
-        sscs_powlaw_qual_w += (int)(sscs_indel_ic); // + (isSymbolIns(symbol) ? 3 : -3); // (int)MAX(0, indel_ic - paramset.bias_FA_powerlaw_noUMI_phred_inc_indel);
-        sscs_binom_qual += (int)(indel_pq);
+        sscs_powlaw_qual_v += (int64_t)floor(sscs_indel_ic); // + (isSymbolIns(symbol) ? 3 : -3); // (int)MAX(0, indel_ic - paramset.bias_FA_powerlaw_noUMI_phred_inc_indel);
+        sscs_powlaw_qual_w += (int64_t)floor(sscs_indel_ic); // + (isSymbolIns(symbol) ? 3 : -3); // (int)MAX(0, indel_ic - paramset.bias_FA_powerlaw_noUMI_phred_inc_indel);
+        sscs_binom_qual += (int64_t)floor(indel_pq);
     }
     
     clear_push(fmt.bIAQ, duped_frag_binom_qual, a);
@@ -3561,13 +3573,13 @@ BcfFormat_symbol_calc_qual(
                     (int)indel_penal4multialleles_g)),
     a);
     
-    clear_push(fmt.cVQ1, MAX(
-            (int)0, 
-            MIN3(
+    const auto bcVQ0 = MIN(syserr_q, (int)round(10/log(10) * log((fmt.cDP1v[a] + 0.5) * 2000 / (double)((fmt.CDP0f[0] * 100 + fmt.CDP0r[0] * 100) + 1.0 + 1000 * 100))) - non_duplex_binom_dec_x10 / 10);
+    const auto bcVQ1 = MAX((int)0, MIN3(
                 syserr_q,
                 (int)LAST(fmt.bIAQ) - penal4BQerr, // Does this correspond to in-silico mixing artifact ???
-                (int)LAST(fmt.cPLQ1)) - indel_penal4multialleles_soma),
-    a);
+                (int)LAST(fmt.cPLQ1)) - indel_penal4multialleles_soma);
+    clear_push(fmt.bVQ1, bcVQ0, a);
+    clear_push(fmt.cVQ1, MAX(bcVQ0, bcVQ1), a);
     
     clear_push(fmt.cVQ2, MIN3(syserr_q,
             (int)LAST(fmt.cIAQ),
@@ -4207,7 +4219,8 @@ append_vcf_record(
     int tlodq = MAX(b_binom_powlaw_syserr_normv_q4filter[3], c_binom_powlaw_syserr_normv_q4[3]);
     
     int somaticq = MIN(tlodq, nlodq);
-    int vcfqual = ((tki.ref_alt.size() > 0) ? somaticq : tlodq);
+    int int_vcfqual = ((tki.ref_alt.size() > 0) ? somaticq : tlodq);
+    double vcfqual = MAX(calc_non_negative((double)int_vcfqual), (double)(int_vcfqual - 1));
     std::string infostring = std::string(tki.ref_alt.size() > 0 ? "SOMATIC" : "ANY_VAR");
     infostring += std::string(";SomaticQ=") + std::to_string(somaticq);
     infostring += std::string(";TLODQ=") + std::to_string(tlodq);

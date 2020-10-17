@@ -40,6 +40,16 @@ const auto LAST(const auto & v) {
     return v[(v.size()-1)];
 }
 
+int64_t
+int64mul(const auto a, const auto b) {
+    return ((int64_t)a) * ((int64_t)b);
+}
+
+uint64_t
+uint64mul(const auto a, const auto b) {
+    return ((uint64_t)a) * ((uint64_t)b);
+}
+
 auto 
 non_neg_minus(auto a, auto b) {
     return (a > b ? (a - b) : 0);
@@ -141,7 +151,7 @@ SUMVEC(const auto & vec) {
 
 template <class T>
 T
-calc_non_negative(const T v, T base = pow(10.0, 0.1), T thres = 20.0) {
+calc_non_negative(const T v, T base = pow(10.0, 0.1), T thres = 10.0) {
     if (v < thres) {
         return log1p(pow(base, v)) / log(base);
     } else {

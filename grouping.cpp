@@ -4,8 +4,8 @@
 #define UPDATE_MIN(a, b) ((a) = min((a), (b)));
 // position of 5' is the starting position, but position of 3' is unreliable without mate info.
 const unsigned int ARRPOS_MARGIN = 1200;
-const int8_t ARRPOS_OUTER_RANGE = 12; // 10;
-const int8_t ARRPOS_INNER_RANGE = 6 - 1; // 3;
+const int8_t ARRPOS_OUTER_RANGE = 11; // 10;
+const int8_t ARRPOS_INNER_RANGE = 4; // 3;
 
 bool 
 ispowof2(auto num) {
@@ -825,8 +825,13 @@ bamfname_to_strand_to_familyuid_to_reads(
         double begfrac = (double)(beg2count + 1) / (double)(beg2surrcount + 2);
         double endfrac = (double)(end2count + 1) / (double)(end2surrcount + 2);
         
-        const bool is_assay_amplicon = ((begfrac > dedup_amplicon_count_to_surrcount_ratio) || (endfrac > dedup_amplicon_count_to_surrcount_ratio)
-                || (min(begfrac, endfrac) > dedup_amplicon_count_to_surrcount_ratio_twosided));
+        const bool is_beg_amplicon = (begfrac > dedup_amplicon_count_to_surrcount_ratio_twosided);
+        const bool is_end_amplicon = (begfrac > dedup_amplicon_count_to_surrcount_ratio_twosided);
+        const bool is_beg_strong_amplicon = (begfrac > dedup_amplicon_count_to_surrcount_ratio);
+        const bool is_end_strong_amplicon = (begfrac > dedup_amplicon_count_to_surrcount_ratio);
+        
+        const bool is_assay_amplicon = (is_beg_strong_amplicon || is_end_strong_amplicon
+                || (is_beg_amplicon && is_end_amplicon));
         pcrpassed += is_assay_amplicon;
         
         // beg end qname UMI = 1 2 4 8
@@ -851,9 +856,11 @@ bamfname_to_strand_to_familyuid_to_reads(
             else { dedup_idflag = 0x9; }
         } else {
             if (is_umi_found) {
-                if (is_assay_amplicon && beg2count > end2count * dedup_amplicon_end2end_ratio) {
+                if (is_beg_strong_amplicon && is_end_amplicon 
+                        && beg2count > end2count * dedup_amplicon_end2end_ratio) {
                     dedup_idflag = 0x9;
-                } else if (is_assay_amplicon && end2count > beg2count * dedup_amplicon_end2end_ratio) {
+                } else if (is_end_strong_amplicon && is_beg_amplicon 
+                        && end2count > beg2count * dedup_amplicon_end2end_ratio) {
                     dedup_idflag = 0xA;
                 } else {
                     dedup_idflag = 0xB;

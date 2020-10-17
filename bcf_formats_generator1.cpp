@@ -333,7 +333,7 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("cIADr" , BCF_NUM_R, BCF_INTEGER, "IID allele depth (number of reads supporting each ALT) on the reverse read orientation."),
     BcfFormatStruct("cIDQr" , BCF_NUM_R, BCF_SIG_INT, "IDD quality threshold per read support on the reverse read orientation."),
     
-    BcfFormatStruct("__e5"  , 1,         BCF_SEP,     "Power-law variant qualities."),
+    BcfFormatStruct("__e5"  , 1,         BCF_SEP,     "Binomial variant qualities."),
     BcfFormatStruct("bIAQ"  , BCF_NUM_R, BCF_SIG_INT, "The duped fragment binomial variant quality by assuming statistical independence."),
     BcfFormatStruct("cIAQ"  , BCF_NUM_R, BCF_SIG_INT, "The deduplicated fragment binomial variant quality by assuming statistical independence."),
     
@@ -361,7 +361,8 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("cPCQ2" , BCF_NUM_R, BCF_SIG_INT, "The SSCS power-law variant allele quality cap that is not lowered by using matched normal."),
     BcfFormatStruct("cPLQ2" , BCF_NUM_R, BCF_SIG_INT, "The single-strand-consensus-sequence (SSCS) UMI-barcoded power-law variant allele quality."),
     BcfFormatStruct("cVQ2"  , BCF_NUM_R, BCF_SIG_INT, "The final variant allele quality computed with SSCS UMI-barcoded families"),
-    
+    BcfFormatStruct("bVQ1"  , BCF_NUM_R, BCF_SIG_INT, "The final variant allele quality computed by raw allele fraction using non-dedupped reads"),
+
     BcfFormatStruct("__e9"  , 1,         BCF_SEP,     "Normalized read support for SSCS UMI-barcoded families."),
     BcfFormatStruct("cDP2v" , BCF_NUM_R, BCF_INTEGER, "The effective number of SSCS UMI-barcoded families supporting each allele multiplied by 100 "
                                                       "for within-sample comparison."),

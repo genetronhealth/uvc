@@ -64,8 +64,8 @@ struct CommandLineArgs {
     SequencingPlatform sequencing_platform = SEQUENCING_PLATFORM_AUTO;
     PairEndMerge pair_end_merge = PAIR_END_MERGE_YES;
     bool        disable_duplex = false;
-    uint32_t    primerlen_min = 18; // https://genome.cshlp.org/content/3/3/S30.full.pdf , 18 - 24
-    uint32_t    primerlen_max = 24;  
+    uint32_t    primerlen_min = 23; // https://genome.cshlp.org/content/3/3/S30.full.pdf : 18 - 24 bps
+    uint32_t    primerlen_max = 23; // https://link.springer.com/chapter/10.1007/978-1-4020-6241-4_5 : 18 - 22 bps
     
     uint16_t    central_readlen = 0; // estimate from the data
     uint16_t    bq_phred_added_misma = 0; // estiamte from the data
