@@ -31,7 +31,7 @@ struct CommandLineArgs {
     uint32_t fam_thres_highBQ_indel = 13;
     uint32_t fam_thres_dup1add = 2;
     uint32_t fam_thres_dup1perc = 80;
-    uint32_t fam_thres_dup2add = 3;
+    uint32_t fam_thres_dup2add = 3; // + 1; // 3
     uint32_t fam_thres_dup2perc = 85;
     
 // *** 01. parameters of the names of files, samples, regions, etc.
@@ -81,8 +81,8 @@ struct CommandLineArgs {
     // PCR stutter noise at (di,tri,tetra,...)-nucleotide generates +-(2,3,4...) shift in read end position, 
     // so more accurate dedupping requires us to consider these cases. This constant is good enough for the general case.
     uint16_t    dedup_center_mult = 5; 
-    uint16_t    dedup_amplicon_count_to_surrcount_ratio = 20; // 16;
-    uint16_t    dedup_amplicon_count_to_surrcount_ratio_twosided = 5; // 4; // 6;
+    uint16_t    dedup_amplicon_count_to_surrcount_ratio = 16; // 20;
+    uint16_t    dedup_amplicon_count_to_surrcount_ratio_twosided = 4; // 5; // 6;
     double      dedup_amplicon_end2end_ratio = 1.5;
     
     uint32_t    dedup_flag = 0x0;
@@ -120,7 +120,7 @@ struct CommandLineArgs {
     uint32_t bias_thres_aLRI1t_perc = 50;
     uint32_t bias_thres_aLRI2t_perc = 67;
     
-    uint32_t bias_thres_aLRI1T_add = 200;
+    uint32_t bias_thres_aLRI1T_add = 180; // 200;
     uint32_t bias_thres_aLRI2T_add = 150;
     
     uint32_t bias_thres_PFBQ1 = 25;

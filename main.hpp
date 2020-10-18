@@ -2496,7 +2496,8 @@ struct Symbol2CountCoverageSet {
                         }
                         unsigned int max_qual = sscs_mut_table.toPhredErrRate(ref_symbol, con_symbol);
                         unsigned int confam_qual2 = MIN(confam_qual, max_qual);
-                        if (tot_nfrags >= paramset.fam_thres_dup1add) {
+                        const bool disable_binom_fam_thres = false; // true; // TODO: INVESTIGATE
+                        if (disable_binom_fam_thres || tot_nfrags >= paramset.fam_thres_dup1add) {
                             int pbucket = (max_qual - confam_qual2 + 2) / 4;
                             this->dedup_ampDistr[strand].getRefByPos(epos).incSymbolBucketCount(con_symbol, pbucket, 1);
                         }
@@ -3446,13 +3447,23 @@ BcfFormat_symbol_calc_qual(
     // how to reduce qual by bias: div first, then minus
     const int64_t sscs_dec2 = non_neg_minus((int)fam_thres_highBQ, cMmQ);
     const int64_t cIADnormcnt = int64mul(fmt.cIADf[a] + fmt.cIADr[a], 100) + 1;
-    const int64_t cIADmincnt = MIN(cIADnormcnt, int64mul((fmt.CDP2f[0] + fmt.CDP2r[0]) * 100UL + 1, fmt.cDP1v[a] + 1) / (int64_t)(fmt.CDP1v[0] + 1) + 1);
+    const int64_t cIADmincnt = MIN(cIADnormcnt, MAX(100, fmt.cDP2v[a]) + 1);
+    /*
+    */
     const int64_t sscs_binom_qual_fw = fmt.cIAQf[a] + int64mul(fmt.cIAQr[a], MIN(paramset.fam_phred_dscs_all - fmt.cIDQf[a], fmt.cIDQr[a])) / MAX(fmt.cIDQr[a], 1);
     const int64_t sscs_binom_qual_rv = fmt.cIAQr[a] + int64mul(fmt.cIAQf[a], MIN(paramset.fam_phred_dscs_all - fmt.cIDQr[a], fmt.cIDQf[a])) / MAX(fmt.cIDQf[a], 1);
-    int64_t dec_by_bias = (int64_t)round(10/log(10) * log((double)cIADnormcnt / (double)cIADmincnt) * cIADmincnt / 100) + int64mul(non_duplex_binom_dec_x10, cIADmincnt) / 1000;
     
+    int64_t dec_by_bias = 0;
+    if ((int64mul(cDP2, 1000) < (int64_t)CDP2)) { 
+        const int64_t cIADmincnt = MIN(cIADnormcnt, 
+            int64mul((fmt.CDP2f[0] + fmt.CDP2r[0]) * 100UL + 1, fmt.cDP1v[a] + 1) 
+            / (int64_t)(fmt.CDP0f[0] + fmt.CDP0r[0] + 1) + 1);
+        dec_by_bias = (int64_t)round(
+            10/log(10) * log((double)cIADnormcnt / (double)cIADmincnt) * cIADmincnt / 100) 
+            + int64mul(non_duplex_binom_dec_x10, cIADmincnt) / 1000;
+    }
     int sscs_binom_qual = int64mul(MAX(sscs_binom_qual_fw, sscs_binom_qual_rv), cIADmincnt) / cIADnormcnt - sscs_dec1 - sscs_dec2 
-            - ((isSymbolIns(symbol) || isSymbolDel(symbol)) ? 0 :  dec_by_bias);
+            - ((isSymbolIns(symbol) || isSymbolDel(symbol)) ? 0 : dec_by_bias); // TODO: INVESTIGATE
     
     double min_bcFA_v = (((double)(fmt.cDP1v[a]) + 0.5) / (double)(fmt.CDP0f[0] * 100 + fmt.CDP0r[0] * 100 + 1.0));
     const auto pl_noUMI_phred_inc = paramset.powlaw_anyvar_base 
@@ -3572,19 +3583,18 @@ BcfFormat_symbol_calc_qual(
                     (int)indel_penal4multialleles - (int)paramset.indel_multiallele_soma_penal_thres, 
                     (int)indel_penal4multialleles_g)),
     a);
-    
-    const auto bcVQ0 = MIN(syserr_q, (int)round(10/log(10) * log((fmt.cDP1v[a] + 0.5) * 2000 / (double)((fmt.CDP0f[0] * 100 + fmt.CDP0r[0] * 100) + 1.0 + 1000 * 100))) - non_duplex_binom_dec_x10 / 10);
-    const auto bcVQ1 = MAX((int)0, MIN3(
+    // const auto bcVQ0 = MIN(syserr_q, (int)round(10/log(10) * log((fmt.cDP1v[a] + 0.5) * 2000 / (double)((fmt.CDP0f[0] * 100 + fmt.CDP0r[0] * 100) + 1.0 + 1000 * 100))) - non_duplex_binom_dec_x10 / 10);
+    const auto bcVQ1 = MIN3(
                 syserr_q,
                 (int)LAST(fmt.bIAQ) - penal4BQerr, // Does this correspond to in-silico mixing artifact ???
-                (int)LAST(fmt.cPLQ1)) - indel_penal4multialleles_soma);
-    clear_push(fmt.bVQ1, bcVQ0, a);
-    clear_push(fmt.cVQ1, MAX(bcVQ0, bcVQ1), a);
+                (int)LAST(fmt.cPLQ1)) - indel_penal4multialleles_soma;
+    /// clear_push(fmt.bVQ1, lowestVAQx1000, a);
+    clear_push(fmt.cVQ1, MAX(0, bcVQ1), a);
     
-    clear_push(fmt.cVQ2, MIN3(syserr_q,
+    const int cVQ2 = MIN3(syserr_q,
             (int)LAST(fmt.cIAQ),
-            (int)LAST(fmt.cPLQ2)) - indel_penal4multialleles, 
-    a);
+            (int)LAST(fmt.cPLQ2)) - indel_penal4multialleles;
+    clear_push(fmt.cVQ2, cVQ2, a);
     
     // TODO; check if reducing all allele read count to increase alt allele frac in case of ref bias makes more sense
     // double base_contamfrac = 0.02; // ContEst https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3167057/ Fig. 1 TCGA Ovarian 
@@ -4217,10 +4227,11 @@ append_vcf_record(
             paramset.tn_syserr_norm_devqual);
     
     int tlodq = MAX(b_binom_powlaw_syserr_normv_q4filter[3], c_binom_powlaw_syserr_normv_q4[3]);
+    float lowestVAQ = 1.0 + (prob2realphred(1 / (double)(tki.bDP + 1)) * (tki.bDP) / (tki.BDP + DBL_MIN)) / (double)2;
     
     int somaticq = MIN(tlodq, nlodq);
-    int int_vcfqual = ((tki.ref_alt.size() > 0) ? somaticq : tlodq);
-    double vcfqual = MAX(calc_non_negative((double)int_vcfqual), (double)(int_vcfqual - 1));
+    float vcfqual = ((tki.ref_alt.size() > 0) ? ((float)somaticq) : MAX((float)tlodq, lowestVAQ));
+    // double vcfqual = MAX(calc_non_negative((double)int_vcfqual), (double)(int_vcfqual - 1));
     std::string infostring = std::string(tki.ref_alt.size() > 0 ? "SOMATIC" : "ANY_VAR");
     infostring += std::string(";SomaticQ=") + std::to_string(somaticq);
     infostring += std::string(";TLODQ=") + std::to_string(tlodq);
