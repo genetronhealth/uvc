@@ -1273,7 +1273,7 @@ public:
             }
         }
         */
-        std::vector<uint16_t> refBAQvec(rend-rbeg);
+        std::vector<uint16_t> refBAQvec(rend-rbeg + 1);
         {
             unsigned int qpos = 0;
             unsigned int rpos = b->core.pos;
