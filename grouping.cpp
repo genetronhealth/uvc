@@ -852,8 +852,8 @@ bamfname_to_strand_to_familyuid_to_reads(
         if (dedup_flag != 0) {
             dedup_idflag = dedup_flag;
         } else if (is_proton) {
-            if (is_umi_found) { dedup_idflag = 0x5; }
-            else { dedup_idflag = 0x9; }
+            if (is_umi_found) { dedup_idflag = 0x9; }
+            else { dedup_idflag = 0x4; }
         } else {
             if (is_umi_found) {
                 if (is_beg_strong_amplicon && is_end_amplicon 
@@ -865,7 +865,7 @@ bamfname_to_strand_to_familyuid_to_reads(
                 } else {
                     dedup_idflag = 0xB;
                 }
-            } else if (is_assay_amplicon) {
+            } else if (is_beg_amplicon && is_end_amplicon) {
                 dedup_idflag = 0x7;
             } else {
                 dedup_idflag = 0x3;

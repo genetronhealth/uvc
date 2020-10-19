@@ -162,7 +162,7 @@ struct CommandLineArgs {
     
     int32_t  bias_FA_powerlaw_noUMI_phred_inc_snv = 5;
     int32_t  bias_FA_powerlaw_noUMI_phred_inc_indel = 7; // this is actually the intrinsic lower error rate of indel instead of the one after reduction by bias.
-    int32_t  bias_FA_powerlaw_withUMI_phred_inc_snv = 5; // +3; // 7+7;
+    int32_t  bias_FA_powerlaw_withUMI_phred_inc_snv = 5+4; // +3; // 7+7;
     int32_t  bias_FA_powerlaw_withUMI_phred_inc_indel = 7; // +3; // 7+7;
 
 // *** 07. parameters related to read families
@@ -183,15 +183,16 @@ struct CommandLineArgs {
     // 14: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3111315/ : Following 25 additional cycles of PCR, There were 19 cycles of PCR 
     uint16_t fam_phred_indel_inc_before_barcode_labeling = 13 + 14; // 10 + 13;
     // https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3616734/ : all major library-prep artifacts
-    uint16_t fam_phred_sscs_transition_CG_TA = 44; // Cytosine deamination into Uracil, especially in FFPE samples, also by UV light radiation, more upstream
-    uint16_t fam_phred_sscs_transition_TA_CG = 48; // https://en.wikipedia.org/wiki/DNA_oxidation, DNA synthesis error, more downstream
-    uint16_t fam_phred_sscs_transversion_CG_AT = 52; // https://www.pnas.org/content/109/36/14508 : there can be C->A artifact
-    uint16_t fam_phred_sscs_transversion_any = 52;
-    uint16_t fam_phred_sscs_indel_open = 60;
+    uint16_t fam_phred_sscs_transition_CG_TA = 40; // Cytosine deamination into Uracil, especially in FFPE samples, also by UV light radiation, more upstream
+    uint16_t fam_phred_sscs_transition_AT_GC = 44; // https://en.wikipedia.org/wiki/DNA_oxidation, DNA synthesis error, more downstream
+    uint16_t fam_phred_sscs_transversion_CG_AT = 48; // https://www.pnas.org/content/109/36/14508 : there can be C->A artifact
+    uint16_t fam_phred_sscs_transversion_AT_TA = 46;
+    uint16_t fam_phred_sscs_transversion_other = 48;
+    uint16_t fam_phred_sscs_indel_open = 58;
     uint16_t fam_phred_sscs_indel_ext  = 0;
-    uint16_t fam_phred_dscs_all = 60;
+    uint16_t fam_phred_dscs_all = 58;
     
-    double   fam_phred_pow_sscs_SNV_origin = 48 - 41; // 10*log((2.7e-3-3.5e-5)/(1.5e-4-3.5e-5))/log(10)*3 = 41 from https://doi.org/10.1073/pnas.1208715109
+    double   fam_phred_pow_sscs_SNV_origin = 44 - 41; // 10*log((2.7e-3-3.5e-5)/(1.5e-4-3.5e-5))/log(10)*3 = 41 from https://doi.org/10.1073/pnas.1208715109
     double   fam_phred_pow_sscs_indel_origin = fam_phred_sscs_indel_open - (13 * 3);
     double   fam_phred_pow_dscs_all_origin = 0;
     

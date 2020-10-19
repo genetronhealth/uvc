@@ -228,13 +228,28 @@ isSymbolSubstitution(AlignmentSymbol symbol) {
 
 struct PhredMutationTable {
     const unsigned int transition_CG_TA;
-    const unsigned int transition_TA_CG;
+    const unsigned int transition_AT_CG;
     const unsigned int transversion_CG_AT;
-    const unsigned int transversion_any;
+    const unsigned int transversion_AT_TA;
+    const unsigned int transversion_other;
     const unsigned int indel_open;
     const unsigned int indel_ext;
-    PhredMutationTable(unsigned int CG_TA, unsigned int TA_CG, unsigned int CG_AT, unsigned int transversionany, unsigned int idopen, unsigned int idext)
-            : transition_CG_TA(CG_TA), transition_TA_CG(TA_CG), transversion_CG_AT(CG_AT), transversion_any(transversionany), indel_open(idopen), indel_ext(idext) 
+    PhredMutationTable(
+            const unsigned int transition_CG_TA,
+            const unsigned int transition_AT_CG,
+            const unsigned int transversion_CG_AT,
+            const unsigned int transversion_AT_TA,
+            const unsigned int transversion_other,
+            const unsigned int indel_open,
+            const unsigned int indel_ext)
+            : 
+            transition_CG_TA(transition_CG_TA),
+            transition_AT_CG(transition_AT_CG),
+            transversion_CG_AT(transversion_CG_AT),
+            transversion_AT_TA(transversion_AT_TA),
+            transversion_other(transversion_other),
+            indel_open(indel_open),
+            indel_ext(indel_ext) //,
             {
     }
     const unsigned int toPhredErrRate(const AlignmentSymbol con_symbol, const AlignmentSymbol alt_symbol) const {
@@ -250,12 +265,14 @@ struct PhredMutationTable {
             }
         } else if ((con_symbol == BASE_C && alt_symbol == BASE_T) || (con_symbol == BASE_G && alt_symbol == BASE_A)) {
             return transition_CG_TA;
-        } else if ((con_symbol == BASE_T && alt_symbol == BASE_C) || (con_symbol == BASE_A && alt_symbol == BASE_G)) {
-            return transition_TA_CG;
+        } else if ((con_symbol == BASE_A && alt_symbol == BASE_G) || (con_symbol == BASE_T && alt_symbol == BASE_C)) {
+            return transition_AT_CG;
         } else if ((con_symbol == BASE_C && alt_symbol == BASE_A) || (con_symbol == BASE_G && alt_symbol == BASE_T)) {
             return transversion_CG_AT;
-        }else {
-            return transversion_any;
+        } else if ((con_symbol == BASE_A && alt_symbol == BASE_T) || (con_symbol == BASE_T && alt_symbol == BASE_A)) {
+            return transversion_AT_TA;
+        } else {
+            return transversion_other;
         }
     }
 };
@@ -2309,9 +2326,10 @@ struct Symbol2CountCoverageSet {
         bool is_loginfo_enabled = true; 
         const PhredMutationTable sscs_mut_table(
                 paramset.fam_phred_sscs_transition_CG_TA,
-                paramset.fam_phred_sscs_transition_TA_CG,
+                paramset.fam_phred_sscs_transition_AT_GC,
                 paramset.fam_phred_sscs_transversion_CG_AT,
-                paramset.fam_phred_sscs_transversion_any,
+                paramset.fam_phred_sscs_transversion_AT_TA,
+                paramset.fam_phred_sscs_transversion_other,
                 paramset.fam_phred_sscs_indel_open,
                 paramset.fam_phred_sscs_indel_ext);
         
@@ -2496,8 +2514,7 @@ struct Symbol2CountCoverageSet {
                         }
                         unsigned int max_qual = sscs_mut_table.toPhredErrRate(ref_symbol, con_symbol);
                         unsigned int confam_qual2 = MIN(confam_qual, max_qual);
-                        const bool disable_binom_fam_thres = false; // true; // TODO: INVESTIGATE
-                        if (disable_binom_fam_thres || tot_nfrags >= paramset.fam_thres_dup1add) {
+                        if (tot_nfrags >= paramset.fam_thres_dup1add) {
                             int pbucket = (max_qual - confam_qual2 + 2) / 4;
                             this->dedup_ampDistr[strand].getRefByPos(epos).incSymbolBucketCount(con_symbol, pbucket, 1);
                         }
@@ -3373,15 +3390,15 @@ BcfFormat_symbol_calc_qual(
     
     const PhredMutationTable sscs_mut_table(
             paramset.fam_phred_sscs_transition_CG_TA,
-            paramset.fam_phred_sscs_transition_TA_CG,
+            paramset.fam_phred_sscs_transition_AT_GC,
             paramset.fam_phred_sscs_transversion_CG_AT,
-            paramset.fam_phred_sscs_transversion_any,
+            paramset.fam_phred_sscs_transversion_AT_TA,
+            paramset.fam_phred_sscs_transversion_other,
             paramset.fam_phred_sscs_indel_open,
             paramset.fam_phred_sscs_indel_ext);
+    
     const int powlaw_sscs_phrederr = sscs_mut_table.toPhredErrRate(refsymbol, symbol);
     const int powlaw_sscs_inc1 = (powlaw_sscs_phrederr  - (isSymbolSubstitution(symbol) ? paramset.fam_phred_pow_sscs_SNV_origin : paramset.fam_phred_pow_sscs_indel_origin));
-    const auto pl_withUMI_phred_inc = paramset.powlaw_anyvar_base 
-            + (isSymbolSubstitution(symbol) ? paramset.bias_FA_powerlaw_withUMI_phred_inc_snv : paramset.bias_FA_powerlaw_withUMI_phred_inc_indel);
     
     const unsigned int aDP = (fmt.aDPff[a] + fmt.aDPfr[a] + fmt.aDPrf[a] + fmt.aDPrr[a]);
     const unsigned int ADP = (fmt.ADPff[0] + fmt.ADPrf[0] + fmt.ADPfr[0] + fmt.ADPrr[0]);
@@ -3389,11 +3406,19 @@ BcfFormat_symbol_calc_qual(
     const unsigned int BDP = (fmt.BDPf[0] + fmt.BDPr[0]);
     const unsigned int cDP2 = (fmt.cDP2f[a] + fmt.cDP2r[a]);
     const unsigned int CDP2 = (fmt.CDP2f[0] + fmt.CDP2r[0]);
+    
+    const auto noUMI_bias_inc = MIN(paramset.bias_FA_powerlaw_noUMI_phred_inc_snv, aDP/2); 
+    const auto pl_noUMI_phred_inc = paramset.powlaw_anyvar_base 
+            + (isSymbolSubstitution(symbol) ? noUMI_bias_inc : paramset.bias_FA_powerlaw_noUMI_phred_inc_indel);
+    const auto withUMI_bias_inc = MIN(paramset.bias_FA_powerlaw_withUMI_phred_inc_snv - paramset.bias_FA_powerlaw_noUMI_phred_inc_snv, cDP2/2) + noUMI_bias_inc; 
+    const auto pl_withUMI_phred_inc = paramset.powlaw_anyvar_base 
+            + (isSymbolSubstitution(symbol) ? withUMI_bias_inc : paramset.bias_FA_powerlaw_withUMI_phred_inc_indel);
+    
     const bool is_cytosine_deanim_CT = ((BASE_C == refsymbol && BASE_T == symbol) || (BASE_G == refsymbol && BASE_A == symbol));
     const bool is_cytosine_deanim_FA = (int64mul(cDP2, 1000) < (int64_t)CDP2);
     const bool is_cysotine_deanimation = (is_cytosine_deanim_CT && is_cytosine_deanim_FA);
     int64_t non_duplex_binom_dec_x10 = ((is_cysotine_deanimation)
-            ? (10 * 12 * ((int64_t)CDP2 - int64mul(cDP2, 1000)) / CDP2) : 0);
+            ? (10 * (int64_t)non_neg_minus(paramset.fam_phred_sscs_transition_CG_TA, paramset.fam_phred_dscs_all / 2) * ((int64_t)CDP2 - int64mul(cDP2, 1000)) / CDP2) : 0);
     fmt.note += std::string("non_duplex_binom_dec_x10(" + std::to_string(non_duplex_binom_dec_x10) + ")");
     /*
     double prior_weight;
@@ -3447,27 +3472,29 @@ BcfFormat_symbol_calc_qual(
     // how to reduce qual by bias: div first, then minus
     const int64_t sscs_dec2 = non_neg_minus((int)fam_thres_highBQ, cMmQ);
     const int64_t cIADnormcnt = int64mul(fmt.cIADf[a] + fmt.cIADr[a], 100) + 1;
-    const int64_t cIADmincnt = MIN(cIADnormcnt, MAX(100, fmt.cDP2v[a]) + 1);
-    /*
-    */
+    // const int64_t cIADmincnt = MIN(cIADnormcnt, MAX(100, fmt.cDP2v[a]) + 1);
+    const int64_t cIADmincnt = MIN(cIADnormcnt, 
+            int64mul((fmt.CDP2f[0] + fmt.CDP2r[0]) * 100UL + 1, fmt.cDP1v[a] + 1) 
+            / (int64_t)(fmt.CDP0f[0] + fmt.CDP0r[0] + 1) + 1);
+    
     const int64_t sscs_binom_qual_fw = fmt.cIAQf[a] + int64mul(fmt.cIAQr[a], MIN(paramset.fam_phred_dscs_all - fmt.cIDQf[a], fmt.cIDQr[a])) / MAX(fmt.cIDQr[a], 1);
     const int64_t sscs_binom_qual_rv = fmt.cIAQr[a] + int64mul(fmt.cIAQf[a], MIN(paramset.fam_phred_dscs_all - fmt.cIDQr[a], fmt.cIDQf[a])) / MAX(fmt.cIDQf[a], 1);
     
     int64_t dec_by_bias = 0;
-    if ((int64mul(cDP2, 1000) < (int64_t)CDP2)) { 
-        const int64_t cIADmincnt = MIN(cIADnormcnt, 
-            int64mul((fmt.CDP2f[0] + fmt.CDP2r[0]) * 100UL + 1, fmt.cDP1v[a] + 1) 
-            / (int64_t)(fmt.CDP0f[0] + fmt.CDP0r[0] + 1) + 1);
-        dec_by_bias = (int64_t)round(
+    /*
+    if ((int64mul(cDP2, 1000) < (int64_t)CDP2)) {
+        const auto dec_by_bias1 = (int64_t)round(
             10/log(10) * log((double)cIADnormcnt / (double)cIADmincnt) * cIADmincnt / 100) 
             + int64mul(non_duplex_binom_dec_x10, cIADmincnt) / 1000;
+        dec_by_bias = dec_by_bias1 * 2 * ((int64_t)CDP2 - int64mul(cDP2, 1000)) / (int64_t)CDP2;
     }
-    int sscs_binom_qual = int64mul(MAX(sscs_binom_qual_fw, sscs_binom_qual_rv), cIADmincnt) / cIADnormcnt - sscs_dec1 - sscs_dec2 
-            - ((isSymbolIns(symbol) || isSymbolDel(symbol)) ? 0 : dec_by_bias); // TODO: INVESTIGATE
-    
+    */
+    int64_t sscs_binom_qual = int64mul(MAX(sscs_binom_qual_fw, sscs_binom_qual_rv), cIADmincnt) / (cIADnormcnt);
+    if (MAX(sscs_binom_qual_fw, sscs_binom_qual_rv) > 22) {
+        sscs_binom_qual = MIN(sscs_binom_qual, 22 + (MAX(sscs_binom_qual_fw, sscs_binom_qual_rv) - 22) / 2); // intrinsic bias
+    }
+    sscs_binom_qual -= sscs_dec1 + sscs_dec2 + ((isSymbolIns(symbol) || isSymbolDel(symbol)) ? 0 : dec_by_bias); // TODO: INVESTIGATE
     double min_bcFA_v = (((double)(fmt.cDP1v[a]) + 0.5) / (double)(fmt.CDP0f[0] * 100 + fmt.CDP0r[0] * 100 + 1.0));
-    const auto pl_noUMI_phred_inc = paramset.powlaw_anyvar_base 
-            + (isSymbolSubstitution(symbol) ? MIN(paramset.bias_FA_powerlaw_noUMI_phred_inc_snv, aDP/2) : paramset.bias_FA_powerlaw_noUMI_phred_inc_indel);
     int dedup_frag_powlaw_qual_v = (int)(paramset.powlaw_exponent * 10.0 / log(10.0) * log(min_bcFA_v) + (pl_noUMI_phred_inc));
     
     double min_bcFA_w = ((double)(fmt.cDP1w[a] + 0.5) / (double)(fmt.CDP1f[0] * 100 + fmt.CDP1r[0] * 100 + 1.0));
@@ -3591,10 +3618,18 @@ BcfFormat_symbol_calc_qual(
     /// clear_push(fmt.bVQ1, lowestVAQx1000, a);
     clear_push(fmt.cVQ1, MAX(0, bcVQ1), a);
     
+    // This adjustment makes sure that variant with UMI support is ranked before variant without UMI suppport.
+    const std::array<int, 10> cysotine_deanim_to_score = {{ 1, 2, 2, 2, 3, 3, 3, 3, 3, 4}};
+    const std::array<int, 5> other_to_score = {{ 2, 3, 3, 3, 4}};
+    // const int cDP2 = (LAST(fmt.cDP2f) + LAST(fmt.cDP2r));
+    const int mincVQ2 = (is_cytosine_deanim_CT 
+        ? cysotine_deanim_to_score[MIN(cDP2, cysotine_deanim_to_score.size() - 1)] 
+        : other_to_score[MIN(cDP2, other_to_score.size() - 1)]); 
+    
     const int cVQ2 = MIN3(syserr_q,
             (int)LAST(fmt.cIAQ),
             (int)LAST(fmt.cPLQ2)) - indel_penal4multialleles;
-    clear_push(fmt.cVQ2, cVQ2, a);
+    clear_push(fmt.cVQ2, MAX(mincVQ2, cVQ2), a);
     
     // TODO; check if reducing all allele read count to increase alt allele frac in case of ref bias makes more sense
     // double base_contamfrac = 0.02; // ContEst https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3167057/ Fig. 1 TCGA Ovarian 
@@ -4227,7 +4262,7 @@ append_vcf_record(
             paramset.tn_syserr_norm_devqual);
     
     int tlodq = MAX(b_binom_powlaw_syserr_normv_q4filter[3], c_binom_powlaw_syserr_normv_q4[3]);
-    float lowestVAQ = 1.0 + (prob2realphred(1 / (double)(tki.bDP + 1)) * (tki.bDP) / (tki.BDP + DBL_MIN)) / (double)2;
+    float lowestVAQ = MIN(tlodq, 4) + 0.5 + (prob2realphred(1 / (double)(tki.bDP + 1)) * (tki.bDP) / (double)(tki.BDP + + tki.bDP + 1));
     
     int somaticq = MIN(tlodq, nlodq);
     float vcfqual = ((tki.ref_alt.size() > 0) ? ((float)somaticq) : MAX((float)tlodq, lowestVAQ));

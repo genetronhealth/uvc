@@ -668,19 +668,24 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     ADD_OPTDEF(app, 
         "--fam-phred-sscs-transition-CG-TA", 
            fam_phred_sscs_transition_CG_TA, 
-        "Maximum phred score for single-strand consensus sequences (SSCSs) for C:G > T:A transition. ");
+        "Maximum phred score for single-strand consensus sequences (SSCSs) for C > T transition which is mainly caused by cytosine deanimation. ");
     ADD_OPTDEF(app, 
-        "--fam-phred-sscs-transition-TA-CG", 
-           fam_phred_sscs_transition_TA_CG, 
-        "Maximum phred score for single-strand consensus sequences (SSCSs) for T:A > C:G transition. ");
+        "--fam-phred-sscs-transition-AT-GC", 
+           fam_phred_sscs_transition_AT_GC, 
+        "Maximum phred score for single-strand consensus sequences (SSCSs) for A:T > G:C transition. ");
     ADD_OPTDEF(app, 
         "--fam-phred-sscs-transversion-CG-AT",
            fam_phred_sscs_transversion_CG_AT, 
-        "Maximum phred score for single-strand consensus sequences (SSCSs) for the C:G > A:T transversion. ");
+        "Maximum phred score for single-strand consensus sequences (SSCSs) for the G > T transversion which is mainly caused by 8-oxo-guanine (described at https://www.pnas.org/content/109/36/14508). ");
+   ADD_OPTDEF(app,
+        "--fam-phred-sscs-transversion-AT-TA",
+           fam_phred_sscs_transversion_AT_TA, 
+        "Maximum phred score for single-strand consensus sequences (SSCSs) for the A:T > T:A transversion. ");
+
     ADD_OPTDEF(app, 
-        "--fam-phred-sscs-transversion-any", 
-           fam_phred_sscs_transversion_any, 
-        "Maximum phred score for single-strand consensus sequences (SSCSs) for any transversion other than C:G > A:T. ");
+        "--fam-phred-sscs-transversion-other", 
+           fam_phred_sscs_transversion_other, 
+        "Maximum phred score for single-strand consensus sequences (SSCSs) for any other transversion. ");
     ADD_OPTDEF(app, 
         "--fam-phred-sscs-indel-open", 
            fam_phred_sscs_indel_open, 
