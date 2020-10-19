@@ -146,23 +146,23 @@ struct CommandLineArgs {
     
     double   bias_prior_var_DP_mul = 1.25 + DBLFLT_EPS;
     
-    uint32_t bias_prior_ipos_SNV = 1e5; // set very high to disable insert-end bias
-    uint32_t bias_prior_ipos_InDel = 3e3;
-    uint32_t bias_prior_strand_SNV_base = 10; // set very high to disable strand bias
-    uint32_t bias_prior_strand_InDel = 3e3;
+    uint32_t bias_prior_ipos_snv = 1e5; // set very high to disable insert-end bias
+    uint32_t bias_prior_ipos_indel = 3e3;
+    uint32_t bias_prior_strand_snv_base = 10; // set very high to disable strand bias
+    uint32_t bias_prior_strand_indel = 3e3;
     
     double   bias_FA_pseudocount_indel_in_read = 0.1;
     
     double   nobias_pos_indel_lenfrac_thres = 2.0; // set very low to disable position bias for InDels
     uint32_t nobias_pos_indel_STR_track_len = 16;
 
-    double   bias_prior_orientation_SNV_base = 1e5; // set very high to disable orientation bias
-    double   bias_prior_orientation_InDel_base = 1e5; 
+    double   bias_prior_orientation_snv_base = 1e5; // set very high to disable orientation bias
+    double   bias_prior_orientation_indel_base = 1e5; 
     double   bias_orientation_counter_avg_end_len = 20;
     
     int32_t  bias_FA_powerlaw_noUMI_phred_inc_snv = 5;
     int32_t  bias_FA_powerlaw_noUMI_phred_inc_indel = 7; // this is actually the intrinsic lower error rate of indel instead of the one after reduction by bias.
-    int32_t  bias_FA_powerlaw_withUMI_phred_inc_snv = 5+4; // +3; // 7+7;
+    int32_t  bias_FA_powerlaw_withUMI_phred_inc_snv = 5+3; // +4; // 7+7;
     int32_t  bias_FA_powerlaw_withUMI_phred_inc_indel = 7; // +3; // 7+7;
 
 // *** 07. parameters related to read families
@@ -186,13 +186,13 @@ struct CommandLineArgs {
     uint16_t fam_phred_sscs_transition_CG_TA = 40; // Cytosine deamination into Uracil, especially in FFPE samples, also by UV light radiation, more upstream
     uint16_t fam_phred_sscs_transition_AT_GC = 44; // https://en.wikipedia.org/wiki/DNA_oxidation, DNA synthesis error, more downstream
     uint16_t fam_phred_sscs_transversion_CG_AT = 48; // https://www.pnas.org/content/109/36/14508 : there can be C->A artifact
-    uint16_t fam_phred_sscs_transversion_AT_TA = 46;
     uint16_t fam_phred_sscs_transversion_other = 48;
     uint16_t fam_phred_sscs_indel_open = 58;
     uint16_t fam_phred_sscs_indel_ext  = 0;
     uint16_t fam_phred_dscs_all = 58;
     
-    double   fam_phred_pow_sscs_SNV_origin = 44 - 41; // 10*log((2.7e-3-3.5e-5)/(1.5e-4-3.5e-5))/log(10)*3 = 41 from https://doi.org/10.1073/pnas.1208715109
+    uint16_t fam_phred_pow_sscs_transversion_AT_TA_origin = 44-41+4; // A:T > T:A somatic mutations are uncommon
+    double   fam_phred_pow_sscs_snv_origin = 44 - 41; // 10*log((2.7e-3-3.5e-5)/(1.5e-4-3.5e-5))/log(10)*3 = 41 from https://doi.org/10.1073/pnas.1208715109
     double   fam_phred_pow_sscs_indel_origin = fam_phred_sscs_indel_open - (13 * 3);
     double   fam_phred_pow_dscs_all_origin = 0;
     

@@ -572,19 +572,19 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     
     ADD_OPTDEF(app,
         "--bias-prior-ipos-snv",
-           bias_prior_ipos_SNV,
+           bias_prior_ipos_snv,
         "Prior weight of the null hypothesis of no insert position bias for SNVs. ");
     ADD_OPTDEF(app,
         "--bias-prior-ipos-indel",
-           bias_prior_ipos_InDel,
+           bias_prior_ipos_indel,
         "Prior weight of the null hypothesis of no insert position bias for InDels. ");
     ADD_OPTDEF(app,
         "--bias-prior-strand-snv-base",
-           bias_prior_strand_SNV_base,
+           bias_prior_strand_snv_base,
         "Prior weight of the null hypothesis of no strand bias for SNVs at the average base quality of zero. ");
     ADD_OPTDEF(app,
         "--bias-prior-strand-indel",
-           bias_prior_strand_InDel,
+           bias_prior_strand_indel,
         "Prior weight of the null hypothesis of no strand bias for InDels. ");
     
     ADD_OPTDEF(app,
@@ -603,11 +603,11 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     
     ADD_OPTDEF(app,
         "--bias-prior-orientation-snv-base",
-           bias_prior_orientation_SNV_base,
+           bias_prior_orientation_snv_base,
         "The prior weight of the null hypothesis of no read-orientation bias at 100\% allele fraction for SNVs. ");
     ADD_OPTDEF(app,
         "--bias-prior-orientation-indel-base",
-           bias_prior_orientation_InDel_base,
+           bias_prior_orientation_indel_base,
         "The prior weight of the null hypothesis of no read-orientation bias at 100\% allele fraction for InDels. ");
     ADD_OPTDEF(app,
         "--bias-removal-orientation-avg-end-len",
@@ -677,10 +677,10 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
         "--fam-phred-sscs-transversion-CG-AT",
            fam_phred_sscs_transversion_CG_AT, 
         "Maximum phred score for single-strand consensus sequences (SSCSs) for the G > T transversion which is mainly caused by 8-oxo-guanine (described at https://www.pnas.org/content/109/36/14508). ");
-   ADD_OPTDEF(app,
-        "--fam-phred-sscs-transversion-AT-TA",
-           fam_phred_sscs_transversion_AT_TA, 
-        "Maximum phred score for single-strand consensus sequences (SSCSs) for the A:T > T:A transversion. ");
+   // ADD_OPTDEF(app,
+   //     "--fam-phred-sscs-transversion-AT-TA",
+   //        fam_phred_sscs_transversion_AT_TA, 
+   //     "Maximum phred score for single-strand consensus sequences (SSCSs) for the A:T > T:A transversion. ");
 
     ADD_OPTDEF(app, 
         "--fam-phred-sscs-transversion-other", 
@@ -702,9 +702,13 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
         "Maximum phred score for double-strand consensus sequences (DSCSs) for all types of mutations. ");
     
     ADD_OPTDEF(app, 
+        "--fam-phred-pow-sscs-transversion-AT-TA-origin",
+           fam_phred_pow_sscs_transversion_AT_TA_origin, 
+        "The phred-score that is subtracted from phred-sscs to get the power-law quality adjustment for the A:T > T:A type of SNV. ");
+    ADD_OPTDEF(app, 
         "--fam-phred-pow-sscs-snv-origin",
-           fam_phred_pow_sscs_SNV_origin, 
-        "The phred-score that is subtracted from phred-sscs to get the power-law quality adjustment for SNVs. ");
+           fam_phred_pow_sscs_snv_origin, 
+        "The phred-score that is subtracted from phred-sscs to get the power-law quality adjustment for all other types of SNVs. ");
     ADD_OPTDEF(app, 
         "--fam-phred-pow-sscs-indel-origin", 
            fam_phred_pow_sscs_indel_origin, 

@@ -230,7 +230,7 @@ struct PhredMutationTable {
     const unsigned int transition_CG_TA;
     const unsigned int transition_AT_CG;
     const unsigned int transversion_CG_AT;
-    const unsigned int transversion_AT_TA;
+    // const unsigned int transversion_AT_TA;
     const unsigned int transversion_other;
     const unsigned int indel_open;
     const unsigned int indel_ext;
@@ -238,7 +238,7 @@ struct PhredMutationTable {
             const unsigned int transition_CG_TA,
             const unsigned int transition_AT_CG,
             const unsigned int transversion_CG_AT,
-            const unsigned int transversion_AT_TA,
+            // const unsigned int transversion_AT_TA,
             const unsigned int transversion_other,
             const unsigned int indel_open,
             const unsigned int indel_ext)
@@ -246,7 +246,7 @@ struct PhredMutationTable {
             transition_CG_TA(transition_CG_TA),
             transition_AT_CG(transition_AT_CG),
             transversion_CG_AT(transversion_CG_AT),
-            transversion_AT_TA(transversion_AT_TA),
+            // transversion_AT_TA(transversion_AT_TA),
             transversion_other(transversion_other),
             indel_open(indel_open),
             indel_ext(indel_ext) //,
@@ -269,8 +269,8 @@ struct PhredMutationTable {
             return transition_AT_CG;
         } else if ((con_symbol == BASE_C && alt_symbol == BASE_A) || (con_symbol == BASE_G && alt_symbol == BASE_T)) {
             return transversion_CG_AT;
-        } else if ((con_symbol == BASE_A && alt_symbol == BASE_T) || (con_symbol == BASE_T && alt_symbol == BASE_A)) {
-            return transversion_AT_TA;
+        // } else if ((con_symbol == BASE_A && alt_symbol == BASE_T) || (con_symbol == BASE_T && alt_symbol == BASE_A)) {
+            // return transversion_AT_TA;
         } else {
             return transversion_other;
         }
@@ -2328,7 +2328,7 @@ struct Symbol2CountCoverageSet {
                 paramset.fam_phred_sscs_transition_CG_TA,
                 paramset.fam_phred_sscs_transition_AT_GC,
                 paramset.fam_phred_sscs_transversion_CG_AT,
-                paramset.fam_phred_sscs_transversion_AT_TA,
+                // paramset.fam_phred_sscs_transversion_AT_TA,
                 paramset.fam_phred_sscs_transversion_other,
                 paramset.fam_phred_sscs_indel_open,
                 paramset.fam_phred_sscs_indel_ext);
@@ -3119,10 +3119,10 @@ BcfFormat_symbol_calc_DPv(
     const double aBprior = _aBprior;
     fmt.note += std::string("//aPprior/") +std::to_string(aPprior) + "//" + std::string("//aBprior/") +std::to_string(aBprior) + "//";;
     
-    const double aIprior = log(isSymbolSubstitution(symbol) ? paramset.bias_prior_ipos_SNV : paramset.bias_prior_ipos_InDel) + 1;
+    const double aIprior = log(isSymbolSubstitution(symbol) ? paramset.bias_prior_ipos_snv : paramset.bias_prior_ipos_indel) + 1;
     const double aSBprior = log(isSymbolSubstitution(symbol) 
-            ? (pow(10.0, fmt.aBQ[a] / 10.0) * paramset.bias_prior_strand_SNV_base + paramset.bias_prior_pseudocount) 
-            : (paramset.bias_prior_strand_InDel + paramset.bias_prior_pseudocount));
+            ? (pow(10.0, fmt.aBQ[a] / 10.0) * paramset.bias_prior_strand_snv_base + paramset.bias_prior_pseudocount) 
+            : (paramset.bias_prior_strand_indel + paramset.bias_prior_pseudocount));
     
     const auto aLPFAx2 = dp4_to_pcFA<false>(f.aLP1[a], aDP, f.ALP2[0] + f.aLP1[a] - f.aLP2[a], ADP, paramset.powlaw_exponent, log(aPprior),
             MAX(1, f.aLPL[a]) / (double)MAX(1, f.aBQ2[a]), MAX(1, f.ALPL[0]) / (double)MAX(1, f.ABQ2[0]), ((is_in_indel_read) ? paramset.bias_FA_pseudocount_indel_in_read : 0.5)); 
@@ -3200,10 +3200,11 @@ BcfFormat_symbol_calc_DPv(
     const double aPFFA = (fmt.aPF1[a] + pfa * (is_rescued ? 100.0 : (double)(fmt.aXM2[a] / MAX(1, aDP)))) / (fmt.APF2[0] + (fmt.aPF1[a] - fmt.aPF2[a]) + 1.0*100);
     const auto aSSFAx2 = dp4_to_pcFA<true>(fmt.aDPff[a] + fmt.aDPrf[a], fmt.aDPfr[a] + fmt.aDPrr[a], fmt.ADPff[0] + fmt.ADPrf[0], fmt.ADPfr[0] + fmt.ADPrr[0], 
             paramset.powlaw_exponent, aSBprior);
+    const auto bias_prior_orientation_base = (isSymbolSubstitution(symbol) ? paramset.bias_prior_orientation_snv_base :paramset.bias_prior_orientation_indel_base);
     const auto cROFA0x2 = dp4_to_pcFA<true>(fmt.cDP0f[a], fmt.cDP0r[a], fmt.CDP0f[0], fmt.CDP0r[0], paramset.powlaw_exponent, 
-            log(mathsquare(aDPFA) * paramset.bias_prior_orientation_SNV_base + 2));
+            log(mathsquare(aDPFA) * bias_prior_orientation_base + 2));
     const auto cROFA2x2 = dp4_to_pcFA<true>(fmt.cDP2f[a], fmt.cDP2r[a], fmt.CDP2f[0], fmt.CDP2r[0], paramset.powlaw_exponent, 
-            log(mathsquare(aDPFA) * paramset.bias_prior_orientation_SNV_base + 2));
+            log(mathsquare(aDPFA) * bias_prior_orientation_base + 2));
     double aSSFA = aSSFAx2[0] * dir_bias_div;
     double cROFA0 = cROFA0x2[0] * dir_bias_div;
     double cROFA2 = cROFA2x2[0] * dir_bias_div;
@@ -3392,13 +3393,16 @@ BcfFormat_symbol_calc_qual(
             paramset.fam_phred_sscs_transition_CG_TA,
             paramset.fam_phred_sscs_transition_AT_GC,
             paramset.fam_phred_sscs_transversion_CG_AT,
-            paramset.fam_phred_sscs_transversion_AT_TA,
+            // paramset.fam_phred_sscs_transversion_AT_TA,
             paramset.fam_phred_sscs_transversion_other,
             paramset.fam_phred_sscs_indel_open,
             paramset.fam_phred_sscs_indel_ext);
     
     const int powlaw_sscs_phrederr = sscs_mut_table.toPhredErrRate(refsymbol, symbol);
-    const int powlaw_sscs_inc1 = (powlaw_sscs_phrederr  - (isSymbolSubstitution(symbol) ? paramset.fam_phred_pow_sscs_SNV_origin : paramset.fam_phred_pow_sscs_indel_origin));
+    const int powlaw_sscs_inc1 = (powlaw_sscs_phrederr  - (isSymbolSubstitution(symbol) 
+            ? (((BASE_A == refsymbol && BASE_T == symbol) || (BASE_T == refsymbol && BASE_A == symbol))
+                ? paramset.fam_phred_pow_sscs_transversion_AT_TA_origin : paramset.fam_phred_pow_sscs_snv_origin)
+            : paramset.fam_phred_pow_sscs_indel_origin));
     
     const unsigned int aDP = (fmt.aDPff[a] + fmt.aDPfr[a] + fmt.aDPrf[a] + fmt.aDPrr[a]);
     const unsigned int ADP = (fmt.ADPff[0] + fmt.ADPrf[0] + fmt.ADPfr[0] + fmt.ADPrr[0]);
@@ -3480,7 +3484,7 @@ BcfFormat_symbol_calc_qual(
     const int64_t sscs_binom_qual_fw = fmt.cIAQf[a] + int64mul(fmt.cIAQr[a], MIN(paramset.fam_phred_dscs_all - fmt.cIDQf[a], fmt.cIDQr[a])) / MAX(fmt.cIDQr[a], 1);
     const int64_t sscs_binom_qual_rv = fmt.cIAQr[a] + int64mul(fmt.cIAQf[a], MIN(paramset.fam_phred_dscs_all - fmt.cIDQr[a], fmt.cIDQf[a])) / MAX(fmt.cIDQf[a], 1);
     
-    int64_t dec_by_bias = 0;
+    // int64_t dec_by_bias = 0;
     /*
     if ((int64mul(cDP2, 1000) < (int64_t)CDP2)) {
         const auto dec_by_bias1 = (int64_t)round(
@@ -3489,11 +3493,11 @@ BcfFormat_symbol_calc_qual(
         dec_by_bias = dec_by_bias1 * 2 * ((int64_t)CDP2 - int64mul(cDP2, 1000)) / (int64_t)CDP2;
     }
     */
-    int64_t sscs_binom_qual = int64mul(MAX(sscs_binom_qual_fw, sscs_binom_qual_rv), cIADmincnt) / (cIADnormcnt);
+    int64_t sscs_binom_qual = int64mul(MAX(sscs_binom_qual_fw, sscs_binom_qual_rv), cIADmincnt) / (cIADnormcnt) - non_duplex_binom_dec_x10 * cIADmincnt;
     if (MAX(sscs_binom_qual_fw, sscs_binom_qual_rv) > 22) {
         sscs_binom_qual = MIN(sscs_binom_qual, 22 + (MAX(sscs_binom_qual_fw, sscs_binom_qual_rv) - 22) / 2); // intrinsic bias
     }
-    sscs_binom_qual -= sscs_dec1 + sscs_dec2 + ((isSymbolIns(symbol) || isSymbolDel(symbol)) ? 0 : dec_by_bias); // TODO: INVESTIGATE
+    sscs_binom_qual -= sscs_dec1 + sscs_dec2; // + ((isSymbolIns(symbol) || isSymbolDel(symbol)) ? 0 : dec_by_bias); // TODO: INVESTIGATE
     double min_bcFA_v = (((double)(fmt.cDP1v[a]) + 0.5) / (double)(fmt.CDP0f[0] * 100 + fmt.CDP0r[0] * 100 + 1.0));
     int dedup_frag_powlaw_qual_v = (int)(paramset.powlaw_exponent * 10.0 / log(10.0) * log(min_bcFA_v) + (pl_noUMI_phred_inc));
     
@@ -3517,7 +3521,7 @@ BcfFormat_symbol_calc_qual(
         sscs_powlaw_qual_w = (int)(paramset.powlaw_exponent * (10.0 / log(10.0) * log(min_bcFA_w) + cMmQ + phred_label) + sscs_base_3) + (int)paramset.tn_q_inc_max;
     }
     
-    fmt.note += std::string("dec_by_bias(") + std::to_string(dec_by_bias) 
+    // fmt.note += std::string("dec_by_bias(") + std::to_string(dec_by_bias) 
             + ")sscs_binom_qual_fr(" + std::to_string(sscs_binom_qual_fw) + "," + std::to_string(sscs_binom_qual_rv) 
             + ")cIAD_mincnt/normcnt(" + std::to_string(cIADmincnt) + "/" + std::to_string(cIADnormcnt) + ")sscs_dec1(" + std::to_string(sscs_dec1) + ")";
     fmt.note += std::string("min_bcFA_v(") + std::to_string(min_bcFA_v) + ")cDP1v(" + std::to_string(fmt.cDP1v[a]) + ")" + "CDP1v(" + std::to_string(fmt.CDP1v[0]) + ")";
@@ -3619,8 +3623,8 @@ BcfFormat_symbol_calc_qual(
     clear_push(fmt.cVQ1, MAX(0, bcVQ1), a);
     
     // This adjustment makes sure that variant with UMI support is ranked before variant without UMI suppport.
-    const std::array<int, 10> cysotine_deanim_to_score = {{ 1, 2, 2, 2, 3, 3, 3, 3, 3, 4}};
-    const std::array<int, 5> other_to_score = {{ 2, 3, 3, 3, 4}};
+    const std::array<int, 10> cysotine_deanim_to_score = {{0,1,1, 1,1,2, 2,2,2, 3}};
+    const std::array<int, 5> other_to_score = {{0,2,3, 3,4}};
     // const int cDP2 = (LAST(fmt.cDP2f) + LAST(fmt.cDP2r));
     const int mincVQ2 = (is_cytosine_deanim_CT 
         ? cysotine_deanim_to_score[MIN(cDP2, cysotine_deanim_to_score.size() - 1)] 
