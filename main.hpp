@@ -3456,7 +3456,7 @@ BcfFormat_symbol_calc_qual(
     int64_t nbases_x100_1 = fmt.bIADb[a] * 100 + 1;
     int64_t nbases_x100_2 = MIN(nbases_x100_1, fmt.cDP1v[a] + 1);
     int64_t perbase_likeratio_q_x10_1 = 10 * fmt.bIAQb[a] / MAX(1, fmt.bIADb[a]);
-    int64_t perbase_likeratio_q_x10_2 = perbase_likeratio_q_x10_1 + (int)round(10 * 10/log(10) * log((double)nbases_x100_2 / (double)nbases_x100_1)) - non_duplex_binom_dec_x10;
+    int64_t perbase_likeratio_q_x10_2 = perbase_likeratio_q_x10_1 + (int)round(10 * 10/log(10) * log((double)nbases_x100_2 / (double)nbases_x100_1)); // - non_duplex_binom_dec_x10;
     int64_t duped_frag_binom_qual = ((isSymbolIns(symbol) || isSymbolDel(symbol)) ? perbase_likeratio_q_x10_1 : perbase_likeratio_q_x10_2) * nbases_x100_2 / (10 * 100);
     
     /*
@@ -3617,7 +3617,8 @@ BcfFormat_symbol_calc_qual(
     // const auto bcVQ0 = MIN(syserr_q, (int)round(10/log(10) * log((fmt.cDP1v[a] + 0.5) * 2000 / (double)((fmt.CDP0f[0] * 100 + fmt.CDP0r[0] * 100) + 1.0 + 1000 * 100))) - non_duplex_binom_dec_x10 / 10);
     const auto bcVQ1 = MIN3(
                 syserr_q,
-                (int)LAST(fmt.bIAQ) - penal4BQerr, // Does this correspond to in-silico mixing artifact ???
+                // Does this correspond to in-silico mixing artifact ???
+                (int)LAST(fmt.bIAQ) - (is_rescued ? 0 : penal4BQerr), 
                 (int)LAST(fmt.cPLQ1)) - indel_penal4multialleles_soma;
     /// clear_push(fmt.bVQ1, lowestVAQx1000, a);
     clear_push(fmt.cVQ1, MAX(0, bcVQ1), a);
