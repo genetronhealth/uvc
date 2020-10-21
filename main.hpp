@@ -3360,8 +3360,8 @@ int
 BcfFormat_symbol_calc_qual(
         bcfrec::BcfFormat & fmt,
         
-        const unsigned int var_bdepth,
-        const unsigned int var_cdepth,
+        //const unsigned int var_bdepth,
+        //const unsigned int var_cdepth,
         
         const unsigned int ins_bdepth,
         const unsigned int ins_cdepth,
@@ -4149,20 +4149,26 @@ fill_tki(auto & tki, const auto & fmt, unsigned int a = 1) {
 const auto
 calc_binom_powlaw_syserr_normv_quals(
         auto tAD, auto tDP, int tVQ, int tnVQcap,
-        auto nAD, auto nDP, int nVQ, const double penal_dimret_coef) {
+        auto nAD, auto nDP, int nVQ,
+        //const int nVQminus
+        const unsigned int specialflag) {
     int binom_b10log10like = (int)calc_binom_10log10_likeratio((tDP - tAD) / (tDP), nDP - nAD, nAD);
-    double bjpfrac = ((tAD + 0.5) / (tDP + 1.0)) / ((nAD + 0.5) / (nDP + 1.0));
-    int powlaw_b10log10like = (int)(3 * 10 / log(10) * log(bjpfrac));
-    int prior_phred = 3; // ((penal_dimret_coef < 25) ? 8 : 1);
-    int tnVQinc = MAX3(-prior_phred, (-(int)nAD)*3, MIN(binom_b10log10like - prior_phred, powlaw_b10log10like - prior_phred));
-    int tnVQdec = MAX(0, nVQ - MAX(0, MIN(binom_b10log10like - prior_phred, (int)(mathsquare(log(MAX(bjpfrac, 1.001)) / log(2)) * penal_dimret_coef))));
+    int powlaw_b10log10like = (nAD <= 3 ? binom_b10log10like : (int)round(binom_b10log10like * 3 / nAD));
+    // double bjpfrac = ((tAD + 0.5) / (tDP + 1.0)) / ((nAD + 0.5) / (nDP + 1.0));
+    // int powlaw_b10log10like = (int)(3 * 10 / log(10) * log(bjpfrac));
+    // int prior_phred = 3; // ((penal_dimret_coef < 25) ? 8 : 1);
+    // int tvVQdec = MAX(0, nVQ - nVQminus);
+    int tnVQ = BETWEEN(tVQ + MIN(binom_b10log10like, powlaw_b10log10like) - nVQ, 0, tnVQcap);
     
-    int tnVQ = tVQ + tnVQinc - tnVQdec; 
+    // int tnVQinc = MAX3(-prior_phred, (-(int)nAD)*3, MIN(binom_b10log10like - prior_phred, powlaw_b10log10like - prior_phred));
+    // int tnVQdec = MAX(0, nVQ - MAX(0, MIN(binom_b10log10like - prior_phred, (int)(mathsquare(log(MAX(bjpfrac, 1.001)) / log(2)) * penal_dimret_coef))));
+    
+    // int tnVQ = tVQ + tnVQinc - tnVQdec; 
     //if (penal_dimret_coef < 1e6) {
     //tnVQ -= tnVQdec;
     //}
-    tnVQ = MIN(tnVQcap, tnVQ);
-    return std::array<int, 4> {{binom_b10log10like, powlaw_b10log10like, tnVQdec, tnVQ }};
+    // tnVQ = MIN(tnVQcap, tnVQ);
+    return std::array<int, 4> {{binom_b10log10like, powlaw_b10log10like, nVQ, tnVQ }};
 };
 
 int
@@ -4252,9 +4258,10 @@ append_vcf_record(
             (tki.cPCQ1),
             (nfm_cDP1x + 0.5) / 100.0 + 0.0, 
             (nfm_CDP1x + 1.0) / 100.0 + 0.0, 
-            non_neg_minus(collectget(nfm.cVQ1, 1), (isSymbolSubstitution(symbol) ? phred_het3al_chance_inc_snp : phred_het3al_chance_inc_indel)), 
+            non_neg_minus(collectget(nfm.cVQ1, 1), (isSymbolSubstitution(symbol) ? phred_het3al_chance_inc_snp : phred_het3al_chance_inc_indel)),
             // TODO: QUESTION: why 0 and 40 here?
-            paramset.tn_syserr_norm_devqual);
+            // paramset.tn_syserr_norm_devqual
+            0);
     
     const auto c_binom_powlaw_syserr_normv_q4 = calc_binom_powlaw_syserr_normv_quals(
             (tki.cDP2x + 0.5) / 100.0 + 0.0, 
@@ -4263,8 +4270,10 @@ append_vcf_record(
             (tki.cPCQ2), // tki.cPCQ1 + 30,
             (collectget(nfm.cDP2x, 1) + 0.0) / 100.0 + 0.5, 
             (collectget(nfm.CDP2x, 0) + 0.0) / 100.0 + 1.0, 
-            (collectget(nfm.cVQ2, 1)), 
-            paramset.tn_syserr_norm_devqual);
+            // (collectget(nfm.cVQ2, 1)), 
+            non_neg_minus(collectget(nfm.cVQ2, 1), (isSymbolSubstitution(symbol) ? phred_het3al_chance_inc_snp : phred_het3al_chance_inc_indel)),
+            // paramset.tn_syserr_norm_devqual
+            0);
     
     int tlodq = MAX(b_binom_powlaw_syserr_normv_q4filter[3], c_binom_powlaw_syserr_normv_q4[3]);
     float lowestVAQ = MIN(tlodq, 4) + 0.5 + (prob2realphred(1 / (double)(tki.bDP + 1)) * (tki.bDP) / (double)(tki.BDP + + tki.bDP + 1));

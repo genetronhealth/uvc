@@ -266,7 +266,7 @@ struct CommandLineArgs {
 // *** 12. parameters related to contamination
     
     double      contam_any_mul_frac = 0.02; // from the ContEst paper at https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3167057/
-    double      contam_t2n_mul_frac = 0.05; // from the DeTiN paper at https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6528031/ 
+    double      contam_t2n_mul_frac = 0.10; // 0.0625; // 0.05; // from the DeTiN paper at https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6528031/ 
 
 // *** extra useful info
     // https://www.biostars.org/p/254467/#254868 : Question: Are these false somatic variants? Visual inspection with IGV

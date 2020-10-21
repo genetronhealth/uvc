@@ -588,47 +588,61 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
     std::string buf_out_string_pass;
     const std::set<size_t> empty_size_t_set;
     
-    for (unsigned int refpos = rpos_inclu_beg; refpos <= rpos_exclu_end; refpos++) {
+    for (unsigned int zerobased_pos = rpos_inclu_beg; zerobased_pos <= rpos_exclu_end; zerobased_pos++) {
+        // for (unsigned int refpos = rpos_inclu_beg; refpos <= rpos_exclu_end; refpos++) {}
         std::string repeatunit;
         unsigned int repeatnum = 0;
         
-        unsigned int rridx = refpos - extended_inclu_beg_pos;
+        unsigned int rridx = zerobased_pos - extended_inclu_beg_pos;
         indelpos_to_context(repeatunit, repeatnum, refstring, rridx, paramset.indel_str_repeatsize_max);
         const std::array<SymbolType, 2> stype_to_immediate_prev = {{LINK_SYMBOL, BASE_SYMBOL}};
         
-        std::array<unsigned int, 2> stype2refqual = {{0, 0}};
-        for (SymbolType symbolType : SYMBOL_TYPES_IN_VCF_ORDER) {
+        const std::array<AlignmentSymbol, 2> symboltype_to_refsymbol = {{
+                (refstring.size() == ((zerobased_pos - 1) - extended_inclu_beg_pos) 
+                ? BASE_NN : CHAR_TO_SYMBOL.data.at(refstring.at((zerobased_pos - 1) - extended_inclu_beg_pos))),
+                LINK_M, 
+        }};
+        
+        std::array<bcfrec::BcfFormat, 2> st_to_init_fmt = {{bcfrec::BcfFormat(), bcfrec::BcfFormat()}};
+        // std::array<unsigned int, 2> stype2refqual = {{0, 0}};
+        std::array<unsigned int, 2> st_to_num_goodvars = {{0, 0}};
+        std::array<unsigned int, 2> st_to_nlodq = {{0, 0}};
+        
+        std::array<std::vector<std::tuple<bcfrec::BcfFormat, TumorKeyInfo>>, NUM_SYMBOL_TYPES> st_to_fmt_tki_tup_vec;
+        unsigned int ins_bdepth = 0;
+        unsigned int del_bdepth = 0;
+        unsigned int ins_cdepth = 0;
+        unsigned int del_cdepth = 0;
+        
+        unsigned int ins1_bdepth = 0;
+        unsigned int del1_bdepth = 0;
+        unsigned int ins1_cdepth = 0;
+        unsigned int del1_cdepth = 0;
+        
+        for (SymbolType symbolType : SYMBOL_TYPE_ARR) 
+        {
+            if (zerobased_pos == rpos_inclu_beg && BASE_SYMBOL == symbolType) { continue; } 
+            const unsigned int refpos = (BASE_SYMBOL == symbolType ? (zerobased_pos - 1) : zerobased_pos);
+
             TumorKeyInfo THE_DUMMY_TUMOR_KEY_INFO;
-            bcfrec::BcfFormat init_fmt;
-            const AlignmentSymbol refsymbol = (LINK_SYMBOL == symbolType ? LINK_M : (
-                    refstring.size() == (refpos - extended_inclu_beg_pos) ? BASE_NN : CHAR_TO_SYMBOL.data.at(refstring.at(refpos - extended_inclu_beg_pos))));
+            const AlignmentSymbol refsymbol = symboltype_to_refsymbol[symbolType];
             std::array<unsigned int, 2> bDPcDP = BcfFormat_symboltype_init(
-                    init_fmt, 
+                    st_to_init_fmt[symbolType], 
                     symbolToCountCoverageSet12, 
                     refpos, 
                     symbolType, 
                     refsymbol, 
                     0);
-            unsigned int var_bdepth = bDPcDP[0];
-            unsigned int var_cdepth = bDPcDP[1];
+            // unsigned int var_bdepth = bDPcDP[0];
+            // unsigned int var_cdepth = bDPcDP[1];
             
-            unsigned int ins_bdepth = 0;
-            unsigned int del_bdepth = 0;
-            unsigned int ins_cdepth = 0;
-            unsigned int del_cdepth = 0;
-            
-            unsigned int ins1_bdepth = 0;
-            unsigned int del1_bdepth = 0;
-            unsigned int ins1_cdepth = 0;
-            unsigned int del1_cdepth = 0;
-            
-            if (rpos_exclu_end != refpos) {
-                std::vector<std::tuple<bcfrec::BcfFormat, TumorKeyInfo>> fmt_tki_tup_vec;
+            // if (rpos_exclu_end != refpos) {}
                 const auto ref_bdepth = 
                             symbolToCountCoverageSet12.symbol_to_frag_format_depth_sets[0].getByPos(refpos)[refsymbol][FRAG_bDP]
                           + symbolToCountCoverageSet12.symbol_to_frag_format_depth_sets[1].getByPos(refpos)[refsymbol][FRAG_bDP];
                 
-                for (AlignmentSymbol symbol : SYMBOL_TYPE_TO_SYMBOLS[symbolType]) {
+                for (AlignmentSymbol symbol : SYMBOL_TYPE_TO_SYMBOLS[symbolType])
+                {
                     const bool is_pos_rescued = (NOT_PROVIDED != paramset.vcf_tumor_fname && (extended_posidx_to_is_rescued[refpos - extended_inclu_beg_pos]));
                     const bool is_var_rescued = (is_pos_rescued && (tid_pos_symb_to_tkis.end() != tid_pos_symb_to_tkis.find(std::make_tuple(tid, refpos, symbol)))); 
                     const auto bdepth = 
@@ -640,8 +654,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                           + MAX(symbolToCountCoverageSet12.symbol_to_fam_format_depth_sets_2strand[1].getByPos(refpos)[symbol][FAM_cDP0],
                                 symbolToCountCoverageSet12.symbol_to_fam_format_depth_sets_2strand[1].getByPos(refpos)[symbol][FAM_cDP1]);
                     if (refsymbol == symbol) {
-                        var_bdepth = bDPcDP[0] - bdepth;
-                        var_cdepth = bDPcDP[1] - cdepth;
+                        // var_bdepth = bDPcDP[0] - bdepth;
+                        // var_cdepth = bDPcDP[1] - cdepth;
                     }
                     if (isSymbolIns(symbol)) {
                         ins_bdepth += bdepth;
@@ -676,7 +690,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                         tkis = tid_pos_symb_to_tkis.find(std::make_tuple(tid, refpos, symbol))->second;
                     }
                     
-                    auto fmt = init_fmt;
+                    auto fmt = st_to_init_fmt[symbolType];
                     int tkiidx = 0;
                     std::vector<std::tuple<unsigned int, unsigned int, std::string, TumorKeyInfo>> bcad0a_indelstring_tki_vec;
                     if (isSymbolIns(symbol) || isSymbolDel(symbol)) {
@@ -760,22 +774,33 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                                 refsymbol,
                                 paramset,
                                 0);
-                        fmt_tki_tup_vec.push_back(std::make_tuple(fmt, std::get<3>(bcad0a_indelstring_tki)));
+                        st_to_fmt_tki_tup_vec[symbolType].push_back(std::make_tuple(fmt, std::get<3>(bcad0a_indelstring_tki)));
                     }
-                }
+                } //{}
+        } // end of iterations within symboltype
+            const size_t string_pass_old_size = buf_out_string_pass.size();
+            auto st_to_nlodq_fmtptr1_fmtptr2_tup = std::array<std::tuple<int, bcfrec::BcfFormat*, bcfrec::BcfFormat*>, 2>();
+            for (SymbolType symbolType : SYMBOL_TYPE_ARR) {
+                if (zerobased_pos == rpos_inclu_beg && BASE_SYMBOL == symbolType) { continue; } 
+                const unsigned int refpos = (BASE_SYMBOL == symbolType ? (zerobased_pos - 1) : zerobased_pos);
+                const AlignmentSymbol refsymbol = symboltype_to_refsymbol[symbolType];
                 
-                if (rpos_exclu_end != refpos && fmt_tki_tup_vec.size() > 0) {
+                // if (rpos_exclu_end != refpos && fmt_tki_tup_vec.size() > 0) {}
+                auto & fmt_tki_tup_vec = st_to_fmt_tki_tup_vec[symbolType];
+                
+                if (fmt_tki_tup_vec.size() == 0) { continue; } // {}
                     BcfFormat_symbol_sum_DPv(fmt_tki_tup_vec);
                     
                     std::vector<std::tuple<int, int, int, AlignmentSymbol, std::string>> maxVQ_VQ1_VQ2_symbol_indelstr_tup_vec;
-                    for (auto & fmt_tki_tup : fmt_tki_tup_vec) {
+                    for (auto & fmt_tki_tup : fmt_tki_tup_vec) 
+                    {
                         AlignmentSymbol symbol = AlignmentSymbol(LAST(std::get<0>(fmt_tki_tup).VTI));
                         auto & fmt = std::get<0>(fmt_tki_tup);
                         const auto & tki = std::get<1>(fmt_tki_tup);
                         BcfFormat_symbol_calc_qual(
                                 fmt,
-                                var_bdepth,
-                                var_cdepth,
+                                // var_bdepth,
+                                // var_cdepth,
                                 
                                 ins_bdepth,
                                 ins_cdepth,
@@ -806,6 +831,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                             maxVQ_VQ1_VQ2_symbol_indelstr_tup_vec.push_back(std::make_tuple(MAX(cVQ1, cVQ2), cVQ1, cVQ2, symbol, LAST(std::get<0>(fmt_tki_tup).gapSa)));
                         }
                     }
+                    // {}
                     std::sort(maxVQ_VQ1_VQ2_symbol_indelstr_tup_vec.rbegin(), maxVQ_VQ1_VQ2_symbol_indelstr_tup_vec.rend());
                     for (auto & fmt_tki_tup : fmt_tki_tup_vec) {
                         std::get<0>(fmt_tki_tup).cVQ1M = {{ -999 }};
@@ -822,7 +848,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                             if (std::get<0>(fmt_tki_tup).cVQ1M.size() == tup_vec_idx) { break; }
                         }
                     }
-                    auto reffmt = init_fmt;
+                    auto reffmt = st_to_init_fmt[symbolType];
+                    auto & init_fmt = st_to_init_fmt[symbolType];
                     bool is_ref_found = false;
                     for (auto & fmt_tki_tup : fmt_tki_tup_vec) {
                         if (refsymbol == (AlignmentSymbol)(LAST(std::get<0>(fmt_tki_tup).VTI))) {  
@@ -835,14 +862,13 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                     for (auto & fmt_tki_tup : fmt_tki_tup_vec) {
                         streamFrontPushBcfFormatR(std::get<0>(fmt_tki_tup), reffmt);
                     }
-                    
-                    int nlodq = 31;
-                    std::string note1;
+                                        
+                    // std::string note1;
                     std::vector<std::pair<AlignmentSymbol, bcfrec::BcfFormat*>> symbol_format_vec;
                     for (auto & fmt_tki_tup : fmt_tki_tup_vec) {
                         auto & fmt = std::get<0>(fmt_tki_tup);
                         auto symbol = (AlignmentSymbol)(LAST(fmt.VTI));
-                        note1 += std::string("/symb/") + std::to_string(symbol) + 
+                        fmt.note += std::string("/symb/") + std::to_string(symbol) + 
                                 std::string("/gVQ1/CONTQ/") + std::to_string(LAST(fmt.gVQ1)) + "/" + std::to_string(LAST(fmt.CONTQ))  + "//";
                         if (symbol != BASE_NN) {
                             symbol_format_vec.push_back(std::make_pair(symbol, &fmt));
@@ -858,7 +884,6 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                     while (symbol_format_vec.size() <= 4) {
                         symbol_format_vec.push_back(std::make_pair(END_ALIGNMENT_SYMBOLS, &init_fmt));
                     }
-                    const size_t string_pass_old_size = buf_out_string_pass.size();
                     auto nlodq_fmtptr1_fmtptr2_tup = output_germline(
                             buf_out_string_pass,
                             refsymbol,
@@ -873,9 +898,21 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                             NOT_PROVIDED != paramset.vcf_tumor_fname,
                             paramset,
                             0);
-                    const bool is_germline_var_generated = (buf_out_string_pass.size() > string_pass_old_size);
-
-                    for (auto & fmt_tki_tup : fmt_tki_tup_vec) {
+                    st_to_nlodq_fmtptr1_fmtptr2_tup[symbolType] = nlodq_fmtptr1_fmtptr2_tup;
+                // {}
+            } // end of iterations within symboltype
+            const bool is_germline_var_generated = (buf_out_string_pass.size() > string_pass_old_size);
+            for (const auto symbolType : SYMBOL_TYPE_ARR) {
+                    if (zerobased_pos == rpos_inclu_beg && BASE_SYMBOL == symbolType) { continue; } 
+                    const unsigned int refpos = (BASE_SYMBOL == symbolType ? (zerobased_pos - 1) : zerobased_pos);
+                    const auto refsymbol = symboltype_to_refsymbol[symbolType];
+                    
+                    auto & fmt_tki_tup_vec = st_to_fmt_tki_tup_vec[symbolType];
+                    const auto & nlodq_fmtptr1_fmtptr2_tup = st_to_nlodq_fmtptr1_fmtptr2_tup[symbolType];
+                    
+                    int nlodq = ((BASE_SYMBOL == symbolType) ? paramset.germ_phred_hetero_snp : paramset.germ_phred_hetero_indel);
+                    for (auto & fmt_tki_tup : fmt_tki_tup_vec) 
+                    {
                         auto & fmt = std::get<0>(fmt_tki_tup);
                         const auto & symbol = (AlignmentSymbol)(LAST(fmt.VTI));
                         auto & tki = std::get<1>(fmt_tki_tup);
@@ -922,8 +959,9 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                                     }
                                 }
                                 nlodq += nlodq_inc;
-                                fmt.note += note1;
+                                // fmt.note += note1;
                             }
+                
                             append_vcf_record(
                                     buf_out_string_pass,
                                     std::get<0>(tname_tseqlen_tuple).c_str(),
@@ -944,11 +982,12 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                                     paramset,
                                     0);
                         }
-                    }
-                }
-            }
-        }    
-    }
+                    } // fmt_tki_tup_vec
+                // {}
+            } // end of SYMBOL_TYPE_ARR
+        // {} 
+    } // zerobased_pos
+
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id  << " starts destroying bam records"; }
     for (auto strand_readset : umi_strand_readset) {
         for (unsigned int strand = 0; strand < 2; strand++) {
