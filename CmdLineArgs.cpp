@@ -195,7 +195,7 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     ADD_OPTDEF(app,
         "--fam-thres-highBQ-snv", 
            fam_thres_highBQ_snv,
-        "Threshold of base quality below which the base support is discarded in a barcode family for SNVs. ");
+        "Threshold of base quality below which the base support is discarded in a barcode family for SNVs (PMC6477992, in code). ");
     ADD_OPTDEF(app,
         "--fam-thres-highBQ-indel", 
            fam_thres_highBQ_indel,
@@ -203,7 +203,7 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     ADD_OPTDEF(app,
         "--fam-thres-dup1add", 
            fam_thres_dup1add,
-        "Tier-1 threshold of barcode-family size. ");
+        "Tier-1 threshold of barcode-family size (10.1073/pnas.1105422108, supermutant). ");
     ADD_OPTDEF(app,
         "--fam-thres-dup1perc", 
            fam_thres_dup1perc,
@@ -211,11 +211,11 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     ADD_OPTDEF(app,
         "--fam-thres-dup2add", 
            fam_thres_dup2add,
-        "Tier-2 threshold of barcode-family size. ");
+        "Tier-2 threshold of barcode-family size (PMC4271547). ");
     ADD_OPTDEF(app,
         "--fam-thres-dup2perc", 
            fam_thres_dup2perc,
-        "Tier-2 threshold of barcode-family percent identity derived from allele consensus. ");
+        "Tier-2 threshold of barcode-family percent identity derived from allele consensus (PMC4271547). ");
     
 // *** 01. parameters of the names of files, samples, regions, etc
     
@@ -242,7 +242,7 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
            somaticGT, 
         "Boolean (0: false, 1: true) indicating if the GT in the output VCF file refers to the genotype of the tumor cells "
             "in a heterogeneous mixture of tumor cells and normal cells. "
-        "Please set to zero to call germline variants in a homogeneous mixture of cells. ");
+        "Please set to zero to call germline variants in a homogeneous mixture of cells (general format specification is mentioned in PMC3137218). ");
     ADD_OPTDEF(app, 
         "--is-tumor-format-retrieved", 
            is_tumor_format_retrieved, 
@@ -306,13 +306,10 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
         "two SSCSs (single-strand-consensus-sequences) into one DSCS (double-strand-consensus-sequence). "
         "The UMI of the duplex tag should be in the form of <alpha>+<beta>. ");
     ADD_OPTDEF(app,
-        "--primerlen-min",
-           primerlen_min,
-        "Minimum number of bases from each end of each insert that are part of the primers (for only amplicon assay). ");
-    ADD_OPTDEF(app,
-        "--primerlen-max",
-           primerlen_max,
-        "Maximum number of bases from each end of each insert that are part of the primers (for only amplicon assay). ");
+        "--primerlen",
+           primerlen,
+        "Usual maximum number of bases from each end of each insert that are part of the primers for amplicon assay "
+        "(22 from https://doi.org/10.1007/978-1-4020-6241-4_5 and 24 from https://doi.org/10.1101/gr.3.3.s30). ");
     
     ADD_OPTDEF(app, 
         "--central-readlen", 
@@ -326,19 +323,19 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     ADD_OPTDEF(app,
         "--bq-phred-added-indel", 
            bq_phred_added_indel, 
-        std::string("Additional base-quality phred score added to indel and no-indel, recommend 17 for Illumina and BGI. "
+        std::string("Additional base-quality phred score added to InDel and no-InDel, recommend 17 for Illumina and BGI. "
         "This parameter value is automatically inferred if the sequencing platform is not provided. ") + SEQUENCING_PLATFORM_TO_DESC[SEQUENCING_PLATFORM_OTHER]);
     
     ADD_OPTDEF(app, 
         "--powlaw-exponent", 
            powlaw_exponent,
         "Exponent of the power-law relationship between error probability and allele-fraction deviation. "
-        "It is strongly recommended to use the default value. ");
+        "It is strongly recommended to use the default value. "); // novel
     ADD_OPTDEF(app, 
         "--powlaw-anyvar-base", 
            powlaw_anyvar_base,
         "Error probability at allele-fraction of 1 or 100%. "
-        "It is strongly recommended to use the default value. ");
+        "It is strongly recommended to use the default value. "); // novel
     
     ADD_OPTDEF(app, 
         "--penal4lowdep",
@@ -595,7 +592,7 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     ADD_OPTDEF(app,
         "--bias-removal-pos-indel-lenfrac-thres",
            nobias_pos_indel_lenfrac_thres,
-        "Threshold of (F*L) above which segment position bias is removed, where F is allele fraction and L is indel length (aka number of gap extensions). ");
+        "Threshold of (F*L) above which segment position bias is removed, where F is allele fraction and L is InDel length (aka number of gap extensions). ");
     ADD_OPTDEF(app,
         "--bias-removal-pos-indel-STR-track-len",
            nobias_pos_indel_STR_track_len,
@@ -654,7 +651,7 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     ADD_OPTDEF(app,
         "--fam-min-n-copies",
            fam_min_n_copies,
-        "Mininum number of DNA copies (1 ng contains approximately 300 copies of human genome) to have zero penalty for UMI-labeled barcode-family. ");
+        "Mininum number of DNA copies (1 ng contains approximately 300 copies of human genome) to have zero penalty for UMI-labeled barcode-family (PMC6197739 and PMC5856404). ");
     ADD_OPTDEF(app,
         "--fam-min-overseq-perc",
            fam_min_overseq_perc,
@@ -668,47 +665,44 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     ADD_OPTDEF(app, 
         "--fam-phred-sscs-transition-CG-TA", 
            fam_phred_sscs_transition_CG_TA, 
-        "Maximum phred score for single-strand consensus sequences (SSCSs) for C > T transition which is mainly caused by cytosine deanimation. ");
+        "Maximum phred score for single-strand consensus sequences (SSCSs) for C > T transition which is mainly caused by cytosine deanimation (PMC3437896). ");
     ADD_OPTDEF(app, 
         "--fam-phred-sscs-transition-AT-GC", 
            fam_phred_sscs_transition_AT_GC, 
-        "Maximum phred score for single-strand consensus sequences (SSCSs) for A:T > G:C transition. ");
+        "Maximum phred score for single-strand consensus sequences (SSCSs) for A:T > G:C transition (PMC3437896). ");
     ADD_OPTDEF(app, 
         "--fam-phred-sscs-transversion-CG-AT",
            fam_phred_sscs_transversion_CG_AT, 
-        "Maximum phred score for single-strand consensus sequences (SSCSs) for the G > T transversion which is mainly caused by 8-oxo-guanine (described at https://www.pnas.org/content/109/36/14508). ");
-   // ADD_OPTDEF(app,
-   //     "--fam-phred-sscs-transversion-AT-TA",
-   //        fam_phred_sscs_transversion_AT_TA, 
-   //     "Maximum phred score for single-strand consensus sequences (SSCSs) for the A:T > T:A transversion. ");
+        "Maximum phred score for single-strand consensus sequences (SSCSs) for the G > T transversion which is mainly caused by 8-oxo-guanine (PMC3437896). ");
 
     ADD_OPTDEF(app, 
         "--fam-phred-sscs-transversion-other", 
            fam_phred_sscs_transversion_other, 
-        "Maximum phred score for single-strand consensus sequences (SSCSs) for any other transversion. ");
+        "Maximum phred score for single-strand consensus sequences (SSCSs) for any other transversion (PMC3437896). ");
     ADD_OPTDEF(app, 
         "--fam-phred-sscs-indel-open", 
            fam_phred_sscs_indel_open, 
-        "Maximum phred score for single-strand consensus sequences (SSCSs) for the opening of indel gap "
+        "Maximum phred score for single-strand consensus sequences (SSCSs) for the opening of InDel gap "
         "(the opening includes the insertion/deletion of one base). ");
     ADD_OPTDEF(app, 
         "--fam-phred-sscs-indel-ext", 
            fam_phred_sscs_indel_ext, 
-        "Maximum phred score for single-strand consensus sequences (SSCSs) for the extension of indel gap "
+        "Maximum phred score for single-strand consensus sequences (SSCSs) for the extension of InDel gap "
             "(excluding the extension of one base) per base. ");
     ADD_OPTDEF(app,
         "--fam-phred-dscs-all", 
            fam_phred_dscs_all, 
-        "Maximum phred score for double-strand consensus sequences (DSCSs) for all types of mutations. ");
+        "Maximum phred score for double-strand consensus sequences (DSCSs) for all types of mutations (PMC3437896). ");
     
     ADD_OPTDEF(app, 
         "--fam-phred-pow-sscs-transversion-AT-TA-origin",
            fam_phred_pow_sscs_transversion_AT_TA_origin, 
-        "The phred-score that is subtracted from phred-sscs to get the power-law quality adjustment for the A:T > T:A type of SNV. ");
+        "The phred-score that is subtracted from phred-sscs to get the power-law quality adjustment for the A:T > T:A type of SNV (PMC3973132). "
+        "It should be lower if the mutations are known to be caused by aristolochic acid (PMC3973132). ");
     ADD_OPTDEF(app, 
         "--fam-phred-pow-sscs-snv-origin",
            fam_phred_pow_sscs_snv_origin, 
-        "The phred-score that is subtracted from phred-sscs to get the power-law quality adjustment for all other types of SNVs. ");
+        "The phred-score that is subtracted from phred-sscs to get the power-law quality adjustment for all other types of SNVs (PMC3437896). ");
     ADD_OPTDEF(app, 
         "--fam-phred-pow-sscs-indel-origin", 
            fam_phred_pow_sscs_indel_origin, 
@@ -716,14 +710,14 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     ADD_OPTDEF(app, 
         "--fam-phred-pow-dscs-all-origin", 
            fam_phred_pow_dscs_all_origin,
-        "The phred-score that is subtracted from phred-dscs to get the power-law quality adjustment. ");
+        "The phred-score that is subtracted from phred-dscs to get the power-law quality adjustment (PMC3437896). ");
     
 // *** 08. parameters related to systematic errors
     
     ADD_OPTDEF(app,
         "--syserr-BQ-prior", 
            syserr_BQ_prior, 
-        "Phred-scale probability of the systematic error mentioned at (https://bmcbioinformatics.biomedcentral.com/articles/10.1186/1471-2105-12-451). "); 
+        "Phred-scale probability of the systematic error (defined at PMC3295828). "); 
     
     ADD_OPTDEF(app,
         "--syserr-BQ-smratio-q-add",
@@ -785,53 +779,55 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     ADD_OPTDEF(app, 
         "--germ-hetero-FA", 
            germ_hetero_FA,
-        "Phred-scaled prior probability of germline polymorphism at a genomic position for SNPs. ");
+        "ALT allele fraction of heterozygous germline polymorphism (PMC6587442). ");
     
     ADD_OPTDEF(app,
         "--germ-phred-hetero-snp", 
            germ_phred_hetero_snp,
-        "Phred-scaled prior probability of 0/1 heterozygous germline polymorphism at a genomic position for SNPs. ");
-    ADD_OPTDEF(app, 
-        "--germ-phred-hetero-indel", 
-           germ_phred_hetero_indel,
-        "Phred-scaled prior probability of 0/1 heterozygous germline polymorphism at a genomic position for SNPs. "),
+        "Phred-scaled prior probability of 0/1 heterozygous germline polymorphism at a genomic position for SNPs (common empirical knowledge). ");
     ADD_OPTDEF(app, 
         "--germ-phred-homalt-snp", 
            germ_phred_homalt_snp,
-        "Phred-scaled prior probability of 1/1 homozygous germline polymorphism at a genomic position for SNPs. ");
-    ADD_OPTDEF(app, 
-        "--germ-phred-homalt-indel", 
-           germ_phred_homalt_indel,
-        "Phred-scaled prior probability of 1/1 homozygous germline polymorphism at a genomic position for InDels. "),
+        "Phred-scaled prior probability of 1/1 homozygous germline polymorphism at a genomic position for SNPs (common empirical knowledge). ");
     ADD_OPTDEF(app, 
         "--germ-phred-het3al-snp",
            germ_phred_het3al_snp,     
-        "Phred-scaled prior probability of 1/2 heterozygous germline polymorphism at a genomic position for SNPs. ");
+        "Phred-scaled prior probability of 1/2 heterozygous germline polymorphism at a genomic position for SNPs (common empirical knowledge). ");
+    
+    ADD_OPTDEF(app, 
+        "--germ-phred-hetero-indel", 
+           germ_phred_hetero_indel,
+        "Phred-scaled prior probability of 0/1 heterozygous germline polymorphism at a genomic position for SNPs (common empirical knowledge). "),
+    ADD_OPTDEF(app, 
+        "--germ-phred-homalt-indel", 
+           germ_phred_homalt_indel,
+        "Phred-scaled prior probability of 1/1 homozygous germline polymorphism at a genomic position for InDels (common empirical knowledge). "),
     ADD_OPTDEF(app, 
         "--germ-phred-het3al-indel", 
            germ_phred_het3al_indel,   
-        "Phred-scaled prior probability of 1/2 heterozygous germline polymorphism at a genomic position for SNPs. ");
+        "Phred-scaled prior probability of 1/2 heterozygous germline polymorphism at a genomic position for SNPs (common empirical knowledge). ");
         
 // *** 10. parameters related to tumor-normal-pairs.
     ADD_OPTDEF(app,
         "--tn-q-inc-max",
            tn_q_inc_max,
-        "Maximum increase in variant quality by comparing the tumor with its matched normal. ");
+        "Maximum Phred-scale increase in variant quality by comparing the tumor with its matched normal. Theoretically, it should be Phred-scaled 2 to the power of --powlaw-exponent. ");
+    /*
     ADD_OPTDEF(app,
         "--tn-syserr-norm-devqual",
            tn_syserr_norm_devqual,
         "Phred-scale decrease in the variant quality subtracted from the tumor if the tumor FA (allele fraction) deviates by +100\%/-50\% from its matched normal FA. ");
-
+    */
 // *** 11. parameters related to InDels.
     // https://www.ncbi.nlm.nih.gov/pmc/articles/PMC149199/
     ADD_OPTDEF(app,
         "--indel-BQ-max",
            indel_BQ_max,
-        "For InDels, the maximum base quality of the indel of one base. ");
+        "For InDels, the maximum base quality of the InDel of one base (PMC4719071). ");
     ADD_OPTDEF(app,
         "--indel-str-repeatsize-max",
            indel_str_repeatsize_max,
-        "For InDels, the maximum length of a repeating substring for the repeat to be considered as eligible for short tandem repeat (STR). ");
+        "For InDels, the maximum length of a repeating substring for the repeat to be considered as eligible for short tandem repeat (STR) (PMC5054066). ");
     ADD_OPTDEF(app,
         "--indel-polymerase-size",
            indel_polymerase_size,
@@ -894,11 +890,11 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     ADD_OPTDEF(app, 
         "--contam-any-mul-frac", 
            contam_any_mul_frac,
-        "Multiplicative contamination rate for the fraction of reads generated by any source of contamination in any sample. ");
+        "Multiplicative contamination rate for the fraction of reads generated by any source of contamination in any sample (PMC3167057). ");
     ADD_OPTDEF(app, 
         "--contam-t2n-mul-frac", 
            contam_t2n_mul_frac,
-        "Multiplicative contamination rate for the fraction of tumor reads in the normal. "); 
+        "Multiplicative contamination rate for the fraction of tumor reads in the normal (PMC6528031). "); 
     
 /// *** end
 

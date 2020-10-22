@@ -337,6 +337,9 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("bIAQ"  , BCF_NUM_R, BCF_SIG_INT, "The duped fragment binomial variant quality by assuming statistical independence."),
     BcfFormatStruct("cIAQ"  , BCF_NUM_R, BCF_SIG_INT, "The deduplicated fragment binomial variant quality by assuming statistical independence."),
     
+    BcfFormatStruct("bTINQ" , BCF_NUM_R, BCF_SIG_INT, "The fragment binomial tumor-in-normal quality by assuming statistical independence."),
+    BcfFormatStruct("cTINQ" , BCF_NUM_R, BCF_SIG_INT, "The single-strand-consensus-sequence binomial tumor-in-normal quality by assuming statistical independence."),
+ 
     BcfFormatStruct("__e6"  , 1,         BCF_SEP,     "Power-law variant quality statistics for deduped read fragments."),
     BcfFormatStruct("cPCQ1" , BCF_NUM_R, BCF_SIG_INT, "The deduplicatd read fragment power-law variant allele quality cap that is not lowered by using matched normal."),
     BcfFormatStruct("cPLQ1" , BCF_NUM_R, BCF_SIG_INT, "The deduplicatd read fragment power-law variant allele quality."),
@@ -401,7 +404,10 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
                                                       "where ()... means more elements following the format in the preceding parenthesis. "),
     BcfFormatStruct("cHap"  , 1,         BCF_STRING,  "Dedup forward&reverse linkage in the format of ((position&variantType)...depth)... "
                                                       "where ()... means more elements following the format in the preceding parenthesis. "),    
+    BcfFormatStruct("vAC"   , 2,         BCF_INTEGER,  "Number of SNVs and InDels that passed their variant quality thresholds at this position. This field can be used to filter out multiallelic variants or to merge alleles at the same position."),
+    BcfFormatStruct("vNLODQ", 2,         BCF_SIG_INT,  "Number of SNVs and InDels that passed their variant quality thresholds at this position. This field can be used to filter out SNV-in-tumor with InDel-in-normal or InDel-in-tumor with SNV-in-normal at the same position."),
     
+
     BcfFormatStruct("note"  , 1,         BCF_STRING,  "Additional note as comment for the given variant")
 };
 

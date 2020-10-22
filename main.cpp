@@ -729,7 +729,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                                     std::get<0>(tname_tseqlen_tuple).c_str(), 
                                     refpos, 
                                     symbol, 
-                                    true);
+                                    false,
+                                    0);
                             for (const auto & bcad0a_arr_indelstring_pair : bcad0a_arr_indelstring_pairvec) {
                                 bcad0a_indelstring_tki_vec.push_back(std::make_tuple(
                                         bcad0a_arr_indelstring_pair.first[0], 
@@ -829,6 +830,10 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                             int cVQ1 = LAST(std::get<0>(fmt_tki_tup).cVQ1);
                             int cVQ2 = LAST(std::get<0>(fmt_tki_tup).cVQ2);
                             maxVQ_VQ1_VQ2_symbol_indelstr_tup_vec.push_back(std::make_tuple(MAX(cVQ1, cVQ2), cVQ1, cVQ2, symbol, LAST(std::get<0>(fmt_tki_tup).gapSa)));
+                            const unsigned int germ_phred_het3al = ((BASE_SYMBOL == symbolType) ? paramset.germ_phred_het3al_snp : paramset.germ_phred_het3al_indel);
+                            if (MAX(cVQ1, cVQ2) >= germ_phred_het3al) {
+                                fmt.vAC[symbolType] += 1;
+                            }
                         }
                     }
                     // {}
@@ -899,6 +904,10 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                             paramset,
                             0);
                     st_to_nlodq_fmtptr1_fmtptr2_tup[symbolType] = nlodq_fmtptr1_fmtptr2_tup;
+                    for (auto & fmt_tki_tup : st_to_fmt_tki_tup_vec[symbolType]) {
+                        auto & tmpref = std::get<0>(fmt_tki_tup).vNLODQ[symbolType];
+                        tmpref = std::get<0>(nlodq_fmtptr1_fmtptr2_tup);
+                    }
                 // {}
             } // end of iterations within symboltype
             const bool is_germline_var_generated = (buf_out_string_pass.size() > string_pass_old_size);

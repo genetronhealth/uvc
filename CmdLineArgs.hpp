@@ -32,7 +32,7 @@ struct CommandLineArgs {
     uint32_t fam_thres_dup1add = 2;
     uint32_t fam_thres_dup1perc = 80;
     uint32_t fam_thres_dup2add = 3; // + 1; // 3
-    uint32_t fam_thres_dup2perc = 85;
+    uint32_t fam_thres_dup2perc = 70; // 85;
     
 // *** 01. parameters of the names of files, samples, regions, etc.
     
@@ -64,9 +64,8 @@ struct CommandLineArgs {
     SequencingPlatform sequencing_platform = SEQUENCING_PLATFORM_AUTO;
     PairEndMerge pair_end_merge = PAIR_END_MERGE_YES;
     bool        disable_duplex = false;
-    uint32_t    primerlen_min = 23; // https://genome.cshlp.org/content/3/3/S30.full.pdf : 18 - 24 bps
-    uint32_t    primerlen_max = 23; // https://link.springer.com/chapter/10.1007/978-1-4020-6241-4_5 : 18 - 22 bps
-    
+    uint32_t    primerlen = 23; // https://link.springer.com/chapter/10.1007/978-1-4020-6241-4_5 : 18 - 22 bps
+                                // https://genome.cshlp.org/content/3/3/S30.full.pdf : 18 - 24 bps
     uint16_t    central_readlen = 0; // estimate from the data
     uint16_t    bq_phred_added_misma = 0; // estiamte from the data
     uint16_t    bq_phred_added_indel = 0; // estimate from the data
@@ -192,7 +191,7 @@ struct CommandLineArgs {
     uint16_t fam_phred_dscs_all = 58;
     
     uint16_t fam_phred_pow_sscs_transversion_AT_TA_origin = 44-41+4; // A:T > T:A somatic mutations are uncommon
-    double   fam_phred_pow_sscs_snv_origin = 44 - 41; // 10*log((2.7e-3-3.5e-5)/(1.5e-4-3.5e-5))/log(10)*3 = 41 from https://doi.org/10.1073/pnas.1208715109
+    double   fam_phred_pow_sscs_snv_origin = 44 - 41; // 10*log((2.7e-3-3.5e-5)/(1.5e-4-3.5e-5))/log(10)*3 = 41 from https://doi.org/10.1073/pnas.1208715109 PMC3437896
     double   fam_phred_pow_sscs_indel_origin = fam_phred_sscs_indel_open - (13 * 3);
     double   fam_phred_pow_dscs_all_origin = 0;
     
@@ -266,7 +265,7 @@ struct CommandLineArgs {
 // *** 12. parameters related to contamination
     
     double      contam_any_mul_frac = 0.02; // from the ContEst paper at https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3167057/
-    double      contam_t2n_mul_frac = 0.10; // 0.0625; // 0.05; // from the DeTiN paper at https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6528031/ 
+    double      contam_t2n_mul_frac = 0.05; // - contam_any_mul_frac; // 0.0625; // 0.05; // from the DeTiN paper at https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6528031/ 
 
 // *** extra useful info
     // https://www.biostars.org/p/254467/#254868 : Question: Are these false somatic variants? Visual inspection with IGV
