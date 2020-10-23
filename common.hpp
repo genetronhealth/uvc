@@ -13,6 +13,14 @@
 //#define NUM_BUCKETS (64+8)
 #define SIGN2UNSIGN(a) ((unsigned int)(a))
 
+// Phred, nat, bit, frac
+#define  phred2nat(x) ((log(10.0)/10.0) * (x))
+#define  nat2phred(x) ((10.0/log(10.0)) * (x))
+#define frac2phred(x) (-(10.0/log(10.0)) * log(x))
+#define phred2frac(x) (pow(10.0, (-x)/10.0))
+#define numstates2phred(x) ((10.0/log(10.0)) * log(x))
+#define phred2numstates(x) (pow(10.0, (x)/10.0))
+
 //#define VCFQUAL_NUM_BINS 120 // max vcfqual is at 105, so vcfqual that is higher than the max is reserved
 //#define RCC_NUM 2
 //#define RCC_NFS 6

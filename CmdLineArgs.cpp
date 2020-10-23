@@ -533,33 +533,29 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
 // *** 06. parameters related to the priors of bias
     
     ADD_OPTDEF(app,
-        "--bias-prior-pseudocount",
-           bias_prior_pseudocount,
-        "The minimum prior weight of the null hypothesis that there is no bias. ");
-    ADD_OPTDEF(app,
         "--bias-prior-DPadd-perc",
            bias_prior_DPadd_perc,
         "The percentage of variant InDel read support that is not considered when checking if any InDel is nearby. ");
     
     ADD_OPTDEF(app,
-        "--bias-prior-pos",
-           bias_prior_pos,
+        "--bias-priorfreq-pos",
+           bias_priorfreq_pos,
         "The prior weight of the null hypothesis that there is no segment position bias given no other information. ");
     ADD_OPTDEF(app,
-        "--bias-prior-indel-in-read-div",
-           bias_prior_indel_in_read_div,
+        "--bias-priorfreq-indel-in-read-div",
+           bias_priorfreq_indel_in_read_div,
         "Reduction in the prior weight of the null hypothesis that there is no segment position bias, given that the reads support both the ALT allele and some InDel allele(s). ");
     ADD_OPTDEF(app,
-        "--bias-prior-indel-in-var-div2",
-           bias_prior_indel_in_var_div2,
+        "--bias-priorfreq-indel-in-var-div2",
+           bias_priorfreq_indel_in_var_div2,
         "Additional reduction in the prior weight of the null hypothesis of no segment position bias, given that some InDel allele and this ALT allle overlap. ");
     ADD_OPTDEF(app,
-        "--bias-prior-indel-in-STR-div2",
-           bias_prior_indel_in_var_div2,
+        "--bias-priorfreq-indel-in-STR-div2",
+           bias_priorfreq_indel_in_var_div2,
         "Additional reduction in the prior weight of the null hypothesis of no segment position bias, given that the variant is in an InDel region. ");
     ADD_OPTDEF(app,
-        "--bias-prior-var-in-STR-div2",
-           bias_prior_var_in_STR_div2,
+        "--bias-priorfreq-var-in-STR-div2",
+           bias_priorfreq_var_in_STR_div2,
         "Additional reduction in the prior weight of the null hypothesis of no segment position bias, given that this variant is in a STR region. ");
     
     ADD_OPTDEF(app,
@@ -568,20 +564,20 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
         "Minimum read depth odds ratio of nearby InDel allele to the variant allele above which the additional reduction in the prior weight is in effect. ");
     
     ADD_OPTDEF(app,
-        "--bias-prior-ipos-snv",
-           bias_prior_ipos_snv,
+        "--bias-priorfreq-ipos-snv",
+           bias_priorfreq_ipos_snv,
         "Prior weight of the null hypothesis of no insert position bias for SNVs. ");
     ADD_OPTDEF(app,
-        "--bias-prior-ipos-indel",
-           bias_prior_ipos_indel,
+        "--bias-priorfreq-ipos-indel",
+           bias_priorfreq_ipos_indel,
         "Prior weight of the null hypothesis of no insert position bias for InDels. ");
     ADD_OPTDEF(app,
-        "--bias-prior-strand-snv-base",
-           bias_prior_strand_snv_base,
+        "--bias-priorfreq-strand-snv-base",
+           bias_priorfreq_strand_snv_base,
         "Prior weight of the null hypothesis of no strand bias for SNVs at the average base quality of zero. ");
     ADD_OPTDEF(app,
-        "--bias-prior-strand-indel",
-           bias_prior_strand_indel,
+        "--bias-priorfreq-strand-indel",
+           bias_priorfreq_strand_indel,
         "Prior weight of the null hypothesis of no strand bias for InDels. ");
     
     ADD_OPTDEF(app,
@@ -599,12 +595,12 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
         "Threshold of short tandem repeat (STR) track length above which segment position bias is removed if the variant is also the majority in the STR track. ");
     
     ADD_OPTDEF(app,
-        "--bias-prior-orientation-snv-base",
-           bias_prior_orientation_snv_base,
+        "--bias-priorfreq-orientation-snv-base",
+           bias_priorfreq_orientation_snv_base,
         "The prior weight of the null hypothesis of no read-orientation bias at 100\% allele fraction for SNVs. ");
     ADD_OPTDEF(app,
-        "--bias-prior-orientation-indel-base",
-           bias_prior_orientation_indel_base,
+        "--bias-priorfreq-orientation-indel-base",
+           bias_priorfreq_orientation_indel_base,
         "The prior weight of the null hypothesis of no read-orientation bias at 100\% allele fraction for InDels. ");
     ADD_OPTDEF(app,
         "--bias-removal-orientation-avg-end-len",

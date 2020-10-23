@@ -3078,8 +3078,8 @@ BcfFormat_symbol_calc_DPv(
     // substitution in indel region, substitution in indel-prone region or indel, other cases 
     unsigned int aDPplus = (isSymbolSubstitution(symbol) ? 0 : ((aDP + 1) * paramset.bias_prior_DPadd_perc / 100));
     double dp_coef = ((symbol == LINK_M) ?  MAX(0.02, 1.0 - MAX(rtr1.tracklen, rtr2.tracklen) / (MAX3(1, f.ALPL[0], f.ARPL[0]) / MAX(1.0/150.0, f.ABQ2[0]))) : 1.0);
-    double _aPprior = paramset.bias_prior_pos / (is_rescued ? phred2prob(paramset.tn_q_inc_max) : 1); // probability that there is one indel at a pos
-    double _aBprior = _aPprior;
+    double _aPpriorfreq = paramset.bias_priorfreq_pos + (is_rescued ? paramset.tn_q_inc_max : 0); // probability that there is one indel at a pos
+    double _aBpriorfreq = _aPpriorfreq;
     const bool is_in_indel_read = (   (f.APXM[1]) / 15.0 * 2  * (paramset.bias_prior_var_DP_mul) > (aDP + aDPplus) * dp_coef);
     const bool is_in_indel_len  = (MAX(f.APDP[1],  f.APDP[2]) * (paramset.bias_prior_var_DP_mul) > (aDP + aDPplus) * dp_coef);
     const bool is_in_indel_rtr  = (MAX(f.APDP[3],  f.APDP[4]) * (paramset.bias_prior_var_DP_mul) > (aDP + aDPplus) * dp_coef);
@@ -3087,41 +3087,41 @@ BcfFormat_symbol_calc_DPv(
     
     // read level, affecting both
     if (is_in_indel_read) {
-        _aPprior /= paramset.bias_prior_indel_in_read_div; 
-        _aBprior /= paramset.bias_prior_indel_in_read_div;
+        _aPpriorfreq -= paramset.bias_priorfreq_indel_in_read_div; 
+        _aBpriorfreq -= paramset.bias_priorfreq_indel_in_read_div;
     } else if ((isSymbolIns(symbol) || isSymbolDel(symbol)) && fmt.APXM[0] > fmt.APXM[1] * 4) {
-        _aPprior /= paramset.bias_prior_indel_in_read_div; 
-        _aBprior /= paramset.bias_prior_indel_in_read_div;
+        _aPpriorfreq -= paramset.bias_priorfreq_indel_in_read_div; 
+        _aBpriorfreq -= paramset.bias_priorfreq_indel_in_read_div;
     }
     // regional level, affecting only aBprior for LINK_M
-    if (is_in_indel_len)           { _aBprior /= paramset.bias_prior_indel_in_var_div2; }
-    else if (is_in_indel_rtr)      { _aBprior /= paramset.bias_prior_indel_in_STR_div2; }
-    else if (is_in_rtr)            { _aBprior /= paramset.bias_prior_var_in_STR_div2; }
+    if (is_in_indel_len)           { _aBpriorfreq -= paramset.bias_priorfreq_indel_in_var_div2; }
+    else if (is_in_indel_rtr)      { _aBpriorfreq -= paramset.bias_priorfreq_indel_in_STR_div2; }
+    else if (is_in_rtr)            { _aBpriorfreq -= paramset.bias_priorfreq_var_in_STR_div2; }
     if (LINK_M != symbol && LINK_NN != symbol) { 
-        if (is_in_indel_len)       { _aPprior /= paramset.bias_prior_indel_in_var_div2; }
-        else if (is_in_indel_rtr)  { _aPprior /= paramset.bias_prior_indel_in_STR_div2; }
-        else if (is_in_rtr)        { _aPprior /= paramset.bias_prior_var_in_STR_div2; }
+        if (is_in_indel_len)       { _aPpriorfreq -= paramset.bias_priorfreq_indel_in_var_div2; }
+        else if (is_in_indel_rtr)  { _aPpriorfreq -= paramset.bias_priorfreq_indel_in_STR_div2; }
+        else if (is_in_rtr)        { _aPpriorfreq -= paramset.bias_priorfreq_var_in_STR_div2; }
     }
-    const double aPprior = _aPprior;
-    const double aBprior = _aBprior;
-    fmt.note += std::string("//aPprior/") +std::to_string(aPprior) + "//" + std::string("//aBprior/") +std::to_string(aBprior) + "//";;
+    const double aPpriorfreq = _aPpriorfreq;
+    const double aBpriorfreq = _aBpriorfreq;
+    fmt.note += std::string("//aPpriorfreq/") +std::to_string(aPpriorfreq) + "//" + std::string("//aBpriorfreq/") +std::to_string(aBpriorfreq) + "//";;
     
-    const double aIprior = log(isSymbolSubstitution(symbol) ? paramset.bias_prior_ipos_snv : paramset.bias_prior_ipos_indel) + 1;
-    const double aSBprior = log(isSymbolSubstitution(symbol) 
-            ? (pow(10.0, fmt.aBQ[a] / 10.0) * paramset.bias_prior_strand_snv_base + paramset.bias_prior_pseudocount) 
-            : (paramset.bias_prior_strand_indel + paramset.bias_prior_pseudocount));
+    const double aIpriorfreq = (isSymbolSubstitution(symbol) ? paramset.bias_priorfreq_ipos_snv : paramset.bias_priorfreq_ipos_indel);
+    const double aSBpriorfreq = (isSymbolSubstitution(symbol) 
+            ? (fmt.aBQ[a] + paramset.bias_priorfreq_strand_snv_base)
+            : (paramset.bias_priorfreq_strand_indel));
     
-    const auto aLPFAx2 = dp4_to_pcFA<false>(f.aLP1[a], aDP, f.ALP2[0] + f.aLP1[a] - f.aLP2[a], ADP, paramset.powlaw_exponent, log(aPprior),
+    const auto aLPFAx2 = dp4_to_pcFA<false>(f.aLP1[a], aDP, f.ALP2[0] + f.aLP1[a] - f.aLP2[a], ADP, paramset.powlaw_exponent, phred2nat(aPpriorfreq),
             MAX(1, f.aLPL[a]) / (double)MAX(1, f.aBQ2[a]), MAX(1, f.ALPL[0]) / (double)MAX(1, f.ABQ2[0]), ((is_in_indel_read) ? paramset.bias_FA_pseudocount_indel_in_read : 0.5)); 
             // use f.aBQ2[a] instead of aDP ???
-    const auto aRPFAx2 = dp4_to_pcFA<false>(f.aRP1[a], aDP, f.ARP2[0] + f.aRP1[a] - f.aRP2[a], ADP, paramset.powlaw_exponent, log(aPprior),
+    const auto aRPFAx2 = dp4_to_pcFA<false>(f.aRP1[a], aDP, f.ARP2[0] + f.aRP1[a] - f.aRP2[a], ADP, paramset.powlaw_exponent, phred2nat(aPpriorfreq),
             MAX(1, f.aRPL[a]) / (double)MAX(1, f.aBQ2[a]), MAX(1, f.ARPL[0]) / (double)MAX(1, f.ABQ2[0]), ((is_in_indel_read) ? paramset.bias_FA_pseudocount_indel_in_read : 0.5));
     double aLPFA = aLPFAx2[0];
     double aRPFA = aRPFAx2[0];
     
-    const auto aLBFAx2 = dp4_to_pcFA<false>(f.aLB1[a], aDP, f.ALB2[0] + f.aLB1[a] - f.aLB2[a], ADP, paramset.powlaw_exponent, log(aBprior),
+    const auto aLBFAx2 = dp4_to_pcFA<false>(f.aLB1[a], aDP, f.ALB2[0] + f.aLB1[a] - f.aLB2[a], ADP, paramset.powlaw_exponent, phred2nat(aBpriorfreq),
             MAX(1, f.aLBL[a]) / (double)MAX(1, f.aBQ2[a]), MAX(1, f.ALBL[0]) / (double)MAX(1, f.ABQ2[0]), ((is_in_indel_read) ? paramset.bias_FA_pseudocount_indel_in_read : 0.5));
-    const auto aRBFAx2 = dp4_to_pcFA<false>(f.aRB1[a], aDP, f.ARB2[0] + f.aRB1[a] - f.aRB2[a], ADP, paramset.powlaw_exponent, log(aBprior),
+    const auto aRBFAx2 = dp4_to_pcFA<false>(f.aRB1[a], aDP, f.ARB2[0] + f.aRB1[a] - f.aRB2[a], ADP, paramset.powlaw_exponent, phred2nat(aBpriorfreq),
             MAX(1, f.aRBL[a]) / (double)MAX(1, f.aBQ2[a]), MAX(1, f.ARBL[0]) / (double)MAX(1, f.ABQ2[0]), ((is_in_indel_read) ? paramset.bias_FA_pseudocount_indel_in_read : 0.5));
     double aLBFA = aLBFAx2[0];
     double aRBFA = aRBFAx2[0];
@@ -3138,7 +3138,7 @@ BcfFormat_symbol_calc_DPv(
         _aLIFAx2 = dp4_to_pcFA<false>(
                 (f.aLI1[a]), (f.aDPfr[a] + f.aDPrr[a]), 
                 (f.ALI2[0] + f.aLI1[a] - f.aLI2[a]), (f.ADPfr[0] + f.ADPrr[0]), 
-                paramset.powlaw_exponent, log(aIprior), 
+                paramset.powlaw_exponent, phred2nat(aIpriorfreq), 
                 aLpd, ALpd, 0.25, 0.5);
         fmt.note += std::string("ALpd/aLpd/") + std::to_string(ALpd) + "/" + std::to_string(aLpd) + "//";
     }
@@ -3151,7 +3151,7 @@ BcfFormat_symbol_calc_DPv(
         _aRIFAx2 = dp4_to_pcFA<false>(
                 (f.aRI1[a]), (f.aDPff[a] + f.aDPrf[a]), 
                 (f.ARI2[0] + f.aRI1[a] - f.aRI2[a]), (f.ADPff[0] + f.ADPrf[0]), 
-                paramset.powlaw_exponent, log(aIprior),
+                paramset.powlaw_exponent, phred2nat(aIpriorfreq),
                 aRpd, ARpd, 0.25, 0.5);
         fmt.note += std::string("ARpd/aRpd/") + std::to_string(ARpd) + "/" + std::to_string(aRpd) + "//";
     }
@@ -3169,29 +3169,23 @@ BcfFormat_symbol_calc_DPv(
             aRPFA += 2.0;
             aLBFA += 2.0;
             aRBFA += 2.0;
-        } else {
-            // fmt.note += std::string("rtr-tracklen/") + std::to_string(rtr1.tracklen) + "/" + std::to_string(rtr2.tracklen) + "/";
         }
         if (LAST(fmt.bMQ) >= 50 && LAST(fmt.aXM2) * 100 >= aDP * 100 * 50) { aLIFA += 2.0; aRIFA += 2.0; }
     } else if (LINK_M == symbol || LINK_NN == symbol) {
         aLBFA = (double)MIN(aLBFA, MAX(1, LAST(fmt.aLB1)) / (double)MAX(1, ADP));
         aRBFA = (double)MIN(aRBFA, MAX(1, LAST(fmt.aRB1)) / (double)MAX(1, ADP));
-        // aLBFA = (double)MIN(aLBFA, MAX(1, LAST(fmt.aLB1)) / (double)MAX(1, (FIRST(fmt.ALB2) + LAST(fmt.aLB1) - LAST(fmt.aLB2))));
-        // aRBFA = (double)MIN(aRBFA, MAX(1, LAST(fmt.aRB1)) / (double)MAX(1, (FIRST(fmt.ARB2) + LAST(fmt.aRB1) - LAST(fmt.aRB2))));
-        // aLBFA *= MAX(1, fmt.ALB2[0]) / (double)MAX(ADP, 1);
-        // aRBFA *= MAX(1, fmt.ARB2[0]) / (double)MAX(ADP, 1);
     } else if (refsymbol == symbol) {
         aLIFA = aRIFA = MAX(aLIFA, aRIFA); // reference error or long indel on either the left or right frag side does not affect the ref SNP allele.
     }
     
     const double aPFFA = (fmt.aPF1[a] + pfa * (is_rescued ? 100.0 : (double)(fmt.aXM2[a] / MAX(1, aDP)))) / (fmt.APF2[0] + (fmt.aPF1[a] - fmt.aPF2[a]) + 1.0*100);
     const auto aSSFAx2 = dp4_to_pcFA<true>(fmt.aDPff[a] + fmt.aDPrf[a], fmt.aDPfr[a] + fmt.aDPrr[a], fmt.ADPff[0] + fmt.ADPrf[0], fmt.ADPfr[0] + fmt.ADPrr[0], 
-            paramset.powlaw_exponent, aSBprior);
-    const auto bias_prior_orientation_base = (isSymbolSubstitution(symbol) ? paramset.bias_prior_orientation_snv_base :paramset.bias_prior_orientation_indel_base);
+            paramset.powlaw_exponent, phred2nat(aSBpriorfreq));
+    const auto bias_priorfreq_orientation_base = (isSymbolSubstitution(symbol) ? paramset.bias_priorfreq_orientation_snv_base :paramset.bias_priorfreq_orientation_indel_base);
     const auto cROFA0x2 = dp4_to_pcFA<true>(fmt.cDP0f[a], fmt.cDP0r[a], fmt.CDP0f[0], fmt.CDP0r[0], paramset.powlaw_exponent, 
-            log(mathsquare(aDPFA) * bias_prior_orientation_base + 2));
+            log(mathsquare(aDPFA)) + phred2nat(bias_priorfreq_orientation_base));
     const auto cROFA2x2 = dp4_to_pcFA<true>(fmt.cDP2f[a], fmt.cDP2r[a], fmt.CDP2f[0], fmt.CDP2r[0], paramset.powlaw_exponent, 
-            log(mathsquare(aDPFA) * bias_prior_orientation_base + 2));
+            log(mathsquare(aDPFA)) + phred2nat(bias_priorfreq_orientation_base));
     double aSSFA = aSSFAx2[0] * dir_bias_div;
     double cROFA0 = cROFA0x2[0] * dir_bias_div;
     double cROFA2 = cROFA2x2[0] * dir_bias_div;

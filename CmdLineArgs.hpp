@@ -5,6 +5,7 @@
 #include "CLI11-1.7.1/CLI11.hpp"
 #include <string>
 #include <limits.h>
+#include <math.h>
 
 struct CommandLineArgs {
 
@@ -134,29 +135,28 @@ struct CommandLineArgs {
     
 // *** 06. parameters related to the priors of bias
     
-    double   bias_prior_pseudocount = 2; // set very high to disable position, mismatch, and 
     uint32_t bias_prior_DPadd_perc = 50;
    
-    double bias_prior_pos = 1024*9/2; // set very high to disable position bias, insert-end bias, strand bias, and orientation bias.
-    double bias_prior_indel_in_read_div = 32+64;
-    double bias_prior_indel_in_var_div2 = 24;
-    double bias_prior_indel_in_STR_div2 = 8;
-    double bias_prior_var_in_STR_div2 = 3;
+    double bias_priorfreq_pos = numstates2phred(1024*9/2); // 1024*9/2; // set very high to disable position bias, insert-end bias, strand bias, and orientation bias.
+    double bias_priorfreq_indel_in_read_div = numstates2phred(32+64);
+    double bias_priorfreq_indel_in_var_div2 = numstates2phred(24);
+    double bias_priorfreq_indel_in_STR_div2 = numstates2phred(8);
+    double bias_priorfreq_var_in_STR_div2 = numstates2phred(3);
     
     double   bias_prior_var_DP_mul = 1.25 + DBLFLT_EPS;
     
-    uint32_t bias_prior_ipos_snv = 1e5; // set very high to disable insert-end bias
-    uint32_t bias_prior_ipos_indel = 3e3;
-    uint32_t bias_prior_strand_snv_base = 10; // set very high to disable strand bias
-    uint32_t bias_prior_strand_indel = 3e3;
+    uint32_t bias_priorfreq_ipos_snv = numstates2phred(1e5); // set very high to disable insert-end bias
+    uint32_t bias_priorfreq_ipos_indel = numstates2phred(3e3);
+    uint32_t bias_priorfreq_strand_snv_base = numstates2phred(10); // set very high to disable strand bias
+    uint32_t bias_priorfreq_strand_indel = numstates2phred(3e3);
     
     double   bias_FA_pseudocount_indel_in_read = 0.1;
     
     double   nobias_pos_indel_lenfrac_thres = 2.0; // set very low to disable position bias for InDels
     uint32_t nobias_pos_indel_STR_track_len = 16;
 
-    double   bias_prior_orientation_snv_base = 1e5; // set very high to disable orientation bias
-    double   bias_prior_orientation_indel_base = 1e5; 
+    double   bias_priorfreq_orientation_snv_base = numstates2phred(1e5); // set very high to disable orientation bias
+    double   bias_priorfreq_orientation_indel_base = numstates2phred(1e5); 
     double   bias_orientation_counter_avg_end_len = 20;
     
     int32_t  bias_FA_powerlaw_noUMI_phred_inc_snv = 5;
