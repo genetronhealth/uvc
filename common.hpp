@@ -21,6 +21,8 @@
 #define numstates2phred(x) ((10.0/log(10.0)) * log(x))
 #define phred2numstates(x) (pow(10.0, (x)/10.0))
 
+#define numstates2deciphred(x) ((int)round((100.0/log(10.0)) * log(x)))
+
 //#define VCFQUAL_NUM_BINS 120 // max vcfqual is at 105, so vcfqual that is higher than the max is reserved
 //#define RCC_NUM 2
 //#define RCC_NFS 6

@@ -381,13 +381,21 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
                                                       "for between-sample comparison."),
     BcfFormatStruct("CONTQ" , BCF_NUM_R, BCF_SIG_INT, "Likelihood of the variant signal if the variant signal is contaminated."),
     
-    BcfFormatStruct("__f"   , 1,         BCF_SEP,     "Variant-related information."),
+    BcfFormatStruct("__f1"  , 1,         BCF_SEP,     "Variant-related information."),
     BcfFormatStruct("VTI"   , BCF_NUM_R, BCF_INTEGER, "Variant-type ID of each allele."),
     BcfFormatStruct("VTD"   , BCF_NUM_R, BCF_STRING,  "Variant-type description of each allele"),
     BcfFormatStruct("cVQ1M" , 2,         BCF_SIG_INT, "Consensus allele qualities for deduped fragments and UMI families"),
     BcfFormatStruct("cVQ2M" , 2,         BCF_SIG_INT, "Consensus allele qualities for deduped fragments and UMI families"),
     BcfFormatStruct("cVQAM" , 2,         BCF_STRING,  "Consensus allele symbolic descriptions for deduped fragments and UMI families"),
     BcfFormatStruct("cVQSM" , 2,         BCF_STRING,  "Consensus allele InDel strings for deduped fragments and UMI families"),
+    
+    BcfFormatStruct("__f2"  , 1,         BCF_SEP,     "Filter-related information."),
+    BcfFormatStruct("nPF"   , BCF_NUM_D, BCF_SIG_INT, "Phred prior bias probability for base position and BAQ. "),
+    BcfFormatStruct("nNFA"  , BCF_NUM_D, BCF_SIG_INT, "DeciPhred allele fractions computed using nullified bias (meaning that bias in ALT is countered by bias in REF). "),
+    BcfFormatStruct("nAFA"  , BCF_NUM_D, BCF_SIG_INT, "DeciPhred allele fractions computed with sequencing-segment depths, "
+            "reduced by none, left base position, base right position, left BAQ, right BAQ, left insert positoin, right insert position, strand, and pasing-filter biases (8 biases), respectively. "),
+    BcfFormatStruct("nBCFA",  BCF_NUM_D, BCF_SIG_INT, "DeciPhred allele fractions computed with duped and deduped depths, "
+            "using duped depth, deduped depth, tier-2 consensus family depth, tier-3 consensus family depth, tier-1 read-orientation depth, and tier-2 read-orientation depth, respectively. "),
     
     BcfFormatStruct("__gap"  , 1,        BCF_SEP,     "InDel-related information."), 
     BcfFormatStruct("gapNf"  ,BCF_NUM_D, BCF_INTEGER, "Number of InDel sequences on the forward read orientation."),
@@ -400,6 +408,8 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("cDP0a"  ,BCF_NUM_R, BCF_INTEGER, "Number of deduplicated fragments supporting each ALT allele which is more precise for InDels"),
     BcfFormatStruct("gapSa"  ,BCF_NUM_R, BCF_STRING,  "InDel string of each allele"),
     
+    
+
     BcfFormatStruct("bHap"  , 1,         BCF_STRING,  "Duped forward&reverse linkage in the format of ((position&variantType)...depth)... "
                                                       "where ()... means more elements following the format in the preceding parenthesis. "),
     BcfFormatStruct("cHap"  , 1,         BCF_STRING,  "Dedup forward&reverse linkage in the format of ((position&variantType)...depth)... "
@@ -535,6 +545,16 @@ main(int argc, char **argv) {
     std::cout << "\n    return 0;};\n";
     
     std::cout << "#include <assert.h>\n";
+    
+    std::cout << "static int resetBcfFormatD(BcfFormat & fmt) {\n";
+    
+    for (auto fmt : FORMAT_VEC) {
+        if (BCF_NUM_D == fmt.number) {
+            std::cout << "    fmt." << fmt.id << ".clear();\n";
+        }
+    }
+    std::cout << "\n    return 0;};\n";
+    
     std::cout << "static int streamFrontPushBcfFormatR(BcfFormat & dst, const BcfFormat & src) {\n";
     
     for (auto fmt : FORMAT_VEC) {

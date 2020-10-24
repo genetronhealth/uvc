@@ -873,8 +873,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                     for (auto & fmt_tki_tup : fmt_tki_tup_vec) {
                         auto & fmt = std::get<0>(fmt_tki_tup);
                         auto symbol = (AlignmentSymbol)(LAST(fmt.VTI));
-                        fmt.note += std::string("/symb/") + std::to_string(symbol) + 
-                                std::string("/gVQ1/CONTQ/") + std::to_string(LAST(fmt.gVQ1)) + "/" + std::to_string(LAST(fmt.CONTQ))  + "//";
+                        //fmt.note += std::string("/symb/") + std::to_string(symbol) + 
+                        //        std::string("/gVQ1/CONTQ/") + std::to_string(LAST(fmt.gVQ1)) + "/" + std::to_string(LAST(fmt.CONTQ))  + "//";
                         if (symbol != BASE_NN) {
                             symbol_format_vec.push_back(std::make_pair(symbol, &fmt));
                         }
@@ -920,6 +920,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                     const auto & nlodq_fmtptr1_fmtptr2_tup = st_to_nlodq_fmtptr1_fmtptr2_tup[symbolType];
                     
                     int nlodq = ((BASE_SYMBOL == symbolType) ? paramset.germ_phred_hetero_snp : paramset.germ_phred_hetero_indel);
+                    AlignmentSymbol argmin_nlodq_symbol = END_ALIGNMENT_SYMBOLS; 
                     for (auto & fmt_tki_tup : fmt_tki_tup_vec) 
                     {
                         auto & fmt = std::get<0>(fmt_tki_tup);
@@ -954,6 +955,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                                             + triallele_inc;
                                     if (nlodq_inc > new_nlodq_inc) {
                                         nlodq_inc = new_nlodq_inc;
+                                        argmin_nlodq_symbol = normsymbol;
+                                        /*
                                         fmt.note += std::string("/nlodqDeltaIs/") 
                                         + other_join(std::array<double, 5> {{ tAD, tDP, nAD, nDP, nlodq_inc }}, "/") + "#" 
                                         + std::to_string(std::get<0>(nlodq_fmtptr1_fmtptr2_tup)) + "#"
@@ -965,6 +968,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                                         + other_join(std::get<1>(nlodq_fmtptr1_fmtptr2_tup)->CONTQ, "/") + "//"
                                         + other_join(std::get<2>(nlodq_fmtptr1_fmtptr2_tup)->CONTQ, "/") + "//"
                                         ;
+                                        */
                                     }
                                 }
                                 nlodq += nlodq_inc;
@@ -985,6 +989,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                                     fmt,
                                     tki,
                                     nlodq,
+                                    argmin_nlodq_symbol,
                                     (paramset.should_output_all || is_germline_var_generated),
                                     bcf_hdr,
                                     baq_offsetarr,

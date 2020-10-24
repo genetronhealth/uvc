@@ -2832,13 +2832,14 @@ BcfFormat_symboltype_init(bcfrec::BcfFormat & fmt,
     fill_symboltype_fmt(fmt.DDP1,  fmt.dDP1,  symbol_to_duplex_format_depth_sets, DUPLEX_dDP1, refpos, symbolType, refsymbol);
     fill_symboltype_fmt(fmt.DDP2,  fmt.dDP2,  symbol_to_duplex_format_depth_sets, DUPLEX_dDP2, refpos, symbolType, refsymbol);
     
-    fmt.gapNf.clear();
-    fmt.gapNr.clear();
-    fmt.gapSeq.clear();
-    fmt.gapbAD1.clear();
-    fmt.gapcAD1.clear();
-    fmt.bHap.clear();
-    fmt.cHap.clear();
+    resetBcfFormatD(fmt);
+    //fmt.gapNf.clear();
+    //fmt.gapNr.clear();
+    //fmt.gapSeq.clear();
+    //fmt.gapbAD1.clear();
+    //fmt.gapcAD1.clear();
+    //fmt.bHap.clear();
+    //fmt.cHap.clear();
     
     return {fmt.BDPf[0] + fmt.BDPr[0], fmt.CDP1f[0] + fmt.CDP1r[0]};
 };
@@ -3083,7 +3084,8 @@ BcfFormat_symbol_calc_DPv(
     }
     const double aPpriorfreq = _aPpriorfreq;
     const double aBpriorfreq = _aBpriorfreq;
-    fmt.note += std::string("//aPpriorfreq/") +std::to_string(aPpriorfreq) + "//" + std::string("//aBpriorfreq/") +std::to_string(aBpriorfreq) + "//";;
+    fmt.nPF = {{ (int)round(aPpriorfreq), (int)round(aBpriorfreq) }};
+    // fmt.note += std::string("//aPpriorfreq/") +std::to_string(aPpriorfreq) + "//" + std::string("//aBpriorfreq/") +std::to_string(aBpriorfreq) + "//";;
     
     const double aIpriorfreq = (isSymbolSubstitution(symbol) ? paramset.bias_priorfreq_ipos_snv : paramset.bias_priorfreq_ipos_indel);
     const double aSBpriorfreq = (isSymbolSubstitution(symbol) 
@@ -3119,7 +3121,8 @@ BcfFormat_symbol_calc_DPv(
                 (f.ALI2[0] + f.aLI1[a] - f.aLI2[a]), (f.ADPfr[0] + f.ADPrr[0]), 
                 paramset.powlaw_exponent, phred2nat(aIpriorfreq), 
                 aLpd, ALpd, 0.25, 0.5);
-        fmt.note += std::string("ALpd/aLpd/") + std::to_string(ALpd) + "/" + std::to_string(aLpd) + "//";
+        // fmt.note += std::string("ALpd/aLpd/") + std::to_string(ALpd) + "/" + std::to_string(aLpd) + "//";
+        
     }
     double aLIFA = _aLIFAx2[0] * (is_amplicon ? (dir_bias_div) : MAX(1.0, aDPFA / _aLIFAx2[1]));
     
@@ -3132,7 +3135,7 @@ BcfFormat_symbol_calc_DPv(
                 (f.ARI2[0] + f.aRI1[a] - f.aRI2[a]), (f.ADPff[0] + f.ADPrf[0]), 
                 paramset.powlaw_exponent, phred2nat(aIpriorfreq),
                 aRpd, ARpd, 0.25, 0.5);
-        fmt.note += std::string("ARpd/aRpd/") + std::to_string(ARpd) + "/" + std::to_string(aRpd) + "//";
+        // fmt.note += std::string("ARpd/aRpd/") + std::to_string(ARpd) + "/" + std::to_string(aRpd) + "//";
     }
     double aRIFA = _aRIFAx2[0] * (is_amplicon ? (dir_bias_div) : MAX(1.0, aDPFA / _aRIFAx2[1]));
     
@@ -3161,12 +3164,12 @@ BcfFormat_symbol_calc_DPv(
     const auto aSSFAx2 = dp4_to_pcFA<true>(fmt.aDPff[a] + fmt.aDPrf[a], fmt.aDPfr[a] + fmt.aDPrr[a], fmt.ADPff[0] + fmt.ADPrf[0], fmt.ADPfr[0] + fmt.ADPrr[0], 
             paramset.powlaw_exponent, phred2nat(aSBpriorfreq));
     const auto bias_priorfreq_orientation_base = (isSymbolSubstitution(symbol) ? paramset.bias_priorfreq_orientation_snv_base :paramset.bias_priorfreq_orientation_indel_base);
-    const auto cROFA0x2 = dp4_to_pcFA<true>(fmt.cDP0f[a], fmt.cDP0r[a], fmt.CDP0f[0], fmt.CDP0r[0], paramset.powlaw_exponent, 
+    const auto cROFA1x2 = dp4_to_pcFA<true>(fmt.cDP1f[a], fmt.cDP1r[a], fmt.CDP1f[0], fmt.CDP1r[0], paramset.powlaw_exponent, 
             log(mathsquare(aDPFA)) + phred2nat(bias_priorfreq_orientation_base));
     const auto cROFA2x2 = dp4_to_pcFA<true>(fmt.cDP2f[a], fmt.cDP2r[a], fmt.CDP2f[0], fmt.CDP2r[0], paramset.powlaw_exponent, 
             log(mathsquare(aDPFA)) + phred2nat(bias_priorfreq_orientation_base));
     double aSSFA = aSSFAx2[0] * dir_bias_div;
-    double cROFA0 = cROFA0x2[0] * dir_bias_div;
+    double cROFA1 = cROFA1x2[0] * dir_bias_div;
     double cROFA2 = cROFA2x2[0] * dir_bias_div;
     
     double bFA = (fmt.bDPa[a] + pfa) / (fmt.BDPf[0] + fmt.BDPr[0] + 1.0);
@@ -3190,13 +3193,6 @@ BcfFormat_symbol_calc_DPv(
             aLIFA, aRIFA, 
             aSSFA, aPFFA * aSSFA / MAX(aSSFA, aSSFAx2[1]) }};
     
-    fmt.note += std::string("counter//") + other_join(std::vector<double> {{ counterbias_P_FA, counterbias_BQ_FA }}, "/") + "//";
-    double min_aFA = MAX3(MINVEC(min_aFA_vec), counterbias_P_FA, counterbias_BQ_FA);
-    fmt.note += std::string("raw/pos4/ss/xm//") + other_join(min_aFA_vec, "/") + "//";
-    
-    double min_bcFA = MAX3(MIN3(bFA, cFA0, cROFA0), counterbias_P_FA, counterbias_BQ_FA);
-    fmt.note += std::string("b/c/o1/o2//") + other_join(std::vector<double> {{ bFA, cFA0, cROFA0, cROFA2 }}, "/") + "//";
-    
     double cFA2 = (fmt.cDP2f[a] + fmt.cDP2r[a] + pfa) / (fmt.CDP2f[0] + fmt.CDP2r[0] + 1.0);
     // The following code without + 1 pseudocount in both nominator and denominator can result in false negative calls at low allele fraction (it is rare but can happen).
     // double cFA3 = (fmt.cDP3f[a] + fmt.cDP3r[a] + pfa + 1) / (fmt.CDP3f[0] + fmt.CDP3r[0] + 1.0 + 1);
@@ -3207,15 +3203,35 @@ BcfFormat_symbol_calc_DPv(
     assert( cFA3 > 0);
     assert( cFA3 < 1);
     
+    // fmt.note += std::string("counter//") + other_join(std::vector<double> {{ counterbias_P_FA, counterbias_BQ_FA }}, "/") + "//";
+    fmt.nNFA.push_back(-numstates2deciphred(counterbias_P_FA));
+    fmt.nNFA.push_back(-numstates2deciphred(counterbias_BQ_FA));
+    for (size_t i = 0; i < min_aFA_vec.size(); i++) {
+        fmt.nAFA.push_back(-numstates2deciphred(min_aFA_vec[i]));
+    }
+    fmt.nBCFA.push_back(-numstates2deciphred(bFA));
+    fmt.nBCFA.push_back(-numstates2deciphred(cFA0));
+    fmt.nBCFA.push_back(-numstates2deciphred(cFA2));
+    fmt.nBCFA.push_back(-numstates2deciphred(cFA3));
+    fmt.nBCFA.push_back(-numstates2deciphred(cROFA1));
+    fmt.nBCFA.push_back(-numstates2deciphred(cROFA2));
+    
+    double min_aFA = MAX3(MINVEC(min_aFA_vec), counterbias_P_FA, counterbias_BQ_FA);
+    // fmt.note += std::string("raw/pos4/ss/xm//") + other_join(min_aFA_vec, "/") + "//";
+    
+    double min_bcFA = MAX3(MIN3(bFA, cFA0, cROFA1), counterbias_P_FA, counterbias_BQ_FA);
+    // fmt.note += std::string("b/c/o1/o2//") + other_join(std::vector<double> {{ bFA, cFA0, cROFA1, cROFA2 }}, "/") + "//";
+    
     auto min_cFA23_vec = std::vector<double> {{ cFA2, cFA3 }};
-    fmt.note += std::string("2/3//") + other_join(min_cFA23_vec, "/") + "//";
+    
+    // fmt.note += std::string("2/3//") + other_join(min_cFA23_vec, "/") + "//";
     double umi_cFA = MINVEC(min_cFA23_vec);
     
     // TODO: find the theory for the following three lines of code.
     double frac_umi2seg1 = MIN(1.0, umi_cFA / aDPFA); // * BETWEEN(2.0 * mathsquare(min_aFA / aDPFA), 0.5, 1.0)); // UMI-QUESTION: how does this work?
     double frac_umi2seg2 = MIN(1.0, cFA0 / umi_cFA);
 
-    fmt.note += std::string("frac_umi2seg1//") + std::to_string(frac_umi2seg1) + "/" + std::to_string(frac_umi2seg2) + "//";
+    // fmt.note += std::string("frac_umi2seg1//") + std::to_string(frac_umi2seg1) + "/" + std::to_string(frac_umi2seg2) + "//";
     double frac_umi2seg = ((isSymbolSubstitution(symbol) || true) ? (frac_umi2seg1 * frac_umi2seg2) : 1.0);
     double frac_c1_b = 1.0; // BETWEEN(2.5 * mathsquare(cFA0 / bFA), 0.4, 1.0); // UMI-QUESTION: how does this work?
     
@@ -3345,7 +3361,7 @@ BcfFormat_symbol_calc_qual(
         const CommandLineArgs & paramset,
         const unsigned int specialflag) {
    
-    fmt.note += std::string("/tpfa/") + std::to_string(tpfa) + "/";
+    // fmt.note += std::string("/tpfa/") + std::to_string(tpfa) + "/";
         
     const unsigned int a = 0;
     const auto symbol = AlignmentSymbol(LAST(fmt.VTI));
@@ -3391,7 +3407,7 @@ BcfFormat_symbol_calc_qual(
     const bool is_cysotine_deanimation = (is_cytosine_deanim_CT && is_cytosine_deanim_FA);
     int64_t non_duplex_binom_dec_x10 = ((is_cysotine_deanimation)
             ? (10 * (int64_t)non_neg_minus(paramset.fam_phred_sscs_transition_CG_TA, paramset.fam_phred_dscs_all / 2) * ((int64_t)CDP2 - int64mul(cDP2, paramset.microadjust_fam_lowfreq_invFA)) / CDP2) : 0);
-    fmt.note += std::string("non_duplex_binom_dec_x10(" + std::to_string(non_duplex_binom_dec_x10) + ")");
+    // fmt.note += std::string("non_duplex_binom_dec_x10(" + std::to_string(non_duplex_binom_dec_x10) + ")");
     double prior_weight = 1.0 / (fmt.cDPmf[a] + fmt.cDPmr[a] + 1.0);
     const unsigned int fam_thres_highBQ = (isSymbolSubstitution(symbol) ? paramset.fam_thres_highBQ_snv : paramset.fam_thres_highBQ_indel); 
     int cMmQ = (int)round(10/log(10) * log((fmt.cDPMf[a] + fmt.cDPmf[a] + fmt.cDPMr[a] + fmt.cDPmr[a] + pow(10, fam_thres_highBQ / 10.0) * prior_weight) 
@@ -3458,15 +3474,15 @@ BcfFormat_symbol_calc_qual(
         sscs_powlaw_qual_w = (int)(paramset.powlaw_exponent * (10.0 / log(10.0) * log(min_bcFA_w) + cMmQ + phred_label) + sscs_base_3) + (int)paramset.tn_q_inc_max;
     }
     
-    fmt.note += std::string("sscs_binom_qual_fr(") + std::to_string(sscs_binom_qual_fw) + "," + std::to_string(sscs_binom_qual_rv) + ")";
-    fmt.note += std::string("cIAD_mincnt/normcnt(") + std::to_string(cIADmincnt) + "/" + std::to_string(cIADnormcnt) + ")";
-    fmt.note += std::string("sscs_dec1(") + std::to_string(sscs_dec1) + ")";
-    fmt.note += std::string("min_bcFA_v(") + std::to_string(min_bcFA_v) + ")";
-    fmt.note += std::string("cDP1v(") + std::to_string(fmt.cDP1v[a]) + ")";
-    fmt.note += std::string("CDP1v(") + std::to_string(fmt.CDP1v[0]) + ")";
-    fmt.note += std::string("umi_cFA_v(") + std::to_string(umi_cFA) + ")";
-    fmt.note += std::string("cDP2v(") + std::to_string(fmt.cDP2v[a]) + ")";
-    fmt.note += std::string("CDP2v(") + std::to_string(fmt.CDP2v[0]) + ")";
+    //fmt.note += std::string("sscs_binom_qual_fr(") + std::to_string(sscs_binom_qual_fw) + "," + std::to_string(sscs_binom_qual_rv) + ")";
+    //fmt.note += std::string("cIAD_mincnt/normcnt(") + std::to_string(cIADmincnt) + "/" + std::to_string(cIADnormcnt) + ")";
+    //fmt.note += std::string("sscs_dec1(") + std::to_string(sscs_dec1) + ")";
+    //fmt.note += std::string("min_bcFA_v(") + std::to_string(min_bcFA_v) + ")";
+    //fmt.note += std::string("cDP1v(") + std::to_string(fmt.cDP1v[a]) + ")";
+    //fmt.note += std::string("CDP1v(") + std::to_string(fmt.CDP1v[0]) + ")";
+    //fmt.note += std::string("umi_cFA_v(") + std::to_string(umi_cFA) + ")";
+    //fmt.note += std::string("cDP2v(") + std::to_string(fmt.cDP2v[a]) + ")";
+    //fmt.note += std::string("CDP2v(") + std::to_string(fmt.CDP2v[0]) + ")";
     fmt.note += std::string("cMmQ(") + std::to_string(cMmQ) + ")";
      
     int indel_penal4multialleles = 0;
@@ -3505,11 +3521,13 @@ BcfFormat_symbol_calc_qual(
             indel_penal4multialleles = MAX(indel_penal4multialleles1, indel_penal4multialleles2);
             indel_penal4multialleles_soma = indel_penal4multialleles1;
         }
+        /*
         fmt.note += std::string("/indelpq/") + std::to_string(indel_pq) + "/" + indelstring + "/" + repeatunit + "/" + std::to_string(repeatnum) 
                 + std::string("/indelic/") + std::to_string(indel_ic)
                 + std::string("/indelcdepth/") + std::to_string(indelcdepth) 
                 + std::string("/indelpm/") + std::to_string(indel_penal4multialleles) + "/" + std::to_string(indel_penal4multialleles_g)
                 ;
+        */
         dedup_frag_powlaw_qual_v += (int64_t)floor(indel_ic);
         dedup_frag_powlaw_qual_w += (int64_t)floor(indel_ic);
         duped_frag_binom_qual += (int64_t)floor(indel_pq);
@@ -4036,6 +4054,8 @@ generate_vcf_header(const char *ref_fasta_fname,
     ret += "##INFO=<ID=SomaticQ,Number=A,Type=Float,Description=\"Somatic quality of the variant, the PHRED-scale probability that this variant is not somatic.\">\n";
     ret += "##INFO=<ID=TLODQ,Number=A,Type=Float,Description=\"Tumor log-of-data-likelihood quality, the PHRED-scale probability that this variant is not of biological origin (i.e., artifactual).\">\n";
     ret += "##INFO=<ID=NLODQ,Number=A,Type=Float,Description=\"Normal log-of-data-likelihood quality, the PHRED-scale probability that this variant is of germline origin.\">\n";
+    ret += "##INFO=<ID=NLODV,Number=A,Type=Float,Description=\"The variant symbol that minimizes NLODQ.\">\n";
+
     ret += "##INFO=<ID=TNBQF,Number=4,Type=Float,Description=\"Binomial reward, power-law reward, systematic-error penalty, and normal-adjusted tumor variant quality computed using deduplicated read fragments.\">\n";
     ret += "##INFO=<ID=TNBQN,Number=4,Type=Float,Description=\"TNBQF using non-bias-adjusted deduplicated read fragments.\">\n";
     ret += "##INFO=<ID=TNBQP,Number=1,Type=Float,Description=\"Bias-induced penalty to deduplicated read fragments after comparing tumor bias with normal bias.\">\n";
@@ -4157,6 +4177,7 @@ append_vcf_record(
         auto & tki,
 
         const int nlodq,
+        const AlignmentSymbol argmin_nlodq_symbol,
         const bool should_output_ref_allele,
         const bcf_hdr_t *g_bcf_hdr,
         const auto & baq_offsetarr,
@@ -4253,6 +4274,7 @@ append_vcf_record(
     infostring += std::string(";SomaticQ=") + std::to_string(somaticq);
     infostring += std::string(";TLODQ=") + std::to_string(tlodq);
     infostring += std::string(";NLODQ=") + std::to_string(nlodq);
+    infostring += std::string(";NLODV=") + SYMBOL_TO_DESC_ARR[argmin_nlodq_symbol];
     infostring += std::string(";TNBQF=") + other_join(b_binom_powlaw_syserr_normv_q4filter);
     infostring += std::string(";TNCQF=") + other_join(c_binom_powlaw_syserr_normv_q4);
     infostring += std::string(";RU=") + repeatunit + ";RC=" + std::to_string(repeatnum);
