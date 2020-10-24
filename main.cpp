@@ -823,7 +823,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                                 refpos,
                                 refsymbol,
                                 ((NOT_PROVIDED != paramset.vcf_tumor_fname && (tki.VTI == LAST(fmt.VTI))) ? 
-                                    ((double)(tki.cDP1x + 1) / (double)(tki.CDP1x + 2)) : -1.0),
+                                    ((double)(tki.bDP + 0.5) / (double)(tki.BDP + 1.0)) : -1.0), /* tpfa */
                                 paramset,
                                 0);
                         if (refsymbol != symbol) {

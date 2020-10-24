@@ -152,9 +152,6 @@ struct CommandLineArgs {
     
     double   bias_FA_pseudocount_indel_in_read = 0.1;
     
-    double   nobias_pos_indel_lenfrac_thres = 2.0; // set very low to disable position bias for InDels
-    uint32_t nobias_pos_indel_STR_track_len = 16;
-
     double   bias_priorfreq_orientation_snv_base = numstates2phred(1e5); // set very high to disable orientation bias
     double   bias_priorfreq_orientation_indel_base = numstates2phred(1e5); 
     double   bias_orientation_counter_avg_end_len = 20;
@@ -163,7 +160,11 @@ struct CommandLineArgs {
     int32_t  bias_FA_powerlaw_noUMI_phred_inc_indel = 7; // this is actually the intrinsic lower error rate of indel instead of the one after reduction by bias.
     int32_t  bias_FA_powerlaw_withUMI_phred_inc_snv = 5+3; // +4; // 7+7;
     int32_t  bias_FA_powerlaw_withUMI_phred_inc_indel = 7; // +3; // 7+7;
-
+    
+    uint32_t nobias_flag = 0x2;
+    double   nobias_pos_indel_lenfrac_thres = 2.0; // set very low to disable position bias for InDels
+    uint32_t nobias_pos_indel_STR_track_len = 16;
+    
 // *** 07. parameters related to read families
     
     uint32_t fam_thres_emperr_all_flat_snv = 4;
@@ -197,14 +198,16 @@ struct CommandLineArgs {
     
 // *** 08. parameters related to systematic errors
     
-    uint32_t syserr_BQ_prior = 30; // https://bmcbioinformatics.biomedcentral.com/articles/10.1186/1471-2105-12-451
+    int32_t  syserr_BQ_prior = 30; // https://bmcbioinformatics.biomedcentral.com/articles/10.1186/1471-2105-12-451
     
-    uint32_t syserr_BQ_smratio_q_add = 5;
-    uint32_t syserr_BQ_smratio_q_max = 40;
-    uint32_t syserr_BQ_xmratio_q_add = 5;
-    uint32_t syserr_BQ_xmratio_q_max = 30;
-    uint32_t syserr_BQ_bmratio_q_add = 5;
-    uint32_t syserr_BQ_bmratio_q_max = 40;
+    int32_t  syserr_BQ_sbratio_q_add = 5;
+    int32_t  syserr_BQ_sbratio_q_max = 40;
+    int32_t  syserr_BQ_xmratio_q_add = 5;
+    int32_t  syserr_BQ_xmratio_q_max = 40; // 30;
+    int32_t  syserr_BQ_bmratio_q_add = 5;
+    int32_t  syserr_BQ_bmratio_q_max = 40;
+    
+    int32_t  syserr_BQ_strand_favor_mul = 3; // 40;
     
     int16_t  syserr_minABQ_pcr_snv = 0;   // will be inferred from sequencing platform
     int16_t  syserr_minABQ_pcr_indel = 0; // will be inferred from sequencing platform
@@ -265,7 +268,28 @@ struct CommandLineArgs {
 // *** 12. parameters related to contamination
     
     double      contam_any_mul_frac = 0.02; // from the ContEst paper at https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3167057/
-    double      contam_t2n_mul_frac = 0.05; // - contam_any_mul_frac; // 0.0625; // 0.05; // from the DeTiN paper at https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6528031/ 
+    double      contam_t2n_mul_frac = 0.05; // 0.0625; // from the DeTiN paper at https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6528031/ 
+
+// *** 13. parameters related to micro-adjustment (they do not have any clear theory support)
+    int32_t     microadjust_xm = 7;
+    int32_t     microadjust_cliplen = 5;
+    int32_t     microadjust_delFAQmax = 10+9+30; // to override 
+    
+    double      microadjust_bias_pos_indel_fold = 2;
+    double      microadjust_bias_pos_indel_misma_to_indel_ratio = 4 * (1.0 - DBL_EPSILON);
+    
+    double      microadjust_nobias_pos_indel_misma_to_indel_ratio = 4 * (1.0 - DBL_EPSILON);
+    int32_t     microadjust_nobias_pos_indel_maxlen = 16;
+    int32_t     microadjust_nobias_pos_indel_bMQ = 50;
+    int32_t     microadjust_nobias_pos_indel_perc = 50;
+    int32_t     microadjust_nobias_strand_all_fold = 20;
+    double      microadjust_refbias_indel_max = 2.0;
+    
+    int32_t     microadjust_fam_binom_qual_halving_thres = 22;
+    int32_t     microadjust_fam_lowfreq_invFA = 1000;
+    int32_t     microadjust_ref_MQ_dec_max = 15;
+    
+
 
 // *** extra useful info
     // https://www.biostars.org/p/254467/#254868 : Question: Are these false somatic variants? Visual inspection with IGV

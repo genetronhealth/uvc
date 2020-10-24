@@ -586,15 +586,6 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
         "Pseudocount of the effective variant allele depth for segment position bias in read regions affected by InDels. ");
     
     ADD_OPTDEF(app,
-        "--bias-removal-pos-indel-lenfrac-thres",
-           nobias_pos_indel_lenfrac_thres,
-        "Threshold of (F*L) above which segment position bias is removed, where F is allele fraction and L is InDel length (aka number of gap extensions). ");
-    ADD_OPTDEF(app,
-        "--bias-removal-pos-indel-STR-track-len",
-           nobias_pos_indel_STR_track_len,
-        "Threshold of short tandem repeat (STR) track length above which segment position bias is removed if the variant is also the majority in the STR track. ");
-    
-    ADD_OPTDEF(app,
         "--bias-priorfreq-orientation-snv-base",
            bias_priorfreq_orientation_snv_base,
         "The prior weight of the null hypothesis of no read-orientation bias at 100\% allele fraction for SNVs. ");
@@ -624,6 +615,21 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
         "--bias-FA-powerlaw-withUMI-phred-inc-indel",
            bias_FA_powerlaw_withUMI_phred_inc_indel,
         "The Phred-scale decrease in false positive rates applied on top of universality for UMI Indels. ");
+
+    ADD_OPTDEF(app,
+        "--nobias-flag",
+           nobias_flag,
+        "Advanced flag for reducing one bias by another bias. ");
+    
+    ADD_OPTDEF(app,
+        "--nobias-pos-indel-lenfrac-thres",
+           nobias_pos_indel_lenfrac_thres,
+        "Threshold of (F*L) above which segment position bias is nullified, where F is allele fraction and L is InDel length (aka number of gap extensions). ");
+    ADD_OPTDEF(app,
+        "--nobias-pos-indel-STR-track-len",
+           nobias_pos_indel_STR_track_len,
+        "Threshold of short tandem repeat (STR) track length above which segment position bias is nullified if the variant is also the majority in the STR track. ");
+    
 
 // *** 07. parameters related to read families
     
@@ -716,12 +722,12 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
         "Phred-scale probability of the systematic error (defined at PMC3295828). "); 
     
     ADD_OPTDEF(app,
-        "--syserr-BQ-smratio-q-add",
-           syserr_BQ_smratio_q_add,
+        "--syserr-BQ-sbratio-q-add",
+           syserr_BQ_sbratio_q_add,
         "Squared relative deviation for the odds ratio of strand read support by which the threshold of low-quality bases is increased. "); 
     ADD_OPTDEF(app,
-        "--syserr-BQ-smratio-q-max",
-           syserr_BQ_smratio_q_max,
+        "--syserr-BQ-sbratio-q-max",
+           syserr_BQ_sbratio_q_max,
         "The maximum increased quality for the odds ratio of strand read support by which the threshold of low-quality bases is increased. ");
     ADD_OPTDEF(app,
         "--syserr-BQ-xmratio-q-add",
@@ -740,6 +746,11 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
            syserr_BQ_bmratio_q_max,
         "The maximum increased quality for the odds ratio of same-base mismatch by which the threshold of low-quality bases is increased. "); 
     
+    ADD_OPTDEF(app,
+        "--syserr-BQ-strand-favor-mul",
+           syserr_BQ_strand_favor_mul,
+        "The strand with higher average base quality (BQ) is given this much increase in weight to overcome the potential low average BQ on the other strand. "); 
+
     ADD_OPTDEF(app,
         "--syserr-minABQ-pcr-snv", 
            syserr_minABQ_pcr_snv, 
@@ -891,7 +902,65 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
         "--contam-t2n-mul-frac", 
            contam_t2n_mul_frac,
         "Multiplicative contamination rate for the fraction of tumor reads in the normal (PMC6528031). "); 
+
+// *** 13. parameters related to micro-adjustment (they do not have any clear theory support)
     
+    ADD_OPTDEF(app, 
+        "--microadjust_xm", 
+           microadjust_xm,
+        "Average number of mismatches over 150bp above which one-base insertion has quality capped at the base-quality of the inserted base. ");
+    ADD_OPTDEF(app, 
+        "--microadjust_delFAQmax", 
+           microadjust_delFAQmax,
+        "The base-alignment quality of a deletion cannot be below this value at 100\% allele fraction. ");
+
+    ADD_OPTDEF(app, 
+        "--microadjust-bias-pos-indel-fold", 
+           microadjust_bias_pos_indel_fold,
+        "If the number of reads supporting nearby InDels multiplied by this number is more than the number of reads supporting the variant, then the variant is considered to be affected by nearby InDels. ");
+    ADD_OPTDEF(app, 
+        "--microadjust-bias-pos-indel-misma-to-indel-ratio",
+           microadjust_bias_pos_indel_misma_to_indel_ratio,
+        "If the number of reads supporting nearby mismatches multiplied by this number is more than the number of reads supporting the InDel variant, then the InDel variant is considered to be affected by nearby mismatches. ");
+    
+    ADD_OPTDEF(app, 
+        "--microadjust-nobias-pos-indel-misma-to-indel-ratio",
+           microadjust_nobias_pos_indel_misma_to_indel_ratio,
+        "If the number of reads supporting nearby mismatches multiplied by this number is less than the number of reads supporting the InDel variant, the STR track length is long enough, and the majority of nearby InDels are of this variant type, then this InDel variant is not affected by any position bias. ");
+    ADD_OPTDEF(app, 
+        "--microadjust-nobias-pos-indel-maxlen",
+           microadjust_nobias_pos_indel_maxlen,
+        "The maximum effective InDel length for <--nobias-pos-indel-lenfrac-thres>. ");
+    ADD_OPTDEF(app, 
+        "--microadjust-nobias-pos-indel-bMQ",
+           microadjust_nobias_pos_indel_bMQ,
+        "If the root-mean-square mapping quality (RMS-MQ) of the InDel variant is above this threshold and <--microadjust-nobias-pos-indel-perc> is passed, then this variant is not subject to insert bias. ");
+    ADD_OPTDEF(app, 
+        "--microadjust-nobias-pos-indel-perc",
+           microadjust_nobias_pos_indel_perc,
+        "The ratio of XM2 to (aDPff + aDPfr + aDPrf + aDPrr) in VCF tags. ");
+    ADD_OPTDEF(app, 
+        "--microadjust-nobias-strand-all-fold",
+           microadjust_nobias_strand_all_fold,
+        "The ratio of read count on the unbiased strand to the one on the biased strand, above which the strand bias and insert bias are removed. ");
+    ADD_OPTDEF(app, 
+        "--microadjust-refbias-indel-max",
+           microadjust_refbias_indel_max,
+        "Maximum reference bias for InDels. ");
+    
+    ADD_OPTDEF(app, 
+        "--microadjust-fam-binom-qual-halving-thres",
+           microadjust_fam_binom_qual_halving_thres,
+        "The base-alignment quality of a deletion cannot be below this value at 100\% allele fraction. ");
+    ADD_OPTDEF(app, 
+        "--microadjust-fam-lowfreq-invFA",
+           microadjust_fam_lowfreq_invFA,
+        "The base-alignment quality of a deletion cannot be below this value at 100\% allele fraction. ");
+    ADD_OPTDEF(app, 
+        "--microadjust-ref-MQ-dec-max",
+           microadjust_ref_MQ_dec_max,
+        "The base-alignment quality of a deletion cannot be below this value at 100\% allele fraction. ");
+
 /// *** end
 
     app.callback([&]() {
