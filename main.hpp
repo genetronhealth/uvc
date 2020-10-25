@@ -2977,6 +2977,17 @@ double calc_normFA_from_rawFA_refbias(double FA, double refbias) {
 }
 
 int
+fmt_bias_push(auto & vecFA, const auto refFA, const auto biasFA, const double thresFAratio, std::string & fts, const std::string & ft) {
+    vecFA.push_back(-numstates2deciphred(biasFA));
+    if (biasFA * thresFAratio < refFA) {
+        if (fts.size() > 0) { fts += std::string("&"); }
+        fts += ft;
+        return 1;
+    }
+    return 0;
+}
+
+int
 BcfFormat_symbol_calc_DPv(
         bcfrec::BcfFormat & fmt,
         unsigned int refpos,
@@ -3160,6 +3171,7 @@ BcfFormat_symbol_calc_DPv(
         aLIFA = aRIFA = MAX(aLIFA, aRIFA); // reference error or long indel on either the left or right frag side does not affect the ref SNP allele.
     }
     
+    const double aXMFA = (double)(LAST(fmt.aXM2) / 100.0 / MAX(1, aDP));
     const double aPFFA = (fmt.aPF1[a] + pfa * (is_rescued ? 100.0 : (double)(fmt.aXM2[a] / MAX(1, aDP)))) / (fmt.APF2[0] + (fmt.aPF1[a] - fmt.aPF2[a]) + 1.0*100);
     const auto aSSFAx2 = dp4_to_pcFA<true>(fmt.aDPff[a] + fmt.aDPrf[a], fmt.aDPfr[a] + fmt.aDPrr[a], fmt.ADPff[0] + fmt.ADPrf[0], fmt.ADPfr[0] + fmt.ADPrr[0], 
             paramset.powlaw_exponent, phred2nat(aSBpriorfreq));
@@ -3206,16 +3218,29 @@ BcfFormat_symbol_calc_DPv(
     // fmt.note += std::string("counter//") + other_join(std::vector<double> {{ counterbias_P_FA, counterbias_BQ_FA }}, "/") + "//";
     fmt.nNFA.push_back(-numstates2deciphred(counterbias_P_FA));
     fmt.nNFA.push_back(-numstates2deciphred(counterbias_BQ_FA));
-    for (size_t i = 0; i < min_aFA_vec.size(); i++) {
-        fmt.nAFA.push_back(-numstates2deciphred(min_aFA_vec[i]));
-    }
-    fmt.nBCFA.push_back(-numstates2deciphred(bFA));
-    fmt.nBCFA.push_back(-numstates2deciphred(cFA0));
+    
+    fmt.nNFA.push_back(-numstates2deciphred(aDPFA));
+    fmt_bias_push(fmt.nAFA,  aDPFA,  aLBFA,  paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::BB1L]);
+    fmt_bias_push(fmt.nAFA,  aDPFA,  aRBFA,  paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::BB1R]);
+    fmt_bias_push(fmt.nAFA,  aDPFA,  aLPFA,  paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::PB1L]);
+    fmt_bias_push(fmt.nAFA,  aDPFA,  aRPFA,  paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::PB1R]);
+    fmt_bias_push(fmt.nAFA,  aDPFA,  aLIFA,  paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::PB2L]);
+    fmt_bias_push(fmt.nAFA,  aDPFA,  aRIFA,  paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::PB2L]);
+    fmt_bias_push(fmt.nAFA,  aDPFA,  aSSFA,  paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::SB1]);
+    fmt_bias_push(fmt.nAFA,  aDPFA,  aPFFA,  paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::PFB]);
+    fmt_bias_push(fmt.nAFA,  aDPFA,  aXMFA,  paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::AXMB]);
+    // fmt_bias_push(fmt.nAFA,  aDPFA,  aBQFA,  2, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::ABQB]);
+
+    fmt_bias_push(fmt.nBCFA, bFA,    cFA0,   paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::DB1]);
+    fmt_bias_push(fmt.nBCFA, cFA0,   bFA,    paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::DB2]);
+    
     fmt.nBCFA.push_back(-numstates2deciphred(cFA2));
     fmt.nBCFA.push_back(-numstates2deciphred(cFA3));
-    fmt.nBCFA.push_back(-numstates2deciphred(cROFA1));
-    fmt.nBCFA.push_back(-numstates2deciphred(cROFA2));
     
+    // fmt_bias_push(fmt.nBCFA, cFA0,  cFA1,    2, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::ABQB]);
+    fmt_bias_push(fmt.nBCFA, cFA0,  cROFA1,  paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::ROB1]);
+    fmt_bias_push(fmt.nBCFA, cFA2,  cROFA2,  paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::ROB2]);
+     
     double min_aFA = MAX3(MINVEC(min_aFA_vec), counterbias_P_FA, counterbias_BQ_FA);
     // fmt.note += std::string("raw/pos4/ss/xm//") + other_join(min_aFA_vec, "/") + "//";
     
@@ -4119,7 +4144,6 @@ const auto
 calc_binom_powlaw_syserr_normv_quals(
         auto tAD, auto tDP, int tVQ, int tnVQcap,
         auto nAD, auto nDP, int nVQ, const double penal_dimret_coef,
-        //const int nVQminus
         const unsigned int specialflag) {
     int binom_b10log10like = (int)calc_binom_10log10_likeratio((tDP - tAD) / (tDP), nDP - nAD, nAD);
     double bjpfrac = ((tAD + 0.5) / (tDP + 1.0)) / ((nAD + 0.5) / (nDP + 1.0));
@@ -4138,24 +4162,10 @@ const auto
 calc_binom_powlaw_syserr_normv_quals2(
         auto tAD, auto tDP, int tVQ, int tnVQcap,
         auto nAD, auto nDP, int nVQ,
-        //const int nVQminus
         const unsigned int specialflag) {
     int binom_b10log10like = (int)calc_binom_10log10_likeratio((tDP - tAD) / (tDP), nDP - nAD, nAD);
     int powlaw_b10log10like = (nAD <= 3 ? binom_b10log10like : (int)round(binom_b10log10like * 3 / nAD));
-    // double bjpfrac = ((tAD + 0.5) / (tDP + 1.0)) / ((nAD + 0.5) / (nDP + 1.0));
-    // int powlaw_b10log10like = (int)(3 * 10 / log(10) * log(bjpfrac));
-    // int prior_phred = 3; // ((penal_dimret_coef < 25) ? 8 : 1);
-    // int tvVQdec = MAX(0, nVQ - nVQminus);
-    int tnVQ = BETWEEN(tVQ + MAX(MIN(binom_b10log10like, powlaw_b10log10like) - TVN_MICRO_VQ_DELTA, 0) - nVQ, 0, tnVQcap);
-    
-    // int tnVQinc = MAX3(-prior_phred, (-(int)nAD)*3, MIN(binom_b10log10like - prior_phred, powlaw_b10log10like - prior_phred));
-    // int tnVQdec = MAX(0, nVQ - MAX(0, MIN(binom_b10log10like - prior_phred, (int)(mathsquare(log(MAX(bjpfrac, 1.001)) / log(2)) * penal_dimret_coef))));
-    
-    // int tnVQ = tVQ + tnVQinc - tnVQdec; 
-    //if (penal_dimret_coef < 1e6) {
-    //tnVQ -= tnVQdec;
-    //}
-    // tnVQ = MIN(tnVQcap, tnVQ);
+    int tnVQ = BETWEEN(tVQ + MAX3(MIN(binom_b10log10like, powlaw_b10log10like) - TVN_MICRO_VQ_DELTA, -(int)TVN_MICRO_VQ_DELTA * nAD, -TVN_MICRO_VQ_DELTA) - nVQ, 0, tnVQcap);
     return std::array<int, 4> {{binom_b10log10like, powlaw_b10log10like, nVQ, tnVQ }};
 };
 
@@ -4240,7 +4250,8 @@ append_vcf_record(
     int phred_het3al_chance_inc_snp = MAX(0, 2 * (int)paramset.germ_phred_hetero_snp - (int)paramset.germ_phred_het3al_snp - TIN_CONTAM_MICRO_VQ_DELTA);
     int phred_het3al_chance_inc_indel = MAX(0, 2 * (int)paramset.germ_phred_hetero_indel - (int)paramset.germ_phred_het3al_indel - TIN_CONTAM_MICRO_VQ_DELTA);
     
-    const auto b_binom_powlaw_syserr_normv_q4filter = calc_binom_powlaw_syserr_normv_quals(
+    const std::array<int, 4> b_binom_powlaw_syserr_normv_q4filter = (paramset.tn_syserr_norm_devqual >= 0 
+        ? calc_binom_powlaw_syserr_normv_quals(
             (tki.cDP1x + 0.5) / 100.0 + 0.0, 
             (tki.CDP1x + 1.0) / 100.0 + 0.0, 
             (tki.cVQ1),
@@ -4248,21 +4259,38 @@ append_vcf_record(
             (nfm_cDP1x + 0.5) / 100.0 + 0.0, 
             (nfm_CDP1x + 1.0) / 100.0 + 0.0, 
             non_neg_minus(collectget(nfm.cVQ1, 1), (isSymbolSubstitution(symbol) ? phred_het3al_chance_inc_snp : phred_het3al_chance_inc_indel)),
-            // TODO: QUESTION: why 0 and 40 here?
             paramset.tn_syserr_norm_devqual,
-            0);
+            0)
+        : calc_binom_powlaw_syserr_normv_quals2(
+            (tki.cDP1x + 0.5) / 100.0 + 0.0, 
+            (tki.CDP1x + 1.0) / 100.0 + 0.0, 
+            (tki.cVQ1),
+            (tki.cPCQ1),
+            (nfm_cDP1x + 0.5) / 100.0 + 0.0, 
+            (nfm_CDP1x + 1.0) / 100.0 + 0.0, 
+            non_neg_minus(collectget(nfm.cVQ1, 1), (isSymbolSubstitution(symbol) ? phred_het3al_chance_inc_snp : phred_het3al_chance_inc_indel)),
+            0));
     
-    const auto c_binom_powlaw_syserr_normv_q4 = calc_binom_powlaw_syserr_normv_quals(
+    const auto c_binom_powlaw_syserr_normv_q4 = (paramset.tn_syserr_norm_devqual >= 0 
+        ?  calc_binom_powlaw_syserr_normv_quals(
             (tki.cDP2x + 0.5) / 100.0 + 0.0, 
             (tki.CDP2x + 1.0) / 100.0 + 0.0, 
             (tki.cVQ2),
-            (tki.cPCQ2), // tki.cPCQ1 + 30,
+            (tki.cPCQ2),
             (collectget(nfm.cDP2x, 1) + 0.0) / 100.0 + 0.5, 
             (collectget(nfm.CDP2x, 0) + 0.0) / 100.0 + 1.0, 
-            // (collectget(nfm.cVQ2, 1)), 
             non_neg_minus(collectget(nfm.cVQ2, 1), (isSymbolSubstitution(symbol) ? phred_het3al_chance_inc_snp : phred_het3al_chance_inc_indel)),
             paramset.tn_syserr_norm_devqual,
-            0);
+            0)
+        : calc_binom_powlaw_syserr_normv_quals2(
+            (tki.cDP2x + 0.5) / 100.0 + 0.0, 
+            (tki.CDP2x + 1.0) / 100.0 + 0.0, 
+            (tki.cVQ2),
+            (tki.cPCQ2),
+            (collectget(nfm.cDP2x, 1) + 0.0) / 100.0 + 0.5, 
+            (collectget(nfm.CDP2x, 0) + 0.0) / 100.0 + 1.0, 
+            non_neg_minus(collectget(nfm.cVQ2, 1), (isSymbolSubstitution(symbol) ? phred_het3al_chance_inc_snp : phred_het3al_chance_inc_indel)),
+            0));
     
     int tlodq = MAX(b_binom_powlaw_syserr_normv_q4filter[3], c_binom_powlaw_syserr_normv_q4[3]);
     float lowestVAQ = MIN(tlodq, 4) + 0.5 + (prob2realphred(1 / (double)(tki.bDP + 1)) * (tki.bDP) / (double)(tki.BDP + + tki.bDP + 1));

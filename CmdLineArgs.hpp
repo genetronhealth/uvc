@@ -133,6 +133,8 @@ struct CommandLineArgs {
     uint32_t bias_thres_BAQ1 = 23;
     uint32_t bias_thres_BAQ2 = 33;
     
+    double bias_thres_FTS_FA = 2.0;
+    
 // *** 06. parameters related to the priors of bias
     
     uint32_t bias_prior_DPadd_perc = 50;

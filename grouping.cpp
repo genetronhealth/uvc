@@ -3,7 +3,7 @@
 
 #define UPDATE_MIN(a, b) ((a) = min((a), (b)));
 // position of 5' is the starting position, but position of 3' is unreliable without mate info.
-const unsigned int ARRPOS_MARGIN = 1200; // 1600;
+const unsigned int ARRPOS_MARGIN = MAX_INSERT_SIZE; // 1200; // 1600;
 const int8_t ARRPOS_OUTER_RANGE = 10; // 11;
 const int8_t ARRPOS_INNER_RANGE = 3; // 4;
 
@@ -91,6 +91,7 @@ SamIter::iternext(std::vector<std::tuple<unsigned int, unsigned int, unsigned in
     }
     while (    (NULL == sam_idx && (sam_read1(this->sam_infile, this->samheader, alnrecord) >= 0))
             || (NULL != sam_idx && (sam_itr_next(this->sam_infile, this->sam_itr, alnrecord) >= 0))) {
+        NORM_INSERT_SIZE(alnrecord);
         ret++;
         if (BAM_FUNMAP & alnrecord->core.flag) {
             continue;
@@ -189,6 +190,7 @@ sam_fname_to_contigs(
         uint64_t next_nreads = 0;
         bam1_t *alnrecord = bam_init1();
         while (sam_read1(sam_infile, samheader, alnrecord) >= 0) {
+            NORM_INSERT_SIZE(alnrecord);
             ret++;
             if (BAM_FUNMAP & alnrecord->core.flag) {
                 continue;

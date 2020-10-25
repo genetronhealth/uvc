@@ -530,6 +530,11 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
            bias_thres_BAQ2,
         "The tier-2-threshold of base alignment quality (BAQ) below which the read support is not effective. ");
     
+    ADD_OPTDEF(app,
+        "--bias-thres-FTS-FA",
+           bias_thres_FTS_FA,
+        "If the bias-reduced allele fraction multiplied by this parameter is less than the non bias-reduced allele fraction, then flag the variant for bias in FTS. ");
+
 // *** 06. parameters related to the priors of bias
     
     ADD_OPTDEF(app,
@@ -819,12 +824,11 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
         "--tn-q-inc-max",
            tn_q_inc_max,
         "Maximum Phred-scale increase in variant quality by comparing the tumor with its matched normal. Theoretically, it should be Phred-scaled 2 to the power of --powlaw-exponent. ");
-    /*
     ADD_OPTDEF(app,
         "--tn-syserr-norm-devqual",
            tn_syserr_norm_devqual,
         "Phred-scale decrease in the variant quality subtracted from the tumor if the tumor FA (allele fraction) deviates by +100\%/-50\% from its matched normal FA. ");
-    */
+
 // *** 11. parameters related to InDels.
     // https://www.ncbi.nlm.nih.gov/pmc/articles/PMC149199/
     ADD_OPTDEF(app,

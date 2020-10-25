@@ -81,24 +81,26 @@ const std::vector<std::pair<std::string, std::string>> FILTER_VEC = {
     std::make_pair("GPBLR2",        "For FORMAT/FT: Diplotype position bias on left and right mapping coordinates for raw reads with unmerged R1 and R2 ends"),
     */
     
-    std::make_pair("AMB",           "For FORMAT/FTS: Absolute mismatch bias, meaning the variant is suppported by reads with a high number of mismatches"),
+    std::make_pair("AXMB",          "For FORMAT/FTS: Absolute mismatch bias, meaning the variant is suppported by reads with a high number of mismatches"),
     std::make_pair("ABQB",          "For FORMAT/FTS: Absolute base-quality (BQ) bias, meaning the variant is suppported by reads with low base qualities at the variant site"),
 
-    std::make_pair("PFB",           "For FORMAT/FTS: Passing-filter bias, meaning the variant allele is supported by reads witha low base qualities at the variant site and with higher number of mismatches relative to all alleles."),
+    std::make_pair("PFB",           "For FORMAT/FTS: Passing-filter bias, meaning the variant allele is supported by reads with low base qualities at the variant site and/or with high number of mismatches relative to all alleles."),
     
     std::make_pair("DB1",           "For FORMAT/FTS: Deduplication bias for the under-amplification of variant reads, meaning the variant is under-amplified by PCR relative to all alleles"),
     std::make_pair("DB2",           "For FORMAT/FTS: Deduplication bias for the over-amplification of variant reads, meaning the variant is over-amplified by PCR relative to all alleles"),
     
+    std::make_pair("BB1L",          "For FORMAT/FTS: Alignment bias on the left  mappping coordinate of the sequenced segment relative to all alleles."),
+    std::make_pair("BB1R",          "For FORMAT/FTS: Alignment bias on the right mappping coordinate of the sequenced segment relative to all alleles."),
     std::make_pair("PB1L",          "For FORMAT/FTS: Position bias on the left  mappping coordinate of the sequenced segment relative to all alleles."),
     std::make_pair("PB1R",          "For FORMAT/FTS: Position bias on the right mappping coordinate of the sequenced segment relative to all alleles."),
-    std::make_pair("PB2L",          "For FORMAT/FTS: Fragment position bias on the left mapping coordinate of the insert relative to all alleles."),
-    std::make_pair("PB2R",          "For FORMAT/FTS: Fragment position bias on the right mapping coordinate of the insert relative to all alleles"),
+    std::make_pair("PB2L",          "For FORMAT/FTS: Position bias on the left mapping coordinate of the insert relative to all alleles."),
+    std::make_pair("PB2R",          "For FORMAT/FTS: Position bias on the right mapping coordinate of the insert relative to all alleles"),
     
     std::make_pair("SB1",           "For FORMAT/FTS: Strand bias relative to all alleles"),
-    std::make_pair("ROB0",          "For FORMAT/FTS: Read-orientation bias using all deduplicated reads relative to all alleles"),
+    // std::make_pair("ROB0",          "For FORMAT/FTS: Read-orientation bias using all deduplicated reads relative to all alleles"),
     std::make_pair("ROB1",          "For FORMAT/FTS: Read-orientation bias using deduplicated reads families passing the base-quality threshold for generating barcode families relative to all alleles"),
     std::make_pair("ROB2",          "For FORMAT/FTS: Read-orientation bias using tier-2 barcode families relative to all alleles"),
-    std::make_pair("ROB3",          "For FORMAT/FTS: Read-orientation bias using tier-3 barcode families relative to all alleles"),
+    // std::make_pair("ROB3",          "For FORMAT/FTS: Read-orientation bias using tier-3 barcode families relative to all alleles"),
         
 };
 
@@ -120,6 +122,19 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("GT"    , 1,         BCF_STRING,  "Genotype (this is a guess for the GT of tumor cells if --somaticGT was set to true)"),
     BcfFormatStruct("GQ"    , 1,         BCF_INTEGER, "Genotype Quality"),
     BcfFormatStruct("HQ"    , 2,         BCF_INTEGER, "Haplotype Quality"),
+    BcfFormatStruct("FT"       , 1, BCF_STRING,  "Sample genotype filter indicating if this genotype was 'called' (similar in concept to the FILTER field). "
+                                                 "Again, use PASS to indicate that all filters have been passed, a semi-colon separated list of codes for filters "
+                                                 "that fail, or ‘.’ to indicate that filters have not been applied. "
+                                                 "These values should be described in the meta-information in the same way as FILTERs "
+                                                 "(String, no white-space or semi-colons permitted)"),
+    BcfFormatStruct("FTS"      , 1, BCF_STRING,  "Sample variant filter indicating if this variant was 'called' (similar in concept to the FILTER field). "
+                                                 "Again, use PASS to indicate that all filters have been passed, "
+                                                 "an amperstand-separated list of codes for filters that fail, "
+                                                 "or '.' to indicate that filters have not been applied. "
+                                                 "These values should be described in the meta-information in the same way as FILTERs. "
+                                                 "No white-space, semi-colons, or amperstand permitted."),
+    
+    BcfFormatStruct("__AA"  , 1,         BCF_SEP,     "Summary statistics."),
     BcfFormatStruct("DP"    , 1,         BCF_INTEGER, "Fragment depth of coverage with duplicates removed. "),
     BcfFormatStruct("AD"    , BCF_NUM_R, BCF_INTEGER, "Fragment depth supporting the ALT allele with duplicates removed. "),
     BcfFormatStruct("bDP"   , 1,         BCF_INTEGER, "Fragment depth of coverage with duplicates kept. "),
@@ -128,28 +143,14 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("c2AD"  , BCF_NUM_R, BCF_INTEGER, "Consensus barcode family depth of coverage supporting the ALT allele using tier-2 thresholds for grouping fragments into families. "),
     
     // BcfFormatStruct("BQ"       , 1, BCF_INTEGER, "Root mean square (RMS) base quality of the ALT [base read, duped]"), 
-    //BcfFormatStruct("MQ"       , 1, BCF_INTEGER, "Root mean square (RMS) mapping quality of the ALT [base read, duped]"), 
-    BcfFormatStruct("FT"       , 1, BCF_STRING,  "Sample genotype filter indicating if this genotype was 'called' (similar in concept to the FILTER field). "
-                                                 "Again, use PASS to indicate that all filters have been passed, a semi-colon separated list of codes for filters "
-                                                 "that fail, or ‘.’ to indicate that filters have not been applied. "
-                                                 "These values should be described in the meta-information in the same way as FILTERs "
-                                                 "(String, no white-space or semi-colons permitted)"),
-    
-    //BcfFormatStruct("__A1"     , 1, BCF_SEP,     "Dummy header (separator) for genotype-related FORMAT fields. The description of each associated FORMAT is shown below. "),
-    BcfFormatStruct("FTS"      , 1, BCF_STRING,  "Sample variant filter indicating if this variant was 'called' (similar in concept to the FILTER field). "
-                                                 "Again, use PASS to indicate that all filters have been passed, "
-                                                 "an amperstand-separated list of codes for filters that fail, "
-                                                 "or '.' to indicate that filters have not been applied. "
-                                                 "These values should be described in the meta-information in the same way as FILTERs. "
-                                                 "No white-space, semi-colons, or amperstand permitted."),
-    
+    // BcfFormatStruct("MQ"       , 1, BCF_INTEGER, "Root mean square (RMS) mapping quality of the ALT [base read, duped]"), 
+
     BcfFormatStruct("__Aa"  , 1,         BCF_SEP,     "Preparation statistics for segment biases at this position."),
     BcfFormatStruct("APDP"  , 6+4+1,     BCF_INTEGER, "Total segment depth, "
                               "segment depths within the indel length of insertion/deletion, segment depths within the tandem-repeat track length of insertion/deletion, "
                               "segment depth of high quality, "
                               "sum of squares of insertion lengths, sum of squares of deletion lengths, sum of the inverses of insertion lengths, sum of the inverses of deletion lengths, "
                               "and total segment depth of PCR amplicons."),
-    //BcfFormatStruct("APGap" , 4,         BCF_INTEGER, "Estimated average numbers of insertion to the left and right sides (LRS) and of deletion to the LRS."),
     BcfFormatStruct("APXM"  , 2+1,       BCF_INTEGER, "Total number of mismatches and total number of gap openings."),
     BcfFormatStruct("APLRI" , 4,         BCF_INTEGER, "Summed distance to left insert end and the number of such inserts, and similarly for right insert end."),
     BcfFormatStruct("APLRP" , 4,         BCF_INTEGER, "Summed distance to left and right ends, summed insertion length, and summed deletion length."),
@@ -252,13 +253,9 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("__a4"  , 1,         BCF_SEP,     "As before."),
     BcfFormatStruct("aLI1"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 insert bias on the left side."),
     BcfFormatStruct("aLI2"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 insert bias on the right side."),
-    //BcfFormatStruct("aLILf" , BCF_NUM_R, BCF_INTEGER, "Raw summed distance (number of bases) to the left-side insert end on the forward read orientation."),
-    //BcfFormatStruct("aLILr" , BCF_NUM_R, BCF_INTEGER, "Raw summed distance (number of bases) to the left-side insert end on the reverse read orientation."),
     BcfFormatStruct("aRI1"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 insert bias on the left side."),
     BcfFormatStruct("aRI2"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 insert bias on the left side."),
-    //BcfFormatStruct("aRILf" , BCF_NUM_R, BCF_INTEGER, "Raw summed distance (number of bases) to the right-side insert end on the forward read orientation."),
-    //BcfFormatStruct("aRILr" , BCF_NUM_R, BCF_INTEGER, "Raw summed distance (number of bases) to the right-side insert end on the reverse read orientation."),
-        
+    
     BcfFormatStruct("__Bb"  , 1,         BCF_SEP,     "Non-deduped depths of the fragments."),
     BcfFormatStruct("BDPf"  , 2,         BCF_INTEGER, "Non-deduped fragment depth on the forward strand for (all alleles) and (the padded deletion allele)."),
     BcfFormatStruct("BDPr"  , 2,         BCF_INTEGER, "Non-deduped fragment depth on the reverse strand for (all alleles) and (the padded deletion allele)."),
@@ -364,8 +361,7 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("cPCQ2" , BCF_NUM_R, BCF_SIG_INT, "The SSCS power-law variant allele quality cap that is not lowered by using matched normal."),
     BcfFormatStruct("cPLQ2" , BCF_NUM_R, BCF_SIG_INT, "The single-strand-consensus-sequence (SSCS) UMI-barcoded power-law variant allele quality."),
     BcfFormatStruct("cVQ2"  , BCF_NUM_R, BCF_SIG_INT, "The final variant allele quality computed with SSCS UMI-barcoded families"),
-    // BcfFormatStruct("bVQ1"  , BCF_NUM_R, BCF_SIG_INT, "The final variant allele quality computed by raw allele fraction using non-dedupped reads"),
-
+    
     BcfFormatStruct("__e9"  , 1,         BCF_SEP,     "Normalized read support for SSCS UMI-barcoded families."),
     BcfFormatStruct("cDP2v" , BCF_NUM_R, BCF_INTEGER, "The effective number of SSCS UMI-barcoded families supporting each allele multiplied by 100 "
                                                       "for within-sample comparison."),
