@@ -395,8 +395,8 @@ struct TumorKeyInfo {
     unsigned int BDP = 0; // 
     unsigned int bDP = 0; // 
     
-    unsigned int CDP1 = 0;
-    unsigned int cDP1 = 0;
+    unsigned int CDP12 = 0;
+    unsigned int cDP12 = 0;
 
     unsigned int CDP1x = 0;
     unsigned int cDP1x = 0;
@@ -609,8 +609,8 @@ enum FragFormatDepthSet {
 #define NUM_FRAG_FORMAT_DEPTH_SETS ((size_t)FRAG_FORMAT_DEPTH_SET_END)
 
 enum FamFormatDepthSet {
-    FAM_cDP0, // raw
-    FAM_cDP1, // filtered
+    FAM_cDP1, // raw
+    FAM_cDP12,// filtered
     FAM_cDP2, //  2, 0.8, family-consensus
     FAM_cDP3, // 10, 0.8, family-consensus
     FAM_cDPM, // duped match

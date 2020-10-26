@@ -339,24 +339,24 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         tki.bDP += bcfints[1];
 
         ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line, "CDP1f", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for CDP1f and line %d!\n", ndst_val, valsize, line->pos));
-        tki.CDP1 = bcfints[0];
+        valsize = bcf_get_format_int32(bcf_hdr, line, "CDP12f", &bcfints, &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for CDP12f and line %d!\n", ndst_val, valsize, line->pos));
+        tki.CDP12 = bcfints[0];
         
         ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line, "CDP1r", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for CDP1r and line %d!\n", ndst_val, valsize, line->pos));
-        tki.CDP1 += bcfints[0];
+        valsize = bcf_get_format_int32(bcf_hdr, line, "CDP12r", &bcfints, &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for CDP12r and line %d!\n", ndst_val, valsize, line->pos));
+        tki.CDP12 += bcfints[0];
         
         ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line, "cDP1f", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cDP1f and line %d!\n", ndst_val, valsize, line->pos));
-        tki.cDP1 = bcfints[1];
+        valsize = bcf_get_format_int32(bcf_hdr, line, "cDP12f", &bcfints, &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cDP12f and line %d!\n", ndst_val, valsize, line->pos));
+        tki.cDP12 = bcfints[1];
         
         ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line, "cDP1r", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cDP1r and line %d!\n", ndst_val, valsize, line->pos));
-        tki.cDP1 += bcfints[1];
+        valsize = bcf_get_format_int32(bcf_hdr, line, "cDP12r", &bcfints, &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cDP12r and line %d!\n", ndst_val, valsize, line->pos));
+        tki.cDP12 += bcfints[1];
         
 
         ndst_val = 0;
@@ -649,10 +649,10 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                             symbolToCountCoverageSet12.symbol_to_frag_format_depth_sets[0].getByPos(refpos)[symbol][FRAG_bDP]
                           + symbolToCountCoverageSet12.symbol_to_frag_format_depth_sets[1].getByPos(refpos)[symbol][FRAG_bDP];
                     const auto cdepth = 
-                            MAX(symbolToCountCoverageSet12.symbol_to_fam_format_depth_sets_2strand[0].getByPos(refpos)[symbol][FAM_cDP0],
-                                symbolToCountCoverageSet12.symbol_to_fam_format_depth_sets_2strand[0].getByPos(refpos)[symbol][FAM_cDP1])
-                          + MAX(symbolToCountCoverageSet12.symbol_to_fam_format_depth_sets_2strand[1].getByPos(refpos)[symbol][FAM_cDP0],
-                                symbolToCountCoverageSet12.symbol_to_fam_format_depth_sets_2strand[1].getByPos(refpos)[symbol][FAM_cDP1]);
+                            MAX(symbolToCountCoverageSet12.symbol_to_fam_format_depth_sets_2strand[0].getByPos(refpos)[symbol][FAM_cDP1],
+                                symbolToCountCoverageSet12.symbol_to_fam_format_depth_sets_2strand[0].getByPos(refpos)[symbol][FAM_cDP12])
+                          + MAX(symbolToCountCoverageSet12.symbol_to_fam_format_depth_sets_2strand[1].getByPos(refpos)[symbol][FAM_cDP1],
+                                symbolToCountCoverageSet12.symbol_to_fam_format_depth_sets_2strand[1].getByPos(refpos)[symbol][FAM_cDP12]);
                     if (refsymbol == symbol) {
                         // var_bdepth = bDPcDP[0] - bdepth;
                         // var_cdepth = bDPcDP[1] - cdepth;
@@ -882,8 +882,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                     clear_push(init_fmt.VTI, (unsigned int)END_ALIGNMENT_SYMBOLS); 
                     clear_push(init_fmt.gVQ1, 0); // can use a very negative number to force out all homref alleles
                     clear_push(init_fmt.CONTQ, 0);
-                    clear_push(init_fmt.cDP1f, 0);
-                    clear_push(init_fmt.cDP1r, 0);
+                    clear_push(init_fmt.cDP12f, 0);
+                    clear_push(init_fmt.cDP12r, 0);
                     clear_push(init_fmt.cDP0a, 0);
                     clear_push(init_fmt.cDP1v, 50);
                     while (symbol_format_vec.size() <= 4) {

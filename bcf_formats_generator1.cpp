@@ -263,8 +263,8 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("bDPr"  , BCF_NUM_R, BCF_INTEGER, "Non-deduped fragment dpeth on the reverse strand for the REF allele and each ALT allele."),
     
     BcfFormatStruct("__C1"  , 1,         BCF_SEP,     "Deduped depths of the unique molecular fragments for (all alleles) and (the padded deletion allele)."),
-    BcfFormatStruct("CDP0f" , 2,         BCF_INTEGER, "Nonfiltered      deduped depth of the unique molecular fragments on the forward read orientation."),
-    BcfFormatStruct("CDP1f" , 2,         BCF_INTEGER, "BQ-filtered      deduped depth of the unique molecular fragments on the forward read orientation ."),
+    BcfFormatStruct("CDP1f" , 2,         BCF_INTEGER, "Nonfiltered      deduped depth of the unique molecular fragments on the forward read orientation."),
+    BcfFormatStruct("CDP12f", 2,         BCF_INTEGER, "BQ-filtered      deduped depth of the unique molecular fragments on the forward read orientation ."),
     BcfFormatStruct("CDP2f" , 2,         BCF_INTEGER, "Weak consensus   deduped depth of the unique molecular fragments on the forward read orientation."),
     BcfFormatStruct("CDP3f" , 2,         BCF_INTEGER, "Strong consensus deduped depth of the unique molecular fragments on the forward read orientation."),
     BcfFormatStruct("C1DPf" , 2,         BCF_INTEGER, "Singleton        deduped depth of the unique molecular fragments on the forward read orientation."),
@@ -272,8 +272,8 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("CDPmf" , 2,         BCF_INTEGER, "Minor duped fragment depth on the forward read orientation."),
     
     BcfFormatStruct("__C2"  , 1,         BCF_SEP,     "Deduped depths of the unique molecular fragments for (all alleles) and (the padded deletion allele)."),
-    BcfFormatStruct("CDP0r" , 2,         BCF_INTEGER, "Nonfiltered      deduped depth of the unique molecular fragments on the reverse read orientation."),
-    BcfFormatStruct("CDP1r" , 2,         BCF_INTEGER, "BQ-Filtered      deduped depth of the unique molecular fragments on the reverse read orientation."),
+    BcfFormatStruct("CDP1r" , 2,         BCF_INTEGER, "Nonfiltered      deduped depth of the unique molecular fragments on the reverse read orientation."),
+    BcfFormatStruct("CDP12r", 2,         BCF_INTEGER, "BQ-Filtered      deduped depth of the unique molecular fragments on the reverse read orientation."),
     BcfFormatStruct("CDP2r" , 2,         BCF_INTEGER, "Weak consensus   deduped depth of the unique molecular fragments on the reverse read orientation."),
     BcfFormatStruct("CDP3r" , 2,         BCF_INTEGER, "Strong consensus deduped depth of the unique molecular fragments on the reverse read orientation."),
     BcfFormatStruct("C1DPr" , 2,         BCF_INTEGER, "Singleton        deduped depth of the unique molecular fragments on the reverse read orientation."),
@@ -281,8 +281,8 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("CDPmr" , 2,         BCF_INTEGER, "Minor duped fragment depth on the reverse read orientation."),
     
     BcfFormatStruct("__c1"  , 1,         BCF_SEP,     "Deduped depths of the unique molecular fragments for the REF allele and each ALT allele."),
-    BcfFormatStruct("cDP0f" , BCF_NUM_R, BCF_INTEGER, "Nonfiltered      deduped depth of the unique molecular fragments on the forward read orientation."),
-    BcfFormatStruct("cDP1f" , BCF_NUM_R, BCF_INTEGER, "BQ-filtered      deduped depth of the unique molecular fragments on the forward read orientation."),
+    BcfFormatStruct("cDP1f" , BCF_NUM_R, BCF_INTEGER, "Nonfiltered      deduped depth of the unique molecular fragments on the forward read orientation."),
+    BcfFormatStruct("cDP12f", BCF_NUM_R, BCF_INTEGER, "BQ-filtered      deduped depth of the unique molecular fragments on the forward read orientation."),
     BcfFormatStruct("cDP2f" , BCF_NUM_R, BCF_INTEGER, "Weak   consensus deduped depth of the unique molecular fragments on the forward read orientation."),
     BcfFormatStruct("cDP3f" , BCF_NUM_R, BCF_INTEGER, "Strong consensus deduped depth of the unique molecular fragments on the forward read orientation."),
     BcfFormatStruct("c1DPf" , BCF_NUM_R, BCF_INTEGER, "Singleton        deduped depth of the unique molecular fragments on the forward read orientation."),
@@ -290,8 +290,8 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("cDPmf" , BCF_NUM_R, BCF_INTEGER, "Minor duped fragment depth on the forward read orientation."),
     
     BcfFormatStruct("__c2"  , 1,         BCF_SEP,     "Deduped depths of the unique molecular fragments for the REF allele and each ALT allele."),
-    BcfFormatStruct("cDP0r" , BCF_NUM_R, BCF_INTEGER, "Nonfiltered      deduped depth of the unique molecular fragments on the reverse read orientation."),
-    BcfFormatStruct("cDP1r" , BCF_NUM_R, BCF_INTEGER, "BQ-filtered      deduped depth of the unique molecular fragments on the reverse read orientation."),
+    BcfFormatStruct("cDP1r" , BCF_NUM_R, BCF_INTEGER, "Nonfiltered      deduped depth of the unique molecular fragments on the reverse read orientation."),
+    BcfFormatStruct("cDP12r", BCF_NUM_R, BCF_INTEGER, "BQ-filtered      deduped depth of the unique molecular fragments on the reverse read orientation."),
     BcfFormatStruct("cDP2r" , BCF_NUM_R, BCF_INTEGER, "Weak   consensus deduped depth of the unique molecular fragments on the reverse read orientation."),
     BcfFormatStruct("cDP3r" , BCF_NUM_R, BCF_INTEGER, "Strong consensus deduped depth of the unique molecular fragments on the reverse read orientation."),
     BcfFormatStruct("c1DPr" , BCF_NUM_R, BCF_INTEGER, "Singleton        deduped depth of the unique molecular fragments on the reverse read orientation."),
@@ -361,6 +361,8 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("cPCQ2" , BCF_NUM_R, BCF_SIG_INT, "The SSCS power-law variant allele quality cap that is not lowered by using matched normal."),
     BcfFormatStruct("cPLQ2" , BCF_NUM_R, BCF_SIG_INT, "The single-strand-consensus-sequence (SSCS) UMI-barcoded power-law variant allele quality."),
     BcfFormatStruct("cVQ2"  , BCF_NUM_R, BCF_SIG_INT, "The final variant allele quality computed with SSCS UMI-barcoded families"),
+    BcfFormatStruct("dVQinc", BCF_NUM_R, BCF_SIG_INT, "The increase in cVQ2 (excluding systematic error) contributed by double-strand-consensus-sequences (DSCSs) of duplex barcode famillies. "
+                              "Negative value means no increase."),
     
     BcfFormatStruct("__e9"  , 1,         BCF_SEP,     "Normalized read support for SSCS UMI-barcoded families."),
     BcfFormatStruct("cDP2v" , BCF_NUM_R, BCF_INTEGER, "The effective number of SSCS UMI-barcoded families supporting each allele multiplied by 100 "
