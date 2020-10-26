@@ -115,7 +115,7 @@ posToIndelToCount_DlenToDseq(std::map<uint32_t, std::map<std::string, uint32_t>>
 
 #define INS_N_ANCHOR_BASES 1 //  https://www.ncbi.nlm.nih.gov/pmc/articles/PMC149199/
 #define TVN_MICRO_VQ_DELTA 3
-#define TIN_CONTAM_MICRO_VQ_DELTA 3
+#define TIN_CONTAM_MICRO_VQ_DELTA 0 // 3
 #define bam_phredi(b, i) (bam_get_qual((b))[(i)])
 
 const bcfrec::BcfFormat FORMAT_UNCOV = bcfrec::BcfFormat();
@@ -1746,7 +1746,13 @@ if ((!is_assay_amplicon) || (ibeg <= rpos && rpos < iend)) {
                     unsigned int base4bit = bam_seqi(bseq, qpos);
                     unsigned int base3bit = seq_nt16_int[base4bit];
                     AlignmentSymbol symbol = AlignmentSymbol(base3bit);
-                    incvalue = bam_phredi(aln, qpos) + symbolType2addPhred[BASE_SYMBOL];
+                    bool is_affected_by_indels = false;
+                    if (TIsProton) {
+                        unsigned int deldp = MAX(seg_format_prep_sets.getByPos(rpos)[SEG_a_AT_DEL_DP], seg_format_prep_sets.getByPos(rpos)[SEG_a_NEAR_RTR_DEL_DP]);
+                        unsigned int insdp = MAX(seg_format_prep_sets.getByPos(rpos)[SEG_a_AT_INS_DP], seg_format_prep_sets.getByPos(rpos)[SEG_a_NEAR_RTR_INS_DP]);
+                        is_affected_by_indels = (MAX(deldp, insdp) * 2 >= seg_format_prep_sets.getByPos(rpos)[SEG_a_DP]);
+                    }
+                    incvalue = bam_phredi(aln, qpos) + (is_affected_by_indels ? MIN(symbolType2addPhred[BASE_SYMBOL], symbolType2addPhred[LINK_SYMBOL]) : symbolType2addPhred[BASE_SYMBOL]);
                     this->template inc<TUpdateType>(rpos, AlignmentSymbol(base3bit), incvalue, aln);
                     if (TIsBiasUpdated) {
                         dealwith_segbias<false>(
@@ -1765,16 +1771,6 @@ if ((!is_assay_amplicon) || (ibeg <= rpos && rpos < iend)) {
                                 
                                 paramset,
                                 0);
-                        
-                        /*
-                        if (55249071-1 == rpos) {
-                            if (BASE_A == symbol) {
-                                // LOG(logINFO) << "At pos " << 55249071 << " read " << bam_get_qname(aln) << " supports the allele C>A T790M.";
-                            } else {
-                                // LOG(logINFO) << "At pos " << 55249071 << " read " << bam_get_qname(aln) << " supports the allele " << SYMBOL_TO_DESC_ARR[symbol];
-                            }
-                        } 
-                        */
                     }
                     
 }
@@ -3443,7 +3439,8 @@ BcfFormat_symbol_calc_qual(
     int64_t perbase_likeratio_q_x10_1 = 10 * fmt.bIAQb[a] / MAX(1, fmt.bIADb[a]);
     int64_t perbase_likeratio_q_x10_2 = perbase_likeratio_q_x10_1 + (int)round(10 * 10/log(10) * log((double)nbases_x100_2 / (double)nbases_x100_1));
     int64_t duped_frag_binom_qual = ((isSymbolIns(symbol) || isSymbolDel(symbol)) ? perbase_likeratio_q_x10_1 : perbase_likeratio_q_x10_2)  * nbases_x100_2 / (10 * 100);
-    int64_t contam_frag_withmin_qual = ((int)t2n_contam_phred_per_unit_x10 - (int)round(10 * (10/log(10)) * log((CDP0 + 1.0) / (cDP0 + 0.5)))) * MIN(100, cDP0) / 10;
+    int64_t contam_frag_withmin_qual = calc_binom_10log10_likeratio(t2n_contam_frac, cDP0, CDP0 - cDP0) + 9 - 3;
+    // int64_t contam_frag_withmin_qual = ((int)t2n_contam_phred_per_unit_x10 - (int)round(10 * (10/log(10)) * log((CDP0 + 1.0) / (cDP0 + 0.5)))) * MIN(100, cDP0) / 10;
     
     int phred_het3al_chance_inc_snp = MAX(0, 2 * (int)paramset.germ_phred_hetero_snp - (int)paramset.germ_phred_het3al_snp - TIN_CONTAM_MICRO_VQ_DELTA);
     int phred_het3al_chance_inc_indel = MAX(0, 2 * (int)paramset.germ_phred_hetero_indel - (int)paramset.germ_phred_het3al_indel - TIN_CONTAM_MICRO_VQ_DELTA);
@@ -3467,7 +3464,8 @@ BcfFormat_symbol_calc_qual(
     const int64_t sscs_binom_qual_fw = fmt.cIAQf[a] + int64mul(fmt.cIAQr[a], MIN(paramset.fam_phred_dscs_all - fmt.cIDQf[a], fmt.cIDQr[a])) / MAX(fmt.cIDQr[a], 1);
     const int64_t sscs_binom_qual_rv = fmt.cIAQr[a] + int64mul(fmt.cIAQf[a], MIN(paramset.fam_phred_dscs_all - fmt.cIDQr[a], fmt.cIDQf[a])) / MAX(fmt.cIDQf[a], 1);
     
-    const int64_t contam_sscs_withmin_qual = MIN(MAX(fmt.cDP2f[a], fmt.cDP2r[a]), 100) * non_neg_minus(t2n_contam_phred_per_unit_x10, (int)round(10 * (10/log(10)) * log((CDP2 + 1.0) / (cDP2 + 0.5)))) / 10;
+    const int64_t contam_sscs_withmin_qual = calc_binom_10log10_likeratio(t2n_contam_frac, cDP2, CDP2 - cDP2) + 9 - 3;
+    // const int64_t contam_sscs_withmin_qual = MIN(MAX(fmt.cDP2f[a], fmt.cDP2r[a]), 100) * non_neg_minus(t2n_contam_phred_per_unit_x10, (int)round(10 * (10/log(10)) * log((CDP2 + 1.0) / (cDP2 + 0.5)))) / 10;
     
     int64_t sscs_binom_qual = int64mul(MAX(sscs_binom_qual_fw, sscs_binom_qual_rv), cIADmincnt) / (cIADnormcnt) - (non_duplex_binom_dec_x10) * cIADmincnt;
     if (MAX(sscs_binom_qual_fw, sscs_binom_qual_rv) > paramset.microadjust_fam_binom_qual_halving_thres) {
