@@ -31,7 +31,7 @@
 //#define OUTVAR_HOMREF 0x2
 #define OUTVAR_SOMATIC 0x2
 #define OUTVAR_ANY 0x4
-#define OUTVAR_NONREF 0x8
+#define OUTVAR_GVCF 0x8
 
 #define MAX_INSERT_SIZE 2000 // (1024*2) // https://doi.org/10.2147/AGG.S162531
 #define NORM_INSERT_SIZE(b) { if (abs(b->core.isize) >= MAX_INSERT_SIZE) { b->core.isize = 0; } }

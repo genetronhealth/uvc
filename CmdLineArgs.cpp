@@ -172,7 +172,7 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
         "The " + std::to_string(OUTVAR_GERMLINE) + " bit indicates germline variant. " +
         "The " + std::to_string(OUTVAR_SOMATIC) + " bit indicates somatic variant. " +
         "The " + std::to_string(OUTVAR_ANY) + " bit indicates variant of any origin. " +
-        "The " + std::to_string(OUTVAR_NONREF) + " bit indicates non-ref symbolic region indicating the absence of variants. ");
+        "The " + std::to_string(OUTVAR_GVCF) + " bit indicates symbolic GVCF-like region. ");
     app.add_flag(
         "-A,--all-out", 
            should_output_all, 

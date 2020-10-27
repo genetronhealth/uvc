@@ -448,6 +448,19 @@ region_repeatvec_to_baq_offsetarr(
     return ret;
 }
 
+bool 
+are_depths_diff(int currDP, int prevDP, int mul_perc_ratio, int add_num_ratio) {
+    const int minDP = MIN(currDP, prevDP);
+    const int maxDP = MAX(currDP, prevDP);
+    if (minDP * mul_perc_ratio >= maxDP * 100) {
+        return false;
+    }
+    if (minDP + add_num_ratio >= maxDP) {
+        return false;
+    }
+    return true;
+}
+
 int 
 process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
     
@@ -619,7 +632,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
         unsigned int ins1_cdepth = 0;
         unsigned int del1_cdepth = 0;
         
-        for (SymbolType symbolType : SYMBOL_TYPE_ARR) 
+        for (const SymbolType symbolType : SYMBOL_TYPE_ARR)
         {
             if (zerobased_pos == rpos_inclu_beg && BASE_SYMBOL == symbolType) { continue; } 
             const unsigned int refpos = (BASE_SYMBOL == symbolType ? (zerobased_pos - 1) : zerobased_pos);
@@ -633,8 +646,50 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                     symbolType, 
                     refsymbol, 
                     0);
-            // unsigned int var_bdepth = bDPcDP[0];
-            // unsigned int var_cdepth = bDPcDP[1];
+            // unsigned int curr_tot_bdepth = bDPcDP[0];
+            // unsigned int curr_tot_cdepth = bDPcDP[1];
+            if ((paramset.outvar_flag & OUTVAR_GVCF) && ((((refpos + 1) % 1000) == 0) || (refpos == incluBegPosition)) && (SYMBOL_TYPE_ARR[0] == symbolType)) {
+                const auto & frag_format_depth_sets = symbolToCountCoverageSet12.symbol_to_frag_format_depth_sets;
+                const auto & fam_format_depth_sets = symbolToCountCoverageSet12.symbol_to_fam_format_depth_sets_2strand;
+                
+                int prev_tot_bdepth = 0;
+                int prev_tot_cdepth = 0;
+
+                std::vector<int> posoffset_BDP_CDP_symbtype_1dvec;
+                for (size_t rp2 = refpos; rp2 < MIN(refpos + 1000 + 1, symbolToCountCoverageSet12.getUnifiedExcluEndPosition()); rp2++) {
+                    int curr_tot_bdepth = 0;
+                    int curr_tot_cdepth = 0;
+                    for (size_t strand = 0; strand < 2; strand++) {
+                        curr_tot_bdepth += formatSumBySymbolType(frag_format_depth_sets[strand].getByPos(rp2), SYMBOL_TYPE_ARR[0], FRAG_bDP);
+                        curr_tot_cdepth += formatSumBySymbolType(fam_format_depth_sets[strand].getByPos(rp2), SYMBOL_TYPE_ARR[0], FAM_cDP1);
+                    }
+
+                    if ((incluBegPosition == rp2)
+                            || are_depths_diff(curr_tot_bdepth, prev_tot_bdepth, 100 + 30, 3)
+                            || are_depths_diff(curr_tot_cdepth, prev_tot_cdepth, 100 + 30, 3)) {
+                        posoffset_BDP_CDP_symbtype_1dvec.push_back((int)rp2 - (int)refpos);
+                        posoffset_BDP_CDP_symbtype_1dvec.push_back((int)curr_tot_bdepth);
+                        posoffset_BDP_CDP_symbtype_1dvec.push_back((int)curr_tot_cdepth);
+                        posoffset_BDP_CDP_symbtype_1dvec.push_back(-1-(int)SYMBOL_TYPE_ARR[0]);
+                        prev_tot_bdepth = curr_tot_bdepth;
+                        prev_tot_cdepth = curr_tot_cdepth;
+                    }
+                }
+                
+                const std::string gvcf_blockline = string_join(std::vector<std::string>{{
+                    std::get<0>(tname_tseqlen_tuple), 
+                    std::to_string(refpos + 1),
+                    std::string("."), 
+                    refstring.substr(refpos - extended_inclu_beg_pos, 1),
+                    std::string("<NON_REF>"),
+                    std::string("."), 
+                    std::string("."), 
+                    std::string("GVCF_BLOCK"),
+                    std::string("GT:POS_BDP_CDP_VT"),
+                    std::string(".") + ":" + other_join(posoffset_BDP_CDP_symbtype_1dvec, ","), // + "," + std::to_(refpos + 1) 
+                }}, "\t");
+                buf_out_string_pass += gvcf_blockline + "\n";
+            }
             
             // if (rpos_exclu_end != refpos) {}
                 const auto ref_bdepth = 

@@ -21,7 +21,7 @@ struct CommandLineArgs {
     
     uint16_t    max_cpu_num = 8;
     
-    uint32_t    outvar_flag = OUTVAR_SOMATIC + OUTVAR_ANY + OUTVAR_NONREF; // 4 anyvar, 2 somatic, 1 germline
+    uint32_t    outvar_flag = OUTVAR_SOMATIC + OUTVAR_ANY + OUTVAR_GVCF; // 4 anyvar, 2 somatic, 1 germline
     bool        should_output_all = false;
     bool        should_output_all_germline = false;
     double      vqual = (double)15; // 10; set to 20 for less output
