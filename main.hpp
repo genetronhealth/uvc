@@ -302,6 +302,7 @@ const char* SYMBOL_TO_DESC_ARR[] = {
     [LINK_I3P] = "<LI3P>", [LINK_I2] = "<LI2>", [LINK_I1] = "<LI1>",
     [LINK_NN] = "*",
     [END_ALIGNMENT_SYMBOLS] = "<ALN_SYMBOL_END>",
+    [GVCF_SYMBOL] = "<NON_REF>",
     [BASE_NO_SNV] = "<NO_SNV>",
     [LINK_NO_INDEL] = "<NO_INDEL>"
 };
@@ -3408,7 +3409,7 @@ BcfFormat_symbol_calc_qual(
     int64_t perbase_likeratio_q_x10_1 = 10 * fmt.bIAQb[a] / MAX(1, fmt.bIADb[a]);
     int64_t perbase_likeratio_q_x10_2 = perbase_likeratio_q_x10_1 + (int)round(10 * 10/log(10) * log((double)nbases_x100_2 / (double)nbases_x100_1));
     int64_t duped_frag_binom_qual = ((isSymbolIns(symbol) || isSymbolDel(symbol)) ? perbase_likeratio_q_x10_1 : perbase_likeratio_q_x10_2)  * nbases_x100_2 / (10 * 100);
-    int64_t contam_frag_withmin_qual = calc_binom_10log10_likeratio(t2n_contam_frac, cDP0, CDP0 - cDP0) + 9 - 3;
+    int64_t contam_frag_withmin_qual = (int64_t)round(calc_binom_10log10_likeratio(t2n_contam_frac, cDP0, CDP0 - cDP0)) + 9 - 3;
     // int64_t contam_frag_withmin_qual = ((int)t2n_contam_phred_per_unit_x10 - (int)round(10 * (10/log(10)) * log((CDP0 + 1.0) / (cDP0 + 0.5)))) * MIN(100, cDP0) / 10;
     
     int phred_het3al_chance_inc_snp = MAX(0, 2 * (int)paramset.germ_phred_hetero_snp - (int)paramset.germ_phred_het3al_snp - TIN_CONTAM_MICRO_VQ_DELTA);
@@ -3433,7 +3434,7 @@ BcfFormat_symbol_calc_qual(
     const int64_t sscs_binom_qual_fw = fmt.cIAQf[a] + int64mul(fmt.cIAQr[a], MIN(paramset.fam_phred_dscs_all - fmt.cIDQf[a], fmt.cIDQr[a])) / MAX(fmt.cIDQr[a], 1);
     const int64_t sscs_binom_qual_rv = fmt.cIAQr[a] + int64mul(fmt.cIAQf[a], MIN(paramset.fam_phred_dscs_all - fmt.cIDQr[a], fmt.cIDQf[a])) / MAX(fmt.cIDQf[a], 1);
     
-    const int64_t contam_sscs_withmin_qual = calc_binom_10log10_likeratio(t2n_contam_frac, cDP2, CDP2 - cDP2) + 9 - 3;
+    const int64_t contam_sscs_withmin_qual = (int64_t)round(calc_binom_10log10_likeratio(t2n_contam_frac, cDP2, CDP2 - cDP2)) + 9 - 3;
     // const int64_t contam_sscs_withmin_qual = MIN(MAX(fmt.cDP2f[a], fmt.cDP2r[a]), 100) * non_neg_minus(t2n_contam_phred_per_unit_x10, (int)round(10 * (10/log(10)) * log((CDP2 + 1.0) / (cDP2 + 0.5)))) / 10;
     
     int64_t sscs_binom_qual = int64mul(MAX(sscs_binom_qual_fw, sscs_binom_qual_rv), cIADmincnt) / (cIADnormcnt) - (non_duplex_binom_dec_x10) * cIADmincnt;

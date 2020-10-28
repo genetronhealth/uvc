@@ -239,7 +239,11 @@ als_to_string(const char *const* const allele, unsigned int n_allele) {
 }
 
 const std::map<std::tuple<unsigned int, unsigned int, AlignmentSymbol>, std::vector<TumorKeyInfo>>
-rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_tname_tlen_tuple_vec, const std::string & vcf_tumor_fname, const auto *bcf_hdr, 
+rescue_variants_from_vcf(
+        const auto & tid_beg_end_e2e_vec, 
+        const auto & tid_to_tname_tlen_tuple_vec, 
+        const std::string & vcf_tumor_fname, 
+        const auto *bcf_hdr, 
         const bool is_tumor_format_retrieved) {
     std::map<std::tuple<unsigned int, unsigned int, AlignmentSymbol>, std::vector<TumorKeyInfo>> ret;
     if (NOT_PROVIDED == vcf_tumor_fname) {
@@ -287,13 +291,14 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         bcf1_t *line = bcf_sr_get_line(sr, 0);
         bcf_unpack(line, BCF_UN_ALL);
         
-        // skip over all symbolic alleles
+        // skip over all symbolic alleles except GVCF
         bool should_continue = false;
         for (unsigned int i = 1; i < line->n_allele; i++) {
-            if ('<' == line->d.allele[i][0]) {
+            if ('<' == line->d.allele[i][0] && (strcmp("<NON_REF>", line->d.allele[i]) || !is_tumor_format_retrieved)) {
                 should_continue = true;
             }
         }
+
         if (should_continue) { continue; }
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "VTI", &bcfints, &ndst_val);
@@ -304,7 +309,7 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         // LOG(logINFO) << "Trying to retrieve the symbol " << desc << " at pos " << line->pos << " valsize = " << valsize << " ndst_val = " << ndst_val;
         const AlignmentSymbol symbol = AlignmentSymbol(bcfints[1]); //DESC_TO_SYMBOL_MAP.at(desc);
         
-        auto symbolpos = (isSymbolSubstitution(symbol) ? (line->pos) : (line->pos + 1));
+        auto symbolpos = ((isSymbolSubstitution(symbol) || GVCF_SYMBOL == symbol) ? (line->pos) : (line->pos + 1));
         // A deletion can span two BED regions. This code has the potential to prevent double-calling of the deletion variant.
         /*
         if (symbolpos < extended_inclu_beg_pos && isSymbolDel(symbol)) {
@@ -319,6 +324,7 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         */
         TumorKeyInfo tki;
         tki.VTI = bcfints[1];
+if (GVCF_SYMBOL != symbol) {
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "BDPf", &bcfints, &ndst_val);
@@ -398,13 +404,13 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         valsize = bcf_get_format_int32(bcf_hdr, line, "cPCQ2", &bcfints, &ndst_val);
         assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cPCQ2 and line %d!\n", ndst_val, valsize, line->pos));
         tki.cPCQ2 = bcfints[1];
-
+}
         tki.pos = line->pos;
         tki.ref_alt = als_to_string(line->d.allele, line->n_allele);
         if (is_tumor_format_retrieved) {
             tki.bcf1_record = bcf_dup(line);
         }
-        const auto retkey = std::make_tuple(line->rid, symbolpos, symbol);            
+        const auto retkey = std::make_tuple(line->rid, symbolpos, symbol);
         ret.insert(std::make_pair(retkey, std::vector<TumorKeyInfo>()));
         ret[retkey].push_back(tki);
     }
@@ -675,20 +681,31 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                         prev_tot_cdepth = curr_tot_cdepth;
                     }
                 }
-                
+                const auto vcfREF = refstring.substr(refpos - extended_inclu_beg_pos, 1);
+                const AlignmentSymbol match_refsymbol = CHAR_TO_SYMBOL.data[vcfREF[0]];
                 const std::string gvcf_blockline = string_join(std::vector<std::string>{{
                     std::get<0>(tname_tseqlen_tuple), 
                     std::to_string(refpos + 1),
                     std::string("."), 
-                    refstring.substr(refpos - extended_inclu_beg_pos, 1),
+                    vcfREF,
                     std::string("<NON_REF>"),
                     std::string("."), 
                     std::string("."), 
                     std::string("GVCF_BLOCK"),
-                    std::string("GT:POS_BDP_CDP_VT"),
-                    std::string(".") + ":" + other_join(posoffset_BDP_CDP_symbtype_1dvec, ","), // + "," + std::to_(refpos + 1) 
+                    std::string("GT:VTI:POS_BDP_CDP_VT"),
+                    std::string(".") + ":" + std::to_string(match_refsymbol) + "," +std::to_string(GVCF_SYMBOL) + ":" + other_join(posoffset_BDP_CDP_symbtype_1dvec, ","), // + "," + std::to_(refpos + 1) 
                 }}, "\t");
-                buf_out_string_pass += gvcf_blockline + "\n";
+                
+                std::string tumor_gvcf_format = "";
+                if (paramset.is_tumor_format_retrieved) { 
+                    const auto & tkis = tid_pos_symb_to_tkis.find(std::make_tuple(tid, refpos, GVCF_SYMBOL))->second;
+                    if (tkis.size() == 1) {
+                        tumor_gvcf_format = std::string("\t") + bcf1_to_string(bcf_hdr, tkis[0].bcf1_record);
+                    } else {
+                        tumor_gvcf_format = std::string("\t.:.,.:.");
+                    }
+                }
+                buf_out_string_pass += gvcf_blockline + tumor_gvcf_format + "\n";
             }
             
             // if (rpos_exclu_end != refpos) {}

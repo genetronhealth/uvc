@@ -364,8 +364,9 @@ enum AlignmentSymbol {
     LINK_NN, //  = 13, // ambiguous link between bases
     // LINK_P = 13; // padded in deleted sequence
     END_ALIGNMENT_SYMBOLS,
+    GVCF_SYMBOL,
     BASE_NO_SNV,
-    LINK_NO_INDEL
+    LINK_NO_INDEL,
 };
 
 #define NUM_ALIGNMENT_SYMBOLS 14
@@ -397,7 +398,7 @@ struct TumorKeyInfo {
     
     unsigned int CDP12 = 0;
     unsigned int cDP12 = 0;
-
+    
     unsigned int CDP1x = 0;
     unsigned int cDP1x = 0;
     int cVQ1 = 0;
