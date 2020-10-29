@@ -116,18 +116,21 @@ SamIter::iternext(std::vector<std::tuple<unsigned int, unsigned int, unsigned in
             nreads_tot += nreads;
             auto prev_nreads = next_nreads;
             if (tid != UINT_MAX) {
-                tid_beg_end_e2e_vec.push_back(std::make_tuple(tid, tbeg, tend, false, nreads));
-                tbeg = tend;
+                tid_beg_end_e2e_vec.push_back(std::make_tuple(tid, max(tbeg, prev_tbeg), max(tend, prev_tbeg), false, nreads));
+                prev_tbeg = tbeg;
                 endingpos = UINT_MAX;
                 next_nreads = 0;
             }
-            tid = alnrecord->core.tid;
+            if (tid != alnrecord->core.tid) {
+                prev_tbeg = 0;
+                tid = alnrecord->core.tid;
+            }
             if (is_uncov) {
-                tbeg = max(tbeg, SIGN2UNSIGN(alnrecord->core.pos));
-                tend = max(tend, SIGN2UNSIGN(bam_endpos(alnrecord)));
+                tbeg = SIGN2UNSIGN(alnrecord->core.pos);
+                tend = SIGN2UNSIGN(bam_endpos(alnrecord));
             } else {
-                tbeg = max(tbeg, tend);
-                tend = max(tend, max(tbeg, SIGN2UNSIGN(bam_endpos(alnrecord))) + 1);
+                tbeg = tend;
+                tend = max(tbeg, SIGN2UNSIGN(bam_endpos(alnrecord))) + 1;
             }
             nreads = prev_nreads;
             nreads += 1;

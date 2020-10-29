@@ -40,6 +40,7 @@ struct SamIter {
     unsigned int tid = UINT_MAX;
     unsigned int tbeg = -1;
     unsigned int tend = -1;
+    unsigned int prev_tbeg = 0;
     uint64_t nreads = 0;
     uint64_t next_nreads = 0;
     bam1_t *alnrecord = bam_init1();
