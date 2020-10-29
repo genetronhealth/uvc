@@ -123,11 +123,11 @@ SamIter::iternext(std::vector<std::tuple<unsigned int, unsigned int, unsigned in
             }
             tid = alnrecord->core.tid;
             if (is_uncov) {
-                UPDATE_MAX(tbeg, SIGN2UNSIGN(alnrecord->core.pos));
-                UPDATE_MAX(tend, SIGN2UNSIGN(bam_endpos(alnrecord)));
+                tbeg = max(tbeg, SIGN2UNSIGN(alnrecord->core.pos));
+                tend = max(tend, SIGN2UNSIGN(bam_endpos(alnrecord)));
             } else {
-                UPDATE_MAX(tbeg, tend);
-                UPDATE_MAX(tend, max(tbeg, SIGN2UNSIGN(bam_endpos(alnrecord))) + 1);
+                tbeg = max(tbeg, tend);
+                tend = max(tend, max(tbeg, SIGN2UNSIGN(bam_endpos(alnrecord))) + 1);
             }
             nreads = prev_nreads;
             nreads += 1;

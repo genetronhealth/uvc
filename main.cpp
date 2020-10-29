@@ -324,6 +324,11 @@ rescue_variants_from_vcf(
         */
         TumorKeyInfo tki;
         tki.VTI = bcfints[1];
+
+if (GVCF_SYMBOL == symbol) {
+        LOG(logINFO) << "gVCFblock with pos " << symbolpos << " was retrieved";
+}
+
 if (GVCF_SYMBOL != symbol) {
         
         ndst_val = 0;
@@ -702,6 +707,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                     if (tkis.size() == 1) {
                         tumor_gvcf_format = std::string("\t") + bcf1_to_string(bcf_hdr, tkis[0].bcf1_record);
                     } else {
+                        LOG(logINFO) << "gVCFblock at " << refpos << " is not found, tkis.size() == " << tkis.size();
                         tumor_gvcf_format = std::string("\t.:.,.:.");
                     }
                 }
@@ -801,7 +807,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                                     std::get<0>(tname_tseqlen_tuple).c_str(), 
                                     refpos, 
                                     symbol, 
-                                    false,
+                                    (NOT_PROVIDED != paramset.vcf_tumor_fname), //  false,
                                     0);
                             for (const auto & bcad0a_arr_indelstring_pair : bcad0a_arr_indelstring_pairvec) {
                                 bcad0a_indelstring_tki_vec.push_back(std::make_tuple(
@@ -853,6 +859,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
         } // end of iterations within symboltype
             const size_t string_pass_old_size = buf_out_string_pass.size();
             auto st_to_nlodq_fmtptr1_fmtptr2_tup = std::array<std::tuple<int, bcfrec::BcfFormat*, bcfrec::BcfFormat*>, 2>();
+            std::array<uint32_t, NUM_SYMBOL_TYPES> curr_vAC = {{ 0 }};
             for (SymbolType symbolType : SYMBOL_TYPE_ARR) {
                 if (zerobased_pos == rpos_inclu_beg && BASE_SYMBOL == symbolType) { continue; } 
                 const unsigned int refpos = (BASE_SYMBOL == symbolType ? (zerobased_pos - 1) : zerobased_pos);
@@ -904,7 +911,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                             maxVQ_VQ1_VQ2_symbol_indelstr_tup_vec.push_back(std::make_tuple(MAX(cVQ1, cVQ2), cVQ1, cVQ2, symbol, LAST(std::get<0>(fmt_tki_tup).gapSa)));
                             const unsigned int germ_phred_het3al = ((BASE_SYMBOL == symbolType) ? paramset.germ_phred_het3al_snp : paramset.germ_phred_het3al_indel);
                             if (MAX(cVQ1, cVQ2) >= germ_phred_het3al) {
-                                fmt.vAC[symbolType] += 1;
+                                curr_vAC[symbolType] += 1;
                             }
                         }
                     }
@@ -996,6 +1003,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                     for (auto & fmt_tki_tup : fmt_tki_tup_vec) 
                     {
                         auto & fmt = std::get<0>(fmt_tki_tup);
+                        assert(fmt.vAC.size() == curr_vAC.size());
+                        for (size_t i = 0; i < fmt.vAC.size(); i++) { fmt.vAC = curr_vAC; }
                         const auto & symbol = (AlignmentSymbol)(LAST(fmt.VTI));
                         auto & tki = std::get<1>(fmt_tki_tup);
                         const bool will_generate_out = (NOT_PROVIDED == paramset.vcf_tumor_fname 
