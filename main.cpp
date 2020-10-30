@@ -695,7 +695,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                                 * logit2((ref_cdepth + 0.5) / (curr_tot_cdepth + 1.0), paramset.germ_hetero_FA));
                         
                         const int germ_phred_hetero = ((BASE_SYMBOL == stype) ? paramset.germ_phred_hetero_snp : paramset.germ_phred_hetero_indel);
-                        const int curr_refQ = (int)round(MIN(ref_like_binom, ref_like_powlaw) + germ_phred_hetero - MIN(nonref_like_binom, nonref_like_powlaw));
+                        const int curr_refQ = (int)round(MAX(ref_like_binom, ref_like_powlaw) + germ_phred_hetero - MAX(nonref_like_binom, nonref_like_powlaw));
                         if ((incluBegPosition == rp2) || (abs(curr_refQ - prev_refQ2[stype]) > 10)
                                 || are_depths_diff(curr_tot_bdepth, prev_tot_bdepth, 100 + 30, 3)
                                 || are_depths_diff(curr_tot_cdepth, prev_tot_cdepth, 100 + 30, 3)) {
@@ -727,13 +727,14 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                 }}, "\t");
                 
                 std::string tumor_gvcf_format = "";
-                if (paramset.is_tumor_format_retrieved) { 
+                if (paramset.is_tumor_format_retrieved && NOT_PROVIDED != paramset.vcf_tumor_fname) { 
                     const auto & tkis = tid_pos_symb_to_tkis.find(std::make_tuple(tid, refpos, GVCF_SYMBOL))->second;
                     if (tkis.size() == 1) {
                         tumor_gvcf_format = std::string("\t") + bcf1_to_string(bcf_hdr, tkis[0].bcf1_record);
+                        LOG(logINFO) << "gVCFblock at " << refpos << " is indeed found, tumor_gvcf_format == " << tumor_gvcf_format;
                     } else {
-                        LOG(logINFO) << "gVCFblock at " << refpos << " is not found, tkis.size() == " << tkis.size();
                         tumor_gvcf_format = std::string("\t.:.,.:.");
+                        LOG(logINFO) << "gVCFblock at " << refpos << " is not found, tkis.size() == " << tkis.size();
                     }
                 }
                 buf_out_string_pass += gvcf_blockline + tumor_gvcf_format + "\n";
