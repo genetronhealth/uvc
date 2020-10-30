@@ -665,25 +665,49 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                 
                 int prev_tot_bdepth = 0;
                 int prev_tot_cdepth = 0;
-
-                std::vector<int> posoffset_BDP_CDP_symbtype_1dvec;
+                std::array<int, NUM_SYMBOL_TYPES> prev_refQ2 = {{ 200 }};
+                
+                std::vector<int> posoffset_BDP_CDP_refQ_stype_1dvec;
                 for (size_t rp2 = refpos; rp2 < MIN(refpos + 1000 + 1, symbolToCountCoverageSet12.getUnifiedExcluEndPosition()); rp2++) {
-                    int curr_tot_bdepth = 0;
-                    int curr_tot_cdepth = 0;
-                    for (size_t strand = 0; strand < 2; strand++) {
-                        curr_tot_bdepth += formatSumBySymbolType(frag_format_depth_sets[strand].getByPos(rp2), SYMBOL_TYPE_ARR[0], FRAG_bDP);
-                        curr_tot_cdepth += formatSumBySymbolType(fam_format_depth_sets[strand].getByPos(rp2), SYMBOL_TYPE_ARR[0], FAM_cDP1);
-                    }
-
-                    if ((incluBegPosition == rp2)
-                            || are_depths_diff(curr_tot_bdepth, prev_tot_bdepth, 100 + 30, 3)
-                            || are_depths_diff(curr_tot_cdepth, prev_tot_cdepth, 100 + 30, 3)) {
-                        posoffset_BDP_CDP_symbtype_1dvec.push_back((int)rp2 - (int)refpos);
-                        posoffset_BDP_CDP_symbtype_1dvec.push_back((int)curr_tot_bdepth);
-                        posoffset_BDP_CDP_symbtype_1dvec.push_back((int)curr_tot_cdepth);
-                        posoffset_BDP_CDP_symbtype_1dvec.push_back(-1-(int)SYMBOL_TYPE_ARR[0]);
-                        prev_tot_bdepth = curr_tot_bdepth;
-                        prev_tot_cdepth = curr_tot_cdepth;
+                    for (SymbolType stype : SYMBOL_TYPES_IN_VCF_ORDER) {
+                        const size_t refstring_offset = rp2 - extended_inclu_beg_pos;
+                        if (refstring_offset > refstring.size()) { fprintf(stderr, "The refstring offset %d is invalid!\n\n", refstring_offset); abort(); }
+                        const AlignmentSymbol base_m = ((refstring_offset < refstring.size()) ? CHAR_TO_SYMBOL.data[refstring.substr(refstring_offset, 1)[0]] : BASE_N);
+                        const auto refsymbol = ((BASE_SYMBOL == stype) ? (base_m) : (LINK_M));
+                        int curr_tot_bdepth = 0;
+                        int curr_tot_cdepth = 0;
+                        for (size_t strand = 0; strand < 2; strand++) {
+                            curr_tot_bdepth += formatSumBySymbolType(frag_format_depth_sets[strand].getByPos(rp2), stype, FRAG_bDP);
+                            curr_tot_cdepth += formatSumBySymbolType(fam_format_depth_sets[strand].getByPos(rp2), stype, FAM_cDP1);
+                        }
+                        // const auto ref_bdepth = frag_format_depth_sets[0].getByPos(rp2)[refsymbol] + frag_format_depth_sets[1].getByPos(rp2)[refsymbol];
+                        const auto ref_cdepth = fam_format_depth_sets[0].getByPos(rp2)[refsymbol][FAM_cDP1] + fam_format_depth_sets[1].getByPos(rp2)[refsymbol][FAM_cDP1];
+                        const auto nonref_cdepth = curr_tot_cdepth - ref_cdepth;
+                        
+                        // contam, lower  nonref-FA -> close to zero qual
+                        const auto ref_like_binom = -calc_binom_10log10_likeratio(paramset.contam_any_mul_frac, nonref_cdepth + 0.5, curr_tot_cdepth + 1.0);
+                        const auto ref_like_powlaw = -MAX(0, paramset.powlaw_exponent * (10/log(10)) 
+                                * logit2((nonref_cdepth + 0.5) / (curr_tot_cdepth + 1.0), paramset.contam_any_mul_frac));
+                        
+                        // hetero, higher nonref-FA (lower ref-FA) -> close to zero qual
+                        const auto nonref_like_binom = -calc_binom_10log10_likeratio(paramset.germ_hetero_FA, ref_cdepth + 0.5, curr_tot_cdepth + 1.0);
+                        const auto nonref_like_powlaw = -MAX(0, paramset.powlaw_exponent * (10/log(10)) 
+                                * logit2((ref_cdepth + 0.5) / (curr_tot_cdepth + 1.0), paramset.germ_hetero_FA));
+                        
+                        const int germ_phred_hetero = ((BASE_SYMBOL == stype) ? paramset.germ_phred_hetero_snp : paramset.germ_phred_hetero_indel);
+                        const int curr_refQ = (int)round(MIN(ref_like_binom, ref_like_powlaw) + germ_phred_hetero - MIN(nonref_like_binom, nonref_like_powlaw));
+                        if ((incluBegPosition == rp2) || (abs(curr_refQ - prev_refQ2[stype]) > 10)
+                                || are_depths_diff(curr_tot_bdepth, prev_tot_bdepth, 100 + 30, 3)
+                                || are_depths_diff(curr_tot_cdepth, prev_tot_cdepth, 100 + 30, 3)) {
+                            posoffset_BDP_CDP_refQ_stype_1dvec.push_back((int)rp2 - (int)refpos);
+                            posoffset_BDP_CDP_refQ_stype_1dvec.push_back((int)curr_tot_bdepth);
+                            posoffset_BDP_CDP_refQ_stype_1dvec.push_back((int)curr_tot_cdepth);
+                            posoffset_BDP_CDP_refQ_stype_1dvec.push_back((int)curr_refQ);
+                            posoffset_BDP_CDP_refQ_stype_1dvec.push_back(-1-(int)stype);
+                            prev_tot_bdepth = curr_tot_bdepth;
+                            prev_tot_cdepth = curr_tot_cdepth;
+                            prev_refQ2[stype] = curr_refQ;
+                        }
                     }
                 }
                 const auto vcfREF = refstring.substr(refpos - extended_inclu_beg_pos, 1);
@@ -697,8 +721,9 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                     std::string("."), 
                     std::string("."), 
                     std::string("GVCF_BLOCK"),
-                    std::string("GT:VTI:POS_BDP_CDP_VT"),
-                    std::string(".") + ":" + std::to_string(match_refsymbol) + "," +std::to_string(GVCF_SYMBOL) + ":" + other_join(posoffset_BDP_CDP_symbtype_1dvec, ","), // + "," + std::to_(refpos + 1) 
+                    std::string("GT:VTI:POS_BDP_CDP_HomRefQ_VT"),
+                    std::string(".") + ":" + std::to_string(match_refsymbol) + "," + std::to_string(GVCF_SYMBOL) + ":" 
+                            + other_join(posoffset_BDP_CDP_refQ_stype_1dvec, ","),
                 }}, "\t");
                 
                 std::string tumor_gvcf_format = "";

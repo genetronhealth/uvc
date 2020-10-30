@@ -4071,10 +4071,11 @@ generate_vcf_header(const char *ref_fasta_fname,
     //ret += std::string("") + "##FORMAT=<ID=gSTS,Number=2,Type=Integer,Description=\"Variant types for start and end positions, where 0 means SNV and 1 means InDel.\">\n";
     //ret += std::string("") + "##FORMAT=<ID=gBEG,Number=1,Type=Integer,Description=\"Begin position of the genomic block (one-based inclusive)\">\n";
     //ret += std::string("") + "##FORMAT=<ID=gEND,Number=1,Type=Integer,Description=\"End position of the genomic block (one-based inclusive)\">\n";
-    ret += std::string("") + "##FORMAT=<ID=POS_BDP_CDP_VT,Number=.,Type=Integer,Description=\"Multiple gVCF regions. "
-            "Each region has its offset to VCF POS, minimum duped depth without duplicates kept, minimum deduped depth with duplicates removed, and position type. "
-            "Each set of four consecutive numbers describes one region in this record. "
-            "The position types -1 and -2 mean SNV and InDel positions, respectively.\">\n";
+    ret += std::string("") + "##FORMAT=<ID=POS_BDP_CDP_HomRefQ_VT,Number=.,Type=Integer,Description=\"Multiple gVCF regions. "
+            "Each region has its offset to VCF POS, minimum duped depth without duplicates kept, minimum deduped depth with duplicates removed, likelihood of the homozygous-reference genotype, and position type. "
+            "Each set of 5 consecutive integers describes one region in this record. "
+            "The position types -1 and -2 mean SNV and InDel positions, respectively. "
+            "Warning: HomRefQ is computed by a very fast but imprecise algorithm, so it is not as accurate at GQ. \">\n";
     
     ret += std::string("") + "##phasing=partial\n";
     ret += std::string("") + "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t" 
