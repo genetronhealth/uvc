@@ -117,7 +117,7 @@ SamIter::iternext(std::vector<std::tuple<unsigned int, unsigned int, unsigned in
             auto prev_nreads = next_nreads;
             if (tid != UINT_MAX) {
                 tid_beg_end_e2e_vec.push_back(std::make_tuple(tid, max(tbeg, prev_tbeg), max(tend, prev_tbeg), false, nreads));
-                prev_tbeg = tbeg;
+                prev_tbeg = max(tend, prev_tbeg);
                 endingpos = UINT_MAX;
                 next_nreads = 0;
             }
