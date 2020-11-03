@@ -1030,7 +1030,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                     {
                         auto & fmt = std::get<0>(fmt_tki_tup);
                         assert(fmt.vAC.size() == curr_vAC.size());
-                        for (size_t i = 0; i < fmt.vAC.size(); i++) { fmt.vAC = curr_vAC; }
+                        for (size_t i = 0; i < fmt.vAC.size(); i++) { fmt.vAC[i] = curr_vAC[i]; }
                         const auto & symbol = (AlignmentSymbol)(LAST(fmt.VTI));
                         auto & tki = std::get<1>(fmt_tki_tup);
                         const bool will_generate_out = (NOT_PROVIDED == paramset.vcf_tumor_fname 

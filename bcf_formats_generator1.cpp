@@ -24,7 +24,7 @@ enum BCF_DATA_TYPE {
 
 const char * CPP_DATA_STRING[] = {
     "std::string",
-    "uint32_t",
+    "int32_t", // "uint32_t",
     "int32_t",
     "float",
     "bool",
