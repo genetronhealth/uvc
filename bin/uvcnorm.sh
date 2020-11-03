@@ -6,7 +6,7 @@ DEFAULT_MIN_NLODQ=-9999
 
 scriptdir="$(dirname "$(which "$0")")"
 
-if [ $# -lt 4 ]; then
+if [ $# -lt 3 ]; then
     echo "Usage: $0 <input-vcf> <output-vcf> <multiallelic-control> [<min-SNV-QUAL>] [<min-non-SNV-QUAL>] [<min-NLODQ>]"
     echo "    input-vcf: uvc-generated VCF with non-normalized variants. "
     echo "    output-vcf: normalized VCF. "
@@ -39,8 +39,8 @@ fi
 
 export PATH="${scriptdir}:${PATH}" # remove this line in the rare case that an important executable is shadowed by this command
 
-bcftools view -i "(vNLODQ[0] > ${minNLODQ} && vNLODQ[1] > ${minNLODQ}) && (TYPE == 'snps' && QUAL  < ${minSNVqual} || TYPE != 'snps' && QUAL  < ${minNonSNVqual})" $1 -Oz -o "${2}.nonorm.vcf.gz"
-bcftools view -i "(vNLODQ[0] > ${minNLODQ} && vNLODQ[1] > ${minNLODQ}) && (TYPE == 'snps' && QUAL >= ${minSNVqual} || TYPE != 'snps' && QUAL >= ${minNonSNVqual})" $1 | bcftools norm -m+${3} -Oz -o "${2}.norm.vcf.gz"
+bcftools view -i "(vNLODQ[0:0] > ${minNLODQ} && vNLODQ[0:1] > ${minNLODQ}) && (TYPE == 'snps' && QUAL  < ${minSNVqual} || TYPE != 'snps' && QUAL  < ${minNonSNVqual})" "${1}" -Oz -o "${2}.nonorm.vcf.gz"
+bcftools view -i "(vNLODQ[0:0] > ${minNLODQ} && vNLODQ[0:1] > ${minNLODQ}) && (TYPE == 'snps' && QUAL >= ${minSNVqual} || TYPE != 'snps' && QUAL >= ${minNonSNVqual})" "${1}" | bcftools norm -m+${3} -Oz -o "${2}.norm.vcf.gz"
 bcftools concat -n "${2}.nonorm.vcf.gz" "${2}.norm.vcf.gz" -Oz -o "${2}"
 rm "${2}.nonorm.vcf.gz" "${2}.norm.vcf.gz"
 
