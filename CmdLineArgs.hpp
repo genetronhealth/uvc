@@ -71,6 +71,8 @@ struct CommandLineArgs {
     uint16_t    bq_phred_added_misma = 0; // estiamte from the data
     uint16_t    bq_phred_added_indel = 0; // estimate from the data
     
+    // http://snap.stanford.edu/class/cs224w-2015/slides/04-powerlaws.pdf
+    // https://cs.brynmawr.edu/Courses/cs380/spring2013/section02/slides/10_ScaleFreeNetworks.pdf
     double      powlaw_exponent = 3.0; // universality constant
     double      powlaw_anyvar_base = (double)(60+25+5); // universality constant
     

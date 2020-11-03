@@ -16,9 +16,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-// http://snap.stanford.edu/class/cs224w-2015/slides/04-powerlaws.pdf
-// https://cs.brynmawr.edu/Courses/cs380/spring2013/section02/slides/10_ScaleFreeNetworks.pdf
-// #define PLEXP (3.0) // Power-law exponent of the degree distribution of the BA network
+#define SQR_QUAL_DIV 32
 
 // math functions
 
@@ -234,60 +232,10 @@ main(int argc, char **argv) {
 }
 #endif
 
-// h0 and h1 are two explanations, while h2 is responsible for the absence of h1 
-// (e.g., h0 is tumor var quality, h1 is germline polymorphism, and h2 is contamination)
-// h0 and h1 are two possible causes of the outcome, while h2 inhibits h1
-template <class T>
-constexpr T
-max_min01_sub02(T h0, T h1, T h2) {
-    return MAX(MIN(h0, h1), h0 - h2);
-}
-
-auto add01_between_min01_max01(auto a, auto b) {
-    return BETWEEN(MIN(a, b), a + b, MAX(a ,b));
-}
-
 static_assert(abs(calc_binom_10log10_likeratio(0.1, 10, 90)) < 1e-4);
 static_assert(calc_binom_10log10_likeratio(0.1, 90, 10) > 763); // 10/log(10) * (90*log(9)+10*log(1/9))
 static_assert(calc_binom_10log10_likeratio(0.1, 90, 10) < 764); // 10/log(10) * (90*log(9)+10*log(1/9))
 static_assert(abs(calc_binom_10log10_likeratio(0.1, 1, 99)) < 1e-4); // 10/log(10) * (90*log(9)+10*log(1/9))
-
-double invmax(double x) { return MAX(x, 1/x); }
-
-double 
-dlog(double n, double r) {
-    return log(n * (r-1) + 1) / log(r);
-}
-
-
-// stdlib add-on functions
-
-template <class T>
-class OffsetArr {
-    std::vector<T> data;
-    unsigned int offset;
-    public:
-    
-    OffsetArr(size_t datasize, T initdata) {
-        data = std::vector<T>(datasize, initdata);
-    };
-    
-    void set(unsigned int i, T e) {
-        data[i-offset] = e;
-    };
-    
-    T get(unsigned int i) {
-        return data[i-offset];
-    };
-    
-    size_t get_inclu_beg_pos() {
-        return offset; 
-    };
-    
-    size_t get_exclu_end_pos() {
-        return offset + data.size();    
-    };
-};
 
 //template <class T, class V>
 template <class T=int>
@@ -311,7 +259,7 @@ autoswap ( T& a, T& b ) {
 }
 
 std::string
-string_join(auto container, std::string sep = std::string(",")) {
+string_join(const auto & container, std::string sep = std::string(",")) {
     std::string ret = "";
     for (auto e : container) {
         ret += e + sep;
@@ -321,7 +269,7 @@ string_join(auto container, std::string sep = std::string(",")) {
 }
 
 std::string 
-other_join(const auto container, std::string sep = std::string(",")) {
+other_join(const auto & container, std::string sep = std::string(",")) {
     std::string ret = "";
     for (const auto & e : container) {
         ret += std::to_string(e) + sep;
@@ -329,20 +277,6 @@ other_join(const auto container, std::string sep = std::string(",")) {
     if (ret.size() > 0) { ret.pop_back(); }
     return ret;
 }
-
-template <class T>
-std::string 
-other_join2(const std::vector<T> container, std::string sep = std::string(",")) {
-    std::string ret = "";
-    for (const auto & e : container) {
-        ret += std::to_string((T)(e)) + sep;
-    }
-    if (ret.size() > 0) { ret.pop_back(); }
-    return ret;
-}
-
-
-#define SQR_QUAL_DIV 32
 
 // variant-call data structures and functions
 
@@ -352,8 +286,7 @@ enum AlignmentSymbol {
     BASE_G,  //   = 2,
     BASE_T,  //   = 3,
     BASE_N,  //   = 4, // ambigous in the original sequencing data
-    BASE_NN, //   = 5, // ambigous base after collapsing different reads, padded in deleted sequence
-    //BASE_P = 6; // padded in deleted sequence
+    BASE_NN, //   = 5, // padded match-mismatch symbol in deleted sequence
     LINK_M,  //   = 6, // absence of any gap
     LINK_D3P,// = 7, // deletion of length 3 or plus
     LINK_D2, //  = 8,  // deletion of length 2
@@ -361,12 +294,9 @@ enum AlignmentSymbol {
     LINK_I3P,//  = 10, // insertion of length 1 // where the inserted sequence is not a repeat
     LINK_I2, //  = 11, 
     LINK_I1, // = 12, 
-    LINK_NN, //  = 13, // ambiguous link between bases
-    // LINK_P = 13; // padded in deleted sequence
+    LINK_NN, //  = 13, // padded InDel-noInDel symbol in deleted sequence
     END_ALIGNMENT_SYMBOLS,
     GVCF_SYMBOL,
-    BASE_NO_SNV,
-    LINK_NO_INDEL,
 };
 
 #define NUM_ALIGNMENT_SYMBOLS 14
@@ -437,10 +367,6 @@ enum SegFormatPrepSet {
     
     SEG_a_PCR_DP,
     SEG_aBQ2_DP,
-    //SEG_a_INS_L,
-    //SEG_a_INS_R,
-    //SEG_a_DEL_L,
-    //SEG_a_DEL_R,
     SEG_a_XM,
     SEG_a_GO,
     SEG_a_XM100INV,
@@ -471,25 +397,6 @@ enum SegFormatPrepSet {
     SEG_a_NEAR_RTR_INS_DP,
     SEG_a_NEAR_RTR_DEL_DP,
     
-    
-    /*
-    SEG_a_A_DEPTH,
-    SEG_a_A_TOT_LDIST,
-    SEG_a_A_TOT_RDIST,
-    
-    SEG_a_C_DEPTH,
-    SEG_a_C_TOT_LDIST,
-    SEG_a_C_TOT_RDIST,
-    
-    SEG_a_G_DEPTH,
-    SEG_a_G_TOT_LDIST,
-    SEG_a_G_TOT_RDIST,
-    
-    SEG_a_T_DEPTH,
-    SEG_a_T_TOT_LDIST,
-    SEG_a_T_TOT_RDIST,
-    */
-
     SEG_FORMAT_PREP_SET_END,
 };
 #define NUM_SEG_FORMAT_PREP_SETS ((size_t)SEG_FORMAT_PREP_SET_END)
@@ -523,17 +430,6 @@ enum SegFormatThresSet {
     SEG_aRB1t,
     SEG_aRB2t,
     
-    /*
-    SEG_A_LDIST_THRES,
-    SEG_A_RDIST_THRES,
-    SEG_C_LDIST_THRES,
-    SEG_C_RDIST_THRES,
-    SEG_G_LDIST_THRES,
-    SEG_G_RDIST_THRES,
-    SEG_T_LDIST_THRES,
-    SEG_T_RDIST_THRES,
-    */
-
     SEG_FORMAT_THRES_SET_END
 };
 #define NUM_SEG_FORMAT_THRES_SETS ((size_t)SEG_FORMAT_THRES_SET_END)
@@ -548,23 +444,6 @@ enum SegFormatDepthSet {
     SEG_aDPrf,
     SEG_aDPrr,
     
-    /*
-    SEG_aR1, // 9 edge position
-    SEG_aR2,
-    SEG_aR3, // 25 edge position
-    SEG_aR4, 
-    SEG_aR5, // 49
-    */
-    /*
-    SEG_alA, // 9 edge position
-    SEG_alC,
-    SEG_alG, // 25 edge position
-    SEG_alT, 
-    SEG_arA, // 9 edge position
-    SEG_arC,
-    SEG_arG, // 25 edge position
-    SEG_arT, 
-    */
     SEG_aXM1,
     SEG_aXM2,
     SEG_aBM2,
@@ -589,16 +468,16 @@ enum SegFormatDepthSet {
     SEG_aRB2,
     SEG_aRBL,
     
-    // SEG_aLIDP, 
     SEG_aLI1, // left insert
     SEG_aLI2,
     SEG_aLILf,
     SEG_aLILr,
-    // SEG_aRIDP,
+    
     SEG_aRI1, // right insert
     SEG_aRI2,
     SEG_aRILf,
     SEG_aRILr,
+    
     SEG_FORMAT_DEPTH_SET_END
 };
 #define NUM_SEG_FORMAT_DEPTH_SETS ((size_t)SEG_FORMAT_DEPTH_SET_END)
@@ -617,14 +496,7 @@ enum FamFormatDepthSet {
     FAM_cDPM, // duped match
     FAM_cDPm, // duped mismatch
     FAM_c1DP, //  singleton
-    /*
-    FAM_cDPr,  // raw 
-    FAM_cDP1r, //  0, 0.8 
-    FAM_cDP2r, //  2, 0.8, family-consensus
-    FAM_cDP3r, // 10, 0.8, family-consensus
-    FAM_cDPMr, // duped match
-    FAM_cDPmr, // duped mismatch
-    */
+    
     FAM_FORMAT_DEPTH_SET_END
 };
 #define NUM_FAM_FORMAT_DEPTH_SETS ((size_t)FAM_FORMAT_DEPTH_SET_END)
@@ -643,12 +515,7 @@ enum DuplexFormatDepthSet {
 //         MIN(C-FA-QUAL (base30), C-DPQ-iiderr-QUAL-bidir))
 //         MIN(D-FA-QUAL (base60), D-DPQ-iiderr-QUAL))
 enum VQFormatTagSet {
-    //VQ_aFA,  // bias // all in phred
-    //VQ_bFA,  // duped
-    //VQ_cFA,  // deduped
-    //VQ_cFA2, // consensus
-    //VQ_cFA3, // consensus
-    // VQ_uFA,  // unified
+    
     VQ_a1XM,
     
     VQ_a1BQf,
@@ -657,7 +524,6 @@ enum VQFormatTagSet {
     VQ_a2BQr,
         
     VQ_bMQ,
-    // VQ_bMQVQ,
     
     VQ_bIAQb, // prefinal
     VQ_bIADb, 
@@ -673,7 +539,6 @@ enum VQFormatTagSet {
     
     // later computed
     VQ_aBQQ, // prefinal
-    // VQ_bIAQ, // prefinal
     VQ_bIAQ, // prefinal
     VQ_cIAQ, // prefinal
     
@@ -697,13 +562,6 @@ unsigned int
 seg_format_get_ad(const auto & s) {
     return s[SEG_aDPff] + s[SEG_aDPfr] + s[SEG_aDPrf] + s[SEG_aDPrr];
 };
-
-/*
-unsigned int
-seg_format_get_avgBQ(const auto & s, const auto & q) {
-    return (q[VQ_a1BQf] + q[VQ_a1BQr]) / MAX(1, seg_format_get_ad(s));
-};
-*/
 
 unsigned int
 get_avgBQ(const auto & bg_seg_bqsum_conslogo, const auto & symbol_to_seg_format_depth_sets, const unsigned int epos, const auto s) {
@@ -739,13 +597,12 @@ dp4_to_pcFA(double aADpass, double aADfail, double aDPpass, double aDPfail,
     double aADpassfrac = aADpass / (aADpass + aADfail);
     double aBDpassfrac = aBDpass / (aBDpass + aBDfail);
     if ((!TBidirectional) && (aADavgKeyVal >= 0) && (aDPavgKeyVal >= 0)) {
-        aADpassfrac = aADavgKeyVal / (aADavgKeyVal + aDPavgKeyVal * 0.9); // it was 0.9 // MIN(0.5, 0.5 * aADavgKeyVal / aDPavgKeyVal); // intrapolate
+        aADpassfrac = aADavgKeyVal / (aADavgKeyVal + aDPavgKeyVal * 0.9); // interpolate
         aBDpassfrac = 1.0 - aADpassfrac;
     }
     double infogain = aADfail * log((1.0 - aADpassfrac) / (1.0 - aBDpassfrac));
     if (TBidirectional) { 
         infogain += aADpass * log(aADpassfrac / aBDpassfrac); 
-        // double infogain2 = (aDPpass - aADpass) * log((1.0 - aBDpassfrac) / (1.0 - aADpassfrac));
     }
 #ifdef TEST_dp4_to_pcFA
     printf("infogain = %f\n", infogain);
@@ -755,48 +612,6 @@ dp4_to_pcFA(double aADpass, double aADfail, double aDPpass, double aDPfail,
     } else {
         return std::array<double, 2> {{ MAX(aADpass / aDPpass, (aADfail / aDPfail) * exp((n_nats - infogain) / pl_exponent)), nobiasFA }};
     }
-}
-
-double 
-_dp4_to_pcFA(double aDPfw, double aDPrv, double aADfw, double aADrv, double refmul = 1.0, double altmul = 1.0, double powlaw_exponent = 3.0) {
-    double sor = ((aADfw + 1) * (aDPrv + 1)) / ((aADrv + 1) * (aDPfw + 1));
-    double aADpc = MAX(0, 3.5 - log(MAX(sor, 1/sor)) / log(3)); // / log(3));
-    // double aADpc = 2.0 * (log(2.0) * powlaw_exponent) / log(1.0 + MAX(sor, 1.0 / sor));
-    //double aFAfw = ((aADfw + aADpc) / altmul + 0.5) / ((aDPfw - aADfw + aADpc) / refmul + (aADfw + aADpc) / altmul + 1.0);
-    //double aFArv = ((aADrv + aADpc) / altmul + 0.5) / ((aDPrv - aADrv + aADpc) / refmul + (aADrv + aADpc) / altmul + 1.0);
-    double aFAfw = (aADfw + aADpc + 0.5) / (aDPfw + (aADpc * 2) + 1.0);
-    double aFArv = (aADrv + aADpc + 0.5) / (aDPrv + (aADpc * 2) + 1.0);
-    return MIN(aFAfw, aFArv);
-}
-
-template
-<bool TBidirectional = true>
-double 
-_dp4_to_pcFA(double aADpass, double aADfail, double aDPpass, double aDPfail, double n_nats = log(500+1)) {
-    assert(aADpass <= aDPpass);
-    assert(aADfail <= aDPfail);
-    
-    aDPfail += 1.0;
-    aDPpass += 1.0;
-    aADfail += 0.5;
-    aADpass += 0.5;
-    // double bothFA = (aADpass + aADfail) / (aDPpass + aDPfail);
-    if ((aADpass / aDPpass) > (aADfail / aDPfail)) {
-        if (TBidirectional) {
-            autoswap(aDPfail, aDPpass);
-            autoswap(aADfail, aADpass);
-        } else {
-            return (aADpass / aDPpass);
-        }
-    }
-    auto aBDfail = aDPfail * 3 - aADfail * 2;
-    auto aBDpass = aDPpass * 3 - aADpass * 2;
-    double aADpassfrac = aADpass / (aADpass + aADfail);
-    double aBDpassfrac = aBDpass / (aBDpass + aBDfail);
-    double infogain = aADpass * log(aADpassfrac / aBDpassfrac) + aADfail * log((1.0 - aADpassfrac) / (1.0 - aBDpassfrac));
-    double weightpass =                (infogain) * aDPpass;
-    double weightfail = MAX(0, n_nats - infogain) * aDPfail;
-    return ((aADpass / aDPpass) * weightpass + (aADfail / aDPfail) * weightfail) / (weightpass + weightfail);
 }
 
 #ifdef TEST_dp4_to_pcFA
@@ -913,7 +728,7 @@ infer_max_qual_assuming_independence(
         currvqual = (int)(currAD * (currBQ - expBQ));
         if (currvqual > maxvqual) {
             argmaxAD = currAD;
-            argmaxBQ = currBQ; // This was changed from expBQ, that is a big change for UMI data TODO: re-evaluate
+            argmaxBQ = currBQ;
             maxvqual = currvqual;
         }
     }

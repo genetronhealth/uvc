@@ -165,14 +165,16 @@ isSymbolDel(const AlignmentSymbol symbol) {
 }
 
 constexpr AlignmentSymbol 
-insLenToSymbol(unsigned int len) {
-    //assert(len > 0);
+insLenToSymbol(unsigned int len, const bam1_t *b) {
+    assert(len > 0 || !fprintf(stderr, "Error: the bam record with qname %s at tid %d pos %d has insertion of length %u!\n", 
+            bam_get_qname(b), bam->core.tid, bam->core.pos, len));
     return 1 == len ? LINK_I1 : (2 == len ? LINK_I2 : LINK_I3P);
 }
 
 constexpr AlignmentSymbol 
-delLenToSymbol(unsigned int len) {
-    //assert(len > 0);
+delLenToSymbol(unsigned int len, const bam1_t *b) {
+    assert(len > 0 || !fprintf(stderr, "Error: the bam record with qname %s at tid %d pos %d has deletion of length %u!\n", 
+            bam_get_qname(b), bam->core.tid, bam->core.pos, len));
     return 1 == len ? LINK_D1 : (2 == len ? LINK_D2 : LINK_D3P);
 }
 
@@ -211,12 +213,6 @@ const AlignmentSymbol SYMBOL_TYPE_TO_INCLU_END[NUM_SYMBOL_TYPES] = {
 const AlignmentSymbol SYMBOL_TYPE_TO_AMBIG[NUM_SYMBOL_TYPES] = {
     [BASE_SYMBOL] = BASE_NN,
     [LINK_SYMBOL] = LINK_NN,
-};
-
-// Warning: misuse can cause arr-out-of-bound error
-const AlignmentSymbol SYMBOL_TYPE_TO_NO_VAR_SYMBOL[NUM_SYMBOL_TYPES] = {
-    [BASE_SYMBOL] = BASE_NO_SNV,
-    [LINK_SYMBOL] = LINK_NO_INDEL,
 };
 
 const std::array<SymbolType, 2> SYMBOL_TYPES_IN_VCF_ORDER = {{LINK_SYMBOL, BASE_SYMBOL}};
@@ -303,8 +299,8 @@ const char* SYMBOL_TO_DESC_ARR[] = {
     [LINK_NN] = "*",
     [END_ALIGNMENT_SYMBOLS] = "<ALN_SYMBOL_END>",
     [GVCF_SYMBOL] = "<NON_REF>",
-    [BASE_NO_SNV] = "<NO_SNV>",
-    [LINK_NO_INDEL] = "<NO_INDEL>"
+    // [BASE_NO_SNV] = "<NO_SNV>",
+    // [LINK_NO_INDEL] = "<NO_INDEL>"
 };
 
 const std::map<std::string, AlignmentSymbol>
@@ -347,10 +343,10 @@ public:
     };
     
     const TB2C
-    vectorsumBySymbolType(const SymbolType symbolType) const {
+    vectorsumBySymbolType(const SymbolType symboltype) const {
         TB2C ret = {0};
-        for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; 
-                symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; 
+        for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symboltype]; 
+                symbol <= SYMBOL_TYPE_TO_INCLU_END[symboltype]; 
                 symbol = AlignmentSymbol(1+((unsigned int)symbol))) {
             for (size_t i = 0; i < this->symbol2data[symbol].size(); i++) {
                 ret[i] += this->getSymbolBucketCount(symbol, i);
@@ -402,10 +398,10 @@ public:
     };
     
     const TInteger
-    sumBySymbolType(const SymbolType symbolType) const {
-        if (symbolType == BASE_SYMBOL) {
+    sumBySymbolType(const SymbolType symboltype) const {
+        if (symboltype == BASE_SYMBOL) {
             return this->_sumBySymbolType(BASE_A, BASE_NN);
-        } else if (symbolType == LINK_SYMBOL) {
+        } else if (symboltype == LINK_SYMBOL) {
             return this->_sumBySymbolType(LINK_M, LINK_NN);
         } else {
             abort();
@@ -447,10 +443,10 @@ public:
     const int
     fillConsensusCounts(
             AlignmentSymbol & count_argmax, unsigned int & count_max, unsigned int & count_sum,
-            const SymbolType symbolType) const {
-        if (symbolType == BASE_SYMBOL) {
+            const SymbolType symboltype) const {
+        if (symboltype == BASE_SYMBOL) {
             return this->template _fillConsensusCounts<false        >(count_argmax, count_max, count_sum, BASE_A, BASE_NN);
-        } else if (symbolType == LINK_SYMBOL) {
+        } else if (symboltype == LINK_SYMBOL) {
             return this->template _fillConsensusCounts<TIndelIsMajor>(count_argmax, count_max, count_sum, LINK_M, LINK_NN);
         } else {
             abort();
@@ -461,11 +457,11 @@ public:
     template<bool TIndelIsMajor>
     const AlignmentSymbol
     _updateByConsensus(const GenericSymbol2Count<TInteger> & thatSymbol2Count,
-            const SymbolType symbolType, const AlignmentSymbol ambig_pos, unsigned int incvalue) {
+            const SymbolType symboltype, const AlignmentSymbol ambig_pos, unsigned int incvalue) {
         AlignmentSymbol argmax_count = END_ALIGNMENT_SYMBOLS; // AlignmentSymbol(0) is not fully correct
         unsigned int max_count = 0;
         unsigned int sum_count = 0;
-        thatSymbol2Count.template fillConsensusCounts<TIndelIsMajor>(argmax_count, max_count, sum_count, symbolType);
+        thatSymbol2Count.template fillConsensusCounts<TIndelIsMajor>(argmax_count, max_count, sum_count, symboltype);
         
         if (max_count > 0) {
             if ((sum_count - max_count) == 0) {
@@ -493,8 +489,8 @@ public:
     updateByRepresentative(const GenericSymbol2Count<TInteger> & other, unsigned int incvalue = 1) {
         AlignmentSymbol consalpha; 
         unsigned int countalpha, totalalpha;
-        for (SymbolType symbolType = SymbolType(0); symbolType < NUM_SYMBOL_TYPES; symbolType = SymbolType(1 + (unsigned int)symbolType)) { 
-            other.fillConsensusCounts(consalpha, countalpha, totalalpha, symbolType);
+        for (SymbolType symboltype = SymbolType(0); symboltype < NUM_SYMBOL_TYPES; symboltype = SymbolType(1 + (unsigned int)symboltype)) { 
+            other.fillConsensusCounts(consalpha, countalpha, totalalpha, symboltype);
             if (countalpha > 0) {
                 this->symbol2data[consalpha] += (TIsIncVariable ? totalalpha : incvalue);
             }
@@ -511,18 +507,18 @@ public:
         int ret = 0;
         AlignmentSymbol consalpha;
         unsigned int countalpha, totalalpha;
-        for (SymbolType symbolType = SymbolType(0); symbolType < NUM_SYMBOL_TYPES; symbolType = SymbolType(1 + (unsigned int)symbolType)) {
-            if (LINK_SYMBOL == symbolType) {
-                other.template fillConsensusCounts<true >(consalpha, countalpha, totalalpha, symbolType);
+        for (SymbolType symboltype = SymbolType(0); symboltype < NUM_SYMBOL_TYPES; symboltype = SymbolType(1 + (unsigned int)symboltype)) {
+            if (LINK_SYMBOL == symboltype) {
+                other.template fillConsensusCounts<true >(consalpha, countalpha, totalalpha, symboltype);
             } else {
-                other.template fillConsensusCounts<false>(consalpha, countalpha, totalalpha, symbolType);
+                other.template fillConsensusCounts<false>(consalpha, countalpha, totalalpha, symboltype);
             }
             auto adjcount = MAX(countalpha * 2, totalalpha) - totalalpha;
-            if (adjcount >= thres[symbolType] && adjcount > 0) {
+            if (adjcount >= thres[symboltype] && adjcount > 0) {
                 this->symbol2data[consalpha] += incvalue;
                 ret++;
             }
-            con_symbols[symbolType] = consalpha;
+            con_symbols[symboltype] = consalpha;
         }
         return ret;
     };
@@ -535,18 +531,18 @@ public:
         int ret = 0;
         AlignmentSymbol consalpha;
         unsigned int countalpha, totalalpha;
-        for (SymbolType symbolType : SYMBOL_TYPE_ARR) {
-            if (LINK_SYMBOL == symbolType) {
-                other.template fillConsensusCounts<true >(consalpha, countalpha, totalalpha, symbolType);
+        for (SymbolType symboltype : SYMBOL_TYPE_ARR) {
+            if (LINK_SYMBOL == symboltype) {
+                other.template fillConsensusCounts<true >(consalpha, countalpha, totalalpha, symboltype);
             } else {
-                other.template fillConsensusCounts<false>(consalpha, countalpha, totalalpha, symbolType);
+                other.template fillConsensusCounts<false>(consalpha, countalpha, totalalpha, symboltype);
             }
             auto adjcount = MAX(countalpha * 2, totalalpha) - totalalpha;
             if (adjcount > 0) {
                 this->symbol2data[consalpha] += adjcount;
                 ret++;
             }
-            con_symbols[symbolType] = consalpha;
+            con_symbols[symboltype] = consalpha;
         }
         return ret;
     };
@@ -646,10 +642,10 @@ typedef CoveredRegion<std::array<std::array<molcount_t, NUM_VQ_FORMAT_TAG_SETS>,
 unsigned int
 formatSumBySymbolType(
         const auto & xFormatYSets,
-        const auto symbolType,
+        const auto symboltype,
         const auto formatSet) {
     unsigned int ret = 0;
-    for (auto symbol : SYMBOL_TYPE_TO_SYMBOLS[symbolType]) {
+    for (auto symbol : SYMBOL_TYPE_TO_SYMBOLS[symboltype]) {
         ret += xFormatYSets[symbol][formatSet];
     }
     return ret;
@@ -1605,7 +1601,7 @@ public:
         const uint32_t *cigar = bam_get_cigar(aln);
         const uint8_t *bseq = bam_get_seq(aln);
         const uint32_t rend = bam_endpos(aln);
-        const std::array<unsigned int, NUM_SYMBOL_TYPES> symbolType2addPhred = {{paramset.bq_phred_added_misma, paramset.bq_phred_added_indel}};
+        const std::array<unsigned int, NUM_SYMBOL_TYPES> symboltype2addPhred = {{paramset.bq_phred_added_misma, paramset.bq_phred_added_indel}};
         
         unsigned int nge_cnt = 0; // number of gap extensions.
         unsigned int ngo_cnt = 0; // number of gap opens.
@@ -1753,7 +1749,7 @@ if ((!is_assay_amplicon) || (ibeg <= rpos && rpos < iend)) {
                         unsigned int insdp = MAX(seg_format_prep_sets.getByPos(rpos)[SEG_a_AT_INS_DP], seg_format_prep_sets.getByPos(rpos)[SEG_a_NEAR_RTR_INS_DP]);
                         is_affected_by_indels = (MAX(deldp, insdp) * 2 >= seg_format_prep_sets.getByPos(rpos)[SEG_a_DP]);
                     }
-                    incvalue = bam_phredi(aln, qpos) + (is_affected_by_indels ? MIN(symbolType2addPhred[BASE_SYMBOL], symbolType2addPhred[LINK_SYMBOL]) : symbolType2addPhred[BASE_SYMBOL]);
+                    incvalue = bam_phredi(aln, qpos) + (is_affected_by_indels ? MIN(symboltype2addPhred[BASE_SYMBOL], symboltype2addPhred[LINK_SYMBOL]) : symboltype2addPhred[BASE_SYMBOL]);
                     this->template inc<TUpdateType>(rpos, AlignmentSymbol(base3bit), incvalue, aln);
                     if (TIsBiasUpdated) {
                         dealwith_segbias<false>(
@@ -1788,7 +1784,7 @@ if ((!is_assay_amplicon) || (ibeg <= rpos && rpos < iend)) {
                     incvalue = (0 != qpos ? bam_phredi(aln, qpos-1) : 
                             ((qpos + cigar_oplen < SIGN2UNSIGN(aln->core.l_qseq)) ? 
                             bam_phredi(aln, qpos + SIGN2UNSIGN(cigar_oplen)) : 1)) 
-                            + (symbolType2addPhred[LINK_SYMBOL]);
+                            + (symboltype2addPhred[LINK_SYMBOL]);
                 } else {
                     unsigned int phredvalue = ref_to_phredvalue(
                             inslen, 
@@ -1824,10 +1820,10 @@ if ((!is_assay_amplicon) || (ibeg <= rpos && rpos < iend)) {
                                     ((lclip_len + paramset.microadjust_cliplen >= rpos - aln->core.pos) && isrc) 
                                  || ((rclip_len + paramset.microadjust_cliplen >= rend - aln->core.pos) && !isrc)))) 
                             ? qfromBQ1 : (TIsProton ? MIN(qfromBQ1 + proton_cigarlen2phred(cigar_oplen), MAX(3, qfromBQ1) * cigar_oplen) : 80));
-                    incvalue = non_neg_minus(MIN(qfromBQ2, phredvalue + symbolType2addPhred[LINK_SYMBOL]), micro_indel_penal) + 1;
+                    incvalue = non_neg_minus(MIN(qfromBQ2, phredvalue + symboltype2addPhred[LINK_SYMBOL]), micro_indel_penal) + 1;
                 }
                 if (!is_ins_at_read_end) {
-                    const auto symbol = insLenToSymbol(inslen);
+                    const auto symbol = insLenToSymbol(inslen, aln);
                     this->template inc<TUpdateType>(rpos, symbol, MAX(SIGN2UNSIGN(1), incvalue), aln);
                     if (TIsBiasUpdated) {
                         dealwith_segbias<true>(
@@ -1855,9 +1851,9 @@ if ((!is_assay_amplicon) || (ibeg <= rpos && rpos < iend)) {
                         const char base8bit = seq_nt16_str[base4bit];
                         iseq.push_back(base8bit);
                         incvalue2 = MIN(incvalue2, SIGN2UNSIGN(bam_seqi(bseq, qpos+i2)))
-                                + (symbolType2addPhred[LINK_SYMBOL]);
+                                + (symboltype2addPhred[LINK_SYMBOL]);
                     }
-                    this->incIns(rpos, iseq, insLenToSymbol(inslen), MAX(SIGN2UNSIGN(1), incvalue2));
+                    this->incIns(rpos, iseq, insLenToSymbol(inslen, aln), MAX(SIGN2UNSIGN(1), incvalue2));
                 }
 }
                 qpos += cigar_oplen;
@@ -1871,7 +1867,7 @@ if ((!is_assay_amplicon) || (ibeg <= rpos && rpos < iend)) {
                     incvalue = (0 != qpos ? bam_phredi(aln, qpos-1) : 
                             ((qpos < SIGN2UNSIGN(aln->core.l_qseq)) ? 
                             bam_phredi(aln, qpos) : 1))
-                            + (symbolType2addPhred[LINK_SYMBOL]);
+                            + (symboltype2addPhred[LINK_SYMBOL]);
                 } else {
                     unsigned int phredvalue = ref_to_phredvalue(
                             dellen, 
@@ -1921,10 +1917,10 @@ if ((!is_assay_amplicon) || (ibeg <= rpos && rpos < iend)) {
                     int qfromBAQl = baq_offsetarr.getByPos(rpos) - baq_offsetarr.getByPos(prev_rpos);
                     int qfromBAQr = baq_offsetarr.getByPos(next_rpos) - baq_offsetarr.getByPos(rpos + cigar_oplen);
                     int qfromBAQ = MAX3(delFAQ, qfromBQ1, MIN(qfromBAQl, qfromBAQr));
-                    incvalue = non_neg_minus(MIN3(qfromBQ2, qfromBAQ, phredvalue + symbolType2addPhred[LINK_SYMBOL]), micro_indel_penal) + 1;
+                    incvalue = non_neg_minus(MIN3(qfromBQ2, qfromBAQ, phredvalue + symboltype2addPhred[LINK_SYMBOL]), micro_indel_penal) + 1;
                 }
                 if (!is_del_at_read_end) {
-                    AlignmentSymbol symbol = delLenToSymbol(dellen);
+                    AlignmentSymbol symbol = delLenToSymbol(dellen, aln);
                     this->template inc<TUpdateType>(rpos, symbol, MAX(SIGN2UNSIGN(1), incvalue), aln);
                     if (TIsBiasUpdated) {
                         dealwith_segbias<true>(
@@ -1944,7 +1940,7 @@ if ((!is_assay_amplicon) || (ibeg <= rpos && rpos < iend)) {
                                 paramset,
                                 0);
                     }
-                    this->incDel(rpos, cigar_oplen, delLenToSymbol(dellen), MAX(SIGN2UNSIGN(1), incvalue));
+                    this->incDel(rpos, cigar_oplen, delLenToSymbol(dellen, aln), MAX(SIGN2UNSIGN(1), incvalue));
 #if 1 
 // The definition of non-ref for deletion is not clearly defined, this piece of code makes sure that deletion identity conforms to the VCF specs.
                     for (unsigned int rpos2 = rpos; rpos2 < MIN(rpos + cigar_oplen, rend); rpos2++) {
@@ -2189,13 +2185,13 @@ struct Symbol2CountCoverageSet {
                     }
                     std::basic_string<std::pair<unsigned int, AlignmentSymbol>> pos_symbol_string;
                     for (auto epos = read_ampBQerr_fragWithR1R2.getIncluBegPosition(); epos < read_ampBQerr_fragWithR1R2.getExcluEndPosition(); epos++) {
-                        for (SymbolType symbolType : SYMBOL_TYPES_IN_VCF_ORDER) {
+                        for (SymbolType symboltype : SYMBOL_TYPES_IN_VCF_ORDER) {
                             AlignmentSymbol con_symbol;
                             unsigned int con_count, tot_count;
-                            if (LINK_SYMBOL == symbolType) {
-                                read_ampBQerr_fragWithR1R2.getByPos(epos).template fillConsensusCounts<true >(con_symbol, con_count, tot_count, symbolType);
+                            if (LINK_SYMBOL == symboltype) {
+                                read_ampBQerr_fragWithR1R2.getByPos(epos).template fillConsensusCounts<true >(con_symbol, con_count, tot_count, symboltype);
                             } else {
-                                read_ampBQerr_fragWithR1R2.getByPos(epos).template fillConsensusCounts<false>(con_symbol, con_count, tot_count, symbolType); 
+                                read_ampBQerr_fragWithR1R2.getByPos(epos).template fillConsensusCounts<false>(con_symbol, con_count, tot_count, symboltype); 
                             }
                             assert (con_count * 2 >= tot_count);
                             if (0 == tot_count) { continue; }
@@ -2228,7 +2224,7 @@ struct Symbol2CountCoverageSet {
                                         read_ampBQerr_fragWithR1R2.getPosToDlenToData(con_symbol), epos, 1);
                             }
                             AlignmentSymbol refsymbol = region_symbolvec[epos-this->getUnifiedIncluBegPosition()]; 
-                            if (areSymbolsMutated(refsymbol, con_symbol) && (LINK_SYMBOL == symbolType || phredlike >= paramset.bias_thres_highBQ)) {
+                            if (areSymbolsMutated(refsymbol, con_symbol) && (LINK_SYMBOL == symboltype || phredlike >= paramset.bias_thres_highBQ)) {
                                 pos_symbol_string.push_back(std::make_pair(epos, con_symbol));
                             }
                         }
@@ -2243,13 +2239,13 @@ struct Symbol2CountCoverageSet {
         assert(this->symbol_to_seg_format_depth_sets.getIncluBegPosition() == this->dedup_ampDistr[0].getIncluBegPosition());
         assert(this->symbol_to_seg_format_depth_sets.getExcluEndPosition() == this->dedup_ampDistr[0].getExcluEndPosition());
         for (unsigned int epos = this->getUnifiedIncluBegPosition(); epos < this->getUnifiedExcluEndPosition(); epos++) {
-            for (SymbolType symbolType : SYMBOL_TYPE_ARR) {
-                for (AlignmentSymbol symbol : SYMBOL_TYPE_TO_SYMBOLS[symbolType]) {
+            for (SymbolType symboltype : SYMBOL_TYPE_ARR) {
+                for (AlignmentSymbol symbol : SYMBOL_TYPE_TO_SYMBOLS[symboltype]) {
                     const auto totDP = 
                             formatSumBySymbolType(this->symbol_to_frag_format_depth_sets[0].getByPos(epos), 
-                            symbolType, FRAG_bDP) + 
+                            symboltype, FRAG_bDP) + 
                             formatSumBySymbolType(this->symbol_to_frag_format_depth_sets[1].getByPos(epos), 
-                            symbolType, FRAG_bDP); 
+                            symboltype, FRAG_bDP); 
                     int max_qual = 8 + get_avgBQ(bg_seg_bqsum_conslogo, symbol_to_seg_format_depth_sets, epos, symbol);
                     int maxvqual = 0;
                     unsigned int argmaxAD = 0;
@@ -2333,10 +2329,10 @@ struct Symbol2CountCoverageSet {
                 }
                 for (size_t epos = read_family_con_ampl.getIncluBegPosition(); epos < read_family_con_ampl.getExcluEndPosition(); epos++) {
                     const auto & con_ampl_symbol2count = read_family_con_ampl.getByPos(epos);
-                    for (SymbolType symbolType : SYMBOL_TYPE_ARR) {
+                    for (SymbolType symboltype : SYMBOL_TYPE_ARR) {
                         AlignmentSymbol con_symbol; // = END_ALIGNMENT_SYMBOLS;
                         unsigned int con_count, tot_count;
-                        con_ampl_symbol2count.fillConsensusCounts(con_symbol, con_count, tot_count, symbolType);
+                        con_ampl_symbol2count.fillConsensusCounts(con_symbol, con_count, tot_count, symboltype);
                         if (0 == tot_count) { continue ; }
                         this->symbol_to_fam_format_depth_sets_2strand[strand].getRefByPos(epos)[con_symbol][FAM_cDP12] += 1;
                         if (1 == tot_count) {
@@ -2368,7 +2364,7 @@ struct Symbol2CountCoverageSet {
                                 paramset.fam_thres_emperr_con_perc_snv : paramset.fam_thres_emperr_con_perc_indel);
                         if (tot_count < fam_thres_emperr_all_flat) { continue; } 
                         if (con_count * 100 < tot_count * fam_thres_emperr_con_perc) { continue; }
-                        for (AlignmentSymbol symbol : SYMBOL_TYPE_TO_SYMBOLS[symbolType]) {
+                        for (AlignmentSymbol symbol : SYMBOL_TYPE_TO_SYMBOLS[symboltype]) {
                             if (con_symbol != symbol) {
                                 this->symbol_to_fam_format_depth_sets_2strand[strand].getRefByPos(epos)[con_symbol][FAM_cDPm] += 
                                         con_ampl_symbol2count.getSymbolCount(symbol);
@@ -2431,14 +2427,14 @@ struct Symbol2CountCoverageSet {
                 for (size_t epos = read_family_mmm_ampl.getIncluBegPosition(); 
                         epos < read_family_mmm_ampl.getExcluEndPosition(); 
                         epos++) {
-                    for (SymbolType symbolType : SYMBOL_TYPES_IN_VCF_ORDER) {
+                    for (SymbolType symboltype : SYMBOL_TYPES_IN_VCF_ORDER) {
                         
                         AlignmentSymbol con_symbol; // assign with the value AlignmentSymbol(NUM_ALIGNMENT_SYMBOLS) to flag for error
                         unsigned int con_sumBQs, tot_sumBQs;
-                        read_family_mmm_ampl.getRefByPos(epos).fillConsensusCounts(con_symbol, con_sumBQs, tot_sumBQs, symbolType);
+                        read_family_mmm_ampl.getRefByPos(epos).fillConsensusCounts(con_symbol, con_sumBQs, tot_sumBQs, symboltype);
                         if (0 == tot_sumBQs) { continue; }
                         unsigned int con_nfrags = read_family_con_ampl.getByPos(epos).getSymbolCount(con_symbol);
-                        unsigned int tot_nfrags = read_family_con_ampl.getByPos(epos).sumBySymbolType(symbolType);
+                        unsigned int tot_nfrags = read_family_con_ampl.getByPos(epos).sumBySymbolType(symboltype);
                         // if (0 == tot_nfrags) { continue; }
                         
                         this->symbol_to_fam_format_depth_sets_2strand[strand].getRefByPos(epos)[con_symbol][FAM_cDP1] += 1; // in some rare cases, cDP1 > cDP0 
@@ -2453,7 +2449,7 @@ struct Symbol2CountCoverageSet {
                         // If no majority is obtained, then confam_qual is set to one.
                         const int indep_frag_phred = ((int)round(((int)(con_nfrags * 2) - (int)tot_nfrags) * realphred));
                         unsigned int confam_qual = 0;
-                        if (LINK_SYMBOL == symbolType) {
+                        if (LINK_SYMBOL == symboltype) {
                             // unsigned int n_units =  SYMBOL_TO_INDEL_N_UNITS[con_symbol];
                             confam_qual = (unsigned int)MAX(1, (MIN(indep_frag_phred,
                                     // PCR error of the first cycle + error in consensus selection
@@ -2470,7 +2466,7 @@ struct Symbol2CountCoverageSet {
                         }
                         
                         AlignmentSymbol ref_symbol = region_symbolvec[epos - this->getUnifiedIncluBegPosition()]; 
-                        if (areSymbolsMutated(ref_symbol, con_symbol) && (LINK_SYMBOL == symbolType || confam_qual >= paramset.bias_thres_highBQ)) {
+                        if (areSymbolsMutated(ref_symbol, con_symbol) && (LINK_SYMBOL == symboltype || confam_qual >= paramset.bias_thres_highBQ)) {
                             pos_symbol_string.push_back(std::make_pair(epos, con_symbol));
                         }
                         unsigned int max_qual = sscs_mut_table.toPhredErrRate(ref_symbol, con_symbol);
@@ -2489,10 +2485,10 @@ struct Symbol2CountCoverageSet {
             }
             if ((0x2 == (alns2pair2dflag.second & 0x2)) && alns2pair[0].size() > 0 && alns2pair[1].size() > 0) { // is duplex
                 for (size_t epos = read_duplex_amplicon.getIncluBegPosition(); epos < read_duplex_amplicon.getExcluEndPosition(); epos++) {
-                    for (SymbolType symbolType = SymbolType(0); symbolType < NUM_SYMBOL_TYPES; symbolType = SymbolType(1+(unsigned int)symbolType)) {
+                    for (SymbolType symboltype = SymbolType(0); symboltype < NUM_SYMBOL_TYPES; symboltype = SymbolType(1+(unsigned int)symboltype)) {
                         AlignmentSymbol con_symbol;
                         unsigned int con_count, tot_count;
-                        read_duplex_amplicon.getRefByPos(epos).fillConsensusCounts(con_symbol, con_count, tot_count, symbolType);
+                        read_duplex_amplicon.getRefByPos(epos).fillConsensusCounts(con_symbol, con_count, tot_count, symboltype);
                         assert (tot_count <= 2 || !fprintf(stderr, "%d <= 2 failed for duplex family, a duplex family is supported by two single-strand families!\n", tot_count));
                         if (0 < tot_count) {
                             this->symbol_to_duplex_format_depth_sets.getRefByPos(epos)[con_symbol][DUPLEX_dDP1] += 1;
@@ -2511,10 +2507,10 @@ struct Symbol2CountCoverageSet {
             auto VQ_cIAD = (strand ? VQ_cIADr : VQ_cIADf);
             auto VQ_cIDQ = (strand ? VQ_cIDQr : VQ_cIDQf);
             for (unsigned int epos = this->getUnifiedIncluBegPosition(); epos < this->getUnifiedExcluEndPosition(); epos++) {
-                for (SymbolType symbolType : SYMBOL_TYPE_ARR) {
+                for (SymbolType symboltype : SYMBOL_TYPE_ARR) {
                     AlignmentSymbol ref_symbol = region_symbolvec[epos - this->getUnifiedIncluBegPosition()];
-                    const auto totDP = formatSumBySymbolType(this->symbol_to_fam_format_depth_sets_2strand[strand].getRefByPos(epos), symbolType, FAM_cDP1);
-                    for (AlignmentSymbol symbol : SYMBOL_TYPE_TO_SYMBOLS[symbolType]) {
+                    const auto totDP = formatSumBySymbolType(this->symbol_to_fam_format_depth_sets_2strand[strand].getRefByPos(epos), symboltype, FAM_cDP1);
+                    for (AlignmentSymbol symbol : SYMBOL_TYPE_TO_SYMBOLS[symboltype]) {
                         const unsigned int max_qual = sscs_mut_table.toPhredErrRate(ref_symbol, symbol);
                         int maxvqual = 0;
                         unsigned int argmaxAD = 0;
@@ -2615,14 +2611,13 @@ struct Symbol2CountCoverageSet {
 void 
 fill_symboltype_fmt(
         auto & fmtDP,
-        auto & fmtAD,
         const auto & symbol_to_abcd_format_depth_sets,
         const auto format_field,
         const auto refpos,
-        const SymbolType symbolType, 
+        const SymbolType symboltype, 
         const AlignmentSymbol refsymbol) {
-    const auto symbolNN = SYMBOL_TYPE_TO_AMBIG[symbolType];
-    fmtDP[0] = formatSumBySymbolType(symbol_to_abcd_format_depth_sets.getByPos(refpos), symbolType, format_field);
+    const auto symbolNN = SYMBOL_TYPE_TO_AMBIG[symboltype];
+    fmtDP[0] = formatSumBySymbolType(symbol_to_abcd_format_depth_sets.getByPos(refpos), symboltype, format_field);
     fmtDP[1] = symbol_to_abcd_format_depth_sets.getByPos(refpos)[symbolNN][format_field];
 };
 
@@ -2716,11 +2711,11 @@ std::array<unsigned int, 2>
 BcfFormat_symboltype_init(bcfrec::BcfFormat & fmt,
         const Symbol2CountCoverageSet & symbol2CountCoverageSet12, 
         unsigned int refpos, 
-        const SymbolType symbolType,
+        const SymbolType symboltype,
         const AlignmentSymbol refsymbol,
         const unsigned int specialflag) {
     
-    const auto symbolNN = SYMBOL_TYPE_TO_AMBIG[symbolType]; 
+    const auto symbolNN = SYMBOL_TYPE_TO_AMBIG[symboltype]; 
     
     const auto & p = symbol2CountCoverageSet12.seg_format_prep_sets.getByPos(refpos);
     fmt.APDP = {{ 
@@ -2759,89 +2754,78 @@ BcfFormat_symboltype_init(bcfrec::BcfFormat & fmt,
     const auto & symbol_to_VQ_format_tag_sets = symbol2CountCoverageSet12.symbol_to_VQ_format_tag_sets;
     const auto & symbol_to_seg_format_depth_sets = symbol2CountCoverageSet12.symbol_to_seg_format_depth_sets;
     
-    fill_symboltype_fmt(fmt.A1BQf, fmt.a1BQf, symbol_to_VQ_format_tag_sets,    VQ_a1BQf,  refpos, symbolType, refsymbol);
-    fill_symboltype_fmt(fmt.A1BQr, fmt.a1BQr, symbol_to_VQ_format_tag_sets,    VQ_a1BQr,  refpos, symbolType, refsymbol);
-    fill_symboltype_fmt(fmt.AMQs,  fmt.aMQs,  symbol_to_seg_format_depth_sets, SEG_aMQs,  refpos, symbolType, refsymbol); // this MQ can be used for addition and substraction.
-    fill_symboltype_fmt(fmt.AXMp1, fmt.aXMp1, symbol_to_seg_format_depth_sets, SEG_aXMp1, refpos, symbolType, refsymbol);
+    fill_symboltype_fmt(fmt.A1BQf, symbol_to_VQ_format_tag_sets,    VQ_a1BQf,  refpos, symboltype, refsymbol);
+    fill_symboltype_fmt(fmt.A1BQr, symbol_to_VQ_format_tag_sets,    VQ_a1BQr,  refpos, symboltype, refsymbol);
+    fill_symboltype_fmt(fmt.AMQs,  symbol_to_seg_format_depth_sets, SEG_aMQs,  refpos, symboltype, refsymbol); // this MQ can be used for addition and substraction.
+    fill_symboltype_fmt(fmt.AXMp1, symbol_to_seg_format_depth_sets, SEG_aXMp1, refpos, symboltype, refsymbol);
     
-    fill_symboltype_fmt(fmt.AP1,   fmt.aP1,   symbol_to_seg_format_depth_sets, SEG_aP1,   refpos, symbolType, refsymbol);
+    fill_symboltype_fmt(fmt.AP1,   symbol_to_seg_format_depth_sets, SEG_aP1,   refpos, symboltype, refsymbol);
     
-    fill_symboltype_fmt(fmt.ADPff, fmt.aDPff, symbol_to_seg_format_depth_sets, SEG_aDPff, refpos, symbolType, refsymbol);
-    fill_symboltype_fmt(fmt.ADPfr, fmt.aDPfr, symbol_to_seg_format_depth_sets, SEG_aDPfr, refpos, symbolType, refsymbol);
-    fill_symboltype_fmt(fmt.ADPrf, fmt.aDPrf, symbol_to_seg_format_depth_sets, SEG_aDPrf, refpos, symbolType, refsymbol);
-    fill_symboltype_fmt(fmt.ADPrr, fmt.aDPrr, symbol_to_seg_format_depth_sets, SEG_aDPrr, refpos, symbolType, refsymbol);
+    fill_symboltype_fmt(fmt.ADPff, symbol_to_seg_format_depth_sets, SEG_aDPff, refpos, symboltype, refsymbol);
+    fill_symboltype_fmt(fmt.ADPfr, symbol_to_seg_format_depth_sets, SEG_aDPfr, refpos, symboltype, refsymbol);
+    fill_symboltype_fmt(fmt.ADPrf, symbol_to_seg_format_depth_sets, SEG_aDPrf, refpos, symboltype, refsymbol);
+    fill_symboltype_fmt(fmt.ADPrr, symbol_to_seg_format_depth_sets, SEG_aDPrr, refpos, symboltype, refsymbol);
     
-    fill_symboltype_fmt(fmt.ALP1, fmt.aLP1, symbol_to_seg_format_depth_sets, SEG_aLP1, refpos, symbolType, refsymbol);
-    fill_symboltype_fmt(fmt.ALP2, fmt.aLP2, symbol_to_seg_format_depth_sets, SEG_aLP2, refpos, symbolType, refsymbol);
-    fill_symboltype_fmt(fmt.ALPL, fmt.aLPL, symbol_to_seg_format_depth_sets, SEG_aLPL, refpos, symbolType, refsymbol);
+    fill_symboltype_fmt(fmt.ALP1,  symbol_to_seg_format_depth_sets, SEG_aLP1, refpos, symboltype, refsymbol);
+    fill_symboltype_fmt(fmt.ALP2,  symbol_to_seg_format_depth_sets, SEG_aLP2, refpos, symboltype, refsymbol);
+    fill_symboltype_fmt(fmt.ALPL,  symbol_to_seg_format_depth_sets, SEG_aLPL, refpos, symboltype, refsymbol);
     
-    fill_symboltype_fmt(fmt.ARP1, fmt.aRP1, symbol_to_seg_format_depth_sets, SEG_aRP1, refpos, symbolType, refsymbol);
-    fill_symboltype_fmt(fmt.ARP2, fmt.aRP2, symbol_to_seg_format_depth_sets, SEG_aRP2, refpos, symbolType, refsymbol);
-    fill_symboltype_fmt(fmt.ARPL, fmt.aRPL, symbol_to_seg_format_depth_sets, SEG_aRPL, refpos, symbolType, refsymbol);
+    fill_symboltype_fmt(fmt.ARP1,  symbol_to_seg_format_depth_sets, SEG_aRP1, refpos, symboltype, refsymbol);
+    fill_symboltype_fmt(fmt.ARP2,  symbol_to_seg_format_depth_sets, SEG_aRP2, refpos, symboltype, refsymbol);
+    fill_symboltype_fmt(fmt.ARPL,  symbol_to_seg_format_depth_sets, SEG_aRPL, refpos, symboltype, refsymbol);
     
-    fill_symboltype_fmt(fmt.ALB1, fmt.aLB1, symbol_to_seg_format_depth_sets, SEG_aLB1, refpos, symbolType, refsymbol);
-    fill_symboltype_fmt(fmt.ALB2, fmt.aLB2, symbol_to_seg_format_depth_sets, SEG_aLB2, refpos, symbolType, refsymbol);
-    fill_symboltype_fmt(fmt.ALBL, fmt.aLBL, symbol_to_seg_format_depth_sets, SEG_aLBL, refpos, symbolType, refsymbol);
+    fill_symboltype_fmt(fmt.ALB1,  symbol_to_seg_format_depth_sets, SEG_aLB1, refpos, symboltype, refsymbol);
+    fill_symboltype_fmt(fmt.ALB2,  symbol_to_seg_format_depth_sets, SEG_aLB2, refpos, symboltype, refsymbol);
+    fill_symboltype_fmt(fmt.ALBL,  symbol_to_seg_format_depth_sets, SEG_aLBL, refpos, symboltype, refsymbol);
     
-    fill_symboltype_fmt(fmt.ARB1, fmt.aRB1, symbol_to_seg_format_depth_sets, SEG_aRB1, refpos, symbolType, refsymbol);
-    fill_symboltype_fmt(fmt.ARB2, fmt.aRB2, symbol_to_seg_format_depth_sets, SEG_aRB2, refpos, symbolType, refsymbol);
-    fill_symboltype_fmt(fmt.ARBL, fmt.aRBL, symbol_to_seg_format_depth_sets, SEG_aRBL, refpos, symbolType, refsymbol);
+    fill_symboltype_fmt(fmt.ARB1,  symbol_to_seg_format_depth_sets, SEG_aRB1, refpos, symboltype, refsymbol);
+    fill_symboltype_fmt(fmt.ARB2,  symbol_to_seg_format_depth_sets, SEG_aRB2, refpos, symboltype, refsymbol);
+    fill_symboltype_fmt(fmt.ARBL,  symbol_to_seg_format_depth_sets, SEG_aRBL, refpos, symboltype, refsymbol);
     
-    fill_symboltype_fmt(fmt.ABQ2, fmt.aBQ2, symbol_to_seg_format_depth_sets, SEG_aBQ2, refpos, symbolType, refsymbol);
+    fill_symboltype_fmt(fmt.ABQ2,  symbol_to_seg_format_depth_sets, SEG_aBQ2, refpos, symboltype, refsymbol);
     
-    fill_symboltype_fmt(fmt.APF1, fmt.aPF1, symbol_to_seg_format_depth_sets, SEG_aPF1, refpos, symbolType, refsymbol);
-    fill_symboltype_fmt(fmt.APF2, fmt.aPF2, symbol_to_seg_format_depth_sets, SEG_aPF2, refpos, symbolType, refsymbol);
+    fill_symboltype_fmt(fmt.APF1,  symbol_to_seg_format_depth_sets, SEG_aPF1, refpos, symboltype, refsymbol);
+    fill_symboltype_fmt(fmt.APF2,  symbol_to_seg_format_depth_sets, SEG_aPF2, refpos, symboltype, refsymbol);
     
-    fill_symboltype_fmt(fmt.ALI1, fmt.aLI1, symbol_to_seg_format_depth_sets, SEG_aLI1, refpos, symbolType, refsymbol);
-    fill_symboltype_fmt(fmt.ALI2, fmt.aLI2, symbol_to_seg_format_depth_sets, SEG_aLI2, refpos, symbolType, refsymbol);
-    //fill_symboltype_fmt(fmt.ALILf,fmt.aLILf,symbol_to_seg_format_depth_sets, SEG_aLILf,refpos, symbolType, refsymbol);
-    //fill_symboltype_fmt(fmt.ALILr,fmt.aLILr,symbol_to_seg_format_depth_sets, SEG_aLILr,refpos, symbolType, refsymbol);
+    fill_symboltype_fmt(fmt.ALI1,  symbol_to_seg_format_depth_sets, SEG_aLI1, refpos, symboltype, refsymbol);
+    fill_symboltype_fmt(fmt.ALI2,  symbol_to_seg_format_depth_sets, SEG_aLI2, refpos, symboltype, refsymbol);
     
-    fill_symboltype_fmt(fmt.ARI1, fmt.aRI1, symbol_to_seg_format_depth_sets, SEG_aRI1, refpos, symbolType, refsymbol);
-    fill_symboltype_fmt(fmt.ARI2, fmt.aRI2, symbol_to_seg_format_depth_sets, SEG_aRI2, refpos, symbolType, refsymbol);
-    //fill_symboltype_fmt(fmt.ARILf,fmt.aRILf,symbol_to_seg_format_depth_sets, SEG_aRILf,refpos, symbolType, refsymbol);
-    //fill_symboltype_fmt(fmt.ARILr,fmt.aRILr,symbol_to_seg_format_depth_sets, SEG_aRILr,refpos, symbolType, refsymbol);
+    fill_symboltype_fmt(fmt.ARI1,  symbol_to_seg_format_depth_sets, SEG_aRI1, refpos, symboltype, refsymbol);
+    fill_symboltype_fmt(fmt.ARI2,  symbol_to_seg_format_depth_sets, SEG_aRI2, refpos, symboltype, refsymbol);
     
     const auto & symbol_to_frag_format_depth_sets = symbol2CountCoverageSet12.symbol_to_frag_format_depth_sets;
     
-    fill_symboltype_fmt(fmt.BDPf,  fmt.bDPf,  symbol_to_frag_format_depth_sets[0], FRAG_bDP, refpos, symbolType, refsymbol);
-    fill_symboltype_fmt(fmt.BDPr,  fmt.bDPr,  symbol_to_frag_format_depth_sets[1], FRAG_bDP, refpos, symbolType, refsymbol);
+    fill_symboltype_fmt(fmt.BDPf,  symbol_to_frag_format_depth_sets[0], FRAG_bDP, refpos, symboltype, refsymbol);
+    fill_symboltype_fmt(fmt.BDPr,  symbol_to_frag_format_depth_sets[1], FRAG_bDP, refpos, symboltype, refsymbol);
     
     const auto & symbol_to_fam_format_depth_sets = symbol2CountCoverageSet12.symbol_to_fam_format_depth_sets_2strand;
     
-    fill_symboltype_fmt(fmt.CDP1f, fmt.cDP1f, symbol_to_fam_format_depth_sets[0], FAM_cDP1, refpos, symbolType, refsymbol);
-    fill_symboltype_fmt(fmt.CDP12f,fmt.cDP12f,symbol_to_fam_format_depth_sets[0], FAM_cDP12,refpos, symbolType, refsymbol);
-    fill_symboltype_fmt(fmt.CDP2f, fmt.cDP2f, symbol_to_fam_format_depth_sets[0], FAM_cDP2, refpos, symbolType, refsymbol);
-    fill_symboltype_fmt(fmt.CDP3f, fmt.cDP3f, symbol_to_fam_format_depth_sets[0], FAM_cDP3, refpos, symbolType, refsymbol);
-    fill_symboltype_fmt(fmt.C1DPf, fmt.c1DPf, symbol_to_fam_format_depth_sets[0], FAM_c1DP, refpos, symbolType, refsymbol);
-    fill_symboltype_fmt(fmt.CDPMf, fmt.cDPMf, symbol_to_fam_format_depth_sets[0], FAM_cDPM, refpos, symbolType, refsymbol);
-    fill_symboltype_fmt(fmt.CDPmf, fmt.cDPmf, symbol_to_fam_format_depth_sets[0], FAM_cDPm, refpos, symbolType, refsymbol);
+    fill_symboltype_fmt(fmt.CDP1f, symbol_to_fam_format_depth_sets[0], FAM_cDP1, refpos, symboltype, refsymbol);
+    fill_symboltype_fmt(fmt.CDP12f,symbol_to_fam_format_depth_sets[0], FAM_cDP12,refpos, symboltype, refsymbol);
+    fill_symboltype_fmt(fmt.CDP2f, symbol_to_fam_format_depth_sets[0], FAM_cDP2, refpos, symboltype, refsymbol);
+    fill_symboltype_fmt(fmt.CDP3f, symbol_to_fam_format_depth_sets[0], FAM_cDP3, refpos, symboltype, refsymbol);
+    fill_symboltype_fmt(fmt.C1DPf, symbol_to_fam_format_depth_sets[0], FAM_c1DP, refpos, symboltype, refsymbol);
+    fill_symboltype_fmt(fmt.CDPMf, symbol_to_fam_format_depth_sets[0], FAM_cDPM, refpos, symboltype, refsymbol);
+    fill_symboltype_fmt(fmt.CDPmf, symbol_to_fam_format_depth_sets[0], FAM_cDPm, refpos, symboltype, refsymbol);
     
-    fill_symboltype_fmt(fmt.CDP1r, fmt.cDP1r, symbol_to_fam_format_depth_sets[1], FAM_cDP1, refpos, symbolType, refsymbol);
-    fill_symboltype_fmt(fmt.CDP12r,fmt.cDP12r,symbol_to_fam_format_depth_sets[1], FAM_cDP12,refpos, symbolType, refsymbol);
-    fill_symboltype_fmt(fmt.CDP2r, fmt.cDP2r, symbol_to_fam_format_depth_sets[1], FAM_cDP2, refpos, symbolType, refsymbol);
-    fill_symboltype_fmt(fmt.CDP3r, fmt.cDP3r, symbol_to_fam_format_depth_sets[1], FAM_cDP3, refpos, symbolType, refsymbol);
-    fill_symboltype_fmt(fmt.C1DPr, fmt.c1DPr, symbol_to_fam_format_depth_sets[1], FAM_c1DP, refpos, symbolType, refsymbol);
-    fill_symboltype_fmt(fmt.CDPMr, fmt.cDPMr, symbol_to_fam_format_depth_sets[1], FAM_cDPM, refpos, symbolType, refsymbol);
-    fill_symboltype_fmt(fmt.CDPmr, fmt.cDPmr, symbol_to_fam_format_depth_sets[1], FAM_cDPm, refpos, symbolType, refsymbol);
+    fill_symboltype_fmt(fmt.CDP1r, symbol_to_fam_format_depth_sets[1], FAM_cDP1, refpos, symboltype, refsymbol);
+    fill_symboltype_fmt(fmt.CDP12r,symbol_to_fam_format_depth_sets[1], FAM_cDP12,refpos, symboltype, refsymbol);
+    fill_symboltype_fmt(fmt.CDP2r, symbol_to_fam_format_depth_sets[1], FAM_cDP2, refpos, symboltype, refsymbol);
+    fill_symboltype_fmt(fmt.CDP3r, symbol_to_fam_format_depth_sets[1], FAM_cDP3, refpos, symboltype, refsymbol);
+    fill_symboltype_fmt(fmt.C1DPr, symbol_to_fam_format_depth_sets[1], FAM_c1DP, refpos, symboltype, refsymbol);
+    fill_symboltype_fmt(fmt.CDPMr, symbol_to_fam_format_depth_sets[1], FAM_cDPM, refpos, symboltype, refsymbol);
+    fill_symboltype_fmt(fmt.CDPmr, symbol_to_fam_format_depth_sets[1], FAM_cDPm, refpos, symboltype, refsymbol);
 
     const auto & symbol_to_duplex_format_depth_sets = symbol2CountCoverageSet12.symbol_to_duplex_format_depth_sets;
-    fill_symboltype_fmt(fmt.DDP1,  fmt.dDP1,  symbol_to_duplex_format_depth_sets, DUPLEX_dDP1, refpos, symbolType, refsymbol);
-    fill_symboltype_fmt(fmt.DDP2,  fmt.dDP2,  symbol_to_duplex_format_depth_sets, DUPLEX_dDP2, refpos, symbolType, refsymbol);
+    fill_symboltype_fmt(fmt.DDP1,  symbol_to_duplex_format_depth_sets, DUPLEX_dDP1, refpos, symboltype, refsymbol);
+    fill_symboltype_fmt(fmt.DDP2,  symbol_to_duplex_format_depth_sets, DUPLEX_dDP2, refpos, symboltype, refsymbol);
     
     resetBcfFormatD(fmt);
-    //fmt.gapNf.clear();
-    //fmt.gapNr.clear();
-    //fmt.gapSeq.clear();
-    //fmt.gapbAD1.clear();
-    //fmt.gapcAD1.clear();
-    //fmt.bHap.clear();
-    //fmt.cHap.clear();
     return {{ fmt.BDPf[0] + fmt.BDPr[0], MAX(fmt.CDP1f[0], fmt.CDP12f[0]) + MAX(fmt.CDP1r[0], fmt.CDP12r[0]) }};
-    // return {fmt.BDPf[0] + fmt.BDPr[0], fmt.CDP12f[0] + fmt.CDP12r[0]};
 };
 
-const auto vectorsum(const auto v1, const auto v2) {
+const auto 
+vectorsum(const auto v1, const auto v2) {
     assert(v1.size() == v2.size());
     auto ret = v1;
     for (size_t i = 0; i < v1.size(); i++) {
@@ -2908,13 +2892,9 @@ BcfFormat_symbol_init(
 
     fill_symbol_fmt(fmt.aLI1, symbol_to_seg_format_depth_sets, SEG_aLI1, refpos, symbol, a);
     fill_symbol_fmt(fmt.aLI2, symbol_to_seg_format_depth_sets, SEG_aLI2, refpos, symbol, a);
-    //fill_symbol_fmt(fmt.aLILf,symbol_to_seg_format_depth_sets, SEG_aLILf,refpos, symbol, a);
-    //fill_symbol_fmt(fmt.aLILr,symbol_to_seg_format_depth_sets, SEG_aLILr,refpos, symbol, a);
     
     fill_symbol_fmt(fmt.aRI1, symbol_to_seg_format_depth_sets, SEG_aRI1, refpos, symbol, a);
     fill_symbol_fmt(fmt.aRI2, symbol_to_seg_format_depth_sets, SEG_aRI2, refpos, symbol, a);
-    //fill_symbol_fmt(fmt.aRILf,symbol_to_seg_format_depth_sets, SEG_aRILf,refpos, symbol, a);
-    //fill_symbol_fmt(fmt.aRILr,symbol_to_seg_format_depth_sets, SEG_aRILr,refpos, symbol, a);
 
     const auto & symbol_to_frag_format_depth_sets = symbol2CountCoverageSet12.symbol_to_frag_format_depth_sets;
     
@@ -2942,7 +2922,6 @@ BcfFormat_symbol_init(
     fill_symbol_fmt(fmt.dDP1,  symbol_to_duplex_format_depth_sets, DUPLEX_dDP1, refpos, symbol, a);
     fill_symbol_fmt(fmt.dDP2,  symbol_to_duplex_format_depth_sets, DUPLEX_dDP2, refpos, symbol, a);
     
-    // const auto & symbol_to_VQ_format_tag_sets = symbol2CountCoverageSet12.symbol_to_VQ_format_tag_sets;
     fmt.DP = fmt.CDP1f[0] + fmt.CDP1r[0];
     fmt.AD = vectorsum(fmt.cDP1f, fmt.cDP1r);
     fmt.bDP = fmt.BDPf[0] + fmt.BDPr[0];
@@ -3100,12 +3079,6 @@ BcfFormat_symbol_calc_DPv(
             MAX(1, f.aRBL[a]) / (double)MAX(1, f.aBQ2[a]), MAX(1, f.ARBL[0]) / (double)MAX(1, f.ABQ2[0]), ((is_in_indel_read) ? paramset.bias_FA_pseudocount_indel_in_read : 0.5));
     double aLBFA = aLBFAx2[0];
     double aRBFA = aRBFAx2[0];
-    /*
-    fmt.note += std::string("symbol/") + SYMBOL_TO_DESC_ARR[symbol] + "/";
-    fmt.note += std::string("aLBFAdetail//") + other_join2(std::vector<double> {{ 
-            (double)f.aRB1[a], (double)aDP, (double)(f.ARB2[0] + f.aRB1[a] - f.aRB2[a]), (double)ADP, 3.0, log(aPprior),
-            MAX(1, f.aRBL[a]) / (double)MAX(1, f.aBQ2[a]), MAX(1, f.ARBL[0]) / (double)MAX(1, f.ABQ2[0]), ((is_in_indel_read) ? 0.10 : 0.5) }} , "/") + "//";
-    */
     std::array<double, 2> _aLIFAx2 = {{ 0, 0 }};
     {
         double ALpd = (f.ALI2[0] +                 0.5) / (f.ADPfr[0] + f.ADPrr[0] - f.ALI2[0] + 0.5);
