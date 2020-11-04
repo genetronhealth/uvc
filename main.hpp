@@ -167,14 +167,14 @@ isSymbolDel(const AlignmentSymbol symbol) {
 constexpr AlignmentSymbol 
 insLenToSymbol(unsigned int len, const bam1_t *b) {
     assert(len > 0 || !fprintf(stderr, "Error: the bam record with qname %s at tid %d pos %d has insertion of length %u!\n", 
-            bam_get_qname(b), bam->core.tid, bam->core.pos, len));
+            bam_get_qname(b), b->core.tid, b->core.pos, len));
     return 1 == len ? LINK_I1 : (2 == len ? LINK_I2 : LINK_I3P);
 }
 
 constexpr AlignmentSymbol 
 delLenToSymbol(unsigned int len, const bam1_t *b) {
     assert(len > 0 || !fprintf(stderr, "Error: the bam record with qname %s at tid %d pos %d has deletion of length %u!\n", 
-            bam_get_qname(b), bam->core.tid, bam->core.pos, len));
+            bam_get_qname(b), b->core.tid, b->core.pos, len));
     return 1 == len ? LINK_D1 : (2 == len ? LINK_D2 : LINK_D3P);
 }
 
