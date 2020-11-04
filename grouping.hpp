@@ -1,6 +1,7 @@
 #ifndef grouping_hpp_INCLUDED
 #define grouping_hpp_INCLUDED
 
+#include "CmdLineArgs.hpp"
 #include "common.hpp"
 
 #include "htslib/sam.h"
@@ -21,9 +22,11 @@
 
 #define logDEBUGx1 logDEBUG // logINFO
 
+typedef std::tuple<uvc1_refgpos_t, uvc1_refgpos_t, uvc1_refgpos_t, bool, uvc1_readnum_t> bedline_t;
+
 int 
 bed_fname_to_contigs(
-        std::vector<std::tuple<unsigned int, unsigned int, unsigned int, bool, unsigned int>> & tid_beg_end_e2e_vec,
+        std::vector<bedline_t> & tid_beg_end_e2e_vec,
         const std::string & bed_fname, const bam_hdr_t *bam_hdr);
 
 struct SamIter {
@@ -36,17 +39,17 @@ struct SamIter {
     hts_idx_t *sam_idx = NULL; 
     hts_itr_t *sam_itr = NULL;
     
-    unsigned int endingpos = UINT_MAX;
-    unsigned int tid = UINT_MAX;
-    unsigned int tbeg = -1;
-    unsigned int tend = -1;
-    unsigned int prev_tbeg = 0;
-    uint64_t nreads = 0;
-    uint64_t next_nreads = 0;
+    uvc1_refgpos_t endingpos = -1;
+    uvc1_refgpos_t tid = -1;
+    uvc1_refgpos_t tbeg = -1;
+    uvc1_refgpos_t tend = -1;
+    uvc1_refgpos_t prev_tbeg = 0;
+    int64_t nreads = 0;
+    int64_t next_nreads = 0;
     bam1_t *alnrecord = bam_init1();
     
-    std::vector<std::tuple<unsigned int, unsigned int, unsigned int, bool, unsigned int>> _tid_beg_end_e2e_vec;
-    unsigned int _bedregion_idx = 0;
+    std::vector<bedline_t> _tid_beg_end_e2e_vec;
+    size_t _bedregion_idx = 0;
     
     SamIter(const std::string & in_bam_fname, 
             const std::string & tier1_target_reg, 
@@ -92,18 +95,18 @@ struct SamIter {
     }
     
     int 
-    iternext(std::vector<std::tuple<unsigned int, unsigned int, unsigned int, bool, unsigned int>> & tid_beg_end_e2e_vec);
+    iternext(std::vector<bedline_t> & tid_beg_end_e2e_vec);
 };
 
 int
 samfname_to_tid_to_tname_tseq_tup_vec(
-        std::vector<std::tuple<std::string, unsigned int>> & tid_to_tname_tseqlen_tuple_vec, 
+        std::vector<std::tuple<std::string, uvc1_refgpos_t>> & tid_to_tname_tseqlen_tuple_vec, 
         const std::string & bam_input_fname);
 
 int 
 sam_fname_to_contigs(
-        std::vector<std::tuple<unsigned int, unsigned int, unsigned int, bool, unsigned int>> & tid_beg_end_e2e_vec,
-        std::vector<std::tuple<std::string, unsigned int>> & tid_to_tname_tlen_tuple_vec,
+        std::vector<bedline_t> & tid_beg_end_e2e_vec,
+        std::vector<std::tuple<std::string, uvc1_refgpos_t>> & tid_to_tname_tlen_tuple_vec,
         const std::string & input_bam_fname, 
         const std::string & bed_fname);
 
@@ -160,37 +163,38 @@ clean_fill_strand_umi_readset(
 
 int 
 fill_strand_umi_readset_with_strand_to_umi_to_reads(
-        std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, int>> &umi_strand_readset,
-        std::map<uint64_t, std::pair<std::array<std::map<uint64_t, std::vector<bam1_t *>>, 2>, int>> &umi_to_strand_to_reads,
-        unsigned int baq_per_aligned_base);
+        std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, uvc1_flag_t>> &umi_strand_readset,
+        std::map<uvc1_hash_t, std::pair<std::array<std::map<uvc1_hash_t, std::vector<bam1_t *>>, 2>, uvc1_flag_t>> &umi_to_strand_to_reads,
+        uvc1_qual_t baq_per_aligned_base);
 
-std::array<unsigned int, 3>
+std::array<uvc1_readnum_t, 3>
 bamfname_to_strand_to_familyuid_to_reads(
-        std::map<uint64_t, std::pair<std::array<std::map<uint64_t, std::vector<bam1_t *>>, 2>, int>> &umi_to_strand_to_reads,
-        unsigned int & extended_inclu_beg_pos,
-        unsigned int & extended_exclu_end_pos,
-        const std::string input_bam_fname, 
-        unsigned int tid, 
-        unsigned int fetch_tbeg, 
-        unsigned int fetch_tend, 
+        std::map<uvc1_hash_t, std::pair<std::array<std::map<uvc1_hash_t, std::vector<bam1_t *>>, 2>, uvc1_flag_t>> &umi_to_strand_to_reads,
+        uvc1_refgpos_t & extended_inclu_beg_pos,
+        uvc1_refgpos_t & extended_exclu_end_pos,
+        // const std::string input_bam_fname, 
+        uvc1_refgpos_t tid, 
+        uvc1_refgpos_t fetch_tbeg, 
+        uvc1_refgpos_t fetch_tend, 
         bool end2end, 
-        unsigned int min_mapq, 
-        unsigned int min_alnlen, 
-        unsigned int regionbatch_ordinal, 
-        unsigned int regionbatch_tot_num,
+        // uvc1_qual_t min_mapq, 
+        // uvc1_readpos_t min_alnlen, 
+        size_t regionbatch_ordinal, 
+        size_t regionbatch_tot_num,
         const std::string UMI_STRUCT_STRING, 
         const hts_idx_t * hts_idx,
-        const bool is_molecule_tag_enabled,
-        const bool is_pair_end_merge_enabled, 
-        bool disable_duplex,
+        // const bool is_molecule_tag_enabled,
+        // const bool is_pair_end_merge_enabled, 
+        // const bool disable_duplex,
         size_t thread_id,
-        unsigned int dedup_center_mult,
-        unsigned int dedup_amplicon_count_to_surrcount_ratio,
-        unsigned int dedup_amplicon_count_to_surrcount_ratio_twosided,
-        double dedup_amplicon_end2end_ratio,
-        bool always_log,
-        bool is_proton,
-        uint32_t dedup_flag,
-        unsigned int specialflag);
+        // double dedup_center_mult,
+        // unsigned int dedup_amplicon_count_to_surrcount_ratio,
+        // unsigned int dedup_amplicon_count_to_surrcount_ratio_twosided,
+        // double dedup_amplicon_end2end_ratio,
+        // bool always_log,
+        // bool is_proton,
+        // uvc1_flag_t dedup_flag,
+        const CommandLineArgs & paramset,
+        const uvc1_flag_t specialflag);
 #endif
 

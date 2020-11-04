@@ -27,10 +27,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-// T=uint32_t for deletion and T=string for insertion
+// T=uvc1_readnum_t for deletion and T=string for insertion
 template <class T>
-uint32_t
-posToIndelToData_get(const std::map<uint32_t, std::map<T, uint32_t>> & pos2indel2data, const uint32_t refpos, const T & indel, uint32_t default1 = 0, uint32_t default2 = 0) {
+uvc1_readnum_t
+posToIndelToData_get(const std::map<uvc1_readnum_t, std::map<T, uvc1_readnum_t>> & pos2indel2data, const uvc1_readnum_t refpos, const T & indel, uvc1_readnum_t default1 = 0, uvc1_readnum_t default2 = 0) {
     if (pos2indel2data.find(refpos) == pos2indel2data.end()) { return default1; }
     if (pos2indel2data.at(refpos).find(indel) == pos2indel2data.at(refpos).end()) { return default2; }
     return pos2indel2data.at(refpos).at(indel);
@@ -38,9 +38,9 @@ posToIndelToData_get(const std::map<uint32_t, std::map<T, uint32_t>> & pos2indel
 
 template <class T>
 void
-posToIndelToCount_inc(std::map<uint32_t, std::map<T, uint32_t>> & pos2indel2count, uint32_t pos, const T indel, uint32_t incvalue = 1) {
+posToIndelToCount_inc(std::map<uvc1_readnum_t, std::map<T, uvc1_readnum_t>> & pos2indel2count, uvc1_readnum_t pos, const T indel, uvc1_readnum_t incvalue = 1) {
     assert(incvalue > 0);
-    auto pos2indel2count4it = pos2indel2count.insert(std::make_pair(pos, std::map<T, uint32_t>()));
+    auto pos2indel2count4it = pos2indel2count.insert(std::make_pair(pos, std::map<T, uvc1_readnum_t>()));
     auto indel2count4it = pos2indel2count4it.first->second.insert(std::make_pair(indel, 0));
     indel2count4it.first->second += incvalue;
     assert (posToIndelToData_get(pos2indel2count, pos, indel) > 0);
@@ -48,7 +48,7 @@ posToIndelToCount_inc(std::map<uint32_t, std::map<T, uint32_t>> & pos2indel2coun
 
 template <class T>
 T
-posToIndelToCount_updateByConsensus(std::map<uint32_t, std::map<T, uint32_t>> & dst, const std::map<uint32_t, std::map<T, uint32_t>> & src, uint32_t epos, uint32_t incvalue = 1) {
+posToIndelToCount_updateByConsensus(std::map<uvc1_readnum_t, std::map<T, uvc1_readnum_t>> & dst, const std::map<uvc1_readnum_t, std::map<T, uvc1_readnum_t>> & src, uvc1_readnum_t epos, uvc1_readnum_t incvalue = 1) {
     const auto pos2indel2count4it = src.find(epos);
     assert(pos2indel2count4it != src.end());
     auto indel2count = pos2indel2count4it->second;
@@ -60,13 +60,13 @@ posToIndelToCount_updateByConsensus(std::map<uint32_t, std::map<T, uint32_t>> & 
 
 template <bool TIsIncVariable, class T>
 int
-posToIndelToCount_updateByRepresentative(std::map<uint32_t, std::map<T, uint32_t>> & dst, const std::map<uint32_t, std::map<T, uint32_t>> & src, uint32_t epos, uint32_t incvalue = 1) {
+posToIndelToCount_updateByRepresentative(std::map<uvc1_readnum_t, std::map<T, uvc1_readnum_t>> & dst, const std::map<uvc1_readnum_t, std::map<T, uvc1_readnum_t>> & src, uvc1_readnum_t epos, uvc1_readnum_t incvalue = 1) {
     const auto pos2indel2count4it = src.find(epos);
     assert(pos2indel2count4it != src.end());
 
     T max_indel;
-    uint32_t max_count = 0;
-    uint32_t sum_count = 0;
+    uvc1_readnum_t max_count = 0;
+    uvc1_readnum_t sum_count = 0;
     for (auto indel2count : pos2indel2count4it->second) {
         auto indel = indel2count.first;
         auto count = indel2count.second;
@@ -87,7 +87,7 @@ posToIndelToCount_updateByRepresentative(std::map<uint32_t, std::map<T, uint32_t
 
 template <class T>
 void
-posToIndelToCount_updateBySummation(std::map<uint32_t, std::map<T, uint32_t>> & dst, const std::map<uint32_t, std::map<T, uint32_t>> & src) {
+posToIndelToCount_updateBySummation(std::map<uvc1_readnum_t, std::map<T, uvc1_readnum_t>> & dst, const std::map<uvc1_readnum_t, std::map<T, uvc1_readnum_t>> & src) {
     for (auto src_pos2indel2count4it : src) {
         auto src_pos = src_pos2indel2count4it.first;
         auto src_indel2count = src_pos2indel2count4it.second;
@@ -101,10 +101,10 @@ posToIndelToCount_updateBySummation(std::map<uint32_t, std::map<T, uint32_t>> & 
 }
 
 void
-posToIndelToCount_DlenToDseq(std::map<uint32_t, std::map<std::string, uint32_t>> & dst, const std::map<uint32_t, std::map<uint32_t, uint32_t>> & src,
-        const std::string & refchars, uint32_t incluBegPos) {
+posToIndelToCount_DlenToDseq(std::map<uvc1_readnum_t, std::map<std::string, uvc1_readnum_t>> & dst, const std::map<uvc1_readnum_t, std::map<uvc1_readnum_t, uvc1_readnum_t>> & src,
+        const std::string & refchars, uvc1_readnum_t incluBegPos) {
     for (auto src_pos2indel2count4it : src) {
-        uint32_t src_pos = src_pos2indel2count4it.first;
+        uvc1_readnum_t src_pos = src_pos2indel2count4it.first;
         auto src_del2count = src_pos2indel2count4it.second;
         for (auto src_del2count4it : src_del2count) {
             std::string dseq = refchars.substr(src_pos - incluBegPos, src_del2count4it.first);
@@ -167,14 +167,14 @@ isSymbolDel(const AlignmentSymbol symbol) {
 constexpr AlignmentSymbol 
 insLenToSymbol(unsigned int len, const bam1_t *b) {
     assert(len > 0 || !fprintf(stderr, "Error: the bam record with qname %s at tid %d pos %d has insertion of length %u!\n", 
-            bam_get_qname(b), bam->core.tid, bam->core.pos, len));
+            bam_get_qname(b), b->core.tid, b->core.pos, len));
     return 1 == len ? LINK_I1 : (2 == len ? LINK_I2 : LINK_I3P);
 }
 
 constexpr AlignmentSymbol 
 delLenToSymbol(unsigned int len, const bam1_t *b) {
     assert(len > 0 || !fprintf(stderr, "Error: the bam record with qname %s at tid %d pos %d has deletion of length %u!\n", 
-            bam_get_qname(b), bam->core.tid, bam->core.pos, len));
+            bam_get_qname(b), b->core.tid, b->core.pos, len));
     return 1 == len ? LINK_D1 : (2 == len ? LINK_D2 : LINK_D3P);
 }
 
@@ -321,7 +321,7 @@ protected:
 };
 
 // typedef uint32_t molcount_t;
-typedef read_t molcount_t;
+typedef uvc1_readnum_t molcount_t;
 
 template <class TB2C>
 class GenericSymbol2Bucket2Count : TDistribution<TB2C> {
@@ -413,7 +413,7 @@ public:
     template <bool TIndelIsMajor>
     int
     _fillConsensusCounts(
-            AlignmentSymbol & count_argmax, unsigned int & count_max, unsigned int & count_sum,
+            AlignmentSymbol & count_argmax, uvc1_qual_t & count_max, uvc1_qual_t & count_sum,
             AlignmentSymbol incluBeg, AlignmentSymbol incluEnd) const {
         assert (incluBeg <= incluEnd);
         
@@ -443,7 +443,7 @@ public:
     template <bool TIndelIsMajor = false>
     const int
     fillConsensusCounts(
-            AlignmentSymbol & count_argmax, unsigned int & count_max, unsigned int & count_sum,
+            AlignmentSymbol & count_argmax, uvc1_qual_t & count_max, uvc1_qual_t & count_sum,
             const SymbolType symboltype) const {
         if (symboltype == BASE_SYMBOL) {
             return this->template _fillConsensusCounts<false        >(count_argmax, count_max, count_sum, BASE_A, BASE_NN);
@@ -458,10 +458,10 @@ public:
     template<bool TIndelIsMajor>
     const AlignmentSymbol
     _updateByConsensus(const GenericSymbol2Count<TInteger> & thatSymbol2Count,
-            const SymbolType symboltype, const AlignmentSymbol ambig_pos, unsigned int incvalue) {
+            const SymbolType symboltype, const AlignmentSymbol ambig_pos, const uvc1_qual_t incvalue) {
         AlignmentSymbol argmax_count = END_ALIGNMENT_SYMBOLS; // AlignmentSymbol(0) is not fully correct
-        unsigned int max_count = 0;
-        unsigned int sum_count = 0;
+        uvc1_qual_t max_count = 0;
+        uvc1_qual_t sum_count = 0;
         thatSymbol2Count.template fillConsensusCounts<TIndelIsMajor>(argmax_count, max_count, sum_count, symboltype);
         
         if (max_count > 0) {
@@ -479,7 +479,7 @@ public:
 
     template<bool TIndelIsMajor = false>
     std::array<AlignmentSymbol, 2>
-    updateByConsensus(const GenericSymbol2Count<TInteger> & thatSymbol2Count, unsigned int incvalue = 1) {
+    updateByConsensus(const GenericSymbol2Count<TInteger> & thatSymbol2Count, uvc1_qual_t incvalue = 1) {
         AlignmentSymbol baseSymb = this->template _updateByConsensus<false        >(thatSymbol2Count, BASE_SYMBOL, BASE_NN, incvalue);
         AlignmentSymbol linkSymb = this->template _updateByConsensus<TIndelIsMajor>(thatSymbol2Count, LINK_SYMBOL, LINK_NN, incvalue);
         return {baseSymb, linkSymb};
@@ -487,10 +487,10 @@ public:
     
     template <bool TIsIncVariable = true>
     AlignmentSymbol
-    updateByRepresentative(const GenericSymbol2Count<TInteger> & other, unsigned int incvalue = 1) {
+    updateByRepresentative(const GenericSymbol2Count<TInteger> & other, uvc1_qual_t incvalue = 1) {
         AlignmentSymbol consalpha; 
         unsigned int countalpha, totalalpha;
-        for (SymbolType symboltype = SymbolType(0); symboltype < NUM_SYMBOL_TYPES; symboltype = SymbolType(1 + (unsigned int)symboltype)) { 
+        for (SymbolType symboltype : SYMBOL_TYPE_ARR) { 
             other.fillConsensusCounts(consalpha, countalpha, totalalpha, symboltype);
             if (countalpha > 0) {
                 this->symbol2data[consalpha] += (TIsIncVariable ? totalalpha : incvalue);
@@ -503,12 +503,12 @@ public:
     updateByFiltering(
             std::array<AlignmentSymbol, NUM_SYMBOL_TYPES> & con_symbols, 
             const GenericSymbol2Count<TInteger> & other, 
-            const std::array<unsigned int, NUM_SYMBOL_TYPES> thres = {{0}},
-            const unsigned int incvalue = 1) {
+            const std::array<uvc1_qual_t, NUM_SYMBOL_TYPES> thres = {{0}},
+            const uvc1_qual_t incvalue = 1) {
         int ret = 0;
         AlignmentSymbol consalpha;
-        unsigned int countalpha, totalalpha;
-        for (SymbolType symboltype = SymbolType(0); symboltype < NUM_SYMBOL_TYPES; symboltype = SymbolType(1 + (unsigned int)symboltype)) {
+        uvc1_qual_t countalpha, totalalpha;
+        for (SymbolType symboltype : SYMBOL_TYPE_ARR) {
             if (LINK_SYMBOL == symboltype) {
                 other.template fillConsensusCounts<true >(consalpha, countalpha, totalalpha, symboltype);
             } else {
@@ -527,11 +527,11 @@ public:
     int
     updateByMajorMinusMinor(
             std::array<AlignmentSymbol, NUM_SYMBOL_TYPES> & con_symbols,
-            std::array<unsigned int, NUM_SYMBOL_TYPES> & con_counts,
+            std::array<uvc1_qual_t, NUM_SYMBOL_TYPES> & con_counts,
             const GenericSymbol2Count<TInteger> & other) {
         int ret = 0;
         AlignmentSymbol consalpha;
-        unsigned int countalpha, totalalpha;
+        uvc1_qual_t countalpha, totalalpha;
         for (SymbolType symboltype : SYMBOL_TYPE_ARR) {
             if (LINK_SYMBOL == symboltype) {
                 other.template fillConsensusCounts<true >(consalpha, countalpha, totalalpha, symboltype);
@@ -555,31 +555,31 @@ class CoveredRegion {
 protected:
     
     std::vector<T> idx2symbol2data;
-    std::array<std::map<uint32_t, std::map<uint32_t   , uint32_t>>, NUM_INS_SYMBOLS> pos2dlen2data;
-    std::array<std::map<uint32_t, std::map<std::string, uint32_t>>, NUM_DEL_SYMBOLS> pos2iseq2data;
+    std::array<std::map<uvc1_refgpos_t, std::map<uvc1_readpos_t     , uvc1_readnum_t>>, NUM_INS_SYMBOLS> pos2dlen2data;
+    std::array<std::map<uvc1_refgpos_t, std::map<std::string, uvc1_readnum_t>>, NUM_DEL_SYMBOLS> pos2iseq2data;
 public:
     
-    const uint32_t tid;
-    const uint32_t incluBegPosition; // where end_pos = incluBegPosition + idx2symbol2data.size()
-
-    CoveredRegion() {};    
-    CoveredRegion(uint32_t tid, unsigned int beg, unsigned int end): tid(tid), incluBegPosition(beg)  {
+    const uvc1_refgpos_t tid;
+    const uvc1_refgpos_t incluBegPosition; // where end_pos = incluBegPosition + idx2symbol2data.size()
+    
+    CoveredRegion() {};
+    CoveredRegion(uvc1_refgpos_t tid, uvc1_refgpos_t beg, uvc1_refgpos_t end): tid(tid), incluBegPosition(beg)  {
         assert (beg < end || !fprintf(stderr, "assertion %d < %d failed!\n", beg, end));
         this->idx2symbol2data = std::vector<T>(end-beg); // end should be real end position plus one
     };
     
     T &
-    getRefByPos(const unsigned int pos, const bam1_t *bam = NULL) {
+    getRefByPos(const uvc1_refgpos_t pos, const bam1_t *bam = NULL) {
         assert(pos >= this->incluBegPosition || !fprintf(stderr, "%u >= %u failed for qname %s !!\n", pos, this->incluBegPosition, (NULL != bam ? bam_get_qname(bam) : "?")));
-        unsigned int pos2 = pos - this->incluBegPosition;
+        uvc1_refgpos_t pos2 = pos - this->incluBegPosition;
         assert(pos2 < idx2symbol2data.size() || !fprintf(stderr, "%u  < %lu failed for qname %s !!\n", pos, this->incluBegPosition + idx2symbol2data.size(), (NULL != bam ? bam_get_qname(bam) : "?")));
         return this->idx2symbol2data[pos2];
     };
     
     const T &
-    getByPos(const unsigned int pos, const bam1_t *bam = NULL) const {
+    getByPos(const uvc1_refgpos_t pos, const bam1_t *bam = NULL) const {
         assert(pos >= this->incluBegPosition || !fprintf(stderr, "%u >= %u failed for qname %s !\n", pos, this->incluBegPosition, (NULL != bam ? bam_get_qname(bam) : "?")));
-        unsigned int pos2 = pos - this->incluBegPosition;
+        uvc1_refgpos_t pos2 = pos - this->incluBegPosition;
         assert(pos2 < idx2symbol2data.size() || !fprintf(stderr, "%u  < %lu failed for qname %s !\n", pos, this->incluBegPosition + idx2symbol2data.size(), (NULL != bam ? bam_get_qname(bam) : "?")));
         return this->idx2symbol2data[pos2];
     };
@@ -593,25 +593,25 @@ public:
         return this->incluBegPosition + idx2symbol2data.size();
     };
     
-    const std::map<uint32_t, std::map<uint32_t   , uint32_t>> & 
+    const std::map<uvc1_refgpos_t, std::map<uvc1_refgpos_t    , uvc1_readnum_t>> & 
     getPosToDlenToData(const AlignmentSymbol s) const { 
-        unsigned int idx = (LINK_D1 == s ? 0 : ((LINK_D2 == s) ? 1: 2));
+        int idx = (LINK_D1 == s ? 0 : ((LINK_D2 == s) ? 1: 2));
         return pos2dlen2data[idx];
     };
-    const std::map<uint32_t, std::map<std::string, uint32_t>> & 
+    const std::map<uvc1_refgpos_t, std::map<std::string, uvc1_readnum_t>> & 
     getPosToIseqToData(const AlignmentSymbol s) const {
-        unsigned int idx = (LINK_I1 == s ? 0 : ((LINK_I2 == s) ? 1: 2));
+        int idx = (LINK_I1 == s ? 0 : ((LINK_I2 == s) ? 1: 2));
         return pos2iseq2data[idx];
     };
     
-    std::map<uint32_t, std::map<uint32_t   , uint32_t>> & 
+    std::map<uvc1_refgpos_t, std::map<uvc1_readpos_t   , uvc1_readnum_t>> & 
     getRefPosToDlenToData(const AlignmentSymbol s) {
-        unsigned int idx = (LINK_D1 == s ? 0 : ((LINK_D2 == s) ? 1: 2));
+        int idx = (LINK_D1 == s ? 0 : ((LINK_D2 == s) ? 1: 2));
         return pos2dlen2data[idx];
     };
-    std::map<uint32_t, std::map<std::string, uint32_t>> & 
+    std::map<uvc1_refgpos_t, std::map<std::string, uvc1_refgpos_t>> & 
     getRefPosToIseqToData(const AlignmentSymbol s) {
-        unsigned int idx = (LINK_I1 == s ? 0 : ((LINK_I2 == s) ? 1: 2));
+        int idx = (LINK_I1 == s ? 0 : ((LINK_I2 == s) ? 1: 2));
         return pos2iseq2data[idx];
     };
 };
@@ -627,8 +627,8 @@ typedef std::array<molcount_t, NUM_BUCKETS> Bucket2Count;
 
 typedef GenericSymbol2Bucket2Count<Bucket2Count> Symbol2Bucket2Count;
 
-typedef GenericSymbol2Count<uint32_t> Symbol2Count;
-typedef GenericSymbol2Count<uint64_t> Symbol2CountUint64;
+typedef GenericSymbol2Count<uvc1_readnum_t> Symbol2Count;
+//typedef GenericSymbol2Count<uint64_t> Symbol2CountUint64;
 
 typedef GenericSymbol2Bucket2CountCoverage<Symbol2Bucket2Count> Symbol2Bucket2CountCoverage;
 
@@ -641,12 +641,12 @@ typedef CoveredRegion<std::array<std::array<molcount_t, NUM_FAM_FORMAT_DEPTH_SET
 typedef CoveredRegion<std::array<std::array<molcount_t, NUM_DUPLEX_FORMAT_DEPTH_SETS>, NUM_ALIGNMENT_SYMBOLS>> Symbol2DuplexFormatDepthSets;
 typedef CoveredRegion<std::array<std::array<molcount_t, NUM_VQ_FORMAT_TAG_SETS>, NUM_ALIGNMENT_SYMBOLS>> Symbol2VQFormatTagSets;
 
-unsigned int
+int
 formatSumBySymbolType(
         const auto & xFormatYSets,
         const auto symboltype,
         const auto formatSet) {
-    unsigned int ret = 0;
+    int ret = 0;
     for (auto symbol : SYMBOL_TYPE_TO_SYMBOLS[symboltype]) {
         ret += xFormatYSets[symbol][formatSet];
     }
@@ -654,31 +654,31 @@ formatSumBySymbolType(
 };
 
 void
-initTidBegEnd(uint32_t & tid, uint32_t & inc_beg, uint32_t & exc_end) {
-   tid = UINT32_MAX;
-   inc_beg = UINT32_MAX;
+initTidBegEnd(uvc1_refgpos_t & tid, uvc1_refgpos_t & inc_beg, uvc1_refgpos_t & exc_end) {
+   tid = -1; // UINT32_MAX;
+   inc_beg = -1; // UINT32_MAX;
    exc_end = 0;
 };
 
 int 
-fillTidBegEndFromAlns1(uint32_t & tid, uint32_t & inc_beg, uint32_t & exc_end, const std::vector<bam1_t *> & alns1, bool initialized=false) {
+fillTidBegEndFromAlns1(uvc1_refgpos_t & tid, uvc1_refgpos_t & inc_beg, uvc1_refgpos_t & exc_end, const std::vector<bam1_t *> & alns1, bool initialized=false) {
     assert(alns1.size() > 0);
     if (!initialized) {
         initTidBegEnd(tid, inc_beg, exc_end);
     }
     for (const bam1_t *aln : alns1) {
-        assert (tid == UINT32_MAX || SIGN2UNSIGN(aln->core.tid) == tid);
+        assert (tid == -1 || SIGN2UNSIGN(aln->core.tid) == tid);
         tid = aln->core.tid;
         inc_beg = MIN(inc_beg, SIGN2UNSIGN(aln->core.pos));
         exc_end = MAX(exc_end, SIGN2UNSIGN(bam_endpos(aln))) + 1; // accounts for insertion at the end 
     }
-    assert (tid != UINT32_MAX);
+    assert (tid != -1);
     assert (inc_beg < exc_end);
     return 0;
 };
 
 int 
-fillTidBegEndFromAlns2(uint32_t  & tid, uint32_t & inc_beg, uint32_t & exc_end, const std::vector<std::vector<bam1_t *>> &alns2, bool initialized=false) {
+fillTidBegEndFromAlns2(uvc1_refgpos_t  & tid, uvc1_refgpos_t & inc_beg, uvc1_refgpos_t & exc_end, const std::vector<std::vector<bam1_t *>> &alns2, bool initialized=false) {
     assert(alns2.size() > 0);
     if (!initialized) {
         initTidBegEnd(tid, inc_beg, exc_end);
@@ -690,7 +690,7 @@ fillTidBegEndFromAlns2(uint32_t  & tid, uint32_t & inc_beg, uint32_t & exc_end, 
 };
 
 int 
-fillTidBegEndFromAlns3(uint32_t & tid, uint32_t & inc_beg, uint32_t & exc_end, const std::vector<std::vector<std::vector<bam1_t *>>> & alns3, bool initialized=false) {
+fillTidBegEndFromAlns3(uvc1_refgpos_t & tid, uvc1_refgpos_t & inc_beg, uvc1_refgpos_t & exc_end, const std::vector<std::vector<std::vector<bam1_t *>>> & alns3, bool initialized=false) {
     assert(alns3.size() > 0);
     if (!initialized) {
         initTidBegEnd(tid, inc_beg, exc_end);
@@ -702,7 +702,7 @@ fillTidBegEndFromAlns3(uint32_t & tid, uint32_t & inc_beg, uint32_t & exc_end, c
 };
 
 bool 
-is_indel_context_more_STR(unsigned int rulen1, unsigned int rc1, unsigned int rulen2, unsigned int rc2) {
+is_indel_context_more_STR(uvc1_refgpos_t rulen1, uvc1_refgpos_t rc1, uvc1_refgpos_t rulen2, uvc1_refgpos_t rc2) {
     if (rulen2 * rc2 == 0) {
         return true;
     }
@@ -726,20 +726,20 @@ is_indel_context_more_STR(unsigned int rulen1, unsigned int rc1, unsigned int ru
 
 int 
 indelpos_to_context(
-        std::string & repeatunit, unsigned int & max_repeatnum,
-        const std::string & refstring, unsigned int refpos, unsigned int indel_str_repeatsize_max) {
+        std::string & repeatunit, uvc1_refgpos_t & max_repeatnum,
+        const std::string & refstring, uvc1_refgpos_t refpos, uvc1_refgpos_t indel_str_repeatsize_max) {
     max_repeatnum = 0;
     if (refpos >= refstring.size()) {
         repeatunit = "";
         return -1;
     }
-    unsigned int repeatsize_at_max_repeatnum = 0;
-    for (unsigned int repeatsize = 1; repeatsize <= indel_str_repeatsize_max; repeatsize++) {
-        unsigned int qidx = refpos;
+    uvc1_refgpos_t repeatsize_at_max_repeatnum = 0;
+    for (uvc1_refgpos_t repeatsize = 1; repeatsize <= indel_str_repeatsize_max; repeatsize++) {
+        uvc1_refgpos_t qidx = refpos;
         while (qidx + repeatsize < refstring.size() && refstring[qidx] == refstring[qidx+repeatsize]) {
             qidx++;
         }
-        unsigned int repeatnum = (qidx - refpos) / repeatsize + 1;
+        uvc1_refgpos_t repeatnum = (qidx - refpos) / repeatsize + 1;
         if (is_indel_context_more_STR(repeatsize, repeatnum, repeatsize_at_max_repeatnum, max_repeatnum)) {
             max_repeatnum = repeatnum;
             repeatsize_at_max_repeatnum = repeatsize;
@@ -749,13 +749,13 @@ indelpos_to_context(
     return 0;
 }
 
-unsigned int
-indel_len_rusize_phred(unsigned int indel_len, unsigned int repeatunit_size) {
+uvc1_qual_t
+indel_len_rusize_phred(uvc1_refgpos_t indel_len, uvc1_refgpos_t repeatunit_size) {
     assert (indel_len > 0 && repeatunit_size > 0);
     // https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2734402/#bib41 suggests power law with exponent of 1.5-1.6
     // TODO: investigate this
     // derived from the python code: for i in range(1, 20): print("{}  {}".format(  int( round(10.0/log(10.0)*log(i)) ) , i  )) 
-    const std::array<unsigned int, 18+1> n_units_to_phred = {{
+    const std::array<uvc1_qual_t, 18+1> n_units_to_phred = {{
         0 , 
         0 , // 1
         3 , // 2
@@ -778,17 +778,17 @@ indel_len_rusize_phred(unsigned int indel_len, unsigned int repeatunit_size) {
     }};
     if (0 == (indel_len % repeatunit_size)) {
         auto n_units = indel_len / repeatunit_size;
-        return n_units_to_phred[MIN(n_units  , n_units_to_phred.size()-1)];
+        return n_units_to_phred[MIN(n_units  , UNSIGN2SIGN(n_units_to_phred.size()-1))];
     } else {
-        return n_units_to_phred[MIN(indel_len, n_units_to_phred.size()-1)];
+        return n_units_to_phred[MIN(indel_len, UNSIGN2SIGN(n_units_to_phred.size()-1))];
     }
 }
 
 // https://www.ncbi.nlm.nih.gov/pmc/articles/PMC149199/ for artifactual errors
 // https://www.cell.com/trends/genetics/fulltext/S0168-9525(13)00070-X, ref12, for germline variants
-unsigned int
-indel_phred(double ampfact, unsigned int cigar_oplen, unsigned int repeatsize_at_max_repeatnum, unsigned int max_repeatnum) {
-    unsigned int region_size = repeatsize_at_max_repeatnum * max_repeatnum;
+uvc1_qual_t
+indel_phred(double ampfact, uvc1_refgpos_t cigar_oplen, uvc1_refgpos_t repeatsize_at_max_repeatnum, uvc1_refgpos_t max_repeatnum) {
+    uvc1_refgpos_t region_size = repeatsize_at_max_repeatnum * max_repeatnum;
     double num_slips = (region_size > 64 ? (double)(region_size - 8) : log1p(exp((double)region_size - (double)8))) 
             * ampfact / ((double)(repeatsize_at_max_repeatnum * repeatsize_at_max_repeatnum));
     return prob2phred((1.0 - DBL_EPSILON) / (num_slips + 1.0));
@@ -798,25 +798,25 @@ indel_phred(double ampfact, unsigned int cigar_oplen, unsigned int repeatsize_at
 std::vector<RegionalTandemRepeat>
 refstring2repeatvec(
         const auto & refstring,
-        const unsigned int indel_str_repeatsize_max, // 6
-        const unsigned int indel_BQ_max, // 48
+        const uvc1_refgpos_t indel_str_repeatsize_max, // 6
+        const uvc1_qual_t indel_BQ_max, // 48
         const double indel_polymerase_slip_rate, // 8.0
         const double indel_del_to_ins_err_ratio, // 4.0
-        unsigned int specialflag = 0) {
+        uint32_t specialflag = 0) {
     std::vector<RegionalTandemRepeat> region_repeatvec(refstring.size());
     for (auto & rtr : region_repeatvec) {
         rtr.indelphred = indel_BQ_max;
     }
-    for (int refpos = 0; refpos < refstring.size();) {
-        unsigned int repeatsize_at_max_repeatnum = 0;
-        unsigned int max_repeatnum = 0;
-        unsigned int repeat_endpos = refpos;
-        for (unsigned int repeatsize = 1; repeatsize <= indel_str_repeatsize_max; repeatsize++) {
-            unsigned int qidx = refpos;
+    for (uvc1_refgpos_t refpos = 0; refpos < UNSIGN2SIGN(refstring.size());) {
+        uvc1_refgpos_t repeatsize_at_max_repeatnum = 0;
+        uvc1_refgpos_t max_repeatnum = 0;
+        uvc1_refgpos_t repeat_endpos = refpos;
+        for (uvc1_refgpos_t repeatsize = 1; repeatsize <= indel_str_repeatsize_max; repeatsize++) {
+            uvc1_refgpos_t qidx = refpos;
             while (qidx + repeatsize < refstring.size() && refstring[qidx] == refstring[qidx+repeatsize]) {
                 qidx++;
             }
-            unsigned int repeatnum = (qidx - refpos) / repeatsize + 1;
+            uvc1_refgpos_t repeatnum = (qidx - refpos) / repeatsize + 1;
             if (is_indel_context_more_STR(repeatsize, repeatnum, repeatsize_at_max_repeatnum, max_repeatnum)) {
                 repeatsize_at_max_repeatnum = repeatsize;
                 max_repeatnum = repeatnum;
@@ -824,10 +824,10 @@ refstring2repeatvec(
             }
         }
         assert(repeat_endpos > refpos);
-        unsigned int tl = MIN(repeat_endpos, refstring.size()) - refpos;
-        const unsigned int decphred = indel_phred(indel_polymerase_slip_rate * (indel_del_to_ins_err_ratio), 
+        uvc1_refgpos_t tl = MIN(repeat_endpos, refstring.size()) - refpos;
+        const uvc1_qual_t decphred = indel_phred(indel_polymerase_slip_rate * (indel_del_to_ins_err_ratio), 
                 repeatsize_at_max_repeatnum, repeatsize_at_max_repeatnum, tl / repeatsize_at_max_repeatnum);
-        for (unsigned int i = refpos; i != MIN(repeat_endpos, refstring.size()); i++) {
+        for (uvc1_refgpos_t i = refpos; i != MIN(repeat_endpos, refstring.size()); i++) {
             if (tl > region_repeatvec[i].tracklen) {
                 region_repeatvec[i].begpos = refpos;
                 region_repeatvec[i].tracklen = tl;
@@ -842,6 +842,7 @@ refstring2repeatvec(
     return region_repeatvec;
 }
 
+/*
 void
 repeatvec_LOG(const auto & region_repeatvec, unsigned int region_offset) {
     for (size_t i = 0; i < region_repeatvec.size(); i++) {
@@ -853,28 +854,29 @@ repeatvec_LOG(const auto & region_repeatvec, unsigned int region_offset) {
                 << region_repeatvec[i].unitlen;
     }
 }
+*/
 
-unsigned int
-ref_to_phredvalue(unsigned int & n_units, 
+uvc1_qual_t
+ref_to_phredvalue(uvc1_refgpos_t & n_units, 
         const auto & refstring, 
-        const size_t refpos, 
-        const unsigned int max_phred, 
+        const uvc1_refgpos_t refpos, 
+        const uvc1_qual_t max_phred, 
         double ampfact, 
-        const unsigned int cigar_oplen, 
+        const uvc1_refgpos_t cigar_oplen, 
         const auto cigar_op, 
         const bam1_t *b,
-        const unsigned int indel_str_repeatsize_max,
+        const uvc1_refgpos_t indel_str_repeatsize_max,
         const double indel_del_to_ins_err_ratio,
-        const unsigned int specialflag) {
+        const uint32_t specialflag) {
 
-    unsigned int max_repeatnum = 0;
-    unsigned int repeatsize_at_max_repeatnum = 0;
-    for (unsigned int repeatsize = 1; repeatsize <= indel_str_repeatsize_max; repeatsize++) {
-        unsigned int qidx = refpos;
+    uvc1_refgpos_t max_repeatnum = 0;
+    uvc1_refgpos_t repeatsize_at_max_repeatnum = 0;
+    for (uvc1_refgpos_t repeatsize = 1; repeatsize <= indel_str_repeatsize_max; repeatsize++) {
+        uvc1_refgpos_t qidx = refpos;
         while (qidx + repeatsize < refstring.size() && refstring[qidx] == refstring[qidx+repeatsize]) {
             qidx++;
         }
-        unsigned int repeatnum = (qidx - refpos) / repeatsize + 1;
+        uvc1_refgpos_t repeatnum = (qidx - refpos) / repeatsize + 1;
         if (is_indel_context_more_STR(repeatsize, repeatnum, repeatsize_at_max_repeatnum, max_repeatnum)) {
             max_repeatnum = repeatnum;
             repeatsize_at_max_repeatnum = repeatsize;
@@ -884,7 +886,7 @@ ref_to_phredvalue(unsigned int & n_units,
         ampfact *= indel_del_to_ins_err_ratio;
     }
     // Because of a higher number of PCR cycles, it is higher than the one set in Fig. 3 at https://www.ncbi.nlm.nih.gov/pmc/articles/PMC149199/
-    unsigned int decphred = indel_phred(ampfact, cigar_oplen, repeatsize_at_max_repeatnum, max_repeatnum);
+    uvc1_qual_t decphred = indel_phred(ampfact, cigar_oplen, repeatsize_at_max_repeatnum, max_repeatnum);
     if (0x1 == (specialflag & 0x1)) { 
         LOG(logINFO) << "indel_phred(" 
                 << ampfact << ", " 
@@ -901,29 +903,29 @@ update_seg_format_prep_sets_by_aln(
         SegFormatPrepSets & seg_format_prep_sets,
         const bam1_t *aln,
         const std::vector<RegionalTandemRepeat> & rtr_vec,
-        const CoveredRegion<int64_t> & baq_offsetarr,
-        const unsigned int region_offset,
+        const CoveredRegion<uvc1_qual_big_t> & baq_offsetarr,
+        const uvc1_refgpos_t region_offset,
         const auto dflag,
         const CommandLineArgs & paramset,
-        unsigned int specialflag) {
+        uint32_t specialflag) {
     
-    const unsigned int rend = bam_endpos(aln);
+    const uvc1_refgpos_t rend = bam_endpos(aln);
     const auto cigar = bam_get_cigar(aln);
     const auto *bseq = bam_get_seq(aln);
-    unsigned int nge_cnt = 0; // number of gap extensions.
-    unsigned int ngo_cnt = 0; // number of gap openings.
+    uvc1_refgpos_t nge_cnt = 0; // number of gap extensions.
+    uvc1_refgpos_t ngo_cnt = 0; // number of gap openings.
     
-    unsigned int insbaq_sum = 0;
-    unsigned int delbaq_sum = 0;
-    unsigned int inslen_sum = 0;
-    unsigned int dellen_sum = 0;
+    uvc1_qual_t insbaq_sum = 0;
+    uvc1_qual_t delbaq_sum = 0;
+    uvc1_readpos_t inslen_sum = 0;
+    uvc1_readpos_t dellen_sum = 0;
     
-    unsigned int qpos = 0;
-    unsigned int rpos = aln->core.pos;
-    for (unsigned int i = 0; i < aln->core.n_cigar; i++) {
-        int32_t c = cigar[i];
-        unsigned int cigar_op = bam_cigar_op(c);
-        unsigned int cigar_oplen = bam_cigar_oplen(c);
+    uvc1_refgpos_t qpos = 0;
+    uvc1_refgpos_t rpos = aln->core.pos;
+    for (uint32_t i = 0; i < aln->core.n_cigar; i++) {
+        const auto c = cigar[i];
+        const auto cigar_op = bam_cigar_op(c);
+        const auto cigar_oplen = bam_cigar_oplen(c);
         if (BAM_CINS == cigar_op || BAM_CDEL == cigar_op) { 
             nge_cnt += bam_cigar_oplen(c);
             ngo_cnt++;
@@ -943,14 +945,14 @@ update_seg_format_prep_sets_by_aln(
             process_cigar(qpos, rpos, cigar_op, cigar_oplen);
         }
     }
-    const uint8_t *bam_aux_data = bam_aux_get(aln, "NM");
-    const unsigned int nm_cnt = ((bam_aux_data != NULL) ? bam_aux2i(bam_aux_data) : nge_cnt);
+    const auto *bam_aux_data = bam_aux_get(aln, "NM");
+    const uvc1_refgpos_t nm_cnt = ((bam_aux_data != NULL) ? bam_aux2i(bam_aux_data) : nge_cnt);
     assert (nm_cnt >= nge_cnt);
-    const unsigned int xm_cnt = nm_cnt - nge_cnt;
-    const unsigned int xm150 = xm_cnt * 1500 / (rend - aln->core.pos);
-    const unsigned int go150 = ngo_cnt * 1500 / (rend - aln->core.pos);
-    const unsigned int frag_pos_L = ((aln->core.isize != 0) ? MIN(aln->core.pos, aln->core.mpos) : aln->core.pos);
-    const unsigned int frag_pos_R = ((aln->core.isize != 0) ? (frag_pos_L + abs(aln->core.isize)) : rend);
+    const uvc1_base1500x_t xm_cnt = nm_cnt - nge_cnt;
+    const uvc1_base1500x_t xm1500 = xm_cnt * 1500 / (rend - aln->core.pos);
+    const uvc1_base1500x_t go1500 = ngo_cnt * 1500 / (rend - aln->core.pos);
+    const uvc1_refgpos_t frag_pos_L = ((aln->core.isize != 0) ? MIN(aln->core.pos, aln->core.mpos) : aln->core.pos);
+    const uvc1_refgpos_t frag_pos_R = ((aln->core.isize != 0) ? (frag_pos_L + abs(aln->core.isize)) : rend);
     const bool isrc = ((aln->core.flag & 0x10) == 0x10); 
     const bool isr2 = ((aln->core.flag & 0x80) == 0x80 && (aln->core.flag & 0x1) == 0x1);
     const bool strand = (isrc ^ isr2);
@@ -960,17 +962,17 @@ update_seg_format_prep_sets_by_aln(
     qpos = 0;
     rpos = aln->core.pos;
     
-    for (unsigned int i = 0; i < aln->core.n_cigar; i++) {
-        uint32_t c = cigar[i];
-        unsigned int cigar_op = bam_cigar_op(c);
-        unsigned int cigar_oplen = bam_cigar_oplen(c);
+    for (uint32_t i = 0; i < aln->core.n_cigar; i++) {
+        const auto c = cigar[i];
+        const auto cigar_op = bam_cigar_op(c);
+        const auto cigar_oplen = bam_cigar_oplen(c);
         if (cigar_op == BAM_CMATCH || cigar_op == BAM_CEQUAL || cigar_op == BAM_CDIFF) {
-            for (unsigned int j = 0; j < cigar_oplen; j++) {
+            for (uint32_t j = 0; j < cigar_oplen; j++) {
                 seg_format_prep_sets.getRefByPos(rpos).segprep_a_pcr_dp += pcr_dp_inc;
                 seg_format_prep_sets.getRefByPos(rpos).segprep_a_dp += 1;
-                seg_format_prep_sets.getRefByPos(rpos).segprep_a_XM1500 += xm150;
-                seg_format_prep_sets.getRefByPos(rpos).segprep_a_XM100inv += 100 * 10 / MAX(10, xm150);
-                seg_format_prep_sets.getRefByPos(rpos).segprep_a_GO1500 += go150;
+                seg_format_prep_sets.getRefByPos(rpos).segprep_a_XM1500 += xm1500;
+                seg_format_prep_sets.getRefByPos(rpos).segprep_a_XM100inv += 100 * 10 / MAX(10, xm1500);
+                seg_format_prep_sets.getRefByPos(rpos).segprep_a_GO1500 += go1500;
                 if (isrc) { 
                     seg_format_prep_sets.getRefByPos(rpos).segprep_a_LI += MIN(rpos - frag_pos_L + 1, MAX_INSERT_SIZE);
                     seg_format_prep_sets.getRefByPos(rpos).segprep_a_LIDP += 1;
@@ -978,19 +980,19 @@ update_seg_format_prep_sets_by_aln(
                     seg_format_prep_sets.getRefByPos(rpos).segprep_a_RI += MIN(frag_pos_R - rpos    , MAX_INSERT_SIZE);
                     seg_format_prep_sets.getRefByPos(rpos).segprep_a_RIDP += 1;
                 }
-                unsigned int base4bit = bam_seqi(bseq, qpos);
-                unsigned int base3bit = seq_nt16_int[base4bit];
+                const auto base4bit = bam_seqi(bseq, qpos);
+                const auto base3bit = seq_nt16_int[base4bit];
                 if (bam_phredi(aln, qpos) >= paramset.bias_thres_highBQ) {
-                    unsigned int ldist = rpos - aln->core.pos + 1;
-                    unsigned int rdist = rend - rpos;
+                    uvc1_refgpos_t ldist = rpos - aln->core.pos + 1;
+                    uvc1_refgpos_t rdist = rend - rpos;
                     
                     seg_format_prep_sets.getRefByPos(rpos).segprep_a_l_dist_sum += ldist;
                     seg_format_prep_sets.getRefByPos(rpos).segprep_a_r_dist_sum += rdist;
                     seg_format_prep_sets.getRefByPos(rpos).segprep_a_inslen_sum += inslen_sum;
                     seg_format_prep_sets.getRefByPos(rpos).segprep_a_dellen_sum += dellen_sum;
                     
-                    unsigned int lbaq = baq_offsetarr.getByPos(rpos) - baq_offsetarr.getByPos(aln->core.pos) + 1;
-                    unsigned int rbaq = baq_offsetarr.getByPos(rend-1) - baq_offsetarr.getByPos(rpos) + 1;
+                    uvc1_qual_t lbaq = baq_offsetarr.getByPos(rpos) - baq_offsetarr.getByPos(aln->core.pos) + 1;
+                    uvc1_qual_t rbaq = baq_offsetarr.getByPos(rend-1) - baq_offsetarr.getByPos(rpos) + 1;
                     
                     seg_format_prep_sets.getRefByPos(rpos).segprep_a_l_BAQ_sum += lbaq;
                     seg_format_prep_sets.getRefByPos(rpos).segprep_a_r_BAQ_sum += rbaq;
@@ -1006,14 +1008,14 @@ update_seg_format_prep_sets_by_aln(
             const auto & rtr1 = rtr_vec[MAX((int)paramset.indel_adj_tracklen_dist, (int)rpos - (int)region_offset) - (int)paramset.indel_adj_tracklen_dist];
             const auto & rtr2 = rtr_vec[MIN((int)rpos - (int)region_offset + (int)paramset.indel_adj_tracklen_dist, (int)rtr_vec.size() - 1)];
             const auto unitlen2 = MAX(1, (rtr1.tracklen > rtr2.tracklen) ? rtr1.unitlen : rtr2.unitlen);
-            const int nbases = (int)(cigar_oplen * paramset.indel_adj_indellen_perc / 100);
-            for (int rpos2 = MAX((int)rpos - nbases, aln->core.pos); rpos2 < MIN((int)rpos + nbases, rend); rpos2++) {
+            const uvc1_refgpos_t nbases = (int)(cigar_oplen * paramset.indel_adj_indellen_perc / 100);
+            for (uvc1_refgpos_t rpos2 = MAX((int)rpos - nbases, aln->core.pos); rpos2 < MIN((int)rpos + nbases, rend); rpos2++) {
                 seg_format_prep_sets.getRefByPos(rpos2).segprep_a_near_ins_dp += 1;
-                seg_format_prep_sets.getRefByPos(rpos2).segprep_a_near_ins_len += mathsquare(cigar_oplen);
+                seg_format_prep_sets.getRefByPos(rpos2).segprep_a_near_ins_pow2len += mathsquare(cigar_oplen);
                 seg_format_prep_sets.getRefByPos(rpos2).segprep_a_near_ins_inv100len += 100 / ((0 == cigar_oplen % unitlen2) ? (cigar_oplen / unitlen2) : 4);
             }
             
-            for (int rpos2 = MAX((int)(region_offset + rtr1.begpos) - paramset.indel_adj_tracklen_dist, aln->core.pos); 
+            for (uvc1_refgpos_t rpos2 = MAX((int)(region_offset + rtr1.begpos) - paramset.indel_adj_tracklen_dist, aln->core.pos); 
                     rpos2 < MIN((int)(region_offset + rtr2.begpos + rtr2.tracklen) + paramset.indel_adj_tracklen_dist, rend); 
                     rpos2++) {
                 seg_format_prep_sets.getRefByPos(rpos2).segprep_a_near_RTR_ins_dp += 1;
@@ -1021,12 +1023,12 @@ update_seg_format_prep_sets_by_aln(
             seg_format_prep_sets.getRefByPos(rpos).segprep_a_at_ins_dp += 1;
             qpos += cigar_oplen;
         } else if (cigar_op == BAM_CDEL) {
-            for (int rpos2 = (int)rpos; rpos2 < rpos + cigar_oplen; rpos2++) {
+            for (uvc1_refgpos_t rpos2 = (int)rpos; rpos2 < rpos + cigar_oplen; rpos2++) {
                 seg_format_prep_sets.getRefByPos(rpos2).segprep_a_pcr_dp += pcr_dp_inc;
                 seg_format_prep_sets.getRefByPos(rpos2).segprep_a_dp += 1;
                 seg_format_prep_sets.getRefByPos(rpos2).segprep_a_highBQ_dp += 1;
-                seg_format_prep_sets.getRefByPos(rpos2).segprep_a_XM1500 += xm150;
-                seg_format_prep_sets.getRefByPos(rpos2).segprep_a_GO1500 += go150;
+                seg_format_prep_sets.getRefByPos(rpos2).segprep_a_XM1500 += xm1500;
+                seg_format_prep_sets.getRefByPos(rpos2).segprep_a_GO1500 += go1500;
                 if (isrc) { 
                     seg_format_prep_sets.getRefByPos(rpos2).segprep_a_LI += MIN(rpos - frag_pos_L + 1, MAX_INSERT_SIZE); 
                     seg_format_prep_sets.getRefByPos(rpos2).segprep_a_LIDP += 1;
@@ -1034,16 +1036,16 @@ update_seg_format_prep_sets_by_aln(
                     seg_format_prep_sets.getRefByPos(rpos2).segprep_a_RI += MIN(frag_pos_R - rpos    , MAX_INSERT_SIZE); 
                     seg_format_prep_sets.getRefByPos(rpos2).segprep_a_RIDP += 1;
                 }
-                unsigned int ldist = rpos - aln->core.pos + 1;
-                unsigned int rdist = rend - rpos;
+                uvc1_refgpos_t ldist = rpos - aln->core.pos + 1;
+                uvc1_refgpos_t rdist = rend - rpos;
                 seg_format_prep_sets.getRefByPos(rpos2).segprep_a_l_dist_sum += ldist;
                 seg_format_prep_sets.getRefByPos(rpos2).segprep_a_r_dist_sum += rdist;
                 
                 seg_format_prep_sets.getRefByPos(rpos2).segprep_a_inslen_sum += inslen_sum;
                 seg_format_prep_sets.getRefByPos(rpos2).segprep_a_dellen_sum += dellen_sum;
                 
-                unsigned int lbaq = baq_offsetarr.getByPos(rpos) - baq_offsetarr.getByPos(aln->core.pos) + 1;
-                unsigned int rbaq = baq_offsetarr.getByPos(rend - 1) - baq_offsetarr.getByPos(rpos) + 1;
+                uvc1_refgpos_t lbaq = baq_offsetarr.getByPos(rpos) - baq_offsetarr.getByPos(aln->core.pos) + 1;
+                uvc1_refgpos_t rbaq = baq_offsetarr.getByPos(rend - 1) - baq_offsetarr.getByPos(rpos) + 1;
                 seg_format_prep_sets.getRefByPos(rpos).segprep_a_l_BAQ_sum += lbaq;
                 seg_format_prep_sets.getRefByPos(rpos).segprep_a_r_BAQ_sum += rbaq;
                 
@@ -1055,14 +1057,14 @@ update_seg_format_prep_sets_by_aln(
             const auto & rtr2 = rtr_vec[MIN((int)rpos - (int)region_offset + (int)paramset.indel_adj_tracklen_dist, (int)rtr_vec.size() - 1)];
             assert (rtr1.begpos <= rtr2.begpos || !fprintf(stderr, "AssertionError: %d <= %d failed for rtr1 and rtr2!\n", rtr1.begpos, rtr2.begpos));
             const auto unitlen2 = MAX(1, (rtr1.tracklen > rtr2.tracklen) ? rtr1.unitlen : rtr2.unitlen);
-            const int nbases = (int)(cigar_oplen * paramset.indel_adj_indellen_perc / 100);
-            for (int rpos2 = MAX((int)rpos - nbases, aln->core.pos); rpos2 < MIN((int)rpos + nbases, rend); rpos2++) {
+            const uvc1_refgpos_t nbases = (int)(cigar_oplen * paramset.indel_adj_indellen_perc / 100);
+            for (uvc1_refgpos_t rpos2 = MAX((int)rpos - nbases, aln->core.pos); rpos2 < MIN((int)rpos + nbases, rend); rpos2++) {
                 seg_format_prep_sets.getRefByPos(rpos2).segprep_a_near_del_dp += 1;
-                seg_format_prep_sets.getRefByPos(rpos2).segprep_a_near_del_len += mathsquare(cigar_oplen);
+                seg_format_prep_sets.getRefByPos(rpos2).segprep_a_near_del_pow2len += mathsquare(cigar_oplen);
                 seg_format_prep_sets.getRefByPos(rpos2).segprep_a_near_del_inv100len += 100 / ((0 == cigar_oplen % unitlen2) ? (cigar_oplen / unitlen2) : 4);
             }
             
-            for (int rpos2 = MAX((int)(region_offset + rtr1.begpos) - paramset.indel_adj_tracklen_dist, aln->core.pos);
+            for (uvc1_refgpos_t rpos2 = MAX((int)(region_offset + rtr1.begpos) - paramset.indel_adj_tracklen_dist, aln->core.pos);
                     rpos2 < MIN((int)(region_offset + rtr2.begpos + rtr2.tracklen) + paramset.indel_adj_tracklen_dist, rend);
                     rpos2++) {
                 seg_format_prep_sets.getRefByPos(rpos2).segprep_a_near_RTR_del_dp += 1;
@@ -1083,66 +1085,66 @@ update_seg_format_thres_from_prep_sets(
         SegFormatThresSets & seg_format_thres_sets,
         const SegFormatPrepSets & seg_format_prep_sets,
         const CommandLineArgs & paramset,
-        const unsigned int specialflag) {
+        const uint32_t specialflag) {
     
     assert(seg_format_thres_sets.getIncluBegPosition() + region_repeatvec.size() == seg_format_thres_sets.getExcluEndPosition() 
             || !fprintf(stderr, "%u + %u == %u failed", 
            seg_format_thres_sets.getIncluBegPosition(),  region_repeatvec.size(),   seg_format_thres_sets.getExcluEndPosition()));
     assert(seg_format_thres_sets.getIncluBegPosition() == seg_format_prep_sets.getIncluBegPosition());
     assert(seg_format_thres_sets.getExcluEndPosition() == seg_format_prep_sets.getExcluEndPosition());
-    for (size_t epos = seg_format_prep_sets.getIncluBegPosition(); epos != seg_format_prep_sets.getExcluEndPosition(); epos++) {
-        const unsigned int segprep_a_dp = MAX(seg_format_prep_sets.getByPos(epos).segprep_a_dp, 1U);
+    for (uvc1_refgpos_t epos = seg_format_prep_sets.getIncluBegPosition(); epos != seg_format_prep_sets.getExcluEndPosition(); epos++) {
+        const uvc1_readnum_t segprep_a_dp = MAX(seg_format_prep_sets.getByPos(epos).segprep_a_dp, 1);
         const auto & p = seg_format_prep_sets.getByPos(epos);
         auto & t = seg_format_thres_sets.getRefByPos(epos);
         
         auto segLIDP = MAX(seg_format_prep_sets.getByPos(epos).segprep_a_LIDP, 1);
         auto segRIDP = MAX(seg_format_prep_sets.getByPos(epos).segprep_a_RIDP, 1);
-        const auto ins_border_len = (unsigned int)ceil(sqrt((p.segprep_a_near_ins_len) / MAX(p.segprep_a_near_ins_dp, 1)));
-        const auto del_border_len = (unsigned int)ceil(sqrt((p.segprep_a_near_del_len) / MAX(p.segprep_a_near_del_dp, 1)));
+        const auto ins_border_len = ceil(sqrt((p.segprep_a_near_ins_pow2len) / MAX(p.segprep_a_near_ins_dp, 1)));
+        const auto del_border_len = ceil(sqrt((p.segprep_a_near_del_pow2len) / MAX(p.segprep_a_near_del_dp, 1)));
         
         auto & rtr = region_repeatvec[epos - seg_format_prep_sets.getIncluBegPosition()];
         if (p.segprep_a_near_ins_dp * paramset.indel_del_to_ins_err_ratio < p.segprep_a_near_del_dp) {
-            rtr.indelphred += (int)round(10/log(10.0) * log(paramset.indel_del_to_ins_err_ratio));
+            rtr.indelphred += (uvc1_qual_t)round(10/log(10.0) * log(paramset.indel_del_to_ins_err_ratio));
         }
-        const auto pc_inc1 = (int)(3 * 100 * MAX(1, p.segprep_a_near_ins_dp + p.segprep_a_near_del_dp)
+        const auto pc_inc1 = (uvc1_qual_t)(3 * 100 * MAX(1, p.segprep_a_near_ins_dp + p.segprep_a_near_del_dp)
                 / (MAX(1, p.segprep_a_near_ins_inv100len + p.segprep_a_near_del_inv100len))) - 3;
         assert (epos >= seg_format_prep_sets.getIncluBegPosition() || !fprintf(stderr, "%u >= %u failed!", epos, seg_format_prep_sets.getIncluBegPosition()));
         assert (epos - seg_format_prep_sets.getIncluBegPosition() < region_repeatvec.size() 
                 || !fprintf(stderr, "%u - %u < %u failed!", epos, seg_format_prep_sets.getIncluBegPosition(), region_repeatvec.size()));
         region_repeatvec[epos - seg_format_prep_sets.getIncluBegPosition()].indelphred += BETWEEN(pc_inc1, 0, 6);
-        t.segthres_aLPxT =    (ins_border_len)                 * (unsigned long)(paramset.bias_thres_aLPxT_perc) / 100 + paramset.bias_thres_aLPxT_add;
-        t.segthres_aRPxT = MAX(ins_border_len, del_border_len) * (unsigned long)(paramset.bias_thres_aLPxT_perc) / 100 + paramset.bias_thres_aLPxT_add;
+        t.segthres_aLPxT = int64mul(ins_border_len, paramset.bias_thres_aLPxT_perc) / 100 + paramset.bias_thres_aLPxT_add;
+        t.segthres_aRPxT = int64mul(MAX(ins_border_len, del_border_len), paramset.bias_thres_aLPxT_perc) / 100 + paramset.bias_thres_aLPxT_add;
         
-        t.segthres_aXM1T = (p.segprep_a_XM1500 * (unsigned long)paramset.bias_thres_PFXM1T_perc / (segprep_a_dp * 100) + paramset.bias_thres_PFXM1T_add); // easier to pass
-        t.segthres_aXM2T = (p.segprep_a_XM1500 * (unsigned long)paramset.bias_thres_PFXM2T_perc / (segprep_a_dp * 100) + paramset.bias_thres_PFXM2T_add); // the higher the stronger the bias
-        t.segthres_aGO1T = (p.segprep_a_GO1500 * (unsigned long)paramset.bias_thres_PFGO1T_perc / (segprep_a_dp * 100) + paramset.bias_thres_PFGO1T_add); // easier to pass
-        t.segthres_aGO2T = (p.segprep_a_GO1500 * (unsigned long)paramset.bias_thres_PFGO2T_perc / (segprep_a_dp * 100) + paramset.bias_thres_PFGO2T_add); // the higher the stronger the bias
+        t.segthres_aXM1T = int64mul(p.segprep_a_XM1500, paramset.bias_thres_PFXM1T_perc) / (segprep_a_dp * 100) + paramset.bias_thres_PFXM1T_add; // easier to pass
+        t.segthres_aXM2T = int64mul(p.segprep_a_XM1500, paramset.bias_thres_PFXM2T_perc) / (segprep_a_dp * 100) + paramset.bias_thres_PFXM2T_add; // the higher the stronger the bias
+        t.segthres_aGO1T = int64mul(p.segprep_a_GO1500, paramset.bias_thres_PFGO1T_perc) / (segprep_a_dp * 100) + paramset.bias_thres_PFGO1T_add; // easier to pass
+        t.segthres_aGO2T = int64mul(p.segprep_a_GO1500, paramset.bias_thres_PFGO2T_perc) / (segprep_a_dp * 100) + paramset.bias_thres_PFGO2T_add; // the higher the stronger the bias
         
-        t.segthres_aLI1T = (unsigned int)((uint64_t)p.segprep_a_LI * paramset.bias_thres_aLRI1T_perc / 100 / segLIDP + paramset.bias_thres_aLRI1T_add);
-        t.segthres_aLI2T = (unsigned int)((uint64_t)p.segprep_a_LI * paramset.bias_thres_aLRI2T_perc / 100 / segLIDP + paramset.bias_thres_aLRI2T_add); // higher > stronger bias
-        t.segthres_aLI1t = (unsigned int)((uint64_t)p.segprep_a_LI * paramset.bias_thres_aLRI1t_perc / 100 / segLIDP);
-        t.segthres_aLI2t = (unsigned int)((uint64_t)p.segprep_a_LI * paramset.bias_thres_aLRI2t_perc / 100 / segLIDP); // lower > stronger bias
+        t.segthres_aLI1T = int64mul(p.segprep_a_LI, paramset.bias_thres_aLRI1T_perc) / (segLIDP * 100) + paramset.bias_thres_aLRI1T_add;
+        t.segthres_aLI2T = int64mul(p.segprep_a_LI, paramset.bias_thres_aLRI2T_perc) / (segLIDP * 100) + paramset.bias_thres_aLRI2T_add; // higher > stronger bias
+        t.segthres_aLI1t = int64mul(p.segprep_a_LI, paramset.bias_thres_aLRI1t_perc) / (segLIDP * 100);
+        t.segthres_aLI2t = int64mul(p.segprep_a_LI, paramset.bias_thres_aLRI2t_perc) / (segLIDP * 100); // lower > stronger bias
 
-        t.segthres_aRI1T = (unsigned int)((uint64_t)p.segprep_a_RI * paramset.bias_thres_aLRI1T_perc / 100 / segRIDP + paramset.bias_thres_aLRI1T_add);
-        t.segthres_aRI2T = (unsigned int)((uint64_t)p.segprep_a_RI * paramset.bias_thres_aLRI2T_perc / 100 / segRIDP + paramset.bias_thres_aLRI2T_add); // higher > stronger bias
-        t.segthres_aRI1t = (unsigned int)((uint64_t)p.segprep_a_RI * paramset.bias_thres_aLRI1t_perc / 100 / segRIDP);
-        t.segthres_aRI2t = (unsigned int)((uint64_t)p.segprep_a_RI * paramset.bias_thres_aLRI2t_perc / 100 / segRIDP); // lower > stronger bias
+        t.segthres_aRI1T = int64mul(p.segprep_a_RI, paramset.bias_thres_aLRI1T_perc) / (segRIDP * 100) + paramset.bias_thres_aLRI1T_add;
+        t.segthres_aRI2T = int64mul(p.segprep_a_RI, paramset.bias_thres_aLRI2T_perc) / (segRIDP * 100) + paramset.bias_thres_aLRI2T_add; // higher > stronger bias
+        t.segthres_aRI1t = int64mul(p.segprep_a_RI, paramset.bias_thres_aLRI1t_perc) / (segRIDP * 100);
+        t.segthres_aRI2t = int64mul(p.segprep_a_RI, paramset.bias_thres_aLRI2t_perc) / (segRIDP * 100); // lower > stronger bias
         
-        const unsigned int aLRP1t_avgmul = paramset.bias_thres_aLRP1t_avgmul_perc;
-        const unsigned int aLRP2t_avgmul = paramset.bias_thres_aLRP2t_avgmul_perc;
-        const unsigned int aLRB1t_avgmul = paramset.bias_thres_aLRB1t_avgmul_perc;
-        const unsigned int aLRB2t_avgmul = paramset.bias_thres_aLRB2t_avgmul_perc;
+        const auto aLRP1t_avgmul_perc = paramset.bias_thres_aLRP1t_avgmul_perc;
+        const auto aLRP2t_avgmul_perc = paramset.bias_thres_aLRP2t_avgmul_perc;
+        const auto aLRB1t_avgmul_perc = paramset.bias_thres_aLRB1t_avgmul_perc;
+        const auto aLRB2t_avgmul_perc = paramset.bias_thres_aLRB2t_avgmul_perc;
         
-        t.segthres_aLP1t = (unsigned int)non_neg_minus(p.segprep_a_l_dist_sum * aLRP1t_avgmul / MAX(1, p.segprep_a_highBQ_dp * 100), paramset.bias_thres_aLRP1t_minus);
-        t.segthres_aLP2t = (unsigned int)non_neg_minus(p.segprep_a_l_dist_sum * aLRP2t_avgmul / MAX(1, p.segprep_a_highBQ_dp * 100), paramset.bias_thres_aLRP2t_minus);
-        t.segthres_aRP1t = (unsigned int)non_neg_minus(p.segprep_a_r_dist_sum * aLRP1t_avgmul / MAX(1, p.segprep_a_highBQ_dp * 100), paramset.bias_thres_aLRP1t_minus);
-        t.segthres_aRP2t = (unsigned int)non_neg_minus(p.segprep_a_r_dist_sum * aLRP2t_avgmul / MAX(1, p.segprep_a_highBQ_dp * 100), paramset.bias_thres_aLRP2t_minus);
+        t.segthres_aLP1t = non_neg_minus(int64mul(p.segprep_a_l_dist_sum, aLRP1t_avgmul_perc) / MAX(1, p.segprep_a_highBQ_dp * 100), paramset.bias_thres_aLRP1t_minus);
+        t.segthres_aLP2t = non_neg_minus(int64mul(p.segprep_a_l_dist_sum, aLRP2t_avgmul_perc) / MAX(1, p.segprep_a_highBQ_dp * 100), paramset.bias_thres_aLRP2t_minus);
+        t.segthres_aRP1t = non_neg_minus(int64mul(p.segprep_a_r_dist_sum, aLRP1t_avgmul_perc) / MAX(1, p.segprep_a_highBQ_dp * 100), paramset.bias_thres_aLRP1t_minus);
+        t.segthres_aRP2t = non_neg_minus(int64mul(p.segprep_a_r_dist_sum, aLRP2t_avgmul_perc) / MAX(1, p.segprep_a_highBQ_dp * 100), paramset.bias_thres_aLRP2t_minus);
         
         const auto pdel = p.segprep_a_delBAQ_sum / MAX(1, p.segprep_a_highBQ_dp); 
-        t.segthres_aLB1t = (unsigned int)non_neg_minus(p.segprep_a_l_BAQ_sum * aLRB1t_avgmul / MAX(1, p.segprep_a_highBQ_dp * 100), paramset.bias_thres_aLRB1t_minus + pdel);
-        t.segthres_aLB2t = (unsigned int)non_neg_minus(p.segprep_a_l_BAQ_sum * aLRB2t_avgmul / MAX(1, p.segprep_a_highBQ_dp * 100), paramset.bias_thres_aLRB2t_minus);
-        t.segthres_aRB1t = (unsigned int)non_neg_minus(p.segprep_a_r_BAQ_sum * aLRB1t_avgmul / MAX(1, p.segprep_a_highBQ_dp * 100), paramset.bias_thres_aLRB1t_minus + pdel);
-        t.segthres_aRB2t = (unsigned int)non_neg_minus(p.segprep_a_r_BAQ_sum * aLRB2t_avgmul / MAX(1, p.segprep_a_highBQ_dp * 100), paramset.bias_thres_aLRB2t_minus);
+        t.segthres_aLB1t = non_neg_minus(int64mul(p.segprep_a_l_BAQ_sum, aLRB1t_avgmul_perc) / MAX(1, p.segprep_a_highBQ_dp * 100), paramset.bias_thres_aLRB1t_minus + pdel);
+        t.segthres_aLB2t = non_neg_minus(int64mul(p.segprep_a_l_BAQ_sum, aLRB2t_avgmul_perc) / MAX(1, p.segprep_a_highBQ_dp * 100), paramset.bias_thres_aLRB2t_minus);
+        t.segthres_aRB1t = non_neg_minus(int64mul(p.segprep_a_r_BAQ_sum, aLRB1t_avgmul_perc) / MAX(1, p.segprep_a_highBQ_dp * 100), paramset.bias_thres_aLRB1t_minus + pdel);
+        t.segthres_aRB2t = non_neg_minus(int64mul(p.segprep_a_r_BAQ_sum, aLRB2t_avgmul_perc) / MAX(1, p.segprep_a_highBQ_dp * 100), paramset.bias_thres_aLRB2t_minus);
     }
 }
 
@@ -1151,36 +1153,36 @@ inline const
 int
 dealwith_segbias(
         const auto bq,
-        const unsigned int rpos,
+        const uvc1_refgpos_t rpos,
         auto & symbol_to_seg_format_depth_set,
         auto & symbol_to_VQ_format_tag_set,
         const auto & seg_format_thres_set,
         const bam1_t *aln,
-        const auto xm150,
-        const auto go150,
-        const auto bm150,
-        const CoveredRegion<int64_t> & baq_offsetarr,
+        const auto xm1500,
+        const auto go1500,
+        const auto bm1500,
+        const CoveredRegion<uvc1_qual_big_t> & baq_offsetarr,
         
-        const unsigned int dist_to_interfering_indel,
+        const uvc1_refgpos_t dist_to_interfering_indel,
         
         const CommandLineArgs & paramset,
-        const unsigned int specialflag) {
+        const uint32_t specialflag) {
     
-    const unsigned int bias_thres_veryhighBQ = paramset.bias_thres_highBQ; // veryhigh overriden by high. TODO: check if it makes sense?
+    const uvc1_refgpos_t bias_thres_veryhighBQ = paramset.bias_thres_highBQ; // veryhigh overriden by high. TODO: check if it makes sense?
     
     const auto rend = bam_endpos(aln); 
     
-    const size_t seg_l_baq = baq_offsetarr.getByPos(rpos) - baq_offsetarr.getByPos(aln->core.pos) + 1;
-    const size_t seg_r_baq = baq_offsetarr.getByPos(rend-1) - baq_offsetarr.getByPos(rpos) + 1;
+    const uvc1_qual_t seg_l_baq = baq_offsetarr.getByPos(rpos) - baq_offsetarr.getByPos(aln->core.pos) + 1;
+    const uvc1_qual_t seg_r_baq = baq_offsetarr.getByPos(rend-1) - baq_offsetarr.getByPos(rpos) + 1;
     
-    const size_t seg_l_nbases = (size_t)(rpos - aln->core.pos + 1);
-    const size_t seg_r_nbases = (size_t)(bam_endpos(aln) - rpos);
-    const size_t frag_pos_L = (size_t)((aln->core.isize != 0) ? MIN(aln->core.pos, aln->core.mpos) : aln->core.pos);
-    const size_t frag_pos_R = (size_t)((aln->core.isize != 0) ? (frag_pos_L + abs(aln->core.isize)) : rend);
-    const size_t frag_l_nbases1 = (size_t)(rpos - frag_pos_L + 1);
-    const size_t frag_l_nbases2 = (size_t)MIN(frag_l_nbases1, MAX_INSERT_SIZE);
-    const size_t frag_r_nbases1 = (size_t)(frag_pos_R - rpos);
-    const size_t frag_r_nbases2 = (size_t)MIN(frag_r_nbases1, MAX_INSERT_SIZE);
+    const uvc1_refgpos_t seg_l_nbases = (rpos - aln->core.pos + 1);
+    const uvc1_refgpos_t seg_r_nbases = (bam_endpos(aln) - rpos);
+    const uvc1_refgpos_t frag_pos_L = ((aln->core.isize != 0) ? MIN(aln->core.pos, aln->core.mpos) : aln->core.pos);
+    const uvc1_refgpos_t frag_pos_R = ((aln->core.isize != 0) ? (frag_pos_L + abs(aln->core.isize)) : rend);
+    const uvc1_refgpos_t frag_l_nbases1 = (rpos - frag_pos_L + 1);
+    const uvc1_refgpos_t frag_l_nbases2 = MIN(frag_l_nbases1, MAX_INSERT_SIZE);
+    const uvc1_refgpos_t frag_r_nbases1 = (frag_pos_R - rpos);
+    const uvc1_refgpos_t frag_r_nbases2 = MIN(frag_r_nbases1, MAX_INSERT_SIZE);
     
     const bool is_normal = ((aln->core.isize != 0) || (0 == (aln->core.flag & 0x1)));
     const bool isrc = ((aln->core.flag & 0x10) == 0x10);
@@ -1191,7 +1193,7 @@ dealwith_segbias(
     const auto a2BQ = (isrc ? VQ_a2BQr : VQ_a2BQf);
     symbol_to_VQ_format_tag_set[a1BQ] += bq; 
     symbol_to_VQ_format_tag_set[a2BQ] += bq * bq / SQR_QUAL_DIV;
-    symbol_to_VQ_format_tag_set[VQ_a1XM] += xm150; 
+    symbol_to_VQ_format_tag_set[VQ_a1XM] += xm1500; 
     
     symbol_to_seg_format_depth_set.seginfo_aMQs += aln->core.qual;
     auto & symbol_to_seg_aDP_depth_set = (strand
@@ -1203,39 +1205,39 @@ dealwith_segbias(
     }
     symbol_to_seg_aDP_depth_set += 1;
     
-    symbol_to_seg_format_depth_set.seginfo_aXMp1 += 1000 / MAX(xm150, 10);
+    symbol_to_seg_format_depth_set.seginfo_aXMp1 += 1000 / MAX(xm1500, 10);
     
-    const unsigned int const_XM1T = seg_format_thres_set.segthres_aXM1T;
-    const unsigned int const_XM2T = seg_format_thres_set.segthres_aXM2T;
-    const unsigned int const_GO1T = seg_format_thres_set.segthres_aGO1T;
-    const unsigned int const_GO2T = seg_format_thres_set.segthres_aGO2T;
+    const auto const_XM1T = seg_format_thres_set.segthres_aXM1T;
+    const auto const_XM2T = seg_format_thres_set.segthres_aXM2T;
+    const auto const_GO1T = seg_format_thres_set.segthres_aGO1T;
+    const auto const_GO2T = seg_format_thres_set.segthres_aGO2T;
     
-    const unsigned int const_LPxT = seg_format_thres_set.segthres_aLPxT; 
-    const unsigned int const_RPxT = seg_format_thres_set.segthres_aRPxT; 
+    const auto const_LPxT = seg_format_thres_set.segthres_aLPxT; 
+    const auto const_RPxT = seg_format_thres_set.segthres_aRPxT; 
     if (isGap) {
         
-        if (xm150 <= const_XM1T && go150 <= const_GO1T && bq >= paramset.bias_thres_PFBQ1) {
+        if (xm1500 <= const_XM1T && go1500 <= const_GO1T && bq >= paramset.bias_thres_PFBQ1) {
             symbol_to_seg_format_depth_set.seginfo_aPF1 += 100;
         } else {
             symbol_to_seg_format_depth_set.seginfo_aPF1 += MIN3(
-                    100 * mathsquare(const_XM1T) / MAX(1, mathsquare(xm150)), 
-                    100 * mathsquare(const_GO1T) / MAX(1, mathsquare(go150)),
+                    100 * mathsquare(const_XM1T) / MAX(1, mathsquare(xm1500)), 
+                    100 * mathsquare(const_GO1T) / MAX(1, mathsquare(go1500)),
                     100 * mathsquare(bq) / mathsquare(paramset.bias_thres_PFBQ1));
         } 
-        if (xm150 <= const_XM2T && go150 <= const_GO2T && bq >= paramset.bias_thres_PFBQ2) {
+        if (xm1500 <= const_XM2T && go1500 <= const_GO2T && bq >= paramset.bias_thres_PFBQ2) {
             symbol_to_seg_format_depth_set.seginfo_aPF2 += 100;
         } else {
             symbol_to_seg_format_depth_set.seginfo_aPF2 += MIN3(
-                    100 * mathsquare(const_XM2T) / MAX(1, mathsquare(xm150)), 
-                    100 * mathsquare(const_GO2T) / MAX(1, mathsquare(go150)),
+                    100 * mathsquare(const_XM2T) / MAX(1, mathsquare(xm1500)), 
+                    100 * mathsquare(const_GO2T) / MAX(1, mathsquare(go1500)),
                     100 * mathsquare(bq) / mathsquare(paramset.bias_thres_PFBQ2));
         }
     } else {
-        unsigned int ampfact1 = 100;
-        unsigned int ampfact2 = 100;
+        uvc1_readnum100x_t ampfact1 = 100;
+        uvc1_readnum100x_t ampfact2 = 100;
 
-        if (xm150 > const_XM2T) {
-            ampfact1 = 100 * mathsquare(const_XM2T) / mathsquare(xm150);
+        if (xm1500 > const_XM2T) {
+            ampfact1 = 100 * mathsquare(const_XM2T) / mathsquare(xm1500);
         } else { 
             ampfact1 = 100; 
         }
@@ -1246,8 +1248,8 @@ dealwith_segbias(
         }
         symbol_to_seg_format_depth_set.seginfo_aPF1 += (ampfact1 * ampfact2 / (100));
         
-        if (xm150 > const_XM1T) {
-            ampfact1 = 100 * mathsquare(const_XM1T) / mathsquare(xm150);
+        if (xm1500 > const_XM1T) {
+            ampfact1 = 100 * mathsquare(const_XM1T) / mathsquare(xm1500);
         } else { 
             ampfact1 = 100; 
         }
@@ -1258,8 +1260,8 @@ dealwith_segbias(
         }
         symbol_to_seg_format_depth_set.seginfo_aPF2 += (ampfact1 * ampfact2 / (100));
         
-        symbol_to_seg_format_depth_set.seginfo_aXM2 += (xm150 > 20 ? (100 * mathsquare(20) / mathsquare(xm150)) : 100);
-        symbol_to_seg_format_depth_set.seginfo_aBM2 += (bm150 > 20 ? (100 * mathsquare(20) / mathsquare(bm150)) : 100);
+        symbol_to_seg_format_depth_set.seginfo_aXM2 += (xm1500 > 20 ? (100 * mathsquare(20) / mathsquare(xm1500)) : 100);
+        symbol_to_seg_format_depth_set.seginfo_aBM2 += (bm1500 > 20 ? (100 * mathsquare(20) / mathsquare(bm1500)) : 100);
     }
     
     if (((!isGap) && bq >= paramset.bias_thres_highBQ) || (isGap && dist_to_interfering_indel >= paramset.bias_thres_interfering_indel)) {
@@ -1341,12 +1343,12 @@ public:
     // mainly for grouping reads sharing the same UMI into one family
     template <bool TIsIncVariable = true>
     void
-    updateByRepresentative(const GenericSymbol2CountCoverage<TSymbol2Count> & other, unsigned int incvalue = 1,
+    updateByRepresentative(const GenericSymbol2CountCoverage<TSymbol2Count> & other, uvc1_readnum_t incvalue = 1,
             const bool update_pos2indel2count = true, const bool update_idx2symbol2data = true) {
         this->assertUpdateIsLegal(other);
         
         if (update_idx2symbol2data) {
-            for (size_t epos = other.getIncluBegPosition(); epos < other.getExcluEndPosition(); epos++) {
+            for (uvc1_refgpos_t epos = UNSIGN2SIGN(other.getIncluBegPosition()); epos < UNSIGN2SIGN(other.getExcluEndPosition()); epos++) {
                 AlignmentSymbol consymbol = this->getRefByPos(epos).template updateByRepresentative<TIsIncVariable>(other.getByPos(epos), incvalue);
                 if (update_pos2indel2count) {
                     if (isSymbolIns(consymbol)) {
@@ -1362,12 +1364,12 @@ public:
     // mainly for merging R1 and R2 into one read
     template<bool TIndelIsMajor = false> 
     void
-    updateByConsensus(const GenericSymbol2CountCoverage<TSymbol2Count> &other, unsigned int incvalue = 1,
+    updateByConsensus(const GenericSymbol2CountCoverage<TSymbol2Count> &other, uvc1_readnum_t incvalue = 1,
             const bool update_pos2indel2count = true, const bool update_idx2symbol2data = true) {
         this->assertUpdateIsLegal(other);
         
         if (update_idx2symbol2data) {
-            for (size_t epos = other.getIncluBegPosition(); epos < other.getExcluEndPosition(); epos++) {
+            for (uvc1_refgpos_t epos = (other.getIncluBegPosition()); epos < UNSIGN2SIGN(other.getExcluEndPosition()); epos++) {
                 const std::array<AlignmentSymbol, NUM_SYMBOL_TYPES> consymbols = this->getRefByPos(epos).template updateByConsensus</*T_ConsensusType,*/ TIndelIsMajor>(other.getByPos(epos), incvalue);
                 if (update_pos2indel2count) {
                     if (isSymbolIns(consymbols[1])) {
@@ -1384,8 +1386,8 @@ public:
     int
     updateByFiltering(
             const GenericSymbol2CountCoverage<TSymbol2Count> &other, 
-            const std::array<unsigned int, NUM_SYMBOL_TYPES> thres,
-            unsigned int incvalue = 1,
+            const std::array<uvc1_qual_t, NUM_SYMBOL_TYPES> thres,
+            uvc1_readnum_t incvalue = 1,
             const bool update_pos2indel2count = true) {
         this->assertUpdateIsLegal(other);
         int num_updated_pos = 0;
@@ -1421,7 +1423,7 @@ public:
         auto incluBegPos = other.getIncluBegPosition();
         auto excluEndPos = other.getExcluEndPosition();
         std::array<AlignmentSymbol, NUM_SYMBOL_TYPES> consymbols; 
-        std::array<unsigned int   , NUM_SYMBOL_TYPES> conmmmcnts;
+        std::array<uvc1_readnum_t         , NUM_SYMBOL_TYPES> conmmmcnts;
         for (auto epos = other.getIncluBegPosition(); epos < other.getExcluEndPosition(); epos++) {
             int updateresult = this->getRefByPos(epos).updateByMajorMinusMinor(
                     consymbols,
@@ -1443,13 +1445,13 @@ public:
 
     template <ValueType TUpdateType2>
     void // GenericSymbol2CountCoverage<TSymbol2Count>::
-    inc(const unsigned int epos, const AlignmentSymbol symbol, const unsigned int incvalue = 1, const bam1_t *bam = NULL) {
+    inc(const uvc1_refgpos_t epos, const AlignmentSymbol symbol, const uvc1_readnum_t incvalue = 1, const bam1_t *bam = NULL) {
         auto &r = this->getRefByPos(epos, bam);
         r.template incSymbolCount<(TUpdateType2)>(symbol, incvalue);
     };
 
     void // GenericSymbol2CountCoverage<TSymbol2Count>::
-    incIns(const unsigned int epos, const std::string & iseq, const AlignmentSymbol symbol, const uint32_t incvalue = 1) {
+    incIns(const uvc1_refgpos_t epos, const std::string & iseq, const AlignmentSymbol symbol, const uvc1_readnum_t incvalue = 1) {
         assert (incvalue > 0); 
         assert (iseq.size() > 0);
         size_t ipos = epos;
@@ -1457,7 +1459,7 @@ public:
     };
 
     void // GenericSymbol2CountCoverage<TSymbol2Count>::
-    incDel(const unsigned int epos, const uint32_t dlen, const AlignmentSymbol symbol, const uint32_t incvalue = 1) {
+    incDel(const uvc1_refgpos_t epos, const uvc1_refgpos_t dlen, const AlignmentSymbol symbol, const uvc1_readnum_t incvalue = 1) {
         assert (incvalue > 0);
         assert (dlen > 0);
         size_t ipos = epos;
@@ -1469,10 +1471,10 @@ public:
     updateByAln(
             const bam1_t *const aln, 
             
-            const unsigned int region_offset,
+            const uvc1_refgpos_t region_offset,
             const auto & region_symbolvec, 
             const std::vector<RegionalTandemRepeat> & region_repeatvec,
-            const CoveredRegion<int64_t> & baq_offsetarr,
+            const CoveredRegion<uvc1_qual_big_t> & baq_offsetarr,
             
             auto & seg_format_depth_sets,
             auto & symbol_to_VQ_format_tag_sets,
@@ -1488,44 +1490,44 @@ public:
         assert(this->getIncluBegPosition() <= SIGN2UNSIGN(aln->core.pos)   || !fprintf(stderr, "%lu <= %d failed", this->getIncluBegPosition(), aln->core.pos));
         assert(this->getExcluEndPosition() >= SIGN2UNSIGN(bam_endpos(aln)) || !fprintf(stderr, "%lu >= %d failed", this->getExcluEndPosition(), bam_endpos(aln)));
         
-        const uint32_t n_cigar = aln->core.n_cigar;
-        const uint32_t *cigar = bam_get_cigar(aln);
-        const uint8_t *bseq = bam_get_seq(aln);
-        const uint32_t rend = bam_endpos(aln);
-        const std::array<unsigned int, NUM_SYMBOL_TYPES> symboltype2addPhred = {{paramset.bq_phred_added_misma, paramset.bq_phred_added_indel}};
+        const auto n_cigar = aln->core.n_cigar;
+        const auto *cigar = bam_get_cigar(aln);
+        const auto *bseq = bam_get_seq(aln);
+        const auto rend = bam_endpos(aln);
+        const std::array<uvc1_qual_t, NUM_SYMBOL_TYPES> symboltype2addPhred = {{paramset.bq_phred_added_misma, paramset.bq_phred_added_indel}};
         
-        unsigned int nge_cnt = 0; // number of gap extensions.
-        unsigned int ngo_cnt = 0; // number of gap opens.
-        for (unsigned int i = 0; i < n_cigar; i++) {
-            int32_t c = cigar[i];
-            unsigned int cigar_op = bam_cigar_op(c);
+        uvc1_readnum_t nge_cnt = 0; // number of gap extensions.
+        uvc1_readnum_t ngo_cnt = 0; // number of gap opens.
+        for (int32_t i = 0; i < n_cigar; i++) {
+            const auto c = cigar[i];
+            const auto cigar_op = bam_cigar_op(c);
             if (BAM_CINS == cigar_op || BAM_CDEL == cigar_op) { 
                 nge_cnt += bam_cigar_oplen(c); 
                 ngo_cnt++; 
             }
         }
 
-        const uint8_t *bam_aux_data = bam_aux_get(aln, "NM");
-        const unsigned int nm_cnt = ((bam_aux_data != NULL) ? bam_aux2i(bam_aux_data) : nge_cnt);
+        const auto *bam_aux_data = bam_aux_get(aln, "NM");
+        const uvc1_readnum_t nm_cnt = ((bam_aux_data != NULL) ? bam_aux2i(bam_aux_data) : nge_cnt);
         assert (nm_cnt >= nge_cnt);
-        const unsigned int xm_cnt = nm_cnt - nge_cnt;
-        const unsigned int xm150 = xm_cnt * 1500 / (rend - aln->core.pos);
-        const unsigned int go150 = ngo_cnt * 1500 / (rend - aln->core.pos);
+        const uvc1_base1500x_t xm_cnt = nm_cnt - nge_cnt;
+        const uvc1_base1500x_t xm1500 = xm_cnt * 1500 / (rend - aln->core.pos);
+        const uvc1_base1500x_t go1500 = ngo_cnt * 1500 / (rend - aln->core.pos);
         
-        std::vector<unsigned int> indel_rposs = {{ 0 }};
-        unsigned int indel_rposs_idx = 0;
-        std::array<unsigned int, NUM_ALIGNMENT_SYMBOLS> bm_cnts = {{ 0 }}; // mismatch of the same base type
+        std::vector<unsigned uvc1_refgpos_t> indel_rposs = {{ 0 }};
+        size_t indel_rposs_idx = 0;
+        std::array<uvc1_readpos_t, NUM_ALIGNMENT_SYMBOLS> bm_cnts = {{ 0 }}; // mismatch of the same base type
         {
-            unsigned int qpos = 0;
-            unsigned int rpos = aln->core.pos;
-            for (unsigned int i = 0; i < n_cigar; i++) {
-                uint32_t c = cigar[i];
-                unsigned int cigar_op = bam_cigar_op(c);
-                unsigned int cigar_oplen = bam_cigar_oplen(c);
+            uvc1_refgpos_t qpos = 0;
+            uvc1_refgpos_t rpos = aln->core.pos;
+            for (uint32_t i = 0; i < n_cigar; i++) {
+                const auto c = cigar[i];
+                const auto cigar_op = bam_cigar_op(c);
+                const auto cigar_oplen = bam_cigar_oplen(c);
                 if (cigar_op == BAM_CMATCH || cigar_op == BAM_CEQUAL || cigar_op == BAM_CDIFF) {
-                    for (unsigned int i2 = 0; i2 < cigar_oplen; i2++) {
-                        unsigned int base4bit = bam_seqi(bseq, qpos);
-                        unsigned int base3bit = seq_nt16_int[base4bit];
+                    for (uint32_t i2 = 0; i2 < cigar_oplen; i2++) {
+                        const auto base4bit = bam_seqi(bseq, qpos);
+                        const auto base3bit = seq_nt16_int[base4bit];
                         const auto refbase = region_symbolvec[rpos - region_offset];
                         if (refbase != base3bit) { 
                             AlignmentSymbol symbol = AlignmentSymbol(base3bit);
@@ -1536,7 +1538,7 @@ public:
                     }
                 } else if (cigar_op == BAM_CINS) {
                     bool is_lowBQ = false;
-                    for (unsigned int qpos2 = qpos - MIN(qpos, 1); qpos2 < MIN(qpos + cigar_oplen + 1, rend); qpos2++) {
+                    for (uvc1_refgpos_t qpos2 = qpos - MIN(qpos, 1); qpos2 < MIN(qpos + cigar_oplen + 1, rend); qpos2++) {
                         if (bam_phredi(aln, qpos2) < paramset.bias_thres_interfering_indel_BQ) { is_lowBQ = true; }
                     }
                     if (is_lowBQ) { indel_rposs.push_back(rpos); }
@@ -1551,37 +1553,37 @@ public:
             }
             indel_rposs.push_back(INT32_MAX);
         }
-        std::array<unsigned int, NUM_ALIGNMENT_SYMBOLS> bm150s = {{ 0 }};
-        for (unsigned int i = 0; i < NUM_ALIGNMENT_SYMBOLS; i++) {
-            bm150s[i] = bm_cnts[i] * 1500 / (rend - aln->core.pos);
+        std::array<uvc1_base1500x_t, NUM_ALIGNMENT_SYMBOLS> bm1500s = {{ 0 }};
+        for (size_t i = 0; i < bm_cnts.size(); i++) {
+            bm1500s[i] = bm_cnts[i] * 1500 / (rend - aln->core.pos);
         }
         
         const bool isrc = ((aln->core.flag & 0x10) == 0x10);
         
-        unsigned int primerlen_lside = paramset.primerlen;
-        unsigned int primerlen_rside = paramset.primerlen;
+        const uvc1_readpos_t primerlen_lside = paramset.primerlen;
+        const uvc1_readpos_t primerlen_rside = paramset.primerlen;
         // NOTE: if insert size is zero, then assume that the whole insert including the two primers are sequenced
         // A correct pair of primers should not generate zero insert size
-        const unsigned int ibeg = ((aln->core.isize != 0) ? (MIN(aln->core.pos, aln->core.mpos) + primerlen_lside) 
+        const uvc1_readpos_t ibeg = ((aln->core.isize != 0) ? (MIN(aln->core.pos, aln->core.mpos) + primerlen_lside) 
                 : ((isrc && (0x0 == (0x1 & aln->core.flag))) ? 0 : (aln->core.pos + primerlen_lside)));
-        const unsigned int iend = ((aln->core.isize != 0) ? non_neg_minus(MIN(aln->core.pos, aln->core.mpos) + abs(aln->core.isize), primerlen_rside) 
+        const uvc1_readpos_t iend = ((aln->core.isize != 0) ? non_neg_minus(MIN(aln->core.pos, aln->core.mpos) + abs(aln->core.isize), primerlen_rside) 
                 : ((isrc && (0x0 == (0x1 & aln->core.flag))) ? non_neg_minus(rend, primerlen_rside) : INT32_MAX));
         
-        unsigned int qpos = 0;
-        unsigned int rpos = aln->core.pos;
-        unsigned int incvalue = 1;
-        const unsigned int lclip_len = ((n_cigar > 0 && bam_cigar_op(cigar[0]) == BAM_CSOFT_CLIP) ? bam_cigar_oplen(cigar[0]) : 0);
-        const unsigned int rclip_len = ((n_cigar > 0 && bam_cigar_op(cigar[n_cigar - 1]) == BAM_CSOFT_CLIP) ? bam_cigar_oplen(cigar[n_cigar - 1]) : 0);
-        const auto micro_indel_penal_by_clip = MAX(lclip_len, rclip_len) / 6; // / paramset.indel_str_repeatsize_max;
-        const auto micro_indel_penal_by_nm = (xm150 + go150) / (30); // paramset.bias_thres_aXM1T_add;
-        const auto micro_indel_penal = MIN(1, micro_indel_penal_by_nm + micro_indel_penal_by_clip);
-        const auto micro_nogap_penal = MIN(4, micro_indel_penal_by_nm + micro_indel_penal_by_clip) + 1;
-        for (unsigned int i = 0; i < n_cigar; i++) {
-            uint32_t c = cigar[i];
-            unsigned int cigar_op = bam_cigar_op(c);
-            unsigned int cigar_oplen = bam_cigar_oplen(c);
+        uvc1_readpos_t qpos = 0;
+        uvc1_readpos_t rpos = aln->core.pos;
+        uvc1_qual_t incvalue = 1; // can also be uvc1_readnum_t or uvc1_readpos_t
+        uvc1_readpos_t lclip_len = ((n_cigar > 0 && bam_cigar_op(cigar[0]) == BAM_CSOFT_CLIP) ? bam_cigar_oplen(cigar[0]) : 0);
+        uvc1_readpos_t rclip_len = ((n_cigar > 0 && bam_cigar_op(cigar[n_cigar - 1]) == BAM_CSOFT_CLIP) ? bam_cigar_oplen(cigar[n_cigar - 1]) : 0);
+        const uvc1_qual_t micro_indel_penal_by_clip = MAX(lclip_len, rclip_len) / 6; // / paramset.indel_str_repeatsize_max;
+        const uvc1_qual_t micro_indel_penal_by_nm = (xm1500 + go1500) / (30); // paramset.bias_thres_aXM1T_add;
+        const uvc1_qual_t micro_indel_penal = MIN(1, micro_indel_penal_by_nm + micro_indel_penal_by_clip);
+        const uvc1_qual_t micro_nogap_penal = MIN(4, micro_indel_penal_by_nm + micro_indel_penal_by_clip) + 1;
+        for (uint32_t i = 0; i < n_cigar; i++) {
+            const auto c = cigar[i];
+            const auto cigar_op = bam_cigar_op(c);
+            const auto cigar_oplen = bam_cigar_oplen(c);
             if (cigar_op == BAM_CMATCH || cigar_op == BAM_CEQUAL || cigar_op == BAM_CDIFF) {
-                for (unsigned int i2 = 0; i2 < cigar_oplen; i2++) {
+                for (uint32_t i2 = 0; i2 < cigar_oplen; i2++) {
                     assert((rpos >= SIGN2UNSIGN(aln->core.pos) && rpos < SIGN2UNSIGN(bam_endpos(aln)))
                             || !fprintf(stderr, "Bam line with QNAME %s has rpos %d which is not the in range (%d - %d)", 
                             bam_get_qname(aln), rpos, aln->core.pos, bam_endpos(aln)));
@@ -1590,16 +1592,16 @@ if ((!is_assay_amplicon) || (ibeg <= rpos && rpos < iend)) {
                         const auto noindel_phredvalue = MIN(
                                 region_repeatvec[rpos-region_offset - 1].indelphred,
                                 region_repeatvec[rpos-region_offset    ].indelphred);
-                       const unsigned int qfromBQ2 = (TIsProton ? MIN(bam_phredi(aln, qpos-1), bam_phredi(aln, qpos)) : 80);
+                       const uvc1_qual_t qfromBQ2 = (TIsProton ? MIN(bam_phredi(aln, qpos-1), bam_phredi(aln, qpos)) : 80);
                        incvalue = non_neg_minus(MIN(qfromBQ2, noindel_phredvalue), micro_nogap_penal) + 1;
                         this->template inc<TUpdateType>(rpos, LINK_M, incvalue, aln);
                         if (TIsBiasUpdated) {
                             if (indel_rposs[indel_rposs_idx] <= rpos) {
                                 indel_rposs_idx++;
                             }
-                            unsigned int prev_indel_rpos = indel_rposs[indel_rposs_idx - 1];
-                            unsigned int next_indel_rpos = indel_rposs[indel_rposs_idx];
-                            unsigned int dist_to_interfering_indel = 10000;
+                            uvc1_refgpos_t prev_indel_rpos = indel_rposs[indel_rposs_idx - 1];
+                            uvc1_refgpos_t next_indel_rpos = indel_rposs[indel_rposs_idx];
+                            uvc1_refgpos_t dist_to_interfering_indel = 10000;
                             if (nge_cnt > 0) {
                                 const auto & rtr1 = region_repeatvec[MAX(rpos-region_offset, paramset.indel_adj_tracklen_dist) - paramset.indel_adj_tracklen_dist];
                                 const auto & rtr2 = region_repeatvec[MIN(rpos-region_offset + paramset.indel_adj_tracklen_dist, region_repeatvec.size() - 1)];
@@ -1620,9 +1622,9 @@ if ((!is_assay_amplicon) || (ibeg <= rpos && rpos < iend)) {
                                     symbol_to_VQ_format_tag_sets.getRefByPos(rpos)[LINK_M],
                                     seg_format_thres_sets.getByPos(rpos),
                                     aln,
-                                    xm150,
-                                    go150,
-                                    bm150s[LINK_M],
+                                    xm1500,
+                                    go1500,
+                                    bm1500s[LINK_M],
                                     baq_offsetarr,
                                     
                                     dist_to_interfering_indel,
@@ -1631,13 +1633,13 @@ if ((!is_assay_amplicon) || (ibeg <= rpos && rpos < iend)) {
                                     0);
                         }
                     }
-                    unsigned int base4bit = bam_seqi(bseq, qpos);
-                    unsigned int base3bit = seq_nt16_int[base4bit];
+                    const auto base4bit = bam_seqi(bseq, qpos);
+                    const auto base3bit = seq_nt16_int[base4bit];
                     AlignmentSymbol symbol = AlignmentSymbol(base3bit);
                     bool is_affected_by_indels = false;
                     if (TIsProton) {
-                        unsigned int deldp = MAX(seg_format_prep_sets.getByPos(rpos).segprep_a_at_del_dp, seg_format_prep_sets.getByPos(rpos).segprep_a_near_RTR_del_dp);
-                        unsigned int insdp = MAX(seg_format_prep_sets.getByPos(rpos).segprep_a_at_ins_dp, seg_format_prep_sets.getByPos(rpos).segprep_a_near_RTR_ins_dp);
+                        uvc1_readnum_t deldp = MAX(seg_format_prep_sets.getByPos(rpos).segprep_a_at_del_dp, seg_format_prep_sets.getByPos(rpos).segprep_a_near_RTR_del_dp);
+                        uvc1_readnum_t insdp = MAX(seg_format_prep_sets.getByPos(rpos).segprep_a_at_ins_dp, seg_format_prep_sets.getByPos(rpos).segprep_a_near_RTR_ins_dp);
                         is_affected_by_indels = (MAX(deldp, insdp) * 2 >= seg_format_prep_sets.getByPos(rpos).segprep_a_dp);
                     }
                     incvalue = bam_phredi(aln, qpos) + (is_affected_by_indels ? MIN(symboltype2addPhred[BASE_SYMBOL], symboltype2addPhred[LINK_SYMBOL]) : symboltype2addPhred[BASE_SYMBOL]);
@@ -1650,9 +1652,9 @@ if ((!is_assay_amplicon) || (ibeg <= rpos && rpos < iend)) {
                                 symbol_to_VQ_format_tag_sets.getRefByPos(rpos)[symbol],
                                 seg_format_thres_sets.getByPos(rpos),
                                 aln,
-                                xm150,
-                                go150,
-                                bm150s[symbol],
+                                xm1500,
+                                go1500,
+                                bm1500s[symbol],
                                 baq_offsetarr,
                                 
                                 10000,
@@ -1668,7 +1670,7 @@ if ((!is_assay_amplicon) || (ibeg <= rpos && rpos < iend)) {
             } else if (cigar_op == BAM_CINS) {
 if ((!is_assay_amplicon) || (ibeg <= rpos && rpos < iend)) {
                 const bool is_ins_at_read_end = (0 == qpos || qpos + SIGN2UNSIGN(cigar_oplen) >= SIGN2UNSIGN(aln->core.l_qseq));
-                unsigned int inslen = SIGN2UNSIGN(cigar_oplen);
+                uvc1_readpos_t inslen = cigar_oplen; // SIGN2UNSIGN(cigar_oplen);
                 if (is_ins_at_read_end) {
                     LOG(logWARNING) << "Query " << bam_get_qname(aln) << " has insertion of legnth " << cigar_oplen << " at " << qpos
                             << " which is not exclusively between 0 and " << aln->core.l_qseq << " aligned to tid " << aln->core.tid << " and position " << rpos;
@@ -1677,7 +1679,7 @@ if ((!is_assay_amplicon) || (ibeg <= rpos && rpos < iend)) {
                             bam_phredi(aln, qpos + SIGN2UNSIGN(cigar_oplen)) : 1)) 
                             + (symboltype2addPhred[LINK_SYMBOL]);
                 } else {
-                    unsigned int phredvalue = ref_to_phredvalue(
+                    uvc1_qual_t phredvalue = ref_to_phredvalue(
                             inslen, 
                             region_symbolvec, 
                             rpos - region_offset,
@@ -1689,25 +1691,25 @@ if ((!is_assay_amplicon) || (ibeg <= rpos && rpos < iend)) {
                             paramset.indel_str_repeatsize_max,
                             paramset.indel_del_to_ins_err_ratio,
                             0);
-                    int phredinc = (int)round(2 * 10/log(10) * log((double)seg_format_prep_sets.getByPos(rpos).segprep_a_dp
+                    uvc1_qual_t phredinc = (uvc1_qual_t)round(2 * 10/log(10) * log((double)seg_format_prep_sets.getByPos(rpos).segprep_a_dp
                             / (double)(1.0 + non_neg_minus(seg_format_prep_sets.getByPos(rpos).segprep_a_dp, 
                                     seg_format_prep_sets.getByPos(rpos).segprep_a_at_ins_dp + seg_format_prep_sets.getByPos(rpos).segprep_a_at_del_dp))));
                     const auto & p = seg_format_prep_sets.getByPos(rpos);
-                    const bool is_multiallelic_ins = (p.segprep_a_near_ins_len * 2 > MAX(1, p.segprep_a_near_ins_dp) * (cigar_oplen * 3)); // seg_format_prep_sets.getByPos(rpos).segprep_a_AT_INS_LEN
-                    if (1 == inslen && !is_multiallelic_ins) { phredvalue += (unsigned int)BETWEEN(phredinc - 3, 0, 4); }
-                    unsigned int thisdp = (seg_format_prep_sets.getByPos(rpos).segprep_a_at_ins_dp); 
-                    unsigned int neardp = (MAX(seg_format_prep_sets.getByPos(rpos).segprep_a_near_ins_dp, seg_format_prep_sets.getByPos(rpos).segprep_a_near_RTR_ins_dp));
-                    unsigned int insbase_minphred = 80;
-                    for (unsigned int qpos2 = qpos; qpos2 < qpos + cigar_oplen; qpos2++) {
+                    const bool is_multiallelic_ins = (p.segprep_a_near_ins_pow2len * 2 > MAX(1, p.segprep_a_near_ins_dp) * (cigar_oplen * 3)); // seg_format_prep_sets.getByPos(rpos).segprep_a_AT_INS_LEN
+                    if (1 == inslen && !is_multiallelic_ins) { phredvalue += BETWEEN(phredinc - 3, 0, 4); }
+                    const uvc1_readnum_t thisdp = (seg_format_prep_sets.getByPos(rpos).segprep_a_at_ins_dp); 
+                    const uvc1_readnum_t neardp = (MAX(seg_format_prep_sets.getByPos(rpos).segprep_a_near_ins_dp, seg_format_prep_sets.getByPos(rpos).segprep_a_near_RTR_ins_dp));
+                    uvc1_qual_t insbase_minphred = 80;
+                    for (uvc1_refgpos_t qpos2 = qpos; qpos2 < qpos + cigar_oplen; qpos2++) {
                         UPDATE_MIN(insbase_minphred, bam_phredi(aln, qpos2));
                     }
-                    unsigned int ancbase_minphred = 80;
+                    uvc1_qual_t ancbase_minphred = 80;
                     if (qpos > 0)                                  { ancbase_minphred = MIN(ancbase_minphred, bam_phredi(aln, qpos - 1)); }
                     if (qpos + cigar_oplen + 1 < aln->core.l_qseq) { ancbase_minphred = MIN(ancbase_minphred, bam_phredi(aln, qpos + cigar_oplen + 1)); }
                     // IonTorrent may generate erroneous indels within true indels, so be more leniant for IonTorrent sequencers.
-                    unsigned int qfromBQ1 = (TIsProton ? ancbase_minphred : MIN(ancbase_minphred, insbase_minphred)); 
-                    unsigned int qfromBQ2 = ((thisdp * 2 <= neardp || (1 == cigar_oplen && 
-                                (xm150 >= paramset.microadjust_xm || 
+                    uvc1_refgpos_t qfromBQ1 = (TIsProton ? ancbase_minphred : MIN(ancbase_minphred, insbase_minphred)); 
+                    uvc1_refgpos_t qfromBQ2 = ((thisdp * 2 <= neardp || (1 == cigar_oplen && 
+                                (xm1500 >= paramset.microadjust_xm || 
                                     ((lclip_len + paramset.microadjust_cliplen >= rpos - aln->core.pos) && isrc) 
                                  || ((rclip_len + paramset.microadjust_cliplen >= rend - aln->core.pos) && !isrc)))) 
                             ? qfromBQ1 : (TIsProton ? MIN(qfromBQ1 + proton_cigarlen2phred(cigar_oplen), MAX(3, qfromBQ1) * cigar_oplen) : 80));
@@ -1724,9 +1726,9 @@ if ((!is_assay_amplicon) || (ibeg <= rpos && rpos < iend)) {
                                 symbol_to_VQ_format_tag_sets.getRefByPos(rpos)[symbol],
                                 seg_format_thres_sets.getByPos(rpos),
                                 aln,
-                                xm150,
-                                go150,
-                                bm150s[symbol],
+                                xm1500,
+                                go1500,
+                                bm1500s[symbol],
                                 baq_offsetarr,
                                 
                                 10000,
@@ -1736,10 +1738,10 @@ if ((!is_assay_amplicon) || (ibeg <= rpos && rpos < iend)) {
                     }
                     std::string iseq;
                     iseq.reserve(cigar_oplen);
-                    unsigned int incvalue2 = incvalue;
-                    for (unsigned int i2 = 0; i2 < cigar_oplen; i2++) {
-                        unsigned int base4bit = bam_seqi(bseq, qpos+i2);
-                        const char base8bit = seq_nt16_str[base4bit];
+                    uvc1_qual_t incvalue2 = incvalue;
+                    for (uint32_t i2 = 0; i2 < cigar_oplen; i2++) {
+                        const auto base4bit = bam_seqi(bseq, qpos+i2);
+                        const auto base8bit = seq_nt16_str[base4bit];
                         iseq.push_back(base8bit);
                         incvalue2 = MIN(incvalue2, SIGN2UNSIGN(bam_seqi(bseq, qpos+i2)))
                                 + (symboltype2addPhred[LINK_SYMBOL]);
@@ -1751,7 +1753,7 @@ if ((!is_assay_amplicon) || (ibeg <= rpos && rpos < iend)) {
             } else if (cigar_op == BAM_CDEL) {
 if ((!is_assay_amplicon) || (ibeg <= rpos && rpos < iend)) {
                 const bool is_del_at_read_end = (0 == qpos || qpos + SIGN2UNSIGN(cigar_oplen) >= SIGN2UNSIGN(aln->core.l_qseq));
-                unsigned int dellen = SIGN2UNSIGN(cigar_oplen);
+                uvc1_readpos_t dellen = cigar_oplen; // SIGN2UNSIGN(cigar_oplen);
                 if (is_del_at_read_end) {
                     LOG(logWARNING) << "Query " << bam_get_qname(aln) << " has deletion of legnth " << cigar_oplen << " at " << qpos
                             << " which is not exclusively between 0 and " << aln->core.l_qseq << " aligned to tid " << aln->core.tid << " and position " << rpos; 
@@ -1760,7 +1762,7 @@ if ((!is_assay_amplicon) || (ibeg <= rpos && rpos < iend)) {
                             bam_phredi(aln, qpos) : 1))
                             + (symboltype2addPhred[LINK_SYMBOL]);
                 } else {
-                    unsigned int phredvalue = ref_to_phredvalue(
+                    uvc1_qual_t phredvalue = ref_to_phredvalue(
                             dellen, 
                             region_symbolvec, 
                             rpos - region_offset, 
@@ -1772,23 +1774,23 @@ if ((!is_assay_amplicon) || (ibeg <= rpos && rpos < iend)) {
                             paramset.indel_str_repeatsize_max,
                             paramset.indel_del_to_ins_err_ratio,
                             0);
-                    int phredinc = (int)round(2 * 10/log(10) * log((double)seg_format_prep_sets.getByPos(rpos).segprep_a_dp
+                    uvc1_qual_t phredinc = (int)round(2 * 10/log(10) * log((double)seg_format_prep_sets.getByPos(rpos).segprep_a_dp
                             / (double)(1.0 + non_neg_minus(seg_format_prep_sets.getByPos(rpos).segprep_a_dp, 
                                     seg_format_prep_sets.getByPos(rpos).segprep_a_at_ins_dp + seg_format_prep_sets.getByPos(rpos).segprep_a_at_del_dp))));
-                    if (1 == dellen) { phredvalue += (unsigned int)BETWEEN(phredinc - 3, 0, 4); }
-                    unsigned int thisdp = (seg_format_prep_sets.getByPos(rpos).segprep_a_at_del_dp);
-                    unsigned int neardp = (MAX(seg_format_prep_sets.getByPos(rpos).segprep_a_near_del_dp, seg_format_prep_sets.getByPos(rpos).segprep_a_near_RTR_del_dp));
-                    unsigned int qfromBQ1 = MIN(bam_phredi(aln, qpos), bam_phredi(aln, qpos-1));
-                    unsigned int qfromBQ2 = ((thisdp * 2 <= neardp) ? non_neg_minus(qfromBQ1, 1) : (TIsProton ? MIN(qfromBQ1 + proton_cigarlen2phred(cigar_oplen), MAX(3, qfromBQ1) * cigar_oplen) : 80));
+                    if (1 == dellen) { phredvalue += BETWEEN(phredinc - 3, 0, 4); }
+                    uvc1_readnum_t thisdp = (seg_format_prep_sets.getByPos(rpos).segprep_a_at_del_dp);
+                    uvc1_readnum_t neardp = (MAX(seg_format_prep_sets.getByPos(rpos).segprep_a_near_del_dp, seg_format_prep_sets.getByPos(rpos).segprep_a_near_RTR_del_dp));
+                    uvc1_qual_t qfromBQ1 = MIN(bam_phredi(aln, qpos), bam_phredi(aln, qpos-1));
+                    uvc1_qual_t qfromBQ2 = ((thisdp * 2 <= neardp) ? non_neg_minus(qfromBQ1, 1) : (TIsProton ? MIN(qfromBQ1 + proton_cigarlen2phred(cigar_oplen), MAX(3, qfromBQ1) * cigar_oplen) : 80));
                     double delFA = ((double)(thisdp + 0.5) / (double)(seg_format_prep_sets.getByPos(rpos).segprep_a_dp + 1));
-                    int delFAQ = MAX(0, paramset.microadjust_delFAQmax + (int)round(paramset.powlaw_exponent * 10/log(10) * log(delFA)));
+                    uvc1_qual_t delFAQ = MAX(0, paramset.microadjust_delFAQmax + (uvc1_qual_t)round(paramset.powlaw_exponent * 10/log(10) * log(delFA)));
                     
                     // int prev_cigar_op = ((0 == i) ? 0 : (cigar_op(cigar[i-1])));
                     // int prev_cigar_oplen = (0 == i) ? 0 : (cigar_oplen(cigar[i-1]));
                     // int next_cigar_op = ((n_cigar - 1 == i) ? 0 : (cigar_op(cigar[i+1])));
                     // int next_cigar_oplen = (n_cigar - 1 == i) ? 0 : (cigar_oplen(cigar[i+1]));
-                    int prev_cidx = i;
-                    int prev_rpos = rpos;
+                    uint32_t prev_cidx = i;
+                    uvc1_refgpos_t prev_rpos = rpos;
                     while ((0 != prev_cidx) && (BAM_CINS != bam_cigar_op(cigar[prev_cidx]) || cigar_oplen != bam_cigar_oplen(cigar[prev_cidx]))) { 
                         prev_cidx--;
                         if (BAM_CMATCH == bam_cigar_op(cigar[prev_cidx]) || BAM_CEQUAL == bam_cigar_op(cigar[prev_cidx]) || BAM_CDIFF == bam_cigar_op(cigar[prev_cidx]) 
@@ -1796,8 +1798,8 @@ if ((!is_assay_amplicon) || (ibeg <= rpos && rpos < iend)) {
                             prev_rpos -= bam_cigar_oplen(cigar[prev_cidx]);
                         }
                     }
-                    int next_cidx = i;
-                    int next_rpos = rpos + cigar_oplen;
+                    uint32_t next_cidx = i;
+                    uvc1_refgpos_t next_rpos = rpos + cigar_oplen;
                     while ((n_cigar - 1 != next_cidx) && (BAM_CINS != bam_cigar_op(cigar[next_cidx]) || cigar_oplen != bam_cigar_oplen(cigar[next_cidx]))) { 
                         next_cidx++;
                         if (BAM_CMATCH == bam_cigar_op(cigar[next_cidx]) || BAM_CEQUAL == bam_cigar_op(cigar[next_cidx]) || BAM_CDIFF == bam_cigar_op(cigar[next_cidx])
@@ -1805,9 +1807,9 @@ if ((!is_assay_amplicon) || (ibeg <= rpos && rpos < iend)) {
                             next_rpos += bam_cigar_oplen(cigar[next_cidx]);
                         }
                     }
-                    int qfromBAQl = baq_offsetarr.getByPos(rpos) - baq_offsetarr.getByPos(prev_rpos);
-                    int qfromBAQr = baq_offsetarr.getByPos(next_rpos) - baq_offsetarr.getByPos(rpos + cigar_oplen);
-                    int qfromBAQ = MAX3(delFAQ, qfromBQ1, MIN(qfromBAQl, qfromBAQr));
+                    uvc1_qual_t qfromBAQl = baq_offsetarr.getByPos(rpos) - baq_offsetarr.getByPos(prev_rpos);
+                    uvc1_qual_t qfromBAQr = baq_offsetarr.getByPos(next_rpos) - baq_offsetarr.getByPos(rpos + cigar_oplen);
+                    uvc1_qual_t qfromBAQ = MAX3(delFAQ, qfromBQ1, MIN(qfromBAQl, qfromBAQr));
                     incvalue = non_neg_minus(MIN3(qfromBQ2, qfromBAQ, phredvalue + symboltype2addPhred[LINK_SYMBOL]), micro_indel_penal) + 1;
                 }
                 if (!is_del_at_read_end) {
@@ -1821,9 +1823,9 @@ if ((!is_assay_amplicon) || (ibeg <= rpos && rpos < iend)) {
                                 symbol_to_VQ_format_tag_sets.getRefByPos(rpos)[symbol],
                                 seg_format_thres_sets.getByPos(rpos),
                                 aln,
-                                xm150,
-                                go150,
-                                bm150s[symbol],
+                                xm1500,
+                                go1500,
+                                bm1500s[symbol],
                                 baq_offsetarr,
                                 
                                 10000,
@@ -1834,7 +1836,7 @@ if ((!is_assay_amplicon) || (ibeg <= rpos && rpos < iend)) {
                     this->incDel(rpos, cigar_oplen, delLenToSymbol(dellen, aln), MAX(SIGN2UNSIGN(1), incvalue));
 #if 1 
 // The definition of non-ref for deletion is not clearly defined, this piece of code makes sure that deletion identity conforms to the VCF specs.
-                    for (unsigned int rpos2 = rpos; rpos2 < MIN(rpos + cigar_oplen, rend); rpos2++) {
+                    for (uvc1_refgpos_t rpos2 = rpos; rpos2 < MIN(rpos + cigar_oplen, rend); rpos2++) {
                         for (AlignmentSymbol s : std::array<AlignmentSymbol, 2> {{ BASE_NN, LINK_NN }} ) {
                             const auto p = ((BASE_NN == s) ? (rpos2) : (rpos2 + 1));
                             if (p >= rend) { continue ; }
@@ -1843,8 +1845,8 @@ if ((!is_assay_amplicon) || (ibeg <= rpos && rpos < iend)) {
                                 if (indel_rposs[indel_rposs_idx] <= rpos) {
                                     indel_rposs_idx++;
                                 }
-                                unsigned int prev_indel_rpos = indel_rposs[indel_rposs_idx-1];
-                                unsigned int next_indel_rpos = indel_rposs[indel_rposs_idx];
+                                uint32_t prev_indel_rpos = indel_rposs[indel_rposs_idx-1];
+                                uint32_t next_indel_rpos = indel_rposs[indel_rposs_idx];
                                 dealwith_segbias<true>(
                                         MAX(SIGN2UNSIGN(1), incvalue),
                                         p,
@@ -1852,9 +1854,9 @@ if ((!is_assay_amplicon) || (ibeg <= rpos && rpos < iend)) {
                                         symbol_to_VQ_format_tag_sets.getRefByPos(p)[s],
                                         seg_format_thres_sets.getByPos(p),
                                         aln,
-                                        xm150,
-                                        go150,
-                                        bm150s[s],
+                                        xm1500,
+                                        go1500,
+                                        bm1500s[s],
                                         baq_offsetarr,
                                         
                                         MIN(rpos - prev_indel_rpos, next_indel_rpos - rpos),
@@ -1880,7 +1882,7 @@ if ((!is_assay_amplicon) || (ibeg <= rpos && rpos < iend)) {
     updateByRead1Aln(
             const std::vector<bam1_t *> & aln_vec,
             
-            const unsigned int region_offset,
+            uvc1_refgpos_t region_offset,
             const auto & region_symbolvec,
             const auto & region_repeatvec,
             const auto & baq_offsetarr,
@@ -1892,7 +1894,7 @@ if ((!is_assay_amplicon) || (ibeg <= rpos && rpos < iend)) {
             
             const auto dflag,
             const auto & paramset,
-            unsigned int specialflag) {
+            uint32_t specialflag) {
         const bool is_assay_amplicon = (0x4 == (dflag & 0x4));
         for (const bam1_t *aln : aln_vec) {
             if (SEQUENCING_PLATFORM_IONTORRENT == paramset.sequencing_platform) {
@@ -1934,13 +1936,13 @@ if ((!is_assay_amplicon) || (ibeg <= rpos && rpos < iend)) {
 };
 
 typedef GenericSymbol2CountCoverage<Symbol2Count> Symbol2CountCoverage; 
-typedef GenericSymbol2CountCoverage<Symbol2CountUint64> Symbol2CountCoverageUint64; 
+//typedef GenericSymbol2CountCoverage<Symbol2CountUint64> Symbol2CountCoverageUint64; 
 typedef GenericSymbol2CountCoverage<std::array<std::string, NUM_ALIGNMENT_SYMBOLS>> Symbol2CountCoverageString; 
 
 struct Symbol2CountCoverageSet {
-    const uint32_t tid;
-    const uint32_t incluBegPosition;
-    const uint32_t excluEndPosition;
+    uvc1_refgpos_t tid;
+    uvc1_refgpos_t incluBegPosition;
+    uvc1_refgpos_t excluEndPosition;
     std::string refstring;
     
     SegFormatPrepSets seg_format_prep_sets;
@@ -1954,7 +1956,7 @@ struct Symbol2CountCoverageSet {
     std::array<Symbol2Bucket2CountCoverage, 2> dedup_ampDistr;
     Symbol2CountCoverageString additional_note;
     
-    Symbol2CountCoverageSet(unsigned int t, unsigned int beg, unsigned int end):
+    Symbol2CountCoverageSet(uvc1_refgpos_t t, uvc1_refgpos_t beg, uvc1_refgpos_t end):
         tid(t), 
         incluBegPosition(beg), 
         excluEndPosition(end),
@@ -1972,30 +1974,30 @@ struct Symbol2CountCoverageSet {
         assert(beg < end);
     };
     
-    const size_t
+    const uvc1_refgpos_t
     getUnifiedIncluBegPosition() const {
         return incluBegPosition;
     };
-    const size_t
+    const uvc1_refgpos_t
     getUnifiedExcluEndPosition() const {
         return excluEndPosition;
     };
     
     int 
     updateByAlns3UsingBQ(
-            std::map<std::basic_string<std::pair<unsigned int, AlignmentSymbol>>, std::array<unsigned int, 2>> & mutform2count4map,
-            const std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, int>> & alns3, 
+            std::map<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>> & mutform2count4map,
+            const std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, uvc1_flag_t>> & alns3, 
             
             const std::basic_string<AlignmentSymbol> & region_symbolvec,
             auto & region_repeatvec,
             const auto & baq_offsetarr,
             
             const CommandLineArgs & paramset,
-            unsigned int specialflag) {
+            uint32_t specialflag) {
         
         Symbol2CountCoverage bg_seg_bqsum_conslogo(tid, this->getUnifiedIncluBegPosition(), this->getUnifiedExcluEndPosition());
         for (const auto & alns2pair2dflag : alns3) {
-            for (unsigned int strand = 0; strand < 2; strand++) {
+            for (int strand = 0; strand < 2; strand++) {
                 const auto & alns2 = alns2pair2dflag.first[strand];
                 for (const auto & alns1 : alns2) {
                     for (const bam1_t *aln : alns1) {
@@ -2022,7 +2024,7 @@ struct Symbol2CountCoverageSet {
                 0);
         int n_updates = 0;
         for (const auto & alns2pair2dflag : alns3) {
-            for (unsigned int strand = 0; strand < 2; strand++) {
+            for (int strand = 0; strand < 2; strand++) {
                 const auto & alns2 = alns2pair2dflag.first[strand];
                 for (const auto & alns1 : alns2) {
                     n_updates += alns1.size();
@@ -2048,10 +2050,10 @@ struct Symbol2CountCoverageSet {
         LOG(logINFO) << "Performed " << n_updates << " updates with this number of alignments.";
         for (const auto & alns2pair2dflag : alns3) {
             const auto & alns2pair = alns2pair2dflag.first;
-            for (unsigned int strand = 0; strand < 2; strand++) {
+            for (int strand = 0; strand < 2; strand++) {
                 const auto & alns2 = alns2pair[strand];
                 for (const auto & alns1 : alns2) {
-                    uint32_t tid2, beg2, end2;
+                    uvc1_refgpos_t tid2, beg2, end2;
                     fillTidBegEndFromAlns1(tid2, beg2, end2, alns1);
                     Symbol2CountCoverage read_ampBQerr_fragWithR1R2(tid, beg2, end2);
                     read_ampBQerr_fragWithR1R2.updateByRead1Aln(
@@ -2070,15 +2072,15 @@ struct Symbol2CountCoverageSet {
                             alns2pair2dflag.second,
                             paramset,
                             0);
-                    unsigned int normMQ = 0;
+                    uvc1_qual_t normMQ = 0;
                     for (const bam1_t *aln : alns1) {
-                        normMQ = MAX(normMQ, (unsigned int)aln->core.qual);
+                        normMQ = MAX(normMQ, aln->core.qual);
                     }
-                    std::basic_string<std::pair<unsigned int, AlignmentSymbol>> pos_symbol_string;
+                    std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>> pos_symbol_string;
                     for (auto epos = read_ampBQerr_fragWithR1R2.getIncluBegPosition(); epos < read_ampBQerr_fragWithR1R2.getExcluEndPosition(); epos++) {
                         for (SymbolType symboltype : SYMBOL_TYPES_IN_VCF_ORDER) {
                             AlignmentSymbol con_symbol;
-                            unsigned int con_count, tot_count;
+                            uvc1_qual_t con_count, tot_count;
                             if (LINK_SYMBOL == symboltype) {
                                 read_ampBQerr_fragWithR1R2.getByPos(epos).template fillConsensusCounts<true >(con_symbol, con_count, tot_count, symboltype);
                             } else {
@@ -2087,8 +2089,8 @@ struct Symbol2CountCoverageSet {
                             assert (con_count * 2 >= tot_count);
                             if (0 == tot_count) { continue; }
                             
-                            int max_qual = 8 + get_avgBQ(bg_seg_bqsum_conslogo, symbol_to_seg_format_depth_sets, epos, con_symbol);
-                            unsigned int phredlike = MIN(con_count * 2 - tot_count, max_qual);
+                            uvc1_qual_t max_qual = 8 + get_avgBQ(bg_seg_bqsum_conslogo, symbol_to_seg_format_depth_sets, epos, con_symbol);
+                            uvc1_qual_t phredlike = MIN(con_count * 2 - tot_count, max_qual);
                             
                             int pbucket = max_qual - phredlike;
                             if (pbucket < -8) {
@@ -2121,7 +2123,7 @@ struct Symbol2CountCoverageSet {
                         }
                     }
                     if (pos_symbol_string.size() > 1) {
-                        mutform2count4map.insert(std::make_pair(pos_symbol_string, std::array<unsigned int, 2>({0, 0})));
+                        mutform2count4map.insert(std::make_pair(pos_symbol_string, std::array<uvc1_readnum_t, 2>({0, 0})));
                         mutform2count4map[pos_symbol_string][strand]++;
                     }
                 }
@@ -2129,7 +2131,7 @@ struct Symbol2CountCoverageSet {
         }
         assert(this->symbol_to_seg_format_depth_sets.getIncluBegPosition() == this->dedup_ampDistr[0].getIncluBegPosition());
         assert(this->symbol_to_seg_format_depth_sets.getExcluEndPosition() == this->dedup_ampDistr[0].getExcluEndPosition());
-        for (unsigned int epos = this->getUnifiedIncluBegPosition(); epos < this->getUnifiedExcluEndPosition(); epos++) {
+        for (auto epos = this->getUnifiedIncluBegPosition(); epos < this->getUnifiedExcluEndPosition(); epos++) {
             for (SymbolType symboltype : SYMBOL_TYPE_ARR) {
                 for (AlignmentSymbol symbol : SYMBOL_TYPE_TO_SYMBOLS[symboltype]) {
                     const auto totDP = 
@@ -2137,10 +2139,10 @@ struct Symbol2CountCoverageSet {
                             symboltype, FRAG_bDP) + 
                             formatSumBySymbolType(this->symbol_to_frag_format_depth_sets[1].getByPos(epos), 
                             symboltype, FRAG_bDP); 
-                    int max_qual = 8 + get_avgBQ(bg_seg_bqsum_conslogo, symbol_to_seg_format_depth_sets, epos, symbol);
-                    int maxvqual = 0;
-                    unsigned int argmaxAD = 0;
-                    unsigned int argmaxBQ = 0;
+                    uvc1_qual_t max_qual = 8 + get_avgBQ(bg_seg_bqsum_conslogo, symbol_to_seg_format_depth_sets, epos, symbol);
+                    uvc1_qual_t maxvqual = 0;
+                    uvc1_readnum_t argmaxAD = 0;
+                    uvc1_qual_t argmaxBQ = 0;
                     infer_max_qual_assuming_independence(
                             maxvqual,
                             argmaxAD,
@@ -2162,7 +2164,7 @@ struct Symbol2CountCoverageSet {
     
     int
     updateByAlns3UsingFQ(
-            std::map<std::basic_string<std::pair<unsigned int, AlignmentSymbol>>, std::array<unsigned int, 2>> & mutform2count4map,
+            std::map<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>> & mutform2count4map,
             const auto & alns3, 
             
             const std::basic_string<AlignmentSymbol> & region_symbolvec,
@@ -2170,7 +2172,7 @@ struct Symbol2CountCoverageSet {
             const auto & baq_offsetarr,
             
             const CommandLineArgs & paramset,
-            unsigned int specialflag) {
+            uint32_t specialflag) {
         bool is_loginfo_enabled = true; 
         const PhredMutationTable sscs_mut_table(
                 paramset.fam_phred_sscs_transition_CG_TA,
@@ -2186,14 +2188,14 @@ struct Symbol2CountCoverageSet {
             const auto & alns2pair = alns2pair2dflag.first;
             niters++;
             assert (alns2pair[0].size() != 0 || alns2pair[1].size() != 0);
-            for (unsigned int strand = 0; strand < 2; strand++) {
+            for (int strand = 0; strand < 2; strand++) {
                 const auto & alns2 = alns2pair[strand];
                 if (alns2.size() == 0) { continue; }
-                uint32_t tid2, beg2, end2;
+                uvc1_refgpos_t tid2, beg2, end2;
                 fillTidBegEndFromAlns2(tid2, beg2, end2, alns2);
                 Symbol2CountCoverage read_family_con_ampl(tid2, beg2, end2); 
                 for (const auto & alns1 : alns2) {
-                    uint32_t tid1, beg1, end1;
+                    uvc1_refgpos_t tid1, beg1, end1;
                     fillTidBegEndFromAlns1(tid1, beg1, end1, alns1);
                     Symbol2CountCoverage read_ampBQerr_fragWithR1R2(tid1, beg1, end1);
                     read_ampBQerr_fragWithR1R2.updateByRead1Aln(
@@ -2213,16 +2215,16 @@ struct Symbol2CountCoverageSet {
                             paramset,
                             0);
 
-                    read_family_con_ampl.updateByFiltering(read_ampBQerr_fragWithR1R2, std::array<unsigned int, NUM_SYMBOL_TYPES> {{ 
+                    read_family_con_ampl.updateByFiltering(read_ampBQerr_fragWithR1R2, std::array<uvc1_qual_t, NUM_SYMBOL_TYPES> {{ 
                             paramset.fam_thres_highBQ_snv, 0
                             // ((SEQUENCING_PLATFORM_IONTORRENT != paramset.sequencing_platform) ? paramset.fam_thres_highBQ_indel : 0)
                     }});
                 }
-                for (size_t epos = read_family_con_ampl.getIncluBegPosition(); epos < read_family_con_ampl.getExcluEndPosition(); epos++) {
+                for (auto epos = read_family_con_ampl.getIncluBegPosition(); epos < read_family_con_ampl.getExcluEndPosition(); epos++) {
                     const auto & con_ampl_symbol2count = read_family_con_ampl.getByPos(epos);
                     for (SymbolType symboltype : SYMBOL_TYPE_ARR) {
                         AlignmentSymbol con_symbol; // = END_ALIGNMENT_SYMBOLS;
-                        unsigned int con_count, tot_count;
+                        uvc1_qual_t con_count, tot_count;
                         con_ampl_symbol2count.fillConsensusCounts(con_symbol, con_count, tot_count, symboltype);
                         if (0 == tot_count) { continue ; }
                         this->symbol_to_fam_format_depth_sets_2strand[strand].getRefByPos(epos)[con_symbol][FAM_cDP12] += 1;
@@ -2271,21 +2273,21 @@ struct Symbol2CountCoverageSet {
             const auto & alns2pair = alns2pair2dflag.first;
             niters++;
             bool log_alns2 = (is_loginfo_enabled && ispowerof2(niters));
-            uint32_t tid2, beg2, end2;
+            uvc1_refgpos_t tid2, beg2, end2;
             tid2 = 0; beg2 = UINT32_MAX; end2 = 0; bool initialized = false;
             assert (alns2pair[0].size() != 0 || alns2pair[1].size() != 0);
             if (alns2pair[0].size() > 0) { fillTidBegEndFromAlns2(tid2, beg2, end2, alns2pair[0], initialized); initialized = true; }
             if (alns2pair[1].size() > 0) { fillTidBegEndFromAlns2(tid2, beg2, end2, alns2pair[1], initialized); initialized = true; }
             Symbol2CountCoverage read_duplex_amplicon(tid2, beg2, end2);
-            for (unsigned int strand = 0; strand < 2; strand++) {
+            for (int strand = 0; strand < 2; strand++) {
                 const auto & alns2 = alns2pair[strand];
                 if (alns2.size() == 0) { continue; }
-                uint32_t tid2, beg2, end2;
+                uvc1_refgpos_t tid2, beg2, end2;
                 fillTidBegEndFromAlns2(tid2, beg2, end2, alns2);
                 Symbol2CountCoverage read_family_mmm_ampl(tid2, beg2, end2);
                 Symbol2CountCoverage read_family_con_ampl(tid2, beg2, end2);
                 for (const auto & aln_vec : alns2) {
-                    uint32_t tid1, beg1, end1;
+                    uvc1_refgpos_t tid1, beg1, end1;
                     fillTidBegEndFromAlns1(tid1, beg1, end1, aln_vec);
                     Symbol2CountCoverage read_ampBQerr_fragWithR1R2(tid1, beg1, end1);
                     read_ampBQerr_fragWithR1R2.updateByRead1Aln(
@@ -2305,7 +2307,7 @@ struct Symbol2CountCoverageSet {
                             paramset,
                             0);
                     // The line below is similar to : read_family_mmm_ampl.updateByConsensus<SYMBOL_COUNT_SUM>(read_ampBQerr_fragWithR1R2);
-                    read_family_con_ampl.updateByFiltering(read_ampBQerr_fragWithR1R2, std::array<unsigned int, NUM_SYMBOL_TYPES> {{ 
+                    read_family_con_ampl.updateByFiltering(read_ampBQerr_fragWithR1R2, std::array<uvc1_qual_t, NUM_SYMBOL_TYPES> {{ 
                             paramset.fam_thres_highBQ_snv, 0
                             // ((SEQUENCING_PLATFORM_IONTORRENT != paramset.sequencing_platform) ? paramset.fam_thres_highBQ_indel : 0)
                     }});
@@ -2314,41 +2316,41 @@ struct Symbol2CountCoverageSet {
                 if ((0x2 == (alns2pair2dflag.second & 0x2)) && alns2pair[0].size() > 0 && alns2pair[1].size() > 0) { // is duplex
                     read_duplex_amplicon.template updateByConsensus<false>(read_family_mmm_ampl);
                 }
-                std::basic_string<std::pair<unsigned int, AlignmentSymbol>> pos_symbol_string;
-                for (size_t epos = read_family_mmm_ampl.getIncluBegPosition(); 
+                std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>> pos_symbol_string;
+                for (auto epos = read_family_mmm_ampl.getIncluBegPosition(); 
                         epos < read_family_mmm_ampl.getExcluEndPosition(); 
                         epos++) {
                     for (SymbolType symboltype : SYMBOL_TYPES_IN_VCF_ORDER) {
                         
                         AlignmentSymbol con_symbol; // assign with the value AlignmentSymbol(NUM_ALIGNMENT_SYMBOLS) to flag for error
-                        unsigned int con_sumBQs, tot_sumBQs;
+                        uvc1_qual_t con_sumBQs, tot_sumBQs;
                         read_family_mmm_ampl.getRefByPos(epos).fillConsensusCounts(con_symbol, con_sumBQs, tot_sumBQs, symboltype);
                         if (0 == tot_sumBQs) { continue; }
-                        unsigned int con_nfrags = read_family_con_ampl.getByPos(epos).getSymbolCount(con_symbol);
-                        unsigned int tot_nfrags = read_family_con_ampl.getByPos(epos).sumBySymbolType(symboltype);
+                        uvc1_readnum_t con_nfrags = read_family_con_ampl.getByPos(epos).getSymbolCount(con_symbol);
+                        uvc1_readnum_t tot_nfrags = read_family_con_ampl.getByPos(epos).sumBySymbolType(symboltype);
                         // if (0 == tot_nfrags) { continue; }
                         
                         this->symbol_to_fam_format_depth_sets_2strand[strand].getRefByPos(epos)[con_symbol][FAM_cDP1] += 1; // in some rare cases, cDP1 > cDP0 
                         
-                        const unsigned int avgBQ = ((0 == tot_nfrags) ? 1 : (con_sumBQs / tot_nfrags));
-                        const unsigned int majorcount = this->symbol_to_fam_format_depth_sets_2strand[strand].getByPos(epos).at(con_symbol).at(FAM_cDPM);
-                        const unsigned int minorcount = this->symbol_to_fam_format_depth_sets_2strand[strand].getByPos(epos).at(con_symbol).at(FAM_cDPm);
+                        const uvc1_qual_t avgBQ = ((0 == tot_nfrags) ? 1 : (con_sumBQs / tot_nfrags));
+                        const uvc1_readnum_t majorcount = this->symbol_to_fam_format_depth_sets_2strand[strand].getByPos(epos).at(con_symbol).at(FAM_cDPM);
+                        const uvc1_readnum_t minorcount = this->symbol_to_fam_format_depth_sets_2strand[strand].getByPos(epos).at(con_symbol).at(FAM_cDPm);
                         const double prior_weight = 1.0 / (minorcount + 1.0);
                         const double realphred = prob2realphred((minorcount + prior_weight) / 
                                 (majorcount + minorcount + prior_weight / phred2prob(avgBQ)));
                         // Compute empirical error assuming statistical independence and majority vote by frag count.
                         // If no majority is obtained, then confam_qual is set to one.
-                        const int indep_frag_phred = ((int)round(((int)(con_nfrags * 2) - (int)tot_nfrags) * realphred));
-                        unsigned int confam_qual = 0;
+                        const uvc1_qual_t indep_frag_phred = ((int)round(((int)(con_nfrags * 2) - (int)tot_nfrags) * realphred));
+                        uvc1_qual_t confam_qual = 0;
                         if (LINK_SYMBOL == symboltype) {
                             // unsigned int n_units =  SYMBOL_TO_INDEL_N_UNITS[con_symbol];
-                            confam_qual = (unsigned int)MAX(1, (MIN(indep_frag_phred,
+                            confam_qual = MAX(1, (MIN(indep_frag_phred,
                                     // PCR error of the first cycle + error in consensus selection
-                                    (int)paramset.fam_phred_indel_inc_before_barcode_labeling + (int)round(realphred))));
+                                    (uvc1_qual_t)paramset.fam_phred_indel_inc_before_barcode_labeling + (uvc1_qual_t)round(realphred))));
                         } else {
                             // (SEQUENCING_PLATFORM_IONTORRENT == paramset.sequencing_platform)
-                            confam_qual = (unsigned int)MAX(1, MIN(indep_frag_phred,
-                                    ((int)(con_sumBQs * 2) - (int)tot_sumBQs)));
+                            confam_qual = MAX(1, MIN(indep_frag_phred,
+                                    ((con_sumBQs * 2) - tot_sumBQs)));
                             /*
                             if (115256529 - 1 == epos && BASE_C == con_symbol) {
                                 LOG(logINFO) << "chr1    115256529   .   T   C      effective_nreads=" << effective_nreads << " , realphred=" << realphred; 
@@ -2360,8 +2362,8 @@ struct Symbol2CountCoverageSet {
                         if (areSymbolsMutated(ref_symbol, con_symbol) && (LINK_SYMBOL == symboltype || confam_qual >= paramset.bias_thres_highBQ)) {
                             pos_symbol_string.push_back(std::make_pair(epos, con_symbol));
                         }
-                        unsigned int max_qual = sscs_mut_table.toPhredErrRate(ref_symbol, con_symbol);
-                        unsigned int confam_qual2 = MIN(confam_qual, max_qual);
+                        uvc1_qual_t max_qual = sscs_mut_table.toPhredErrRate(ref_symbol, con_symbol);
+                        uvc1_qual_t confam_qual2 = MIN(confam_qual, max_qual);
                         if (tot_nfrags >= paramset.fam_thres_dup1add) {
                             int pbucket = (max_qual - confam_qual2 + 2) / 4;
                             this->dedup_ampDistr[strand].getRefByPos(epos).incSymbolBucketCount(con_symbol, pbucket, 1);
@@ -2370,15 +2372,15 @@ struct Symbol2CountCoverageSet {
                 }
                 
                 if (pos_symbol_string.size() > 1) {
-                    mutform2count4map.insert(std::make_pair(pos_symbol_string, std::array<unsigned int, 2>({0, 0})));
+                    mutform2count4map.insert(std::make_pair(pos_symbol_string, std::array<uvc1_readnum_t, 2>({0, 0})));
                     mutform2count4map[pos_symbol_string][strand]++;
                 }
             }
             if ((0x2 == (alns2pair2dflag.second & 0x2)) && alns2pair[0].size() > 0 && alns2pair[1].size() > 0) { // is duplex
-                for (size_t epos = read_duplex_amplicon.getIncluBegPosition(); epos < read_duplex_amplicon.getExcluEndPosition(); epos++) {
-                    for (SymbolType symboltype = SymbolType(0); symboltype < NUM_SYMBOL_TYPES; symboltype = SymbolType(1+(unsigned int)symboltype)) {
+                for (auto epos = read_duplex_amplicon.getIncluBegPosition(); epos < read_duplex_amplicon.getExcluEndPosition(); epos++) {
+                    for (SymbolType symboltype : SYMBOL_TYPE_ARR) {
                         AlignmentSymbol con_symbol;
-                        unsigned int con_count, tot_count;
+                        uvc1_readnum_t con_count, tot_count;
                         read_duplex_amplicon.getRefByPos(epos).fillConsensusCounts(con_symbol, con_count, tot_count, symboltype);
                         assert (tot_count <= 2 || !fprintf(stderr, "%d <= 2 failed for duplex family, a duplex family is supported by two single-strand families!\n", tot_count));
                         if (0 < tot_count) {
@@ -2391,21 +2393,21 @@ struct Symbol2CountCoverageSet {
                 }
             }
         }
-        for (unsigned int strand = 0; strand < 2; strand++) {
+        for (int strand = 0; strand < 2; strand++) {
             assert(this->symbol_to_fam_format_depth_sets_2strand[strand].getExcluEndPosition() == this->dedup_ampDistr[strand].getExcluEndPosition());
             assert(this->symbol_to_fam_format_depth_sets_2strand[strand].getIncluBegPosition() == this->dedup_ampDistr[strand].getIncluBegPosition()); 
             auto VQ_cIAQ = (strand ? VQ_cIAQr : VQ_cIAQf);
             auto VQ_cIAD = (strand ? VQ_cIADr : VQ_cIADf);
             auto VQ_cIDQ = (strand ? VQ_cIDQr : VQ_cIDQf);
-            for (unsigned int epos = this->getUnifiedIncluBegPosition(); epos < this->getUnifiedExcluEndPosition(); epos++) {
+            for (uvc1_refgpos_t epos = this->getUnifiedIncluBegPosition(); epos < this->getUnifiedExcluEndPosition(); epos++) {
                 for (SymbolType symboltype : SYMBOL_TYPE_ARR) {
                     AlignmentSymbol ref_symbol = region_symbolvec[epos - this->getUnifiedIncluBegPosition()];
-                    const auto totDP = formatSumBySymbolType(this->symbol_to_fam_format_depth_sets_2strand[strand].getRefByPos(epos), symboltype, FAM_cDP1);
+                    const uvc1_readnum_t totDP = formatSumBySymbolType(this->symbol_to_fam_format_depth_sets_2strand[strand].getRefByPos(epos), symboltype, FAM_cDP1);
                     for (AlignmentSymbol symbol : SYMBOL_TYPE_TO_SYMBOLS[symboltype]) {
-                        const unsigned int max_qual = sscs_mut_table.toPhredErrRate(ref_symbol, symbol);
-                        int maxvqual = 0;
-                        unsigned int argmaxAD = 0;
-                        unsigned int argmaxBQ = 0;
+                        const uvc1_qual_t max_qual = sscs_mut_table.toPhredErrRate(ref_symbol, symbol);
+                        uvc1_qual_t maxvqual = 0;
+                        uvc1_readnum_t argmaxAD = 0;
+                        uvc1_qual_t argmaxBQ = 0;
                         // AlignmentSymbol refsymbol = region_symbolvec[epos - this->getUnifiedIncluBegPosition()];                   
                         infer_max_qual_assuming_independence(
                                 maxvqual,
@@ -2435,20 +2437,20 @@ struct Symbol2CountCoverageSet {
     };
     
     int 
-    updateHapMap(std::map<std::basic_string<std::pair<unsigned int, AlignmentSymbol>>, std::array<unsigned int, 2>> & mutform2count4map, 
-            const auto & tsum_depth, const auto read_count_field_id, unsigned int max_ploidy = 2+1) {
+    updateHapMap(std::map<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>> & mutform2count4map, 
+            const auto & tsum_depth, const auto read_count_field_id, int max_ploidy = 2+1) {
         for (auto it = mutform2count4map.begin(); it != mutform2count4map.end();) {
-            std::basic_string<std::pair<unsigned int, AlignmentSymbol>> mutform = it->first;
+            std::basic_string<std::pair<uvc1_readnum_t, AlignmentSymbol>> mutform = it->first;
             auto counts = it->second;
-            std::vector<unsigned int> dsADs; 
+            std::vector<uvc1_readnum_t> dsADs;
             dsADs.reserve(mutform.size() + 1);
             dsADs.push_back(0);
-            for (std::pair<unsigned int, AlignmentSymbol> simplemut : mutform) {
-                unsigned int ad0 = tsum_depth.at(0).getByPos(simplemut.first)[simplemut.second][read_count_field_id];
-                unsigned int ad1 = tsum_depth.at(1).getByPos(simplemut.first)[simplemut.second][read_count_field_id];
+            for (std::pair<uvc1_refgpos_t, AlignmentSymbol> simplemut : mutform) {
+                uvc1_readnum_t ad0 = tsum_depth.at(0).getByPos(simplemut.first)[simplemut.second][read_count_field_id];
+                uvc1_readnum_t ad1 = tsum_depth.at(1).getByPos(simplemut.first)[simplemut.second][read_count_field_id];
                 dsADs.push_back(ad0 + ad1);
             }
-            auto med = MEDIAN(dsADs);
+            const auto med = MEDIAN(dsADs);
             if ((counts[0] +counts[1]) * (max_ploidy) <= med) {
                 mutform2count4map.erase(it++);
             } else {
@@ -2460,16 +2462,16 @@ struct Symbol2CountCoverageSet {
     
     int 
     updateByRegion3Aln(
-            std::map<std::basic_string<std::pair<unsigned int, AlignmentSymbol>>, std::array<unsigned int, 2>> & mutform2count4map_bq,
-            std::map<std::basic_string<std::pair<unsigned int, AlignmentSymbol>>, std::array<unsigned int, 2>> & mutform2count4map_fq,
-            const std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, int>> & alns3, 
+            std::map<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>> & mutform2count4map_bq,
+            std::map<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>> & mutform2count4map_fq,
+            const std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, uvc1_flag_t>> & alns3, 
             
             const std::string & refstring,
             std::vector<RegionalTandemRepeat> & region_repeatvec,
-            const CoveredRegion<int64_t> & baq_offsetarr,
+            const CoveredRegion<uvc1_qual_big_t> & baq_offsetarr,
             
             const auto & paramset,
-            const unsigned int specialflag) {
+            const uvc1_flag_t specialflag) {
         
         std::basic_string<AlignmentSymbol> ref_symbol_string = string2symbolseq(refstring);
         
@@ -2515,7 +2517,7 @@ fill_symboltype_fmt(
 #define filla_symboltype_fmt(fmtDP, symbol_to_abcd_format_depth_sets, format_field, refpos, symboltype, refsymbol) { \
     const auto symbolNN = SYMBOL_TYPE_TO_AMBIG[symboltype]; \
     int64_t ret = 0; \
-    for (const auto symbol : SYMBOL_TYPE_TO_SYMBOLS[symboltype]) { ret += symbol_to_abcd_format_depth_sets.getByPos(refpos)[symbolNN] . format_field; } \
+    for (const auto symbol : SYMBOL_TYPE_TO_SYMBOLS[symboltype]) { ret += (int64_t)symbol_to_abcd_format_depth_sets.getByPos(refpos)[symbolNN] . format_field; } \
     fmtDP[0] = ret; \
     fmtDP[1] = symbol_to_abcd_format_depth_sets.getByPos(refpos)[symbolNN] . format_field; \
 };
@@ -2527,20 +2529,20 @@ fill_symbol_fmt(
         const auto format_field,
         const auto refpos,
         const auto symbol,
-        const unsigned int allele_idx) {
+        const int allele_idx) {
     if (0 == allele_idx) {
         fmtAD.clear();
     } else {
         assert(fmtAD.size() > 0);
     }
-    auto cnt = symbol_to_abcd_format_depth_sets.getByPos(refpos)[symbol][format_field];
+    const auto cnt = symbol_to_abcd_format_depth_sets.getByPos(refpos)[symbol][format_field];
     fmtAD.push_back(cnt);
 };
 
 #define filla_symbol_fmt(fmtAD, symbol_to_abcd_format_depth_sets, format_field, refpos, symbol, allele_idx) { \
     if (0 == allele_idx) { fmtAD.clear(); } \
     else { assert(fmtAD.size() > 0); } \
-    auto cnt = symbol_to_abcd_format_depth_sets.getByPos(refpos)[symbol] . format_field; \
+    const auto cnt = symbol_to_abcd_format_depth_sets.getByPos(refpos)[symbol] . format_field; \
     fmtAD.push_back(cnt); \
 };
 
@@ -2549,37 +2551,37 @@ int
 fill_symbol_VQ_fmts(
         auto & fmt,
         const auto & symbol_to_VQ_format_tag_sets,
-        const size_t refpos,
+        const uvc1_refgpos_t refpos,
         const AlignmentSymbol symbol,
-        int minABQ,
+        uvc1_qual_t minABQ,
         const CommandLineArgs & paramset,
-        const unsigned int specialflag) {
-    const unsigned int a = 0;
+        const uint32_t specialflag) {
+    const int a = 0;
     
     fill_symbol_fmt(fmt.a1XM,  symbol_to_VQ_format_tag_sets, VQ_a1XM,  refpos, symbol, a);
     
     const auto a2BQf = symbol_to_VQ_format_tag_sets.getByPos(refpos)[symbol][VQ_a2BQf];
     const auto a2BQr = symbol_to_VQ_format_tag_sets.getByPos(refpos)[symbol][VQ_a2BQr];
-    int aDPf = fmt.aDPff[a] + fmt.aDPrf[a];
-    int aDPr = fmt.aDPfr[a] + fmt.aDPrr[a];
-    int ADP = fmt.ADPff[0] + fmt.ADPrf[0] + fmt.ADPfr[0] + fmt.ADPrr[0];
-    const int rssDPfBQ = (int)(aDPf * sqrt(a2BQf * SQR_QUAL_DIV / MAX(1, aDPf)));
-    const int rssDPrBQ = (int)(aDPr * sqrt(a2BQr * SQR_QUAL_DIV / MAX(1, aDPr)));
+    uvc1_readnum_t aDPf = fmt.aDPff[a] + fmt.aDPrf[a];
+    uvc1_readnum_t aDPr = fmt.aDPfr[a] + fmt.aDPrr[a];
+    uvc1_readnum_t ADP = fmt.ADPff[0] + fmt.ADPrf[0] + fmt.ADPfr[0] + fmt.ADPrr[0];
+    const uvc1_qual_t rssDPfBQ = (aDPf * sqrt(a2BQf * SQR_QUAL_DIV / MAX(1, aDPf)));
+    const uvc1_qual_t rssDPrBQ = (aDPr * sqrt(a2BQr * SQR_QUAL_DIV / MAX(1, aDPr)));
     
-    const int rssDPbBQ = (int)((aDPf + aDPr) * sqrt((a2BQf + a2BQr) * SQR_QUAL_DIV / MAX(1, aDPf + aDPr)));
+    const uvc1_qual_t rssDPbBQ = ((aDPf + aDPr) * sqrt((a2BQf + a2BQr) * SQR_QUAL_DIV / MAX(1, aDPf + aDPr)));
     
     // assert ((aDPf + aDPr) * 100 >= LAST(fmt.aXM1));
     assert ((aDPf + aDPr) * 100 >= LAST(fmt.aXM2));
     assert ((aDPf + aDPr) * 100 >= LAST(fmt.aBM2));
     // TODO: what is the exact theory behind the following line of code?
-    int64_t minABQa = (int)minABQ - (int)(5 * 10.0 * mathsquare(MAX(0, ((aDPf + aDPr + 0.5) * 2.0 / (ADP + 1.0) - 1.0))));
-    const int dp10pc = 10;
+    uvc1_qual_t minABQa = minABQ - (uvc1_qual_t)(5 * 10.0 * mathsquare(MAX(0, ((aDPf + aDPr + 0.5) * 2.0 / (ADP + 1.0) - 1.0))));
+    const uvc1_readnum_t dp10pc = 10;
     double sbratio = (double)(MAX(aDPf, aDPr) * 10 + dp10pc) / (double)(MIN(aDPf, aDPr) * 10 + dp10pc);
-    minABQa += (int)BETWEEN((int)mathsquare(sbratio) - paramset.syserr_BQ_sbratio_q_add, 0, paramset.syserr_BQ_sbratio_q_max);
-    const int xmratio = (int)(paramset.syserr_BQ_xmratio_q_max * 10 * (int)(aDPf + aDPr) / (int)MAX(1, LAST(fmt.aXM2)) - 0);
-    const int bmratio = (int)(paramset.syserr_BQ_bmratio_q_max * 10 * (int)(aDPf + aDPr) / (int)MAX(1, LAST(fmt.aBM2)) - 0);
-    minABQa += (int)BETWEEN((int)xmratio - paramset.syserr_BQ_xmratio_q_add, 0, paramset.syserr_BQ_xmratio_q_max) 
-             + (int)BETWEEN((int)bmratio - paramset.syserr_BQ_bmratio_q_add, 0, paramset.syserr_BQ_bmratio_q_max);
+    minABQa += BETWEEN((uvc1_qual_t)mathsquare(sbratio) - paramset.syserr_BQ_sbratio_q_add, 0, paramset.syserr_BQ_sbratio_q_max);
+    const uvc1_readnum_t xmratio = (paramset.syserr_BQ_xmratio_q_max * 10 * (aDPf + aDPr) / MAX(1, LAST(fmt.aXM2)));
+    const uvc1_readnum_t bmratio = (paramset.syserr_BQ_bmratio_q_max * 10 * (aDPf + aDPr) / MAX(1, LAST(fmt.aBM2)));
+    minABQa += BETWEEN(xmratio - paramset.syserr_BQ_xmratio_q_add, 0, paramset.syserr_BQ_xmratio_q_max) 
+             + BETWEEN(bmratio - paramset.syserr_BQ_bmratio_q_add, 0, paramset.syserr_BQ_bmratio_q_max);
     /*
     fmt.note += std::string("//minABQa/") 
             + std::to_string(minABQa) + "/" 
@@ -2587,13 +2589,13 @@ fill_symbol_VQ_fmts(
             + std::to_string(xmratio) + "/" 
             + std::to_string(bmratio) + "//";
     */
-    const int m = paramset.syserr_BQ_strand_favor_mul;
-    int a_BQ_syserr_qual_fw = (rssDPfBQ * m - minABQa * aDPf * m / 10 + rssDPrBQ - minABQa * aDPr / 10) / m;
-    int a_BQ_syserr_qual_rv = (rssDPrBQ * m - minABQa * aDPr * m / 10 + rssDPfBQ - minABQa * aDPf / 10) / m;
-    int a_BQ_syserr_qual_2d = (rssDPbBQ) - minABQa * (aDPf + aDPr) / 10;
-    const int a_rmsBQ = (rssDPbBQ) / MAX(1, aDPf + aDPr);
+    const uvc1_readnum_t m = paramset.syserr_BQ_strand_favor_mul;
+    uvc1_qual_t a_BQ_syserr_qual_fw = (rssDPfBQ * m - minABQa * aDPf * m / 10 + rssDPrBQ - minABQa * aDPr / 10) / m;
+    uvc1_qual_t a_BQ_syserr_qual_rv = (rssDPrBQ * m - minABQa * aDPr * m / 10 + rssDPfBQ - minABQa * aDPf / 10) / m;
+    uvc1_qual_t a_BQ_syserr_qual_2d = (rssDPbBQ) - minABQa * (aDPf + aDPr) / 10;
+    const uvc1_qual_t a_rmsBQ = (rssDPbBQ) / MAX(1, aDPf + aDPr);
     fill_symbol_fmt(fmt.bMQ,  symbol_to_VQ_format_tag_sets,  VQ_bMQ,  refpos, symbol, a);
-    fmt.bMQ[a] = (unsigned int)floor(sqrt(fmt.bMQ[a] * SQR_QUAL_DIV / MAX(fmt.bDPf[a] + fmt.bDPr[a], 1)) + (double)(1.0 - FLT_EPSILON));
+    fmt.bMQ[a] = (uvc1_qual_t)floor(sqrt(fmt.bMQ[a] * SQR_QUAL_DIV / MAX(fmt.bDPf[a] + fmt.bDPr[a], 1)) + (double)(1.0 - FLT_EPSILON));
     
     clear_push(fmt.a2BQf, rssDPfBQ, a);
     clear_push(fmt.a2BQr, rssDPrBQ, a);
@@ -2611,16 +2613,16 @@ fill_symbol_VQ_fmts(
     fill_symbol_fmt(fmt.cIDQr, symbol_to_VQ_format_tag_sets, VQ_cIDQr, refpos, symbol, a);
     
     clear_push(fmt.VTD,  SYMBOL_TO_DESC_ARR[symbol], a);
-    clear_push(fmt.VTI,  (unsigned int)symbol, a);
+    clear_push(fmt.VTI,  (int32_t)symbol, a);
 }
 
-std::array<unsigned int, 2>
+std::array<uvc1_readnum_t, 2>
 BcfFormat_symboltype_init(bcfrec::BcfFormat & fmt,
         const Symbol2CountCoverageSet & symbol2CountCoverageSet12, 
-        unsigned int refpos, 
+        uvc1_refgpos_t refpos, 
         const SymbolType symboltype,
         const AlignmentSymbol refsymbol,
-        const unsigned int specialflag) {
+        const uint32_t specialflag) {
     
     const auto symbolNN = SYMBOL_TYPE_TO_AMBIG[symboltype]; 
     
@@ -2635,8 +2637,8 @@ BcfFormat_symboltype_init(bcfrec::BcfFormat & fmt,
         
         p.segprep_a_highBQ_dp,
         
-        p.segprep_a_near_ins_len, 
-        p.segprep_a_near_del_len,
+        p.segprep_a_near_ins_pow2len, 
+        p.segprep_a_near_del_pow2len,
         p.segprep_a_near_ins_inv100len, 
         p.segprep_a_near_del_inv100len,
         
@@ -2741,23 +2743,23 @@ vectorsum(const auto v1, const auto v2) {
     return ret;
 }
 
-std::array<unsigned int, 2>
+std::array<uvc1_readnum_t, 2>
 BcfFormat_symbol_init(
         bcfrec::BcfFormat & fmt,
         const Symbol2CountCoverageSet & symbol2CountCoverageSet12, 
-        unsigned int refpos, 
+        uvc1_refgpos_t refpos, 
         const AlignmentSymbol symbol,
         const auto & mutform2count4vec_bq,
         const auto & indices_bq,
         const auto & mutform2count4vec_fq,
         const auto & indices_fq,
-        const unsigned int bDPa,
-        const unsigned int cDP0a,
+        const uvc1_readnum_t bDPa,
+        const uvc1_readnum_t cDP0a,
         const std::string & gapSa,
-        unsigned int minABQ,
+        uvc1_qual_t minABQ,
         const CommandLineArgs & paramset,
-        const unsigned int specialflag) {
-    const unsigned int a = 0;
+        const uint32_t specialflag) {
+    const int a = 0;
     
     const auto & symbol_to_VQ_format_tag_sets = symbol2CountCoverageSet12.symbol_to_VQ_format_tag_sets;
     const auto & symbol_to_seg_format_depth_sets = symbol2CountCoverageSet12.symbol_to_seg_format_depth_sets;
@@ -2852,10 +2854,11 @@ BcfFormat_symbol_init(
     clear_push(fmt.gapSa, gapSa, a);
     
     fmt.note = symbol2CountCoverageSet12.additional_note.getByPos(refpos)[symbol];
-    return std::array<unsigned int, 2>({{fmt.bDPf[a] + fmt.bDPr[a], fmt.cDP1f[a] + fmt.cDP1r[a]}});
+    return std::array<uvc1_readnum_t, 2>({{fmt.bDPf[a] + fmt.bDPr[a], fmt.cDP1f[a] + fmt.cDP1r[a]}});
 };
 
-double calc_normFA_from_rawFA_refbias(double FA, double refbias) {
+double 
+calc_normFA_from_rawFA_refbias(double FA, double refbias) {
     return (FA + FA * refbias) / (FA + (1.0 - FA) / (1.0 + refbias) + FA * refbias);
 }
 
@@ -2873,22 +2876,22 @@ fmt_bias_push(auto & vecFA, const auto refFA, const auto biasFA, const double th
 int
 BcfFormat_symbol_calc_DPv(
         bcfrec::BcfFormat & fmt,
-        unsigned int refpos,
+        uvc1_refgpos_t refpos,
         const RegionalTandemRepeat & rtr1,
         const RegionalTandemRepeat & rtr2,
         const double tpfa,
         const bool is_amplicon,
         const AlignmentSymbol refsymbol,
         const CommandLineArgs & paramset,
-        unsigned int specialflag) {
+        uint32_t specialflag) {
     
-    const unsigned int a = 0;
+    const int a = 0;
     const bool is_rescued = (tpfa >= 0);
     const double pfa = (is_rescued ? tpfa : 0.5);
     
     // Non-UMI universality-based prequal allele fraction
-    unsigned int ADP = (fmt.ADPff[0] + fmt.ADPfr[0] + fmt.ADPrf[0] + fmt.ADPrr[0]);
-    unsigned int aDP = (fmt.aDPff[a] + fmt.aDPfr[a] + fmt.aDPrf[a] + fmt.aDPrr[a]);
+    const uvc1_readnum_t ADP = (fmt.ADPff[0] + fmt.ADPfr[0] + fmt.ADPrf[0] + fmt.ADPrr[0]);
+    const uvc1_readnum_t aDP = (fmt.aDPff[a] + fmt.aDPfr[a] + fmt.aDPrf[a] + fmt.aDPrr[a]);
     double aDPFA = (aDP + pfa) / (double)(ADP + 1.0);
     
     const auto & f = fmt;
@@ -2899,18 +2902,18 @@ BcfFormat_symbol_calc_DPv(
     double _dir_bias_div = 1.0;
     if ((is_amplicon && (0x2 == (0x2 & paramset.nobias_flag))) || ((!is_amplicon) && (0x1 == (0x1 & paramset.nobias_flag)))) {
         // counter bias : position 23-10 bp and base quality 13
-        const unsigned int alt_avg_edgedist = MIN(fmt.aLPL[a], fmt.aRPL[a]) / MAX(fmt.aBQ2[a], 1); 
-        const unsigned int all_avg_edgedist = MIN(fmt.ALPL[0], fmt.ARPL[0]) / MAX(fmt.ABQ2[0], 1);
+        const uvc1_readpos_t alt_avg_edgedist = MIN(fmt.aLPL[a], fmt.aRPL[a]) / MAX(fmt.aBQ2[a], 1); 
+        const uvc1_readpos_t all_avg_edgedist = MIN(fmt.ALPL[0], fmt.ARPL[0]) / MAX(fmt.ABQ2[0], 1);
         if (alt_avg_edgedist >= paramset.bias_orientation_counter_avg_end_len + all_avg_edgedist && all_avg_edgedist <= paramset.bias_orientation_counter_avg_end_len) { 
             UPDATE_MAX(_counterbias_P_FA, (LAST(fmt.aP1) + 0.5) / (fmt.AP1[0] + 1.0));
         }
         if (isSymbolSubstitution(symbol)) {
             const bool is_f_good_cov = ((fmt.ADPfr[0] + fmt.ADPrr[0]) + 150 <= (fmt.ADPff[0] + fmt.ADPrf[0]) * 5);
             const bool is_r_good_cov = ((fmt.ADPff[0] + fmt.ADPrf[0]) + 150 <= (fmt.ADPfr[0] + fmt.ADPrr[0]) * 5);
-            const unsigned int avg_f_aBQ = (LAST(fmt.a1BQf) / MAX(1, fmt.aDPff[a] + fmt.aDPrf[a]));
-            const unsigned int avg_r_aBQ = (LAST(fmt.a1BQr) / MAX(1, fmt.aDPfr[a] + fmt.aDPrr[a]));
-            const unsigned int avg_f_ABQ = (fmt.A1BQf[0] / MAX(1, fmt.ADPff[0] + fmt.ADPrf[0]));
-            const unsigned int avg_r_ABQ = (fmt.A1BQr[0] / MAX(1, fmt.ADPfr[0] + fmt.ADPrr[0]));
+            const uvc1_qual_t avg_f_aBQ = (LAST(fmt.a1BQf) / MAX(1, fmt.aDPff[a] + fmt.aDPrf[a]));
+            const uvc1_qual_t avg_r_aBQ = (LAST(fmt.a1BQr) / MAX(1, fmt.aDPfr[a] + fmt.aDPrr[a]));
+            const uvc1_qual_t avg_f_ABQ = (fmt.A1BQf[0] / MAX(1, fmt.ADPff[0] + fmt.ADPrf[0]));
+            const uvc1_qual_t avg_r_ABQ = (fmt.A1BQr[0] / MAX(1, fmt.ADPfr[0] + fmt.ADPrr[0]));
 
             const bool is_f_BQ_counterbias = (
                     (LAST(fmt.a1BQf) >= LAST(fmt.a1BQr)) 
@@ -2937,7 +2940,7 @@ BcfFormat_symbol_calc_DPv(
     const double dir_bias_div = _dir_bias_div;
     
     // substitution in indel region, substitution in indel-prone region or indel, other cases 
-    unsigned int aDPplus = (isSymbolSubstitution(symbol) ? 0 : ((aDP + 1) * paramset.bias_prior_DPadd_perc / 100));
+    uvc1_readnum_t aDPplus = (isSymbolSubstitution(symbol) ? 0 : ((aDP + 1) * paramset.bias_prior_DPadd_perc / 100));
     double dp_coef = ((symbol == LINK_M) ? MAX(paramset.contam_any_mul_frac, 1.0 - MAX(rtr1.tracklen, rtr2.tracklen) / (MAX3(1, f.ALPL[0], f.ARPL[0]) / MAX(1.0/150.0, f.ABQ2[0]))) : 1.0);
     double _aPpriorfreq = paramset.bias_priorfreq_pos + (is_rescued ? paramset.tn_q_inc_max : 0); // probability that there is one indel at a pos
     double _aBpriorfreq = _aPpriorfreq;
@@ -2965,7 +2968,7 @@ BcfFormat_symbol_calc_DPv(
     }
     const double aPpriorfreq = _aPpriorfreq;
     const double aBpriorfreq = _aBpriorfreq;
-    fmt.nPF = {{ (int)round(aPpriorfreq), (int)round(aBpriorfreq) }};
+    fmt.nPF = {{ (uvc1_qual_t)round(aPpriorfreq), (uvc1_qual_t)round(aBpriorfreq) }};
     
     const double aIpriorfreq = (isSymbolSubstitution(symbol) ? paramset.bias_priorfreq_ipos_snv : paramset.bias_priorfreq_ipos_indel);
     const double aSBpriorfreq = (isSymbolSubstitution(symbol) 
@@ -3071,10 +3074,10 @@ BcfFormat_symbol_calc_DPv(
     // double cFA3 = (fmt.cDP3f[a] + fmt.cDP3r[a] + pfa + 1) / (fmt.CDP3f[0] + fmt.CDP3r[0] + 1.0 + 1);
     double cFA3 = (fmt.cDP3f[a] + fmt.cDP3r[a] + pfa) / (fmt.CDP3f[0] + fmt.CDP3r[0] + 1.0);
     
-    assert( cFA2 > 0);
-    assert( cFA2 < 1);
-    assert( cFA3 > 0);
-    assert( cFA3 < 1);
+    assert( cFA2 > 0 );
+    assert( cFA2 < 1 );
+    assert( cFA3 > 0 );
+    assert( cFA3 < 1 );
     
     fmt.nNFA.push_back(-numstates2deciphred(counterbias_P_FA));
     fmt.nNFA.push_back(-numstates2deciphred(counterbias_BQ_FA));
@@ -3115,35 +3118,36 @@ BcfFormat_symbol_calc_DPv(
     double refbias = 0;
     if ((isSymbolIns(symbol) || isSymbolDel(symbol)) && is_rescued) {
         const auto & indelstring = LAST(fmt.gapSa);
-        const unsigned int indel_noinfo_nbases = (indelstring.size() * (isSymbolIns(symbol) ? 2 : 1) + MAX3(indelstring.size(), rtr1.tracklen, rtr2.tracklen));
+        const uvc1_readpos_t indel_noinfo_nbases = (UNSIGN2SIGN(indelstring.size()) * (isSymbolIns(symbol) ? 2 : 1) 
+                + MAX3(UNSIGN2SIGN(indelstring.size()), rtr1.tracklen, rtr2.tracklen));
         refbias = (double)(indel_noinfo_nbases) / ((double)(MIN(f.ALPL[0], f.ARPL[0]) * 2 + indel_noinfo_nbases) / (double)(f.ABQ2[0] + 0.5));
         refbias = MIN(refbias, paramset.microadjust_refbias_indel_max);
     }
     // non-UMI push
-    clear_push(fmt.cDP1v, (int)(calc_normFA_from_rawFA_refbias(MIN(min_aFA, min_bcFA), refbias) * (fmt.CDP1f[0] +fmt.CDP1r[0]) * 100), a);
+    clear_push(fmt.cDP1v, (uvc1_readnum100x_t)(calc_normFA_from_rawFA_refbias(MIN(min_aFA, min_bcFA), refbias) * (fmt.CDP1f[0] +fmt.CDP1r[0]) * 100), a);
     double min_abcFA_w = MINVEC(std::vector<double>{{
             aLPFA, aRPFA,
             aLBFA, aRBFA,
             bFA }});
-    clear_push(fmt.cDP1w, (int)(calc_normFA_from_rawFA_refbias(min_abcFA_w, refbias) * (fmt.CDP1f[0] +fmt.CDP1r[0]) * 100), a);
+    clear_push(fmt.cDP1w, (uvc1_readnum100x_t)(calc_normFA_from_rawFA_refbias(min_abcFA_w, refbias) * (fmt.CDP1f[0] +fmt.CDP1r[0]) * 100), a);
     double min_abcFA_x = MINVEC(std::vector<double>{{ aPFFA, cFA0 }});
-    clear_push(fmt.cDP1x, 1+(int)(min_abcFA_x * (fmt.CDP1f[0] +fmt.CDP1r[0]) * 100), a);
+    clear_push(fmt.cDP1x, 1+(uvc1_readnum100x_t)(min_abcFA_x * (fmt.CDP1f[0] +fmt.CDP1r[0]) * 100), a);
     
     // UMI push
-    clear_push(fmt.cDP2v, (int)(calc_normFA_from_rawFA_refbias(MIN(min_aFA * frac_umi2seg, cROFA2), refbias) * (fmt.CDP2f[0] +fmt.CDP2r[0]) * 100), a);
+    clear_push(fmt.cDP2v, (uvc1_readnum100x_t)(calc_normFA_from_rawFA_refbias(MIN(min_aFA * frac_umi2seg, cROFA2), refbias) * (fmt.CDP2f[0] +fmt.CDP2r[0]) * 100), a);
     double umi_cFA_w = MINVEC(std::vector<double>{{
             aLPFA * frac_umi2seg, aRPFA * frac_umi2seg,
             aLBFA * frac_umi2seg, aRBFA * frac_umi2seg,
             aDPFA * frac_umi2seg,
             cROFA2
             }});
-    clear_push(fmt.cDP2w, (int)(calc_normFA_from_rawFA_refbias(umi_cFA_w, refbias) * (fmt.CDP2f[0] +fmt.CDP2r[0]) * 100), a);
+    clear_push(fmt.cDP2w, (uvc1_readnum100x_t)(calc_normFA_from_rawFA_refbias(umi_cFA_w, refbias) * (fmt.CDP2f[0] +fmt.CDP2r[0]) * 100), a);
     double umi_cFA_x = MINVEC(std::vector<double>{{ 
             aPFFA * frac_umi2seg,
             aDPFA * frac_umi2seg,
             cROFA2
             }});
-    clear_push(fmt.cDP2x, 1+(int)(MIN(umi_cFA_x * (fmt.CDP2f[0] +fmt.CDP2r[0]), fmt.cDP2f[a] +fmt.cDP2r[a]) * 100), a);
+    clear_push(fmt.cDP2x, 1+(uvc1_readnum100x_t)(MIN(umi_cFA_x * (fmt.CDP2f[0] +fmt.CDP2r[0]), fmt.cDP2f[a] +fmt.cDP2r[a]) * 100), a);
     
     return 0;
 };
@@ -3191,9 +3195,9 @@ getptr_cCDPxvV2(bcfrec::BcfFormat & f, const ReductionType fidx) {
 }
 
 int
-BcfFormat_symbol_sum_DPv(auto & fmts, const unsigned int a = 0) {
-    std::array<unsigned int, NUM_REDUCTIONS> cDPxx1s = {{0}};
-    std::array<unsigned int, NUM_REDUCTIONS> cDPxx2s = {{0}};
+BcfFormat_symbol_sum_DPv(auto & fmts) {
+    std::array<uvc1_readnum_t, NUM_REDUCTIONS> cDPxx1s = {{0}};
+    std::array<uvc1_readnum_t, NUM_REDUCTIONS> cDPxx2s = {{0}};
     for (auto & fmt : fmts) {
         for (const auto i : REDUCTION_DPS) { cDPxx1s[i] += LAST(*std::get<1>(getptr_cCDPxvV2(std::get<0>(fmt), i))); }
         if (BASE_NN == LAST(std::get<0>(fmt).VTI) || LINK_NN == LAST(std::get<0>(fmt).VTI)) {
@@ -3213,29 +3217,29 @@ int
 BcfFormat_symbol_calc_qual(
         bcfrec::BcfFormat & fmt,
         
-        const unsigned int ins_bdepth,
-        const unsigned int ins_cdepth,
-        const unsigned int del_bdepth,
-        const unsigned int del_cdepth,
+        const uvc1_readnum_t ins_bdepth,
+        const uvc1_readnum_t ins_cdepth,
+        const uvc1_readnum_t del_bdepth,
+        const uvc1_readnum_t del_cdepth,
         
-        const unsigned int ins1_bdepth,
-        const unsigned int ins1_cdepth,
-        const unsigned int del1_bdepth,
-        const unsigned int del1_cdepth,
+        const uvc1_readnum_t ins1_bdepth,
+        const uvc1_readnum_t ins1_cdepth,
+        const uvc1_readnum_t del1_bdepth,
+        const uvc1_readnum_t del1_cdepth,
         
         const std::string & repeatunit,
-        const unsigned int repeatnum,
+        const uvc1_readpos_t repeatnum,
         const bool is_rescued,
         const auto & rtr1,
         const auto & rtr2,
-        int tid,
-        int refpos,
+        uvc1_refgpos_t tid,
+        uvc1_refgpos_t refpos,
         AlignmentSymbol refsymbol,
         double tpfa,
         const CommandLineArgs & paramset,
-        const unsigned int specialflag) {
+        const uint32_t specialflag) {
     
-    const unsigned int a = 0;
+    const int a = 0;
     const auto symbol = AlignmentSymbol(LAST(fmt.VTI));
     
     const PhredMutationTable sscs_mut_table(
@@ -3247,25 +3251,25 @@ BcfFormat_symbol_calc_qual(
             paramset.fam_phred_sscs_indel_open,
             paramset.fam_phred_sscs_indel_ext);
     
-    const int powlaw_sscs_phrederr = sscs_mut_table.toPhredErrRate(refsymbol, symbol);
-    const int powlaw_sscs_inc1 = (powlaw_sscs_phrederr  - (isSymbolSubstitution(symbol) 
+    const uvc1_qual_t powlaw_sscs_phrederr = sscs_mut_table.toPhredErrRate(refsymbol, symbol);
+    const uvc1_qual_t powlaw_sscs_inc1 = (powlaw_sscs_phrederr  - (isSymbolSubstitution(symbol) 
             ? (((BASE_A == refsymbol && BASE_T == symbol) || (BASE_T == refsymbol && BASE_A == symbol))
                 ? paramset.fam_phred_pow_sscs_transversion_AT_TA_origin : paramset.fam_phred_pow_sscs_snv_origin)
             : paramset.fam_phred_pow_sscs_indel_origin));
     
     const double t2n_contam_frac = (tpfa > 0 ? tpfa : 0) * paramset.contam_t2n_mul_frac;
-    int t2n_contam_phred_per_unit_x10 = (int)round(10 * (10/log(10)) * log(1.0 / MAX(1e-10, t2n_contam_frac)));
+    uvc1_qual_t t2n_contam_phred_per_unit_x10 = (uvc1_qual_t)round(10 * (10/log(10)) * log(1.0 / MAX(1e-10, t2n_contam_frac)));
     
     const double contamfrac = paramset.contam_any_mul_frac + (1.0 - paramset.contam_any_mul_frac) * t2n_contam_frac;
     
-    const unsigned int aDP = (fmt.aDPff[a] + fmt.aDPfr[a] + fmt.aDPrf[a] + fmt.aDPrr[a]);
-    const unsigned int ADP = (fmt.ADPff[0] + fmt.ADPrf[0] + fmt.ADPfr[0] + fmt.ADPrr[0]);
-    const unsigned int bDP = (fmt.bDPf[a] + fmt.bDPr[a]);
-    const unsigned int BDP = (fmt.BDPf[0] + fmt.BDPr[0]);
-    const unsigned int cDP0 = (fmt.cDP1f[a] + fmt.cDP1r[a]);
-    const unsigned int CDP0 = (fmt.CDP1f[0] + fmt.CDP1r[0]);
-    const unsigned int cDP2 = (fmt.cDP2f[a] + fmt.cDP2r[a]);
-    const unsigned int CDP2 = (fmt.CDP2f[0] + fmt.CDP2r[0]);
+    const uvc1_readnum_t aDP = (fmt.aDPff[a] + fmt.aDPfr[a] + fmt.aDPrf[a] + fmt.aDPrr[a]);
+    const uvc1_readnum_t ADP = (fmt.ADPff[0] + fmt.ADPrf[0] + fmt.ADPfr[0] + fmt.ADPrr[0]);
+    const uvc1_readnum_t bDP = (fmt.bDPf[a] + fmt.bDPr[a]);
+    const uvc1_readnum_t BDP = (fmt.BDPf[0] + fmt.BDPr[0]);
+    const uvc1_readnum_t cDP0 = (fmt.cDP1f[a] + fmt.cDP1r[a]);
+    const uvc1_readnum_t CDP0 = (fmt.CDP1f[0] + fmt.CDP1r[0]);
+    const uvc1_readnum_t cDP2 = (fmt.cDP2f[a] + fmt.cDP2r[a]);
+    const uvc1_readnum_t CDP2 = (fmt.CDP2f[0] + fmt.CDP2r[0]);
     
     const auto noUMI_bias_inc = MIN(paramset.bias_FA_powerlaw_noUMI_phred_inc_snv, aDP/2); 
     const auto pl_noUMI_phred_inc = paramset.powlaw_anyvar_base 
@@ -3277,47 +3281,47 @@ BcfFormat_symbol_calc_qual(
     const bool is_cytosine_deanim_CT = ((BASE_C == refsymbol && BASE_T == symbol) || (BASE_G == refsymbol && BASE_A == symbol));
     const bool is_cytosine_deanim_FA = (int64mul(cDP2, paramset.microadjust_fam_lowfreq_invFA) < (int64_t)CDP2);
     const bool is_cysotine_deanimation = (is_cytosine_deanim_CT && is_cytosine_deanim_FA);
-    int64_t non_duplex_binom_dec_x10 = ((is_cysotine_deanimation)
-            ? (10 * (int64_t)non_neg_minus(paramset.fam_phred_sscs_transition_CG_TA, paramset.fam_phred_dscs_all / 2) * ((int64_t)CDP2 - int64mul(cDP2, paramset.microadjust_fam_lowfreq_invFA)) / CDP2) : 0);
+    uvc1_qual_big_t non_duplex_binom_dec_x10 = ((is_cysotine_deanimation)
+            ? (10L * non_neg_minus(paramset.fam_phred_sscs_transition_CG_TA, paramset.fam_phred_dscs_all / 2L) * ((uvc1_qual_big_t)CDP2 - int64mul(cDP2, paramset.microadjust_fam_lowfreq_invFA)) / CDP2) : 0);
     double prior_weight = 1.0 / (fmt.cDPmf[a] + fmt.cDPmr[a] + 1.0);
-    const unsigned int fam_thres_highBQ = (isSymbolSubstitution(symbol) ? paramset.fam_thres_highBQ_snv : paramset.fam_thres_highBQ_indel); 
-    int cMmQ = (int)round(10/log(10) * log((fmt.cDPMf[a] + fmt.cDPmf[a] + fmt.cDPMr[a] + fmt.cDPmr[a] + pow(10, fam_thres_highBQ / 10.0) * prior_weight) 
+    const uvc1_qual_t fam_thres_highBQ = (isSymbolSubstitution(symbol) ? paramset.fam_thres_highBQ_snv : paramset.fam_thres_highBQ_indel); 
+    const uvc1_qual_t cMmQ = (uvc1_qual_t)round(10/log(10) * log((fmt.cDPMf[a] + fmt.cDPmf[a] + fmt.cDPMr[a] + fmt.cDPmr[a] + pow(10, fam_thres_highBQ / 10.0) * prior_weight) 
             / (fmt.cDPmf[a] + fmt.cDPmr[a] + prior_weight)));
     
-    int64_t nbases_x100_1 = fmt.bIADb[a] * 100 + 1;
-    int64_t nbases_x100_2 = MIN(nbases_x100_1, fmt.cDP1v[a] + 1);
-    int64_t perbase_likeratio_q_x10_1 = 10 * fmt.bIAQb[a] / MAX(1, fmt.bIADb[a]);
-    int64_t perbase_likeratio_q_x10_2 = perbase_likeratio_q_x10_1 + (int)round(10 * 10/log(10) * log((double)nbases_x100_2 / (double)nbases_x100_1));
-    int64_t duped_frag_binom_qual = ((isSymbolIns(symbol) || isSymbolDel(symbol)) ? perbase_likeratio_q_x10_1 : perbase_likeratio_q_x10_2)  * nbases_x100_2 / (10 * 100);
-    int64_t contam_frag_withmin_qual = (int64_t)round(calc_binom_10log10_likeratio(t2n_contam_frac, cDP0, CDP0 - cDP0)) + 9 - 3;
+    uvc1_readnum100x_t nbases_x100_1 = fmt.bIADb[a] * 100 + 1;
+    uvc1_readnum100x_t nbases_x100_2 = MIN(nbases_x100_1, fmt.cDP1v[a] + 1);
+    uvc1_qual_big_t perbase_likeratio_q_x10_1 = 10 * fmt.bIAQb[a] / MAX(1, fmt.bIADb[a]);
+    uvc1_qual_big_t perbase_likeratio_q_x10_2 = perbase_likeratio_q_x10_1 + (uvc1_qual_big_t)round(10 * 10/log(10) * log((double)nbases_x100_2 / (double)nbases_x100_1));
+    uvc1_qual_big_t duped_frag_binom_qual = ((isSymbolIns(symbol) || isSymbolDel(symbol)) ? perbase_likeratio_q_x10_1 : perbase_likeratio_q_x10_2)  * nbases_x100_2 / (10 * 100);
+    uvc1_qual_big_t contam_frag_withmin_qual = (uvc1_qual_big_t)round(calc_binom_10log10_likeratio(t2n_contam_frac, cDP0, CDP0 - cDP0)) + 9 - 3;
     // int64_t contam_frag_withmin_qual = ((int)t2n_contam_phred_per_unit_x10 - (int)round(10 * (10/log(10)) * log((CDP0 + 1.0) / (cDP0 + 0.5)))) * MIN(100, cDP0) / 10;
     
-    int phred_het3al_chance_inc_snp = MAX(0, 2 * (int)paramset.germ_phred_hetero_snp - (int)paramset.germ_phred_het3al_snp - TIN_CONTAM_MICRO_VQ_DELTA);
-    int phred_het3al_chance_inc_indel = MAX(0, 2 * (int)paramset.germ_phred_hetero_indel - (int)paramset.germ_phred_het3al_indel - TIN_CONTAM_MICRO_VQ_DELTA);
+    uvc1_qual_t phred_het3al_chance_inc_snp = MAX(0, 2 * paramset.germ_phred_hetero_snp - paramset.germ_phred_het3al_snp - TIN_CONTAM_MICRO_VQ_DELTA);
+    uvc1_qual_t phred_het3al_chance_inc_indel = MAX(0, 2 * paramset.germ_phred_hetero_indel - paramset.germ_phred_het3al_indel - TIN_CONTAM_MICRO_VQ_DELTA);
     // systematic error affects both T and N upstream to the same extent, whereas T-in-N contamination affects only the N from T.
-    int contam_syserr_phred_bypassed = (int)(isSymbolSubstitution(symbol) ? phred_het3al_chance_inc_snp : phred_het3al_chance_inc_indel);
-    const int64_t normCDP1 = (fmt.CDP12f[0] + fmt.CDP12r[0] + 1);
-    const int64_t normBDP = (fmt.BDPf[0] + fmt.BDPr[0] + 1);
-    const int64_t sscs_dec1a = 2 * int64mul(non_neg_minus(paramset.fam_min_n_copies, normCDP1),                             (powlaw_sscs_inc1 + 3))
-            / (int64_t)(paramset.fam_min_n_copies);
-    const int64_t sscs_dec1b = 2 * int64mul(non_neg_minus(normCDP1 * (paramset.fam_min_overseq_perc + 100) / 100, normBDP), (powlaw_sscs_inc1 + 3))
-            / (int64_t)MAX(1, normCDP1 * (paramset.fam_min_overseq_perc / 2 + 100) / 100);
-    const int64_t sscs_dec1 = MAX(sscs_dec1a, sscs_dec1b);
+    uvc1_qual_t contam_syserr_phred_bypassed = (isSymbolSubstitution(symbol) ? phred_het3al_chance_inc_snp : phred_het3al_chance_inc_indel);
+    const uvc1_readnum_t normCDP1 = (fmt.CDP12f[0] + fmt.CDP12r[0] + 1);
+    const uvc1_readnum_t normBDP = (fmt.BDPf[0] + fmt.BDPr[0] + 1);
+    const uvc1_qual_big_t sscs_dec1a = 2 * int64mul(non_neg_minus(paramset.fam_min_n_copies, normCDP1),                             (powlaw_sscs_inc1 + 3))
+            / (paramset.fam_min_n_copies);
+    const uvc1_qual_big_t sscs_dec1b = 2 * int64mul(non_neg_minus(normCDP1 * (paramset.fam_min_overseq_perc + 100) / 100, normBDP), (powlaw_sscs_inc1 + 3))
+            / MAX(1, normCDP1 * (paramset.fam_min_overseq_perc / 2 + 100) / 100);
+    const uvc1_qual_big_t sscs_dec1 = MAX(sscs_dec1a, sscs_dec1b);
     
     // how to reduce qual by bias: div first, then minus
-    const int64_t sscs_dec2 = non_neg_minus((int)fam_thres_highBQ, cMmQ);
-    const int64_t cIADnormcnt = int64mul(fmt.cIADf[a] + fmt.cIADr[a], 100) + 1;
-    const int64_t cIADmincnt = MIN(cIADnormcnt, 
+    const uvc1_qual_big_t sscs_dec2 = non_neg_minus(fam_thres_highBQ, cMmQ);
+    const uvc1_qual_big_t cIADnormcnt = int64mul(fmt.cIADf[a] + fmt.cIADr[a], 100) + 1;
+    const uvc1_qual_big_t cIADmincnt = MIN(cIADnormcnt, 
             int64mul((fmt.CDP2f[0] + fmt.CDP2r[0]) * 100UL + 1, fmt.cDP1v[a] + 1) 
-            / (int64_t)(fmt.CDP1f[0] + fmt.CDP1r[0] + 1) + 1);
+            / (fmt.CDP1f[0] + fmt.CDP1r[0] + 1) + 1);
     
-    const int64_t sscs_binom_qual_fw = fmt.cIAQf[a] + int64mul(fmt.cIAQr[a], MIN(paramset.fam_phred_dscs_all - fmt.cIDQf[a], fmt.cIDQr[a])) / MAX(fmt.cIDQr[a], 1);
-    const int64_t sscs_binom_qual_rv = fmt.cIAQr[a] + int64mul(fmt.cIAQf[a], MIN(paramset.fam_phred_dscs_all - fmt.cIDQr[a], fmt.cIDQf[a])) / MAX(fmt.cIDQf[a], 1);
+    const uvc1_qual_big_t sscs_binom_qual_fw = fmt.cIAQf[a] + int64mul(fmt.cIAQr[a], MIN(paramset.fam_phred_dscs_all - fmt.cIDQf[a], fmt.cIDQr[a])) / MAX(fmt.cIDQr[a], 1);
+    const uvc1_qual_big_t sscs_binom_qual_rv = fmt.cIAQr[a] + int64mul(fmt.cIAQf[a], MIN(paramset.fam_phred_dscs_all - fmt.cIDQr[a], fmt.cIDQf[a])) / MAX(fmt.cIDQf[a], 1);
     
-    const int64_t contam_sscs_withmin_qual = (int64_t)round(calc_binom_10log10_likeratio(t2n_contam_frac, cDP2, CDP2 - cDP2)) + 9 - 3;
+    const uvc1_qual_big_t contam_sscs_withmin_qual = (uvc1_qual_big_t)round(calc_binom_10log10_likeratio(t2n_contam_frac, cDP2, CDP2 - cDP2)) + 9 - 3;
     // const int64_t contam_sscs_withmin_qual = MIN(MAX(fmt.cDP2f[a], fmt.cDP2r[a]), 100) * non_neg_minus(t2n_contam_phred_per_unit_x10, (int)round(10 * (10/log(10)) * log((CDP2 + 1.0) / (cDP2 + 0.5)))) / 10;
     
-    int64_t sscs_binom_qual = int64mul(MAX(sscs_binom_qual_fw, sscs_binom_qual_rv), cIADmincnt) / (cIADnormcnt) - (non_duplex_binom_dec_x10) * cIADmincnt;
+    uvc1_qual_big_t sscs_binom_qual = int64mul(MAX(sscs_binom_qual_fw, sscs_binom_qual_rv), cIADmincnt) / (cIADnormcnt) - (non_duplex_binom_dec_x10) * cIADmincnt;
     if (MAX(sscs_binom_qual_fw, sscs_binom_qual_rv) > paramset.microadjust_fam_binom_qual_halving_thres) {
         sscs_binom_qual = MIN(sscs_binom_qual, 
                 paramset.microadjust_fam_binom_qual_halving_thres 
@@ -3325,28 +3329,28 @@ BcfFormat_symbol_calc_qual(
     }
     sscs_binom_qual -= sscs_dec1 + sscs_dec2;
     double min_bcFA_v = (((double)(fmt.cDP1v[a]) + 0.5) / (double)(fmt.CDP1f[0] * 100 + fmt.CDP1r[0] * 100 + 1.0));
-    int dedup_frag_powlaw_qual_v = (int)(paramset.powlaw_exponent * 10.0 / log(10.0) * log(min_bcFA_v) + (pl_noUMI_phred_inc));
+    uvc1_qual_t dedup_frag_powlaw_qual_v = (uvc1_qual_big_t)floor(paramset.powlaw_exponent * 10.0 / log(10.0) * log(min_bcFA_v) + (pl_noUMI_phred_inc));
     
     double min_bcFA_w = (((double)(fmt.cDP1w[a]) + 0.5) / (double)(fmt.CDP1f[0] * 100 + fmt.CDP1r[0] * 100 + 1.0));
-    int dedup_frag_powlaw_qual_w = (int)(paramset.powlaw_exponent * 10.0 / log(10.0) * log(min_bcFA_w) + (pl_noUMI_phred_inc + paramset.tn_q_inc_max));
+    uvc1_qual_t dedup_frag_powlaw_qual_w = (uvc1_qual_big_t)floor(paramset.powlaw_exponent * 10.0 / log(10.0) * log(min_bcFA_w) + (pl_noUMI_phred_inc + paramset.tn_q_inc_max));
     
-    int ds_vq_inc_powlaw = (int)(10/log(10)*MIN(log((fmt.cDP12f[a] + 0.5) / (fmt.CDP12f[0] + 1.0)), log((fmt.cDP12r[a] + 0.5) / (fmt.CDP12r[0] + 1.0)))) 
+    uvc1_qual_t ds_vq_inc_powlaw = (uvc1_qual_t)floor(10/log(10)*MIN(log((fmt.cDP12f[a] + 0.5) / (fmt.CDP12f[0] + 1.0)), log((fmt.cDP12r[a] + 0.5) / (fmt.CDP12r[0] + 1.0)))) 
             + (powlaw_sscs_phrederr);
-    int ds_vq_inc_binom = 3 * MIN(fmt.cDP2f[a], fmt.cDP2r[a]);
+    uvc1_qual_t ds_vq_inc_binom = 3 * MIN(fmt.cDP2f[a], fmt.cDP2r[a]);
     
-    const int powlaw_sscs_inc2 = (int)MAX(0, MIN5(sscs_binom_qual_fw, sscs_binom_qual_rv, ds_vq_inc_powlaw, ds_vq_inc_binom, 3));
+    uvc1_qual_t powlaw_sscs_inc2 = MAX(0, MIN5(sscs_binom_qual_fw, sscs_binom_qual_rv, ds_vq_inc_powlaw, ds_vq_inc_binom, 3));
     double umi_cFA =  (((double)(fmt.cDP2v[a]) + 0.5) / ((double)(fmt.CDP2f[0] * 100 + fmt.CDP2r[0] * 100) + 1.0));
     
-    int sscs_base_2 = pl_withUMI_phred_inc + powlaw_sscs_inc1 + powlaw_sscs_inc2 - sscs_dec1 - sscs_dec2;
-    int sscs_powlaw_qual_v = (int)((paramset.powlaw_exponent * 10.0 / log(10.0) * log(umi_cFA)    + sscs_base_2));
-    int sscs_powlaw_qual_w = (int)((paramset.powlaw_exponent * 10.0 / log(10.0) * log(min_bcFA_w) + sscs_base_2)) + (int)paramset.tn_q_inc_max;
+    uvc1_qual_t sscs_base_2 = pl_withUMI_phred_inc + powlaw_sscs_inc1 + powlaw_sscs_inc2 - sscs_dec1 - sscs_dec2;
+    uvc1_qual_t sscs_powlaw_qual_v = (int)((paramset.powlaw_exponent * 10.0 / log(10.0) * log(umi_cFA)    + sscs_base_2));
+    uvc1_qual_t sscs_powlaw_qual_w = (int)((paramset.powlaw_exponent * 10.0 / log(10.0) * log(min_bcFA_w) + sscs_base_2)) + (int)paramset.tn_q_inc_max;
     
     double dFA = (double)(fmt.dDP2[a] + 0.5) / (double)(fmt.DDP1[0] + 1.0);
     double dSNR = (double)(fmt.dDP2[a] + 0.5) / (double)(fmt.dDP1[0] + 1.0);
-    double dFA_vq_binom = ((int64_t)paramset.fam_phred_dscs_all - (int64_t)round(numstates2phred(dSNR / dFA))) * (int64_t)fmt.dDP2[a] * (int64_t)cIADmincnt / (int64_t)cIADnormcnt;
-    double dFA_vq_powlaw = paramset.powlaw_anyvar_base + (paramset.fam_phred_dscs_all - paramset.fam_phred_pow_dscs_all_origin) 
-            + (int)round(numstates2phred(dFA * MIN(1.0, (double)((fmt.cDP1v[a]) + 0.5) / (double)(fmt.cDP1f[a] * 100 + fmt.cDP1r[a] * 100))));
-    
+    uvc1_qual_big_t dFA_vq_binom = ((uvc1_qual_big_t)paramset.fam_phred_dscs_all - (uvc1_qual_big_t)round(numstates2phred(dSNR / dFA))) 
+            * (uvc1_qual_big_t)fmt.dDP2[a] * (uvc1_qual_big_t)cIADmincnt / (uvc1_qual_big_t)cIADnormcnt;
+    uvc1_qual_t dFA_vq_powlaw = paramset.powlaw_anyvar_base + (paramset.fam_phred_dscs_all - paramset.fam_phred_pow_dscs_all_origin) 
+            + (uvc1_qual_t)round(numstates2phred(dFA * MIN(1.0, (double)((fmt.cDP1v[a]) + 0.5) / (double)(fmt.cDP1f[a] * 100 + fmt.cDP1r[a] * 100))));
 
 // This code is supposed to work given highly accurate estimation of InDel error.
 // However, it seems that in practice, the estimation of InDel errors is not sufficiently accurate.
@@ -3361,9 +3365,9 @@ BcfFormat_symbol_calc_qual(
 #endif
     fmt.note += std::string("cMmQ(") + std::to_string(cMmQ) + ")";
      
-    int indel_penal4multialleles = 0;
-    int indel_penal4multialleles_g = 0;
-    int indel_penal4multialleles_soma = 0;
+    uvc1_qual_t indel_penal4multialleles = 0;
+    uvc1_qual_t indel_penal4multialleles_g = 0;
+    uvc1_qual_t indel_penal4multialleles_soma = 0;
     const std::string & indelstring = fmt.gapSa[a];
     
     if (indelstring.size() > 0 && fmt.cDP0a[a] > 0) {
@@ -3379,34 +3383,36 @@ BcfFormat_symbol_calc_qual(
         if (LINK_I1 == symbol) {
             indelcdepth += del1_cdepth / paramset.indel_del_to_ins_err_ratio;
         }
-        const unsigned int nearInDelDP = (isSymbolIns(symbol) ? fmt.APDP[1] : fmt.APDP[2]);
+        const uvc1_readnum_t nearInDelDP = (isSymbolIns(symbol) ? fmt.APDP[1] : fmt.APDP[2]);
         
         assert (nearInDelDP >= aDP || !fprintf(stderr, "nearInDelDP >= aDP failed ( %d >= %d failed) at tid %d pos %d!\n", nearInDelDP, aDP, tid, refpos));
         const double eps = (double)FLT_EPSILON;
         
-        const auto indel_penal4multialleles1 = (int)round(paramset.indel_multiallele_samepos_penal / log(2.0) 
+        const auto indel_penal4multialleles1 = (uvc1_qual_t)round(paramset.indel_multiallele_samepos_penal / log(2.0) 
                 * log((double)(indelcdepth + eps) / (double)(fmt.cDP0a[a] + eps)));
-        const auto indel_penal4multialleles2 = (int)round(paramset.indel_multiallele_diffpos_penal / log(2.0) 
+        const auto indel_penal4multialleles2 = (uvc1_qual_t)round(paramset.indel_multiallele_diffpos_penal / log(2.0) 
                 * log((double)(nearInDelDP + eps) / (double)(aDP + eps)));
-        indel_penal4multialleles_g = (int)round(paramset.indel_tetraallele_germline_penal_value /log(2.0) * log((double)(ins_cdepth + del_cdepth + eps) / (double)(fmt.cDP0a[a] + eps))) - paramset.indel_tetraallele_germline_penal_thres;
+        indel_penal4multialleles_g = (uvc1_qual_t)round(paramset.indel_tetraallele_germline_penal_value /log(2.0) * log((double)(ins_cdepth + del_cdepth + eps) / (double)(fmt.cDP0a[a] + eps))) - paramset.indel_tetraallele_germline_penal_thres;
         
         if (isSymbolIns(symbol)) {
-            indel_penal4multialleles = (indel_penal4multialleles1 * paramset.indel_ins_penal_pseudocount / (int)(paramset.indel_ins_penal_pseudocount + indelstring.size())); 
-            indel_penal4multialleles_soma = (indel_penal4multialleles1 * paramset.indel_ins_penal_pseudocount / (int)(paramset.indel_ins_penal_pseudocount + indelstring.size()));
+            indel_penal4multialleles = (indel_penal4multialleles1 * paramset.indel_ins_penal_pseudocount / 
+                    (uvc1_qual_t)(paramset.indel_ins_penal_pseudocount + UNSIGN2SIGN(indelstring.size()))); 
+            indel_penal4multialleles_soma = (indel_penal4multialleles1 * paramset.indel_ins_penal_pseudocount / 
+                    (uvc1_qual_t)(paramset.indel_ins_penal_pseudocount + UNSIGN2SIGN(indelstring.size())));
         } else {
             indel_penal4multialleles = MAX(indel_penal4multialleles1, indel_penal4multialleles2);
             indel_penal4multialleles_soma = indel_penal4multialleles1;
         }
-        dedup_frag_powlaw_qual_v += (int64_t)floor(indel_ic);
-        dedup_frag_powlaw_qual_w += (int64_t)floor(indel_ic);
-        duped_frag_binom_qual += (int64_t)floor(indel_pq);
+        dedup_frag_powlaw_qual_v += (uvc1_qual_t)floor(indel_ic);
+        dedup_frag_powlaw_qual_w += (uvc1_qual_t)floor(indel_ic);
+        duped_frag_binom_qual += (uvc1_qual_t)floor(indel_pq);
         
         // assume that first PCR-cycle InDel error rate approx equals to in-vivo error rate over multiple cell generations.
         const double sscs_indel_ic = 10.0 / log(10.0) * log((double)mathsquare(MAX(indelstring.size() + (isSymbolIns(symbol) ? INS_N_ANCHOR_BASES : 0), 1U)) / (double)(MAX(eff_tracklen1, eff_tracklen2) + 1));
         
-        sscs_powlaw_qual_v += (int64_t)floor(sscs_indel_ic);
-        sscs_powlaw_qual_w += (int64_t)floor(sscs_indel_ic);
-        sscs_binom_qual += (int64_t)floor(indel_pq);
+        sscs_powlaw_qual_v += (uvc1_qual_t)floor(sscs_indel_ic);
+        sscs_powlaw_qual_w += (uvc1_qual_t)floor(sscs_indel_ic);
+        sscs_binom_qual += (uvc1_qual_t)floor(indel_pq);
     }
     
     clear_push(fmt.bIAQ, duped_frag_binom_qual, a);
@@ -3421,55 +3427,55 @@ BcfFormat_symbol_calc_qual(
     clear_push(fmt.bTINQ, contam_frag_withmin_qual + contam_syserr_phred_bypassed, a);
     clear_push(fmt.cTINQ, contam_sscs_withmin_qual + contam_syserr_phred_bypassed, a);
 
-    const int phred_varq_per_mapq = ((refsymbol == symbol) ? 0 : 
+    const uvc1_qual_t phred_varq_per_mapq = ((refsymbol == symbol) ? 0 : 
             paramset.syserr_phred_varcall_err_per_map_err_per_base);
-    const int minMQinc = (int)((refsymbol == symbol) ? 0 : 
-            MAX(phred_varq_per_mapq, paramset.germ_phred_homalt_snp + (int)(paramset.powlaw_exponent * 10.0/log(10.0) * log((bDP + 0.5) / (double)(BDP + 1.0)))));
-    const int bMQdec = (int)(((refsymbol == symbol) && (ADP > aDP * 2))
-            ? BETWEEN((int)(fmt.AMQs[0] / MAX(1, ADP)) - (int)(fmt.aMQs[a] / MAX(1, aDP)), 0, paramset.microadjust_ref_MQ_dec_max) : 0); // ad-hoc for MQ that has ref-bias.
-    const int syserr_q = MIN(
-            (int)non_neg_minus(MAX(fmt.bMQ[a], (refsymbol == symbol ? 0 : paramset.syserr_minMQ)) + MIN(minMQinc, bDP * 3), bMQdec),
+    const uvc1_qual_t minMQinc = (int)((refsymbol == symbol) ? 0 : 
+            MAX(phred_varq_per_mapq, paramset.germ_phred_homalt_snp + (uvc1_qual_t)floor(paramset.powlaw_exponent * 10.0/log(10.0) * log((bDP + 0.5) / (double)(BDP + 1.0)))));
+    const uvc1_qual_t bMQdec = (uvc1_qual_t)(((refsymbol == symbol) && (ADP > aDP * 2))
+            ? BETWEEN((uvc1_qual_t)(fmt.AMQs[0] / MAX(1, ADP)) - (uvc1_qual_t)(fmt.aMQs[a] / MAX(1, aDP)), 0, paramset.microadjust_ref_MQ_dec_max) : 0); // ad-hoc for MQ that has ref-bias.
+    const uvc1_qual_t syserr_q = MIN(
+            non_neg_minus(MAX(fmt.bMQ[a], (refsymbol == symbol ? 0 : paramset.syserr_minMQ)) + MIN(minMQinc, bDP * 3), bMQdec),
             (SEQUENCING_PLATFORM_IONTORRENT != paramset.sequencing_platform && isSymbolSubstitution(AlignmentSymbol(LAST(fmt.VTI))) ? (fmt.aBQQ[a]) : (200)));
     
-    const int aDPpc = ((refsymbol == symbol) ? 1 : 0);
-    int penal4BQerr = (isSymbolSubstitution(symbol) ? (5 + (int)(((int64_t)paramset.penal4lowdep) / (int64_t)mathsquare((int64_t)MAX(1, aDP + aDPpc)))) : 0);
+    const uvc1_readnum_t aDPpc = ((refsymbol == symbol) ? 1 : 0);
+    const uvc1_qual_t penal4BQerr = (isSymbolSubstitution(symbol) ? (5 + (int)(((int64_t)paramset.penal4lowdep) / (int64_t)mathsquare((int64_t)MAX(1, aDP + aDPpc)))) : 0);
     
-    int indel_q_inc = ((((!isSymbolIns(symbol)) && (!isSymbolDel(symbol))) || is_rescued) ? 0 : indel_len_rusize_phred(indelstring.size(), repeatnum));
+    const uvc1_qual_t indel_q_inc = ((((!isSymbolIns(symbol)) && (!isSymbolDel(symbol))) || is_rescued) ? 0 : indel_len_rusize_phred(indelstring.size(), repeatnum));
     clear_push(fmt.gVQ1, MAX(
-            (int)0, 
+            0, 
             indel_q_inc + MIN3(
                 syserr_q,
-                (int)LAST(fmt.bIAQ) - penal4BQerr, 
-                (int)LAST(fmt.cPLQ1)) - 2 * MAX3(
-                    (int)0, 
-                    (int)indel_penal4multialleles - (int)paramset.indel_multiallele_soma_penal_thres, 
-                    (int)indel_penal4multialleles_g)),
+                LAST(fmt.bIAQ) - penal4BQerr, 
+                LAST(fmt.cPLQ1)) - 2 * MAX3(
+                    0, 
+                    indel_penal4multialleles - paramset.indel_multiallele_soma_penal_thres, 
+                    indel_penal4multialleles_g)),
     a);
     const auto bcVQ1 = MIN3(
                 syserr_q,
-                (int)LAST(fmt.bIAQ) - (is_rescued ? 0 : penal4BQerr), 
-                (int)LAST(fmt.cPLQ1)) - indel_penal4multialleles_soma;
+                LAST(fmt.bIAQ) - (is_rescued ? 0 : penal4BQerr), 
+                LAST(fmt.cPLQ1)) - indel_penal4multialleles_soma;
     clear_push(fmt.cVQ1, MAX(0, MIN(bcVQ1, LAST(fmt.bTINQ))), a);
     
     // This adjustment makes sure that variant with UMI support is ranked before variant without UMI suppport.
-    const std::array<int, 10> cysotine_deanim_to_score = {{0,1,1, 1,1,2, 2,2,2, 3}};
-    const std::array<int, 5> other_to_score = {{0,2,3, 3,4}};
-    const int mincVQ2 = (is_cytosine_deanim_CT 
+    const std::array<uvc1_qual_t, 10> cysotine_deanim_to_score = {{0,1,1, 1,1,2, 2,2,2, 3}};
+    const std::array<uvc1_qual_t, 5> other_to_score = {{0,2,3, 3,4}};
+    const uvc1_qual_t mincVQ2 = (is_cytosine_deanim_CT 
         ? cysotine_deanim_to_score[MIN(cDP2, cysotine_deanim_to_score.size() - 1)] 
         : other_to_score[MIN(cDP2, other_to_score.size() - 1)]); 
     
-    const int dVQinc = MIN(dFA_vq_binom, dFA_vq_powlaw - indel_penal4multialleles) - MIN((int)LAST(fmt.cIAQ), (int)LAST(fmt.cPLQ2) - indel_penal4multialleles);
+    const uvc1_qual_t dVQinc = MIN(dFA_vq_binom, dFA_vq_powlaw - indel_penal4multialleles) - MIN(LAST(fmt.cIAQ), LAST(fmt.cPLQ2) - indel_penal4multialleles);
     clear_push(fmt.dVQinc, dVQinc, a);
     
-    const int cVQ2 = MIN3(syserr_q,
-            (int)LAST(fmt.cIAQ) + MAX(0, dVQinc),
-            (int)LAST(fmt.cPLQ2)) - indel_penal4multialleles + MAX(0, dVQinc);
+    const uvc1_qual_t cVQ2 = MIN3(syserr_q,
+            LAST(fmt.cIAQ) + MAX(0, dVQinc),
+            LAST(fmt.cPLQ2)) - indel_penal4multialleles + MAX(0, dVQinc);
     clear_push(fmt.cVQ2, MAX(mincVQ2, MIN(cVQ2, LAST(fmt.cTINQ))), a);
     
     // TODO; check if reducing all allele read count to increase alt allele frac in case of ref bias makes more sense
     
-    auto binom_contam_LODQ = (int)calc_binom_10log10_likeratio(contamfrac, fmt.cDP1v[a], fmt.CDP1v[0]);
-    auto power_contam_LODQ = (int)(10.0/log(10.00) * paramset.powlaw_exponent * MAX(logit2(min_bcFA_v, contamfrac), 0.0));
+    auto binom_contam_LODQ = calc_binom_10log10_likeratio(contamfrac, fmt.cDP1v[a], fmt.CDP1v[0]);
+    auto power_contam_LODQ = (uvc1_qual_t)floor(10.0/log(10.00) * paramset.powlaw_exponent * MAX(logit2(min_bcFA_v, contamfrac), 0.0));
     clear_push(fmt.CONTQ, MIN(binom_contam_LODQ, power_contam_LODQ), a);
 };
 
@@ -3478,16 +3484,16 @@ BcfFormat_symbol_calc_qual(
 #undef INDEL_ID
 #define INDEL_ID 2
 #include "instcode.hpp"
-std::array<unsigned int, 2>
+std::array<uvc1_readnum_t, 2>
 fill_by_indel_info(
         bcfrec::BcfFormat & fmt,
         const Symbol2CountCoverageSet & symbol2CountCoverageSet, 
-        const unsigned int strand, 
-        const unsigned int refpos, 
+        const int strand, 
+        const uvc1_refgpos_t refpos, 
         const AlignmentSymbol symbol, 
         const std::string & refstring, 
         const std::string & repeatunit, 
-        unsigned int repeatnum) {
+        const uvc1_readpos_t repeatnum) {
     assert(isSymbolIns(symbol) || isSymbolDel(symbol));
     if (isSymbolIns(symbol)) {
         return fill_by_indel_info2_1(fmt, symbol2CountCoverageSet, strand, refpos, symbol,
@@ -3503,7 +3509,7 @@ fill_by_indel_info(
 };
 
 std::string 
-mutform2count4map_to_phase(const auto & mutform2count4vec, const auto & indices, unsigned int pseudocount = 1) {
+mutform2count4map_to_phase(const auto & mutform2count4vec, const auto & indices, uvc1_readnum_t pseudocount = 1) {
     std::string phase_string;
     for (auto idx : indices) {
         auto mutform2count4pair = mutform2count4vec.at(idx);
@@ -3512,7 +3518,7 @@ mutform2count4map_to_phase(const auto & mutform2count4vec, const auto & indices,
             phase_string +="(";
             for (auto pos2symbol4pair : mutform2count4pair.first) {
                 AlignmentSymbol symbol = pos2symbol4pair.second;
-                unsigned int mutpos = pos2symbol4pair.first + (isSymbolSubstitution(symbol) ? 1 : 0);
+                uvc1_refgpos_t mutpos = pos2symbol4pair.first + (isSymbolSubstitution(symbol) ? 1 : 0);
                 phase_string += std::string("(") + std::to_string(mutpos) + "&" + SYMBOL_TO_DESC_ARR[symbol] + ")";
             }
             phase_string += std::string("&") + std::to_string(counts[0]) + "&" + std::to_string(counts[1]) + ")";
@@ -3521,15 +3527,15 @@ mutform2count4map_to_phase(const auto & mutform2count4vec, const auto & indices,
     return phase_string;
 }
 
-const std::vector<std::pair<std::array<unsigned int, 2>, std::string>> 
+const std::vector<std::pair<std::array<uvc1_readnum_t, 2>, std::string>> 
 indel_get_majority(
         const bcfrec::BcfFormat & fmt, 
         const char *tname, 
-        unsigned int refpos, 
+        uvc1_refgpos_t refpos, 
         const AlignmentSymbol symbol,
         bool is_warning_disabled,
-        const unsigned int specialflag) {
-    std::vector<std::pair<std::array<unsigned int, 2>, std::string>> indelstrings;
+        const uint32_t specialflag) {
+    std::vector<std::pair<std::array<uvc1_readnum_t, 2>, std::string>> indelstrings;
     if ((SUMVEC(fmt.gapNf) + SUMVEC(fmt.gapNr)) == 0) {
         if (!is_warning_disabled) {
             std::cerr << "Invalid indel detected (invalid mutation) : " << tname << ", " << refpos << ", " << SYMBOL_TO_DESC_ARR[symbol] << std::endl;
@@ -3537,21 +3543,21 @@ indel_get_majority(
             bcfrec::streamAppendBcfFormat(msg, fmt);
             std::cerr << msg << "\n";
         }
-        indelstrings.push_back(std::make_pair(std::array<unsigned int, 2>({{0, 0}}), SYMBOL_TO_DESC_ARR[symbol]));
+        indelstrings.push_back(std::make_pair(std::array<uvc1_readnum_t, 2>({{0, 0}}), SYMBOL_TO_DESC_ARR[symbol]));
     } else {
-        std::map<std::string, std::array<unsigned int, 2>> indelmap;
+        std::map<std::string, std::array<uvc1_readnum_t, 2>> indelmap;
         assert(fmt.gapSeq.size() ==  SUMVEC(fmt.gapNf) + SUMVEC(fmt.gapNr));
         assert(fmt.gapbAD1.size() ==  fmt.gapSeq.size());
-        for (unsigned int i = 0; i < fmt.gapSeq.size(); i++) {
+        for (size_t i = 0; i < fmt.gapSeq.size(); i++) {
             const auto & it = indelmap.find(fmt.gapSeq[i]);
             if (it == indelmap.end()) {
-                indelmap.insert(std::make_pair(fmt.gapSeq[i], std::array<unsigned int, 2>({{fmt.gapbAD1[i], fmt.gapcAD1[i]}})));
+                indelmap.insert(std::make_pair(fmt.gapSeq[i], std::array<uvc1_readnum_t, 2>({{fmt.gapbAD1[i], fmt.gapcAD1[i]}})));
             } else {
                 indelmap[fmt.gapSeq[i]][0] += fmt.gapbAD1[i];
                 indelmap[fmt.gapSeq[i]][1] += fmt.gapcAD1[i];
             }
         }
-        unsigned int max_bAD1 = 0;
+        uvc1_readnum_t max_bAD1 = 0;
         for (auto & indelit : indelmap) {
             UPDATE_MAX(max_bAD1, indelit.second[0]);
         }
@@ -3565,9 +3571,10 @@ indel_get_majority(
     return indelstrings;
 }
 
-unsigned int hetLODQ(double allele1count, double allele2count, double expfrac, double powlaw_exponent = 3.0) {
-    auto binomLODQ = (int)calc_binom_10log10_likeratio(expfrac, allele1count, allele2count);
-    auto powerLODQ = (int)(10.0/log(10.00) * powlaw_exponent * MAX(logit2((allele1count + 0.5) * 0.5 / expfrac, (allele2count + 0.5) * 0.5 / (1.0 - expfrac)), 0.0));
+uvc1_qual_t
+hetLODQ(double allele1count, double allele2count, double expfrac, double powlaw_exponent = 3.0) {
+    auto binomLODQ = (uvc1_qual_t)calc_binom_10log10_likeratio(expfrac, allele1count, allele2count);
+    auto powerLODQ = (uvc1_qual_t)floor(10.0/log(10.0) * powlaw_exponent * MAX(logit2((allele1count + 0.5) * 0.5 / expfrac, (allele2count + 0.5) * 0.5 / (1.0 - expfrac)), 0.0));
     return MIN(binomLODQ, powerLODQ);
 }
 
@@ -3595,19 +3602,16 @@ output_germline(
         std::vector<std::pair<AlignmentSymbol, bcfrec::BcfFormat*>> symbol_format_vec,
         const char *tname,
         const std::string & refstring,
-        unsigned int refpos,
-        unsigned int extended_inclu_beg_pos,
-        unsigned int central_readlen,
-        unsigned int outputflag,
-        const bool should_output_all_germline,
-        const bool is_rescued,
+        uvc1_refgpos_t refpos,
+        uvc1_refgpos_t extended_inclu_beg_pos,
         const CommandLineArgs & paramset,
-        unsigned int specialflag) {
+        uint32_t specialflag) {
     
+    const bool is_rescued = (NOT_PROVIDED != paramset.vcf_tumor_fname);
     assert(symbol_format_vec.size() >= 4 || 
             !fprintf(stderr, " The variant-type %s:%u %u has symbol_format_vec of length %u", 
             tname, refpos, refsymbol, symbol_format_vec.size()));
-    unsigned int regionpos = refpos- extended_inclu_beg_pos;
+    uvc1_refgpos_t regionpos = refpos- extended_inclu_beg_pos;
     struct {
         bool operator()(std::pair<AlignmentSymbol, bcfrec::BcfFormat*> & p1, std::pair<AlignmentSymbol, bcfrec::BcfFormat*> & p2) const {
             return ALODQ(p1.second) < ALODQ(p2.second);
@@ -3615,8 +3619,8 @@ output_germline(
     } SymbolBcfFormatPairLess;
     std::sort(symbol_format_vec.rbegin(), symbol_format_vec.rend(), SymbolBcfFormatPairLess);
     std::array<std::pair<AlignmentSymbol, bcfrec::BcfFormat*>, 4> ref_alt1_alt2_alt3 = {{std::make_pair(END_ALIGNMENT_SYMBOLS, (bcfrec::BcfFormat*)NULL)}};
-    unsigned int allele_idx = 1;
-    int ref_alodq = INT_MIN;
+    int allele_idx = 1;
+    uvc1_qual_t ref_alodq = INT_MIN;
     for (auto symb_fmt : symbol_format_vec) {
         const bool isref = (refsymbol == symb_fmt.first || BASE_NN == symb_fmt.first || LINK_NN == symb_fmt.first); 
         if (isref && ALODQ(symb_fmt.second) > ref_alodq) {
@@ -3636,10 +3640,10 @@ output_germline(
         ref_alt1_alt2_alt3[3].first
         ));
     
-    int a0LODQ = ALODQ(ref_alt1_alt2_alt3[0].second);
-    int a1LODQ = ALODQ(ref_alt1_alt2_alt3[1].second);
-    int a2LODQ = ALODQ(ref_alt1_alt2_alt3[2].second);
-    int a3LODQ = ALODQ(ref_alt1_alt2_alt3[3].second);
+    uvc1_qual_t a0LODQ = ALODQ(ref_alt1_alt2_alt3[0].second);
+    uvc1_qual_t a1LODQ = ALODQ(ref_alt1_alt2_alt3[1].second);
+    uvc1_qual_t a2LODQ = ALODQ(ref_alt1_alt2_alt3[2].second);
+    uvc1_qual_t a3LODQ = ALODQ(ref_alt1_alt2_alt3[3].second);
     
     auto fmtptr0 = ref_alt1_alt2_alt3[0].second;
     auto fmtptr1 = ref_alt1_alt2_alt3[1].second;
@@ -3658,10 +3662,10 @@ output_germline(
         ad2norm = 0;
     }
     
-    int a0a1LODQ = hetLODQ(ad0norm, ad1norm, 1.0 - paramset.germ_hetero_FA, paramset.powlaw_exponent);
-    int a1a0LODQ = hetLODQ(ad1norm, ad0norm, paramset.germ_hetero_FA, paramset.powlaw_exponent);
-    int a1a2LODQ = hetLODQ(ad1norm, ad2norm, 0.5, paramset.powlaw_exponent);
-    int a2a1LODQ = hetLODQ(ad2norm, ad1norm, 0.5, paramset.powlaw_exponent);
+    uvc1_qual_t a0a1LODQ = hetLODQ(ad0norm, ad1norm, 1.0 - paramset.germ_hetero_FA, paramset.powlaw_exponent);
+    uvc1_qual_t a1a0LODQ = hetLODQ(ad1norm, ad0norm, paramset.germ_hetero_FA, paramset.powlaw_exponent);
+    uvc1_qual_t a1a2LODQ = hetLODQ(ad1norm, ad2norm, 0.5, paramset.powlaw_exponent);
+    uvc1_qual_t a2a1LODQ = hetLODQ(ad2norm, ad1norm, 0.5, paramset.powlaw_exponent);
     
     std::array<std::string, 4> GTidx2GT {{
         "0/0",
@@ -3670,10 +3674,10 @@ output_germline(
         "1/2"
     }};
     
-    int phred_homref = 0;
-    int phred_hetero = (isSubst ? paramset.germ_phred_hetero_snp : paramset.germ_phred_hetero_indel);
-    int phred_homalt = (isSubst ? paramset.germ_phred_homalt_snp : paramset.germ_phred_homalt_indel);
-    int phred_tri_al = (isSubst ? paramset.germ_phred_het3al_snp : paramset.germ_phred_het3al_indel); 
+    uvc1_qual_t phred_homref = 0;
+    uvc1_qual_t phred_hetero = (isSubst ? paramset.germ_phred_hetero_snp : paramset.germ_phred_hetero_indel);
+    uvc1_qual_t phred_homalt = (isSubst ? paramset.germ_phred_homalt_snp : paramset.germ_phred_homalt_indel);
+    uvc1_qual_t phred_tri_al = (isSubst ? paramset.germ_phred_het3al_snp : paramset.germ_phred_het3al_indel); 
     // https://www.genetics.org/content/184/1/233 and https://www.fsigenetics.com/article/S1872-4973(20)30003-X/fulltext : triallelic-SNP-phred = 29*2-3+5
     
     if (is_rescued) {
@@ -3694,7 +3698,7 @@ output_germline(
     const auto a12hetp = MAX(MAX(a1a2LODQ, a2a1LODQ) - (3-0), 0);
     const auto a03trip = MAX(a0LODQ, a3LODQ);
     
-    int tri_al_penal = 0;
+    uvc1_qual_t tri_al_penal = 0;
     if (isSymbolIns(AlignmentSymbol(LAST(ref_alt1_alt2_alt3[1].second->VTI))) && isSymbolIns(AlignmentSymbol(LAST(ref_alt1_alt2_alt3[2].second->VTI)))) {
         tri_al_penal += 3;
         if (LAST(ref_alt1_alt2_alt3[1].second->VTI) == LAST(ref_alt1_alt2_alt3[2].second->VTI)) {
@@ -3704,7 +3708,7 @@ output_germline(
             }
         }
     }
-    std::array<std::pair<int, int>, 4> GL4raw = {{
+    std::array<std::pair<size_t, uvc1_qual_t>, 4> GL4raw = {{
         std::make_pair(0,     (-phred_homref - a1LODQ                - a2penal - a3penal)),
         std::make_pair(1,     (-phred_hetero - MAX(a01hetp, a2LODQ)  - MAX(MIN(a01hetp, a2LODQ)  - phred_hetero, 0) - a3penal)),
         std::make_pair(2,     (-phred_homalt - MAX( a0LODQ, a2LODQ)  - MAX(MIN( a0LODQ, a2LODQ)  - phred_hetero, 0) - a3penal)),
@@ -3712,7 +3716,7 @@ output_germline(
             - MAX(MIN(a12hetp, MIN(a0LODQ, a3LODQ)) - phred_hetero, 0) - tri_al_penal))
     }};
     auto ret = GL4raw[0].second - MAX3(GL4raw[1].second, GL4raw[2].second, GL4raw[3].second);
-    if (0 == ((OUTVAR_GERMLINE) & outputflag)) {
+    if (0 == ((OUTVAR_GERMLINE) & paramset.outvar_flag)) {
         return std::make_tuple(ret, fmtptr1, fmtptr2);
     }
     
@@ -3720,7 +3724,7 @@ output_germline(
     std::sort(GL4.rbegin(), GL4.rend(), PairSecondLess);
     
     size_t GLidx = GL4[0].first;
-    if (0 == GLidx && (!should_output_all_germline) && MAX(LAST(fmtptr1->cDP0a), LAST(fmtptr2->cDP0a)) <= 2) {
+    if (0 == GLidx && (!paramset.should_output_all_germline) && MAX(LAST(fmtptr1->cDP0a), LAST(fmtptr2->cDP0a)) <= 2) {
         return std::make_tuple(ret, fmtptr1, fmtptr2);
     }
     std::array<std::string, 3> ref_alt1_alt2_vcfstr_arr = {{
@@ -3731,7 +3735,7 @@ output_germline(
     
     std::string vcfref = "";
     std::string vcfalt = "";
-    unsigned int alt1_uniallelic_phred = 200;
+    uvc1_qual_t alt1_uniallelic_phred = 200;
     bool is_alt1_uniallelic = true;
     if (isSymbolSubstitution(refsymbol)) {
         assert(refstring.substr(regionpos, 1) == ref_alt1_alt2_vcfstr_arr[0]);
@@ -3743,7 +3747,7 @@ output_germline(
     } else {
         ref_alt1_alt2_vcfstr_arr[0] = (regionpos > 0 ? refstring.substr(regionpos-1, 1) : "n");
         AlignmentSymbol s1 = ref_alt1_alt2_alt3[1].first;
-        std::vector<std::pair<std::array<unsigned int, 2>, std::string>> indelstrings1 = indel_get_majority(
+        std::vector<std::pair<std::array<uvc1_readnum_t, 2>, std::string>> indelstrings1 = indel_get_majority(
                 *(ref_alt1_alt2_alt3[1].second), 
                 tname, 
                 refpos, 
@@ -3776,7 +3780,7 @@ output_germline(
                 indelstring2 = indelstrings1[1].second;
             } else {
                 s2 = ref_alt1_alt2_alt3[2].first;
-                std::vector<std::pair<std::array<unsigned int, 2>, std::string>> indelstrings2 = indel_get_majority(
+                std::vector<std::pair<std::array<uvc1_readnum_t, 2>, std::string>> indelstrings2 = indel_get_majority(
                         *(ref_alt1_alt2_alt3[2].second), 
                         tname, 
                         refpos, 
@@ -3826,8 +3830,8 @@ output_germline(
     }
     auto vcfpos = refpos + (isSymbolSubstitution(refsymbol) ? 1 : 0);
     std::string germ_GT = GTidx2GT[(is_alt1_uniallelic ? GLidx : 3)];
-    int germ_GQ =  (is_alt1_uniallelic ? (GL4[0].second - GL4[1].second) : MIN(alt1_uniallelic_phred, GL4[0].second - GL4[1].second));
-    std::vector<int> germ_ADR;
+    uvc1_qual_t germ_GQ =  (is_alt1_uniallelic ? (GL4[0].second - GL4[1].second) : MIN(alt1_uniallelic_phred, GL4[0].second - GL4[1].second));
+    std::vector<uvc1_readnum_t> germ_ADR;
     germ_ADR.push_back(collectget(ref_alt1_alt2_alt3[0].second->cDP0a, 1, 0));
     germ_ADR.push_back(collectget(ref_alt1_alt2_alt3[1].second->cDP0a, 1, 0));
     if (3 == GLidx) {
@@ -3857,17 +3861,17 @@ output_germline(
             std::to_string(germ_GQ), 
             std::string("0,0"), 
             "PASS", // string_join(germ_FT, "/"),
-            other_join(std::array<int, 2> {{
-                (int)(symbol_format_vec[0].second->CDP12f[0] + symbol_format_vec[0].second->CDP12r[0]), 
-                (int)(symbol_format_vec[0].second->CDP12f[1] + symbol_format_vec[0].second->CDP12r[1]) }},
+            other_join(std::array<uvc1_readnum_t, 2> {{
+                (symbol_format_vec[0].second->CDP12f[0] + symbol_format_vec[0].second->CDP12r[0]), 
+                (symbol_format_vec[0].second->CDP12f[1] + symbol_format_vec[0].second->CDP12r[1]) }},
                 ","
             ),
             other_join(germ_ADR, std::string(",")), 
-            other_join(std::array<int, 4>
+            other_join(std::array<uvc1_readnum_t, 4>
             {{ 
                 GL4raw[0].second, GL4raw[1].second, GL4raw[2].second, GL4raw[3].second, 
             }}, ","),
-            other_join(std::array<int, 8>
+            other_join(std::array<uvc1_readnum_t, 8>
             {{
                 a0LODQ, a1LODQ, a2LODQ, a3LODQ,
                 a0a1LODQ, a1a0LODQ, a1a2LODQ, a2a1LODQ
@@ -3883,10 +3887,10 @@ output_germline(
 std::string 
 generate_vcf_header(const char *ref_fasta_fname, 
         const char *platform, 
-        unsigned int central_readlen,
-        unsigned int argc,
+        uvc1_readpos_t central_readlen,
+        int argc,
         const char *const *argv,
-        unsigned int n_targets,
+        int32_t n_targets,
         const char *const *target_name,
         const uint32_t *target_len,
         const char *const sampleName,
@@ -3901,7 +3905,7 @@ generate_vcf_header(const char *ref_fasta_fname,
     ret += std::string("") + "##fileDate=" + timestring + "\n" ;
     ret += std::string("") + "##variantCallerVersion=" + VERSION_DETAIL + "\n";
     ret += std::string("") + "##variantCallerCommand=";
-    for (unsigned int i = 0; i < argc; i++) {
+    for (int i = 0; i < argc; i++) {
         ret += std::string("") + std::string(argv[i]) + "  ";
     }
     ret += "\n";
@@ -3910,12 +3914,12 @@ generate_vcf_header(const char *ref_fasta_fname,
             + ",central_readlen=" + std::to_string(central_readlen) 
             + ">\n";
     ret += std::string("") + "##reference=" + ref_fasta_fname + "\n";
-    for (size_t i = 0; i < n_targets; i++) {
+    for (int i = 0; i < n_targets; i++) {
         ret += std::string("") + "##contig=<ID=" + target_name[i] + ",length=" + std::to_string(target_len[i]) + ">\n";
     }
     ret += std::string("") + "##ALT=<ID=NON_REF,Description=\"Represents any possible alternative allele at this location, where POS (start position) is one-based inclusive.\">\n";
     
-    for (unsigned int i = 0; i < bcfrec::FILTER_NUM; i++) {
+    for (size_t i = 0; i < bcfrec::FILTER_NUM; i++) {
         ret += std::string("") + bcfrec::FILTER_LINES[i] + "\n";
     }
     
@@ -3937,7 +3941,7 @@ generate_vcf_header(const char *ref_fasta_fname,
     ret += "##INFO=<ID=RC,Number=1,Type=Integer,Description=\"The number of non-interrupted RUs in the reference\">\n";
     ret += "##INFO=<ID=R3X2,Number=6,Type=Integer,Description=\"Repeat start position, repeat track length, and repeat unit size at the two positions before and after this VCF position.\">\n"; 
     
-    for (unsigned int i = 0; i < bcfrec::FORMAT_NUM; i++) {
+    for (size_t i = 0; i < bcfrec::FORMAT_NUM; i++) {
         ret += std::string("") + bcfrec::FORMAT_LINES[i] + "\n";
     }
     
@@ -3998,56 +4002,56 @@ const auto
 calc_binom_powlaw_syserr_normv_quals(
         auto tAD, auto tDP, int tVQ, int tnVQcap,
         auto nAD, auto nDP, int nVQ, const double penal_dimret_coef,
-        const unsigned int specialflag) {
-    int binom_b10log10like = (int)calc_binom_10log10_likeratio((tDP - tAD) / (tDP), nDP - nAD, nAD);
+        const uint32_t specialflag) {
+    uvc1_qual_t binom_b10log10like = calc_binom_10log10_likeratio((tDP - tAD) / (tDP), nDP - nAD, nAD);
     double bjpfrac = ((tAD + 0.5) / (tDP + 1.0)) / ((nAD + 0.5) / (nDP + 1.0));
-    int powlaw_b10log10like = (int)(3 * 10 / log(10) * log(bjpfrac));
-    int prior_phred = 3; // ((penal_dimret_coef < 25) ? 8 : 1);
+    uvc1_qual_t powlaw_b10log10like = (uvc1_qual_t)floor(3 * 10 / log(10) * log(bjpfrac));
+    uvc1_qual_t prior_phred = 3; // ((penal_dimret_coef < 25) ? 8 : 1);
     
-    int tnVQinc = MAX3(-prior_phred, (-(int)nAD)*3, MIN(binom_b10log10like - prior_phred, powlaw_b10log10like - prior_phred));
-    int tnVQdec = MAX(0, nVQ - MAX(0, MIN(binom_b10log10like - prior_phred, (int)(mathsquare(log(MAX(bjpfrac, 1.001)) / log(2)) * penal_dimret_coef))));
+    uvc1_qual_t tnVQinc = MAX3(-prior_phred, (-(uvc1_qual_t)nAD)*3, MIN(binom_b10log10like - prior_phred, powlaw_b10log10like - prior_phred));
+    uvc1_qual_t tnVQdec = MAX(0, nVQ - MAX(0, MIN(binom_b10log10like - prior_phred, (uvc1_qual_t)(mathsquare(log(MAX(bjpfrac, 1.001)) / log(2)) * penal_dimret_coef))));
     
-    int tnVQ = tVQ + tnVQinc - tnVQdec;
+    uvc1_qual_t tnVQ = tVQ + tnVQinc - tnVQdec;
     tnVQ = MIN(tnVQcap, tnVQ);
-    return std::array<int, 4> {{binom_b10log10like, powlaw_b10log10like, tnVQdec, tnVQ }};
+    return std::array<uvc1_qual_t, 4> {{binom_b10log10like, powlaw_b10log10like, tnVQdec, tnVQ }};
 };
 
 const auto
 calc_binom_powlaw_syserr_normv_quals2(
         auto tAD, auto tDP, int tVQ, int tnVQcap,
         auto nAD, auto nDP, int nVQ,
-        const unsigned int specialflag) {
-    int binom_b10log10like = (int)calc_binom_10log10_likeratio((tDP - tAD) / (tDP), nDP - nAD, nAD);
-    int powlaw_b10log10like = (nAD <= 3 ? binom_b10log10like : (int)round(binom_b10log10like * 3 / nAD));
-    int tnVQ = BETWEEN(tVQ + MAX3(MIN(binom_b10log10like, powlaw_b10log10like) - TVN_MICRO_VQ_DELTA, -(int)TVN_MICRO_VQ_DELTA * nAD, -TVN_MICRO_VQ_DELTA) - nVQ, 0, tnVQcap);
-    return std::array<int, 4> {{binom_b10log10like, powlaw_b10log10like, nVQ, tnVQ }};
+        const uint32_t specialflag) {
+    uvc1_qual_t binom_b10log10like = calc_binom_10log10_likeratio((tDP - tAD) / (tDP), nDP - nAD, nAD);
+    uvc1_qual_t powlaw_b10log10like = (nAD <= 3 ? binom_b10log10like : (uvc1_qual_t)round(binom_b10log10like * 3 / nAD));
+    uvc1_qual_t tnVQ = BETWEEN(tVQ + MAX3(MIN(binom_b10log10like, powlaw_b10log10like) - TVN_MICRO_VQ_DELTA, - TVN_MICRO_VQ_DELTA * nAD, -TVN_MICRO_VQ_DELTA) - nVQ, 0, tnVQcap);
+    return std::array<uvc1_qual_t, 4> {{binom_b10log10like, powlaw_b10log10like, nVQ, tnVQ }};
 };
 
 int
 append_vcf_record(
         std::string & out_string,
         const char *tname,
-        const unsigned int refpos,
-        const unsigned int region_offset,
+        const uvc1_refgpos_t refpos,
+        const uvc1_refgpos_t region_offset,
         
         const std::string & refstring,
         const std::vector<RegionalTandemRepeat> & region_repeatvec,
         const std::string & repeatunit,
-        const unsigned int repeatnum,
+        const uvc1_readpos_t repeatnum,
         
         const AlignmentSymbol refsymbol,
         const AlignmentSymbol symbol,
         const bcfrec::BcfFormat & fmt,
         auto & tki,
 
-        const int nlodq,
+        const uvc1_qual_t nlodq,
         const AlignmentSymbol argmin_nlodq_symbol,
         const bool should_output_ref_allele,
         const bcf_hdr_t *g_bcf_hdr,
         const auto & baq_offsetarr,
         
         const CommandLineArgs & paramset,
-        unsigned int specialflag) {
+        uint32_t specialflag) {
     
     const std::string & indelstring = LAST(fmt.gapSa);
     
@@ -4056,7 +4060,7 @@ append_vcf_record(
         fill_tki(tki, fmt);
     }
     const auto regionpos = refpos - region_offset;
-    unsigned int vcfpos;
+    uvc1_refgpos_t vcfpos;
     std::string vcfref, vcfalt;
     if (indelstring.size() > 0) {
         vcfpos = refpos; // refpos > 0?
@@ -4101,10 +4105,10 @@ append_vcf_record(
     const auto nfm_cDP1x = collectget(nfm.cDP1x, 1);
     const auto nfm_CDP1x = collectget(nfm.CDP1x, 0);
 
-    int phred_het3al_chance_inc_snp = MAX(0, 2 * (int)paramset.germ_phred_hetero_snp - (int)paramset.germ_phred_het3al_snp - TIN_CONTAM_MICRO_VQ_DELTA);
-    int phred_het3al_chance_inc_indel = MAX(0, 2 * (int)paramset.germ_phred_hetero_indel - (int)paramset.germ_phred_het3al_indel - TIN_CONTAM_MICRO_VQ_DELTA);
+    uvc1_refgpos_t phred_het3al_chance_inc_snp = MAX(0, 2 * paramset.germ_phred_hetero_snp - paramset.germ_phred_het3al_snp - TIN_CONTAM_MICRO_VQ_DELTA);
+    uvc1_refgpos_t phred_het3al_chance_inc_indel = MAX(0, 2 * paramset.germ_phred_hetero_indel - paramset.germ_phred_het3al_indel - TIN_CONTAM_MICRO_VQ_DELTA);
     
-    const std::array<int, 4> b_binom_powlaw_syserr_normv_q4filter = (paramset.tn_syserr_norm_devqual >= 0 
+    const std::array<uvc1_qual_t, 4> b_binom_powlaw_syserr_normv_q4filter = (paramset.tn_syserr_norm_devqual >= 0 
         ? calc_binom_powlaw_syserr_normv_quals(
             (tki.cDP1x + 0.5) / 100.0 + 0.0, 
             (tki.CDP1x + 1.0) / 100.0 + 0.0, 
@@ -4146,10 +4150,10 @@ append_vcf_record(
             non_neg_minus(collectget(nfm.cVQ2, 1), (isSymbolSubstitution(symbol) ? phred_het3al_chance_inc_snp : phred_het3al_chance_inc_indel)),
             0));
     
-    int tlodq = MAX(b_binom_powlaw_syserr_normv_q4filter[3], c_binom_powlaw_syserr_normv_q4[3]);
+    uvc1_qual_t tlodq = MAX(b_binom_powlaw_syserr_normv_q4filter[3], c_binom_powlaw_syserr_normv_q4[3]);
     float lowestVAQ = MIN(tlodq, 4) + 0.5 + (prob2realphred(1 / (double)(tki.bDP + 1)) * (tki.bDP) / (double)(tki.BDP + + tki.bDP + 1));
     
-    int somaticq = MIN(tlodq, nlodq);
+    uvc1_qual_t somaticq = MIN(tlodq, nlodq);
     float vcfqual = ((tki.ref_alt.size() > 0) ? ((float)somaticq) : MAX((float)tlodq, lowestVAQ));
     // double vcfqual = MAX(calc_non_negative((double)int_vcfqual), (double)(int_vcfqual - 1));
     std::string infostring = std::string(tki.ref_alt.size() > 0 ? "SOMATIC" : "ANY_VAR");
@@ -4162,7 +4166,7 @@ append_vcf_record(
     infostring += std::string(";RU=") + repeatunit + ";RC=" + std::to_string(repeatnum);
     // This can be useful for debugging only.
     // if (isSymbolSubstitution(symbol)) { infostring += std::string(";RBAQ=") + std::to_string(baq_offsetarr.getByPos(refpos)); }
-    infostring += std::string(";R3X2=") + other_join(std::array<unsigned int, 6>{{rtr1_tpos, rtr1.tracklen, rtr1.unitlen, rtr2_tpos, rtr2.tracklen, rtr2.unitlen}});
+    infostring += std::string(";R3X2=") + other_join(std::array<int32_t, 6>{{rtr1_tpos, rtr1.tracklen, rtr1.unitlen, rtr2_tpos, rtr2.tracklen, rtr2.unitlen}});
     
     std::string vcffilter = "";
     if (vcfqual < 10) {

@@ -18,11 +18,6 @@
 
 #define SQR_QUAL_DIV 32
 
-typedef int32_t read_t;
-typedef int64_t r100_t; 
-typedef int64_t qual_t;
-typedef int64_t base_t;
-
 // math functions
 
 auto MEDIAN(const auto & v) {
@@ -366,38 +361,38 @@ string2symbolseq(const std::string & instring) {
 };
 
 struct SegFormatPrepSet {
-    read_t segprep_a_dp;
-    read_t segprep_a_pcr_dp; // SEG_a_PCR_DP,    // depth of PCR amplicons
-    read_t segprep_a_highBQ_dp;      // SEG_a_highBQ_DP, // depth of high-BQ bases
-    r100_t segprep_a_XM1500;         // SEG_a_XM,        // number of mismatches per 1500 bases
-    r100_t segprep_a_GO1500;         // SEG_a_GO,        // number of gap openings per 1500 bases
-    r100_t segprep_a_XM100inv;       // SEG_a_XM100INV,  // number of inverse 
-    base_t segprep_a_LI;    // SEG_a_LI,
-    read_t segprep_a_LIDP;  // SEG_a_LIDP,
-    base_t segprep_a_RI;    // SEG_a_RI,
-    read_t segprep_a_RIDP;  // SEG_a_RIDP,
+    uvc1_readnum_t segprep_a_dp;
+    uvc1_readnum_t segprep_a_pcr_dp; // SEG_a_PCR_DP,    // depth of PCR amplicons
+    uvc1_readnum_t segprep_a_highBQ_dp;      // SEG_a_highBQ_DP, // depth of high-BQ bases
+    uvc1_readnum100x_t segprep_a_XM1500;         // SEG_a_XM,        // number of mismatches per 1500 bases
+    uvc1_readnum100x_t segprep_a_GO1500;         // SEG_a_GO,        // number of gap openings per 1500 bases
+    uvc1_readnum100x_t segprep_a_XM100inv;       // SEG_a_XM100INV,  // number of inverse 
+    uvc1_readpos_t segprep_a_LI;    // SEG_a_LI,
+    uvc1_readnum_t segprep_a_LIDP;  // SEG_a_LIDP,
+    uvc1_readpos_t segprep_a_RI;    // SEG_a_RI,
+    uvc1_readnum_t segprep_a_RIDP;  // SEG_a_RIDP,
     
-    base_t segprep_a_l_dist_sum; // SEG_a_L_DIST_SUM,
-    base_t segprep_a_r_dist_sum; // SEG_a_R_DIST_SUM,
-    base_t segprep_a_inslen_sum; // SEG_a_INSLEN_SUM,
-    base_t segprep_a_dellen_sum; // SEG_a_DELLEN_SUM,
+    uvc1_readpos_t segprep_a_l_dist_sum; // SEG_a_L_DIST_SUM,
+    uvc1_readpos_t segprep_a_r_dist_sum; // SEG_a_R_DIST_SUM,
+    uvc1_readpos_t segprep_a_inslen_sum; // SEG_a_INSLEN_SUM,
+    uvc1_readpos_t segprep_a_dellen_sum; // SEG_a_DELLEN_SUM,
     
-    qual_t segprep_a_l_BAQ_sum;  //  SEG_a_L_BAQ_SUM,
-    qual_t segprep_a_r_BAQ_sum;  //  SEG_a_R_BAQ_SUM,
-    qual_t segprep_a_insBAQ_sum; //  SEG_a_INSBAQ_SUM,
-    qual_t segprep_a_delBAQ_sum; //  SEG_a_DELBAQ_SUM,
+    uvc1_qual_t segprep_a_l_BAQ_sum;  //  SEG_a_L_BAQ_SUM,
+    uvc1_qual_t segprep_a_r_BAQ_sum;  //  SEG_a_R_BAQ_SUM,
+    uvc1_qual_t segprep_a_insBAQ_sum; //  SEG_a_INSBAQ_SUM,
+    uvc1_qual_t segprep_a_delBAQ_sum; //  SEG_a_DELBAQ_SUM,
     
-    base_t segprep_a_near_ins_len; //  SEG_a_NEAR_INS_LEN,
-    base_t segprep_a_near_del_len; //  SEG_a_NEAR_DEL_LEN,
-    r100_t segprep_a_near_ins_inv100len; //  SEG_a_NEAR_INS_INV100LEN,
-    r100_t segprep_a_near_del_inv100len; //  SEG_a_NEAR_DEL_INV100LEN,
+    uvc1_readpos_t segprep_a_near_ins_pow2len; //  SEG_a_NEAR_INS_LEN,
+    uvc1_readpos_t segprep_a_near_del_pow2len; //  SEG_a_NEAR_DEL_LEN,
+    uvc1_readnum100x_t segprep_a_near_ins_inv100len; //  SEG_a_NEAR_INS_INV100LEN,
+    uvc1_readnum100x_t segprep_a_near_del_inv100len; //  SEG_a_NEAR_DEL_INV100LEN,
 
-    read_t segprep_a_at_ins_dp; //  SEG_a_AT_INS_DP,
-    read_t segprep_a_at_del_dp; //  SEG_a_AT_DEL_DP,
-    read_t segprep_a_near_ins_dp; // SEG_a_NEAR_INS_DP,
-    read_t segprep_a_near_del_dp; // SEG_a_NEAR_DEL_DP,
-    read_t segprep_a_near_RTR_ins_dp; // SEG_a_NEAR_RTR_INS_DP,
-    read_t segprep_a_near_RTR_del_dp; // SEG_a_NEAR_RTR_DEL_DP,
+    uvc1_readnum_t segprep_a_at_ins_dp; //  SEG_a_AT_INS_DP,
+    uvc1_readnum_t segprep_a_at_del_dp; //  SEG_a_AT_DEL_DP,
+    uvc1_readnum_t segprep_a_near_ins_dp; // SEG_a_NEAR_INS_DP,
+    uvc1_readnum_t segprep_a_near_del_dp; // SEG_a_NEAR_DEL_DP,
+    uvc1_readnum_t segprep_a_near_RTR_ins_dp; // SEG_a_NEAR_RTR_INS_DP,
+    uvc1_readnum_t segprep_a_near_RTR_del_dp; // SEG_a_NEAR_RTR_DEL_DP,
     
     // SEG_FORMAT_PREP_SET_END,
 };
@@ -440,31 +435,31 @@ enum SegFormatThresSet {
 struct SegFormatThresSet {
     // SEG_aEP1t, // edge position, closer means more bias
     // SEG_aEP2t, 
-    read_t segthres_aLPxT;
-    read_t segthres_aRPxT;
+    uvc1_readpos_t segthres_aLPxT;
+    uvc1_readpos_t segthres_aRPxT;
     
-    read_t segthres_aXM1T; // mismatch, higher means more bias
-    read_t segthres_aXM2T; 
-    read_t segthres_aGO1T; // gap-open, higher means more bias
-    read_t segthres_aGO2T; 
-    read_t segthres_aLI1T; // distance to left insert end, higher means more bias
-    read_t segthres_aLI2T; 
-    read_t segthres_aRI1T; // distance to right insert end
-    read_t segthres_aRI2T; 
-    read_t segthres_aLI1t; // distance to left insert end, lower means more bias
-    read_t segthres_aLI2t; 
-    read_t segthres_aRI1t; // distance to right insert end, lower means more bias
-    read_t segthres_aRI2t;  
+    uvc1_base1500x_t segthres_aXM1T; // mismatch, higher means more bias
+    uvc1_base1500x_t segthres_aXM2T; 
+    uvc1_base1500x_t segthres_aGO1T; // gap-open, higher means more bias
+    uvc1_base1500x_t segthres_aGO2T; 
+    uvc1_readpos_t segthres_aLI1T; // distance to left insert end, higher means more bias
+    uvc1_readpos_t segthres_aLI2T; 
+    uvc1_readpos_t segthres_aRI1T; // distance to right insert end
+    uvc1_readpos_t segthres_aRI2T; 
+    uvc1_readpos_t segthres_aLI1t; // distance to left insert end, lower means more bias
+    uvc1_readpos_t segthres_aLI2t; 
+    uvc1_readpos_t segthres_aRI1t; // distance to right insert end, lower means more bias
+    uvc1_readpos_t segthres_aRI2t;  
     
-    read_t segthres_aLP1t;
-    read_t segthres_aLP2t;
-    read_t segthres_aRP1t;
-    read_t segthres_aRP2t;
+    uvc1_readpos_t segthres_aLP1t;
+    uvc1_readpos_t segthres_aLP2t;
+    uvc1_readpos_t segthres_aRP1t;
+    uvc1_readpos_t segthres_aRP2t;
     
-    read_t segthres_aLB1t;
-    read_t segthres_aLB2t;
-    read_t segthres_aRB1t;
-    read_t segthres_aRB2t;
+    uvc1_qual_t segthres_aLB1t;
+    uvc1_qual_t segthres_aLB2t;
+    uvc1_qual_t segthres_aRB1t;
+    uvc1_qual_t segthres_aRB2t;
 };
 // #define NUM_SEG_FORMAT_THRES_SETS ((size_t)SEG_FORMAT_THRES_SET_END)
 
@@ -519,48 +514,48 @@ enum SegFormatDepthSet {
 */
 
 struct SegFormatInfoSet {
-    qual_t seginfo_aMQs;
-    read_t seginfo_aXMp1;
-    read_t seginfo_aP1;
+    uvc1_qual_t seginfo_aMQs;
+    uvc1_readnum_t seginfo_aXMp1;
+    uvc1_readnum_t seginfo_aP1;
     
-    read_t seginfo_aDPff;
-    read_t seginfo_aDPfr;
-    read_t seginfo_aDPrf;
-    read_t seginfo_aDPrr;
+    uvc1_readnum_t seginfo_aDPff;
+    uvc1_readnum_t seginfo_aDPfr;
+    uvc1_readnum_t seginfo_aDPrf;
+    uvc1_readnum_t seginfo_aDPrr;
     
-    r100_t seginfo_aXM1;
-    r100_t seginfo_aXM2;
-    r100_t seginfo_aBM2;
+    uvc1_readnum100x_t seginfo_aXM1;
+    uvc1_readnum100x_t seginfo_aXM2;
+    uvc1_readnum100x_t seginfo_aBM2;
     
-    qual_t seginfo_aBQ1; // base-quality bias
-    qual_t seginfo_aBQ2;
+    uvc1_qual_t seginfo_aBQ1; // base-quality bias
+    uvc1_qual_t seginfo_aBQ2;
     
-    r100_t seginfo_aPF1; // mismatch
-    r100_t seginfo_aPF2; 
+    uvc1_readnum100x_t seginfo_aPF1; // mismatch
+    uvc1_readnum100x_t seginfo_aPF2; 
     
-    read_t seginfo_aLP1; // left seg pos
-    read_t seginfo_aLP2;
-    base_t seginfo_aLPL;
-    read_t seginfo_aRP1; // right seg pos
-    read_t seginfo_aRP2;
-    base_t seginfo_aRPL;
+    uvc1_readnum_t seginfo_aLP1; // left seg pos
+    uvc1_readnum_t seginfo_aLP2;
+    uvc1_readpos_t seginfo_aLPL;
+    uvc1_readnum_t seginfo_aRP1; // right seg pos
+    uvc1_readnum_t seginfo_aRP2;
+    uvc1_readpos_t seginfo_aRPL;
     
-    read_t seginfo_aLB1; // left seg pos
-    read_t seginfo_aLB2;
-    base_t seginfo_aLBL;
-    read_t seginfo_aRB1; // right seg pos
-    read_t seginfo_aRB2;
-    base_t seginfo_aRBL;
+    uvc1_readnum_t seginfo_aLB1; // left seg pos
+    uvc1_readnum_t seginfo_aLB2;
+    uvc1_readpos_t seginfo_aLBL;
+    uvc1_readnum_t seginfo_aRB1; // right seg pos
+    uvc1_readnum_t seginfo_aRB2;
+    uvc1_readpos_t seginfo_aRBL;
     
-    read_t seginfo_aLI1; // left insert
-    read_t seginfo_aLI2;
-    base_t seginfo_aLILf;
-    base_t seginfo_aLILr;
+    uvc1_readnum_t seginfo_aLI1; // left insert
+    uvc1_readnum_t seginfo_aLI2;
+    uvc1_readpos_t seginfo_aLILf;
+    uvc1_readpos_t seginfo_aLILr;
     
-    read_t seginfo_aRI1; // right insert
-    read_t seginfo_aRI2;
-    base_t seginfo_aRILf;
-    base_t seginfo_aRILr;
+    uvc1_readnum_t seginfo_aRI1; // right insert
+    uvc1_readnum_t seginfo_aRI2;
+    uvc1_readpos_t seginfo_aRILf;
+    uvc1_readpos_t seginfo_aRILr;
 };
 
 enum FragFormatDepthSet {
@@ -787,27 +782,27 @@ proton_cigarlen2phred(unsigned int cigarlen) {
 template <class T>
 unsigned int 
 infer_max_qual_assuming_independence(
-        int & maxvqual,
-        unsigned int & argmaxAD,
-        unsigned int & argmaxBQ,
-        const unsigned int max_qual, 
-        const unsigned int dec_qual,
+        uvc1_qual_t & maxvqual,
+        uvc1_readnum_t & argmaxAD,
+        uvc1_qual_t & argmaxBQ,
+        const uvc1_qual_t max_qual, 
+        const uvc1_qual_t dec_qual,
         const std::array<T, NUM_BUCKETS> & qual_distr, 
-        const unsigned int totDP,
-        unsigned int specialflag) {
+        const uvc1_readnum_t totDP,
+        const uvc1_hash_t specialflag) {
     
-    int currvqual = 0;
-    unsigned int currAD = 0;
+    uvc1_qual_t currvqual = 0;
+    uvc1_readnum_t currAD = 0;
     maxvqual = 0; 
     argmaxAD = 0;
     argmaxBQ = 0;
-    for (unsigned int idx = 0; idx < MIN(NUM_BUCKETS, max_qual / dec_qual); idx++) {
+    for (int idx = 0; idx < MIN(NUM_BUCKETS, max_qual / dec_qual); idx++) {
         const auto currQD = qual_distr[idx];
         if (0 == currQD) { continue; }
         currAD += currQD;
         auto currBQ = max_qual - (dec_qual * idx);
         double expBQ = 10.0 / log(10.0) * log(((double)totDP / (double)currAD) + DBL_EPSILON);
-        currvqual = (int)(currAD * (currBQ - expBQ));
+        currvqual = (uvc1_qual_t)(currAD * (currBQ - expBQ));
         if (currvqual > maxvqual) {
             argmaxAD = currAD;
             argmaxBQ = currBQ;

@@ -10,8 +10,9 @@
 #include <float.h>
 #include <limits.h>
 
-//#define NUM_BUCKETS (64+8)
-#define SIGN2UNSIGN(a) ((unsigned int)(a))
+//#define SIGN2UNSIGN(a) ((unsigned int)(a))
+#define SIGN2UNSIGN(a) (a)
+#define UNSIGN2SIGN(a) ((int64_t)a)
 
 // Phred, nat, bit, frac
 #define  phred2nat(x) ((log(10.0)/10.0) * (x))
@@ -23,10 +24,6 @@
 
 #define numstates2deciphred(x) ((int)round((100.0/log(10.0)) * log(x)))
 
-//#define VCFQUAL_NUM_BINS 120 // max vcfqual is at 105, so vcfqual that is higher than the max is reserved
-//#define RCC_NUM 2
-//#define RCC_NFS 6
-
 #define OUTVAR_GERMLINE 0x1
 //#define OUTVAR_HOMREF 0x2
 #define OUTVAR_SOMATIC 0x2
@@ -36,6 +33,26 @@
 #define MAX_INSERT_SIZE 2000 // (1024*2) // https://doi.org/10.2147/AGG.S162531
 #define NORM_INSERT_SIZE(b) { if (abs(b->core.isize) >= MAX_INSERT_SIZE) { b->core.isize = 0; } }
 #define DBLFLT_EPS ((double)FLT_EPSILON)
+
+#define INT64MUL(x, y) ((int64_t)(x) * (int64_t)(y))
+
+typedef int32_t uvc1_qual_t;    // quality (usually phred-scaled)
+typedef int32_t uvc1_deciphred_t; // 10 x Phred
+
+typedef int32_t uvc1_readnum_t; // depth of segment, fragment, family, etc. // max 2 billion reads
+typedef int32_t uvc1_readnum100x_t; // 100x depth of segment, fragment, etc. // max 20 million reads
+typedef int32_t uvc1_readpos_t; // position with respect to the read, fragment, or insert
+typedef int32_t uvc1_refgpos_t; // position with respect to the reference genome
+typedef int32_t uvc1_rp_diff_t;
+
+typedef int32_t uvc1_base_t;
+typedef int32_t uvc1_base1500x_t;
+
+typedef int64_t uvc1_readpos_big_t;
+typedef int64_t uvc1_qual_big_t; // big qual
+
+typedef uint32_t uvc1_flag_t;
+typedef uint64_t uvc1_hash_t;
 
 enum BiasType {
     BIAS_FRAG_DUP = 1,
