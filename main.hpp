@@ -38,7 +38,7 @@ posToIndelToData_get(const std::map<uvc1_readnum_t, std::map<T, uvc1_readnum_t>>
 
 template <class T>
 void
-posToIndelToCount_inc(std::map<uvc1_readnum_t, std::map<T, uvc1_readnum_t>> & pos2indel2count, uvc1_readnum_t pos, const T indel, uvc1_readnum_t incvalue = 1) {
+posToIndelToCount_inc(std::map<uvc1_readnum_t, std::map<T, uvc1_readnum_t>> & pos2indel2count, uvc1_readpos_t pos, const T indel, uvc1_readnum_t incvalue = 1) {
     assert(incvalue > 0);
     auto pos2indel2count4it = pos2indel2count.insert(std::make_pair(pos, std::map<T, uvc1_readnum_t>()));
     auto indel2count4it = pos2indel2count4it.first->second.insert(std::make_pair(indel, 0));
@@ -48,7 +48,7 @@ posToIndelToCount_inc(std::map<uvc1_readnum_t, std::map<T, uvc1_readnum_t>> & po
 
 template <class T>
 T
-posToIndelToCount_updateByConsensus(std::map<uvc1_readnum_t, std::map<T, uvc1_readnum_t>> & dst, const std::map<uvc1_readnum_t, std::map<T, uvc1_readnum_t>> & src, uvc1_readnum_t epos, uvc1_readnum_t incvalue = 1) {
+posToIndelToCount_updateByConsensus(std::map<uvc1_readnum_t, std::map<T, uvc1_readnum_t>> & dst, const std::map<uvc1_readpos_t, std::map<T, uvc1_readnum_t>> & src, uvc1_readnum_t epos, uvc1_readnum_t incvalue = 1) {
     const auto pos2indel2count4it = src.find(epos);
     assert(pos2indel2count4it != src.end());
     auto indel2count = pos2indel2count4it->second;
@@ -166,14 +166,14 @@ isSymbolDel(const AlignmentSymbol symbol) {
 
 constexpr AlignmentSymbol 
 insLenToSymbol(unsigned int len, const bam1_t *b) {
-    assert(len > 0 || !fprintf(stderr, "Error: the bam record with qname %s at tid %d pos %d has insertion of length %u!\n", 
+    assert(len >= 0 || !fprintf(stderr, "Error: the bam record with qname %s at tid %d pos %d has insertion of length %u!\n", 
             bam_get_qname(b), b->core.tid, b->core.pos, len));
     return 1 == len ? LINK_I1 : (2 == len ? LINK_I2 : LINK_I3P);
 }
 
 constexpr AlignmentSymbol 
 delLenToSymbol(unsigned int len, const bam1_t *b) {
-    assert(len > 0 || !fprintf(stderr, "Error: the bam record with qname %s at tid %d pos %d has deletion of length %u!\n", 
+    assert(len >= 0 || !fprintf(stderr, "Error: the bam record with qname %s at tid %d pos %d has deletion of length %u!\n", 
             bam_get_qname(b), b->core.tid, b->core.pos, len));
     return 1 == len ? LINK_D1 : (2 == len ? LINK_D2 : LINK_D3P);
 }
@@ -584,11 +584,11 @@ public:
         return this->idx2symbol2data[pos2];
     };
     
-    const size_t 
+    const size_t // uvc1_refgpos_t // size_t 
     getIncluBegPosition() const {
         return this->incluBegPosition;
     };
-    const size_t 
+    const size_t // uvc1_refgpos_t // size_t 
     getExcluEndPosition() const {
         return this->incluBegPosition + idx2symbol2data.size();
     };
@@ -656,7 +656,7 @@ formatSumBySymbolType(
 void
 initTidBegEnd(uvc1_refgpos_t & tid, uvc1_refgpos_t & inc_beg, uvc1_refgpos_t & exc_end) {
    tid = -1; // UINT32_MAX;
-   inc_beg = -1; // UINT32_MAX;
+   inc_beg = INT32_MAX; // UINT32_MAX;
    exc_end = 0;
 };
 
@@ -2274,7 +2274,7 @@ struct Symbol2CountCoverageSet {
             niters++;
             bool log_alns2 = (is_loginfo_enabled && ispowerof2(niters));
             uvc1_refgpos_t tid2, beg2, end2;
-            tid2 = 0; beg2 = UINT32_MAX; end2 = 0; bool initialized = false;
+            tid2 = 0; beg2 = INT32_MAX; end2 = 0; bool initialized = false;
             assert (alns2pair[0].size() != 0 || alns2pair[1].size() != 0);
             if (alns2pair[0].size() > 0) { fillTidBegEndFromAlns2(tid2, beg2, end2, alns2pair[0], initialized); initialized = true; }
             if (alns2pair[1].size() > 0) { fillTidBegEndFromAlns2(tid2, beg2, end2, alns2pair[1], initialized); initialized = true; }
@@ -2517,7 +2517,7 @@ fill_symboltype_fmt(
 #define filla_symboltype_fmt(fmtDP, symbol_to_abcd_format_depth_sets, format_field, refpos, symboltype, refsymbol) { \
     const auto symbolNN = SYMBOL_TYPE_TO_AMBIG[symboltype]; \
     int64_t ret = 0; \
-    for (const auto symbol : SYMBOL_TYPE_TO_SYMBOLS[symboltype]) { ret += (int64_t)symbol_to_abcd_format_depth_sets.getByPos(refpos)[symbolNN] . format_field; } \
+    for (const auto symbol : SYMBOL_TYPE_TO_SYMBOLS[symboltype]) { ret += (int64_t)symbol_to_abcd_format_depth_sets.getByPos(refpos)[symbol] . format_field; } \
     fmtDP[0] = ret; \
     fmtDP[1] = symbol_to_abcd_format_depth_sets.getByPos(refpos)[symbolNN] . format_field; \
 };

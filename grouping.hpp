@@ -39,10 +39,10 @@ struct SamIter {
     hts_idx_t *sam_idx = NULL; 
     hts_itr_t *sam_itr = NULL;
     
-    uvc1_refgpos_t endingpos = -1;
+    uvc1_refgpos_t endingpos = INT32_MAX;
     uvc1_refgpos_t tid = -1;
-    uvc1_refgpos_t tbeg = -1;
-    uvc1_refgpos_t tend = -1;
+    uvc1_refgpos_t tbeg = INT32_MAX;
+    uvc1_refgpos_t tend = INT32_MAX;
     uvc1_refgpos_t prev_tbeg = 0;
     int64_t nreads = 0;
     int64_t next_nreads = 0;
@@ -195,6 +195,6 @@ bamfname_to_strand_to_familyuid_to_reads(
         // bool is_proton,
         // uvc1_flag_t dedup_flag,
         const CommandLineArgs & paramset,
-        const uvc1_flag_t specialflag);
+        uvc1_flag_t specialflag);
 #endif
 

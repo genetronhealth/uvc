@@ -53,8 +53,8 @@ struct CommandLineArgs {
 
     uvc1_readnum_t    min_depth_thres = 3; // 4; // 3 is used for germline
     uvc1_readnum_t    min_altdp_thres = 2;
-    uvc1_readnum_t    vdp = INT_MAX;
-    uvc1_readnum_t    vad = INT_MAX;
+    uvc1_readnum_t    vdp = INT32_MAX;
+    uvc1_readnum_t    vad = INT32_MAX;
     
     bool        should_add_note = false;
     bool        always_log = false;

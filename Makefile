@@ -2,13 +2,15 @@
 
 # Multi threads and single thread debug
 release : uvc.rel.out debarcode minivc
-debug-mt : uvc.mt.out precompiled/precompiled_main.hpp.gch
-debug-st : uvc.st.out precompiled/precompiled_main.hpp.gch
+debug-mt : uvc.mt.out 
+#precompiled/precompiled_main.hpp.gch
+debug-st : uvc.st.out 
+#precompiled/precompiled_main.hpp.gch
 test-cppt : uvc.cppt.out
 all : debug-mt debug-st release test-cppt
 
-HDR=CmdLineArgs.hpp common.hpp grouping.hpp logging.hpp main.hpp main_conversion.hpp version.h CLI11-1.7.1/CLI11.hpp precompiled/precompiled_main.hpp
-SRC=CmdLineArgs.cpp            grouping.cpp logging.cpp main.cpp                     version.cpp 
+HDR=CmdLineArgs.hpp common.hpp grouping.hpp logging.hpp main.hpp main_conversion.hpp version.h CLI11-1.7.1/CLI11.hpp #precompiled/precompiled_main.hpp
+SRC=CmdLineArgs.cpp common.cpp grouping.cpp logging.cpp main.cpp                     version.cpp 
 DEP=bcf_formats.step1.hpp instcode.hpp Makefile
 
 HTSPATH=ext/htslib-1.9-lowdep/libhts.a #ext/htslib/htslib-1.9-mindep/libhts.a 
@@ -21,8 +23,8 @@ COMMIT_DIFF_SH=$(shell git diff HEAD --shortstat)
 COMMIT_DIFF_FULL=$(shell echo "R\"ZXF_specQUOTE(\n $$(git diff HEAD | sed 's/ZXF_specQUOTE/ZXF_specquote/g') \n)ZXF_specQUOTE\"" > gitdiff.txt)
 VERFLAGS=-DCOMMIT_VERSION="\"$(COMMIT_VERSION)\"" -DCOMMIT_DIFF_SH="\"$(COMMIT_DIFF_SH)\"" -DCOMMIT_DIFF_FULL="\"$(COMMIT_DIFF_FULL)\""
 
-precompiled/precompiled_main.hpp.gch : precompiled/precompiled_main.hpp
-	$(CXX)  -O3 -DNDEBUG -H precompiled/precompiled_main.hpp
+#precompiled/precompiled_main.hpp.gch : precompiled/precompiled_main.hpp
+#	$(CXX)  -O3 -DNDEBUG -H precompiled/precompiled_main.hpp
 
 minivc     : minivc.c version.h Makefile
 	$(CC) -O3 -o minivc    $(VERFLAGS) minivc.c ${HTSFLAGS}
@@ -40,7 +42,7 @@ uvc.cppt.out : $(HDR) $(SRC) $(DEP)
 
 # single-thread executable with runtime assertions and debug symbols, very useful for debugging
 uvc.st.out : $(HDR) $(SRC) $(DEP)
-	$(CXX) -O2 -g -p    -o uvc.st.out   $(CXXFLAGS) $(VERFLAGS) $(SRC) $(HTSFLAGS) -fsanitize=address 
+	$(CXX) -O1 -g -p    -o uvc.st.out   $(CXXFLAGS) $(VERFLAGS) $(SRC) $(HTSFLAGS) -fsanitize=address 
 
 # multi-thread executable with runtime assertions and debug symbols, useful for debugging
 uvc.mt.out : $(HDR) $(SRC) $(DEP)

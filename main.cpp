@@ -621,7 +621,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
         const std::array<SymbolType, 2> stype_to_immediate_prev = {{LINK_SYMBOL, BASE_SYMBOL}};
         
         const std::array<AlignmentSymbol, 2> symboltype_to_refsymbol = {{
-                (refstring.size() == ((zerobased_pos - 1) - extended_inclu_beg_pos) 
+                ((refstring.size() == ((zerobased_pos - 1) - extended_inclu_beg_pos) || (-1 == ((zerobased_pos - 1) - extended_inclu_beg_pos))) 
                 ? BASE_NN : CHAR_TO_SYMBOL.data.at(refstring.at((zerobased_pos - 1) - extended_inclu_beg_pos))),
                 LINK_M, 
         }};
@@ -1377,7 +1377,11 @@ main(int argc, char **argv) {
                     for (size_t j = beg_end_pair.first; j < beg_end_pair.second; j++) {
                         batcharg.regionbatch_ordinal = j;
                         batcharg.regionbatch_tot_num = beg_end_pair.second;
+                        assert (((size_t)(allridx + j) < (size_t)tid_beg_end_e2e_tuple_vec.size())
+                                || !fprintf(stderr, "%d + %d < %d failed!\n", allridx, j, tid_beg_end_e2e_tuple_vec.size()));
                         batcharg.tid_beg_end_e2e_tuple = tid_beg_end_e2e_tuple_vec.at(allridx + j);
+                        assert (((size_t)std::get<0>(batcharg.tid_beg_end_e2e_tuple)) < (size_t)tid_to_tname_tseqlen_tuple_vec.size() 
+                                || !fprintf(stderr, "%d < %d failed!\n", std::get<0>(batcharg.tid_beg_end_e2e_tuple), tid_to_tname_tseqlen_tuple_vec.size()));
                         batcharg.tname_tseqlen_tuple = tid_to_tname_tseqlen_tuple_vec.at(std::get<0>(batcharg.tid_beg_end_e2e_tuple));
                         process_batch(batcharg, tid_pos_symb_to_tkis1);
                     }

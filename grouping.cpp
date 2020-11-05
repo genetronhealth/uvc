@@ -97,7 +97,7 @@ SamIter::iternext(std::vector<bedline_t> & tid_beg_end_e2e_vec) {
             continue;
         }
         const bool is_uncov = (SIGN2UNSIGN(alnrecord->core.tid) != tid || SIGN2UNSIGN(alnrecord->core.pos) > tend);
-        if (UINT_MAX == endingpos) {
+        if (INT32_MAX == endingpos) {
             uvc1_refgpos_t n_overlap_positions = min(SIGN2UNSIGN(48), (SIGN2UNSIGN(16) + tend - min(tend, SIGN2UNSIGN(alnrecord->core.pos))));
             uvc1_refgpos_t npositions = (tend - min(tbeg, tend));
             bool has_many_positions = (npositions > INT64MUL(n_overlap_positions, (1024)));
@@ -118,7 +118,7 @@ SamIter::iternext(std::vector<bedline_t> & tid_beg_end_e2e_vec) {
             if (tid != -1) {
                 tid_beg_end_e2e_vec.push_back(std::make_tuple(tid, max(tbeg, prev_tbeg), max(tend, prev_tbeg), false, nreads));
                 prev_tbeg = max(tend, prev_tbeg);
-                endingpos = INT_MAX;
+                endingpos = INT32_MAX;
                 next_nreads = 0;
             }
             if (tid != alnrecord->core.tid) {
@@ -186,7 +186,7 @@ sam_fname_to_contigs(
         ret = bed_fname_to_contigs(tid_beg_end_e2e_vec, bed_fname, samheader);    
     } else {
         ret = 0;
-        uvc1_refgpos_t endingpos = -1;
+        uvc1_refgpos_t endingpos = INT32_MAX;
         uvc1_refgpos_t tid = -1;
         uvc1_refgpos_t tbeg = -1;
         uvc1_refgpos_t tend = -1;
@@ -200,7 +200,7 @@ sam_fname_to_contigs(
                 continue;
             }
             const bool is_uncov = (SIGN2UNSIGN(alnrecord->core.tid) != tid || SIGN2UNSIGN(alnrecord->core.pos) > tend);
-            if (-1 == endingpos) {
+            if (INT32_MAX == endingpos) {
                 uvc1_readpos_t n_overlap_positions = min(SIGN2UNSIGN(48), (SIGN2UNSIGN(16) + tend - min(tend, SIGN2UNSIGN(alnrecord->core.pos))));
                 uvc1_readpos_t npositions = (tend - min(tbeg, tend));
                 bool has_many_positions = (npositions > INT64MUL(n_overlap_positions, (1024)));
@@ -216,7 +216,7 @@ sam_fname_to_contigs(
                 auto prev_nreads = next_nreads;
                 if (tid != -1) {
                     tid_beg_end_e2e_vec.push_back(std::make_tuple(tid, tbeg, tend, false, nreads));
-                    endingpos = -1;
+                    endingpos = INT32_MAX;
                     next_nreads = 0;
                 }
                 tid = SIGN2UNSIGN(alnrecord->core.tid);
@@ -676,7 +676,7 @@ bamfname_to_strand_to_familyuid_to_reads(
         uvc1_refgpos_t tid, 
         uvc1_refgpos_t fetch_tbeg, 
         uvc1_refgpos_t fetch_tend, 
-        const bool end2end, 
+        bool end2end, 
         // uvc1_qual_t min_mapq,
         // uvc1_qual_t min_alnlen, 
         size_t regionbatch_ordinal, 
@@ -695,7 +695,7 @@ bamfname_to_strand_to_familyuid_to_reads(
         // bool is_proton,
         // const uvc1_flag_t dedup_flag,
         const CommandLineArgs & paramset,
-        const uvc1_flag_t specialflag) {
+        uvc1_flag_t specialflag) {
     assert (fetch_tend > fetch_tbeg);
     
     const bool is_pair_end_merge_enabled = (PAIR_END_MERGE_NO != paramset.pair_end_merge);
