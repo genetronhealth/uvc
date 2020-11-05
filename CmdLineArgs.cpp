@@ -12,6 +12,7 @@
 
 #define ADD_OPTDEF(app, k, v, msg) (app.add_option(k, v, msg, true))
 
+#if 0
 bool
 is_bitflag_checked(uint32_t bitflag_InDel_penal_t_UMI_n_UMI, bool is_InDel, bool is_penal, bool is_t_UMI, bool is_n_UMI) {
     uint32_t bitflag_index = 0;
@@ -29,6 +30,7 @@ is_bitflag_checked(uint32_t bitflag_InDel_penal_t_UMI_n_UMI, bool is_InDel, bool
     }
     return ((0x1L << bitflag_index) & bitflag_InDel_penal_t_UMI_n_UMI);
 }
+#endif
 
 SequencingPlatform 
 CommandLineArgs::selfUpdateByPlatform() {
@@ -41,13 +43,13 @@ CommandLineArgs::selfUpdateByPlatform() {
         }
         bam_hdr_t * samheader = sam_hdr_read(sam_infile);
         bam1_t *b = bam_init1();
-        unsigned int countPE = 0;
-        unsigned int countSE = 0;
-        std::vector<unsigned int> qlens;
+        uvc1_unsigned_int_t countPE = 0;
+        uvc1_unsigned_int_t countSE = 0;
+        std::vector<uvc1_unsigned_int_t> qlens;
         qlens.reserve(500+1);
         qlens.push_back(150);
-        unsigned int q30_n_fail_bases = 0;
-        unsigned int q30_n_pass_bases = 0;
+        uvc1_unsigned_int_t q30_n_fail_bases = 0;
+        uvc1_unsigned_int_t q30_n_pass_bases = 0;
         while (sam_read1(sam_infile, samheader, b) >= 0 && (countPE + countSE) < 500) {
             if (b->core.flag & 0x1) {
                 countPE++;
@@ -56,7 +58,7 @@ CommandLineArgs::selfUpdateByPlatform() {
             }
             qlens.push_back(b->core.l_qseq);
             for (int qpos = 0; qpos < b->core.l_qseq; qpos++) {
-                unsigned int bq = (bam_get_qual((b))[(qpos)]);
+                uvc1_unsigned_int_t bq = (bam_get_qual((b))[(qpos)]);
                 if (bq < 30) {
                     q30_n_fail_bases++;
                 } else {
@@ -106,7 +108,7 @@ check_file_exist(const std::string & fname, const std::string ftype) {
 const std::string 
 stringvec_to_descstring(const std::vector<std::string> & v) {
     std::string ret;
-    for (unsigned int i = 0; i < v.size(); i++) {
+    for (uvc1_unsigned_int_t i = 0; i < v.size(); i++) {
         ret += std::to_string(i) + " : " + v[i] + ". ";
     }
     return ret;
@@ -121,10 +123,10 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
     };
     CLI::App app{(std::string("UVC version ") + VERSION_DETAIL)};
     
-    unsigned int assay_type_uint = (unsigned int)assay_type;
-    unsigned int molecule_tag_uint = (unsigned int)molecule_tag;
-    unsigned int sequencing_platform_uint = (unsigned int)sequencing_platform;
-    unsigned int pair_end_merge_uint = (unsigned int)pair_end_merge;
+    uvc1_unsigned_int_t assay_type_uint = (uvc1_unsigned_int_t)assay_type;
+    uvc1_unsigned_int_t molecule_tag_uint = (uvc1_unsigned_int_t)molecule_tag;
+    uvc1_unsigned_int_t sequencing_platform_uint = (uvc1_unsigned_int_t)sequencing_platform;
+    uvc1_unsigned_int_t pair_end_merge_uint = (uvc1_unsigned_int_t)pair_end_merge;
     
     app.add_flag_function("-v,--version", version_cb, "Show the version of this program. ");
     

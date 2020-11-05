@@ -33,7 +33,7 @@ struct SamIter {
     const std::string input_bam_fname;
     const std::string & tier1_target_region; 
     const std::string region_bed_fname;
-    const unsigned int nthreads;
+    const size_t nthreads;
     samFile *sam_infile = NULL;
     bam_hdr_t *samheader = NULL;
     hts_idx_t *sam_idx = NULL; 
@@ -44,8 +44,8 @@ struct SamIter {
     uvc1_refgpos_t tbeg = INT32_MAX;
     uvc1_refgpos_t tend = INT32_MAX;
     uvc1_refgpos_t prev_tbeg = 0;
-    int64_t nreads = 0;
-    int64_t next_nreads = 0;
+    uvc1_readnum_big_t nreads = 0;
+    uvc1_readnum_big_t next_nreads = 0;
     bam1_t *alnrecord = bam_init1();
     
     std::vector<bedline_t> _tid_beg_end_e2e_vec;
@@ -54,7 +54,7 @@ struct SamIter {
     SamIter(const std::string & in_bam_fname, 
             const std::string & tier1_target_reg, 
             const std::string & reg_bed_fname, 
-            const unsigned int nt): 
+            const uvc1_unsigned_int_t nt): 
             input_bam_fname(in_bam_fname), 
             tier1_target_region(tier1_target_reg), 
             region_bed_fname(reg_bed_fname), 
@@ -188,8 +188,8 @@ bamfname_to_strand_to_familyuid_to_reads(
         // const bool disable_duplex,
         size_t thread_id,
         // double dedup_center_mult,
-        // unsigned int dedup_amplicon_count_to_surrcount_ratio,
-        // unsigned int dedup_amplicon_count_to_surrcount_ratio_twosided,
+        // uvc1_unsigned_int_t dedup_amplicon_count_to_surrcount_ratio,
+        // uvc1_unsigned_int_t dedup_amplicon_count_to_surrcount_ratio_twosided,
         // double dedup_amplicon_end2end_ratio,
         // bool always_log,
         // bool is_proton,

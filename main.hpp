@@ -165,17 +165,17 @@ isSymbolDel(const AlignmentSymbol symbol) {
 }
 
 constexpr AlignmentSymbol 
-insLenToSymbol(unsigned int len, const bam1_t *b) {
+insLenToSymbol(uvc1_readpos_t len, const bam1_t *b) {
     assert(len >= 0 || !fprintf(stderr, "Error: the bam record with qname %s at tid %d pos %d has insertion of length %u!\n", 
             bam_get_qname(b), b->core.tid, b->core.pos, len));
-    return 1 == len ? LINK_I1 : (2 == len ? LINK_I2 : LINK_I3P);
+    return (1 == len ? LINK_I1 : ((2 == len) ? LINK_I2 : LINK_I3P));
 }
 
 constexpr AlignmentSymbol 
-delLenToSymbol(unsigned int len, const bam1_t *b) {
+delLenToSymbol(uvc1_readpos_t len, const bam1_t *b) {
     assert(len >= 0 || !fprintf(stderr, "Error: the bam record with qname %s at tid %d pos %d has deletion of length %u!\n", 
             bam_get_qname(b), b->core.tid, b->core.pos, len));
-    return 1 == len ? LINK_D1 : (2 == len ? LINK_D2 : LINK_D3P);
+    return (1 == len ? LINK_D1 : ((2 == len) ? LINK_D2 : LINK_D3P));
 }
 
 enum SymbolType {
@@ -224,21 +224,21 @@ isSymbolSubstitution(AlignmentSymbol symbol) {
 
 
 struct PhredMutationTable {
-    const unsigned int transition_CG_TA;
-    const unsigned int transition_AT_CG;
-    const unsigned int transversion_CG_AT;
-    // const unsigned int transversion_AT_TA;
-    const unsigned int transversion_other;
-    const unsigned int indel_open;
-    const unsigned int indel_ext;
+    const uvc1_qual_t transition_CG_TA;
+    const uvc1_qual_t transition_AT_CG;
+    const uvc1_qual_t transversion_CG_AT;
+    // const uvc1_qual_t transversion_AT_TA;
+    const uvc1_qual_t transversion_other;
+    const uvc1_qual_t indel_open;
+    const uvc1_qual_t indel_ext;
     PhredMutationTable(
-            const unsigned int transition_CG_TA,
-            const unsigned int transition_AT_CG,
-            const unsigned int transversion_CG_AT,
-            // const unsigned int transversion_AT_TA,
-            const unsigned int transversion_other,
-            const unsigned int indel_open,
-            const unsigned int indel_ext)
+            const uvc1_qual_t transition_CG_TA,
+            const uvc1_qual_t transition_AT_CG,
+            const uvc1_qual_t transversion_CG_AT,
+            // const uvc1_qual_t transversion_AT_TA,
+            const uvc1_qual_t transversion_other,
+            const uvc1_qual_t indel_open,
+            const uvc1_qual_t indel_ext)
             : 
             transition_CG_TA(transition_CG_TA),
             transition_AT_CG(transition_AT_CG),
@@ -249,7 +249,7 @@ struct PhredMutationTable {
             indel_ext(indel_ext) //,
             {
     }
-    const unsigned int toPhredErrRate(const AlignmentSymbol con_symbol, const AlignmentSymbol alt_symbol) const {
+    const uvc1_qual_t toPhredErrRate(const AlignmentSymbol con_symbol, const AlignmentSymbol alt_symbol) const {
         if (isSymbolIns(con_symbol) || isSymbolDel(con_symbol)) {
             return indel_open;
         } else if (con_symbol == LINK_M) {
@@ -274,13 +274,15 @@ struct PhredMutationTable {
     }
 };
 
-unsigned int is_mut_transition(const AlignmentSymbol con_symbol, const AlignmentSymbol alt_symbol) {
+constexpr bool 
+is_mut_transition(const AlignmentSymbol con_symbol, const AlignmentSymbol alt_symbol) {
     return ((con_symbol == BASE_C && alt_symbol == BASE_T) || (con_symbol == BASE_G && alt_symbol == BASE_A)
         || (con_symbol == BASE_T && alt_symbol == BASE_C) || (con_symbol == BASE_A && alt_symbol == BASE_G)
     );
 }
 
-const unsigned int SYMBOL_TO_INDEL_N_UNITS[] = {
+/*
+const uvc1_unsigned_int_t SYMBOL_TO_INDEL_N_UNITS[] = {
     [BASE_A] = 0, [BASE_C] = 0, [BASE_G] = 0, [BASE_T] = 0, [BASE_N] = 0,
     [BASE_NN] = 0, 
     [LINK_M] = 0, 
@@ -288,7 +290,7 @@ const unsigned int SYMBOL_TO_INDEL_N_UNITS[] = {
     [LINK_I3P] = 3, [LINK_I2] = 2, [LINK_I1] = 1,
     [LINK_NN] = 0,
 };
-
+*/
 
 const char* SYMBOL_TO_DESC_ARR[] = {
     [BASE_A] = "A", [BASE_C] = "C", [BASE_G] = "G", [BASE_T] = "T", [BASE_N] = "N",
@@ -303,16 +305,18 @@ const char* SYMBOL_TO_DESC_ARR[] = {
     // [LINK_NO_INDEL] = "<NO_INDEL>"
 };
 
+/*
 const std::map<std::string, AlignmentSymbol>
 _generateDescToSymbolMap() {
     std::map<std::string, AlignmentSymbol> ret;
-    for (AlignmentSymbol s = AlignmentSymbol(0); s < END_ALIGNMENT_SYMBOLS; s = AlignmentSymbol(1+(unsigned int)s)) {
+    for (AlignmentSymbol s = AlignmentSymbol(0); s < END_ALIGNMENT_SYMBOLS; s = AlignmentSymbol(1+(uvc1_unsigned_int_t)s)) {
         ret[SYMBOL_TO_DESC_ARR[s]] = s;
     }
     return ret;
 }
 
 const std::map<std::string, AlignmentSymbol> DESC_TO_SYMBOL_MAP = _generateDescToSymbolMap();
+*/
 
 template <class T>
 class TDistribution {
@@ -327,7 +331,7 @@ template <class TB2C>
 class GenericSymbol2Bucket2Count : TDistribution<TB2C> {
 public:    
     molcount_t
-    getSymbolBucketCount(AlignmentSymbol symbol, unsigned int bucket) const {
+    getSymbolBucketCount(AlignmentSymbol symbol, size_t bucket) const {
         assert(bucket < NUM_BUCKETS);
         return this->symbol2data[symbol][bucket];
     };
@@ -338,7 +342,7 @@ public:
     };
 
     void
-    incSymbolBucketCount(AlignmentSymbol symbol, unsigned int bucket, unsigned int increment) {
+    incSymbolBucketCount(AlignmentSymbol symbol, size_t bucket, uvc1_qual_t increment) {
         assert(bucket < NUM_BUCKETS || !fprintf(stderr, "%d < %d failed!", bucket, NUM_BUCKETS));
         this->symbol2data[symbol].at(bucket) += increment;
     };
@@ -346,9 +350,11 @@ public:
     const TB2C
     vectorsumBySymbolType(const SymbolType symboltype) const {
         TB2C ret = {0};
+        /*
         for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symboltype]; 
                 symbol <= SYMBOL_TYPE_TO_INCLU_END[symboltype]; 
-                symbol = AlignmentSymbol(1+((unsigned int)symbol))) {
+                symbol = AlignmentSymbol(1+((uvc1_unsigned_int_t)symbol))) */ 
+        for (AlignmentSymbol symbol : SYMBOL_TYPE_TO_SYMBOLS[symboltype]) {
             for (size_t i = 0; i < this->symbol2data[symbol].size(); i++) {
                 ret[i] += this->getSymbolBucketCount(symbol, i);
             }
@@ -359,8 +365,8 @@ public:
     void
     clearSymbolBucketCount() {
         assert(sizeof(TB2C) * NUM_ALIGNMENT_SYMBOLS == sizeof(this->symbol2data) || !fprintf(stderr, "%lu * %u != %lu\n", sizeof(TB2C), NUM_ALIGNMENT_SYMBOLS, sizeof(this->symbol2data)));
-        for (unsigned int i = 0; i < NUM_ALIGNMENT_SYMBOLS; i++) {
-            for (unsigned int j = 0; j < this->symbol2data[0].size(); j++) {
+        for (size_t i = 0; i < NUM_ALIGNMENT_SYMBOLS; i++) {
+            for (size_t j = 0; j < this->symbol2data[0].size(); j++) {
                 this->symbol2data[i][j] = 0;
             }
         }
@@ -377,7 +383,7 @@ public:
     
     template <ValueType TUpdateType = SYMBOL_COUNT_SUM>
     int // update_max_inc : high GC : 3, even distribution of nucleotides : 6, conservative : 0
-    incSymbolCount(const AlignmentSymbol symbol, const TInteger increment, const unsigned int update_max_inc = 0) {
+    incSymbolCount(const AlignmentSymbol symbol, const TInteger increment, const TInteger update_max_inc = 0) {
         static_assert(BASE_QUALITY_MAX == TUpdateType || SYMBOL_COUNT_SUM == TUpdateType);
         if (SYMBOL_COUNT_SUM == TUpdateType) {
             this->symbol2data[symbol] += increment;
@@ -392,7 +398,7 @@ public:
         assert (beg <= end);
         
         TInteger alpha_sum = 0;
-        for (AlignmentSymbol symb = beg; symb <= end; symb = AlignmentSymbol(((unsigned int)symb) + 1)) {
+        for (AlignmentSymbol symb = beg; symb <= end; symb = AlignmentSymbol(((uvc1_unsigned_int_t)symb) + 1)) {
             alpha_sum += this->symbol2data[symb];
         }
         return alpha_sum;
@@ -420,7 +426,7 @@ public:
         count_argmax = incluEnd; // assign with the value AlignmentSymbol(NUM_ALIGNMENT_SYMBOLS) to flag for error
         count_max = 0;
         count_sum = 0;
-        for (AlignmentSymbol symb = incluBeg; symb <= incluEnd; symb = AlignmentSymbol(((unsigned int)symb) + 1)) {
+        for (AlignmentSymbol symb = incluBeg; symb <= incluEnd; symb = AlignmentSymbol(((uvc1_unsigned_int_t)symb) + 1)) {
             if (TIndelIsMajor) {
                 if (count_max < this->symbol2data[symb] || (LINK_M == count_argmax && (0 < this->symbol2data[symb]))) {
                     count_argmax = symb;
@@ -489,7 +495,7 @@ public:
     AlignmentSymbol
     updateByRepresentative(const GenericSymbol2Count<TInteger> & other, uvc1_qual_t incvalue = 1) {
         AlignmentSymbol consalpha; 
-        unsigned int countalpha, totalalpha;
+        uvc1_qual_t countalpha, totalalpha;
         for (SymbolType symboltype : SYMBOL_TYPE_ARR) { 
             other.fillConsensusCounts(consalpha, countalpha, totalalpha, symboltype);
             if (countalpha > 0) {
@@ -647,7 +653,7 @@ formatSumBySymbolType(
         const auto symboltype,
         const auto formatSet) {
     int ret = 0;
-    for (auto symbol : SYMBOL_TYPE_TO_SYMBOLS[symboltype]) {
+    for (const auto symbol : SYMBOL_TYPE_TO_SYMBOLS[symboltype]) {
         ret += xFormatYSets[symbol][formatSet];
     }
     return ret;
@@ -844,7 +850,7 @@ refstring2repeatvec(
 
 /*
 void
-repeatvec_LOG(const auto & region_repeatvec, unsigned int region_offset) {
+repeatvec_LOG(const auto & region_repeatvec, uvc1_unsigned_int_t region_offset) {
     for (size_t i = 0; i < region_repeatvec.size(); i++) {
         LOG(logINFO) << "RegionalTandemRepeat\t" 
                 << (region_offset + i) << "\t"
@@ -2183,7 +2189,7 @@ struct Symbol2CountCoverageSet {
                 paramset.fam_phred_sscs_indel_open,
                 paramset.fam_phred_sscs_indel_ext);
         
-        unsigned int niters = 0;
+        size_t niters = 0;
         for (const auto & alns2pair2dflag : alns3) {
             const auto & alns2pair = alns2pair2dflag.first;
             niters++;
@@ -2343,7 +2349,7 @@ struct Symbol2CountCoverageSet {
                         const uvc1_qual_t indep_frag_phred = ((int)round(((int)(con_nfrags * 2) - (int)tot_nfrags) * realphred));
                         uvc1_qual_t confam_qual = 0;
                         if (LINK_SYMBOL == symboltype) {
-                            // unsigned int n_units =  SYMBOL_TO_INDEL_N_UNITS[con_symbol];
+                            // uvc1_unsigned_int_t n_units =  SYMBOL_TO_INDEL_N_UNITS[con_symbol];
                             confam_qual = MAX(1, (MIN(indep_frag_phred,
                                     // PCR error of the first cycle + error in consensus selection
                                     (uvc1_qual_t)paramset.fam_phred_indel_inc_before_barcode_labeling + (uvc1_qual_t)round(realphred))));
@@ -3983,7 +3989,7 @@ bcf1_to_string(const bcf_hdr_t *tki_bcf1_hdr, const bcf1_t *bcf1_record) {
 }
 
 int 
-fill_tki(auto & tki, const auto & fmt, unsigned int a = 1) {
+fill_tki(auto & tki, const auto & fmt, size_t a = 1) {
     tki.BDP = fmt.BDPf.at(0) +fmt.BDPr.at(0);
     tki.bDP = fmt.bDPf.at(a) +fmt.bDPr.at(a);
     

@@ -1,7 +1,8 @@
 # Example command to build: make all -j9 && make deploy
 
 # Multi threads and single thread debug
-release : uvc.rel.out debarcode minivc
+release : uvc.rel.out debarcode 
+#minivc
 debug-mt : uvc.mt.out 
 #precompiled/precompiled_main.hpp.gch
 debug-st : uvc.st.out 
@@ -26,8 +27,8 @@ VERFLAGS=-DCOMMIT_VERSION="\"$(COMMIT_VERSION)\"" -DCOMMIT_DIFF_SH="\"$(COMMIT_D
 #precompiled/precompiled_main.hpp.gch : precompiled/precompiled_main.hpp
 #	$(CXX)  -O3 -DNDEBUG -H precompiled/precompiled_main.hpp
 
-minivc     : minivc.c version.h Makefile
-	$(CC) -O3 -o minivc    $(VERFLAGS) minivc.c ${HTSFLAGS}
+#minivc     : minivc.c version.h Makefile
+#	$(CC) -O3 -o minivc    $(VERFLAGS) minivc.c ${HTSFLAGS}
 
 debarcode  : debarcode_main.c version.h Makefile
 	$(CC) -O3 -o debarcode $(VERFLAGS) debarcode_main.c ${HTSFLAGS}
@@ -42,7 +43,7 @@ uvc.cppt.out : $(HDR) $(SRC) $(DEP)
 
 # single-thread executable with runtime assertions and debug symbols, very useful for debugging
 uvc.st.out : $(HDR) $(SRC) $(DEP)
-	$(CXX) -O1 -g -p    -o uvc.st.out   $(CXXFLAGS) $(VERFLAGS) $(SRC) $(HTSFLAGS) -fsanitize=address 
+	$(CXX) -O0 -g -p    -o uvc.st.out   $(CXXFLAGS) $(VERFLAGS) $(SRC) $(HTSFLAGS) -fsanitize=address 
 
 # multi-thread executable with runtime assertions and debug symbols, useful for debugging
 uvc.mt.out : $(HDR) $(SRC) $(DEP)

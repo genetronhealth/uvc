@@ -307,7 +307,7 @@ struct CommandLineArgs {
     selfUpdateByPlatform(void);
 };
 
-bool
-is_bitflag_checked(uint32_t bitflag_InDel_penal_t_UMI_n_UMI, bool is_InDel, bool is_penal, bool is_t_UMI, bool is_n_UMI);
+// bool
+// is_bitflag_checked(uint32_t bitflag_InDel_penal_t_UMI_n_UMI, bool is_InDel, bool is_penal, bool is_t_UMI, bool is_n_UMI);
 
 #endif

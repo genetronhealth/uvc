@@ -36,6 +36,8 @@
 
 #define INT64MUL(x, y) ((int64_t)(x) * (int64_t)(y))
 
+typedef uint64_t uvc1_unsigned_int_t;    //
+
 typedef int32_t uvc1_qual_t;    // quality (usually phred-scaled)
 typedef int32_t uvc1_deciphred_t; // 10 x Phred
 
@@ -48,6 +50,7 @@ typedef int32_t uvc1_rp_diff_t;
 typedef int32_t uvc1_base_t;
 typedef int32_t uvc1_base1500x_t;
 
+typedef int64_t uvc1_readnum_big_t;
 typedef int64_t uvc1_readpos_big_t;
 typedef int64_t uvc1_qual_big_t; // big qual
 

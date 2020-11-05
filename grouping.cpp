@@ -331,8 +331,8 @@ fill_isrc_isr2_beg_end_with_aln(bool & isrc, bool & isr2, uvc1_refgpos_t & tBeg,
     return NOT_FILTERED;
 }
 
-unsigned int 
-unsigned_diff(unsigned int a, unsigned int b) {
+uvc1_unsigned_int_t 
+unsigned_diff(uvc1_unsigned_int_t a, uvc1_unsigned_int_t b) {
     return (a > b ? a - b : b - a);
 }
 
@@ -409,21 +409,21 @@ clean_fill_strand_umi_readset(
 /*
 // ad-hoc adjustment of BQ in homopolymer region
 int 
-apply_bq_err_correction(bam1_t *aln, unsigned int homopol_minBQ_inc = 5, unsigned int homopol_min_len = 4) {
+apply_bq_err_correction(bam1_t *aln, uvc1_unsigned_int_t homopol_minBQ_inc = 5, uvc1_unsigned_int_t homopol_min_len = 4) {
     if (0 == aln->core.l_qseq) { return -1; }
-    unsigned int prev_b = 0;
-    unsigned int homopol_len = 1;
-    unsigned int nextpos = 0;
+    uvc1_unsigned_int_t prev_b = 0;
+    uvc1_unsigned_int_t homopol_len = 1;
+    uvc1_unsigned_int_t nextpos = 0;
     const uint8_t *seq = bam_get_seq(aln);
     uint8_t *qual = bam_get_qual(aln);
-    for (unsigned int thispos = 0; thispos != aln->core.l_qseq; thispos = nextpos) {
+    for (uvc1_unsigned_int_t thispos = 0; thispos != aln->core.l_qseq; thispos = nextpos) {
         const auto b = bam_seqi(seq, thispos);
         uint8_t qmin = qual[thispos];
         for (nextpos = thispos + 1; nextpos != aln->core.l_qseq && b == bam_seqi(seq, nextpos); nextpos++) {
             qmin = min(qmin, qual[nextpos]);
         }
         if (nextpos - thispos >= homopol_min_len) {
-            for (unsigned int pos = thispos; pos != nextpos; pos++) {
+            for (uvc1_unsigned_int_t pos = thispos; pos != nextpos; pos++) {
                 qual[pos] = min(qual[pos], qmin + homopol_minBQ_inc);
             }
         }
@@ -434,17 +434,17 @@ apply_bq_err_correction(bam1_t *aln, unsigned int homopol_minBQ_inc = 5, unsigne
 
 #if 0
 int 
-apply_bq_err_correction2(const bam1_t *aln, unsigned int dec_per_base, unsigned int homopol_min_len, unsigned int max_dec) {
+apply_bq_err_correction2(const bam1_t *aln, uvc1_unsigned_int_t dec_per_base, uvc1_unsigned_int_t homopol_min_len, uvc1_unsigned_int_t max_dec) {
     if (0 == aln->core.l_qseq) { return -1; }
     
     int inclu_beg_poss[2] = {0, aln->core.l_qseq - 1};
     int exclu_end_poss[2] = {aln->core.l_qseq, 0 - 1};
     int pos_incs[2] = {1, -1};
-    unsigned int qsum = 0;
-    unsigned int qnum = 0;
-    unsigned int prev_b = 0;
-    unsigned int strand = ((aln->core.flag & 0x10) ? 1 : 0);
-    unsigned int homopol_len = 1;
+    uvc1_unsigned_int_t qsum = 0;
+    uvc1_unsigned_int_t qnum = 0;
+    uvc1_unsigned_int_t prev_b = 0;
+    uvc1_unsigned_int_t strand = ((aln->core.flag & 0x10) ? 1 : 0);
+    uvc1_unsigned_int_t homopol_len = 1;
     for (auto i = inclu_beg_poss[strand]; i != exclu_end_poss[strand]; i += pos_incs[strand]) {
         auto b = bam_get_seq(aln)[i];
         if (b == prev_b) {
@@ -466,15 +466,18 @@ int
 apply_bq_err_correction3(bam1_t *aln) {
     if ((0 == aln->core.l_qseq) || (aln->core.flag & 0x4)) { return -1; }
     
-    for (unsigned int i = 0; i < aln->core.l_qseq; i++) {
+    for (uvc1_unsigned_int_t i = 0; i < aln->core.l_qseq; i++) {
         bam_get_qual(aln)[i] = min(bam_get_qual(aln)[i], 37);
     }
     
     const auto cigar = bam_get_cigar(aln);
     const int strand = ((aln->core.flag & 0x10) ? 1 : 0);
-    uvc1_refgpos_t inclu_beg_poss[2] = {0, aln->core.l_qseq - 1};
-    uvc1_refgpos_t exclu_end_poss[2] = {aln->core.l_qseq, 0 - 1};
-    uvc1_readpos_t end_clip_len = 0;
+    // uvc1_readpos_t 
+    int inclu_beg_poss[2] = {0, aln->core.l_qseq - 1};
+    // uvc1_readpos_t
+    int exclu_end_poss[2] = {aln->core.l_qseq, 0 - 1};
+    // uvc1_readpos_t 
+    int end_clip_len = 0;
     if (aln->core.n_cigar > 0) {
         auto cigar_1elem = cigar[0];
         if (bam_cigar_op(cigar_1elem) == BAM_CSOFT_CLIP) {
@@ -496,12 +499,13 @@ apply_bq_err_correction3(bam1_t *aln) {
         }
     }
     
-    const uvc1_refgpos_t pos_incs[2] = {1, -1};
+    const // uvc1_refgpos_t 
+    int pos_incs[2] = {1, -1};
     {
         uvc1_qual_t qsum = 0;
-        // unsigned int qnum = 0;
+        // uvc1_unsigned_int_t qnum = 0;
         uint8_t prev_b = 0;
-        unsigned int distinct_cnt = 0;
+        uvc1_unsigned_int_t distinct_cnt = 0;
         int termpos = exclu_end_poss[strand] - pos_incs[strand];
         for (; termpos != inclu_beg_poss[strand] - pos_incs[strand]; termpos -= pos_incs[strand]) {
             uint8_t b = bam_seqi(bam_get_seq(aln), termpos);
@@ -557,8 +561,8 @@ apply_bq_err_correction3(bam1_t *aln) {
 
 #if 0
 int 
-apply_baq(bam1_t *aln, const unsigned int baq_per_aligned_base, unsigned int baq_per_new_base = 1, unsigned int baq_maxinc_per_base = 1) {
-    // const unsigned int max_baq_per_base = baq_per_aligned_base + baq_maxinc_per_base;
+apply_baq(bam1_t *aln, const uvc1_unsigned_int_t baq_per_aligned_base, uvc1_unsigned_int_t baq_per_new_base = 1, uvc1_unsigned_int_t baq_maxinc_per_base = 1) {
+    // const uvc1_unsigned_int_t max_baq_per_base = baq_per_aligned_base + baq_maxinc_per_base;
     const uint32_t n_cigar = aln->core.n_cigar;
     const uint32_t *cigar =  bam_get_cigar(aln);
     if (0 == n_cigar || 0 == aln->core.l_qseq) { return -1; }
@@ -569,10 +573,10 @@ apply_baq(bam1_t *aln, const unsigned int baq_per_aligned_base, unsigned int baq
     int inclu_beg_poss[2] = {read_beg, read_end};
     int exclu_end_poss[2] = {read_end + 1, read_beg - 1};
     int pos_incs[2] = {1, -1};
-    unsigned int qsum = 0;
-    unsigned int qnum = 0;
+    uvc1_unsigned_int_t qsum = 0;
+    uvc1_unsigned_int_t qnum = 0;
     
-    unsigned int strand = ((aln->core.flag & 0x10) ? 0 : 1);
+    uvc1_unsigned_int_t strand = ((aln->core.flag & 0x10) ? 0 : 1);
     for (auto i = inclu_beg_poss[strand]; i != exclu_end_poss[strand]; i += pos_incs[strand]) {
         auto q = bam_get_qual(aln)[i];
         qsum += q;
@@ -582,8 +586,8 @@ apply_baq(bam1_t *aln, const unsigned int baq_per_aligned_base, unsigned int baq
     
 #if 0 // application of BAQ is too early here and is therefore disabled
     for (int strand = 0; strand < 2; strand++) {
-        unsigned int base2cnt[16] = {0};
-        unsigned int nbases = 0;
+        uvc1_unsigned_int_t base2cnt[16] = {0};
+        uvc1_unsigned_int_t nbases = 0;
         auto curr_baq_per_base = baq_per_aligned_base - 2;
         for (auto i = inclu_beg_poss[strand]; i != exclu_end_poss[strand]; i += pos_incs[strand]) {
             auto base = bam_get_seq(aln)[i];
@@ -688,8 +692,8 @@ bamfname_to_strand_to_familyuid_to_reads(
         // const bool disable_duplex,
         size_t thread_id,
         // const double dedup_center_mult,
-        // unsigned int dedup_amplicon_count_to_surrcount_ratio,
-        // unsigned int dedup_amplicon_count_to_surrcount_ratio_twosided,
+        // uvc1_unsigned_int_t dedup_amplicon_count_to_surrcount_ratio,
+        // uvc1_unsigned_int_t dedup_amplicon_count_to_surrcount_ratio_twosided,
         // double dedup_amplicon_end2end_ratio,
         // bool always_log,
         // bool is_proton,
@@ -737,7 +741,7 @@ bamfname_to_strand_to_familyuid_to_reads(
         bool isr2 = false;
         uvc1_refgpos_t tBeg = 0;
         uvc1_refgpos_t tEnd = 0;
-        unsigned int num_seqs = 0;
+        uvc1_unsigned_int_t num_seqs = 0;
         FilterReason filterReason = fill_isrc_isr2_beg_end_with_aln(isrc, isr2, tBeg, tEnd, num_seqs, 
                 aln, fetch_tbeg, fetch_tend, paramset.min_aln_len, paramset.min_mapqual, end2end, is_pair_end_merge_enabled);
         if (!is_pair_end_merge_enabled) { assert(!isr2); }
@@ -778,7 +782,7 @@ bamfname_to_strand_to_familyuid_to_reads(
         bool isr2 = false;
         uvc1_refgpos_t tBeg = 0;
         uvc1_refgpos_t tEnd = 0;
-        unsigned int num_seqs = 0;
+        uvc1_unsigned_int_t num_seqs = 0;
         FilterReason filterReason = fill_isrc_isr2_beg_end_with_aln(isrc, isr2, tBeg, tEnd, num_seqs, 
                 aln, fetch_tbeg, fetch_tend, paramset.min_aln_len, paramset.min_mapqual, end2end, is_pair_end_merge_enabled);
         if (!is_pair_end_merge_enabled) { assert(!isr2); }

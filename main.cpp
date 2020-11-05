@@ -19,7 +19,7 @@
 #include "omp.h"
 #endif
 
-const unsigned int G_BLOCK_SIZE = 1000;
+// const uvc1_unsigned_int_t G_BLOCK_SIZE = 1000;
 
 void 
 xfree(void *ptr) {
@@ -138,8 +138,8 @@ struct BatchArg {
     
     std::tuple<uvc1_refgpos_t, uvc1_refgpos_t, uvc1_refgpos_t, bool, uvc1_readnum_t> tid_beg_end_e2e_tuple;
     std::tuple<std::string, uint32_t> tname_tseqlen_tuple;
-    // unsigned int region_ordinal; // deprecated
-    // unsigned int region_tot_num; // deprecated
+    // uvc1_unsigned_int_t region_ordinal; // deprecated
+    // uvc1_unsigned_int_t region_tot_num; // deprecated
     size_t regionbatch_ordinal;
     size_t regionbatch_tot_num;
 
@@ -161,21 +161,21 @@ gen_fq_tsum_depths(const auto & fq_tsum_depth, uvc1_refgpos_t refpos) {
     return MIN(MIN(fq_tsum_depths[0], fq_tsum_depths[2]), fq_tsum_depths[1]);
 }
 
-std::vector<unsigned int>
-gen_dp100(const auto & fq_tsum_depth, unsigned int inclu_beg, unsigned int exclu_end) {
+std::vector<uvc1_unsigned_int_t>
+gen_dp100(const auto & fq_tsum_depth, uvc1_unsigned_int_t inclu_beg, uvc1_unsigned_int_t exclu_end) {
     assert (inclu_beg <= exclu_end);
-    std::vector<unsigned int> dp100;
+    std::vector<uvc1_unsigned_int_t> dp100;
     dp100.reserve(exclu_end - inclu_beg);
-    for (unsigned int rpos2 = inclu_beg; rpos2 < exclu_end; rpos2++) {
-        unsigned int fq_tsum_depth_g = gen_fq_tsum_depths(fq_tsum_depth, rpos2);
+    for (uvc1_unsigned_int_t rpos2 = inclu_beg; rpos2 < exclu_end; rpos2++) {
+        uvc1_unsigned_int_t fq_tsum_depth_g = gen_fq_tsum_depths(fq_tsum_depth, rpos2);
         dp100.push_back(fq_tsum_depth_g);
     }
     return dp100;
 }
 
 std::string 
-dp100_to_string(const std::vector<unsigned int> & bg1dp100, const std::vector<unsigned int> & bg2dp100, 
-        const std::string & chromosome, unsigned int refpos, bool is_rev) {
+dp100_to_string(const std::vector<uvc1_unsigned_int_t> & bg1dp100, const std::vector<uvc1_unsigned_int_t> & bg2dp100, 
+        const std::string & chromosome, uvc1_unsigned_int_t refpos, bool is_rev) {
     assert (bg1dp100.size() == bg2dp100.size());
     std::string ret = chromosome + "\t" + std::to_string(refpos) + 
             "\t.\tN\t<DP100" + (is_rev ? "RV" : "FW") + ">\t.\t.\t.\tGT:bgNPOS:bg1DPS:bg2DPS\t.:" + std::to_string(bg1dp100.size()) + ":";
@@ -192,14 +192,14 @@ dp100_to_string(const std::vector<unsigned int> & bg1dp100, const std::vector<un
 
 std::string
 genomic_reg_info_to_string(const std::string & chromosome, 
-        unsigned int incluBeg, SymbolType stypeBeg,
-        unsigned int incluEnd, SymbolType stypeEnd,
-        const unsigned int gbDPmin, const unsigned int gcDPmin,
-        const std::string &gfGTmm2, const unsigned int gfGQmin,
-        const std::string & refstring, unsigned int refstring_offset) {
-    unsigned int begpos = incluBeg;
-    unsigned int endpos = incluEnd;
-    unsigned int refstring_idx = begpos - refstring_offset;
+        uvc1_unsigned_int_t incluBeg, SymbolType stypeBeg,
+        uvc1_unsigned_int_t incluEnd, SymbolType stypeEnd,
+        const uvc1_unsigned_int_t gbDPmin, const uvc1_unsigned_int_t gcDPmin,
+        const std::string &gfGTmm2, const uvc1_unsigned_int_t gfGQmin,
+        const std::string & refstring, uvc1_unsigned_int_t refstring_offset) {
+    uvc1_unsigned_int_t begpos = incluBeg;
+    uvc1_unsigned_int_t endpos = incluEnd;
+    uvc1_unsigned_int_t refstring_idx = begpos - refstring_offset;
     const std::string begchar = (refstring_idx > 0 ? refstring.substr(refstring_idx - 1, 1) : "n");
     std::string ret = chromosome + "\t" + std::to_string(begpos)
             + "\t.\t" + begchar + "\t<NON_REF" + ">\t.\t.\t.\tGT:GQ:gbDP:gcDP:gSTS:gBEG:gEND\t"
@@ -214,12 +214,12 @@ genomic_reg_info_to_string(const std::string & chromosome,
 }
 
 const bool
-is_sig_higher_than(auto a, auto b, unsigned int mfact, unsigned int afact) {
+is_sig_higher_than(auto a, auto b, uvc1_unsigned_int_t mfact, uvc1_unsigned_int_t afact) {
     return (a * 100 > b * (100 + mfact)) && (a > b + afact);
 }
 
 const bool
-is_sig_out(auto a, auto minval, auto maxval, unsigned int mfact, unsigned int afact) {
+is_sig_out(auto a, auto minval, auto maxval, uvc1_unsigned_int_t mfact, uvc1_unsigned_int_t afact) {
     return is_sig_higher_than(a, minval, mfact, afact) || is_sig_higher_than(maxval, a, mfact, afact);
 }
 */
@@ -443,7 +443,7 @@ region_repeatvec_to_baq_offsetarr(
         assert (rtr.begpos <= rtr_idx);
         assert (rtr.unitlen > 0);
         assert (rtr.tracklen >= rtr.unitlen);
-        if (rtr.tracklen / rtr.unitlen >= 3 || (rtr.tracklen / rtr.unitlen >= 2 && rtr.tracklen >= (unsigned int)round(paramset.indel_polymerase_size))) {
+        if (rtr.tracklen / rtr.unitlen >= 3 || (rtr.tracklen / rtr.unitlen >= 2 && rtr.tracklen >= (uvc1_readpos_t)round(paramset.indel_polymerase_size))) {
             baq_prefixsum += (paramset.indel_STR_phred_per_region * 10) / (rtr.tracklen) + 1;
             ret.getRefByPos(i) = baq_prefixsum;
         } else {
@@ -543,7 +543,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
     
     const uvc1_refgpos_t rpos_inclu_beg = MAX(incluBegPosition, bam_inclu_beg_pos);
     const uvc1_refgpos_t rpos_exclu_end = MIN(excluEndPosition, bam_exclu_end_pos); 
-    const uvc1_refgpos_t extended_inclu_beg_pos = (unsigned int)MAX(0, MIN(((int)incluBegPosition) - 100, (int)bam_inclu_beg_pos));
+    const uvc1_refgpos_t extended_inclu_beg_pos = MAX(0, MIN(((int)incluBegPosition) - 100, (int)bam_inclu_beg_pos));
     const uvc1_refgpos_t extended_exclu_end_pos = MIN(std::get<1>(tname_tseqlen_tuple), MAX(excluEndPosition + 100, bam_exclu_end_pos));
     
     const auto tkis_beg = tid_pos_symb_to_tkis.lower_bound(std::make_tuple(tid, extended_inclu_beg_pos    , AlignmentSymbol(0)));
@@ -585,7 +585,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
     
     // repeatvec_LOG(region_repeatvec, extended_inclu_beg_pos); // disable the log by default
 
-    // std::vector<std::tuple<unsigned int, uvc1_refgpos_t, unsigned int>> adjcount_x_rpos_x_misma_vec;
+    // std::vector<std::tuple<uvc1_unsigned_int_t, uvc1_refgpos_t, uvc1_unsigned_int_t>> adjcount_x_rpos_x_misma_vec;
     std::map<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>> mutform2count4map_bq;
     std::map<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>> mutform2count4map_fq;
     
@@ -612,7 +612,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
     const std::set<size_t> empty_size_t_set;
     
     for (uvc1_refgpos_t zerobased_pos = rpos_inclu_beg; zerobased_pos <= rpos_exclu_end; zerobased_pos++) {
-        // for (unsigned int refpos = rpos_inclu_beg; refpos <= rpos_exclu_end; refpos++) {}
+        // for (uvc1_unsigned_int_t refpos = rpos_inclu_beg; refpos <= rpos_exclu_end; refpos++) {}
         std::string repeatunit;
         uvc1_readpos_t repeatnum = 0;
         
@@ -627,8 +627,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
         }};
         
         std::array<bcfrec::BcfFormat, 2> st_to_init_fmt = {{bcfrec::BcfFormat(), bcfrec::BcfFormat()}};
-        // std::array<unsigned int, 2> stype2refqual = {{0, 0}};
-        // std::array<unsigned int, 2> st_to_num_goodvars = {{0, 0}};
+        // std::array<uvc1_unsigned_int_t, 2> stype2refqual = {{0, 0}};
+        // std::array<uvc1_unsigned_int_t, 2> st_to_num_goodvars = {{0, 0}};
         // std::array<uvc1_qual_t, 2> st_to_nlodq = {{0, 0}};
         
         std::array<std::vector<std::tuple<bcfrec::BcfFormat, TumorKeyInfo>>, NUM_SYMBOL_TYPES> st_to_fmt_tki_tup_vec;
@@ -656,8 +656,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                     symboltype, 
                     refsymbol, 
                     0);
-            // unsigned int curr_tot_bdepth = bDPcDP[0];
-            // unsigned int curr_tot_cdepth = bDPcDP[1];
+            // uvc1_unsigned_int_t curr_tot_bdepth = bDPcDP[0];
+            // uvc1_unsigned_int_t curr_tot_cdepth = bDPcDP[1];
             if ((paramset.outvar_flag & OUTVAR_GVCF) && ((((refpos + 1) % 1000) == 0) || (refpos == incluBegPosition)) && (SYMBOL_TYPE_ARR[0] == symboltype)) {
                 const auto & frag_format_depth_sets = symbolToCountCoverageSet12.symbol_to_frag_format_depth_sets;
                 const auto & fam_format_depth_sets = symbolToCountCoverageSet12.symbol_to_fam_format_depth_sets_2strand;
@@ -1278,8 +1278,8 @@ main(int argc, char **argv) {
         const size_t allridx = 0;  
         const size_t incvalue = tid_beg_end_e2e_tuple_vec.size();
         
-        unsigned int nreads = 0;
-        unsigned int npositions = 0;
+        uvc1_unsigned_int_t nreads = 0;
+        uvc1_unsigned_int_t npositions = 0;
         for (size_t j = 0; j < incvalue; j++) {
             auto region_idx = allridx + j;
             nreads += std::get<4>(tid_beg_end_e2e_tuple_vec[region_idx]);
@@ -1290,13 +1290,13 @@ main(int argc, char **argv) {
         
         // distribute inputs as evenly as possible
 #if defined(USE_STDLIB_THREAD)
-        const unsigned int UNDERLOAD_RATIO = 1;
+        const uvc1_unsigned_int_t UNDERLOAD_RATIO = 1;
 #else
-        const unsigned int UNDERLOAD_RATIO = 4;
+        const uvc1_unsigned_int_t UNDERLOAD_RATIO = 4;
 #endif
-        unsigned int curr_nreads = 0;
-        unsigned int curr_npositions = 0;
-        unsigned int curr_zerobased_region_idx = 0;
+        uvc1_unsigned_int_t curr_nreads = 0;
+        uvc1_unsigned_int_t curr_npositions = 0;
+        uvc1_unsigned_int_t curr_zerobased_region_idx = 0;
         std::vector<std::pair<size_t, size_t>> beg_end_pair_vec;
         for (size_t j = 0; j < incvalue; j++) {
             auto region_idx = allridx + j;
@@ -1334,7 +1334,7 @@ main(int argc, char **argv) {
                     tid_beg_end_e2e_tuple : tid_beg_end_e2e_tuple_vec.at(0),
                     tname_tseqlen_tuple : tid_to_tname_tseqlen_tuple_vec.at(0),
                     // region_ordinal : n_sam_iters,
-                    // region_tot_num : (unsigned int)(INT32_MAX - 1),
+                    // region_tot_num : (uvc1_unsigned_int_t)(INT32_MAX - 1),
                     regionbatch_ordinal : 0,
                     regionbatch_tot_num : 0,
 
