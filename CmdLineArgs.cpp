@@ -117,7 +117,7 @@ stringvec_to_descstring(const std::vector<std::string> & v) {
 int
 CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & inferred_sequencing_platform, int argc, const char *const* argv) {
     parsing_result_flag = -1;
-    auto version_cb = [](int count){
+    auto version_cb = [](int n_values IGNORE_UNUSED_PARAM){
         std::cout << "uvc-" << VERSION << std::endl;
         exit(0);
     };
@@ -966,6 +966,12 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
         "--microadjust-ref-MQ-dec-max",
            microadjust_ref_MQ_dec_max,
         "The base-alignment quality of a deletion cannot be below this value at 100\% allele fraction. ");
+
+// *** 14 debugging
+    ADD_OPTDEF(app, 
+        "--debug-note-flag",
+           debug_note_flag,
+        "The flag used for advanced debugging. Please do not activate this option in normal production environments.");
 
 /// *** end
 

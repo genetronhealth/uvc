@@ -360,7 +360,10 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("__e8"  , 1,         BCF_SEP,     "Power-law variant quality statistics for SSCS UMI-barcoded families."),
     BcfFormatStruct("cPCQ2" , BCF_NUM_R, BCF_SIG_INT, "The SSCS power-law variant allele quality cap that is not lowered by using matched normal."),
     BcfFormatStruct("cPLQ2" , BCF_NUM_R, BCF_SIG_INT, "The single-strand-consensus-sequence (SSCS) UMI-barcoded power-law variant allele quality."),
-    BcfFormatStruct("cVQ2"  , BCF_NUM_R, BCF_SIG_INT, "The final variant allele quality computed with SSCS UMI-barcoded families"),
+    BcfFormatStruct("cVQ2"  , BCF_NUM_R, BCF_SIG_INT, "The final variant allele quality computed with SSCS UMI-barcoded families."),
+    BcfFormatStruct("cMmQ"  , BCF_NUM_R, BCF_INTEGER, "The empirical base quality estimated with high-quality UMI barcode families. "
+                    "This field is defined to be the Phred-scale fraction of minor read support to the sum of major and major read support, "
+                    "where major means agreement with UMI consensus, and minor means disagreement with UMI consensus. "),
     BcfFormatStruct("dVQinc", BCF_NUM_R, BCF_SIG_INT, "The increase in cVQ2 (excluding systematic error) contributed by double-strand-consensus-sequences (DSCSs) of duplex barcode famillies. "
                               "Negative value means no increase."),
     
@@ -557,9 +560,9 @@ main(int argc, char **argv) {
     
     for (auto fmt : FORMAT_VEC) {
         if (BCF_NUM_R == fmt.number) {
-            std::cout << "    assert(dst." << fmt.id << ".size() == 1 || !fprintf(stderr, \"\%d == 1 failed for " << fmt.id 
+            std::cout << "    assert(dst." << fmt.id << ".size() == 1 || !fprintf(stderr, \"\%lu == 1 failed for " << fmt.id 
                     << "\", dst." << fmt.id << ".size() ) );\n";
-            std::cout << "    assert(src." << fmt.id << ".size() == 1 || !fprintf(stderr, \"\%d == 1 failed for " << fmt.id 
+            std::cout << "    assert(src." << fmt.id << ".size() == 1 || !fprintf(stderr, \"\%lu == 1 failed for " << fmt.id 
                     << "\", src." << fmt.id << ".size() ) );\n";
             std::cout << "    auto " << fmt.id << "_tmp = dst." << fmt.id << "[0];\n";
             std::cout << "    dst." << fmt.id << "[0] = src." << fmt.id << "[0];\n";

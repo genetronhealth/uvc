@@ -7,6 +7,8 @@
 #include <limits.h>
 #include <math.h>
 
+#define DEBUG_NOTE_FLAG_BITMASK_BAQ_OFFSETARR 0x1
+
 struct CommandLineArgs {
 
 // *** 00. frequently used parameters
@@ -293,8 +295,9 @@ struct CommandLineArgs {
     int32_t             microadjust_fam_lowfreq_invFA = 1000;
     uvc1_qual_t         microadjust_ref_MQ_dec_max = 15;
     
-
-
+// *** 14. parameters related to debugging in vcf
+    uvc1_flag_t         debug_note_flag = 0x0;
+    
 // *** extra useful info
     // https://www.biostars.org/p/254467/#254868 : Question: Are these false somatic variants? Visual inspection with IGV
     // How to tell the difference between HDR and kataegis?

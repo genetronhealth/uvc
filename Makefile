@@ -2,13 +2,11 @@
 
 # Multi threads and single thread debug
 release : uvc.rel.out debarcode 
-#minivc
+release-cppt : uvc.cppt.out
 debug-mt : uvc.mt.out 
-#precompiled/precompiled_main.hpp.gch
 debug-st : uvc.st.out 
-#precompiled/precompiled_main.hpp.gch
-test-cppt : uvc.cppt.out
-all : debug-mt debug-st release test-cppt
+debug-no : uvc.no.out
+all : release release-cppt debug-mt debug-st debug-no
 
 HDR=CmdLineArgs.hpp common.hpp grouping.hpp logging.hpp main.hpp main_conversion.hpp version.h CLI11-1.7.1/CLI11.hpp #precompiled/precompiled_main.hpp
 SRC=CmdLineArgs.cpp common.cpp grouping.cpp logging.cpp main.cpp                     version.cpp 
@@ -18,7 +16,7 @@ HTSPATH=ext/htslib-1.9-lowdep/libhts.a #ext/htslib/htslib-1.9-mindep/libhts.a
 HTSFLAGS=$(HTSPATH) -I ext/htslib-1.9-lowdep/ -pthread -lm -lz -lbz2 -llzma # -lcurl -lcrypto # can be changed depending on the specific installed components of htslib (please refer to the INSTALL file in htslib)
 CC=gcc  # can be changed to clang or other compilers as needed
 CXX=g++ # can be changed to clang or other compilers as needed
-CXXFLAGS=-std=c++14 -static-libstdc++
+CXXFLAGS=-std=c++14 -static-libstdc++ -Wall
 COMMIT_VERSION=$(shell git rev-parse HEAD | head -c 7)
 COMMIT_DIFF_SH=$(shell git diff HEAD --shortstat)
 COMMIT_DIFF_FULL=$(shell echo "R\"ZXF_specQUOTE(\n $$(git diff HEAD | sed 's/ZXF_specQUOTE/ZXF_specquote/g') \n)ZXF_specQUOTE\"" > gitdiff.txt)
@@ -43,7 +41,10 @@ uvc.cppt.out : $(HDR) $(SRC) $(DEP)
 
 # single-thread executable with runtime assertions and debug symbols, very useful for debugging
 uvc.st.out : $(HDR) $(SRC) $(DEP)
-	$(CXX) -O0 -g -p    -o uvc.st.out   $(CXXFLAGS) $(VERFLAGS) $(SRC) $(HTSFLAGS) -fsanitize=address 
+	$(CXX) -O2 -g -p    -o uvc.st.out   $(CXXFLAGS) $(VERFLAGS) $(SRC) $(HTSFLAGS) -fsanitize=address
+
+uvc.no.out : $(HDR) $(SRC) $(DEP)
+	$(CXX) -O0 -g -p    -o uvc.no.out   $(CXXFLAGS) $(VERFLAGS) $(SRC) $(HTSFLAGS) -fsanitize=address -Wextra
 
 # multi-thread executable with runtime assertions and debug symbols, useful for debugging
 uvc.mt.out : $(HDR) $(SRC) $(DEP)
@@ -60,12 +61,12 @@ bcf_formats.step1.hpp : bcf_formats_generator1.out
 .PHONY: clean deploy
 
 clean:
-	rm bcf_formats_generator1.out bcf_formats.step1.hpp *.o *.out *.gch uvc debarcode || true
+	rm bcf_formats_generator1.out bcf_formats.step1.hpp *.o *.out *.gch debarcode || true
 
 # uvc1 is used by uvcTN.sh
 deploy:
 	cp uvc.rel.out bin/uvc1
 	cp debarcode bin/debarcode
 	cp minivc bin/minivc
-	cp uvc.st.out uvc.mt.out uvc.cppt.out bin/
+	cp uvc.cppt.out uvc.st.out uvc.mt.out uvc.no.out bin/
 

@@ -1,26 +1,23 @@
 #include "grouping.hpp"
 #include "logging.hpp"
 
-#define UPDATE_MIN(a, b) ((a) = min((a), (b)));
+#define UPDATE_MIN(a, b) ((a) = MIN((a), (b)));
 // position of 5' is the starting position, but position of 3' is unreliable without mate info.
 const uvc1_readpos_t ARRPOS_MARGIN = MAX_INSERT_SIZE; // 1200; // 1600;
 const uvc1_readpos_t ARRPOS_OUTER_RANGE = 10; // 11;
 const uvc1_readpos_t ARRPOS_INNER_RANGE = 3; // 4;
 
-bool 
-ispowof2(auto num) {
-    return (num & (num-1)) == 0;
-}
-
+/*
 auto 
-min(auto a, auto b) {
+MIN(auto a, auto b) {
     return a < b ? a : b;
 }
 
 auto 
-max(auto a, auto b) {
+MAX(auto a, auto b) {
     return a > b ? a : b;
 }
+*/
 
 int 
 bed_fname_to_contigs(
@@ -29,7 +26,7 @@ bed_fname_to_contigs(
         const bam_hdr_t *bam_hdr) {
     
     std::map<std::string, uvc1_refgpos_t> tname_to_tid;
-    for (size_t i = 0; i < bam_hdr->n_targets; i++) {
+    for (uvc1_refgpos_t i = 0; i < bam_hdr->n_targets; i++) {
         tname_to_tid[bam_hdr->target_name[i]] = i;
     }
     std::ifstream bedfile(bed_fname);
@@ -82,7 +79,7 @@ SamIter::iternext(std::vector<bedline_t> & tid_beg_end_e2e_vec) {
             tid_beg_end_e2e_vec.push_back(bedreg);
             nreads_tot += std::get<4>(bedreg);
             region_tot += std::get<2>(bedreg) - std::get<1>(bedreg);
-            if (nreads_tot > (2000*1000 * nthreads) || region_tot > (1000*1000 * nthreads)) {
+            if (nreads_tot > UNSIGN2SIGN(2000*1000 * nthreads) || region_tot > UNSIGN2SIGN(1000*1000 * nthreads)) {
                 this->_bedregion_idx++;
                 return ret;
             }
@@ -98,26 +95,26 @@ SamIter::iternext(std::vector<bedline_t> & tid_beg_end_e2e_vec) {
         }
         const bool is_uncov = (SIGN2UNSIGN(alnrecord->core.tid) != tid || SIGN2UNSIGN(alnrecord->core.pos) > tend);
         if (INT32_MAX == endingpos) {
-            uvc1_refgpos_t n_overlap_positions = min(SIGN2UNSIGN(48), (SIGN2UNSIGN(16) + tend - min(tend, SIGN2UNSIGN(alnrecord->core.pos))));
-            uvc1_refgpos_t npositions = (tend - min(tbeg, tend));
+            uvc1_refgpos_t n_overlap_positions = MIN(SIGN2UNSIGN(48), (SIGN2UNSIGN(16) + tend - MIN(tend, SIGN2UNSIGN(alnrecord->core.pos))));
+            uvc1_refgpos_t npositions = (tend - MIN(tbeg, tend));
             bool has_many_positions = (npositions > INT64MUL(n_overlap_positions, (1024)));
             bool has_many_reads = (nreads > INT64MUL(n_overlap_positions, (1024 * 5)));
             if (has_many_positions || has_many_reads) {
-                endingpos = SIGN2UNSIGN(max(bam_endpos(alnrecord), 
-                        min(alnrecord->core.pos, alnrecord->core.mpos) + min(abs(alnrecord->core.isize), ARRPOS_MARGIN)) 
+                endingpos = SIGN2UNSIGN(MAX(bam_endpos(alnrecord), 
+                        MIN(alnrecord->core.pos, alnrecord->core.mpos) + MIN(abs(alnrecord->core.isize), ARRPOS_MARGIN)) 
                         + (ARRPOS_OUTER_RANGE * 2));
             }
         }
         next_nreads += (SIGN2UNSIGN(bam_endpos(alnrecord)) > endingpos ? 1 : 0);
         if (is_uncov || endingpos < SIGN2UNSIGN(alnrecord->core.pos)) {
-            region_max = max(region_max, tend - tbeg);
-            nreads_max = max(nreads_max, nreads);
+            region_max = MAX(region_max, tend - tbeg);
+            nreads_max = MAX(nreads_max, nreads);
             region_tot += tend - tbeg;
             nreads_tot += nreads;
             auto prev_nreads = next_nreads;
             if (tid != -1) {
-                tid_beg_end_e2e_vec.push_back(std::make_tuple(tid, max(tbeg, prev_tbeg), max(tend, prev_tbeg), false, nreads));
-                prev_tbeg = max(tend, prev_tbeg);
+                tid_beg_end_e2e_vec.push_back(std::make_tuple(tid, MAX(tbeg, prev_tbeg), MAX(tend, prev_tbeg), false, nreads));
+                prev_tbeg = MAX(tend, prev_tbeg);
                 endingpos = INT32_MAX;
                 next_nreads = 0;
             }
@@ -130,15 +127,15 @@ SamIter::iternext(std::vector<bedline_t> & tid_beg_end_e2e_vec) {
                 tend = (bam_endpos(alnrecord));
             } else {
                 tbeg = tend;
-                tend = max(tbeg, (bam_endpos(alnrecord))) + 1;
+                tend = MAX(tbeg, (bam_endpos(alnrecord))) + 1;
             }
             nreads = prev_nreads;
             nreads += 1;
-            if (nreads_tot > (2000*1000 * nthreads) || region_tot > (1000*1000 * nthreads)) {
+            if (nreads_tot > UNSIGN2SIGN(2000*1000 * nthreads) || region_tot > UNSIGN2SIGN(1000*1000 * nthreads)) {
                 return ret;
             }
         } else {
-            tend = max(tend, SIGN2UNSIGN(bam_endpos(alnrecord)));
+            tend = MAX(tend, SIGN2UNSIGN(bam_endpos(alnrecord)));
             nreads += 1;
         }
     }
@@ -201,13 +198,13 @@ sam_fname_to_contigs(
             }
             const bool is_uncov = (SIGN2UNSIGN(alnrecord->core.tid) != tid || SIGN2UNSIGN(alnrecord->core.pos) > tend);
             if (INT32_MAX == endingpos) {
-                uvc1_readpos_t n_overlap_positions = min(SIGN2UNSIGN(48), (SIGN2UNSIGN(16) + tend - min(tend, SIGN2UNSIGN(alnrecord->core.pos))));
-                uvc1_readpos_t npositions = (tend - min(tbeg, tend));
+                uvc1_readpos_t n_overlap_positions = MIN(SIGN2UNSIGN(48), (SIGN2UNSIGN(16) + tend - MIN(tend, SIGN2UNSIGN(alnrecord->core.pos))));
+                uvc1_readpos_t npositions = (tend - MIN(tbeg, tend));
                 bool has_many_positions = (npositions > INT64MUL(n_overlap_positions, (1024)));
                 bool has_many_reads = (nreads > INT64MUL(n_overlap_positions, (1024 * 5)));
                 if (has_many_positions || has_many_reads) {
-                    endingpos = SIGN2UNSIGN(max(bam_endpos(alnrecord), 
-                            min(alnrecord->core.pos, alnrecord->core.mpos) + min(abs(alnrecord->core.isize), (int)ARRPOS_MARGIN)))
+                    endingpos = SIGN2UNSIGN(MAX(bam_endpos(alnrecord), 
+                            MIN(alnrecord->core.pos, alnrecord->core.mpos) + MIN(abs(alnrecord->core.isize), (int)ARRPOS_MARGIN)))
                             + (ARRPOS_OUTER_RANGE * 2);
                 }
             }
@@ -225,11 +222,11 @@ sam_fname_to_contigs(
                     tend = bam_endpos(alnrecord);
                 } else {
                     tbeg = tend;
-                    tend = max(tbeg, SIGN2UNSIGN(bam_endpos(alnrecord))) + SIGN2UNSIGN(1);
+                    tend = MAX(tbeg, SIGN2UNSIGN(bam_endpos(alnrecord))) + SIGN2UNSIGN(1);
                 }
                 nreads = prev_nreads;
             }
-            tend = max(tend, SIGN2UNSIGN(bam_endpos(alnrecord)));
+            tend = MAX(tend, SIGN2UNSIGN(bam_endpos(alnrecord)));
             nreads += 1;
         }
         if (tid != -1) {
@@ -313,15 +310,15 @@ fill_isrc_isr2_beg_end_with_aln(bool & isrc, bool & isr2, uvc1_refgpos_t & tBeg,
         tEnd = (isrc ? begpos : endpos);
         num_seqs = 1;
     } else {
-        auto tBegP1 = min(begpos, SIGN2UNSIGN(aln->core.mpos));
+        auto tBegP1 = MIN(begpos, SIGN2UNSIGN(aln->core.mpos));
         auto tEndP1 = tBegP1 + abs(aln->core.isize) - 1;
         bool strand = (isrc ^ isr2);
         tBeg = (strand ? tEndP1 : tBegP1); 
         tEnd = (strand ? tBegP1 : tEndP1);
         num_seqs = 2;
     }
-    auto tOrdBeg = min(tBeg, tEnd);
-    auto tOrdEnd = max(tBeg, tEnd);
+    auto tOrdBeg = MIN(tBeg, tEnd);
+    auto tOrdEnd = MAX(tBeg, tEnd);
     if (tOrdBeg + (ARRPOS_MARGIN - ARRPOS_OUTER_RANGE) <= fetch_tbeg || fetch_tend - 1 + (ARRPOS_MARGIN - ARRPOS_OUTER_RANGE) <= tOrdEnd) {
         return OUT_OF_RANGE; // is out of range
     }
@@ -420,11 +417,11 @@ apply_bq_err_correction(bam1_t *aln, uvc1_unsigned_int_t homopol_minBQ_inc = 5, 
         const auto b = bam_seqi(seq, thispos);
         uint8_t qmin = qual[thispos];
         for (nextpos = thispos + 1; nextpos != aln->core.l_qseq && b == bam_seqi(seq, nextpos); nextpos++) {
-            qmin = min(qmin, qual[nextpos]);
+            qmin = MIN(qmin, qual[nextpos]);
         }
         if (nextpos - thispos >= homopol_min_len) {
             for (uvc1_unsigned_int_t pos = thispos; pos != nextpos; pos++) {
-                qual[pos] = min(qual[pos], qmin + homopol_minBQ_inc);
+                qual[pos] = MIN(qual[pos], qmin + homopol_minBQ_inc);
             }
         }
     }
@@ -450,9 +447,9 @@ apply_bq_err_correction2(const bam1_t *aln, uvc1_unsigned_int_t dec_per_base, uv
         if (b == prev_b) {
             homopol_len++;
             if (homopol_len >= homopol_min_len) {
-                auto bam_qual_dec = min(homopol_len - homopol_min_len + 1, max_dec);
+                auto bam_qual_dec = MIN(homopol_len - homopol_min_len + 1, max_dec);
                 auto q = bam_get_qual(aln)[i];
-                bam_get_qual(aln)[i] = max(bam_qual_dec, q) - bam_qual_dec;
+                bam_get_qual(aln)[i] = MAX(bam_qual_dec, q) - bam_qual_dec;
             }
         } else {
             homopol_len = 1;
@@ -466,8 +463,8 @@ int
 apply_bq_err_correction3(bam1_t *aln) {
     if ((0 == aln->core.l_qseq) || (aln->core.flag & 0x4)) { return -1; }
     
-    for (uvc1_unsigned_int_t i = 0; i < aln->core.l_qseq; i++) {
-        bam_get_qual(aln)[i] = min(bam_get_qual(aln)[i], 37);
+    for (uvc1_readpos_t i = 0; i < aln->core.l_qseq; i++) {
+        bam_get_qual(aln)[i] = MIN(bam_get_qual(aln)[i], 37);
     }
     
     const auto cigar = bam_get_cigar(aln);
@@ -502,7 +499,7 @@ apply_bq_err_correction3(bam1_t *aln) {
     const // uvc1_refgpos_t 
     int pos_incs[2] = {1, -1};
     {
-        uvc1_qual_t qsum = 0;
+        // uvc1_qual_t qsum = 0;
         // uvc1_unsigned_int_t qnum = 0;
         uint8_t prev_b = 0;
         uvc1_unsigned_int_t distinct_cnt = 0;
@@ -527,7 +524,7 @@ apply_bq_err_correction3(bam1_t *aln) {
             for (uvc1_refgpos_t pos = exclu_end_poss[strand] - pos_incs[strand]; pos != (inclu_beg_poss[strand] - pos_incs[strand]) && pos != termpos; pos -= pos_incs[strand]) {
                 const uvc1_qual_t q = bam_get_qual(aln)[pos];
                 // bam_get_qual(aln)[pos] = q * 5 / (5 + tail_penal);
-                bam_get_qual(aln)[pos] = max(bam_get_qual(aln)[pos], tail_penal + 1) - tail_penal;
+                bam_get_qual(aln)[pos] = MAX(bam_get_qual(aln)[pos], tail_penal + 1) - tail_penal;
                 if (is_in_log_reg) {
                     LOG(logINFO) << "\tQuality adjustment at pos " << pos << " : " << (int)q << " -> " << (int)bam_get_qual(aln)[pos]; 
                 }
@@ -543,11 +540,11 @@ apply_bq_err_correction3(bam1_t *aln) {
             if (b == prev_b) {
                 homopol_len++;
                 if (homopol_len >= 4 && b == seq_nt16_table['G']) {
-                    bam_get_qual(aln)[pos] = max(bam_get_qual(aln)[pos], 1 + 1) - 1;
+                    bam_get_qual(aln)[pos] = MAX(bam_get_qual(aln)[pos], 1 + 1) - 1;
                 }
                 /*
                 if (homopol_len >= 3 && b == seq_nt16_table['C']) {
-                    bam_get_qual(aln)[pos] = max(bam_get_qual(aln)[pos], 1 + 1) - 1;
+                    bam_get_qual(aln)[pos] = MAX(bam_get_qual(aln)[pos], 1 + 1) - 1;
                 }
                 */
             } else {
@@ -581,7 +578,7 @@ apply_baq(bam1_t *aln, const uvc1_unsigned_int_t baq_per_aligned_base, uvc1_unsi
         auto q = bam_get_qual(aln)[i];
         qsum += q;
         qnum += 1;
-        bam_get_qual(aln)[i] = min(q, qsum / qnum + q/3);
+        bam_get_qual(aln)[i] = MIN(q, qsum / qnum + q/3);
     }
     
 #if 0 // application of BAQ is too early here and is therefore disabled
@@ -593,11 +590,11 @@ apply_baq(bam1_t *aln, const uvc1_unsigned_int_t baq_per_aligned_base, uvc1_unsi
             auto base = bam_get_seq(aln)[i];
             if (0 == base2cnt[base]) {
                 curr_baq_per_base += baq_per_new_base;
-                curr_baq_per_base = min(curr_baq_per_base, max_baq_per_base);
+                curr_baq_per_base = MIN(curr_baq_per_base, max_baq_per_base);
             }
             base2cnt[base]++;
             nbases++;
-            bam_get_qual(aln)[i] = min((bam_get_qual(aln))[i], baq_per_aligned_base * nbases);
+            bam_get_qual(aln)[i] = MIN((bam_get_qual(aln))[i], baq_per_aligned_base * nbases);
             if (baq_per_aligned_base * nbases > 48) { break; }
         }
     }
@@ -610,8 +607,8 @@ int
 fill_strand_umi_readset_with_strand_to_umi_to_reads(
         std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, uvc1_flag_t>> &umi_strand_readset,
         std::map<uvc1_hash_t, std::pair<std::array<std::map<uvc1_hash_t, std::vector<bam1_t *>>, 2>, uvc1_flag_t>> &umi_to_strand_to_reads,
-        uvc1_qual_t baq_per_aligned_base
-        ) {
+        // uvc1_qual_t baq_per_aligned_base
+        const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
     for (auto & umi_to_strand_to_reads_element : umi_to_strand_to_reads) {
         const auto strand_to_reads = umi_to_strand_to_reads_element.second.first;
         const auto dflag = umi_to_strand_to_reads_element.second.second;
@@ -699,12 +696,12 @@ bamfname_to_strand_to_familyuid_to_reads(
         // bool is_proton,
         // const uvc1_flag_t dedup_flag,
         const CommandLineArgs & paramset,
-        uvc1_flag_t specialflag) {
+        const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
     assert (fetch_tend > fetch_tbeg);
     
     const bool is_pair_end_merge_enabled = (PAIR_END_MERGE_NO != paramset.pair_end_merge);
 
-    const bool should_log = (ispowof2(regionbatch_ordinal+1) || ispowof2(regionbatch_tot_num - regionbatch_ordinal));
+    const bool should_log = (ispowerof2(regionbatch_ordinal+1) || ispowerof2(regionbatch_tot_num - regionbatch_ordinal));
     std::vector<uint8_t> umi_struct_string16;
     for (auto ch : UMI_STRUCT_STRING) {
         umi_struct_string16.push_back(seq_nt16_table[(int8_t)ch]);
@@ -749,8 +746,8 @@ bamfname_to_strand_to_familyuid_to_reads(
             isrc_isr2_to_beg_count[isrc * 2 + isr2][tBeg + ARRPOS_MARGIN - fetch_tbeg] += 1;
             isrc_isr2_to_end_count[isrc * 2 + isr2][tEnd + ARRPOS_MARGIN - fetch_tbeg] += 1;
             num_pass_alns += 1;
-            extended_inclu_beg_pos = min(extended_inclu_beg_pos, SIGN2UNSIGN(aln->core.pos));
-            extended_exclu_end_pos = max(extended_exclu_end_pos, SIGN2UNSIGN(bam_endpos(aln)));
+            extended_inclu_beg_pos = MIN(extended_inclu_beg_pos, SIGN2UNSIGN(aln->core.pos));
+            extended_exclu_end_pos = MAX(extended_exclu_end_pos, SIGN2UNSIGN(bam_endpos(aln)));
         }
         fillcode_to_num_alns[filterReason]++;
         num_iter_alns += 1;
@@ -771,7 +768,7 @@ bamfname_to_strand_to_familyuid_to_reads(
     uvc1_readnum_t beg_peak_max = 0;
     for (auto beg_count : isrc_isr2_to_beg_count) {
         for (auto countval : beg_count) {
-            beg_peak_max = max(beg_peak_max, countval);
+            beg_peak_max = MAX(beg_peak_max, countval);
         }
     }
     
@@ -829,7 +826,7 @@ bamfname_to_strand_to_familyuid_to_reads(
             if (i > ARRPOS_INNER_RANGE || i < -ARRPOS_INNER_RANGE) {
                 assert(i+beg2 < fetch_size || !fprintf(stderr, "beg2 index %d + %d = %d is too big!", i, beg2, i+beg2));
                 uvc1_readnum_t beg_count = isrc_isr2_to_beg_count.at(isrc_isr2).at(i + beg2);
-                beg2surrcount = max(beg2surrcount, beg_count);
+                beg2surrcount = MAX(beg2surrcount, beg_count);
             }
         }
         uvc1_readnum_t end2surrcount = 0;
@@ -837,7 +834,7 @@ bamfname_to_strand_to_familyuid_to_reads(
             if (i > ARRPOS_INNER_RANGE && i < -ARRPOS_INNER_RANGE) {
                 assert(i + end2 < fetch_size || !fprintf(stderr, "end2 index %d + %d = %d is too big!", i, end2, i + end2));
                 uvc1_readnum_t end_count = isrc_isr2_to_end_count.at(isrc_isr2).at(i + end2);
-                end2surrcount = max(end2surrcount, end_count);
+                end2surrcount = MAX(end2surrcount, end_count);
             }
         }
         double begfrac = (double)(beg2count + 1) / (double)(beg2surrcount + 2);
@@ -892,8 +889,8 @@ bamfname_to_strand_to_familyuid_to_reads(
         
         uvc1_hash_t molecule_hash = 0;
         if (0x3 == (0x3 & dedup_idflag)) {
-            auto min2 = min(beg2, end2);
-            auto max2 = max(beg2, end2);
+            auto min2 = MIN(beg2, end2);
+            auto max2 = MAX(beg2, end2);
             molecule_hash = hash2hash(molecule_hash, hash2hash(min2, max2)); 
         } else if (0x1 & dedup_idflag) {
             molecule_hash = hash2hash(molecule_hash, beg2+1); 
@@ -913,7 +910,7 @@ bamfname_to_strand_to_familyuid_to_reads(
         umi_to_strand_to_reads[molecule_hash].first[strand].insert(std::make_pair(qname_hash, std::vector<bam1_t *>()));
         umi_to_strand_to_reads[molecule_hash].first[strand][qname_hash].push_back(bam_dup1(aln));
         
-        const bool should_log_read = (ispowof2(alnidx + 1) || ispowof2(num_pass_alns - alnidx));
+        const bool should_log_read = (ispowerof2(alnidx + 1) || ispowerof2(num_pass_alns - alnidx));
         if (!is_pair_end_merge_enabled) { assert(!isr2); }
         if ((should_log_read && (beg_peak_max >= 2000 || should_log)) || paramset.always_log) {
             LOG(logINFO) << "thread_id = " << thread_id << " ; "

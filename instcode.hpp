@@ -15,15 +15,16 @@ fill_by_indel_info2_1
 fill_by_indel_info2_2
 #endif
 (bcfrec::BcfFormat & fmt,
-        const Symbol2CountCoverageSet & symbol2CountCoverageSet, 
+        const Symbol2CountCoverageSet & symbol2CountCoverageSet IGNORE_UNUSED_PARAM, 
         const int strand, 
         const uvc1_refgpos_t refpos, 
         const AlignmentSymbol symbol,
         const std::map<uvc1_refgpos_t, std::map<INDELTYPE, uvc1_readnum_t>> & bq_tsum_depth,
         const std::map<uvc1_refgpos_t, std::map<INDELTYPE, uvc1_readnum_t>> & fq_tsum_depth,
-        const std::string & refchars, 
-        const std::string & repeatunit, 
-        uvc1_readpos_t repeatnum) {
+        const std::string & refchars IGNORE_UNUSED_PARAM,
+        // const std::string & repeatunit, 
+        // uvc1_readpos_t repeatnum
+        const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
     
     assert(isSymbolIns(symbol) || isSymbolDel(symbol));
     if (isSymbolIns(symbol)) {
@@ -70,7 +71,7 @@ fill_by_indel_info2_2
         fmt.gapSeq.push_back(gap_seq);
         fmt.gapbAD1.push_back(gap_bAD);
         fmt.gapcAD1.push_back(gap_cAD);
-        if (gap_seq.size() != prev_gapseq_len && prev_gap_cAD > gap_cAD) {
+        if ((UNSIGN2SIGN(gap_seq.size()) != prev_gapseq_len) && (prev_gap_cAD > gap_cAD)) {
             maxdiff = MAX(maxdiff, prev_gap_cAD - gap_cAD);
         }
         prev_gapseq_len = gap_seq.size();

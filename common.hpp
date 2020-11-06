@@ -10,11 +10,23 @@
 #include <float.h>
 #include <limits.h>
 
-//#define SIGN2UNSIGN(a) ((unsigned int)(a))
-#define SIGN2UNSIGN(a) (a)
-#define UNSIGN2SIGN(a) ((int64_t)a)
+#ifdef __GNUC__
+#if __GNUC__ > 3
+#define IGNORE_UNUSED_PARAM __attribute__((unused))
+#else
+#define IGNORE_UNUSED_PARAM // let warning pop up but still compile fine
+#endif
+#else
+#define IGNORE_UNUSED_PARAM 
+#endif
 
-// Phred, nat, bit, frac
+#define SIGN2UNSIGN(x) ((x)) // disabled
+#define UNSIGN2SIGN(x) ((const int64_t)(x))
+
+#define MIN(x, y) (((x) < (y)) ? (x) : (y))
+#define MAX(x, y) (((x) > (y)) ? (x) : (y))
+
+// conversion between Phred, nat, bit, frac, and states
 #define  phred2nat(x) ((log(10.0)/10.0) * (x))
 #define  nat2phred(x) ((10.0/log(10.0)) * (x))
 #define frac2phred(x) (-(10.0/log(10.0)) * log(x))
@@ -22,10 +34,9 @@
 #define numstates2phred(x) ((10.0/log(10.0)) * log(x))
 #define phred2numstates(x) (pow(10.0, (x)/10.0))
 
-#define numstates2deciphred(x) ((int)round((100.0/log(10.0)) * log(x)))
+#define numstates2deciphred(x) ((uvc1_qual_t)round((100.0/log(10.0)) * log(x)))
 
 #define OUTVAR_GERMLINE 0x1
-//#define OUTVAR_HOMREF 0x2
 #define OUTVAR_SOMATIC 0x2
 #define OUTVAR_ANY 0x4
 #define OUTVAR_GVCF 0x8
@@ -36,10 +47,10 @@
 
 #define INT64MUL(x, y) ((int64_t)(x) * (int64_t)(y))
 
-typedef uint64_t uvc1_unsigned_int_t;    //
+typedef uint64_t uvc1_unsigned_int_t; // It seems that a bug in g++ causes compiling error if this type is defined as (unsigned int)
 
-typedef int32_t uvc1_qual_t;    // quality (usually phred-scaled)
-typedef int32_t uvc1_deciphred_t; // 10 x Phred
+typedef int32_t uvc1_qual_t;    // quality (usually Phred-scaled)
+typedef int32_t uvc1_deciphred_t; // 10x Phred
 
 typedef int32_t uvc1_readnum_t; // depth of segment, fragment, family, etc. // max 2 billion reads
 typedef int32_t uvc1_readnum100x_t; // 100x depth of segment, fragment, etc. // max 20 million reads
@@ -195,10 +206,10 @@ struct VcStats {
 */
 // region_pos32_unitlen8_repeatnum16_qual8_vec
 struct RegionalTandemRepeat {
-    uint32_t begpos = 0;
-    uint16_t tracklen = 0;
-    uint8_t unitlen = 0;
-    uint8_t indelphred = 40 + 3;
+    uvc1_refgpos_t begpos = 0;
+    uvc1_readpos_t tracklen = 0;
+    uvc1_readpos_t unitlen = 0;
+    uvc1_qual_t indelphred = 40 + 3;
     // uint8_t edgeBAQ;
 };
 

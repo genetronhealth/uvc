@@ -165,7 +165,8 @@ int
 fill_strand_umi_readset_with_strand_to_umi_to_reads(
         std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, uvc1_flag_t>> &umi_strand_readset,
         std::map<uvc1_hash_t, std::pair<std::array<std::map<uvc1_hash_t, std::vector<bam1_t *>>, 2>, uvc1_flag_t>> &umi_to_strand_to_reads,
-        uvc1_qual_t baq_per_aligned_base);
+        // uvc1_qual_t baq_per_aligned_base,
+        uvc1_flag_t specialflag);
 
 std::array<uvc1_readnum_t, 3>
 bamfname_to_strand_to_familyuid_to_reads(
