@@ -675,7 +675,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                 std::array<uvc1_qual_t, NUM_SYMBOL_TYPES> prev_refQ2 = {{ 200 }};
                 
                 std::vector<uvc1_rp_diff_t> posoffset_BDP_CDP_refQ_stype_1dvec;
-                for (uvc1_refgpos_t rp2 = refpos; rp2 < MIN(refpos + 1000 + 1, symbolToCountCoverageSet12.getUnifiedExcluEndPosition()); rp2++) {
+                const auto rp2end = MIN(refpos + 1000 + 1, symbolToCountCoverageSet12.getUnifiedExcluEndPosition());
+                for (uvc1_refgpos_t rp2 = refpos; rp2 < rp2end; rp2++) {
                     for (SymbolType stype : SYMBOL_TYPES_IN_VCF_ORDER) {
                         const uvc1_rp_diff_t refstring_offset = rp2 - extended_inclu_beg_pos;
                         if (refstring_offset > UNSIGN2SIGN(refstring.size())) { 
@@ -735,15 +736,16 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                     std::string("GVCF_BLOCK"),
                     std::string("GT:VTI:POS_BDP_CDP_HomRefQ_VT"),
                     std::string(".") + ":" + std::to_string(match_refsymbol) + "," + std::to_string(GVCF_SYMBOL) + ":" 
-                            + other_join(posoffset_BDP_CDP_refQ_stype_1dvec, ","),
+                            + other_join(posoffset_BDP_CDP_refQ_stype_1dvec, ",") + "," + std::to_string(rp2end - refpos),
                 }}, "\t");
                 
                 std::string tumor_gvcf_format = "";
                 if (paramset.is_tumor_format_retrieved && NOT_PROVIDED != paramset.vcf_tumor_fname) { 
                     const auto & tkis = tid_pos_symb_to_tkis.find(std::make_tuple(tid, refpos, GVCF_SYMBOL))->second;
                     if (tkis.size() == 1) {
-                        tumor_gvcf_format = std::string("\t") + bcf1_to_string(bcf_hdr, tkis[0].bcf1_record);
-                        LOG(logINFO) << "gVCFblock at " << refpos << " is indeed found, tumor_gvcf_format == " << tumor_gvcf_format;
+                        // const auto str2 = bcf1_to_string_2(bcf_hdr, tkis[0].bcf1_record);
+                        tumor_gvcf_format = bcf1_to_string(bcf_hdr, tkis[0].bcf1_record);
+                        LOG(logINFO) << "gVCFblock at " << refpos << " is indeed found, tumor_gvcf_format == " << tumor_gvcf_format; // + " ; tumor_gvcf_line = " << str2;
                     } else {
                         tumor_gvcf_format = std::string("\t.:.,.:.");
                         LOG(logINFO) << "gVCFblock at " << refpos << " is not found, tkis.size() == " << tkis.size();

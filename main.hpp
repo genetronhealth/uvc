@@ -2059,7 +2059,7 @@ struct Symbol2CountCoverageSet {
                 }
             }
         }
-        LOG(logINFO) << "Performed " << n_updates << " updates with this number of alignments.";
+        // LOG(logINFO) << "Performed " << n_updates << " updates with this number of alignments.";
         for (const auto & alns2pair2dflag : alns3) {
             const auto & alns2pair = alns2pair2dflag.first;
             for (int strand = 0; strand < 2; strand++) {
@@ -3990,6 +3990,18 @@ generate_vcf_header(const char *ref_fasta_fname,
     ret += std::string("") + "##phasing=partial\n";
     ret += std::string("") + "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t" 
             + sampleName + ((tumor_sampleName != NULL && is_tumor_format_retrieved) ? (std::string("\t") + tumor_sampleName) : std::string("")) + "\n";
+    return ret;
+}
+
+std::string
+bcf1_to_string_2(const bcf_hdr_t *tki_bcf1_hdr, const bcf1_t *bcf1_record) {
+    kstring_t ks = { 0, 0, NULL };
+    vcf_format(tki_bcf1_hdr, bcf1_record, &ks);
+    assert (ks.l > 2);
+    std::string ret = ks.s;
+    if (ks.s != NULL) {
+        free(ks.s);
+    }
     return ret;
 }
 
