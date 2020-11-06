@@ -3470,7 +3470,7 @@ BcfFormat_symbol_calc_qual(
         ? cysotine_deanim_to_score[MIN(cDP2, cysotine_deanim_to_score.size() - 1)] 
         : other_to_score[MIN(cDP2, other_to_score.size() - 1)]); 
     
-    const uvc1_qual_t dVQinc = MIN(dFA_vq_binom, dFA_vq_powlaw - indel_penal4multialleles) - MIN(LAST(fmt.cIAQ), LAST(fmt.cPLQ2) - indel_penal4multialleles);
+    const uvc1_qual_big_t dVQinc = MIN(dFA_vq_binom, dFA_vq_powlaw - indel_penal4multialleles) - MAX(0, MIN(LAST(fmt.cIAQ), LAST(fmt.cPLQ2) - indel_penal4multialleles));
     clear_push(fmt.dVQinc, dVQinc, a);
     
     const uvc1_qual_t cVQ2 = MIN3(syserr_q,
