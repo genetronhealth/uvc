@@ -2912,8 +2912,8 @@ BcfFormat_symbol_calc_DPv(
     const auto & f = fmt;
     const auto symbol = AlignmentSymbol(LAST(f.VTI));
     
-    double _counterbias_P_FA = 0.0;
-    double _counterbias_BQ_FA = 0.0;
+    double _counterbias_P_FA = 1e-9;
+    double _counterbias_BQ_FA = 1e-9;
     double _dir_bias_div = 1.0;
     if ((is_amplicon && (0x2 == (0x2 & paramset.nobias_flag))) || ((!is_amplicon) && (0x1 == (0x1 & paramset.nobias_flag)))) {
         // counter bias : position 23-10 bp and base quality 13
@@ -3056,10 +3056,24 @@ BcfFormat_symbol_calc_DPv(
     const auto aSSFAx2 = dp4_to_pcFA<true>(fmt.aDPff[a] + fmt.aDPrf[a], fmt.aDPfr[a] + fmt.aDPrr[a], fmt.ADPff[0] + fmt.ADPrf[0], fmt.ADPfr[0] + fmt.ADPrr[0], 
             paramset.powlaw_exponent, phred2nat(aSBpriorfreq));
     const auto bias_priorfreq_orientation_base = (isSymbolSubstitution(symbol) ? paramset.bias_priorfreq_orientation_snv_base :paramset.bias_priorfreq_orientation_indel_base);
-    const auto cROFA1x2 = dp4_to_pcFA<true>(fmt.cDP12f[a], fmt.cDP12r[a], fmt.CDP12f[0], fmt.CDP12r[0], paramset.powlaw_exponent, 
-            log(mathsquare(aDPFA)) + phred2nat(bias_priorfreq_orientation_base));
+    
+    auto _cROFA1x2 = dp4_to_pcFA<true>(fmt.cDP1f[a], fmt.cDP1r[a], fmt.CDP1f[0], fmt.CDP1r[0], paramset.powlaw_exponent, 
+                log(mathsquare(aDPFA)) + phred2nat(bias_priorfreq_orientation_base));
+    if (paramset.bias_is_orientation_artifact_mixed_with_sequencing_error) {
+        // this is useful for dealing with heavy FFPE artifact and heavy sequencing error
+        const auto cROFA10x2 = dp4_to_pcFA<true>(fmt.cDP1f[a], fmt.cDP1r[a], fmt.CDP1f[0], fmt.CDP1r[0], paramset.powlaw_exponent, 
+                log(mathsquare(aDPFA)) + phred2nat(bias_priorfreq_orientation_base));
+        const auto cROFA12x2 = dp4_to_pcFA<true>(fmt.cDP12f[a], fmt.cDP12r[a], fmt.CDP12f[0], fmt.CDP12r[0], paramset.powlaw_exponent, 
+                log(mathsquare(aDPFA)) + phred2nat(bias_priorfreq_orientation_base));
+        _cROFA1x2 = (
+                    ((fmt.ADPff[0] * 8 >= ADP) && (fmt.ADPfr[0] * 8 >= ADP) 
+                  && (fmt.ADPrf[0] * 8 >= ADP) && (fmt.ADPrr[0] * 8 >= ADP)) 
+                ? cROFA12x2 : cROFA10x2);
+    }
+    const auto cROFA1x2 = _cROFA1x2; 
     const auto cROFA2x2 = dp4_to_pcFA<true>(fmt.cDP2f[a], fmt.cDP2r[a], fmt.CDP2f[0], fmt.CDP2r[0], paramset.powlaw_exponent, 
             log(mathsquare(aDPFA)) + phred2nat(bias_priorfreq_orientation_base));
+    
     double aSSFA = aSSFAx2[0] * dir_bias_div;
     double cROFA1 = cROFA1x2[0] * dir_bias_div;
     double cROFA2 = cROFA2x2[0] * dir_bias_div;
@@ -3431,19 +3445,7 @@ BcfFormat_symbol_calc_qual(
         sscs_powlaw_qual_w += (uvc1_qual_t)floor(sscs_indel_ic);
         sscs_binom_qual += (uvc1_qual_t)floor(indel_pq);
     }
-    
-    clear_push(fmt.bIAQ, duped_frag_binom_qual, a);
-    clear_push(fmt.cIAQ, sscs_binom_qual, a);
-    
-    clear_push(fmt.cPCQ1, dedup_frag_powlaw_qual_w, a);
-    clear_push(fmt.cPLQ1, dedup_frag_powlaw_qual_v, a);
-    
-    clear_push(fmt.cPCQ2, sscs_powlaw_qual_w, a);
-    clear_push(fmt.cPLQ2, sscs_powlaw_qual_v, a);
-    
-    clear_push(fmt.bTINQ, contam_frag_withmin_qual + contam_syserr_phred_bypassed, a);
-    clear_push(fmt.cTINQ, contam_sscs_withmin_qual + contam_syserr_phred_bypassed, a);
-
+ 
     const uvc1_qual_t phred_varq_per_mapq = ((refsymbol == symbol) ? 0 : 
             paramset.syserr_phred_varcall_err_per_map_err_per_base);
     const uvc1_qual_t minMQinc = (int)((refsymbol == symbol) ? 0 : 
@@ -3454,6 +3456,22 @@ BcfFormat_symbol_calc_qual(
             non_neg_minus(MAX(fmt.bMQ[a], (refsymbol == symbol ? 0 : paramset.syserr_minMQ)) + MIN(minMQinc, bDP * 3), bMQdec),
             (SEQUENCING_PLATFORM_IONTORRENT != paramset.sequencing_platform && isSymbolSubstitution(AlignmentSymbol(LAST(fmt.VTI))) ? (fmt.aBQQ[a]) : (200)));
     
+    const auto tn_syserr_q = syserr_q + MAX(paramset.tn_q_inc_max, non_neg_minus(paramset.germ_phred_homalt_snp, 
+            numstates2phred(MAX(1, aDP * 100) / (double)MAX(1, LAST(fmt.aXM2)))));
+    // aXMp1, a1XM, and aXM2 are actually not used.
+    
+    clear_push(fmt.bIAQ, duped_frag_binom_qual, a);
+    clear_push(fmt.cIAQ, sscs_binom_qual, a);
+    
+    clear_push(fmt.cPCQ1, MIN(dedup_frag_powlaw_qual_w, tn_syserr_q), a);
+    clear_push(fmt.cPLQ1, dedup_frag_powlaw_qual_v, a);
+    
+    clear_push(fmt.cPCQ2, MIN(sscs_powlaw_qual_w, tn_syserr_q), a);
+    clear_push(fmt.cPLQ2, sscs_powlaw_qual_v, a);
+    
+    clear_push(fmt.bTINQ, contam_frag_withmin_qual + contam_syserr_phred_bypassed, a);
+    clear_push(fmt.cTINQ, contam_sscs_withmin_qual + contam_syserr_phred_bypassed, a);
+
     const uvc1_readnum_t aDPpc = ((refsymbol == symbol) ? 1 : 0);
     const uvc1_qual_t penal4BQerr = (isSymbolSubstitution(symbol) ? (5 + (int)(((int64_t)paramset.penal4lowdep) / (int64_t)mathsquare((int64_t)MAX(1, aDP + aDPpc)))) : 0);
     

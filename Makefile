@@ -67,6 +67,5 @@ clean:
 deploy:
 	cp uvc.rel.out bin/uvc1
 	cp debarcode bin/debarcode
-	cp minivc bin/minivc
 	cp uvc.cppt.out uvc.st.out uvc.mt.out uvc.no.out bin/
 

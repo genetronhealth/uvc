@@ -536,6 +536,12 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
         "--bias-thres-FTS-FA",
            bias_thres_FTS_FA,
         "If the bias-reduced allele fraction multiplied by this parameter is less than the non bias-reduced allele fraction, then flag the variant for bias in FTS. ");
+    ADD_OPTDEF(app,
+        "--bias-is-orientation-artifact-mixed-with-sequencing-error",
+           bias_is_orientation_artifact_mixed_with_sequencing_error,
+        "Model false positive calls as a mixture of read-orientation-specific error and sequencing error. "
+            "Improve specificity at the cost of sensitivity. "
+            "This may be useful if both heavy FFPE artifact and heavy sequencing error are present. ");
 
 // *** 06. parameters related to the priors of bias
     

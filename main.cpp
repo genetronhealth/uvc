@@ -902,7 +902,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                 } //{}
         } // end of iterations within symboltype
             const size_t string_pass_old_size = buf_out_string_pass.size();
-            auto st_to_nlodq_fmtptr1_fmtptr2_tup = std::array<std::tuple<int, bcfrec::BcfFormat*, bcfrec::BcfFormat*>, 2>();
+            auto st_to_nlodq_fmtptr1_fmtptr2_tup = std::array<std::tuple<uvc1_qual_t, bcfrec::BcfFormat*, bcfrec::BcfFormat*>, NUM_SYMBOL_TYPES>();
             std::array<int32_t, NUM_SYMBOL_TYPES> curr_vAC = {{ 0 }};
             for (SymbolType symboltype : SYMBOL_TYPE_ARR) {
                 if (zerobased_pos == rpos_inclu_beg && BASE_SYMBOL == symboltype) { continue; } 
@@ -1080,7 +1080,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                                     if (nlodq_inc > new_nlodq_inc) {
                                         nlodq_inc = new_nlodq_inc;
                                         argmin_nlodq_symbol = normsymbol;
-                                        /*
+#if 0
                                         fmt.note += std::string("/nlodqDeltaIs/") 
                                         + other_join(std::array<double, 5> {{ tAD, tDP, nAD, nDP, nlodq_inc }}, "/") + "#" 
                                         + std::to_string(std::get<0>(nlodq_fmtptr1_fmtptr2_tup)) + "#"
@@ -1092,7 +1092,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                                         + other_join(std::get<1>(nlodq_fmtptr1_fmtptr2_tup)->CONTQ, "/") + "//"
                                         + other_join(std::get<2>(nlodq_fmtptr1_fmtptr2_tup)->CONTQ, "/") + "//"
                                         ;
-                                        */
+#endif
                                     }
                                 }
                                 nlodq += nlodq_inc;
