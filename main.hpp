@@ -3911,17 +3911,19 @@ output_germline(
 
 #include "version.h"
 std::string 
-generate_vcf_header(const char *ref_fasta_fname, 
+generate_vcf_header(
+        // const char *ref_fasta_fname, 
         const char *platform, 
-        uvc1_readpos_t central_readlen,
+        // uvc1_readpos_t central_readlen,
         int argc,
         const char *const *argv,
         int32_t n_targets,
         const char *const *target_name,
         const uint32_t *target_len,
-        const char *const sampleName,
+        // const char *const sampleName,
         const char *const tumor_sampleName,
-        bool is_tumor_format_retrieved) {
+        // bool is_tumor_format_retrieved,
+        const CommandLineArgs & paramset) {
     time_t rawtime;
     time(&rawtime);
     char timestring[80];
@@ -3937,9 +3939,9 @@ generate_vcf_header(const char *ref_fasta_fname,
     ret += "\n";
     ret += std::string("") + "##variantCallerInferredParameters=<" 
             + "inferred_sequencing_platform=" + platform 
-            + ",central_readlen=" + std::to_string(central_readlen) 
+            + ",central_readlen=" + std::to_string(paramset.central_readlen) 
             + ">\n";
-    ret += std::string("") + "##reference=" + ref_fasta_fname + "\n";
+    ret += std::string("") + "##reference=" + paramset.fasta_ref_fname + "\n";
     for (int i = 0; i < n_targets; i++) {
         ret += std::string("") + "##contig=<ID=" + target_name[i] + ",length=" + std::to_string(target_len[i]) + ">\n";
     }
@@ -3982,14 +3984,19 @@ generate_vcf_header(const char *ref_fasta_fname,
     //ret += std::string("") + "##FORMAT=<ID=gBEG,Number=1,Type=Integer,Description=\"Begin position of the genomic block (one-based inclusive)\">\n";
     //ret += std::string("") + "##FORMAT=<ID=gEND,Number=1,Type=Integer,Description=\"End position of the genomic block (one-based inclusive)\">\n";
     ret += std::string("") + "##FORMAT=<ID=POS_BDP_CDP_HomRefQ_VT,Number=.,Type=Integer,Description=\"Multiple gVCF regions. "
-            "Each region has its offset to VCF POS, minimum duped depth without duplicates kept, minimum deduped depth with duplicates removed, likelihood of the homozygous-reference genotype, and position type. "
+            "Each region has its offset to VCF POS, minimum duped depth without duplicates kept, minimum deduped depth with duplicates removed, "
+                "likelihood of the homozygous-reference (homref) genotype (GT), and position type. "
             "Each set of 5 consecutive integers describes one region in this record. "
             "The position types -1 and -2 mean SNV and InDel positions, respectively. "
+            "The SNV prior of homref GT is used here. "
+            "Thus, the actual InDel likelihood of homref GT is the one shown here plus " 
+            + std::to_string(paramset.germ_phred_hetero_indel - paramset.germ_phred_hetero_snp) + ". " +
+            "The last number is the ending position of the block of regions. "
             "Warning: HomRefQ is computed by a very fast but imprecise algorithm, so it is not as accurate at GQ. \">\n";
     
     ret += std::string("") + "##phasing=partial\n";
     ret += std::string("") + "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t" 
-            + sampleName + ((tumor_sampleName != NULL && is_tumor_format_retrieved) ? (std::string("\t") + tumor_sampleName) : std::string("")) + "\n";
+            + paramset.sample_name + ((tumor_sampleName != NULL && paramset.is_tumor_format_retrieved) ? (std::string("\t") + tumor_sampleName) : std::string("")) + "\n";
     return ret;
 }
 

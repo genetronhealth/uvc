@@ -672,8 +672,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                 
                 uvc1_readnum_t prev_tot_bdepth = 0;
                 uvc1_readnum_t prev_tot_cdepth = 0;
-                std::array<uvc1_qual_t, NUM_SYMBOL_TYPES> prev_refQ2 = {{ 200 }};
-                
+                // std::array<uvc1_qual_t, NUM_SYMBOL_TYPES> prev_refQ2 = {{ 200 }};
+                uvc1_qual_t prev_refQ = 200;
                 std::vector<uvc1_rp_diff_t> posoffset_BDP_CDP_refQ_stype_1dvec;
                 const auto rp2end = MIN(refpos + 1000 + 1, symbolToCountCoverageSet12.getUnifiedExcluEndPosition());
                 for (uvc1_refgpos_t rp2 = refpos; rp2 < rp2end; rp2++) {
@@ -707,19 +707,22 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                         const auto nonref_like_powlaw = -MAX(0, paramset.powlaw_exponent * (10/log(10)) 
                                 * logit2((ref_cdepth + 0.5) / (curr_tot_cdepth + 1.0), paramset.germ_hetero_FA));
                         
-                        const uvc1_qual_t germ_phred_hetero = ((BASE_SYMBOL == stype) ? paramset.germ_phred_hetero_snp : paramset.germ_phred_hetero_indel);
-                        const uvc1_qual_t curr_refQ = (uvc1_qual_t)round(MAX(ref_like_binom, ref_like_powlaw) + germ_phred_hetero - MAX(nonref_like_binom, nonref_like_powlaw));
-                        if ((incluBegPosition == rp2) || (abs(curr_refQ - prev_refQ2[stype]) > 10)
+                        // const uvc1_qual_t germ_phred_hetero = paramset.germ_phred_hetero_snp; 
+                        // ((BASE_SYMBOL == stype) ? paramset.germ_phred_hetero_snp : paramset.germ_phred_hetero_indel);
+                        const uvc1_qual_t curr_refQ = paramset.germ_phred_hetero_snp 
+                                + (uvc1_qual_t)round(MAX(ref_like_binom, ref_like_powlaw) 
+                                - (uvc1_qual_t)round(MAX(nonref_like_binom, nonref_like_powlaw)));
+                        if ((incluBegPosition == rp2) || (abs(curr_refQ - prev_refQ) > 10)
                                 || are_depths_diff(curr_tot_bdepth, prev_tot_bdepth, 100 + 30, 3)
                                 || are_depths_diff(curr_tot_cdepth, prev_tot_cdepth, 100 + 30, 3)) {
                             posoffset_BDP_CDP_refQ_stype_1dvec.push_back(rp2 - refpos);
                             posoffset_BDP_CDP_refQ_stype_1dvec.push_back(curr_tot_bdepth);
                             posoffset_BDP_CDP_refQ_stype_1dvec.push_back(curr_tot_cdepth);
                             posoffset_BDP_CDP_refQ_stype_1dvec.push_back(curr_refQ);
-                            posoffset_BDP_CDP_refQ_stype_1dvec.push_back(-1-(int)stype);
+                            posoffset_BDP_CDP_refQ_stype_1dvec.push_back(-1-(int32_t)stype);
                             prev_tot_bdepth = curr_tot_bdepth;
                             prev_tot_cdepth = curr_tot_cdepth;
-                            prev_refQ2[stype] = curr_refQ;
+                            prev_refQ = curr_refQ;
                         }
                     }
                 }
@@ -1244,17 +1247,18 @@ main(int argc, char **argv) {
     
     bam_hdr_t * samheader = sam_hdr_read(samfiles[0]);
     std::string header_outstring = generate_vcf_header(
-            paramset.fasta_ref_fname.c_str(), 
+            // paramset.fasta_ref_fname.c_str(), 
             SEQUENCING_PLATFORM_TO_DESC.at(inferred_sequencing_platform).c_str(), 
-            paramset.central_readlen, 
+            // paramset.central_readlen, 
             argc, 
             argv, 
             samheader->n_targets, 
             samheader->target_name, 
             samheader->target_len,
-            paramset.sample_name.c_str(), 
+            // paramset.sample_name.c_str(), 
             g_sample, 
-            paramset.is_tumor_format_retrieved);
+            // paramset.is_tumor_format_retrieved
+            paramset);
     // clearstring<false>(fp_allp, header_outstring);
     clearstring<false>(fp_pass, header_outstring, is_vcf_out_pass_to_stdout);
 
