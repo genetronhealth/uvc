@@ -3399,6 +3399,9 @@ BcfFormat_symbol_calc_qual(
     // fmt.note += std::string("cMmQ(") + std::to_string(cMmQ) + ")";
     clear_push(fmt.cMmQ, cMmQ);
     
+    const double eps = (double)FLT_EPSILON;
+    const uvc1_qual_t indel_pena_base = ((SEQUENCING_PLATFORM_IONTORRENT == paramset.sequencing_platform && NOT_PROVIDED == paramset.vcf_tumor_fname)
+            ? ((uvc1_qual_t)round(paramset.indel_multiallele_samepos_penal / log(2) * log(MAX3(aDP + eps, fmt.APDP[1], fmt.APDP[2]) / (aDP + eps)))) : 0);
     uvc1_qual_t indel_penal4multialleles = 0;
     uvc1_qual_t indel_penal4multialleles_g = 0;
     uvc1_qual_t indel_penal4multialleles_soma = 0;
@@ -3419,9 +3422,8 @@ BcfFormat_symbol_calc_qual(
         }
         const uvc1_readnum_t nearInDelDP = (isSymbolIns(symbol) ? fmt.APDP[1] : fmt.APDP[2]);
         
-        assert (nearInDelDP >= aDP || !fprintf(stderr, "nearInDelDP >= aDP failed ( %d >= %d failed) at tid %d pos %d!\n", nearInDelDP, aDP, tid, refpos));
-        const double eps = (double)FLT_EPSILON;
-        
+        assert (nearInDelDP >= aDP || !fprintf(stderr, "nearInDelDP >= aDP failed (%d >= %d failed) at tid %d pos %d!\n", nearInDelDP, aDP, tid, refpos));
+                
         const auto indel_penal4multialleles1 = (uvc1_qual_t)round(paramset.indel_multiallele_samepos_penal / log(2.0) 
                 * log((double)(indelcdepth + eps) / (double)(fmt.cDP0a[a] + eps)));
         const auto indel_penal4multialleles2 = (uvc1_qual_t)round(paramset.indel_multiallele_diffpos_penal / log(2.0) 
@@ -3463,14 +3465,14 @@ BcfFormat_symbol_calc_qual(
             numstates2phred(MAX(1, aDP * 100) / (double)MAX(1, LAST(fmt.aXM2)))));
     // aXMp1, a1XM, and aXM2 are actually not used.
     
-    clear_push(fmt.bIAQ, duped_frag_binom_qual, a);
-    clear_push(fmt.cIAQ, sscs_binom_qual, a);
+    clear_push(fmt.bIAQ, duped_frag_binom_qual - indel_pena_base, a);
+    clear_push(fmt.cIAQ, sscs_binom_qual - indel_pena_base, a);
     
-    clear_push(fmt.cPCQ1, MIN(dedup_frag_powlaw_qual_w, tn_syserr_q), a);
-    clear_push(fmt.cPLQ1, dedup_frag_powlaw_qual_v, a);
+    clear_push(fmt.cPCQ1, MIN(dedup_frag_powlaw_qual_w - indel_pena_base, tn_syserr_q), a);
+    clear_push(fmt.cPLQ1, dedup_frag_powlaw_qual_v - indel_pena_base, a);
     
-    clear_push(fmt.cPCQ2, MIN(sscs_powlaw_qual_w, tn_syserr_q), a);
-    clear_push(fmt.cPLQ2, sscs_powlaw_qual_v, a);
+    clear_push(fmt.cPCQ2, MIN(sscs_powlaw_qual_w - indel_pena_base, tn_syserr_q), a);
+    clear_push(fmt.cPLQ2, sscs_powlaw_qual_v - indel_pena_base, a);
     
     clear_push(fmt.bTINQ, contam_frag_withmin_qual + contam_syserr_phred_bypassed, a);
     clear_push(fmt.cTINQ, contam_sscs_withmin_qual + contam_syserr_phred_bypassed, a);
