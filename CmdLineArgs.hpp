@@ -109,6 +109,9 @@ struct CommandLineArgs {
     uvc1_readnum100x_t bias_thres_PFGO1T_perc = 50;
     uvc1_readnum100x_t bias_thres_PFGO2T_perc = 70;
     
+    uvc1_readnum100x_t bias_thres_PFXM1NT_perc = 70; // for normal
+    uvc1_readnum100x_t bias_thres_PFGO1NT_perc = 70; // for normal
+    
     uvc1_readpos_t     bias_thres_aLRP1t_minus = 10;
     uvc1_readpos_t     bias_thres_aLRP2t_minus = 5;
     uvc1_readpos_t     bias_thres_aLRB1t_minus = 50;

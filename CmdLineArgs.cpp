@@ -428,6 +428,15 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
         "The percent increase in the corresponding threshold relative to the background noise level. ");
     
     ADD_OPTDEF(app,
+        "--bias-thres-PFXM1NT-perc",
+           bias_thres_PFXM1NT_perc,
+        "The percent increase in the corresponding threshold relative to the background noise level for the matched normal. ");
+    ADD_OPTDEF(app,
+        "--bias-thres-PFGO1NT-perc",
+           bias_thres_PFGO1NT_perc,
+        "The percent increase in the corresponding threshold relative to the background noise level for the matched normal. ");
+    
+    ADD_OPTDEF(app,
         "--bias-thres-aLRP1t-minus",
            bias_thres_aLRP1t_minus,
         "The tier-1-threshold of the number of bases to the left/right segment ends (LRP) below which the read support is not effective, "

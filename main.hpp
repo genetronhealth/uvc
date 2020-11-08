@@ -1122,9 +1122,12 @@ update_seg_format_thres_from_prep_sets(
         t.segthres_aLPxT = int64mul(ins_border_len, paramset.bias_thres_aLPxT_perc) / 100 + paramset.bias_thres_aLPxT_add;
         t.segthres_aRPxT = int64mul(MAX(ins_border_len, del_border_len), paramset.bias_thres_aLPxT_perc) / 100 + paramset.bias_thres_aLPxT_add;
         
-        t.segthres_aXM1T = int64mul(p.segprep_a_XM1500, paramset.bias_thres_PFXM1T_perc) / (segprep_a_dp * 100) + paramset.bias_thres_PFXM1T_add; // easier to pass
+        const auto bias_thres_PFXM1T_perc = ((NOT_PROVIDED != paramset.vcf_tumor_fname) ? paramset.bias_thres_PFXM1NT_perc : paramset.bias_thres_PFXM1T_perc);
+        const auto bias_thres_PFGO1T_perc = ((NOT_PROVIDED != paramset.vcf_tumor_fname) ? paramset.bias_thres_PFGO1NT_perc : paramset.bias_thres_PFGO1T_perc);
+
+        t.segthres_aXM1T = int64mul(p.segprep_a_XM1500,          bias_thres_PFXM1T_perc) / (segprep_a_dp * 100) + paramset.bias_thres_PFXM1T_add; // easier to pass
         t.segthres_aXM2T = int64mul(p.segprep_a_XM1500, paramset.bias_thres_PFXM2T_perc) / (segprep_a_dp * 100) + paramset.bias_thres_PFXM2T_add; // the higher the stronger the bias
-        t.segthres_aGO1T = int64mul(p.segprep_a_GO1500, paramset.bias_thres_PFGO1T_perc) / (segprep_a_dp * 100) + paramset.bias_thres_PFGO1T_add; // easier to pass
+        t.segthres_aGO1T = int64mul(p.segprep_a_GO1500,          bias_thres_PFGO1T_perc) / (segprep_a_dp * 100) + paramset.bias_thres_PFGO1T_add; // easier to pass
         t.segthres_aGO2T = int64mul(p.segprep_a_GO1500, paramset.bias_thres_PFGO2T_perc) / (segprep_a_dp * 100) + paramset.bias_thres_PFGO2T_add; // the higher the stronger the bias
         
         t.segthres_aLI1T = int64mul(p.segprep_a_LI, paramset.bias_thres_aLRI1T_perc) / (segLIDP * 100) + paramset.bias_thres_aLRI1T_add;
@@ -1244,8 +1247,8 @@ dealwith_segbias(
         uvc1_readnum100x_t ampfact1 = 100;
         uvc1_readnum100x_t ampfact2 = 100;
 
-        if (xm1500 > const_XM2T) {
-            ampfact1 = 100 * mathsquare(const_XM2T) / mathsquare(xm1500);
+        if (xm1500 > const_XM1T) {
+            ampfact1 = 100 * mathsquare(const_XM1T) / mathsquare(xm1500);
         } else { 
             ampfact1 = 100; 
         }
@@ -1256,8 +1259,8 @@ dealwith_segbias(
         }
         symbol_to_seg_format_depth_set.seginfo_aPF1 += (ampfact1 * ampfact2 / (100));
         
-        if (xm1500 > const_XM1T) {
-            ampfact1 = 100 * mathsquare(const_XM1T) / mathsquare(xm1500);
+        if (xm1500 > const_XM2T) {
+            ampfact1 = 100 * mathsquare(const_XM2T) / mathsquare(xm1500);
         } else { 
             ampfact1 = 100; 
         }
