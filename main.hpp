@@ -1646,7 +1646,19 @@ if ((!is_assay_amplicon) || (ibeg <= rpos && rpos < iend)) {
                     const auto base4bit = bam_seqi(bseq, qpos);
                     const auto base3bit = seq_nt16_int[base4bit];
                     AlignmentSymbol symbol = AlignmentSymbol(base3bit);
-                    bool is_affected_by_indels = false;
+                    if (TIsProton) {
+                        uvc1_qual_t prev_base_phred = 1;
+                        if ((isrc) && (qpos + 1 < aln->core.l_qseq)) {
+                            prev_base_phred = bam_phredi(aln, qpos + 1);
+                        }
+                        if ((!isrc) && (qpos > 0)) {
+                            prev_base_phred = bam_phredi(aln, qpos - 1);
+                        }
+                        incvalue = MIN(bam_phredi(aln, qpos), prev_base_phred) + symboltype2addPhred[BASE_SYMBOL];
+                    } else {
+                        incvalue = bam_phredi(aln, qpos) + symboltype2addPhred[BASE_SYMBOL];
+                    }
+                    // bool is_affected_by_indels = false;
                     /*
                     if (TIsProton) {
                         uvc1_readnum_t deldp = MAX(seg_format_prep_sets.getByPos(rpos).segprep_a_at_del_dp, seg_format_prep_sets.getByPos(rpos).segprep_a_near_RTR_del_dp);
@@ -1654,7 +1666,7 @@ if ((!is_assay_amplicon) || (ibeg <= rpos && rpos < iend)) {
                         is_affected_by_indels = (MAX(deldp, insdp) * 2 >= seg_format_prep_sets.getByPos(rpos).segprep_a_dp);
                     }
                     */
-                    incvalue = bam_phredi(aln, qpos) + (is_affected_by_indels ? MIN(symboltype2addPhred[BASE_SYMBOL], symboltype2addPhred[LINK_SYMBOL]) : symboltype2addPhred[BASE_SYMBOL]);
+                    // incvalue = bam_phredi(aln, qpos) + (is_affected_by_indels ? MIN(symboltype2addPhred[BASE_SYMBOL], symboltype2addPhred[LINK_SYMBOL]) : symboltype2addPhred[BASE_SYMBOL]);
                     this->template inc<TUpdateType>(rpos, AlignmentSymbol(base3bit), incvalue, aln);
                     if (TIsBiasUpdated) {
                         dealwith_segbias<false>(
