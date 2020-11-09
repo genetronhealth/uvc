@@ -79,13 +79,13 @@ CommandLineArgs::selfUpdateByPlatform() {
     }
     if (SEQUENCING_PLATFORM_IONTORRENT == inferred_sequencing_platform && SEQUENCING_PLATFORM_OTHER != this->sequencing_platform) {
         bq_phred_added_indel += 0;
-        bq_phred_added_misma += 4;
+        bq_phred_added_misma += 8;
         syserr_minABQ_pcr_snv += 0;
         syserr_minABQ_pcr_indel += 0;
         syserr_minABQ_cap_snv += 0;
         syserr_minABQ_cap_indel += 0;
         
-        bias_thres_highBQ -= 4;
+        // bias_thres_highBQ -= 4;
         fam_thres_highBQ_snv = 0;
         fam_thres_highBQ_indel = 0;
 

@@ -1677,21 +1677,30 @@ if ((!is_assay_amplicon) || (ibeg <= rpos && rpos < iend)) {
                     const auto base4bit = bam_seqi(bseq, qpos);
                     const auto base3bit = seq_nt16_int[base4bit];
                     AlignmentSymbol symbol = AlignmentSymbol(base3bit);
-                    incvalue = bam_phredi(aln, qpos) + symboltype2addPhred[BASE_SYMBOL];
-                    /*
-                    if (TIsProton) {
-                        uvc1_qual_t prev_base_phred = 1;
-                        if ((isrc) && (qpos + 1 < aln->core.l_qseq)) {
-                            prev_base_phred = bam_phredi(aln, qpos + 1);
+                    // incvalue = bam_phredi(aln, qpos) + symboltype2addPhred[BASE_SYMBOL];
+                    if (TIsProton && ((0 == i2) || (cigar_oplen - 1 == i2))) {
+                        const auto prev_cigar = (0 < i ? cigar[i - 1] : -1);
+                        const auto next_cigar = (i + 1 < n_cigar ? cigar[i + 1] : -1);
+                        if (((cigar_oplen - 1 == i2) && (BAM_CMATCH != next_cigar) && (BAM_CEQUAL != next_cigar) && (BAM_CDIFF != next_cigar))
+                                       || ((0 == i2) && (BAM_CMATCH != prev_cigar) && (BAM_CEQUAL != prev_cigar) && (BAM_CDIFF != prev_cigar))) {
+                            
+                            const bool isrc2 = (0 != i2);
+                            uvc1_qual_t prev_base_phred = 1;
+                            if ((isrc2) && (qpos + 1 < aln->core.l_qseq)) {
+                                prev_base_phred = bam_phredi(aln, qpos + 1);
+                            }
+                            if ((!isrc2) && (qpos > 0)) {
+                                prev_base_phred = bam_phredi(aln, qpos - 1);
+                            }
+                            
+                            // incvalue = bam_phredi(aln, qpos) + MIN(symboltype2addPhred[BASE_SYMBOL], symboltype2addPhred[LINK_SYMBOL]);
+                            incvalue = MIN(bam_phredi(aln, qpos), prev_base_phred) + MIN(symboltype2addPhred[BASE_SYMBOL], symboltype2addPhred[LINK_SYMBOL]);
+                        } else {
+                            incvalue = bam_phredi(aln, qpos) + symboltype2addPhred[BASE_SYMBOL]; 
                         }
-                        if ((!isrc) && (qpos > 0)) {
-                            prev_base_phred = bam_phredi(aln, qpos - 1);
-                        }
-                        incvalue = MIN(bam_phredi(aln, qpos), prev_base_phred) + symboltype2addPhred[BASE_SYMBOL];
                     } else {
                         incvalue = bam_phredi(aln, qpos) + symboltype2addPhred[BASE_SYMBOL];
                     }
-                    */
                     // bool is_affected_by_indels = false;
                     /*
                     if (TIsProton) {
@@ -4243,6 +4252,7 @@ append_vcf_record(
     uvc1_refgpos_t phred_het3al_chance_inc_snp = MAX(0, 2 * paramset.germ_phred_hetero_snp - paramset.germ_phred_het3al_snp - TIN_CONTAM_MICRO_VQ_DELTA);
     uvc1_refgpos_t phred_het3al_chance_inc_indel = MAX(0, 2 * paramset.germ_phred_hetero_indel - paramset.germ_phred_het3al_indel - TIN_CONTAM_MICRO_VQ_DELTA);
     
+    const auto tn_syserr_norm_devqual = paramset.tn_syserr_norm_devqual * ((SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform) ? 0.5 : 1.0);
     const std::array<uvc1_qual_t, 4> b_binom_powlaw_syserr_normv_q4filter = (paramset.tn_syserr_norm_devqual >= 0 
         ? calc_binom_powlaw_syserr_normv_quals(
             (tki.cDP1x + 0.5) / 100.0 + 0.0, 
@@ -4252,7 +4262,7 @@ append_vcf_record(
             (nfm_cDP1x + 0.5) / 100.0 + 0.0, 
             (nfm_CDP1x + 1.0) / 100.0 + 0.0, 
             non_neg_minus(collectget(nfm.cVQ1, 1), (isSymbolSubstitution(symbol) ? phred_het3al_chance_inc_snp : phred_het3al_chance_inc_indel)),
-            paramset.tn_syserr_norm_devqual,
+            tn_syserr_norm_devqual,
             0)
         : calc_binom_powlaw_syserr_normv_quals2(
             (tki.cDP1x + 0.5) / 100.0 + 0.0, 
