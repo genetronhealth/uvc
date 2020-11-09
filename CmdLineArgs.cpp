@@ -85,8 +85,10 @@ CommandLineArgs::selfUpdateByPlatform() {
         syserr_minABQ_cap_snv += 0;
         syserr_minABQ_cap_indel += 0;
         
+        bias_thres_highBQ -= 4;
         fam_thres_highBQ_snv = 0;
         fam_thres_highBQ_indel = 0;
+
     }
     if (SEQUENCING_PLATFORM_ILLUMINA == inferred_sequencing_platform && SEQUENCING_PLATFORM_OTHER != this->sequencing_platform) {
         bq_phred_added_indel += 0;

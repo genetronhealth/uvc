@@ -376,6 +376,9 @@ struct SegFormatPrepSet {
     uvc1_readpos_t segprep_a_RI;    // SEG_a_RI,
     uvc1_readnum_t segprep_a_RIDP;  // SEG_a_RIDP,
     
+    uvc1_readnum_t segprep_a_snv_dp;
+    uvc1_readnum_t segprep_a_dnv_dp;
+
     uvc1_readpos_t segprep_a_l_dist_sum; // SEG_a_L_DIST_SUM,
     uvc1_readpos_t segprep_a_r_dist_sum; // SEG_a_R_DIST_SUM,
     uvc1_readpos_t segprep_a_inslen_sum; // SEG_a_INSLEN_SUM,

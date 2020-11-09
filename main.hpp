@@ -912,6 +912,8 @@ update_seg_format_prep_sets_by_aln(
         const CoveredRegion<uvc1_qual_big_t> & baq_offsetarr,
         const uvc1_refgpos_t region_offset,
         const auto dflag,
+        const std::basic_string<AlignmentSymbol> & region_symbolvec,
+        
         const CommandLineArgs & paramset,
         const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
     
@@ -985,8 +987,28 @@ update_seg_format_prep_sets_by_aln(
                     seg_format_prep_sets.getRefByPos(rpos).segprep_a_RI += MIN(frag_pos_R - rpos    , MAX_INSERT_SIZE);
                     seg_format_prep_sets.getRefByPos(rpos).segprep_a_RIDP += 1;
                 }
-                // const auto base4bit = bam_seqi(bseq, qpos);
-                // const auto base3bit = seq_nt16_int[base4bit];
+                auto refsymbol = BASE_NN;
+                auto readsymbol = END_ALIGNMENT_SYMBOLS;
+                auto next_qpos = qpos;
+                auto next_rpos = rpos;
+                while (refsymbol != readsymbol && qpos < aln->core.l_qseq && rpos < rend) {
+                    const auto base4bit = bam_seqi(bam_get_seq(aln), next_qpos);
+                    const auto base3bit = seq_nt16_int[base4bit];
+                    refsymbol = region_symbolvec[next_rpos - region_offset];
+                    readsymbol = AlignmentSymbol(base3bit);
+                    next_qpos++;
+                    next_rpos++;
+                } 
+                if (next_rpos == rpos + 2) {
+                    for (auto r = MAX(aln->core.pos, rpos - 1); r < MIN(next_rpos, rend); r++) {
+                        seg_format_prep_sets.getRefByPos(r).segprep_a_snv_dp += 1;
+                    }
+                }
+                if (next_rpos > rpos + 2) {
+                    for (auto r = MAX(aln->core.pos, rpos - 1); r < MIN(next_rpos, rend); r++) {
+                        seg_format_prep_sets.getRefByPos(r).segprep_a_dnv_dp += 1;
+                    }
+                }
                 if (bam_phredi(aln, qpos) >= paramset.bias_thres_highBQ) {
                     uvc1_refgpos_t ldist = rpos - aln->core.pos + 1;
                     uvc1_refgpos_t rdist = rend - rpos;
@@ -1107,7 +1129,10 @@ update_seg_format_thres_from_prep_sets(
         auto segRIDP = MAX(seg_format_prep_sets.getByPos(epos).segprep_a_RIDP, 1);
         const auto ins_border_len = ceil(sqrt((p.segprep_a_near_ins_pow2len) / MAX(p.segprep_a_near_ins_dp, 1)));
         const auto del_border_len = ceil(sqrt((p.segprep_a_near_del_pow2len) / MAX(p.segprep_a_near_del_dp, 1)));
-        
+        const auto dnv_border_len = ((SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform 
+                && (p.segprep_a_dnv_dp * 2 > p.segprep_a_snv_dp)) ? (10) : 0);
+        const auto max_border_len = MAX3(ins_border_len, del_border_len, dnv_border_len);
+
         auto & rtr = region_repeatvec[epos - seg_format_prep_sets.getIncluBegPosition()];
         if (p.segprep_a_near_ins_dp * paramset.indel_del_to_ins_err_ratio < p.segprep_a_near_del_dp) {
             rtr.indelphred += (uvc1_qual_t)round(numstates2phred(paramset.indel_del_to_ins_err_ratio));
@@ -1121,8 +1146,8 @@ update_seg_format_thres_from_prep_sets(
         
         const bool is_normal = (NOT_PROVIDED != paramset.vcf_tumor_fname);
         
-        t.segthres_aLPxT = int64mul(ins_border_len, paramset.bias_thres_aLPxT_perc) / 100 + paramset.bias_thres_aLPxT_add;
-        t.segthres_aRPxT = int64mul(MAX(ins_border_len, del_border_len), paramset.bias_thres_aLPxT_perc) / 100 + paramset.bias_thres_aLPxT_add;
+        t.segthres_aLPxT = int64mul(max_border_len, paramset.bias_thres_aLPxT_perc) / 100 + paramset.bias_thres_aLPxT_add;
+        t.segthres_aRPxT = int64mul(max_border_len, paramset.bias_thres_aLPxT_perc) / 100 + paramset.bias_thres_aLPxT_add;
         
         const auto bias_thres_PFXM1T_perc = (is_normal ? paramset.bias_thres_PFXM1NT_perc : paramset.bias_thres_PFXM1T_perc);
         const auto bias_thres_PFGO1T_perc = (is_normal ? paramset.bias_thres_PFGO1NT_perc : paramset.bias_thres_PFGO1T_perc);
@@ -1195,9 +1220,9 @@ dealwith_segbias(
     const uvc1_refgpos_t seg_r_nbases = (bam_endpos(aln) - rpos);
     const uvc1_refgpos_t frag_pos_L = ((aln->core.isize != 0) ? MIN(aln->core.pos, aln->core.mpos) : aln->core.pos);
     const uvc1_refgpos_t frag_pos_R = ((aln->core.isize != 0) ? (frag_pos_L + abs(aln->core.isize)) : rend);
-    const uvc1_refgpos_t frag_l_nbases1 = (rpos - frag_pos_L + 1);
+    const uvc1_refgpos_t frag_l_nbases1 = (rpos - frag_pos_L + 1) + ((aln->core.isize != 0) ? 0 : (aln->core.l_qseq / 2));
     const uvc1_refgpos_t frag_l_nbases2 = MIN(frag_l_nbases1, MAX_INSERT_SIZE);
-    const uvc1_refgpos_t frag_r_nbases1 = (frag_pos_R - rpos);
+    const uvc1_refgpos_t frag_r_nbases1 = (frag_pos_R - rpos + 0) + ((aln->core.isize != 0) ? 0 : (aln->core.l_qseq / 2));
     const uvc1_refgpos_t frag_r_nbases2 = MIN(frag_r_nbases1, MAX_INSERT_SIZE);
     
     const bool is_normal = ((aln->core.isize != 0) || (0 == (aln->core.flag & 0x1)));
@@ -1652,6 +1677,8 @@ if ((!is_assay_amplicon) || (ibeg <= rpos && rpos < iend)) {
                     const auto base4bit = bam_seqi(bseq, qpos);
                     const auto base3bit = seq_nt16_int[base4bit];
                     AlignmentSymbol symbol = AlignmentSymbol(base3bit);
+                    incvalue = bam_phredi(aln, qpos) + symboltype2addPhred[BASE_SYMBOL];
+                    /*
                     if (TIsProton) {
                         uvc1_qual_t prev_base_phred = 1;
                         if ((isrc) && (qpos + 1 < aln->core.l_qseq)) {
@@ -1664,6 +1691,7 @@ if ((!is_assay_amplicon) || (ibeg <= rpos && rpos < iend)) {
                     } else {
                         incvalue = bam_phredi(aln, qpos) + symboltype2addPhred[BASE_SYMBOL];
                     }
+                    */
                     // bool is_affected_by_indels = false;
                     /*
                     if (TIsProton) {
@@ -2042,6 +2070,7 @@ struct Symbol2CountCoverageSet {
                                 baq_offsetarr,
                                 this->getUnifiedIncluBegPosition(),
                                 alns2pair2dflag.second,
+                                region_symbolvec,
 
                                 paramset, //.bias_thres_highBQ,
                                 0);
@@ -2673,13 +2702,10 @@ BcfFormat_symboltype_init(bcfrec::BcfFormat & fmt,
         p.segprep_a_near_RTR_del_dp, 
         
         p.segprep_a_pcr_dp,
+        p.segprep_a_snv_dp,
+        p.segprep_a_dnv_dp,
         // unused
         p.segprep_a_highBQ_dp,
-        
-        p.segprep_a_near_ins_pow2len, 
-        p.segprep_a_near_del_pow2len,
-        p.segprep_a_near_ins_inv100len, 
-        p.segprep_a_near_del_inv100len,
         
     }};
     
@@ -2687,6 +2713,11 @@ BcfFormat_symboltype_init(bcfrec::BcfFormat & fmt,
         p.segprep_a_XM1500, // / MAX(1, p.segprep_a_dp), 
         p.segprep_a_GO1500, // / MAX(1, p.segprep_a_dp), 
         p.segprep_a_XM100inv, // p.segprep_a_dp * (100 * 10) / MAX(1, p.segprep_a_XM100inv),
+        
+        p.segprep_a_near_ins_pow2len, 
+        p.segprep_a_near_del_pow2len,
+        p.segprep_a_near_ins_inv100len, 
+        p.segprep_a_near_del_inv100len,
     }};
     fmt.APLRI = {{ p.segprep_a_LI, p.segprep_a_LIDP, p.segprep_a_RI, p.segprep_a_RIDP }};
     fmt.APLRP = {{ p.segprep_a_l_dist_sum, p.segprep_a_r_dist_sum, p.segprep_a_inslen_sum, p.segprep_a_dellen_sum }};
@@ -2994,8 +3025,9 @@ BcfFormat_symbol_calc_DPv(
     const bool is_in_indel_rtr  = (MAX(f.APDP[3],  f.APDP[4]) * (paramset.bias_prior_var_DP_mul) > (aDP + aDPplus) * dp_coef);
     const bool is_in_rtr = (MAX(rtr1.tracklen, rtr2.tracklen) > (int)round(paramset.indel_polymerase_size));
     
+    const bool is_in_dnv_read = ((SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform) && (f.APDP[7] * 2 > f.APDP[6]));
     // read level, affecting both
-    if (is_in_indel_read) {
+    if (is_in_indel_read || is_in_dnv_read) {
         _aPpriorfreq -= paramset.bias_priorfreq_indel_in_read_div; 
         _aBpriorfreq -= paramset.bias_priorfreq_indel_in_read_div;
     } else if ((isSymbolIns(symbol) || isSymbolDel(symbol)) && fmt.APXM[0] > fmt.APXM[1] * paramset.microadjust_bias_pos_indel_misma_to_indel_ratio) {
