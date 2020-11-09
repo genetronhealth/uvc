@@ -893,7 +893,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                                 region_repeatvec.at(MAX(refpos - extended_inclu_beg_pos, 3) - 3),
                                 region_repeatvec.at(MIN(refpos - extended_inclu_beg_pos + 3, UNSIGN2SIGN(region_repeatvec.size()) - 1)),
                                 ((is_var_rescued && (tki.VTI == LAST(fmt.VTI))) ? ((double)(tki.cDP1x + 1) / (double)(tki.CDP1x + 2)) : -1.0), /* tpfa */
-                                (ASSAY_TYPE_AMPLICON == inferred_assay_type),
+                                // (ASSAY_TYPE_AMPLICON == inferred_assay_type),
                                 refsymbol,
                                 paramset,
                                 0);

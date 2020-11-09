@@ -963,8 +963,7 @@ update_seg_format_prep_sets_by_aln(
     // const bool isr2 = ((aln->core.flag & 0x80) == 0x80 && (aln->core.flag & 0x1) == 0x1);
     // const bool strand = (isrc ^ isr2);
     
-    const bool is_amplicon = (0x4 == (dflag & 0x4));
-    const auto pcr_dp_inc = (is_amplicon ? 1 : 0);
+    const auto pcr_dp_inc = ((dflag & 0x4) ? 1 : 0);
     qpos = 0;
     rpos = aln->core.pos;
     
@@ -2655,6 +2654,8 @@ BcfFormat_symboltype_init(bcfrec::BcfFormat & fmt,
         p.segprep_a_near_RTR_ins_dp, 
         p.segprep_a_near_RTR_del_dp, 
         
+        p.segprep_a_pcr_dp,
+        // unused
         p.segprep_a_highBQ_dp,
         
         p.segprep_a_near_ins_pow2len, 
@@ -2662,8 +2663,7 @@ BcfFormat_symboltype_init(bcfrec::BcfFormat & fmt,
         p.segprep_a_near_ins_inv100len, 
         p.segprep_a_near_del_inv100len,
         
-        p.segprep_a_pcr_dp,
-        }};
+    }};
     
     fmt.APXM  = {{ 
         p.segprep_a_XM1500, // / MAX(1, p.segprep_a_dp), 
@@ -2900,11 +2900,15 @@ BcfFormat_symbol_calc_DPv(
         const RegionalTandemRepeat & rtr1,
         const RegionalTandemRepeat & rtr2,
         const double tpfa,
-        const bool is_amplicon,
+        // const bool is_amplicon,
         const AlignmentSymbol refsymbol,
         const CommandLineArgs & paramset,
         const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
     
+    const bool is_strong_amplicon = (fmt.APDP[5] * 100 > fmt.APDP[0] * 60);
+    const bool is_weak_amplicon = (fmt.APDP[5] * 100 > fmt.APDP[0] * 40);
+    bool is_real_amplicon = false;
+
     const int a = 0;
     const bool is_rescued = (tpfa >= 0);
     const double pfa = (is_rescued ? tpfa : 0.5);
@@ -2920,12 +2924,15 @@ BcfFormat_symbol_calc_DPv(
     double _counterbias_P_FA = 1e-9;
     double _counterbias_BQ_FA = 1e-9;
     double _dir_bias_div = 1.0;
-    if ((is_amplicon && (0x2 == (0x2 & paramset.nobias_flag))) || ((!is_amplicon) && (0x1 == (0x1 & paramset.nobias_flag)))) {
+    is_real_amplicon = ((NOT_PROVIDED == paramset.vcf_tumor_fname) ? is_strong_amplicon : is_weak_amplicon);
+    if ((is_real_amplicon && (0x2 == (0x2 & paramset.nobias_flag))) || ((!is_real_amplicon) && (0x1 == (0x1 & paramset.nobias_flag)))) {
         // counter bias : position 23-10 bp and base quality 13
         const uvc1_readpos_t alt_avg_edgedist = MIN(fmt.aLPL[a], fmt.aRPL[a]) / MAX(fmt.aBQ2[a], 1); 
         const uvc1_readpos_t all_avg_edgedist = MIN(fmt.ALPL[0], fmt.ARPL[0]) / MAX(fmt.ABQ2[0], 1);
         if (alt_avg_edgedist >= paramset.bias_orientation_counter_avg_end_len + all_avg_edgedist && all_avg_edgedist <= paramset.bias_orientation_counter_avg_end_len) { 
             UPDATE_MAX(_counterbias_P_FA, (LAST(fmt.aP1) + 0.5) / (fmt.AP1[0] + 1.0));
+        } else {
+            UPDATE_MAX(_counterbias_P_FA, 2e-9);
         }
         if (isSymbolSubstitution(symbol)) {
             const bool is_f_good_cov = ((fmt.ADPfr[0] + fmt.ADPrr[0]) + 150 <= (fmt.ADPff[0] + fmt.ADPrf[0]) * 5);
@@ -3009,6 +3016,8 @@ BcfFormat_symbol_calc_DPv(
             MAX(1, f.aRBL[a]) / (double)MAX(1, f.aBQ2[a]), MAX(1, f.ARBL[0]) / (double)MAX(1, f.ABQ2[0]), ((is_in_indel_read) ? paramset.bias_FA_pseudocount_indel_in_read : 0.5));
     double aLBFA = aLBFAx2[0];
     double aRBFA = aRBFAx2[0];
+    is_real_amplicon = ((NOT_PROVIDED == paramset.vcf_tumor_fname) ? is_weak_amplicon : is_strong_amplicon);
+    
     std::array<double, 2> _aLIFAx2 = {{ 0, 0 }};
     {
         double ALpd = (f.ALI2[0] +                 0.5) / (f.ADPfr[0] + f.ADPrr[0] - f.ALI2[0] + 0.5);
@@ -3020,7 +3029,7 @@ BcfFormat_symbol_calc_DPv(
                 aLpd, ALpd, 0.25, 0.5);
         
     }
-    double aLIFA = _aLIFAx2[0] * (is_amplicon ? (dir_bias_div) : MAX(1.0, aDPFA / _aLIFAx2[1]));
+    double aLIFA = _aLIFAx2[0] * ((is_real_amplicon) ? (dir_bias_div) : MAX(dir_bias_div, aDPFA / _aLIFAx2[1]));
     
     std::array<double, 2> _aRIFAx2 = {{ 0, 0 }};
     {
@@ -3032,7 +3041,7 @@ BcfFormat_symbol_calc_DPv(
                 paramset.powlaw_exponent, phred2nat(aIpriorfreq),
                 aRpd, ARpd, 0.25, 0.5);
     }
-    double aRIFA = _aRIFAx2[0] * (is_amplicon ? (dir_bias_div) : MAX(1.0, aDPFA / _aRIFAx2[1]));
+    double aRIFA = _aRIFAx2[0] * ((is_real_amplicon) ? (dir_bias_div) : MAX(dir_bias_div, aDPFA / _aRIFAx2[1]));
     
     if (isSymbolIns(symbol) || isSymbolDel(symbol)) {
         const auto & indelstring = LAST(fmt.gapSa);
