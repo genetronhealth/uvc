@@ -1118,30 +1118,36 @@ update_seg_format_thres_from_prep_sets(
         assert (epos - seg_format_prep_sets.getIncluBegPosition() < UNSIGN2SIGN(region_repeatvec.size())
                 || !fprintf(stderr, "%d - %d < %lu failed!", epos, seg_format_prep_sets.getIncluBegPosition(), region_repeatvec.size()));
         region_repeatvec[epos - seg_format_prep_sets.getIncluBegPosition()].indelphred += BETWEEN(pc_inc1, 0, 6);
+        
+        const bool is_normal = (NOT_PROVIDED != paramset.vcf_tumor_fname);
+        
         t.segthres_aLPxT = int64mul(ins_border_len, paramset.bias_thres_aLPxT_perc) / 100 + paramset.bias_thres_aLPxT_add;
         t.segthres_aRPxT = int64mul(MAX(ins_border_len, del_border_len), paramset.bias_thres_aLPxT_perc) / 100 + paramset.bias_thres_aLPxT_add;
         
-        const auto bias_thres_PFXM1T_perc = ((NOT_PROVIDED != paramset.vcf_tumor_fname) ? paramset.bias_thres_PFXM1NT_perc : paramset.bias_thres_PFXM1T_perc);
-        const auto bias_thres_PFGO1T_perc = ((NOT_PROVIDED != paramset.vcf_tumor_fname) ? paramset.bias_thres_PFGO1NT_perc : paramset.bias_thres_PFGO1T_perc);
+        const auto bias_thres_PFXM1T_perc = (is_normal ? paramset.bias_thres_PFXM1NT_perc : paramset.bias_thres_PFXM1T_perc);
+        const auto bias_thres_PFGO1T_perc = (is_normal ? paramset.bias_thres_PFGO1NT_perc : paramset.bias_thres_PFGO1T_perc);
 
         t.segthres_aXM1T = int64mul(p.segprep_a_XM1500,          bias_thres_PFXM1T_perc) / (segprep_a_dp * 100) + paramset.bias_thres_PFXM1T_add; // easier to pass
         t.segthres_aXM2T = int64mul(p.segprep_a_XM1500, paramset.bias_thres_PFXM2T_perc) / (segprep_a_dp * 100) + paramset.bias_thres_PFXM2T_add; // the higher the stronger the bias
         t.segthres_aGO1T = int64mul(p.segprep_a_GO1500,          bias_thres_PFGO1T_perc) / (segprep_a_dp * 100) + paramset.bias_thres_PFGO1T_add; // easier to pass
         t.segthres_aGO2T = int64mul(p.segprep_a_GO1500, paramset.bias_thres_PFGO2T_perc) / (segprep_a_dp * 100) + paramset.bias_thres_PFGO2T_add; // the higher the stronger the bias
         
-        t.segthres_aLI1T = int64mul(p.segprep_a_LI, paramset.bias_thres_aLRI1T_perc) / (segLIDP * 100) + paramset.bias_thres_aLRI1T_add;
+        const auto bias_thres_aLRI1T_perc = (is_normal ? paramset.bias_thres_aLRI1NT_perc : paramset.bias_thres_aLRI1T_perc);
+        const auto bias_thres_aLRI1t_perc = (is_normal ? paramset.bias_thres_aLRI1Nt_perc : paramset.bias_thres_aLRI1t_perc);
+        
+        t.segthres_aLI1T = int64mul(p.segprep_a_LI,          bias_thres_aLRI1T_perc) / (segLIDP * 100) + paramset.bias_thres_aLRI1T_add;
         t.segthres_aLI2T = int64mul(p.segprep_a_LI, paramset.bias_thres_aLRI2T_perc) / (segLIDP * 100) + paramset.bias_thres_aLRI2T_add; // higher > stronger bias
-        t.segthres_aLI1t = int64mul(p.segprep_a_LI, paramset.bias_thres_aLRI1t_perc) / (segLIDP * 100);
+        t.segthres_aLI1t = int64mul(p.segprep_a_LI,          bias_thres_aLRI1t_perc) / (segLIDP * 100);
         t.segthres_aLI2t = int64mul(p.segprep_a_LI, paramset.bias_thres_aLRI2t_perc) / (segLIDP * 100); // lower > stronger bias
 
-        t.segthres_aRI1T = int64mul(p.segprep_a_RI, paramset.bias_thres_aLRI1T_perc) / (segRIDP * 100) + paramset.bias_thres_aLRI1T_add;
+        t.segthres_aRI1T = int64mul(p.segprep_a_RI,          bias_thres_aLRI1T_perc) / (segRIDP * 100) + paramset.bias_thres_aLRI1T_add;
         t.segthres_aRI2T = int64mul(p.segprep_a_RI, paramset.bias_thres_aLRI2T_perc) / (segRIDP * 100) + paramset.bias_thres_aLRI2T_add; // higher > stronger bias
-        t.segthres_aRI1t = int64mul(p.segprep_a_RI, paramset.bias_thres_aLRI1t_perc) / (segRIDP * 100);
+        t.segthres_aRI1t = int64mul(p.segprep_a_RI,          bias_thres_aLRI1t_perc) / (segRIDP * 100);
         t.segthres_aRI2t = int64mul(p.segprep_a_RI, paramset.bias_thres_aLRI2t_perc) / (segRIDP * 100); // lower > stronger bias
         
-        const auto aLRP1t_avgmul_perc = paramset.bias_thres_aLRP1t_avgmul_perc;
+        const auto aLRP1t_avgmul_perc = (is_normal ? paramset.bias_thres_aLRP1Nt_avgmul_perc : paramset.bias_thres_aLRP1t_avgmul_perc);
         const auto aLRP2t_avgmul_perc = paramset.bias_thres_aLRP2t_avgmul_perc;
-        const auto aLRB1t_avgmul_perc = paramset.bias_thres_aLRB1t_avgmul_perc;
+        const auto aLRB1t_avgmul_perc = (is_normal ? paramset.bias_thres_aLRB1Nt_avgmul_perc : paramset.bias_thres_aLRB1t_avgmul_perc);
         const auto aLRB2t_avgmul_perc = paramset.bias_thres_aLRB2t_avgmul_perc;
         
         t.segthres_aLP1t = non_neg_minus(int64mul(p.segprep_a_l_dist_sum, aLRP1t_avgmul_perc) / MAX(1, p.segprep_a_highBQ_dp * 100), paramset.bias_thres_aLRP1t_minus);

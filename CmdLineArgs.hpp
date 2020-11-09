@@ -99,7 +99,7 @@ struct CommandLineArgs {
     
     uvc1_readpos_t   bias_thres_aLPxT_add = 5;
     uvc1_readpos_t   bias_thres_aLPxT_perc = 160;
-        
+    
     uvc1_base1500x_t   bias_thres_PFXM1T_add = 35; // set very high to disable mismatch bias
     uvc1_base1500x_t   bias_thres_PFXM2T_add = 20;
     uvc1_base1500x_t   bias_thres_PFGO1T_add = 25; // set very high to disable gap bias
@@ -123,10 +123,16 @@ struct CommandLineArgs {
     uvc1_readnum100x_t bias_thres_aLRB1t_avgmul_perc = 100;
     uvc1_readnum100x_t bias_thres_aLRB2t_avgmul_perc = 100;
     
+    uvc1_readnum100x_t bias_thres_aLRP1Nt_avgmul_perc = 80; // for normal
+    uvc1_readnum100x_t bias_thres_aLRB1Nt_avgmul_perc = 80; // for normal
+
     uvc1_readnum100x_t bias_thres_aLRI1T_perc = 200;
     uvc1_readnum100x_t bias_thres_aLRI2T_perc = 150;
     uvc1_readnum100x_t bias_thres_aLRI1t_perc = 50;
     uvc1_readnum100x_t bias_thres_aLRI2t_perc = 67;
+
+    uvc1_readnum100x_t bias_thres_aLRI1NT_perc = 250; // for normal
+    uvc1_readnum100x_t bias_thres_aLRI1Nt_perc = 40;  // for normal
     
     uvc1_readpos_t     bias_thres_aLRI1T_add = 180; // 200;
     uvc1_readpos_t     bias_thres_aLRI2T_add = 150;

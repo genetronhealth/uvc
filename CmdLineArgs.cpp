@@ -433,11 +433,11 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
     ADD_OPTDEF(app,
         "--bias-thres-PFXM1NT-perc",
            bias_thres_PFXM1NT_perc,
-        "The percent increase in the corresponding threshold relative to the background noise level for the matched normal. ");
+        "The percent increase in the corresponding threshold relative to the background noise level for the matched normal sample. ");
     ADD_OPTDEF(app,
         "--bias-thres-PFGO1NT-perc",
            bias_thres_PFGO1NT_perc,
-        "The percent increase in the corresponding threshold relative to the background noise level for the matched normal. ");
+        "The percent increase in the corresponding threshold relative to the background noise level for the matched normal sample. ");
     
     ADD_OPTDEF(app,
         "--bias-thres-aLRP1t-minus",
@@ -476,6 +476,17 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
         "--bias-thres-aLRB2t-avgmul-perc",
            bias_thres_aLRB2t_avgmul_perc,
         "The percent of the tier-2 average BAQ to the left/right segment ends (LRB) below which the read support is not effective. ");
+    
+    ADD_OPTDEF(app,
+        "--bias-thres-aLRP1Nt-avgmul-perc",
+           bias_thres_aLRP1Nt_avgmul_perc,
+        "The percent of the tier-1 average number of bases to the left/right segment ends (LRP) below which the read support is not effective "
+        "for the matched normal sample. ");
+    ADD_OPTDEF(app,
+        "--bias-thres-aLRB1Nt-avgmul-perc",
+           bias_thres_aLRB1Nt_avgmul_perc,
+        "The percent of the tier-1 average BAQ to the left/right segment ends (LRP) below which the read support is not effective "
+        "for the matched normal sample. ");
 
     ADD_OPTDEF(app,
         "--bias-thres-aLRI1T-perc",
@@ -498,6 +509,17 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
         "Tier-2 percent coefficient of the average BAQ (base alignment quality) to the left/right insert ends (LRI), "
             "used for determinating the threshold below which the read support is not effective. ");
     
+    ADD_OPTDEF(app,
+        "--bias-thres-aLRI1NT-perc",
+           bias_thres_aLRI1NT_perc,
+        "Tier-1 percent coefficient of the average number of bases to the left/right insert ends (LRI), "
+            "used for determinating the threshold below which the read support is not effective for the matched normal. ");
+    ADD_OPTDEF(app,
+        "--bias-thres-aLRIN1t-perc",
+           bias_thres_aLRI1Nt_perc,
+        "Tier-1 percent coefficient of the average BAQ (base alignment quality) to the left/right insert ends (LRI), "
+            "used for determinating the threshold below which the read support is not effective for the matched normal. ");
+
     ADD_OPTDEF(app,
         "--bias-thres-aLRI1T-add",
            bias_thres_aLRI1T_add,
