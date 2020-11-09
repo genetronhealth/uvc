@@ -1648,11 +1648,13 @@ if ((!is_assay_amplicon) || (ibeg <= rpos && rpos < iend)) {
                     const auto base3bit = seq_nt16_int[base4bit];
                     AlignmentSymbol symbol = AlignmentSymbol(base3bit);
                     bool is_affected_by_indels = false;
+                    /*
                     if (TIsProton) {
                         uvc1_readnum_t deldp = MAX(seg_format_prep_sets.getByPos(rpos).segprep_a_at_del_dp, seg_format_prep_sets.getByPos(rpos).segprep_a_near_RTR_del_dp);
                         uvc1_readnum_t insdp = MAX(seg_format_prep_sets.getByPos(rpos).segprep_a_at_ins_dp, seg_format_prep_sets.getByPos(rpos).segprep_a_near_RTR_ins_dp);
                         is_affected_by_indels = (MAX(deldp, insdp) * 2 >= seg_format_prep_sets.getByPos(rpos).segprep_a_dp);
                     }
+                    */
                     incvalue = bam_phredi(aln, qpos) + (is_affected_by_indels ? MIN(symboltype2addPhred[BASE_SYMBOL], symboltype2addPhred[LINK_SYMBOL]) : symboltype2addPhred[BASE_SYMBOL]);
                     this->template inc<TUpdateType>(rpos, AlignmentSymbol(base3bit), incvalue, aln);
                     if (TIsBiasUpdated) {
@@ -1912,7 +1914,7 @@ if ((!is_assay_amplicon) || (ibeg <= rpos && rpos < iend)) {
             const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
         const bool is_assay_amplicon = (0x4 == (dflag & 0x4));
         for (const bam1_t *aln : aln_vec) {
-            if (SEQUENCING_PLATFORM_IONTORRENT == paramset.sequencing_platform) {
+            if (SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform) {
                 this->template updateByAln<true, TUpdateType, TIsBiasUpdated>(
                         aln, 
                         region_offset, 
@@ -2232,7 +2234,7 @@ struct Symbol2CountCoverageSet {
 
                     read_family_con_ampl.updateByFiltering(read_ampBQerr_fragWithR1R2, std::array<uvc1_qual_t, NUM_SYMBOL_TYPES> {{ 
                             paramset.fam_thres_highBQ_snv, 0
-                            // ((SEQUENCING_PLATFORM_IONTORRENT != paramset.sequencing_platform) ? paramset.fam_thres_highBQ_indel : 0)
+                            // ((SEQUENCING_PLATFORM_IONTORRENT != paramset.inferred_sequencing_platform) ? paramset.fam_thres_highBQ_indel : 0)
                     }});
                 }
                 for (auto epos = read_family_con_ampl.getIncluBegPosition(); epos < read_family_con_ampl.getExcluEndPosition(); epos++) {
@@ -2324,7 +2326,7 @@ struct Symbol2CountCoverageSet {
                     // The line below is similar to : read_family_mmm_ampl.updateByConsensus<SYMBOL_COUNT_SUM>(read_ampBQerr_fragWithR1R2);
                     read_family_con_ampl.updateByFiltering(read_ampBQerr_fragWithR1R2, std::array<uvc1_qual_t, NUM_SYMBOL_TYPES> {{ 
                             paramset.fam_thres_highBQ_snv, 0
-                            // ((SEQUENCING_PLATFORM_IONTORRENT != paramset.sequencing_platform) ? paramset.fam_thres_highBQ_indel : 0)
+                            // ((SEQUENCING_PLATFORM_IONTORRENT != paramset.inferred_sequencing_platform) ? paramset.fam_thres_highBQ_indel : 0)
                     }});
                     read_family_mmm_ampl.updateByMajorMinusMinor(read_ampBQerr_fragWithR1R2, false); 
                 }
@@ -2363,7 +2365,7 @@ struct Symbol2CountCoverageSet {
                                     // PCR error of the first cycle + error in consensus selection
                                     (uvc1_qual_t)paramset.fam_phred_indel_inc_before_barcode_labeling + (uvc1_qual_t)round(realphred))));
                         } else {
-                            // (SEQUENCING_PLATFORM_IONTORRENT == paramset.sequencing_platform)
+                            // (SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform)
                             confam_qual = MAX(1, MIN(indep_frag_phred,
                                     ((con_sumBQs * 2) - tot_sumBQs)));
                             /*
@@ -3400,8 +3402,12 @@ BcfFormat_symbol_calc_qual(
     clear_push(fmt.cMmQ, cMmQ);
     
     const double eps = (double)FLT_EPSILON;
-    const uvc1_qual_t indel_pena_base = ((SEQUENCING_PLATFORM_IONTORRENT == paramset.sequencing_platform && NOT_PROVIDED == paramset.vcf_tumor_fname)
-            ? ((uvc1_qual_t)round(paramset.indel_multiallele_samepos_penal / log(2) * log(MAX3(aDP + eps, fmt.APDP[1], fmt.APDP[2]) / (aDP + eps)))) : 0);
+    const bool is_indel_pena_applied = ((SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform) && (NOT_PROVIDED == paramset.vcf_tumor_fname));
+    const uvc1_qual_t indel_pena_base = (is_indel_pena_applied 
+                ? ((uvc1_qual_t)round(paramset.indel_multiallele_samepos_penal / log(2) 
+                * log((double)MAX3(aDP + eps, fmt.APDP[1], fmt.APDP[2]) / (double)(aDP + eps)))) 
+                : 0);
+    fmt.note += std::string("/pb/") + std::to_string(indel_pena_base) + "/" + std::to_string(paramset.inferred_sequencing_platform) + "/(" + paramset.vcf_tumor_fname + ")/";
     uvc1_qual_t indel_penal4multialleles = 0;
     uvc1_qual_t indel_penal4multialleles_g = 0;
     uvc1_qual_t indel_penal4multialleles_soma = 0;
@@ -3459,7 +3465,7 @@ BcfFormat_symbol_calc_qual(
             ? BETWEEN((uvc1_qual_t)(fmt.AMQs[0] / MAX(1, ADP)) - (uvc1_qual_t)(fmt.aMQs[a] / MAX(1, aDP)), 0, paramset.microadjust_ref_MQ_dec_max) : 0); // ad-hoc for MQ that has ref-bias.
     const uvc1_qual_t syserr_q = MIN(
             non_neg_minus(MAX(fmt.bMQ[a], (refsymbol == symbol ? 0 : paramset.syserr_minMQ)) + MIN(minMQinc, bDP * 3), bMQdec),
-            (SEQUENCING_PLATFORM_IONTORRENT != paramset.sequencing_platform && isSymbolSubstitution(AlignmentSymbol(LAST(fmt.VTI))) ? (fmt.aBQQ[a]) : (200)));
+            (SEQUENCING_PLATFORM_IONTORRENT != paramset.inferred_sequencing_platform && isSymbolSubstitution(AlignmentSymbol(LAST(fmt.VTI))) ? (fmt.aBQQ[a]) : (200)));
     
     const auto tn_syserr_q = syserr_q + MAX(paramset.tn_q_inc_max, non_neg_minus(paramset.germ_phred_homalt_snp, 
             numstates2phred(MAX(1, aDP * 100) / (double)MAX(1, LAST(fmt.aXM2)))));
@@ -3936,7 +3942,7 @@ output_germline(
 std::string 
 generate_vcf_header(
         // const char *ref_fasta_fname, 
-        const char *platform, 
+        // const char *platform, 
         // uvc1_readpos_t central_readlen,
         int argc,
         const char *const *argv,
@@ -3961,7 +3967,7 @@ generate_vcf_header(
     }
     ret += "\n";
     ret += std::string("") + "##variantCallerInferredParameters=<" 
-            + "inferred_sequencing_platform=" + platform 
+            + "inferred_sequencing_platform=" +  SEQUENCING_PLATFORM_TO_DESC.at(paramset.inferred_sequencing_platform)
             + ",central_readlen=" + std::to_string(paramset.central_readlen) 
             + ">\n";
     ret += std::string("") + "##reference=" + paramset.fasta_ref_fname + "\n";

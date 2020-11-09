@@ -1155,8 +1155,7 @@ main(int argc, char **argv) {
     const std::string UMI_STRUCT_STRING = ((UMI_STRUCT != NULL && strlen(UMI_STRUCT) > 0) ? std::string(UMI_STRUCT) : std::string(""));
     CommandLineArgs paramset;
     int parsing_result_flag = -1;
-    SequencingPlatform inferred_sequencing_platform = SEQUENCING_PLATFORM_AUTO;
-    int parsing_result_ret = paramset.initFromArgCV(parsing_result_flag, inferred_sequencing_platform, argc, argv);
+    int parsing_result_ret = paramset.initFromArgCV(parsing_result_flag, argc, argv);
     if (parsing_result_ret || parsing_result_flag) {
         return parsing_result_ret; 
     }
@@ -1248,7 +1247,7 @@ main(int argc, char **argv) {
     bam_hdr_t * samheader = sam_hdr_read(samfiles[0]);
     std::string header_outstring = generate_vcf_header(
             // paramset.fasta_ref_fname.c_str(), 
-            SEQUENCING_PLATFORM_TO_DESC.at(inferred_sequencing_platform).c_str(), 
+            // SEQUENCING_PLATFORM_TO_DESC.at(inferred_sequencing_platform).c_str(), 
             // paramset.central_readlen, 
             argc, 
             argv, 

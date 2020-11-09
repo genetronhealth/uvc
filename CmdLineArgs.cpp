@@ -84,6 +84,9 @@ CommandLineArgs::selfUpdateByPlatform() {
         syserr_minABQ_pcr_indel += 0;
         syserr_minABQ_cap_snv += 0;
         syserr_minABQ_cap_indel += 0;
+        
+        fam_thres_highBQ_snv = 0;
+        fam_thres_highBQ_indel = 0;
     }
     if (SEQUENCING_PLATFORM_ILLUMINA == inferred_sequencing_platform && SEQUENCING_PLATFORM_OTHER != this->sequencing_platform) {
         bq_phred_added_indel += 0;
@@ -115,7 +118,7 @@ stringvec_to_descstring(const std::vector<std::string> & v) {
 };
 
 int
-CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & inferred_sequencing_platform, int argc, const char *const* argv) {
+CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *const* argv) {
     parsing_result_flag = -1;
     auto version_cb = [](int n_values IGNORE_UNUSED_PARAM){
         std::cout << "uvc-" << VERSION << std::endl;
@@ -1004,7 +1007,7 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, SequencingPlatform & i
         } else {
             fasta_ref_fname = "";
         }
-        inferred_sequencing_platform = this->selfUpdateByPlatform();
+        this->inferred_sequencing_platform = this->selfUpdateByPlatform();
         if (vcf_tumor_fname != NOT_PROVIDED) {
             // vqual -= (double)10; // maybe useful but not now
         }

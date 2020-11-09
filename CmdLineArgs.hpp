@@ -65,6 +65,7 @@ struct CommandLineArgs {
     
     MoleculeTag molecule_tag = MOLECULE_TAG_AUTO;
     SequencingPlatform sequencing_platform = SEQUENCING_PLATFORM_AUTO;
+    SequencingPlatform inferred_sequencing_platform = sequencing_platform; // NOTE: this is not on command-line
     PairEndMerge pair_end_merge = PAIR_END_MERGE_YES;
     bool              disable_duplex = false;
     uvc1_readpos_t    primerlen = 23; // https://link.springer.com/chapter/10.1007/978-1-4020-6241-4_5 : 18 - 22 bps
@@ -307,7 +308,7 @@ struct CommandLineArgs {
 // *** end 
     
     int
-    initFromArgCV(int & parsing_result_flag, SequencingPlatform & inferred_sequencing_platform, int argc, const char *const* argv);
+    initFromArgCV(int & parsing_result_flag, int argc, const char *const* argv);
     
     SequencingPlatform 
     selfUpdateByPlatform(void);
