@@ -343,6 +343,7 @@ struct TumorKeyInfo {
     uvc1_qual_t cVQ2 = 0;
     uvc1_qual_t cPCQ2 = 0;
     
+    std::vector<uvc1_qual_t> nAFA;
     bcf1_t *bcf1_record = NULL;
     /*
     ~TumorKeyInfo() {

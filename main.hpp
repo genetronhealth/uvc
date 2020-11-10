@@ -3123,6 +3123,9 @@ BcfFormat_symbol_calc_DPv(
     } else if (refsymbol == symbol) {
         aLIFA = aRIFA = MAX(aLIFA, aRIFA); // reference error or long indel on either the left or right frag side does not affect the ref SNP allele.
     }
+    if (NOT_PROVIDED != paramset.vcf_tumor_fname) {
+        aLIFA = aRIFA = MAX(aLIFA, aRIFA);
+    }
     
     const double aXMFA = (double)(LAST(fmt.aXM2) / 100.0 / MAX(1, aDP));
     const double aPFFA = (fmt.aPF1[a] + pfa * (is_rescued ? 100.0 : (double)(fmt.aXM2[a] / MAX(1, aDP)))) / (fmt.APF2[0] + (fmt.aPF1[a] - fmt.aPF2[a]) + 1.0*100);
@@ -3524,19 +3527,24 @@ BcfFormat_symbol_calc_qual(
         sscs_powlaw_qual_w += (uvc1_qual_t)floor(sscs_indel_ic);
         sscs_binom_qual += (uvc1_qual_t)floor(indel_pq);
     }
- 
+     
     const uvc1_qual_t phred_varq_per_mapq = ((refsymbol == symbol) ? 0 : 
             paramset.syserr_phred_varcall_err_per_map_err_per_base);
+    const auto germ_phred_homalt = ((isSymbolSubstitution(symbol)) ? paramset.germ_phred_homalt_snp : paramset.germ_phred_homalt_indel);
     const uvc1_qual_t minMQinc = (int)((refsymbol == symbol) ? 0 : 
-            MAX(phred_varq_per_mapq, paramset.germ_phred_homalt_snp + (uvc1_qual_t)floor(paramset.powlaw_exponent * numstates2phred((bDP + 0.5) / (double)(BDP + 1.0)))));
+            MAX(phred_varq_per_mapq, germ_phred_homalt + (uvc1_qual_t)floor(paramset.powlaw_exponent * numstates2phred((bDP + 0.5) / (double)(BDP + 1.0)))));
+    const auto diffAaMQs = (uvc1_qual_t)(fmt.AMQs[0] / MAX(1, ADP)) - (uvc1_qual_t)(fmt.aMQs[a] / MAX(1, aDP));
     const uvc1_qual_t bMQdec = (uvc1_qual_t)(((refsymbol == symbol) && (ADP > aDP * 2))
-            ? BETWEEN((uvc1_qual_t)(fmt.AMQs[0] / MAX(1, ADP)) - (uvc1_qual_t)(fmt.aMQs[a] / MAX(1, aDP)), 0, paramset.microadjust_ref_MQ_dec_max) : 0); // ad-hoc for MQ that has ref-bias.
+            ? BETWEEN(diffAaMQs, 0, paramset.microadjust_ref_MQ_dec_max) : 0); // ad-hoc for MQ that has ref-bias.
     const uvc1_qual_t syserr_q = MIN(
             non_neg_minus(MAX(fmt.bMQ[a], (refsymbol == symbol ? 0 : paramset.syserr_minMQ)) + MIN(minMQinc, bDP * 3), bMQdec),
             (SEQUENCING_PLATFORM_IONTORRENT != paramset.inferred_sequencing_platform && isSymbolSubstitution(AlignmentSymbol(LAST(fmt.VTI))) ? (fmt.aBQQ[a]) : (200)));
     
-    const auto tn_syserr_q = syserr_q + MAX(paramset.tn_q_inc_max, non_neg_minus(paramset.germ_phred_homalt_snp, 
-            numstates2phred(MAX(1, aDP * 100) / (double)MAX(1, LAST(fmt.aXM2)))));
+    //const auto tn_syserr_q = paramset.syserr_maxMQ + MAX(paramset.tn_q_inc_max, non_neg_minus(paramset.germ_phred_homalt_snp, 
+    //        numstates2phred(MAX(1, aDP * 100) / (double)MAX(1, LAST(fmt.aXM2)))));
+    const auto tn_syserr_q = paramset.syserr_maxMQ + germ_phred_homalt + paramset.tn_q_inc_max - MAX(0, diffAaMQs);
+    // + paramset.tn_q_inc_max + non_neg_minus(paramset.germ_phred_homalt_snp, 
+    // numstates2phred(MAX(1, aDP * 100) / (double)MAX(1, LAST(fmt.aXM2))));
     // aXMp1, a1XM, and aXM2 are actually not used.
     
     clear_push(fmt.bIAQ, duped_frag_binom_qual - indel_pena_base, a);
@@ -4139,6 +4147,7 @@ fill_tki(auto & tki, const auto & fmt, size_t a = 1) {
     tki.cVQ2  = fmt.cVQ2.at(a);
     tki.cPCQ2 = fmt.cPCQ2.at(a);
     
+    tki.nAFA = fmt.nAFA;
     return 0;
 };
 
@@ -4266,7 +4275,8 @@ append_vcf_record(
     uvc1_refgpos_t phred_het3al_chance_inc_indel = MAX(0, 2 * paramset.germ_phred_hetero_indel - paramset.germ_phred_het3al_indel - TIN_CONTAM_MICRO_VQ_DELTA);
     
     // const auto tn_syserr_norm_devqual = paramset.tn_syserr_norm_devqual * ((SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform) ? 0.25 : 1.0);
-    const uvc1_qual_t prior_phred = ((SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform) ? (3+8) : 3);
+    const uvc1_qual_t prior_phred = ((SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform) 
+            ? (3+8) : MAX(3, MIN3(3+11, (fmt.nAFA[0] - fmt.nAFA[8]) / 10, (tki.nAFA[0] - tki.nAFA[8]) / 10)));
     const std::array<uvc1_qual_t, 4> b_binom_powlaw_syserr_normv_q4filter = (paramset.tn_syserr_norm_devqual >= 0 
         ? calc_binom_powlaw_syserr_normv_quals(
             (tki.cDP1x + 0.5) / 100.0 + 0.0, 
