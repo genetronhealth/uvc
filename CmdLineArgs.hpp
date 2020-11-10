@@ -100,7 +100,7 @@ struct CommandLineArgs {
     uvc1_readpos_t   bias_thres_aLPxT_add = 5;
     uvc1_readpos_t   bias_thres_aLPxT_perc = 160;
     
-    uvc1_base1500x_t   bias_thres_PFXM1T_add = 35; // set very high to disable mismatch bias
+    uvc1_base1500x_t   bias_thres_PFXM1T_add = 30; // 35; // set very high to disable mismatch bias
     uvc1_base1500x_t   bias_thres_PFXM2T_add = 20;
     uvc1_base1500x_t   bias_thres_PFGO1T_add = 25; // set very high to disable gap bias
     uvc1_base1500x_t   bias_thres_PFGO2T_add = 15;
@@ -234,7 +234,7 @@ struct CommandLineArgs {
     uvc1_qual_t         syserr_phred_varcall_err_per_map_err_per_base = 10; // this is the max phred probability of varcall error per base per mapping error
     
     // Make sure that, by default, all variants (which usually include hotspot variants) are found in the vcf output regardless of mapping quality.
-    uvc1_qual_t         syserr_minMQ = ((vqual > syserr_phred_varcall_err_per_map_err_per_base) ? (vqual - syserr_phred_varcall_err_per_map_err_per_base) : 0); 
+    uvc1_qual_t         syserr_minMQ = 30; // ((vqual > syserr_phred_varcall_err_per_map_err_per_base) ? (vqual - syserr_phred_varcall_err_per_map_err_per_base) : 0); 
  
 // *** 09. parameters related to germline vars // PMC4271055: probablity of germline call error is between 1/100kb and 1/200kb
 
