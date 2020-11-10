@@ -3475,7 +3475,7 @@ BcfFormat_symbol_calc_qual(
                 ? ((uvc1_qual_t)round(paramset.indel_multiallele_samepos_penal / log(2) 
                 * log((double)MAX3(aDP + eps, fmt.APDP[1], fmt.APDP[2]) / (double)(aDP + eps)))) 
                 : 0);
-    fmt.note += std::string("/pb/") + std::to_string(indel_pena_base) + "/" + std::to_string(paramset.inferred_sequencing_platform) + "/(" + paramset.vcf_tumor_fname + ")/";
+    // fmt.note += std::string("/pb/") + std::to_string(indel_pena_base) + "/" + std::to_string(paramset.inferred_sequencing_platform) + "/(" + paramset.vcf_tumor_fname + ")/";
     uvc1_qual_t indel_penal4multialleles = 0;
     uvc1_qual_t indel_penal4multialleles_g = 0;
     uvc1_qual_t indel_penal4multialleles_soma = 0;
@@ -4144,16 +4144,24 @@ fill_tki(auto & tki, const auto & fmt, size_t a = 1) {
 
 const auto
 calc_binom_powlaw_syserr_normv_quals(
-        auto tAD, auto tDP, int tVQ, int tnVQcap,
-        auto nAD, auto nDP, int nVQ, const double penal_dimret_coef,
+        auto tAD, 
+        auto tDP, 
+        uvc1_qual_t tVQ, 
+        uvc1_qual_t tnVQcap,
+        auto nAD, 
+        auto nDP, 
+        uvc1_qual_t nVQ, 
+        const double penal_dimret_coef,
+        const uvc1_qual_t prior_phred,
         const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
     uvc1_qual_t binom_b10log10like = calc_binom_10log10_likeratio((tDP - tAD) / (tDP), nDP - nAD, nAD);
     double bjpfrac = ((tAD + 0.5) / (tDP + 1.0)) / ((nAD + 0.5) / (nDP + 1.0));
     uvc1_qual_t powlaw_b10log10like = (uvc1_qual_t)floor(3 * 10 / log(10) * log(bjpfrac));
-    uvc1_qual_t prior_phred = 3; // ((penal_dimret_coef < 25) ? 8 : 1);
     
     uvc1_qual_t tnVQinc = MAX3(-prior_phred, (-(uvc1_qual_t)nAD)*3, MIN(binom_b10log10like - prior_phred, powlaw_b10log10like - prior_phred));
-    uvc1_qual_t tnVQdec = MAX(0, nVQ - MAX(0, MIN(binom_b10log10like - prior_phred, (uvc1_qual_t)(mathsquare(log(MAX(bjpfrac, 1.001)) / log(2)) * penal_dimret_coef))));
+    uvc1_qual_t tnVQdec = MAX(0, nVQ - MAX(0, MIN(
+            binom_b10log10like - prior_phred, 
+            (uvc1_qual_t)(mathsquare(log(MAX(bjpfrac, 1.001)) / log(2)) * penal_dimret_coef))));
     
     uvc1_qual_t tnVQ = tVQ + tnVQinc - tnVQdec;
     tnVQ = MIN(tnVQcap, tnVQ);
@@ -4162,8 +4170,13 @@ calc_binom_powlaw_syserr_normv_quals(
 
 const auto
 calc_binom_powlaw_syserr_normv_quals2(
-        auto tAD, auto tDP, int tVQ, int tnVQcap,
-        auto nAD, auto nDP, int nVQ,
+        auto tAD, 
+        auto tDP, 
+        uvc1_qual_t tVQ, 
+        uvc1_qual_t tnVQcap,
+        auto nAD, 
+        auto nDP, 
+        uvc1_qual_t nVQ,
         const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
     uvc1_qual_t binom_b10log10like = calc_binom_10log10_likeratio((tDP - tAD) / (tDP), nDP - nAD, nAD);
     uvc1_qual_t powlaw_b10log10like = (nAD <= 3 ? binom_b10log10like : (uvc1_qual_t)round(binom_b10log10like * 3 / nAD));
@@ -4252,7 +4265,8 @@ append_vcf_record(
     uvc1_refgpos_t phred_het3al_chance_inc_snp = MAX(0, 2 * paramset.germ_phred_hetero_snp - paramset.germ_phred_het3al_snp - TIN_CONTAM_MICRO_VQ_DELTA);
     uvc1_refgpos_t phred_het3al_chance_inc_indel = MAX(0, 2 * paramset.germ_phred_hetero_indel - paramset.germ_phred_het3al_indel - TIN_CONTAM_MICRO_VQ_DELTA);
     
-    const auto tn_syserr_norm_devqual = paramset.tn_syserr_norm_devqual * ((SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform) ? 0.5 : 1.0);
+    // const auto tn_syserr_norm_devqual = paramset.tn_syserr_norm_devqual * ((SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform) ? 0.25 : 1.0);
+    const uvc1_qual_t prior_phred = ((SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform) ? (3+8) : 3);
     const std::array<uvc1_qual_t, 4> b_binom_powlaw_syserr_normv_q4filter = (paramset.tn_syserr_norm_devqual >= 0 
         ? calc_binom_powlaw_syserr_normv_quals(
             (tki.cDP1x + 0.5) / 100.0 + 0.0, 
@@ -4262,7 +4276,8 @@ append_vcf_record(
             (nfm_cDP1x + 0.5) / 100.0 + 0.0, 
             (nfm_CDP1x + 1.0) / 100.0 + 0.0, 
             non_neg_minus(collectget(nfm.cVQ1, 1), (isSymbolSubstitution(symbol) ? phred_het3al_chance_inc_snp : phred_het3al_chance_inc_indel)),
-            tn_syserr_norm_devqual,
+            paramset.tn_syserr_norm_devqual,
+            prior_phred,
             0)
         : calc_binom_powlaw_syserr_normv_quals2(
             (tki.cDP1x + 0.5) / 100.0 + 0.0, 
@@ -4284,6 +4299,7 @@ append_vcf_record(
             (collectget(nfm.CDP2x, 0) + 0.0) / 100.0 + 1.0, 
             non_neg_minus(collectget(nfm.cVQ2, 1), (isSymbolSubstitution(symbol) ? phred_het3al_chance_inc_snp : phred_het3al_chance_inc_indel)),
             paramset.tn_syserr_norm_devqual,
+            prior_phred,
             0)
         : calc_binom_powlaw_syserr_normv_quals2(
             (tki.cDP2x + 0.5) / 100.0 + 0.0, 
