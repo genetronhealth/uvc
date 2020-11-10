@@ -522,6 +522,17 @@ enum SegFormatDepthSet {
 */
 
 struct SegFormatInfoSet {
+    // allele-specific
+    uvc1_readnum100x_t seginfo_a2XM2;
+    uvc1_readnum100x_t seginfo_a2BM2;    
+   
+    uvc1_readnum100x_t seginfo_aPF1; // mismatch and BQ
+    uvc1_readnum100x_t seginfo_aPF2; 
+    uvc1_readnum100x_t seginfo_aXM1; // mismatch
+    uvc1_readnum100x_t seginfo_aXM2; 
+    
+    uvc1_readnum_t seginfo_aBQ2; // number passing BQ filter
+    
     uvc1_qual_t seginfo_aMQs;
     uvc1_readnum_t seginfo_aXMp1;
     uvc1_readnum_t seginfo_aP1;
@@ -531,16 +542,8 @@ struct SegFormatInfoSet {
     uvc1_readnum_t seginfo_aDPrf;
     uvc1_readnum_t seginfo_aDPrr;
     
-    uvc1_readnum100x_t seginfo_aXM1;
-    uvc1_readnum100x_t seginfo_aXM2;
-    uvc1_readnum100x_t seginfo_aBM2;
-    
-    uvc1_qual_t seginfo_aBQ1; // base-quality bias
-    uvc1_qual_t seginfo_aBQ2;
-    
-    uvc1_readnum100x_t seginfo_aPF1; // mismatch
-    uvc1_readnum100x_t seginfo_aPF2; 
-    
+    // uvc1_qual_t seginfo_aBQ1; // base-quality bias
+        
     uvc1_readnum_t seginfo_aLP1; // left seg pos
     uvc1_readnum_t seginfo_aLP2;
     uvc1_readpos_t seginfo_aLPL;

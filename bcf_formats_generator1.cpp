@@ -200,7 +200,12 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("ABQ2"  , 2,         BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 base quality bias."),
     BcfFormatStruct("APF1"  , 2,         BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 mismatch bias."),
     BcfFormatStruct("APF2"  , 2,         BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 mismatch bias."),
+    BcfFormatStruct("AXM1"  , 2,         BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 relative mismatch bias "
+                    "(for capping quality from tumor-normal comparison)."),
+    BcfFormatStruct("AXM2"  , 2,         BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 relative mismatch bias "
+                    "(for capping quality from tumor-normal comparison)."),
     
+
     BcfFormatStruct("__A4"  , 1,         BCF_SEP,     "As before."),
     BcfFormatStruct("ALI1"  , 2,         BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 insert bias on the left side."),
     BcfFormatStruct("ALI2"  , 2,         BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 insert bias on the right side."),
@@ -244,11 +249,17 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("aRBL"  , BCF_NUM_R, BCF_INTEGER, "Raw summed distance (number of bases) to the right-side sequencing-segment end."),
     
     BcfFormatStruct("__a3"  , 1,         BCF_SEP,     "As before."),
+    BcfFormatStruct("aBQ2"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 base quality bias."),
+    
     BcfFormatStruct("aPF1"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 relative mismatch bias and base quality bias."),
     BcfFormatStruct("aPF2"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 relative mismatch bias and base quality bias."),
-    BcfFormatStruct("aBQ2"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 base quality bias."),
-    BcfFormatStruct("aXM2"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 absolute mismatch bias."),
-    BcfFormatStruct("aBM2"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by base-specific mismatch bias."),
+    BcfFormatStruct("aXM1"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 relative mismatch bias "
+                    "(for capping quality from tumor-normal comparison)."),
+    BcfFormatStruct("aXM2"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 relative mismatch bias "
+                    "(for capping quality from tumor-normal comparison)."),
+    
+    BcfFormatStruct("a2XM2" , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by absolute mismatch bias."),
+    BcfFormatStruct("a2BM2" , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by absolute base-specific mismatch bias."),
     
     BcfFormatStruct("__a4"  , 1,         BCF_SEP,     "As before."),
     BcfFormatStruct("aLI1"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 insert bias on the left side."),

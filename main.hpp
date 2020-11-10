@@ -1256,23 +1256,41 @@ dealwith_segbias(
     const auto const_LPxT = seg_format_thres_set.segthres_aLPxT; 
     const auto const_RPxT = seg_format_thres_set.segthres_aRPxT; 
     if (isGap) {
+        uvc1_readnum100x_t ampfact1 = 100;
+        uvc1_readnum100x_t ampfact2 = 100;
         
-        if (xm1500 <= const_XM1T && go1500 <= const_GO1T && bq >= paramset.bias_thres_PFBQ1) {
-            symbol_to_seg_format_depth_set.seginfo_aPF1 += 100;
+        if (xm1500 <= const_XM1T && go1500 <= const_GO1T) {
+            ampfact1 = 100;
         } else {
-            symbol_to_seg_format_depth_set.seginfo_aPF1 += MIN3(
+            ampfact1 = MIN(
                     100 * mathsquare(const_XM1T) / MAX(1, mathsquare(xm1500)), 
-                    100 * mathsquare(const_GO1T) / MAX(1, mathsquare(go1500)),
-                    100 * mathsquare(bq) / mathsquare(paramset.bias_thres_PFBQ1));
-        } 
-        if (xm1500 <= const_XM2T && go1500 <= const_GO2T && bq >= paramset.bias_thres_PFBQ2) {
-            symbol_to_seg_format_depth_set.seginfo_aPF2 += 100;
-        } else {
-            symbol_to_seg_format_depth_set.seginfo_aPF2 += MIN3(
-                    100 * mathsquare(const_XM2T) / MAX(1, mathsquare(xm1500)), 
-                    100 * mathsquare(const_GO2T) / MAX(1, mathsquare(go1500)),
-                    100 * mathsquare(bq) / mathsquare(paramset.bias_thres_PFBQ2));
+                    100 * mathsquare(const_GO1T) / MAX(1, mathsquare(go1500)));
         }
+        if (bq >= paramset.bias_thres_PFBQ1) {
+            ampfact2 = 100;
+        } else {
+            ampfact2 = 100 * mathsquare(bq) / mathsquare(paramset.bias_thres_PFBQ1);
+        }
+
+        symbol_to_seg_format_depth_set.seginfo_aPF1 += MIN(ampfact1, ampfact2);
+        symbol_to_seg_format_depth_set.seginfo_aXM1 +=    (ampfact1);
+        
+        if (xm1500 <= const_XM2T && go1500 <= const_GO2T) {
+            ampfact1 = 100;
+        } else {
+            ampfact1 = MIN(
+                    100 * mathsquare(const_XM2T) / MAX(1, mathsquare(xm1500)),
+                    100 * mathsquare(const_GO2T) / MAX(1, mathsquare(go1500)));
+        }
+        if (bq >= paramset.bias_thres_PFBQ2) {
+            ampfact2 = 100;
+        } else {
+            ampfact2 = 100 * mathsquare(bq) / mathsquare(paramset.bias_thres_PFBQ2);
+        }
+        
+        symbol_to_seg_format_depth_set.seginfo_aPF2 += MIN(ampfact1, ampfact2);
+        symbol_to_seg_format_depth_set.seginfo_aXM2 +=    (ampfact1);
+
     } else {
         uvc1_readnum100x_t ampfact1 = 100;
         uvc1_readnum100x_t ampfact2 = 100;
@@ -1288,6 +1306,7 @@ dealwith_segbias(
             ampfact2 = 100; 
         }
         symbol_to_seg_format_depth_set.seginfo_aPF1 += (ampfact1 * ampfact2 / (100));
+        symbol_to_seg_format_depth_set.seginfo_aXM1 += (ampfact1);
         
         if (xm1500 > const_XM2T) {
             ampfact1 = 100 * mathsquare(const_XM2T) / mathsquare(xm1500);
@@ -1300,9 +1319,10 @@ dealwith_segbias(
             ampfact2 = 100; 
         }
         symbol_to_seg_format_depth_set.seginfo_aPF2 += (ampfact1 * ampfact2 / (100));
+        symbol_to_seg_format_depth_set.seginfo_aXM2 += (ampfact1);
         
-        symbol_to_seg_format_depth_set.seginfo_aXM2 += (xm1500 > 20 ? (100 * mathsquare(20) / mathsquare(xm1500)) : 100);
-        symbol_to_seg_format_depth_set.seginfo_aBM2 += (bm1500 > 20 ? (100 * mathsquare(20) / mathsquare(bm1500)) : 100);
+        symbol_to_seg_format_depth_set.seginfo_a2XM2 += (xm1500 > 20 ? (100 * mathsquare(20) / mathsquare(xm1500)) : 100);
+        symbol_to_seg_format_depth_set.seginfo_a2BM2 += (bm1500 > 20 ? (100 * mathsquare(20) / mathsquare(bm1500)) : 100);
     }
     
     if (((!isGap) && bq >= paramset.bias_thres_highBQ) || (isGap && dist_to_interfering_indel >= paramset.bias_thres_interfering_indel)) {
@@ -2645,15 +2665,15 @@ fill_symbol_VQ_fmts(
     const uvc1_qual_t rssDPbBQ = ((aDPf + aDPr) * sqrt((a2BQf + a2BQr) * SQR_QUAL_DIV / MAX(1, aDPf + aDPr)));
     
     // assert ((aDPf + aDPr) * 100 >= LAST(fmt.aXM1));
-    assert ((aDPf + aDPr) * 100 >= LAST(fmt.aXM2));
-    assert ((aDPf + aDPr) * 100 >= LAST(fmt.aBM2));
+    assert ((aDPf + aDPr) * 100 >= LAST(fmt.a2XM2));
+    assert ((aDPf + aDPr) * 100 >= LAST(fmt.a2BM2));
     // TODO: what is the exact theory behind the following line of code?
     uvc1_qual_t minABQa = minABQ - (uvc1_qual_t)(5 * 10.0 * mathsquare(MAX(0, ((aDPf + aDPr + 0.5) * 2.0 / (ADP + 1.0) - 1.0))));
     const uvc1_readnum_t dp10pc = 10;
     double sbratio = (double)(MAX(aDPf, aDPr) * 10 + dp10pc) / (double)(MIN(aDPf, aDPr) * 10 + dp10pc);
     minABQa += BETWEEN((uvc1_qual_t)mathsquare(sbratio) - paramset.syserr_BQ_sbratio_q_add, 0, paramset.syserr_BQ_sbratio_q_max);
-    const uvc1_readnum_t xmratio = (paramset.syserr_BQ_xmratio_q_max * 10 * (aDPf + aDPr) / MAX(1, LAST(fmt.aXM2)));
-    const uvc1_readnum_t bmratio = (paramset.syserr_BQ_bmratio_q_max * 10 * (aDPf + aDPr) / MAX(1, LAST(fmt.aBM2)));
+    const uvc1_readnum_t xmratio = (paramset.syserr_BQ_xmratio_q_max * 10 * (aDPf + aDPr) / MAX(1, LAST(fmt.a2XM2)));
+    const uvc1_readnum_t bmratio = (paramset.syserr_BQ_bmratio_q_max * 10 * (aDPf + aDPr) / MAX(1, LAST(fmt.a2BM2)));
     minABQa += BETWEEN(xmratio - paramset.syserr_BQ_xmratio_q_add, 0, paramset.syserr_BQ_xmratio_q_max) 
              + BETWEEN(bmratio - paramset.syserr_BQ_bmratio_q_add, 0, paramset.syserr_BQ_bmratio_q_max);
     /*
@@ -2773,7 +2793,10 @@ BcfFormat_symboltype_init(bcfrec::BcfFormat & fmt,
     
     filla_symboltype_fmt(fmt.APF1,  symbol_to_seg_format_depth_sets, seginfo_aPF1, refpos, symboltype, refsymbol);
     filla_symboltype_fmt(fmt.APF2,  symbol_to_seg_format_depth_sets, seginfo_aPF2, refpos, symboltype, refsymbol);
+    filla_symboltype_fmt(fmt.AXM1,  symbol_to_seg_format_depth_sets, seginfo_aXM1, refpos, symboltype, refsymbol);
+    filla_symboltype_fmt(fmt.AXM2,  symbol_to_seg_format_depth_sets, seginfo_aXM2, refpos, symboltype, refsymbol);
     
+
     filla_symboltype_fmt(fmt.ALI1,  symbol_to_seg_format_depth_sets, seginfo_aLI1, refpos, symboltype, refsymbol);
     filla_symboltype_fmt(fmt.ALI2,  symbol_to_seg_format_depth_sets, seginfo_aLI2, refpos, symboltype, refsymbol);
     
@@ -2870,12 +2893,16 @@ BcfFormat_symbol_init(
     filla_symbol_fmt(fmt.aRB2, symbol_to_seg_format_depth_sets, seginfo_aRB2, refpos, symbol, a);
     filla_symbol_fmt(fmt.aRBL, symbol_to_seg_format_depth_sets, seginfo_aRBL, refpos, symbol, a);
     
-    filla_symbol_fmt(fmt.aXM2, symbol_to_seg_format_depth_sets, seginfo_aXM2, refpos, symbol, a);
-    filla_symbol_fmt(fmt.aBM2, symbol_to_seg_format_depth_sets, seginfo_aBM2, refpos, symbol, a);
-    filla_symbol_fmt(fmt.aBQ2, symbol_to_seg_format_depth_sets, seginfo_aBQ2, refpos, symbol, a);
+    // extra
+    filla_symbol_fmt(fmt.a2XM2,symbol_to_seg_format_depth_sets, seginfo_a2XM2,refpos, symbol, a);
+    filla_symbol_fmt(fmt.a2BM2,symbol_to_seg_format_depth_sets, seginfo_a2BM2,refpos, symbol, a);
     
+    filla_symbol_fmt(fmt.aBQ2, symbol_to_seg_format_depth_sets, seginfo_aBQ2, refpos, symbol, a);
+
     filla_symbol_fmt(fmt.aPF1, symbol_to_seg_format_depth_sets, seginfo_aPF1, refpos, symbol, a);
     filla_symbol_fmt(fmt.aPF2, symbol_to_seg_format_depth_sets, seginfo_aPF2, refpos, symbol, a);
+    filla_symbol_fmt(fmt.aXM1, symbol_to_seg_format_depth_sets, seginfo_aXM1, refpos, symbol, a);
+    filla_symbol_fmt(fmt.aXM2, symbol_to_seg_format_depth_sets, seginfo_aXM2, refpos, symbol, a);
 
     filla_symbol_fmt(fmt.aLI1, symbol_to_seg_format_depth_sets, seginfo_aLI1, refpos, symbol, a);
     filla_symbol_fmt(fmt.aLI2, symbol_to_seg_format_depth_sets, seginfo_aLI2, refpos, symbol, a);
@@ -3116,7 +3143,7 @@ BcfFormat_symbol_calc_DPv(
             aLBFA += 2.0;
             aRBFA += 2.0;
         }
-        if (LAST(fmt.bMQ) >= paramset.microadjust_nobias_pos_indel_bMQ && LAST(fmt.aXM2) * 100 >= aDP * 100 * paramset.microadjust_nobias_pos_indel_perc) { aLIFA += 2.0; aRIFA += 2.0; }
+        if (LAST(fmt.bMQ) >= paramset.microadjust_nobias_pos_indel_bMQ && LAST(fmt.a2XM2) * 100 >= aDP * 100 * paramset.microadjust_nobias_pos_indel_perc) { aLIFA += 2.0; aRIFA += 2.0; }
     } else if (LINK_M == symbol || LINK_NN == symbol) {
         aLBFA = (double)MIN(aLBFA, MAX(1, LAST(fmt.aLB1)) / (double)MAX(1, ADP));
         aRBFA = (double)MIN(aRBFA, MAX(1, LAST(fmt.aRB1)) / (double)MAX(1, ADP));
@@ -3127,8 +3154,9 @@ BcfFormat_symbol_calc_DPv(
         aLIFA = aRIFA = MAX(aLIFA, aRIFA);
     }
     
-    const double aXMFA = (double)(LAST(fmt.aXM2) / 100.0 / MAX(1, aDP));
-    const double aPFFA = (fmt.aPF1[a] + pfa * (is_rescued ? 100.0 : (double)(fmt.aXM2[a] / MAX(1, aDP)))) / (fmt.APF2[0] + (fmt.aPF1[a] - fmt.aPF2[a]) + 1.0*100);
+    // const double aXM2FA = (double)(LAST(fmt.a2XM2) / 100.0 / MAX(1, aDP));
+    const double aXMFA = (fmt.aXM1[a] + 50.0)  / (fmt.AXM2[0] + (fmt.aXM1[a] - fmt.aXM2[a]) + 100.0);
+    const double aPFFA = (fmt.aPF1[a] + pfa * (is_rescued ? 100.0 : (double)(fmt.a2XM2[a] / MAX(1, aDP)))) / (fmt.APF2[0] + (fmt.aPF1[a] - fmt.aPF2[a]) + 1.0*100);
     const auto aSSFAx2 = dp4_to_pcFA<true>(fmt.aDPff[a] + fmt.aDPrf[a], fmt.aDPfr[a] + fmt.aDPrr[a], fmt.ADPff[0] + fmt.ADPrf[0], fmt.ADPfr[0] + fmt.ADPrr[0], 
             paramset.powlaw_exponent, phred2nat(aSBpriorfreq));
     const auto bias_priorfreq_orientation_base = (isSymbolSubstitution(symbol) ? paramset.bias_priorfreq_orientation_snv_base :paramset.bias_priorfreq_orientation_indel_base);
@@ -3173,7 +3201,9 @@ BcfFormat_symbol_calc_DPv(
             aLPFA, aRPFA,
             aLBFA, aRBFA,
             aLIFA, aRIFA, 
-            aSSFA, aPFFA * aSSFA / MAX(aSSFA, aSSFAx2[1]) }};
+            aSSFA, 
+            aPFFA * aSSFA / MAX(aSSFA, aSSFAx2[1]),
+            aXMFA }};
     
     double cFA2 = (fmt.cDP2f[a] + fmt.cDP2r[a] + pfa) / (fmt.CDP2f[0] + fmt.CDP2r[0] + 1.0);
     // The following code without + 1 pseudocount in both nominator and denominator can result in false negative calls at low allele fraction (it is rare but can happen).
@@ -3234,6 +3264,7 @@ BcfFormat_symbol_calc_DPv(
     double min_abcFA_w = MINVEC(std::vector<double>{{
             aLPFA, aRPFA,
             aLBFA, aRBFA,
+            aXMFA,
             bFA }});
     clear_push(fmt.cDP1w, (uvc1_readnum100x_t)(calc_normFA_from_rawFA_refbias(min_abcFA_w, refbias) * (fmt.CDP1f[0] +fmt.CDP1r[0]) * 100), a);
     double min_abcFA_x = MINVEC(std::vector<double>{{ aPFFA, cFA0 }});
@@ -3245,6 +3276,7 @@ BcfFormat_symbol_calc_DPv(
             aLPFA * frac_umi2seg, aRPFA * frac_umi2seg,
             aLBFA * frac_umi2seg, aRBFA * frac_umi2seg,
             aDPFA * frac_umi2seg,
+            aXMFA * frac_umi2seg,
             cROFA2
             }});
     clear_push(fmt.cDP2w, (uvc1_readnum100x_t)(calc_normFA_from_rawFA_refbias(umi_cFA_w, refbias) * (fmt.CDP2f[0] +fmt.CDP2r[0]) * 100), a);
@@ -4276,7 +4308,7 @@ append_vcf_record(
     
     // const auto tn_syserr_norm_devqual = paramset.tn_syserr_norm_devqual * ((SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform) ? 0.25 : 1.0);
     const uvc1_qual_t prior_phred = ((SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform) 
-            ? (3+8) : MAX(3, MIN3(3+11, (fmt.nAFA[0] - fmt.nAFA[8]) / 10, (tki.nAFA[0] - tki.nAFA[8]) / 10)));
+            ? (3+8) : MAX(3, MIN3(3+9, (fmt.nAFA[8] - fmt.nAFA[0]) / 10, (tki.nAFA[8] - tki.nAFA[0]) / 10)));
     const std::array<uvc1_qual_t, 4> b_binom_powlaw_syserr_normv_q4filter = (paramset.tn_syserr_norm_devqual >= 0 
         ? calc_binom_powlaw_syserr_normv_quals(
             (tki.cDP1x + 0.5) / 100.0 + 0.0, 
