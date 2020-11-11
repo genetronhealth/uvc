@@ -1245,6 +1245,7 @@ dealwith_segbias(
         symbol_to_seg_format_depth_set.seginfo_aP1 += 1;
     }
     symbol_to_seg_aDP_depth_set += 1;
+    // symbol_to_seg_format_depth_set.seginfo_aRL += (rend - aln->core.pos);
     
     symbol_to_seg_format_depth_set.seginfo_aXMp1 += 1000 / MAX(xm1500, 10);
     
@@ -2169,6 +2170,13 @@ struct Symbol2CountCoverageSet {
                         normMQ = MAX(normMQ, aln->core.qual);
                     }
                     std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>> pos_symbol_string;
+
+                    size_t tlen = read_ampBQerr_fragWithR1R2.getExcluEndPosition() - read_ampBQerr_fragWithR1R2.getIncluBegPosition();
+                    // 1 means is covered, 2 means has mut, 4 means is near mut.
+                    std::vector<int8_t> cov_mut_vec(tlen, 0);
+                    std::vector<AlignmentSymbol> cov_mut_base_symbol_vec(tlen, END_ALIGNMENT_SYMBOLS);
+                    std::vector<AlignmentSymbol> cov_mut_link_symbol_vec(tlen, END_ALIGNMENT_SYMBOLS);
+                    
                     for (auto epos = read_ampBQerr_fragWithR1R2.getIncluBegPosition(); epos < read_ampBQerr_fragWithR1R2.getExcluEndPosition(); epos++) {
                         for (SymbolType symboltype : SYMBOL_TYPES_IN_VCF_ORDER) {
                             AlignmentSymbol con_symbol;
@@ -2209,14 +2217,47 @@ struct Symbol2CountCoverageSet {
                                         read_ampBQerr_fragWithR1R2.getPosToDlenToData(con_symbol), epos, 1);
                             }
                             AlignmentSymbol refsymbol = region_symbolvec[epos-this->getUnifiedIncluBegPosition()]; 
+                            cov_mut_vec[epos - read_ampBQerr_fragWithR1R2.getIncluBegPosition()] |= 0x1;
                             if (areSymbolsMutated(refsymbol, con_symbol) && (LINK_SYMBOL == symboltype || phredlike >= paramset.bias_thres_highBQ)) {
                                 pos_symbol_string.push_back(std::make_pair(epos, con_symbol));
+                                cov_mut_vec[epos - read_ampBQerr_fragWithR1R2.getIncluBegPosition()] |= 0x2;
+                            }
+                            if (LINK_SYMBOL == symboltype) {
+                                cov_mut_link_symbol_vec[epos - read_ampBQerr_fragWithR1R2.getIncluBegPosition()] = con_symbol;
+                            } else {
+                                cov_mut_base_symbol_vec[epos - read_ampBQerr_fragWithR1R2.getIncluBegPosition()] = con_symbol;
                             }
                         }
                     }
                     if (pos_symbol_string.size() > 1) {
                         mutform2count4map.insert(std::make_pair(pos_symbol_string, std::array<uvc1_readnum_t, 2>({0, 0})));
                         mutform2count4map[pos_symbol_string][strand]++;
+                    }
+                    for (size_t i = 0; i < cov_mut_vec.size(); i++) {
+                        if (cov_mut_vec[i] & 0x2) {
+                            for (size_t j = i - 11; j < i + 11 + 1; j++) {
+                                if (j < cov_mut_vec.size()) {
+                                    cov_mut_vec[j] |= 0x4;
+                                }
+                            }
+                        }
+                    }
+                    uvc1_base_t n_cov_positions = 0;
+                    uvc1_base_t n_near_mut_positions = 0;
+                    for (size_t i = 0; i < cov_mut_vec.size(); i++) {
+                        if ((cov_mut_vec[i]) & 0x1) {n_cov_positions++;}
+                        if ((cov_mut_vec[i]) & 0x4) {n_near_mut_positions++;}
+                    }
+                    const auto b10xSeqTlen = n_cov_positions;
+                    const auto b10xSeqTNevents = n_near_mut_positions;
+                    for (auto epos = read_ampBQerr_fragWithR1R2.getIncluBegPosition(); epos < read_ampBQerr_fragWithR1R2.getExcluEndPosition(); epos++) {
+                        const auto ivec = epos - read_ampBQerr_fragWithR1R2.getIncluBegPosition();
+                        for (const auto con_symbol : std::array<AlignmentSymbol, 2> {{ cov_mut_base_symbol_vec[ivec], cov_mut_link_symbol_vec[ivec] }} ) {
+                            if (con_symbol != END_ALIGNMENT_SYMBOLS) {
+                                this->symbol_to_frag_format_depth_sets[strand].getRefByPos(epos)[con_symbol][FRAG_bTA] += b10xSeqTlen;
+                                this->symbol_to_frag_format_depth_sets[strand].getRefByPos(epos)[con_symbol][FRAG_bTB] += b10xSeqTNevents;
+                            }
+                        }
                     }
                 }
             }
@@ -2733,7 +2774,6 @@ BcfFormat_symboltype_init(bcfrec::BcfFormat & fmt,
         p.segprep_a_pcr_dp,
         p.segprep_a_snv_dp,
         p.segprep_a_dnv_dp,
-        // unused
         p.segprep_a_highBQ_dp,
         
     }};
@@ -2806,7 +2846,12 @@ BcfFormat_symboltype_init(bcfrec::BcfFormat & fmt,
     const auto & symbol_to_frag_format_depth_sets = symbol2CountCoverageSet12.symbol_to_frag_format_depth_sets;
     
     fill_symboltype_fmt(fmt.BDPf,  symbol_to_frag_format_depth_sets[0], FRAG_bDP, refpos, symboltype, refsymbol);
+    fill_symboltype_fmt(fmt.BTAf,  symbol_to_frag_format_depth_sets[0], FRAG_bTA, refpos, symboltype, refsymbol);
+    fill_symboltype_fmt(fmt.BTBf,  symbol_to_frag_format_depth_sets[0], FRAG_bTB, refpos, symboltype, refsymbol);
+    
     fill_symboltype_fmt(fmt.BDPr,  symbol_to_frag_format_depth_sets[1], FRAG_bDP, refpos, symboltype, refsymbol);
+    fill_symboltype_fmt(fmt.BTAr,  symbol_to_frag_format_depth_sets[1], FRAG_bTA, refpos, symboltype, refsymbol);
+    fill_symboltype_fmt(fmt.BTBr,  symbol_to_frag_format_depth_sets[1], FRAG_bTB, refpos, symboltype, refsymbol);
     
     const auto & symbol_to_fam_format_depth_sets = symbol2CountCoverageSet12.symbol_to_fam_format_depth_sets_2strand;
     
@@ -2913,7 +2958,12 @@ BcfFormat_symbol_init(
     const auto & symbol_to_frag_format_depth_sets = symbol2CountCoverageSet12.symbol_to_frag_format_depth_sets;
     
     fill_symbol_fmt(fmt.bDPf, symbol_to_frag_format_depth_sets[0], FRAG_bDP, refpos, symbol, a);
+    fill_symbol_fmt(fmt.bTAf, symbol_to_frag_format_depth_sets[0], FRAG_bTA, refpos, symbol, a);
+    fill_symbol_fmt(fmt.bTBf, symbol_to_frag_format_depth_sets[0], FRAG_bTB, refpos, symbol, a);
+    
     fill_symbol_fmt(fmt.bDPr, symbol_to_frag_format_depth_sets[1], FRAG_bDP, refpos, symbol, a);
+    fill_symbol_fmt(fmt.bTAr, symbol_to_frag_format_depth_sets[1], FRAG_bTA, refpos, symbol, a);
+    fill_symbol_fmt(fmt.bTBr, symbol_to_frag_format_depth_sets[1], FRAG_bTB, refpos, symbol, a);
     
     const auto & symbol_to_fam_format_depth_sets = symbol2CountCoverageSet12.symbol_to_fam_format_depth_sets_2strand;
     fill_symbol_fmt(fmt.cDP1f, symbol_to_fam_format_depth_sets[0], FAM_cDP1, refpos, symbol, a);
@@ -3226,9 +3276,9 @@ BcfFormat_symbol_calc_DPv(
     fmt_bias_push(fmt.nAFA,  aDPFA,  aLIFA,  paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::PB2L]);
     fmt_bias_push(fmt.nAFA,  aDPFA,  aRIFA,  paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::PB2L]);
     fmt_bias_push(fmt.nAFA,  aDPFA,  aSSFA,  paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::SB1]);
-    fmt_bias_push(fmt.nAFA,  aDPFA,  aPFFA,  paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::PFB]);
+    // fmt_bias_push(fmt.nAFA,  aDPFA,  aPFFA,  paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::PFB]);
     fmt_bias_push(fmt.nAFA,  aDPFA,  aXMFA,  paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::AXMB]);
-
+    
     fmt_bias_push(fmt.nBCFA, bFA,    cFA0,   paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::DB1]);
     fmt_bias_push(fmt.nBCFA, cFA0,   bFA,    paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::DB2]);
     
@@ -3409,9 +3459,9 @@ BcfFormat_symbol_calc_qual(
     const uvc1_readnum_t cDP2 = (fmt.cDP2f[a] + fmt.cDP2r[a]);
     const uvc1_readnum_t CDP2 = (fmt.CDP2f[0] + fmt.CDP2r[0]);
     
-    const auto diffAaMQs = (uvc1_qual_t)(fmt.AMQs[0] / MAX(1, ADP)) - (uvc1_qual_t)(fmt.aMQs[a] / MAX(1, aDP));
-    const auto tn_q_inc_max = BETWEEN(paramset.tn_q_inc_max - diffAaMQs, 0, paramset.tn_q_inc_max);
-
+    const auto diffAaMQs = (uvc1_qual_t)((fmt.AMQs[0] - fmt.aMQs[a]) / MAX(1, ADP - aDP)) - (uvc1_qual_t)(fmt.aMQs[a] / MAX(1, aDP));
+    const auto tn_q_inc_max = paramset.tn_q_inc_max; // BETWEEN(paramset.tn_q_inc_max - diffAaMQs, 0, paramset.tn_q_inc_max);
+    
     const auto noUMI_bias_inc = MIN(paramset.bias_FA_powerlaw_noUMI_phred_inc_snv, aDP/2); 
     const auto pl_noUMI_phred_inc = paramset.powlaw_anyvar_base 
             + (isSymbolSubstitution(symbol) ? noUMI_bias_inc : paramset.bias_FA_powerlaw_noUMI_phred_inc_indel);
@@ -3576,13 +3626,42 @@ BcfFormat_symbol_calc_qual(
     if (refsymbol != symbol) {
         absMinMQ = 40 - BETWEEN(diffAaMQs, -20, 20);
     }
+
+    const auto fBTA = (double)(fmt.BTAf[0] + fmt.BTAr[0] + 200);
+    const auto fBTB = (double)(fmt.BTBf[0] + fmt.BTBr[0] + 6);
+    const auto fbTA = (double)(fmt.bTAf[a] + fmt.bTAr[a] + 100);
+    const auto fbTB = (double)(fmt.bTBf[a] + fmt.bTBr[a] + 3);
+    
+    const double alt_frac_mut_affected_tpos = fbTB / fbTA; // is low by default
+    const double nonalt_frac_mut_affected_tpos = (fBTB + fbTB/50 - fbTB) / (fBTA + fbTA/50 - fbTA); // is same as alt by default
+    const double frac_mut_affected_pos = MAX(0.03, 2.0 * alt_frac_mut_affected_tpos - 3.0 * nonalt_frac_mut_affected_tpos);
+    const uvc1_qual_t phredHDR = round(numstates2phred(pow(frac_mut_affected_pos / 0.03, 3)) * (frac_mut_affected_pos)); 
+    
+    const uvc1_qual_t readlenMQcap = (fmt.APLRP[0] + fmt.APLRP[1]) / MAX(1, fmt.APDP[8]) - 20;
+    const uvc1_qual_t _systematicMQVQ = (((symbol == refsymbol)) ? fmt.bMQ[a] : (fmt.bMQ[a]/3 + 40)) + (uvc1_qual_t)((symbol == refsymbol) ? 0 : MIN(33, ADP * 3))
+            - (uvc1_qual_t)(MAX(0, diffAaMQs))
+            - (uvc1_qual_t)(phredHDR) 
+            - (uvc1_qual_t)(numstates2phred((ADP + 1.0) / (aDP + 0.5)));
+    const auto systematicMQVQ = BETWEEN(_systematicMQVQ, 0, readlenMQcap);
+    fmt.note += std::string("sysMQ/") 
+        + std::to_string(systematicMQVQ) + "/"
+        + std::to_string(diffAaMQs) + "/"
+        + std::to_string(alt_frac_mut_affected_tpos) + "/"
+        + std::to_string(nonalt_frac_mut_affected_tpos) + "/";
+    
+    fmt.nAFA.push_back(phredHDR);
+    
+    const uvc1_qual_t systematicBQVQ = (SEQUENCING_PLATFORM_IONTORRENT != paramset.inferred_sequencing_platform && isSymbolSubstitution(AlignmentSymbol(LAST(fmt.VTI))) ? (fmt.aBQQ[a]) : (200));
+    
+    /*
     const uvc1_qual_t syserr_q = MIN(
             MAX(absMinMQ, non_neg_minus(MAX(fmt.bMQ[a], (refsymbol == symbol ? 0 : paramset.syserr_minMQ)) + MIN(minMQinc, bDP * 3), bMQdec)),
             (SEQUENCING_PLATFORM_IONTORRENT != paramset.inferred_sequencing_platform && isSymbolSubstitution(AlignmentSymbol(LAST(fmt.VTI))) ? (fmt.aBQQ[a]) : (200)));
+    */
     
     //const auto tn_syserr_q = paramset.syserr_maxMQ + MAX(paramset.tn_q_inc_max, non_neg_minus(paramset.germ_phred_homalt_snp, 
     //        numstates2phred(MAX(1, aDP * 100) / (double)MAX(1, LAST(fmt.aXM2)))));
-    const auto tn_syserr_q = paramset.syserr_maxMQ + germ_phred_homalt + paramset.tn_q_inc_max - MAX(0, diffAaMQs);
+    const auto tn_syserr_q = systematicMQVQ + paramset.tn_q_inc_max; // paramset.syserr_maxMQ + germ_phred_homalt + paramset.tn_q_inc_max - MAX(0, diffAaMQs);
     // + paramset.tn_q_inc_max + non_neg_minus(paramset.germ_phred_homalt_snp, 
     // numstates2phred(MAX(1, aDP * 100) / (double)MAX(1, LAST(fmt.aXM2))));
     // aXMp1, a1XM, and aXM2 are actually not used.
@@ -3606,7 +3685,7 @@ BcfFormat_symbol_calc_qual(
     clear_push(fmt.gVQ1, MAX(
             0, 
             indel_q_inc + MIN3(
-                syserr_q,
+                MIN(systematicBQVQ, systematicMQVQ),
                 LAST(fmt.bIAQ) - penal4BQerr, 
                 LAST(fmt.cPLQ1)) - 2 * MAX3(
                     0, 
@@ -3614,7 +3693,7 @@ BcfFormat_symbol_calc_qual(
                     indel_penal4multialleles_g)),
     a);
     const auto bcVQ1 = MIN3(
-                syserr_q,
+                MIN(systematicBQVQ, systematicMQVQ),
                 LAST(fmt.bIAQ) - (is_rescued ? 0 : penal4BQerr), 
                 LAST(fmt.cPLQ1)) - indel_penal4multialleles_soma;
     clear_push(fmt.cVQ1, MAX(0, MIN(bcVQ1, LAST(fmt.bTINQ))), a);
@@ -3629,7 +3708,7 @@ BcfFormat_symbol_calc_qual(
     const uvc1_qual_big_t dVQinc = MIN(dFA_vq_binom, dFA_vq_powlaw - indel_penal4multialleles) - MAX(0, MIN(LAST(fmt.cIAQ), LAST(fmt.cPLQ2) - indel_penal4multialleles));
     clear_push(fmt.dVQinc, dVQinc, a);
     
-    const uvc1_qual_t cVQ2 = MIN3(syserr_q,
+    const uvc1_qual_t cVQ2 = MIN3(MIN(systematicBQVQ, systematicMQVQ),
             LAST(fmt.cIAQ) + MAX(0, dVQinc),
             LAST(fmt.cPLQ2)) - indel_penal4multialleles + MAX(0, dVQinc);
     clear_push(fmt.cVQ2, MAX(mincVQ2, MIN(cVQ2, LAST(fmt.cTINQ))), a);
@@ -4316,7 +4395,7 @@ append_vcf_record(
     uvc1_refgpos_t phred_het3al_chance_inc_snp = MAX(0, 2 * paramset.germ_phred_hetero_snp - paramset.germ_phred_het3al_snp - TIN_CONTAM_MICRO_VQ_DELTA);
     uvc1_refgpos_t phred_het3al_chance_inc_indel = MAX(0, 2 * paramset.germ_phred_hetero_indel - paramset.germ_phred_het3al_indel - TIN_CONTAM_MICRO_VQ_DELTA);
     
-    const auto tn_dec_by_xm = MIN3(30, (fmt.nAFA[8] - fmt.nAFA[0]) * 9 / 10 - 9, (tki.nAFA[8] - tki.nAFA[0]) * 9 / 10 - 9); // guaranteed least penalty
+    const auto tn_dec_by_xm = BETWEEN((fmt.nAFA[8], tki.nAFA[8]) - 25, 0, 9); // MIN3(30, (fmt.nAFA[8] - fmt.nAFA[0]) * 9 / 10 - 9, (tki.nAFA[8] - tki.nAFA[0]) * 9 / 10 - 9); // guaranteed least penalty
     // const auto tn_syserr_norm_devqual = paramset.tn_syserr_norm_devqual * ((SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform) ? 0.25 : 1.0);
     const uvc1_qual_t prior_phred = ((SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform) 
             ? (3+8) : (3));

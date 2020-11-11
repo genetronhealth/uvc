@@ -267,11 +267,26 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("aRI1"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 insert bias on the left side."),
     BcfFormatStruct("aRI2"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 insert bias on the left side."),
     
-    BcfFormatStruct("__Bb"  , 1,         BCF_SEP,     "Non-deduped depths of the fragments."),
+    BcfFormatStruct("__B1"  , 1,         BCF_SEP,     "Non-deduped depths of the fragments."),
     BcfFormatStruct("BDPf"  , 2,         BCF_INTEGER, "Non-deduped fragment depth on the forward strand for (all alleles) and (the padded deletion allele)."),
+    BcfFormatStruct("BTAf"  , 2,         BCF_INTEGER, "Non-deduped sum of sequenced fragment positions on the forward strand for "
+                    "(all alleles) and (the padded deletion allele)."),
+    BcfFormatStruct("BTBf"  , 2,         BCF_INTEGER, "Non-deduped sum of sequenced fragment positions near mutations on the forward strand for "
+                    "(all alleles) and (the padded deletion allele)."),
     BcfFormatStruct("BDPr"  , 2,         BCF_INTEGER, "Non-deduped fragment depth on the reverse strand for (all alleles) and (the padded deletion allele)."),
+    BcfFormatStruct("BTAr"  , 2,         BCF_INTEGER, "Non-deduped sum of sequenced fragment positions on the reverse strand for "
+                    "(all alleles) and (the padded deletion allele)."),
+    BcfFormatStruct("BTBr"  , 2,         BCF_INTEGER, "Non-deduped sum of sequenced fragment positions near mutations on the reverse strand for "
+                    "(all alleles) and (the padded deletion allele)."),
+    
+    BcfFormatStruct("__b1"  , 1,         BCF_SEP,     "Non-deduped depths of the fragments."),
+    
     BcfFormatStruct("bDPf"  , BCF_NUM_R, BCF_INTEGER, "Non-deduped fragment depth on the forward strand for the REF allele and each ALT allele."),
+    BcfFormatStruct("bTAf"  , BCF_NUM_R, BCF_INTEGER, "See BTAf."),
+    BcfFormatStruct("bTBf"  , BCF_NUM_R, BCF_INTEGER, "See BTBf."),
     BcfFormatStruct("bDPr"  , BCF_NUM_R, BCF_INTEGER, "Non-deduped fragment dpeth on the reverse strand for the REF allele and each ALT allele."),
+    BcfFormatStruct("bTAr"  , BCF_NUM_R, BCF_INTEGER, "See BTAr."),
+    BcfFormatStruct("bTBr"  , BCF_NUM_R, BCF_INTEGER, "See BTBr."),
     
     BcfFormatStruct("__C1"  , 1,         BCF_SEP,     "Deduped depths of the unique molecular fragments for (all alleles) and (the padded deletion allele)."),
     BcfFormatStruct("CDP1f" , 2,         BCF_INTEGER, "Nonfiltered      deduped depth of the unique molecular fragments on the forward read orientation."),

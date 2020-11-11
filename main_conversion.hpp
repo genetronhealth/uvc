@@ -571,6 +571,8 @@ struct SegFormatInfoSet {
 
 enum FragFormatDepthSet {
     FRAG_bDP, // raw
+    FRAG_bTA, // FRAG_b10xSeqTlen,
+    FRAG_bTB, // FRAG_b10xSeqTNevents,
     FRAG_FORMAT_DEPTH_SET_END
 };
 #define NUM_FRAG_FORMAT_DEPTH_SETS ((size_t)FRAG_FORMAT_DEPTH_SET_END)

@@ -100,9 +100,9 @@ struct CommandLineArgs {
     uvc1_readpos_t   bias_thres_aLPxT_add = 5;
     uvc1_readpos_t   bias_thres_aLPxT_perc = 160;
     
-    uvc1_base1500x_t   bias_thres_PFXM1T_add = 30; // 35; // set very high to disable mismatch bias
+    uvc1_base1500x_t   bias_thres_PFXM1T_add = 130; // 35; // set very high to disable mismatch bias
     uvc1_base1500x_t   bias_thres_PFXM2T_add = 20;
-    uvc1_base1500x_t   bias_thres_PFGO1T_add = 25; // set very high to disable gap bias
+    uvc1_base1500x_t   bias_thres_PFGO1T_add = 125; // set very high to disable gap bias
     uvc1_base1500x_t   bias_thres_PFGO2T_add = 15;
     
     uvc1_readnum100x_t bias_thres_PFXM1T_perc = 50;
