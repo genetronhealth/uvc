@@ -3638,7 +3638,7 @@ BcfFormat_symbol_calc_qual(
     const uvc1_qual_t phredHDR = round(numstates2phred(pow(frac_mut_affected_pos / 0.03, 3)) * (frac_mut_affected_pos)); 
     
     const uvc1_qual_t readlenMQcap = (fmt.APLRP[0] + fmt.APLRP[1]) / MAX(1, fmt.APDP[8]) - 20;
-    const uvc1_qual_t _systematicMQVQ = (((symbol == refsymbol)) ? fmt.bMQ[a] : (fmt.bMQ[a]/3 + 40)) + (uvc1_qual_t)((symbol == refsymbol) ? 0 : MIN(33, ADP * 3))
+    const uvc1_qual_t _systematicMQVQ = (((refsymbol == symbol) && (ADP > aDP * 2)) ? fmt.bMQ[a] : (fmt.bMQ[a]/3 + 40)) + (uvc1_qual_t)((symbol == refsymbol) ? 0 : MIN(33, ADP * 3))
             - (uvc1_qual_t)(MAX(0, diffAaMQs))
             - (uvc1_qual_t)(phredHDR) 
             - (uvc1_qual_t)(numstates2phred((ADP + 1.0) / (aDP + 0.5)));
