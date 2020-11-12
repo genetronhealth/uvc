@@ -80,7 +80,7 @@ const std::vector<std::pair<std::string, std::string>> FILTER_VEC = {
     std::make_pair("GPBR2",         "For FORMAT/FT: Diplotype position bias on the right mapping coordinate for raw reads with unmerged R1 and R2 ends"),
     std::make_pair("GPBLR2",        "For FORMAT/FT: Diplotype position bias on left and right mapping coordinates for raw reads with unmerged R1 and R2 ends"),
     */
-    
+    std::make_pair("ASI",           "For FORMAT/FTS: Stranded insert bias, meaning the most-supported strand has abnormal insert size."),
     std::make_pair("AXMB",          "For FORMAT/FTS: Absolute mismatch bias, meaning the variant is suppported by reads with a high number of mismatches"),
     std::make_pair("ABQB",          "For FORMAT/FTS: Absolute base-quality (BQ) bias, meaning the variant is suppported by reads with low base qualities at the variant site"),
 

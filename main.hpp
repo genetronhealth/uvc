@@ -959,8 +959,8 @@ update_seg_format_prep_sets_by_aln(
     const uvc1_base1500x_t xm_cnt = nm_cnt - nge_cnt;
     const uvc1_base1500x_t xm1500 = xm_cnt * 1500 / (rend - aln->core.pos);
     const uvc1_base1500x_t go1500 = ngo_cnt * 1500 / (rend - aln->core.pos);
-    const uvc1_refgpos_t frag_pos_L = ((aln->core.isize != 0) ? MIN(aln->core.pos, aln->core.mpos) : aln->core.pos);
-    const uvc1_refgpos_t frag_pos_R = ((aln->core.isize != 0) ? (frag_pos_L + abs(aln->core.isize)) : rend);
+    const uvc1_refgpos_t frag_pos_L = MIN(aln->core.pos, aln->core.mpos);  // ((aln->core.isize != 0) ? MIN(aln->core.pos, aln->core.mpos) : aln->core.pos);
+    const uvc1_refgpos_t frag_pos_R = (frag_pos_L + abs(aln->core.isize)); // ((aln->core.isize != 0) ? (frag_pos_L + abs(aln->core.isize)) : rend);
     const bool isrc = ((aln->core.flag & 0x10) == 0x10); 
     // const bool isr2 = ((aln->core.flag & 0x80) == 0x80 && (aln->core.flag & 0x1) == 0x1);
     // const bool strand = (isrc ^ isr2);
@@ -980,12 +980,14 @@ update_seg_format_prep_sets_by_aln(
                 seg_format_prep_sets.getRefByPos(rpos).segprep_a_XM1500 += xm1500;
                 seg_format_prep_sets.getRefByPos(rpos).segprep_a_XM100inv += 100 * 10 / MAX(10, xm1500);
                 seg_format_prep_sets.getRefByPos(rpos).segprep_a_GO1500 += go1500;
-                if (isrc) { 
-                    seg_format_prep_sets.getRefByPos(rpos).segprep_a_LI += MIN(rpos - frag_pos_L + 1, MAX_INSERT_SIZE);
-                    seg_format_prep_sets.getRefByPos(rpos).segprep_a_LIDP += 1;
-                } else { 
-                    seg_format_prep_sets.getRefByPos(rpos).segprep_a_RI += MIN(frag_pos_R - rpos    , MAX_INSERT_SIZE);
-                    seg_format_prep_sets.getRefByPos(rpos).segprep_a_RIDP += 1;
+                if (aln->core.isize != 0) {
+                    if (isrc) { 
+                        seg_format_prep_sets.getRefByPos(rpos).segprep_a_LI += MIN(rpos - frag_pos_L + 1, MAX_INSERT_SIZE);
+                        seg_format_prep_sets.getRefByPos(rpos).segprep_a_LIDP += 1;
+                    } else { 
+                        seg_format_prep_sets.getRefByPos(rpos).segprep_a_RI += MIN(frag_pos_R - rpos    , MAX_INSERT_SIZE);
+                        seg_format_prep_sets.getRefByPos(rpos).segprep_a_RIDP += 1;
+                    }
                 }
                 auto refsymbol = BASE_NN;
                 auto readsymbol = END_ALIGNMENT_SYMBOLS;
@@ -1056,12 +1058,14 @@ update_seg_format_prep_sets_by_aln(
                 seg_format_prep_sets.getRefByPos(rpos2).segprep_a_highBQ_dp += 1;
                 seg_format_prep_sets.getRefByPos(rpos2).segprep_a_XM1500 += xm1500;
                 seg_format_prep_sets.getRefByPos(rpos2).segprep_a_GO1500 += go1500;
-                if (isrc) { 
-                    seg_format_prep_sets.getRefByPos(rpos2).segprep_a_LI += MIN(rpos - frag_pos_L + 1, MAX_INSERT_SIZE); 
-                    seg_format_prep_sets.getRefByPos(rpos2).segprep_a_LIDP += 1;
-                } else { 
-                    seg_format_prep_sets.getRefByPos(rpos2).segprep_a_RI += MIN(frag_pos_R - rpos    , MAX_INSERT_SIZE); 
-                    seg_format_prep_sets.getRefByPos(rpos2).segprep_a_RIDP += 1;
+                if (aln->core.isize != 0) {
+                    if (isrc) { 
+                        seg_format_prep_sets.getRefByPos(rpos2).segprep_a_LI += MIN(rpos - frag_pos_L + 1, MAX_INSERT_SIZE); 
+                        seg_format_prep_sets.getRefByPos(rpos2).segprep_a_LIDP += 1;
+                    } else { 
+                        seg_format_prep_sets.getRefByPos(rpos2).segprep_a_RI += MIN(frag_pos_R - rpos    , MAX_INSERT_SIZE); 
+                        seg_format_prep_sets.getRefByPos(rpos2).segprep_a_RIDP += 1;
+                    }
                 }
                 uvc1_refgpos_t ldist = rpos - aln->core.pos + 1;
                 uvc1_refgpos_t rdist = rend - rpos;
@@ -1219,12 +1223,14 @@ dealwith_segbias(
     
     const uvc1_refgpos_t seg_l_nbases = (rpos - aln->core.pos + 1);
     const uvc1_refgpos_t seg_r_nbases = (bam_endpos(aln) - rpos);
-    const uvc1_refgpos_t frag_pos_L = ((aln->core.isize != 0) ? MIN(aln->core.pos, aln->core.mpos) : aln->core.pos);
-    const uvc1_refgpos_t frag_pos_R = ((aln->core.isize != 0) ? (frag_pos_L + abs(aln->core.isize)) : rend);
-    const uvc1_refgpos_t frag_l_nbases1 = ((aln->core.isize != 0) ? (rpos - frag_pos_L + 1) : (MAX_INSERT_SIZE));
-    const uvc1_refgpos_t frag_l_nbases2 = MIN(frag_l_nbases1, MAX_INSERT_SIZE);
-    const uvc1_refgpos_t frag_r_nbases1 = ((aln->core.isize != 0) ? (frag_pos_R - rpos + 0) : (MAX_INSERT_SIZE));
-    const uvc1_refgpos_t frag_r_nbases2 = MIN(frag_r_nbases1, MAX_INSERT_SIZE);
+    // const uvc1_refgpos_t frag_pos_L = ((aln->core.isize != 0) ? MIN(aln->core.pos, aln->core.mpos) : aln->core.pos);
+    // const uvc1_refgpos_t frag_pos_R = ((aln->core.isize != 0) ? (frag_pos_L + abs(aln->core.isize)) : rend);
+    const uvc1_refgpos_t frag_pos_L = MIN(aln->core.pos, aln->core.mpos);
+    const uvc1_refgpos_t frag_pos_R = frag_pos_L + abs(aln->core.isize);
+    const uvc1_refgpos_t frag_l_nbases2 = ((aln->core.isize != 0) ? MIN(rpos - frag_pos_L + 1, MAX_INSERT_SIZE) : (MAX_INSERT_SIZE));
+    // const uvc1_refgpos_t frag_l_nbases2 = MIN(frag_l_nbases1, MAX_INSERT_SIZE);
+    const uvc1_refgpos_t frag_r_nbases2 = ((aln->core.isize != 0) ? MIN(frag_pos_R - rpos + 0, MAX_INSERT_SIZE) : (MAX_INSERT_SIZE));
+    // const uvc1_refgpos_t frag_r_nbases2 = MIN(frag_r_nbases1, MAX_INSERT_SIZE);
     
     const bool is_normal = ((aln->core.isize != 0) || (0 == (aln->core.flag & 0x1)));
     const bool isrc = ((aln->core.flag & 0x10) == 0x10);
@@ -1369,25 +1375,29 @@ dealwith_segbias(
         symbol_to_seg_format_depth_set.seginfo_aBQ2 += 1;
     }
     
-    const bool is_l_nonbiased = ((0 == (aln->core.flag & 0x8)) && seg_l_nbases > seg_r_nbases);
-    const bool is_r_nonbiased = ((0 == (aln->core.flag & 0x8)) && seg_l_nbases < seg_r_nbases);
+    const bool is_l_nonbiased = (((0 == (aln->core.flag & 0x8)) || (0 == (aln->core.flag & 0x1))) && seg_l_nbases > seg_r_nbases);
+    const bool is_r_nonbiased = (((0 == (aln->core.flag & 0x8)) || (0 == (aln->core.flag & 0x1))) && seg_l_nbases < seg_r_nbases);
     // rc : test if the left-side of the insert is biased, and vice versa.
     const bool is_pos_good_for_bias_calc = ((!is_assay_amplicon) || ((is_far_from_edge && is_unaffected_by_edge))); 
     if (isrc) {
         auto dist2iend = frag_l_nbases2;
-        if ((dist2iend >= seg_format_thres_set.segthres_aLI1t) && (dist2iend <= seg_format_thres_set.segthres_aLI1T || isGap || is_l_nonbiased) && (is_normal || isGap || is_l_nonbiased)) {
+        if ((dist2iend >= seg_format_thres_set.segthres_aLI1t) && (dist2iend <= seg_format_thres_set.segthres_aLI1T || isGap) 
+                && (is_normal || (isGap && is_l_nonbiased))) {
             symbol_to_seg_format_depth_set.seginfo_aLI1 += 1; // aLI1
         } 
-        if ((dist2iend >= seg_format_thres_set.segthres_aLI2t) && (dist2iend <= seg_format_thres_set.segthres_aLI2T || isGap) && (is_normal || isGap)) {
+        if ((dist2iend >= seg_format_thres_set.segthres_aLI2t) && (dist2iend <= seg_format_thres_set.segthres_aLI2T || isGap) 
+                && (is_normal || (isGap && is_l_nonbiased))) {
             if (is_pos_good_for_bias_calc) { symbol_to_seg_format_depth_set.seginfo_aLI2 += 1; } // aLI2
         }
         if (is_pos_good_for_bias_calc) { symbol_to_seg_format_depth_set.seginfo_aLIr += 1; }
     } else {
         auto dist2iend = frag_r_nbases2;
-        if ((dist2iend >= seg_format_thres_set.segthres_aRI1t) && (dist2iend <= seg_format_thres_set.segthres_aRI1T || isGap || is_r_nonbiased) && (is_normal || isGap || is_r_nonbiased)) {
+        if ((dist2iend >= seg_format_thres_set.segthres_aRI1t) && (dist2iend <= seg_format_thres_set.segthres_aRI1T || isGap) 
+                && (is_normal || (isGap && is_r_nonbiased))) {
             symbol_to_seg_format_depth_set.seginfo_aRI1 += 1; // aRI1
         } 
-        if ((dist2iend >= seg_format_thres_set.segthres_aRI2t) && (dist2iend <= seg_format_thres_set.segthres_aRI2T || isGap) && (is_normal || isGap)) {
+        if ((dist2iend >= seg_format_thres_set.segthres_aRI2t) && (dist2iend <= seg_format_thres_set.segthres_aRI2T || isGap) 
+                && (is_normal || (isGap && is_r_nonbiased))) {
             if (is_pos_good_for_bias_calc) { symbol_to_seg_format_depth_set.seginfo_aRI2 += 1; } // aRI2
         }
         if (is_pos_good_for_bias_calc) { symbol_to_seg_format_depth_set.seginfo_aRIf += 1; }
@@ -3195,6 +3205,9 @@ BcfFormat_symbol_calc_DPv(
     }
     double aRIFA = _aRIFAx2[0] * ((is_real_amplicon) ? (dir_bias_div) : MAX(dir_bias_div, aDPFA / _aRIFAx2[1]));
     
+    const double aSIFA = MAX3(aDPFA / 2, 
+        (f.aLI1[a] + 0.5) / (f.ALI2[0] + f.aLI1[a] - f.aLI2[a] + 1.0), 
+        (f.aRI1[a] + 0.5) / (f.ARI2[0] + f.aRI1[a] - f.aRI2[a] + 1.0));
     if (isSymbolIns(symbol) || isSymbolDel(symbol)) {
         const auto & indelstring = LAST(fmt.gapSa);
         const double indel_multialleles_coef = MAX(1, fmt.bDPa[a]) / (double)MAX(1, fmt.bDPf[a] + fmt.bDPr[a]);
@@ -3271,6 +3284,7 @@ BcfFormat_symbol_calc_DPv(
             aLIFA, aRIFA, 
             aSSFA, 
             aPFFA * aSSFA / MAX(aSSFA, aSSFAx2[1]),
+            aSIFA,
             aXMFA }};
     
     double cFA2 = (fmt.cDP2f[a] + fmt.cDP2r[a] + pfa) / (fmt.CDP2f[0] + fmt.CDP2r[0] + 1.0);
@@ -3295,7 +3309,8 @@ BcfFormat_symbol_calc_DPv(
     fmt_bias_push(fmt.nAFA,  aDPFA,  aRIFA,  paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::PB2R]);
     fmt_bias_push(fmt.nAFA,  aDPFA,  aSSFA,  paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::SB1]);
     // fmt_bias_push(fmt.nAFA,  aDPFA,  aPFFA,  paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::PFB]);
-    fmt_bias_push(fmt.nAFA,  aDPFA,  aXMFA,  paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::AXMB]);
+    // fmt_bias_push(fmt.nAFA,  aDPFA,  aXMFA,  paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::AXMB]);
+    fmt_bias_push(fmt.nAFA,  aDPFA,  aSIFA,  paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::ASI]);
     
     fmt_bias_push(fmt.nBCFA, bFA,    cFA0,   paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::DB1]);
     fmt_bias_push(fmt.nBCFA, cFA0,   bFA,    paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::DB2]);

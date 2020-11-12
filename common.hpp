@@ -42,7 +42,7 @@
 #define OUTVAR_GVCF 0x8
 
 #define MAX_INSERT_SIZE 2000 // (1024*2) // https://doi.org/10.2147/AGG.S162531
-#define NORM_INSERT_SIZE(b) { if (abs(b->core.isize) >= MAX_INSERT_SIZE) { b->core.isize = 0; } }
+#define NORM_INSERT_SIZE(b) { if (abs((b)->core.isize) >= MAX_INSERT_SIZE) { (b)->core.isize = 0; } }
 #define DBLFLT_EPS ((double)FLT_EPSILON)
 
 #define INT64MUL(x, y) ((int64_t)(x) * (int64_t)(y))
