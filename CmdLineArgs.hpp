@@ -153,23 +153,23 @@ struct CommandLineArgs {
     
     uvc1_readnum100x_t bias_prior_DPadd_perc = 50;
    
-    double         bias_priorfreq_pos = numstates2phred(1024*9/2); // 1024*9/2; // set very high to disable position bias, insert-end bias, strand bias, and orientation bias.
-    double         bias_priorfreq_indel_in_read_div = numstates2phred(32+64);
-    double         bias_priorfreq_indel_in_var_div2 = numstates2phred(24);
-    double         bias_priorfreq_indel_in_STR_div2 = numstates2phred(8);
-    double         bias_priorfreq_var_in_STR_div2 = numstates2phred(3);
+    double         bias_priorfreq_pos = 40; // numstates2phred(1024*9/2); // 1024*9/2; // set very high to disable position bias, insert-end bias, strand bias, and orientation bias.
+    double         bias_priorfreq_indel_in_read_div = 20; // numstates2phred(32+64);
+    double         bias_priorfreq_indel_in_var_div2 = 15; // numstates2phred(24);
+    double         bias_priorfreq_indel_in_STR_div2 = 10; // numstates2phred(8);
+    double         bias_priorfreq_var_in_STR_div2 = 5; // numstates2phred(3);
     
     double         bias_prior_var_DP_mul = 1.25 + DBLFLT_EPS;
     
-    uvc1_qual_t    bias_priorfreq_ipos_snv = numstates2phred(1e5); // set very high to disable insert-end bias
-    uvc1_qual_t    bias_priorfreq_ipos_indel = numstates2phred(3e3);
-    uvc1_qual_t    bias_priorfreq_strand_snv_base = numstates2phred(10); // set very high to disable strand bias
-    uvc1_qual_t    bias_priorfreq_strand_indel = numstates2phred(3e3);
+    uvc1_qual_t    bias_priorfreq_ipos_snv = 60-15; //numstates2phred(1e5); // set very high to disable insert-end bias
+    uvc1_qual_t    bias_priorfreq_ipos_indel = 60-15; // numstates2phred(3e3);
+    uvc1_qual_t    bias_priorfreq_strand_snv_base = 10; // numstates2phred(10); // set very high to disable strand bias
+    uvc1_qual_t    bias_priorfreq_strand_indel = 60-15; // numstates2phred(3e3);
     
-    double         bias_FA_pseudocount_indel_in_read = 0.1;
+    double         bias_FA_pseudocount_indel_in_read = 0.5/10.0;
     
-    double         bias_priorfreq_orientation_snv_base = numstates2phred(1e5); // set very high to disable orientation bias
-    double         bias_priorfreq_orientation_indel_base = numstates2phred(1e5); 
+    double         bias_priorfreq_orientation_snv_base = 60-15; // numstates2phred(1e5); // set very high to disable orientation bias
+    double         bias_priorfreq_orientation_indel_base = 60-15; // numstates2phred(1e5); 
     double         bias_orientation_counter_avg_end_len = 20;
     
     uvc1_qual_t    bias_FA_powerlaw_noUMI_phred_inc_snv = 5;

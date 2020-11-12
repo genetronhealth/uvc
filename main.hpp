@@ -3205,7 +3205,7 @@ BcfFormat_symbol_calc_DPv(
     }
     double aRIFA = _aRIFAx2[0] * ((is_real_amplicon) ? (dir_bias_div) : MAX(dir_bias_div, aDPFA / _aRIFAx2[1]));
     
-    const double aSIFA = MAX3(aDPFA / 2, 
+    const double aSIFA = MAX( 
         (f.aLI1[a] + 0.5) / (f.ALI2[0] + f.aLI1[a] - f.aLI2[a] + 1.0), 
         (f.aRI1[a] + 0.5) / (f.ARI2[0] + f.aRI1[a] - f.aRI2[a] + 1.0));
     if (isSymbolIns(symbol) || isSymbolDel(symbol)) {
@@ -3234,7 +3234,7 @@ BcfFormat_symbol_calc_DPv(
     }
     
     // const double aXM2FA = (double)(LAST(fmt.a2XM2) / 100.0 / MAX(1, aDP));
-    const double aXMFA = (fmt.aXM1[a] + 50.0)  / (fmt.AXM2[0] + (fmt.aXM1[a] - fmt.aXM2[a]) + 100.0);
+    // const double aXMFA = (fmt.aXM1[a] + 50.0)  / (fmt.AXM2[0] + (fmt.aXM1[a] - fmt.aXM2[a]) + 100.0);
     const double aPFFA = (fmt.aPF1[a] + pfa * (is_rescued ? 100.0 : (double)(fmt.a2XM2[a] / MAX(1, aDP)))) / (fmt.APF2[0] + (fmt.aPF1[a] - fmt.aPF2[a]) + 1.0*100);
     const auto aSSFAx2 = dp4_to_pcFA<true>(
             // fmt.aDPff[a] + fmt.aDPrf[a], fmt.aDPfr[a] + fmt.aDPrr[a], fmt.ADPff[0] + fmt.ADPrf[0], fmt.ADPfr[0] + fmt.ADPrr[0], 
@@ -3277,15 +3277,20 @@ BcfFormat_symbol_calc_DPv(
         aSSFA += 4.0;
     }
     
+    const auto aSSFA2 = MAX(aDPFA * 0.05, aSSFA);
     auto min_aFA_vec = std::vector<double>{{
             aDPFA,
-            aLPFA, aRPFA,
-            aLBFA, aRBFA,
-            aLIFA, aRIFA, 
-            aSSFA, 
-            aPFFA * aSSFA / MAX(aSSFA, aSSFAx2[1]),
-            aSIFA,
-            aXMFA }};
+            MAX(aDPFA * 0.01, aLPFA),
+            MAX(aDPFA * 0.01, aRPFA),
+            MAX(aDPFA * 0.01, aLBFA),
+            MAX(aDPFA * 0.01, aRBFA),
+            MAX(aDPFA * 0.01, aLIFA),
+            MAX(aDPFA * 0.01, aRIFA),
+            aSSFA2, // MAX(aDPFA * 0.05, aSSFA),
+            aPFFA * aSSFA2 / MAX(aSSFA2, aSSFAx2[1]),
+            MAX(aDPFA * 0.01, aSIFA),
+            // aXMFA 
+            }};
     
     double cFA2 = (fmt.cDP2f[a] + fmt.cDP2r[a] + pfa) / (fmt.CDP2f[0] + fmt.CDP2r[0] + 1.0);
     // The following code without + 1 pseudocount in both nominator and denominator can result in false negative calls at low allele fraction (it is rare but can happen).
@@ -3347,7 +3352,7 @@ BcfFormat_symbol_calc_DPv(
     double min_abcFA_w = MINVEC(std::vector<double>{{
             aLPFA, aRPFA,
             aLBFA, aRBFA,
-            aXMFA,
+            // aXMFA,
             bFA }});
     clear_push(fmt.cDP1w, (uvc1_readnum100x_t)(calc_normFA_from_rawFA_refbias(min_abcFA_w, refbias) * (fmt.CDP1f[0] +fmt.CDP1r[0]) * 100), a);
     double min_abcFA_x = MINVEC(std::vector<double>{{ aPFFA, cFA0 }});
@@ -3359,7 +3364,7 @@ BcfFormat_symbol_calc_DPv(
             aLPFA * frac_umi2seg, aRPFA * frac_umi2seg,
             aLBFA * frac_umi2seg, aRBFA * frac_umi2seg,
             aDPFA * frac_umi2seg,
-            aXMFA * frac_umi2seg,
+            // aXMFA * frac_umi2seg,
             cROFA2
             }});
     clear_push(fmt.cDP2w, (uvc1_readnum100x_t)(calc_normFA_from_rawFA_refbias(umi_cFA_w, refbias) * (fmt.CDP2f[0] +fmt.CDP2r[0]) * 100), a);
