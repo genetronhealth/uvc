@@ -71,7 +71,7 @@ struct CommandLineArgs {
     uvc1_readpos_t    primerlen = 23; // https://link.springer.com/chapter/10.1007/978-1-4020-6241-4_5 : 18 - 22 bps
                                 // https://genome.cshlp.org/content/3/3/S30.full.pdf : 18 - 24 bps
     uvc1_readpos_t    central_readlen = 0; // estimate from the data
-    uvc1_qual_t       bq_phred_added_misma = 0; // estiamte from the data
+    uvc1_qual_t       bq_phred_added_misma = 0; // estimate from the data
     uvc1_qual_t       bq_phred_added_indel = 0; // estimate from the data
     
     // http://snap.stanford.edu/class/cs224w-2015/slides/04-powerlaws.pdf
@@ -253,7 +253,8 @@ struct CommandLineArgs {
     uvc1_qual_t tn_q_inc_max = 9;
     // PHRED-scaled likelihood that the observed allele fraction additively deviates from the expected allele fraction by a multiplicative factor of 2
     double      tn_syserr_norm_devqual = 15.0; // (double)(12.5); 
-    
+    uvc1_flag_t tn_is_paired = false;
+    uvc1_flag_t tn_flag = 0x1;
 
 // *** 11. parameters related to InDels.
     

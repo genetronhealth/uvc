@@ -872,7 +872,17 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
         "--tn-syserr-norm-devqual",
            tn_syserr_norm_devqual,
         "Phred-scale decrease in the variant quality subtracted from the tumor if the tumor FA (allele fraction) deviates by +100\%/-50\% from its matched normal FA. ");
-
+    ADD_OPTDEF(app,
+        "--tn-is-paired",
+           tn_is_paired,
+        "The boolean with value 0 (false) or 1 (true) indicating if tumor-normal paired sequencing is used. ");
+    
+    ADD_OPTDEF(app,
+        "--tn-flag",
+           tn_flag,
+        "Bitwise flag for tumor-normal comparison. "
+        "The 0x1 bit means: use the matched normal sample to filter out false positive calls on primers to get more true positive calls. ");
+    
 // *** 11. parameters related to InDels.
     // https://www.ncbi.nlm.nih.gov/pmc/articles/PMC149199/
     ADD_OPTDEF(app,
