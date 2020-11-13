@@ -369,6 +369,7 @@ struct SegFormatPrepSet {
     uvc1_readnum_t segprep_a_dp;
     uvc1_readnum_t segprep_a_pcr_dp; // SEG_a_PCR_DP,    // depth of PCR amplicons
     uvc1_readnum_t segprep_a_highBQ_dp;      // SEG_a_highBQ_DP, // depth of high-BQ bases
+    uvc1_readnum_t segprep_a_near_clip_dp;
     uvc1_readnum100x_t segprep_a_XM1500;         // SEG_a_XM,        // number of mismatches per 1500 bases
     uvc1_readnum100x_t segprep_a_GO1500;         // SEG_a_GO,        // number of gap openings per 1500 bases
     uvc1_readnum100x_t segprep_a_XM100inv;       // SEG_a_XM100INV,  // number of inverse 

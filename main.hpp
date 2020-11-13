@@ -1091,6 +1091,33 @@ update_seg_format_prep_sets_by_aln(
             const auto unitlen2 = MAX(1, (rtr1.tracklen > rtr2.tracklen) ? rtr1.unitlen : rtr2.unitlen);
             const uvc1_refgpos_t nbases = (int)(cigar_oplen * paramset.indel_adj_indellen_perc / 100);
             
+            int num_matches = 0;
+            int num_next_matches = 0;
+            int num_prev_matches = 0;
+            for (uvc1_refgpos_t rpos2 = MAX((int)rpos, region_offset); 
+                    rpos2 < MIN((int)rpos + cigar_oplen, region_offset + UNSIGN2SIGN(region_symbolvec.size())); 
+                    rpos2++) {
+                num_matches = 0;
+                for (uvc1_refgpos_t rpos3 = MAX((int)rpos + UNSIGN2SIGN(cigar_oplen), region_offset); 
+                    rpos3 < MIN((int)rpos + 2 * cigar_oplen, region_offset + UNSIGN2SIGN(region_symbolvec.size())); 
+                    rpos3++) {
+                    if (region_symbolvec[rpos2 - region_offset] == region_symbolvec[rpos3 - region_offset]) {
+                        num_matches++;
+                    }
+                }
+                UPDATE_MAX(num_next_matches, num_matches);
+                num_matches = 0;
+                for (uvc1_refgpos_t rpos3 = MAX((int)rpos - UNSIGN2SIGN(cigar_oplen), region_offset); 
+                    rpos3 < MIN((int)rpos, region_offset + UNSIGN2SIGN(region_symbolvec.size())); 
+                    rpos3++) {
+                    if (region_symbolvec[rpos2 - region_offset] == region_symbolvec[rpos3 - region_offset]) {
+                        num_matches++;
+                    }
+                }
+                UPDATE_MAX(num_prev_matches, num_matches);
+            }
+            
+            /*
             uvc1_readpos_t num_prev_matches = 0;
             uvc1_readpos_t num_next_matches = 0;
             for (uvc1_refgpos_t rpos2 = MAX((int)rpos, region_offset + UNSIGN2SIGN(cigar_oplen)); 
@@ -1101,6 +1128,7 @@ update_seg_format_prep_sets_by_aln(
                  if (is_prev_matched) { num_prev_matches++; }
                  if (is_next_matched) { num_next_matches++; }
             }
+            */
             const auto pow2len = mathsquare(mathsquare(MAX(num_prev_matches, num_next_matches))) / MAX(1, mathsquare(cigar_oplen));
             for (uvc1_refgpos_t rpos2 = MAX((int)rpos - nbases, aln->core.pos); rpos2 < MIN((int)rpos + nbases, rend); rpos2++) {
                 seg_format_prep_sets.getRefByPos(rpos2).segprep_a_near_del_dp += 1;
@@ -1116,6 +1144,13 @@ update_seg_format_prep_sets_by_aln(
             seg_format_prep_sets.getRefByPos(rpos).segprep_a_at_del_dp += 1;
             rpos += cigar_oplen;
         } else {
+            if (BAM_CSOFT_CLIP == cigar_op || BAM_CHARD_CLIP == cigar_op) {
+                for (auto rpos2 = rpos - 2; rpos2 < rpos + 2; rpos2++) {
+                    if (seg_format_prep_sets.getIncluBegPosition() <= rpos2 && rpos2 < seg_format_prep_sets.getExcluEndPosition()) {
+                        seg_format_prep_sets.getRefByPos(rpos2).segprep_a_near_clip_dp += 1;
+                    }
+                }
+            }
             process_cigar(qpos, rpos, cigar_op, cigar_oplen);
         }
     }
@@ -2817,6 +2852,7 @@ BcfFormat_symboltype_init(bcfrec::BcfFormat & fmt,
         p.segprep_a_dnv_dp,
         p.segprep_a_highBQ_dp,
         
+        p.segprep_a_near_clip_dp,
     }};
     
     fmt.APXM  = {{ 
@@ -3095,9 +3131,12 @@ BcfFormat_symbol_calc_DPv(
     const double pfa = (is_rescued ? tpfa : 0.5);
     
     // Non-UMI universality-based prequal allele fraction
-    const uvc1_readnum_t ADP = (fmt.ADPff[0] + fmt.ADPfr[0] + fmt.ADPrf[0] + fmt.ADPrr[0]);
+    uvc1_readnum_t      _ADP = (fmt.ADPff[0] + fmt.ADPfr[0] + fmt.ADPrf[0] + fmt.ADPrr[0]);
     const uvc1_readnum_t aDP = (fmt.aDPff[a] + fmt.aDPfr[a] + fmt.aDPrf[a] + fmt.aDPrr[a]);
-    double aDPFA = (aDP + pfa) / (double)(ADP + 1.0);
+    if (is_strong_amplicon) {
+        _ADP = MAX(_ADP, fmt.APDP[9]); // segprep_a_near_clip_dp
+    }
+    const auto ADP = _ADP;
     
     const auto & f = fmt;
     const auto symbol = AlignmentSymbol(LAST(f.VTI));
@@ -3107,6 +3146,7 @@ BcfFormat_symbol_calc_DPv(
     double _dir_bias_div = 1.0;
     is_real_amplicon = ((NOT_PROVIDED == paramset.vcf_tumor_fname) ? is_strong_amplicon : is_weak_amplicon);
     if ((is_real_amplicon && (0x2 == (0x2 & paramset.nobias_flag))) || ((!is_real_amplicon) && (0x1 == (0x1 & paramset.nobias_flag)))) {
+        
         // counter bias : position 23-10 bp and base quality 13
         // const uvc1_readpos_t alt_avg_edgedist = MIN(fmt.aLPL[a], fmt.aRPL[a]) / MAX(fmt.aBQ2[a], 1); 
         // const uvc1_readpos_t all_avg_edgedist = MIN(fmt.ALPL[0], fmt.ARPL[0]) / MAX(fmt.ABQ2[0], 1);
@@ -3148,6 +3188,7 @@ BcfFormat_symbol_calc_DPv(
     const double counterbias_BQ_FA = _counterbias_BQ_FA;
     const double dir_bias_div = _dir_bias_div;
     
+    double aDPFA = (aDP + pfa) / (double)(ADP + 1.0);
     // substitution in indel region, substitution in indel-prone region or indel, other cases 
     uvc1_readnum_t aDPplus = (isSymbolSubstitution(symbol) ? 0 : ((aDP + 1) * paramset.bias_prior_DPadd_perc / 100));
     double dp_coef = ((symbol == LINK_M) ? MAX(paramset.contam_any_mul_frac, 1.0 - MAX(rtr1.tracklen, rtr2.tracklen) / (MAX3(1, f.ALPL[0], f.ARPL[0]) / MAX(1.0/150.0, f.ABQ2[0]))) : 1.0);
@@ -3515,8 +3556,8 @@ BcfFormat_symbol_calc_qual(
     
     const uvc1_readnum_t aDP = (fmt.aDPff[a] + fmt.aDPfr[a] + fmt.aDPrf[a] + fmt.aDPrr[a]);
     const uvc1_readnum_t ADP = (fmt.ADPff[0] + fmt.ADPrf[0] + fmt.ADPfr[0] + fmt.ADPrr[0]);
-    const uvc1_readnum_t bDP = (fmt.bDPf[a] + fmt.bDPr[a]);
-    const uvc1_readnum_t BDP = (fmt.BDPf[0] + fmt.BDPr[0]);
+    // const uvc1_readnum_t bDP = (fmt.bDPf[a] + fmt.bDPr[a]);
+    // const uvc1_readnum_t BDP = (fmt.BDPf[0] + fmt.BDPr[0]);
     const uvc1_readnum_t cDP0 = (fmt.cDP1f[a] + fmt.cDP1r[a]);
     const uvc1_readnum_t CDP0 = (fmt.CDP1f[0] + fmt.CDP1r[0]);
     const uvc1_readnum_t cDP2 = (fmt.cDP2f[a] + fmt.cDP2r[a]);
@@ -3678,18 +3719,21 @@ BcfFormat_symbol_calc_qual(
         sscs_binom_qual += (uvc1_qual_t)floor(indel_pq);
     }
      
-    const uvc1_qual_t phred_varq_per_mapq = 0; // ((refsymbol == symbol) ? 0 : 
+    // const uvc1_qual_t phred_varq_per_mapq = 0; // ((refsymbol == symbol) ? 0 : 
             // paramset.syserr_phred_varcall_err_per_map_err_per_base);
-    const auto germ_phred_homalt = ((isSymbolSubstitution(symbol)) ? paramset.germ_phred_homalt_snp : paramset.germ_phred_homalt_indel);
+    // const auto germ_phred_homalt = ((isSymbolSubstitution(symbol)) ? paramset.germ_phred_homalt_snp : paramset.germ_phred_homalt_indel);
+    
+    /*
     const uvc1_qual_t minMQinc = (int)((refsymbol == symbol) ? 0 : 
             MAX(phred_varq_per_mapq, germ_phred_homalt + (uvc1_qual_t)floor(paramset.powlaw_exponent * numstates2phred((bDP + 0.5) / (double)(BDP + 1.0)))));
     const uvc1_qual_t bMQdec = (uvc1_qual_t)(((refsymbol == symbol) && (ADP > aDP * 2))
             ? BETWEEN(diffAaMQs, 0, paramset.microadjust_ref_MQ_dec_max) : 0); // ad-hoc for MQ that has ref-bias.
+    
     uvc1_qual_t absMinMQ = 0;
     if (refsymbol != symbol) {
         absMinMQ = 40 - BETWEEN(diffAaMQs, -20, 20);
     }
-
+    */
     const auto fBTA = (double)(fmt.BTAf[0] + fmt.BTAr[0] + 200);
     const auto fBTB = (double)(fmt.BTBf[0] + fmt.BTBr[0] + 6);
     const auto fbTA = (double)(fmt.bTAf[a] + fmt.bTAr[a] + 100);

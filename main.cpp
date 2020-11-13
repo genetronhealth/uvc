@@ -668,7 +668,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
         {
             if (zerobased_pos == rpos_inclu_beg && BASE_SYMBOL == symboltype) { continue; } 
             const uvc1_refgpos_t refpos = (BASE_SYMBOL == symboltype ? (zerobased_pos - 1) : zerobased_pos);
-
+            
             TumorKeyInfo THE_DUMMY_TUMOR_KEY_INFO;
             const AlignmentSymbol refsymbol = symboltype_to_refsymbol[symboltype];
             std::array<uvc1_readnum_t, 2> bDPcDP = BcfFormat_symboltype_init(
@@ -908,8 +908,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                         BcfFormat_symbol_calc_DPv(
                                 fmt,
                                 // refpos,
-                                region_repeatvec.at(MAX(refpos - extended_inclu_beg_pos, 3) - 3),
-                                region_repeatvec.at(MIN(refpos - extended_inclu_beg_pos + 3, UNSIGN2SIGN(region_repeatvec.size()) - 1)),
+                                region_repeatvec[MAX(refpos - extended_inclu_beg_pos, 3) - 3],
+                                region_repeatvec[MIN(refpos - extended_inclu_beg_pos + 3, UNSIGN2SIGN(region_repeatvec.size()) - 1)],
                                 ((is_var_rescued && (tki.VTI == LAST(fmt.VTI))) ? ((double)(tki.cDP1x + 1) / (double)(tki.CDP1x + 2)) : -1.0), /* tpfa */
                                 // (ASSAY_TYPE_AMPLICON == inferred_assay_type),
                                 refsymbol,
