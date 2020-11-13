@@ -641,6 +641,12 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                 ? BASE_NN : CHAR_TO_SYMBOL.data.at(refstring.at((zerobased_pos - 1) - extended_inclu_beg_pos))),
                 LINK_M, 
         }};
+        const auto refsize = UNSIGN2SIGN(refstring.size());
+        const auto refidx = zerobased_pos - extended_inclu_beg_pos;
+        const AlignmentSymbol prev_base1 = ((refidx     >= 2      ) ? CHAR_TO_SYMBOL.data.at(refstring.at((refidx - 2))) : BASE_NN);
+        const AlignmentSymbol prev_base2 = ((refidx     >= 3      ) ? CHAR_TO_SYMBOL.data.at(refstring.at((refidx - 3))) : BASE_NN);
+        const AlignmentSymbol next_base1 = ((refidx     <  refsize) ? CHAR_TO_SYMBOL.data.at(refstring.at((refidx)))     : BASE_NN);
+        const AlignmentSymbol next_base2 = ((refidx + 1 <  refsize) ? CHAR_TO_SYMBOL.data.at(refstring.at((refidx + 1))) : BASE_NN);
         
         std::array<bcfrec::BcfFormat, 2> st_to_init_fmt = {{bcfrec::BcfFormat(), bcfrec::BcfFormat()}};
         // std::array<uvc1_unsigned_int_t, 2> stype2refqual = {{0, 0}};
@@ -756,10 +762,10 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                     if (tkis.size() == 1) {
                         // const auto str2 = bcf1_to_string_2(bcf_hdr, tkis[0].bcf1_record);
                         tumor_gvcf_format = bcf1_to_string(bcf_hdr, tkis[0].bcf1_record);
-                        LOG(logINFO) << "gVCFblock at " << refpos << " is indeed found, tumor_gvcf_format == " << tumor_gvcf_format; // + " ; tumor_gvcf_line = " << str2;
+                        // LOG(logINFO) << "gVCFblock at " << refpos << " is indeed found, tumor_gvcf_format == " << tumor_gvcf_format; // + " ; tumor_gvcf_line = " << str2;
                     } else {
                         tumor_gvcf_format = std::string("\t.:.,.:.");
-                        LOG(logINFO) << "gVCFblock at " << refpos << " is not found, tkis.size() == " << tkis.size();
+                        // LOG(logINFO) << "gVCFblock at " << refpos << " is not found, tkis.size() == " << tkis.size();
                     }
                 }
                 buf_out_string_pass += gvcf_blockline + tumor_gvcf_format + "\n";
@@ -880,6 +886,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                         const auto & indelstring = std::get<2>(bcad0a_indelstring_tki);
                         const auto & tki = std::get<3>(bcad0a_indelstring_tki);
                         // std::array<uvc1_readnum_t, 2> altsymbol_bDPcDP = 
+                        const bool is_homopol_1bp = (prev_base1 == refsymbol && next_base1 == refsymbol);
+                        const bool is_homopol_2bp = (prev_base2 == refsymbol && next_base2 == refsymbol);
                         BcfFormat_symbol_init(
                                 fmt,
                                 symbolToCountCoverageSet12,
@@ -892,7 +900,9 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                                 std::get<0>(bcad0a_indelstring_tki),
                                 std::get<1>(bcad0a_indelstring_tki),
                                 indelstring,
-                                (isSymbolSubstitution(symbol) ? minABQ_snv : minABQ_indel),
+                                (isSymbolSubstitution(symbol) 
+                                        ? non_neg_minus(minABQ_snv, (is_homopol_1bp ? (is_homopol_2bp ? 20 : 10) : 0))
+                                        : minABQ_indel),
                                 paramset,
                                 0);
                         BcfFormat_symbol_calc_DPv(

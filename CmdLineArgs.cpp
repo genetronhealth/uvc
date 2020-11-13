@@ -88,15 +88,15 @@ CommandLineArgs::selfUpdateByPlatform() {
         // bias_thres_highBQ -= 4;
         fam_thres_highBQ_snv = 0;
         fam_thres_highBQ_indel = 0;
-
+    
     }
     if (SEQUENCING_PLATFORM_ILLUMINA == inferred_sequencing_platform && SEQUENCING_PLATFORM_OTHER != this->sequencing_platform) {
         bq_phred_added_indel += 0;
         bq_phred_added_misma += 0;
-        syserr_minABQ_pcr_snv += 19 * 10;
-        syserr_minABQ_pcr_indel += syserr_minABQ_pcr_snv - 9 * 10;
-        syserr_minABQ_cap_snv += 19 * 10;
-        syserr_minABQ_cap_indel += syserr_minABQ_cap_snv - 9 * 10;
+        syserr_minABQ_pcr_snv += 20 * 10; // it was 19 * 10
+        syserr_minABQ_pcr_indel += syserr_minABQ_pcr_snv - 10 * 10; // modified accordingly
+        syserr_minABQ_cap_snv += 20 * 10; // it was 19 * 10
+        syserr_minABQ_cap_indel += syserr_minABQ_cap_snv - 10 * 10; // modified accordingly
     }
     return inferred_sequencing_platform;
 }

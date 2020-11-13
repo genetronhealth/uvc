@@ -259,13 +259,13 @@ struct CommandLineArgs {
 // *** 11. parameters related to InDels.
     
     uvc1_qual_t         indel_BQ_max = 43-1;
-    uvc1_readpos_t      indel_str_repeatsize_max = 6;
+    uvc1_readpos_t      indel_str_repeatsize_max = 8;
     double              indel_polymerase_size = 8.0;
     double              indel_polymerase_slip_rate = 8.0;
     double              indel_del_to_ins_err_ratio = 5.0; // 4.0; // https://www.ncbi.nlm.nih.gov/pmc/articles/PMC149199/ Table 1 homopolymer error
     uvc1_readpos_t      indel_adj_tracklen_dist = 6;
-    uvc1_readnum100x_t  indel_adj_indellen_perc = 160; 
-
+    uvc1_readnum100x_t  indel_adj_indellen_perc = 160;
+    
     double      indel_multiallele_samepos_penal = 11.0;
     double      indel_multiallele_diffpos_penal = 8.0;
     double      indel_multiallele_soma_penal_thres = 11.0;
