@@ -590,7 +590,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
     std::string refstring = load_refstring(ref_faidx, tid, extended_inclu_beg_pos, extended_exclu_end_pos);
     std::vector<RegionalTandemRepeat> region_repeatvec = refstring2repeatvec(
             refstring, 
-            paramset.indel_str_repeatsize_max,
+            paramset.indel_str_repeatsize_max, // 50?
             paramset.indel_BQ_max,
             paramset.indel_polymerase_slip_rate,
             paramset.indel_del_to_ins_err_ratio,

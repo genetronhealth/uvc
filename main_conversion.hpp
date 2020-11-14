@@ -190,6 +190,11 @@ mathsquare(auto x) {
     return x * x; 
 }
 
+auto 
+mathcube(auto x) {
+    return x * x * x;
+}
+
 double
 prob2odds(double p) {
     assert((0.0 < p && p < 1.0) || !fprintf(stderr, "%f is not between 0 and 1!", p));
@@ -403,9 +408,30 @@ struct SegFormatPrepSet {
     uvc1_readnum_t segprep_a_near_RTR_ins_dp; // SEG_a_NEAR_RTR_INS_DP,
     uvc1_readnum_t segprep_a_near_RTR_del_dp; // SEG_a_NEAR_RTR_DEL_DP,
     
+    // data-driven border for position bias
+    uvc1_readnum_t segprep_aa_l_ins_dist_x_wei;
+    uvc1_readnum_t segprep_aa_l_ins_weight;
+    uvc1_readnum_t segprep_aa_r_ins_dist_x_wei;
+    uvc1_readnum_t segprep_aa_r_ins_weight;
+    
+    uvc1_readnum_t segprep_aa_l_del_dist_x_wei;
+    uvc1_readnum_t segprep_aa_l_del_weight;
+    uvc1_readnum_t segprep_aa_r_del_dist_x_wei;
+    uvc1_readnum_t segprep_aa_r_del_weight;
+    
     // SEG_FORMAT_PREP_SET_END,
 };
 #define NUM_SEG_FORMAT_PREP_SETS ((size_t)SEG_FORMAT_PREP_SET_END)
+
+uvc1_readnum_big_t
+calc_indel_weight(const auto indelsize, const auto borderlen) {
+    /*
+    if (0 == inslen) {
+        (1024) * mathcube(1) / mathcube(8); = // = 16
+    }
+    */
+    return (1024L * 1024L) * mathcube(indelsize) / mathcube(MAX(borderlen, 8)); // 1000 * 1000 * 100 * 100 * 100 / 256 < 5e8 (<< 8e20)
+}
 
 /*
 enum SegFormatThresSet {
