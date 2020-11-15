@@ -209,11 +209,13 @@ struct RegionalTandemRepeat {
     uvc1_refgpos_t begpos = 0;
     uvc1_readpos_t tracklen = 0;
     uvc1_readpos_t unitlen = 0;
-    uvc1_refgpos_t minphred_begpos = 0;
-    uvc1_readpos_t minphred_tracklen = 0;
-    uvc1_readpos_t minphred_unitlen = 0;
-    
+
     uvc1_qual_t indelphred = 40 + 3;
+
+    uvc1_refgpos_t anyTR_begpos = 0;
+    uvc1_readpos_t anyTR_tracklen = 0;
+    uvc1_readpos_t anyTR_unitlen = 0;
+    
     // uint8_t edgeBAQ;
 };
 

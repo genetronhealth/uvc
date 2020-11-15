@@ -385,6 +385,7 @@ struct SegFormatPrepSet {
     
     uvc1_readnum_t segprep_a_snv_dp;
     uvc1_readnum_t segprep_a_dnv_dp;
+    uvc1_readnum_t segprep_a_qlen;
 
     uvc1_readpos_t segprep_a_l_dist_sum; // SEG_a_L_DIST_SUM,
     uvc1_readpos_t segprep_a_r_dist_sum; // SEG_a_R_DIST_SUM,
@@ -398,6 +399,12 @@ struct SegFormatPrepSet {
     
     uvc1_readpos_t segprep_a_near_ins_pow2len; //  SEG_a_NEAR_INS_LEN,
     uvc1_readpos_t segprep_a_near_del_pow2len; //  SEG_a_NEAR_DEL_LEN,
+    
+    uvc1_readpos_t segprep_a_near_ins_l_pow2len;    
+    uvc1_readpos_t segprep_a_near_ins_r_pow2len;    
+    uvc1_readpos_t segprep_a_near_del_l_pow2len;    
+    uvc1_readpos_t segprep_a_near_del_r_pow2len;    
+    
     uvc1_readnum100x_t segprep_a_near_ins_inv100len; //  SEG_a_NEAR_INS_INV100LEN,
     uvc1_readnum100x_t segprep_a_near_del_inv100len; //  SEG_a_NEAR_DEL_INV100LEN,
 

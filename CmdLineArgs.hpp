@@ -95,7 +95,7 @@ struct CommandLineArgs {
 // *** 05. parameters related to bias thresholds
     
     uvc1_qual_t      bias_thres_highBQ = 20;
-    uvc1_qual_t      bias_thres_highBAQ = 23;
+    uvc1_qual_t      bias_thres_highBAQ = 20; // 23;
     
     uvc1_readpos_t   bias_thres_aLPxT_add = 5;
     uvc1_readpos_t   bias_thres_aLPxT_perc = 160;
@@ -259,7 +259,7 @@ struct CommandLineArgs {
 // *** 11. parameters related to InDels.
     
     uvc1_qual_t         indel_BQ_max = 43-1;
-    uvc1_readpos_t      indel_str_repeatsize_max = 8;
+    uvc1_readpos_t      indel_str_repeatsize_max = 6;
     double              indel_polymerase_size = 8.0;
     double              indel_polymerase_slip_rate = 8.0;
     double              indel_del_to_ins_err_ratio = 5.0; // 4.0; // https://www.ncbi.nlm.nih.gov/pmc/articles/PMC149199/ Table 1 homopolymer error

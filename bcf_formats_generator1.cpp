@@ -151,9 +151,11 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
                               "segment depth of high quality, "
                               "sum of squares of insertion lengths, sum of squares of deletion lengths, sum of the inverses of insertion lengths, sum of the inverses of deletion lengths, "
                               "and total segment depth of PCR amplicons."),
-    BcfFormatStruct("APXM"  , 3+4,       BCF_INTEGER, "Total number of mismatches and total number of gap openings."),
+    BcfFormatStruct("APXM"  , 4+1+3,     BCF_INTEGER, "Total number of mismatches and total number of gap openings."),
+    
+    BcfFormatStruct("__Aa1" , 1,         BCF_SEP,     "Preparation statistics for segment biases at this position."),
+    BcfFormatStruct("APLRID", 4,         BCF_INTEGER, "Total number of mismatches and total number of gap openings."),
     BcfFormatStruct("APPB"  , 4+4+2,     BCF_INTEGER, "Preparation statistics for position bias."),
-
     BcfFormatStruct("APLRI" , 4,         BCF_INTEGER, "Summed distance to left insert end and the number of such inserts, and similarly for right insert end."),
     BcfFormatStruct("APLRP" , 4,         BCF_INTEGER, "Summed distance to left and right ends, summed insertion length, and summed deletion length."),
     

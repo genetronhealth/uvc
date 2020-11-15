@@ -440,6 +440,7 @@ if (GVCF_SYMBOL != symbol) {
     return ret;
 }
 
+template <bool TIsAnyTandemRepeat = false>
 CoveredRegion<uvc1_qual_big_t> 
 region_repeatvec_to_baq_offsetarr(
         const std::vector<RegionalTandemRepeat> & region_repeatvec, 
@@ -452,11 +453,12 @@ region_repeatvec_to_baq_offsetarr(
     for (auto i = extended_inclu_beg_pos; i < extended_exclu_end_pos; i++) {
         auto rtr_idx = i - extended_inclu_beg_pos;
         const auto & rtr = region_repeatvec[rtr_idx];
+        const auto tracklen2 = (TIsAnyTandemRepeat ? rtr.anyTR_tracklen : rtr.tracklen);
         assert (rtr.begpos <= rtr_idx);
         assert (rtr.unitlen > 0);
-        assert (rtr.tracklen >= rtr.unitlen);
-        if (rtr.tracklen / rtr.unitlen >= 3 || (rtr.tracklen / rtr.unitlen >= 2 && rtr.tracklen >= (uvc1_readpos_t)round(paramset.indel_polymerase_size))) {
-            baq_prefixsum += (paramset.indel_STR_phred_per_region * 10) / (rtr.tracklen) + 1;
+        assert (tracklen2 >= rtr.unitlen);
+        if (tracklen2 / rtr.unitlen >= 3 || (tracklen2 / rtr.unitlen >= 2 && tracklen2 >= (uvc1_readpos_t)round(paramset.indel_polymerase_size))) {
+            baq_prefixsum += (paramset.indel_STR_phred_per_region * 10) / (tracklen2) + 1;
             ret.getRefByPos(i) = baq_prefixsum;
         } else {
             baq_prefixsum += paramset.indel_nonSTR_phred_per_base * 10;
@@ -591,11 +593,14 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
     std::vector<RegionalTandemRepeat> region_repeatvec = refstring2repeatvec(
             refstring, 
             paramset.indel_str_repeatsize_max, // 50?
+            30,
             paramset.indel_BQ_max,
             paramset.indel_polymerase_slip_rate,
             paramset.indel_del_to_ins_err_ratio,
             0);
     const auto & baq_offsetarr = region_repeatvec_to_baq_offsetarr(region_repeatvec, tid, extended_inclu_beg_pos, extended_exclu_end_pos + 1, paramset);
+    const auto & baq_offsetarr2 = region_repeatvec_to_baq_offsetarr<true>(region_repeatvec, tid, extended_inclu_beg_pos, extended_exclu_end_pos + 1, paramset);
+
     assert(((baq_offsetarr.getExcluEndPosition() - baq_offsetarr.getIncluBegPosition()) == UNSIGN2SIGN(region_repeatvec.size())) 
             || !fprintf(stderr, "%d - %d == %lu failed (baq == repeat in size)!\n", baq_offsetarr.getExcluEndPosition(), baq_offsetarr.getIncluBegPosition(), region_repeatvec.size()));
     
@@ -613,6 +618,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
             refstring,
             region_repeatvec,
             baq_offsetarr,
+            baq_offsetarr2,
             
             paramset,
             0);
