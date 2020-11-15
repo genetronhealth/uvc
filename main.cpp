@@ -764,11 +764,17 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                 
                 std::string tumor_gvcf_format = "";
                 if (paramset.is_tumor_format_retrieved && NOT_PROVIDED != paramset.vcf_tumor_fname) { 
-                    const auto & tkis = tid_pos_symb_to_tkis.find(std::make_tuple(tid, refpos, GVCF_SYMBOL))->second;
-                    if (tkis.size() == 1) {
-                        // const auto str2 = bcf1_to_string_2(bcf_hdr, tkis[0].bcf1_record);
-                        tumor_gvcf_format = bcf1_to_string(bcf_hdr, tkis[0].bcf1_record);
-                        // LOG(logINFO) << "gVCFblock at " << refpos << " is indeed found, tumor_gvcf_format == " << tumor_gvcf_format; // + " ; tumor_gvcf_line = " << str2;
+                    const auto tkis_it = tid_pos_symb_to_tkis.find(std::make_tuple(tid, refpos, GVCF_SYMBOL));
+                    if (tkis_it != tid_pos_symb_to_tkis.end()) {
+                        const auto & tkis = tid_pos_symb_to_tkis.find(std::make_tuple(tid, refpos, GVCF_SYMBOL))->second;
+                        if (tkis.size() == 1) {
+                            // const auto str2 = bcf1_to_string_2(bcf_hdr, tkis[0].bcf1_record);
+                            tumor_gvcf_format = bcf1_to_string(bcf_hdr, tkis[0].bcf1_record);
+                            LOG(logINFO) << "gVCFblock at " << refpos << " is indeed found, tumor_gvcf_format == " << tumor_gvcf_format; 
+                            // + " ; tumor_gvcf_line = " << str2;
+                        } else {
+                            tumor_gvcf_format = std::string("\t.:.,.:-1");
+                        }
                     } else {
                         tumor_gvcf_format = std::string("\t.:.,.:.");
                         // LOG(logINFO) << "gVCFblock at " << refpos << " is not found, tkis.size() == " << tkis.size();
