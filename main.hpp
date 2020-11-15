@@ -288,6 +288,7 @@ const uvc1_refgpos_t SYMBOL_TO_INDEL_N_UNITS[] = {
     [LINK_D3P] = -3, [LINK_D2] = -2, [LINK_D1] = -1,
     [LINK_I3P] = 3, [LINK_I2] = 2, [LINK_I1] = 1,
     [LINK_NN] = 0,
+    [END_ALIGNMENT_SYMBOLS] = 0,
 };
 
 const char* SYMBOL_TO_DESC_ARR[] = {
@@ -1034,7 +1035,7 @@ update_seg_format_prep_sets_by_aln(
                 auto readsymbol = END_ALIGNMENT_SYMBOLS;
                 auto next_qpos = qpos;
                 auto next_rpos = rpos;
-                while (refsymbol != readsymbol && qpos < aln->core.l_qseq && rpos < rend) {
+                while (refsymbol != readsymbol && next_qpos < aln->core.l_qseq && next_rpos < rend) {
                     const auto base4bit = bam_seqi(bam_get_seq(aln), next_qpos);
                     const auto base3bit = seq_nt16_int[base4bit];
                     refsymbol = region_symbolvec[next_rpos - region_offset];
@@ -1078,6 +1079,7 @@ update_seg_format_prep_sets_by_aln(
             const auto & rtr1 = rtr_vec[MAX((int)paramset.indel_adj_tracklen_dist, (int)rpos - (int)region_offset) - (int)paramset.indel_adj_tracklen_dist];
             const auto & rtr2 = rtr_vec[MIN((int)rpos - (int)region_offset + (int)paramset.indel_adj_tracklen_dist, (int)rtr_vec.size() - 1)];
             
+            /* // buggy code
             const auto ins_rbeg = MAX(aln->core.pos, rpos - 100);
             const auto ins_rend = MIN(rend + UNSIGN2SIGN(cigar_oplen), rpos + 100);
             for (auto rpos2 = ins_rbeg + 1; rpos2 < ins_rend; rpos2++) {
@@ -1091,7 +1093,7 @@ update_seg_format_prep_sets_by_aln(
                 seg_format_prep_sets.getRefByPos(rpos2).segprep_aa_r_ins_dist_x_wei += rdist * rweight;
                 seg_format_prep_sets.getRefByPos(rpos2).segprep_aa_r_ins_weight += rweight;
             }
-            
+            */
             const auto unitlen2 = MAX(1, (rtr1.tracklen > rtr2.tracklen) ? rtr1.unitlen : rtr2.unitlen);
             const uvc1_refgpos_t nbases = (int)(cigar_oplen * paramset.indel_adj_indellen_perc / 100);
             for (uvc1_refgpos_t rpos2 = MAX((int)rpos - nbases, aln->core.pos); rpos2 < MIN((int)rpos + nbases, rend); rpos2++) {
@@ -1114,6 +1116,7 @@ update_seg_format_prep_sets_by_aln(
             const auto & rtr2 = rtr_vec[MIN((int)rpos - (int)region_offset + (int)paramset.indel_adj_tracklen_dist, (int)rtr_vec.size() - 1)];
             assert (rtr1.begpos <= rtr2.begpos || !fprintf(stderr, "AssertionError: %d <= %d failed for rtr1 and rtr2!\n", rtr1.begpos, rtr2.begpos));
             
+            /*
             const auto del_rbeg = MAX(aln->core.pos + UNSIGN2SIGN(cigar_oplen), rpos - 100);
             const auto del_rend = MIN(rend - UNSIGN2SIGN(cigar_oplen), rpos + 100);
             for (auto rpos2 = del_rbeg + 1; rpos2 < del_rend; rpos2++) {
@@ -1127,7 +1130,7 @@ update_seg_format_prep_sets_by_aln(
                 seg_format_prep_sets.getRefByPos(rpos2).segprep_aa_r_del_dist_x_wei += rdist * rweight;
                 seg_format_prep_sets.getRefByPos(rpos2).segprep_aa_r_del_weight += rweight;
             }
-            
+            */
             for (uvc1_refgpos_t rpos2 = rpos; rpos2 < rpos + UNSIGN2SIGN(cigar_oplen); rpos2++) {
                 seg_format_prep_sets.getRefByPos(rpos2).segprep_a_pcr_dp += pcr_dp_inc;
                 seg_format_prep_sets.getRefByPos(rpos2).segprep_a_dp += 1;

@@ -418,7 +418,7 @@ if (GVCF_SYMBOL != symbol) {
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "nAFA", &bcfints, &ndst_val);
-        assert((9 == ndst_val && 9 == valsize) || !fprintf(stderr, "9 == %d && 9 == %d failed for nAFA and line %d!\n", ndst_val, valsize, line->pos));
+        assert((9 <= ndst_val && 9 <= valsize) || !fprintf(stderr, "9 == %d && 9 == %d failed for nAFA and line %d!\n", ndst_val, valsize, line->pos));
         tki.nAFA.clear();
         for (int i = 0; i < ndst_val; i++) {
             tki.nAFA.push_back(bcfints[i]);
@@ -942,7 +942,9 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                     std::vector<std::tuple<uvc1_qual_t, uvc1_qual_t, uvc1_qual_t, AlignmentSymbol, std::string>> maxVQ_VQ1_VQ2_symbol_indelstr_tup_vec;
                     for (auto & fmt_tki_tup : fmt_tki_tup_vec) 
                     {
-                        AlignmentSymbol symbol = AlignmentSymbol(LAST(std::get<0>(fmt_tki_tup).VTI));
+                        const auto VTI = LAST(std::get<0>(fmt_tki_tup).VTI);
+                        assert((VTI >= 0 && VTI <= END_ALIGNMENT_SYMBOLS) || !fprintf(stderr, "VTI %d at pos %d is invalid!\n", VTI, refpos));
+                        AlignmentSymbol symbol = (VTI >= 0 ? AlignmentSymbol(VTI) : END_ALIGNMENT_SYMBOLS);
                         auto & fmt = std::get<0>(fmt_tki_tup);
                         const auto & tki = std::get<1>(fmt_tki_tup);
                         BcfFormat_symbol_calc_qual(
