@@ -88,7 +88,8 @@ CommandLineArgs::selfUpdateByPlatform() {
         // bias_thres_highBQ -= 4;
         fam_thres_highBQ_snv = 0;
         fam_thres_highBQ_indel = 0;
-    
+        bias_thres_PFBQ1 -= 30;
+        bias_thres_PFBQ2 -= 30;
     }
     if (SEQUENCING_PLATFORM_ILLUMINA == inferred_sequencing_platform && SEQUENCING_PLATFORM_OTHER != this->sequencing_platform) {
         bq_phred_added_indel += 0;

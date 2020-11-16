@@ -299,7 +299,7 @@ struct CommandLineArgs {
     uvc1_readpos_t      microadjust_nobias_pos_indel_maxlen = 16;
     uvc1_qual_t         microadjust_nobias_pos_indel_bMQ = 50;
     uvc1_readnum100x_t  microadjust_nobias_pos_indel_perc = 50;
-    int32_t             microadjust_nobias_strand_all_fold = 20;
+    double              microadjust_nobias_strand_all_fold = 5; // 20;
     double              microadjust_refbias_indel_max = 2.0;
     
     uvc1_qual_t         microadjust_fam_binom_qual_halving_thres = 22;
