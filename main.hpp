@@ -1295,15 +1295,19 @@ update_seg_format_thres_from_prep_sets(
         
         auto & rtr = region_repeatvec[epos - seg_format_prep_sets.getIncluBegPosition()];
         if (p.segprep_a_near_ins_dp * paramset.indel_del_to_ins_err_ratio < p.segprep_a_near_del_dp) {
-            rtr.indelphred += (uvc1_qual_t)round(numstates2phred(paramset.indel_del_to_ins_err_ratio));
+            rtr.indelphred += (uvc1_qual_t)round(numstates2phred(paramset.indel_del_to_ins_err_ratio)) / 2;
+        }
+        if (p.segprep_a_near_del_dp * paramset.indel_del_to_ins_err_ratio < p.segprep_a_near_ins_dp) {
+            rtr.indelphred -= (uvc1_qual_t)round(numstates2phred(paramset.indel_del_to_ins_err_ratio)) / 2;
         }
         const auto pc_inc1 = (uvc1_qual_t)(3 * 100 * MAX(1, p.segprep_a_near_ins_dp + p.segprep_a_near_del_dp)
                 / (MAX(1, p.segprep_a_near_ins_inv100len + p.segprep_a_near_del_inv100len))) - 3;
         assert (epos >= seg_format_prep_sets.getIncluBegPosition() || !fprintf(stderr, "%d >= %d failed!", epos, seg_format_prep_sets.getIncluBegPosition()));
         assert (epos - seg_format_prep_sets.getIncluBegPosition() < UNSIGN2SIGN(region_repeatvec.size())
                 || !fprintf(stderr, "%d - %d < %lu failed!", epos, seg_format_prep_sets.getIncluBegPosition(), region_repeatvec.size()));
-        region_repeatvec[epos - seg_format_prep_sets.getIncluBegPosition()].indelphred += BETWEEN(pc_inc1, 0, 6);
-        
+        rtr.indelphred += BETWEEN(pc_inc1, 0, 6);
+        UPDATE_MAX(rtr.indelphred, 0);
+
         const bool is_normal = (NOT_PROVIDED != paramset.vcf_tumor_fname);
         
         // t.segthres_aLPxT = int64mul(max_border_len, paramset.bias_thres_aLPxT_perc) / 100 + paramset.bias_thres_aLPxT_add;
@@ -1365,12 +1369,14 @@ dealwith_segbias(
         const CoveredRegion<uvc1_qual_big_t> & baq_offsetarr,
         const CoveredRegion<uvc1_qual_big_t> & baq_offsetarr2,
         
+        const auto indel_len_arg,
         const uvc1_refgpos_t dist_to_interfering_indel,
         const bool is_assay_amplicon,
 
         const CommandLineArgs & paramset,
         const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
     
+    const auto indel_len = UNSIGN2SIGN(indel_len_arg);
     const uvc1_refgpos_t bias_thres_veryhighBQ = paramset.bias_thres_highBQ; // veryhigh overriden by high. TODO: check if it makes sense?
     
     const auto rend = bam_endpos(aln); 
@@ -1502,8 +1508,8 @@ dealwith_segbias(
     }
     
     if (((!isGap) && bq >= paramset.bias_thres_highBQ) || (isGap && dist_to_interfering_indel >= paramset.bias_thres_interfering_indel)) {
-        const bool is_l1_unbiased = (seg_l_nbases >= seg_format_thres_set.segthres_aLP1t);
-        const bool is_l2_unbiased = (seg_l_nbases >= seg_format_thres_set.segthres_aLP2t);
+        const bool is_l1_unbiased = (seg_l_nbases + indel_len >= seg_format_thres_set.segthres_aLP1t);
+        const bool is_l2_unbiased = (seg_l_nbases + indel_len >= seg_format_thres_set.segthres_aLP2t);
         const bool is_r1_unbiased = (seg_r_nbases >= seg_format_thres_set.segthres_aRP1t);
         const bool is_r2_unbiased = (seg_r_nbases >= seg_format_thres_set.segthres_aRP2t);
         if (is_far_from_edge) {
@@ -1874,6 +1880,7 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
                                     baq_offsetarr,
                                     baq_offsetarr2,
                                     
+                                    0,
                                     dist_to_interfering_indel,
                                     is_assay_amplicon,
                                     
@@ -1931,7 +1938,8 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
                                 bm1500s[symbol],
                                 baq_offsetarr,
                                 baq_offsetarr2,
-
+                                
+                                0,
                                 10000,
                                 is_assay_amplicon,
 
@@ -2012,7 +2020,8 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
                                 bm1500s[symbol],
                                 baq_offsetarr,
                                 baq_offsetarr2,
-
+                                
+                                cigar_oplen,
                                 10000,
                                 is_assay_amplicon,
                                 
@@ -2113,9 +2122,10 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
                                 baq_offsetarr,
                                 baq_offsetarr2,
                                 
+                                cigar_oplen,
                                 10000,
                                 is_assay_amplicon,
-
+                                
                                 paramset,
                                 0);
                     }
@@ -2146,6 +2156,7 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
                                         baq_offsetarr,
                                         baq_offsetarr2,
                                         
+                                        cigar_oplen,
                                         MIN(rpos - prev_indel_rpos, next_indel_rpos - rpos),
                                         is_assay_amplicon,
 
