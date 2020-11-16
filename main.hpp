@@ -3294,7 +3294,7 @@ BcfFormat_symbol_calc_DPv(
     
     const double unbias_ratio = ((NOT_PROVIDED == paramset.vcf_tumor_fname) ? 1.0 : sqrt(2.0));
     const double unbias_qualadd = ((NOT_PROVIDED == paramset.vcf_tumor_fname) ? 0 : 3);
-    const uvc1_qual_t allbias_allprior = ((NOT_PROVIDED == paramset.vcf_tumor_fname) ? 31 : 0);
+    const uvc1_qual_t allbias_allprior = ((NOT_PROVIDED == paramset.vcf_tumor_fname) ? 0 : 31);
     
     const bool is_strong_amplicon = (fmt.APDP[5] * 100 > fmt.APDP[0] * 60);
     const bool is_weak_amplicon = (fmt.APDP[5] * 100 > fmt.APDP[0] * 40);
@@ -3340,16 +3340,16 @@ BcfFormat_symbol_calc_DPv(
             const bool is_f_BQ_counterbias = (
                     (LAST(fmt.a1BQf) >= LAST(fmt.a1BQr)) 
                     && (is_f_good_cov && is_r_good_cov)
-                    && (avg_f_aBQ + unbias_qualadd >= avg_r_ABQ + 15) 
-                    && (avg_r_ABQ <= 15 + unbias_qualadd));
+                    && (avg_f_aBQ + unbias_qualadd >= avg_r_ABQ + 14) 
+                    && (avg_r_ABQ <= 14 + unbias_qualadd));
             if (is_f_BQ_counterbias) {
                 UPDATE_MAX(_counterbias_BQ_FA, (fmt.aDPff[a] + fmt.aDPrf[a] + 0.5) / (fmt.ADPff[0] + fmt.ADPrf[0] + 1.0));
             }
             const bool is_r_BQ_counterbias = (
                     (LAST(fmt.a1BQr) >= LAST(fmt.a1BQf))
                     && (is_f_good_cov && is_r_good_cov)
-                    && (avg_r_aBQ + unbias_qualadd >= avg_f_ABQ + 15)
-                    && (avg_f_ABQ <= 15 + unbias_qualadd));
+                    && (avg_r_aBQ + unbias_qualadd >= avg_f_ABQ + 14)
+                    && (avg_f_ABQ <= 14 + unbias_qualadd));
             if (is_r_BQ_counterbias) {
                 UPDATE_MAX(_counterbias_BQ_FA, (fmt.aDPfr[a] + fmt.aDPrr[a] + 0.5) / (fmt.ADPfr[0] + fmt.ADPrr[0] + 1.0));
             }
