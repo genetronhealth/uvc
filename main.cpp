@@ -417,12 +417,9 @@ if (GVCF_SYMBOL != symbol) {
         tki.cPCQ2 = bcfints[1];
         
         ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line, "nAFA", &bcfints, &ndst_val);
-        assert((9 <= ndst_val && 9 <= valsize) || !fprintf(stderr, "9 == %d && 9 == %d failed for nAFA and line %d!\n", ndst_val, valsize, line->pos));
-        tki.nAFA.clear();
-        for (int i = 0; i < ndst_val; i++) {
-            tki.nAFA.push_back(bcfints[i]);
-        }
+        valsize = bcf_get_format_int32(bcf_hdr, line, "bNMQ", &bcfints, &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for bNMQ and line %d!\n", ndst_val, valsize, line->pos));
+        tki.bNMQ = bcfints[1];
 }
         tki.pos = line->pos;
         tki.ref_alt = als_to_string(line->d.allele, line->n_allele);

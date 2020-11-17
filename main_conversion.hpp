@@ -348,7 +348,8 @@ struct TumorKeyInfo {
     uvc1_qual_t cVQ2 = 0;
     uvc1_qual_t cPCQ2 = 0;
     
-    std::vector<uvc1_qual_t> nAFA;
+    // std::vector<uvc1_qual_t> nAFA;
+    uvc1_qual_t bNMQ = 0;
     bcf1_t *bcf1_record = NULL;
     /*
     ~TumorKeyInfo() {
@@ -562,13 +563,13 @@ struct SegFormatInfoSet {
    
     uvc1_readnum100x_t seginfo_aPF1; // mismatch and BQ
     uvc1_readnum100x_t seginfo_aPF2; 
-    uvc1_readnum100x_t seginfo_aXM1; // mismatch
-    uvc1_readnum100x_t seginfo_aXM2; 
+    // uvc1_readnum100x_t seginfo_aXM1; // mismatch
+    // uvc1_readnum100x_t seginfo_aXM2; 
     
     uvc1_readnum_t seginfo_aBQ2; // number passing BQ filter
     
     uvc1_qual_t seginfo_aMQs;
-    uvc1_readnum_t seginfo_aXMp1;
+    // uvc1_readnum_t seginfo_aXMp1;
     uvc1_readnum_t seginfo_aP1;
     uvc1_readnum_t seginfo_aP2;
     
@@ -643,7 +644,7 @@ enum DuplexFormatDepthSet {
 //         MIN(D-FA-QUAL (base60), D-DPQ-iiderr-QUAL))
 enum VQFormatTagSet {
     
-    VQ_a1XM,
+    // VQ_a1XM,
     
     VQ_a1BQf,
     VQ_a1BQr,

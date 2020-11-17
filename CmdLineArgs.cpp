@@ -823,14 +823,15 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
         "The ecommended value is 13 for Illumina and 0 for IonTorrent. ");
     
     ADD_OPTDEF(app,
-        "--syserr-maxMQ",
-           syserr_maxMQ,
-        "Maximum mapping quality (MQ) of the aligned reads, highly recommended to be the 60 from BWA. ");
+        "--syserr-MQ-cap",
+           syserr_MQ_cap,
+        "Maximum mapping quality (MAPQ or MQ) of the aligned reads, highly recommended to be the 60 from BWA. ");
+    /*
     ADD_OPTDEF(app, 
         "--syserr-phred-varcall-err-per-map-err-per-base", 
            syserr_phred_varcall_err_per_map_err_per_base,
         "The root-mean square mapping quality added by this number is the maximum possible TLOD part of variant quality. "); 
-
+    */
 // *** 09. parameters related to germline vars 
     
     ADD_OPTDEF(app, 

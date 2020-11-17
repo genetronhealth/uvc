@@ -1408,7 +1408,7 @@ dealwith_segbias(
     const auto a2BQ = (isrc ? VQ_a2BQr : VQ_a2BQf);
     symbol_to_VQ_format_tag_set[a1BQ] += bq; 
     symbol_to_VQ_format_tag_set[a2BQ] += bq * bq / SQR_QUAL_DIV;
-    symbol_to_VQ_format_tag_set[VQ_a1XM] += xm1500; 
+    // symbol_to_VQ_format_tag_set[VQ_a1XM] += xm1500; 
     
     symbol_to_seg_format_depth_set.seginfo_aMQs += aln->core.qual;
     auto & symbol_to_seg_aDP_depth_set = (strand
@@ -1420,7 +1420,7 @@ dealwith_segbias(
     symbol_to_seg_aDP_depth_set += 1;
     // symbol_to_seg_format_depth_set.seginfo_aRL += (rend - aln->core.pos);
     
-    symbol_to_seg_format_depth_set.seginfo_aXMp1 += 1000 / MAX(xm1500, 10);
+    // symbol_to_seg_format_depth_set.seginfo_aXMp1 += 1000 / MAX(xm1500, 10);
     
     const auto const_XM1T = seg_format_thres_set.segthres_aXM1T;
     const auto const_XM2T = seg_format_thres_set.segthres_aXM2T;
@@ -1461,7 +1461,7 @@ dealwith_segbias(
         }
 
         symbol_to_seg_format_depth_set.seginfo_aPF1 += MIN(ampfact1, ampfact2);
-        symbol_to_seg_format_depth_set.seginfo_aXM1 +=    (ampfact1);
+        // symbol_to_seg_format_depth_set.seginfo_aXM1 +=    (ampfact1);
         
         if (xm1500 <= const_XM2T && go1500 <= const_GO2T) {
             ampfact1 = 100;
@@ -1477,7 +1477,7 @@ dealwith_segbias(
         }
         
         symbol_to_seg_format_depth_set.seginfo_aPF2 += MIN(ampfact1, ampfact2);
-        symbol_to_seg_format_depth_set.seginfo_aXM2 +=    (ampfact1);
+        // symbol_to_seg_format_depth_set.seginfo_aXM2 +=    (ampfact1);
 
     } else {
         uvc1_readnum100x_t ampfact1 = 100;
@@ -1494,7 +1494,7 @@ dealwith_segbias(
             ampfact2 = 100; 
         }
         symbol_to_seg_format_depth_set.seginfo_aPF1 += (ampfact1 * ampfact2 / (100));
-        symbol_to_seg_format_depth_set.seginfo_aXM1 += (ampfact1);
+        // symbol_to_seg_format_depth_set.seginfo_aXM1 += (ampfact1);
         
         if (xm1500 > const_XM2T) {
             ampfact1 = 100 * mathsquare(const_XM2T) / mathsquare(xm1500);
@@ -1507,7 +1507,7 @@ dealwith_segbias(
             ampfact2 = 100; 
         }
         symbol_to_seg_format_depth_set.seginfo_aPF2 += (ampfact1 * ampfact2 / (100));
-        symbol_to_seg_format_depth_set.seginfo_aXM2 += (ampfact1);
+        // symbol_to_seg_format_depth_set.seginfo_aXM2 += (ampfact1);
         
         symbol_to_seg_format_depth_set.seginfo_a2XM2 += (xm1500 > 20 ? (100 * mathsquare(20) / mathsquare(xm1500)) : 100);
         symbol_to_seg_format_depth_set.seginfo_a2BM2 += (bm1500 > 20 ? (100 * mathsquare(20) / mathsquare(bm1500)) : 100);
@@ -2920,7 +2920,7 @@ fill_symbol_VQ_fmts(
         const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
     const int a = 0;
     
-    fill_symbol_fmt(fmt.a1XM,  symbol_to_VQ_format_tag_sets, VQ_a1XM,  refpos, symbol, a);
+    // fill_symbol_fmt(fmt.a1XM,  symbol_to_VQ_format_tag_sets, VQ_a1XM,  refpos, symbol, a);
     
     const auto a2BQf = symbol_to_VQ_format_tag_sets.getByPos(refpos)[symbol][VQ_a2BQf];
     const auto a2BQr = symbol_to_VQ_format_tag_sets.getByPos(refpos)[symbol][VQ_a2BQr];
@@ -2959,10 +2959,11 @@ fill_symbol_VQ_fmts(
     fill_symbol_fmt(fmt.bMQ,  symbol_to_VQ_format_tag_sets,  VQ_bMQ,  refpos, symbol, a);
     fmt.bMQ[a] = (uvc1_qual_t)floor(sqrt(fmt.bMQ[a] * SQR_QUAL_DIV / MAX(fmt.bDPf[a] + fmt.bDPr[a], 1)) + (double)(1.0 - FLT_EPSILON));
     
+    const auto aBQQ = MAX(a_rmsBQ, paramset.syserr_BQ_prior + MAX3(a_BQ_syserr_qual_2d, a_BQ_syserr_qual_fw, a_BQ_syserr_qual_rv));
     clear_push(fmt.a2BQf, rssDPfBQ, a);
     clear_push(fmt.a2BQr, rssDPrBQ, a);
-    clear_push(fmt.aBQ, a_rmsBQ);
-    clear_push(fmt.aBQQ, MAX(a_rmsBQ, paramset.syserr_BQ_prior + MAX3(a_BQ_syserr_qual_2d, a_BQ_syserr_qual_fw, a_BQ_syserr_qual_rv)), a);
+    clear_push(fmt.aBQ, a_rmsBQ, a);
+    clear_push(fmt.aBQQ, aBQQ, a);
     
     fill_symbol_fmt(fmt.bIAQb, symbol_to_VQ_format_tag_sets, VQ_bIAQb, refpos, symbol, a);
     fill_symbol_fmt(fmt.bIADb, symbol_to_VQ_format_tag_sets, VQ_bIADb, refpos, symbol, a);
@@ -3060,7 +3061,7 @@ BcfFormat_symboltype_init(bcfrec::BcfFormat & fmt,
     fill_symboltype_fmt(fmt.A1BQf, symbol_to_VQ_format_tag_sets,    VQ_a1BQf,  refpos, symboltype, refsymbol);
     fill_symboltype_fmt(fmt.A1BQr, symbol_to_VQ_format_tag_sets,    VQ_a1BQr,  refpos, symboltype, refsymbol);
     filla_symboltype_fmt(fmt.AMQs,  symbol_to_seg_format_depth_sets, seginfo_aMQs,  refpos, symboltype, refsymbol); // this MQ can be used for addition and substraction.
-    filla_symboltype_fmt(fmt.AXMp1, symbol_to_seg_format_depth_sets, seginfo_aXMp1, refpos, symboltype, refsymbol);
+    // filla_symboltype_fmt(fmt.AXMp1, symbol_to_seg_format_depth_sets, seginfo_aXMp1, refpos, symboltype, refsymbol);
     
     filla_symboltype_fmt(fmt.AP1,   symbol_to_seg_format_depth_sets, seginfo_aP1,   refpos, symboltype, refsymbol);
     filla_symboltype_fmt(fmt.AP2,   symbol_to_seg_format_depth_sets, seginfo_aP2,   refpos, symboltype, refsymbol);
@@ -3090,8 +3091,8 @@ BcfFormat_symboltype_init(bcfrec::BcfFormat & fmt,
     
     filla_symboltype_fmt(fmt.APF1,  symbol_to_seg_format_depth_sets, seginfo_aPF1, refpos, symboltype, refsymbol);
     filla_symboltype_fmt(fmt.APF2,  symbol_to_seg_format_depth_sets, seginfo_aPF2, refpos, symboltype, refsymbol);
-    filla_symboltype_fmt(fmt.AXM1,  symbol_to_seg_format_depth_sets, seginfo_aXM1, refpos, symboltype, refsymbol);
-    filla_symboltype_fmt(fmt.AXM2,  symbol_to_seg_format_depth_sets, seginfo_aXM2, refpos, symboltype, refsymbol);
+    // filla_symboltype_fmt(fmt.AXM1,  symbol_to_seg_format_depth_sets, seginfo_aXM1, refpos, symboltype, refsymbol);
+    // filla_symboltype_fmt(fmt.AXM2,  symbol_to_seg_format_depth_sets, seginfo_aXM2, refpos, symboltype, refsymbol);
     
 
     filla_symboltype_fmt(fmt.ALI1,  symbol_to_seg_format_depth_sets, seginfo_aLI1, refpos, symboltype, refsymbol);
@@ -3172,7 +3173,7 @@ BcfFormat_symbol_init(
     fill_symbol_fmt(fmt.a1BQf, symbol_to_VQ_format_tag_sets,    VQ_a1BQf, refpos, symbol, a);
     fill_symbol_fmt(fmt.a1BQr, symbol_to_VQ_format_tag_sets,    VQ_a1BQr, refpos, symbol, a);
     filla_symbol_fmt(fmt.aMQs,  symbol_to_seg_format_depth_sets, seginfo_aMQs,  refpos, symbol, a);
-    filla_symbol_fmt(fmt.aXMp1, symbol_to_seg_format_depth_sets, seginfo_aXMp1, refpos, symbol, a);
+    // filla_symbol_fmt(fmt.aXMp1, symbol_to_seg_format_depth_sets, seginfo_aXMp1, refpos, symbol, a);
     
     filla_symbol_fmt(fmt.aP1,  symbol_to_seg_format_depth_sets, seginfo_aP1,  refpos, symbol, a);
     filla_symbol_fmt(fmt.aP2,  symbol_to_seg_format_depth_sets, seginfo_aP2,  refpos, symbol, a);
@@ -3206,8 +3207,8 @@ BcfFormat_symbol_init(
 
     filla_symbol_fmt(fmt.aPF1, symbol_to_seg_format_depth_sets, seginfo_aPF1, refpos, symbol, a);
     filla_symbol_fmt(fmt.aPF2, symbol_to_seg_format_depth_sets, seginfo_aPF2, refpos, symbol, a);
-    filla_symbol_fmt(fmt.aXM1, symbol_to_seg_format_depth_sets, seginfo_aXM1, refpos, symbol, a);
-    filla_symbol_fmt(fmt.aXM2, symbol_to_seg_format_depth_sets, seginfo_aXM2, refpos, symbol, a);
+    // filla_symbol_fmt(fmt.aXM1, symbol_to_seg_format_depth_sets, seginfo_aXM1, refpos, symbol, a);
+    // filla_symbol_fmt(fmt.aXM2, symbol_to_seg_format_depth_sets, seginfo_aXM2, refpos, symbol, a);
 
     filla_symbol_fmt(fmt.aLI1, symbol_to_seg_format_depth_sets, seginfo_aLI1, refpos, symbol, a);
     filla_symbol_fmt(fmt.aLI2, symbol_to_seg_format_depth_sets, seginfo_aLI2, refpos, symbol, a);
@@ -3597,7 +3598,11 @@ BcfFormat_symbol_calc_DPv(
     
     fmt_bias_push(fmt.nBCFA, cFA0,  cROFA1,  paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::ROB1]);
     fmt_bias_push(fmt.nBCFA, cFA2,  cROFA2,  paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::ROB2]);
-     
+    
+    if (fmt.FTS.size() == 0) {
+        fmt.FTS = "PASS";
+    }
+    
     double min_aFA = MAX3(MINVEC(min_aFA_vec), counterbias_P_FA, counterbias_BQ_FA);
     
     double dedup_FA = ((NOT_PROVIDED == paramset.vcf_tumor_fname) ? MIN(bFA, cFA0) : (MAX(bFA, cFA0)));
@@ -3954,25 +3959,30 @@ BcfFormat_symbol_calc_qual(
     const auto fbTB = (double)(fmt.bTBf[a] + fmt.bTBr[a] + 3);
     
     const double alt_frac_mut_affected_tpos = fbTB / fbTA; // is low by default
-    const double nonalt_frac_mut_affected_tpos = (fBTB + fbTB/50 - fbTB) / (fBTA + fbTA/50 - fbTA); // is same as alt by default
-    const double frac_mut_affected_pos = MAX(0.03, 2.0 * alt_frac_mut_affected_tpos - 2.0 * nonalt_frac_mut_affected_tpos);
-    const uvc1_qual_t phredHDR = round(numstates2phred(pow(frac_mut_affected_pos / 0.03, 3)) * (frac_mut_affected_pos)); 
+    const double nonalt_frac_mut_affected_tpos = (fBTB + paramset.contam_any_mul_frac * fbTB - fbTB) / (fBTA + paramset.contam_any_mul_frac * fbTA - fbTA); // is same as alt by default
+    const double frac_mut_affected_pos = MAX(paramset.syserr_MQ_XMR_expfrac, 
+              paramset.syserr_MQ_XMR_altfrac_coef    * alt_frac_mut_affected_tpos 
+            - paramset.syserr_MQ_XMR_nonaltfrac_coef * nonalt_frac_mut_affected_tpos);
+    const uvc1_qual_t bNMQ = round(numstates2phred(pow(frac_mut_affected_pos / paramset.syserr_MQ_XMR_expfrac, (paramset.syserr_MQ_XMR_pl_exponent))) * (frac_mut_affected_pos)); 
     
-    const uvc1_qual_t readlenMQcap = (fmt.APXM[2]) / MAX(1, fmt.APDP[0]) - 20;
-    const uvc1_qual_t _systematicMQVQ = (((refsymbol == symbol) && (ADP > aDP * 2)) ? fmt.bMQ[a] : (fmt.bMQ[a]/3 + 40)) + (uvc1_qual_t)((symbol == refsymbol) ? 0 : MIN(33, ADP * 3))
+    const uvc1_qual_t readlenMQcap = (fmt.APXM[2]) / MAX(1, fmt.APDP[0]) - 20; // fixed
+    const uvc1_qual_t _systematicMQVQ = (((refsymbol == symbol) && (ADP > aDP * 2)) 
+                ? fmt.bMQ[a] 
+                : (fmt.bMQ[a] * (paramset.syserr_MQ_cap - paramset.syserr_MQ_nonref_base) / paramset.syserr_MQ_cap + paramset.syserr_MQ_nonref_base)) 
+                    + (uvc1_qual_t)((symbol == refsymbol) ? 0 : MIN(paramset.germ_phred_homalt_snp, ADP * 3))
             - (uvc1_qual_t)(MAX(0, diffAaMQs))
-            - (uvc1_qual_t)(phredHDR) 
+            - (uvc1_qual_t)(bNMQ) 
             - (uvc1_qual_t)(numstates2phred((ADP + 1.0) / (aDP + 0.5)));
     const auto systematicMQVQ = BETWEEN(_systematicMQVQ, 0, readlenMQcap);
-    fmt.note += std::string("sysMQ/") 
-        + std::to_string(systematicMQVQ) + "/"
-        + std::to_string(diffAaMQs) + "/"
-        + std::to_string(alt_frac_mut_affected_tpos) + "/"
-        + std::to_string(nonalt_frac_mut_affected_tpos) + "/";
     
-    fmt.nAFA.push_back(phredHDR);
+    clear_push(fmt.aAaMQ, diffAaMQs);
+    clear_push(fmt.bNMQ, bNMQ);
+    clear_push(fmt.bNMa, round(100 * alt_frac_mut_affected_tpos));
+    clear_push(fmt.bNMb, round(100 * nonalt_frac_mut_affected_tpos));
     
-    const uvc1_qual_t systematicBQVQ = (SEQUENCING_PLATFORM_IONTORRENT != paramset.inferred_sequencing_platform && isSymbolSubstitution(AlignmentSymbol(LAST(fmt.VTI))) ? (fmt.aBQQ[a]) : (200));
+    const uvc1_qual_t systematicBQVQ = (
+            ((SEQUENCING_PLATFORM_IONTORRENT != paramset.inferred_sequencing_platform) && isSymbolSubstitution(AlignmentSymbol(LAST(fmt.VTI)))) 
+            ? fmt.aBQQ[a] : (200));
     
     /*
     const uvc1_qual_t syserr_q = MIN(
@@ -3980,11 +3990,12 @@ BcfFormat_symbol_calc_qual(
             (SEQUENCING_PLATFORM_IONTORRENT != paramset.inferred_sequencing_platform && isSymbolSubstitution(AlignmentSymbol(LAST(fmt.VTI))) ? (fmt.aBQQ[a]) : (200)));
     */
     
-    //const auto tn_syserr_q = paramset.syserr_maxMQ + MAX(paramset.tn_q_inc_max, non_neg_minus(paramset.germ_phred_homalt_snp, 
+    //const auto tn_syserr_q = paramset.syserr_MQ_cap + MAX(paramset.tn_q_inc_max, non_neg_minus(paramset.germ_phred_homalt_snp, 
     //        numstates2phred(MAX(1, aDP * 100) / (double)MAX(1, LAST(fmt.aXM2)))));
-    const auto tn_syserr_q = systematicMQVQ + paramset.tn_q_inc_max; // paramset.syserr_maxMQ + germ_phred_homalt + paramset.tn_q_inc_max - MAX(0, diffAaMQs);
-    // + paramset.tn_q_inc_max + non_neg_minus(paramset.germ_phred_homalt_snp, 
-    // numstates2phred(MAX(1, aDP * 100) / (double)MAX(1, LAST(fmt.aXM2))));
+    
+    const auto tn_syserr_q = systematicMQVQ + paramset.tn_q_inc_max; // paramset.syserr_MQ_cap + germ_phred_homalt + paramset.tn_q_inc_max - MAX(0, diffAaMQs);
+    clear_push(fmt.bMQQ, systematicMQVQ);
+    
     // aXMp1, a1XM, and aXM2 are actually not used.
     
     clear_push(fmt.bIAQ, duped_frag_binom_qual - indel_pena_base, a);
@@ -4601,7 +4612,7 @@ fill_tki(auto & tki, const auto & fmt, size_t a = 1) {
     tki.cVQ2  = fmt.cVQ2.at(a);
     tki.cPCQ2 = fmt.cPCQ2.at(a);
     
-    tki.nAFA = fmt.nAFA;
+    tki.bNMQ = fmt.bNMQ.at(a);
     return 0;
 };
 
@@ -4731,7 +4742,7 @@ append_vcf_record(
     uvc1_refgpos_t phred_het3al_chance_inc_snp = MAX(0, 2 * paramset.germ_phred_hetero_snp - paramset.germ_phred_het3al_snp - TIN_CONTAM_MICRO_VQ_DELTA);
     uvc1_refgpos_t phred_het3al_chance_inc_indel = MAX(0, 2 * paramset.germ_phred_hetero_indel - paramset.germ_phred_het3al_indel - TIN_CONTAM_MICRO_VQ_DELTA);
     
-    const auto tn_dec_by_xm = BETWEEN((fmt.nAFA[8], tki.nAFA[8]) - 25, 0, 9); // MIN3(30, (fmt.nAFA[8] - fmt.nAFA[0]) * 9 / 10 - 9, (tki.nAFA[8] - tki.nAFA[0]) * 9 / 10 - 9); // guaranteed least penalty
+    const auto tn_dec_by_xm = BETWEEN((LAST(fmt.bNMQ), tki.bNMQ) - 25, 0, 9); // MIN3(30, (fmt.nAFA[8] - fmt.nAFA[0]) * 9 / 10 - 9, (tki.nAFA[8] - tki.nAFA[0]) * 9 / 10 - 9); // guaranteed least penalty
     // const auto tn_syserr_norm_devqual = paramset.tn_syserr_norm_devqual * ((SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform) ? 0.25 : 1.0);
     const uvc1_qual_t prior_phred = ((SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform) 
             ? (3+8) : (3));
