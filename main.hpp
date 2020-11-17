@@ -1371,11 +1371,14 @@ dealwith_segbias(
         
         const auto indel_len_arg,
         const uvc1_refgpos_t dist_to_interfering_indel,
-        const bool is_assay_amplicon,
+        const uvc1_flag_t dflag, // bool is_assay_amplicon,
 
         const CommandLineArgs & paramset,
         const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
     
+    const bool is_assay_amplicon = (dflag & 0x4);
+    const bool is_assay_UMI = (dflag & 0x1);
+
     const auto indel_len = UNSIGN2SIGN(indel_len_arg);
     const uvc1_refgpos_t bias_thres_veryhighBQ = paramset.bias_thres_highBQ; // veryhigh overriden by high. TODO: check if it makes sense?
     
@@ -1435,6 +1438,9 @@ dealwith_segbias(
     if (is_far_from_edge && is_unaffected_by_edge) {
         // if (seg_min_nbases >= paramset.bias_orientation_counter_avg_end_len) {
         symbol_to_seg_format_depth_set.seginfo_aP1 += 1;
+    }
+    if (is_assay_UMI || !is_assay_amplicon) {
+        symbol_to_seg_format_depth_set.seginfo_aP2 += 1;
     }
     
     if (isGap) {
@@ -1732,7 +1738,7 @@ public:
             const auto & seg_format_prep_sets,
             const auto & seg_format_thres_sets,
             
-            const bool is_assay_amplicon,
+            const uvc1_flag_t dflag, // const bool is_assay_amplicon,
             const CommandLineArgs & paramset,
             const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
         
@@ -1741,6 +1747,8 @@ public:
         assert(this->getIncluBegPosition() <= SIGN2UNSIGN(aln->core.pos)   || !fprintf(stderr, "%d <= %d failed", this->getIncluBegPosition(), aln->core.pos));
         assert(this->getExcluEndPosition() >= SIGN2UNSIGN(bam_endpos(aln)) || !fprintf(stderr, "%d >= %d failed", this->getExcluEndPosition(), bam_endpos(aln)));
         
+        const bool is_assay_amplicon = (dflag & 0x4);
+
         const auto n_cigar = aln->core.n_cigar;
         const auto *cigar = bam_get_cigar(aln);
         const auto *bseq = bam_get_seq(aln);
@@ -1882,7 +1890,7 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
                                     
                                     0,
                                     dist_to_interfering_indel,
-                                    is_assay_amplicon,
+                                    dflag, // is_assay_amplicon,
                                     
                                     paramset,
                                     0);
@@ -1941,7 +1949,7 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
                                 
                                 0,
                                 10000,
-                                is_assay_amplicon,
+                                dflag, // is_assay_amplicon,
 
                                 paramset,
                                 0);
@@ -2023,7 +2031,7 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
                                 
                                 cigar_oplen,
                                 10000,
-                                is_assay_amplicon,
+                                dflag, // is_assay_amplicon,
                                 
                                 paramset,
                                 0);
@@ -2124,7 +2132,7 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
                                 
                                 cigar_oplen,
                                 10000,
-                                is_assay_amplicon,
+                                dflag, // is_assay_amplicon,
                                 
                                 paramset,
                                 0);
@@ -2158,7 +2166,7 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
                                         
                                         cigar_oplen,
                                         MIN(rpos - prev_indel_rpos, next_indel_rpos - rpos),
-                                        is_assay_amplicon,
+                                        dflag, // is_assay_amplicon,
 
                                         paramset,
                                         0);
@@ -2195,7 +2203,7 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
             const auto dflag,
             const auto & paramset,
             const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
-        const bool is_assay_amplicon = (0x4 == (dflag & 0x4));
+        // const bool is_assay_amplicon = (0x4 == (dflag & 0x4));
         for (const bam1_t *aln : aln_vec) {
             if (SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform) {
                 this->template updateByAln<true, TUpdateType, TIsBiasUpdated>(
@@ -2211,7 +2219,7 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
                         seg_format_prep_sets,
                         seg_format_thres_sets,
 
-                        is_assay_amplicon,
+                        dflag, // is_assay_amplicon,
                         paramset,
                         0);
             } else {
@@ -2228,7 +2236,7 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
                         seg_format_prep_sets,
                         seg_format_thres_sets,
                         
-                        is_assay_amplicon,
+                        dflag, // is_assay_amplicon,
                         paramset,
                         0);
             }
@@ -3055,7 +3063,8 @@ BcfFormat_symboltype_init(bcfrec::BcfFormat & fmt,
     filla_symboltype_fmt(fmt.AXMp1, symbol_to_seg_format_depth_sets, seginfo_aXMp1, refpos, symboltype, refsymbol);
     
     filla_symboltype_fmt(fmt.AP1,   symbol_to_seg_format_depth_sets, seginfo_aP1,   refpos, symboltype, refsymbol);
-    
+    filla_symboltype_fmt(fmt.AP2,   symbol_to_seg_format_depth_sets, seginfo_aP2,   refpos, symboltype, refsymbol);
+
     filla_symboltype_fmt(fmt.ADPff, symbol_to_seg_format_depth_sets, seginfo_aDPff, refpos, symboltype, refsymbol);
     filla_symboltype_fmt(fmt.ADPfr, symbol_to_seg_format_depth_sets, seginfo_aDPfr, refpos, symboltype, refsymbol);
     filla_symboltype_fmt(fmt.ADPrf, symbol_to_seg_format_depth_sets, seginfo_aDPrf, refpos, symboltype, refsymbol);
@@ -3166,6 +3175,7 @@ BcfFormat_symbol_init(
     filla_symbol_fmt(fmt.aXMp1, symbol_to_seg_format_depth_sets, seginfo_aXMp1, refpos, symbol, a);
     
     filla_symbol_fmt(fmt.aP1,  symbol_to_seg_format_depth_sets, seginfo_aP1,  refpos, symbol, a);
+    filla_symbol_fmt(fmt.aP2,  symbol_to_seg_format_depth_sets, seginfo_aP2,  refpos, symbol, a);
     
     filla_symbol_fmt(fmt.aDPff, symbol_to_seg_format_depth_sets, seginfo_aDPff, refpos, symbol, a);
     filla_symbol_fmt(fmt.aDPfr, symbol_to_seg_format_depth_sets, seginfo_aDPfr, refpos, symbol, a);
@@ -3361,7 +3371,8 @@ BcfFormat_symbol_calc_DPv(
     const double counterbias_BQ_FA = _counterbias_BQ_FA;
     const double dir_bias_div = _dir_bias_div;
     
-    double aDPFA = (aDP + pfa) / (double)(ADP + 1.0);
+    const double labelFA = unbias_ratio * (fmt.aP2[a] + 1.5 + fmt.aP2[a]) / (fmt.AP2[0] + 2.0 + fmt.aP2[a]); // assay-type bias
+    const double aDPFA = MIN((aDP + pfa) / (double)(ADP + 1.0), labelFA);
     // substitution in indel region, substitution in indel-prone region or indel, other cases 
     uvc1_readnum_t aDPplus = (isSymbolSubstitution(symbol) ? 0 : ((aDP + 1) * paramset.bias_prior_DPadd_perc / 100));
     double dp_coef = ((symbol == LINK_M) ? MAX(paramset.contam_any_mul_frac, 1.0 - MAX(rtr1.tracklen, rtr2.tracklen) / (MAX3(1, f.ALPL[0], f.ARPL[0]) / MAX(1.0/150.0, f.ABQ2[0]))) : 1.0);
@@ -3944,7 +3955,7 @@ BcfFormat_symbol_calc_qual(
     
     const double alt_frac_mut_affected_tpos = fbTB / fbTA; // is low by default
     const double nonalt_frac_mut_affected_tpos = (fBTB + fbTB/50 - fbTB) / (fBTA + fbTA/50 - fbTA); // is same as alt by default
-    const double frac_mut_affected_pos = MAX(0.03, 2.0 * alt_frac_mut_affected_tpos - 3.0 * nonalt_frac_mut_affected_tpos);
+    const double frac_mut_affected_pos = MAX(0.03, 2.0 * alt_frac_mut_affected_tpos - 2.0 * nonalt_frac_mut_affected_tpos);
     const uvc1_qual_t phredHDR = round(numstates2phred(pow(frac_mut_affected_pos / 0.03, 3)) * (frac_mut_affected_pos)); 
     
     const uvc1_qual_t readlenMQcap = (fmt.APXM[2]) / MAX(1, fmt.APDP[0]) - 20;

@@ -570,6 +570,7 @@ struct SegFormatInfoSet {
     uvc1_qual_t seginfo_aMQs;
     uvc1_readnum_t seginfo_aXMp1;
     uvc1_readnum_t seginfo_aP1;
+    uvc1_readnum_t seginfo_aP2;
     
     uvc1_readnum_t seginfo_aDPff;
     uvc1_readnum_t seginfo_aDPfr;
