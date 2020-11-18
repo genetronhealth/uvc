@@ -230,7 +230,8 @@ struct CommandLineArgs {
     uvc1_deciphred_t    syserr_minABQ_cap_snv = 0;
     uvc1_deciphred_t    syserr_minABQ_cap_indel = 0;
     
-    uvc1_qual_t         syserr_MQ_cap = 60; // from bwa
+    uvc1_qual_t         syserr_MQ_min = 0;  //((vqual > syserr_phred_varcall_err_per_map_err_per_base) ? (vqual - syserr_phred_varcall_err_per_map_err_per_base) : 0); 
+    uvc1_qual_t         syserr_MQ_max = 60; // from bwa
     // uvc1_qual_t         syserr_phred_varcall_err_per_map_err_per_base = 10; // this is the max phred probability of varcall error per base per mapping error
     
     double              syserr_MQ_XMR_expfrac = 0.03; // 23/750
@@ -240,8 +241,7 @@ struct CommandLineArgs {
     double              syserr_MQ_nonref_base = 40; // power-law exponent for penalty to the the region of high-basecall-quality XM regions.
     
     // Make sure that, by default, all variants (which usually include hotspot variants) are found in the vcf output regardless of mapping quality.
-    uvc1_qual_t         syserr_minMQ = 30; // ((vqual > syserr_phred_varcall_err_per_map_err_per_base) ? (vqual - syserr_phred_varcall_err_per_map_err_per_base) : 0); 
- 
+     
 // *** 09. parameters related to germline vars // PMC4271055: probablity of germline call error is between 1/100kb and 1/200kb
 
     double      germ_hetero_FA = 0.47;

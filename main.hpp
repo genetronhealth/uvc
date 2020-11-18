@@ -3965,15 +3965,16 @@ BcfFormat_symbol_calc_qual(
             - paramset.syserr_MQ_XMR_nonaltfrac_coef * nonalt_frac_mut_affected_tpos);
     const uvc1_qual_t bNMQ = round(numstates2phred(pow(frac_mut_affected_pos / paramset.syserr_MQ_XMR_expfrac, (paramset.syserr_MQ_XMR_pl_exponent))) * (frac_mut_affected_pos)); 
     
+    
     const uvc1_qual_t readlenMQcap = (fmt.APXM[2]) / MAX(1, fmt.APDP[0]) - 20; // fixed
-    const uvc1_qual_t _systematicMQVQ = (((refsymbol == symbol) && (ADP > aDP * 2)) 
+    const uvc1_qual_t _systematicMQVQadd = (uvc1_qual_t)((symbol == refsymbol) ? 0 : MIN(paramset.germ_phred_homalt_snp, ADP * 3));
+    const uvc1_qual_t _systematicMQ = (((refsymbol == symbol) && (ADP > aDP * 2)) 
                 ? fmt.bMQ[a] 
-                : (fmt.bMQ[a] * (paramset.syserr_MQ_cap - paramset.syserr_MQ_nonref_base) / paramset.syserr_MQ_cap + paramset.syserr_MQ_nonref_base)) 
-                    + (uvc1_qual_t)((symbol == refsymbol) ? 0 : MIN(paramset.germ_phred_homalt_snp, ADP * 3))
+                : (fmt.bMQ[a] * (paramset.syserr_MQ_max - paramset.syserr_MQ_nonref_base) / paramset.syserr_MQ_max + paramset.syserr_MQ_nonref_base))
             - (uvc1_qual_t)(MAX(0, diffAaMQs))
             - (uvc1_qual_t)(bNMQ) 
             - (uvc1_qual_t)(numstates2phred((ADP + 1.0) / (aDP + 0.5)));
-    const auto systematicMQVQ = BETWEEN(_systematicMQVQ, 0, readlenMQcap);
+    const auto systematicMQVQ = MIN(MAX(_systematicMQ, paramset.syserr_MQ_min) + _systematicMQVQadd, readlenMQcap);
     
     clear_push(fmt.aAaMQ, diffAaMQs);
     clear_push(fmt.bNMQ, bNMQ);
@@ -3986,11 +3987,11 @@ BcfFormat_symbol_calc_qual(
     
     /*
     const uvc1_qual_t syserr_q = MIN(
-            MAX(absMinMQ, non_neg_minus(MAX(fmt.bMQ[a], (refsymbol == symbol ? 0 : paramset.syserr_minMQ)) + MIN(minMQinc, bDP * 3), bMQdec)),
+            MAX(absMinMQ, non_neg_minus(MAX(fmt.bMQ[a], (refsymbol == symbol ? 0 : paramset.syserr_MQ_min)) + MIN(minMQinc, bDP * 3), bMQdec)),
             (SEQUENCING_PLATFORM_IONTORRENT != paramset.inferred_sequencing_platform && isSymbolSubstitution(AlignmentSymbol(LAST(fmt.VTI))) ? (fmt.aBQQ[a]) : (200)));
     */
     
-    //const auto tn_syserr_q = paramset.syserr_MQ_cap + MAX(paramset.tn_q_inc_max, non_neg_minus(paramset.germ_phred_homalt_snp, 
+    //const auto tn_syserr_q = paramset.syserr_MQ_max + MAX(paramset.tn_q_inc_max, non_neg_minus(paramset.germ_phred_homalt_snp, 
     //        numstates2phred(MAX(1, aDP * 100) / (double)MAX(1, LAST(fmt.aXM2)))));
     
     const auto tn_syserr_q = systematicMQVQ + paramset.tn_q_inc_max; // paramset.syserr_MQ_cap + germ_phred_homalt + paramset.tn_q_inc_max - MAX(0, diffAaMQs);
