@@ -95,12 +95,12 @@ if [ "${nprocs}" -gt 0 ]; then
     fi
 else
     date 
-    "${scriptdir}/uvc1" -f "${ref}" -s "${tsample}" "${tbam}" -o "${tvcfgz}" --tn-is-paired 1 --bed-outfname "${tbed}" "${tparams[@]}" 2> "${tlog}"
+    "${scriptdir}/uvc1" -f "${ref}" -s "${tsample}" "${tbam}" -o "${tvcfgz}" --tn-is-paired 1 --bed-out-fname "${tbed}" "${tparams[@]}" 2> "${tlog}"
     date 
     bcftools index -ft "${tvcfgz}" # or use tabix, requires htslib 1.6 or plus
 
     date
-    "${scriptdir}/uvc1" -f "${ref}" -s "${nsample}" "${nbam}" -o "${nvcfgz}" --tn-is-paired 1 --bed-infname  "${tbed}" "${nparams[@]}" --tumor-vcf "${tvcfgz}" 2> "${nlog}"
+    "${scriptdir}/uvc1" -f "${ref}" -s "${nsample}" "${nbam}" -o "${nvcfgz}" --tn-is-paired 1 --bed-in-fname  "${tbed}" "${nparams[@]}" --tumor-vcf "${tvcfgz}" 2> "${nlog}"
     date
     bcftools index -ft "${nvcfgz}" # or use tabix, requires htslib 1.6 or plus
 fi

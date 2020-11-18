@@ -19,7 +19,7 @@
 #include "omp.h"
 #endif
 
-// const uvc1_unsigned_int_t G_BLOCK_SIZE = 1000;
+const uvc1_refgpos_t GVCF_REGION_MAX_SIZE = 1000;
 
 void 
 xfree(void *ptr) {
@@ -455,7 +455,7 @@ region_repeatvec_to_baq_offsetarr(
         assert (rtr.unitlen > 0);
         assert (tracklen2 >= rtr.unitlen);
         if (tracklen2 / rtr.unitlen >= 3 || (tracklen2 / rtr.unitlen >= 2 && tracklen2 >= (uvc1_readpos_t)round(paramset.indel_polymerase_size))) {
-            baq_prefixsum += (paramset.indel_STR_phred_per_region * 10) / (tracklen2) + 1;
+            baq_prefixsum += (paramset.indel_str_phred_per_region * 10) / (tracklen2) + 1;
             ret.getRefByPos(i) = baq_prefixsum;
         } else {
             baq_prefixsum += paramset.indel_nonSTR_phred_per_base * 10;
@@ -554,7 +554,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
     
     const uvc1_refgpos_t rpos_inclu_beg = MAX(incluBegPosition, bam_inclu_beg_pos);
     const uvc1_refgpos_t rpos_exclu_end = MIN(excluEndPosition, bam_exclu_end_pos); 
-    const uvc1_refgpos_t extended_inclu_beg_pos = MAX(0, MIN(((int)incluBegPosition) - 100, (int)bam_inclu_beg_pos));
+    const uvc1_refgpos_t extended_inclu_beg_pos = MAX(0, MIN(incluBegPosition - 100, bam_inclu_beg_pos));
     const uvc1_refgpos_t extended_exclu_end_pos = MIN(std::get<1>(tname_tseqlen_tuple), MAX(excluEndPosition + 100, bam_exclu_end_pos));
     
     const auto tkis_beg = tid_pos_symb_to_tkis.lower_bound(std::make_tuple(tid, extended_inclu_beg_pos    , AlignmentSymbol(0)));
@@ -580,6 +580,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
             umi_strand_readset, 
             umi_to_strand_to_reads, 
             // paramset.indel_nonSTR_phred_per_base,
+            paramset,
             0);
     
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts constructing symbolToCountCoverageSet12 with " << extended_inclu_beg_pos << (" , ") << extended_exclu_end_pos; }
@@ -589,8 +590,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
     std::string refstring = load_refstring(ref_faidx, tid, extended_inclu_beg_pos, extended_exclu_end_pos);
     std::vector<RegionalTandemRepeat> region_repeatvec = refstring2repeatvec(
             refstring, 
-            paramset.indel_str_repeatsize_max, // 50?
-            30,
+            paramset.indel_str_repeatsize_max,
+            paramset.indel_vntr_repeatsize_max, // https://en.wikipedia.org/wiki/Variable_number_tandem_repeat
             paramset.indel_BQ_max,
             paramset.indel_polymerase_slip_rate,
             paramset.indel_del_to_ins_err_ratio,
@@ -683,7 +684,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                     0);
             // uvc1_unsigned_int_t curr_tot_bdepth = bDPcDP[0];
             // uvc1_unsigned_int_t curr_tot_cdepth = bDPcDP[1];
-            if ((paramset.outvar_flag & OUTVAR_GVCF) && ((((refpos + 1) % 1000) == 0) || (refpos == incluBegPosition)) && (SYMBOL_TYPE_ARR[0] == symboltype)) {
+            if ((paramset.outvar_flag & OUTVAR_GVCF) && ((((refpos + 1) % GVCF_REGION_MAX_SIZE) == 0) 
+                    || (refpos == incluBegPosition)) && (SYMBOL_TYPE_ARR[0] == symboltype)) {
                 const auto & frag_format_depth_sets = symbolToCountCoverageSet12.symbol_to_frag_format_depth_sets;
                 const auto & fam_format_depth_sets = symbolToCountCoverageSet12.symbol_to_fam_format_depth_sets_2strand;
                 
@@ -692,7 +694,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                 // std::array<uvc1_qual_t, NUM_SYMBOL_TYPES> prev_refQ2 = {{ 200 }};
                 uvc1_qual_t prev_refQ = 200;
                 std::vector<uvc1_rp_diff_t> posoffset_BDP_CDP_refQ_stype_1dvec;
-                const auto rp2end = MIN(refpos + 1000 + 1, symbolToCountCoverageSet12.getUnifiedExcluEndPosition());
+                const auto rp2end = MIN(refpos + GVCF_REGION_MAX_SIZE + 1, symbolToCountCoverageSet12.getUnifiedExcluEndPosition());
                 for (uvc1_refgpos_t rp2 = refpos; rp2 < rp2end; rp2++) {
                     for (SymbolType stype : SYMBOL_TYPES_IN_VCF_ORDER) {
                         const uvc1_rp_diff_t refstring_offset = rp2 - extended_inclu_beg_pos;
@@ -1097,10 +1099,10 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                                     double nAD = (bgerr_norm_max_ad + 1) / 100.0;
                                     double nDP = (fmtptr->CDP1x[0] + 2) / 100.0;
                                     double bjpfrac = ((tAD) / (tDP)) / ((nAD) / (nDP));
-                                    uvc1_qual_t binom_b10log10like = (int)calc_binom_10log10_likeratio((tDP - tAD) / (tDP), nDP - nAD, nAD);
-                                    uvc1_qual_t powlaw_b10log10like = (int)(paramset.powlaw_exponent * 10 / log(10) * log(bjpfrac));
-                                    uvc1_qual_t phred_het3al_chance_inc_snp = 2*(int)paramset.germ_phred_hetero_snp - (int)paramset.germ_phred_het3al_snp;
-                                    uvc1_qual_t phred_het3al_chance_inc_indel = 2*(int)paramset.germ_phred_hetero_indel - (int)paramset.germ_phred_het3al_indel;
+                                    uvc1_qual_t binom_b10log10like = calc_binom_10log10_likeratio((tDP - tAD) / (tDP), nDP - nAD, nAD);
+                                    uvc1_qual_t powlaw_b10log10like = (paramset.powlaw_exponent * 10 / log(10) * log(bjpfrac));
+                                    uvc1_qual_t phred_het3al_chance_inc_snp = 2 * paramset.germ_phred_hetero_snp - paramset.germ_phred_het3al_snp;
+                                    uvc1_qual_t phred_het3al_chance_inc_indel = 2 * paramset.germ_phred_hetero_indel - paramset.germ_phred_het3al_indel;
                                     uvc1_qual_t triallele_inc = ((normsymbol != symbol) ? 
                                             (isSymbolSubstitution(symbol) ? phred_het3al_chance_inc_snp : phred_het3al_chance_inc_indel) : 0);
                                     uvc1_qual_t triallele_thr = 3; // 8;

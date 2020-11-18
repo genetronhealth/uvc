@@ -204,7 +204,7 @@ sam_fname_to_contigs(
                 bool has_many_reads = (nreads > INT64MUL(n_overlap_positions, (1024 * 5)));
                 if (has_many_positions || has_many_reads) {
                     endingpos = SIGN2UNSIGN(MAX(bam_endpos(alnrecord), 
-                            MIN(alnrecord->core.pos, alnrecord->core.mpos) + MIN(abs(alnrecord->core.isize), (int)ARRPOS_MARGIN)))
+                            MIN(alnrecord->core.pos, alnrecord->core.mpos) + MIN(abs(alnrecord->core.isize), ARRPOS_MARGIN)))
                             + (ARRPOS_OUTER_RANGE * 2);
                 }
             }
@@ -460,11 +460,11 @@ apply_bq_err_correction2(const bam1_t *aln, uvc1_unsigned_int_t dec_per_base, uv
 }
 #endif
 int 
-apply_bq_err_correction3(bam1_t *aln) {
+apply_bq_err_correction3(bam1_t *aln, const uvc1_qual_t assay_sequencing_BQ_max) {
     if ((0 == aln->core.l_qseq) || (aln->core.flag & 0x4)) { return -1; }
     
     for (uvc1_readpos_t i = 0; i < aln->core.l_qseq; i++) {
-        bam_get_qual(aln)[i] = MIN(bam_get_qual(aln)[i], 37);
+        bam_get_qual(aln)[i] = MIN(bam_get_qual(aln)[i], assay_sequencing_BQ_max);
     }
     
     const auto cigar = bam_get_cigar(aln);
@@ -513,7 +513,7 @@ apply_bq_err_correction3(bam1_t *aln) {
                 if (2 == distinct_cnt) { break; }
             }
         }
-        uvc1_readpos_t homopol_tracklen = abs((int)termpos - (int)(exclu_end_poss[strand] - pos_incs[strand]));
+        uvc1_readpos_t homopol_tracklen = abs(termpos - (exclu_end_poss[strand] - pos_incs[strand]));
         uvc1_qual_t tail_penal = (end_clip_len >= 20 ? 1 : 0) // (end_clip_len > 16 ? 2 : (end_clip_len > 8 ? 1 : 0)) 
                 + (homopol_tracklen >= 15 ? 2 : (homopol_tracklen >= 10 ? 1 : 0)); // + ((homopol_tracklen >= 15) ? 3 : (homopol_tracklen >= 12 ? 2 : (homopol_tracklen >= 9 ? 1 : 0)));
         if (tail_penal > 0) {
@@ -526,7 +526,7 @@ apply_bq_err_correction3(bam1_t *aln) {
                 // bam_get_qual(aln)[pos] = q * 5 / (5 + tail_penal);
                 bam_get_qual(aln)[pos] = MAX(bam_get_qual(aln)[pos], tail_penal + 1) - tail_penal;
                 if (is_in_log_reg) {
-                    LOG(logINFO) << "\tQuality adjustment at pos " << pos << " : " << (int)q << " -> " << (int)bam_get_qual(aln)[pos]; 
+                    LOG(logINFO) << "\tQuality adjustment at pos " << pos << " : " << q << " -> " << (int)bam_get_qual(aln)[pos]; 
                 }
             }
         }
@@ -608,6 +608,7 @@ fill_strand_umi_readset_with_strand_to_umi_to_reads(
         std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, uvc1_flag_t>> &umi_strand_readset,
         std::map<uvc1_hash_t, std::pair<std::array<std::map<uvc1_hash_t, std::vector<bam1_t *>>, 2>, uvc1_flag_t>> &umi_to_strand_to_reads,
         // uvc1_qual_t baq_per_aligned_base
+        const CommandLineArgs & paramset,
         const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
     for (auto & umi_to_strand_to_reads_element : umi_to_strand_to_reads) {
         const auto strand_to_reads = umi_to_strand_to_reads_element.second.first;
@@ -620,7 +621,7 @@ fill_strand_umi_readset_with_strand_to_umi_to_reads(
                 for (auto aln : alns) {
                     // apply_baq(aln, baq_per_aligned_base);
                     // apply_bq_err_correction(aln); //, 1, 3, 4);
-                    apply_bq_err_correction3(aln);
+                    apply_bq_err_correction3(aln, paramset.assay_sequencing_BQ_max);
                     umi_strand_readset.back().first[strand].back().push_back(aln);
                 }
             }
@@ -926,7 +927,7 @@ bamfname_to_strand_to_familyuid_to_reads(
                     << "tid = " << aln->core.tid << " ; "
                     << "fastaseq_range = " << tBeg << "," << tEnd << " ; "
                     << "original_range = " << beg1 << "," << end1 << " ; "
-                    << "adjusted_rdiff = " << ((int)beg2 - (int)beg1) << "," << ((int)end2 - (int)end1) << " ; "
+                    << "adjusted_rdiff = " << (beg2 - beg1) << "," << (end2 - end1) << " ; "
                     << "adjusted_count = " << beg2count << "," << end2count << " ; " 
                     << "adjusted_surrounding_counts = " << beg2surrcount << "," << end2surrcount << " ; " 
                     << "barcode_umihash = " << (is_umi_found ? umihash : 0) << " ; "

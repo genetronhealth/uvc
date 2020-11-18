@@ -536,7 +536,7 @@ main(int argc, char **argv) {
     }
     std::cout << "};\n";
    
-    std::cout << "const char *const FORMAT_STR_PER_REC = \"";  
+    std::cout << "const char *const FORMAT_STRING_PER_REC = \"";  
     itnum = 0;
     for (auto fmt : FORMAT_VEC) {
         if (itnum) {

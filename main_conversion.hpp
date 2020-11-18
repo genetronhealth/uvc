@@ -142,7 +142,7 @@ UPDATE_MAX(auto & a, const auto & b) {
 auto
 SUMVEC(const auto & vec) {
     auto r = 0;
-    for (unsigned int i = 0; i < vec.size(); i++) {
+    for (size_t i = 0; i < vec.size(); i++) {
         r += vec[i];
     }
     return r;
@@ -312,7 +312,7 @@ enum AlignmentSymbol {
 struct _CharToSymbol {
     std::array<AlignmentSymbol, 128> data;
     _CharToSymbol() {
-        for (int i = 0; i < 128; i++) {
+        for (size_t i = 0; i < 128; i++) {
             data[i] = BASE_N;
         }
         data['A'] = data['a'] = BASE_A;
@@ -848,7 +848,7 @@ infer_max_qual_assuming_independence(
     maxvqual = 0; 
     argmaxAD = 0;
     argmaxBQ = 0;
-    for (int idx = 0; idx < MIN(NUM_BUCKETS, max_qual / dec_qual); idx++) {
+    for (uvc1_qual_t idx = 0; idx < MIN(NUM_BUCKETS, max_qual / dec_qual); idx++) {
         const auto currQD = qual_distr[idx];
         if (0 == currQD) { continue; }
         currAD += currQD;

@@ -65,7 +65,7 @@ struct CommandLineArgs {
     
     MoleculeTag molecule_tag = MOLECULE_TAG_AUTO;
     SequencingPlatform sequencing_platform = SEQUENCING_PLATFORM_AUTO;
-    SequencingPlatform inferred_sequencing_platform = sequencing_platform; // NOTE: this is not on command-line
+    SequencingPlatform inferred_sequencing_platform=sequencing_platform; // NOTE: this is not on command-line
     PairEndMerge pair_end_merge = PAIR_END_MERGE_YES;
     bool              disable_duplex = false;
     uvc1_readpos_t    primerlen = 23; // https://link.springer.com/chapter/10.1007/978-1-4020-6241-4_5 : 18 - 22 bps
@@ -80,6 +80,7 @@ struct CommandLineArgs {
     double           powlaw_anyvar_base = (double)(60+25+5); // universality constant
     
     uvc1_qual_t      penal4lowdep = 37;
+    uvc1_qual_t      assay_sequencing_BQ_max = 37;
 
 // *** 04. parameters for dedupping reads
     
@@ -156,8 +157,8 @@ struct CommandLineArgs {
     double         bias_priorfreq_pos = 40; // numstates2phred(1024*9/2); // 1024*9/2; // set very high to disable position bias, insert-end bias, strand bias, and orientation bias.
     double         bias_priorfreq_indel_in_read_div = 20; // numstates2phred(32+64);
     double         bias_priorfreq_indel_in_var_div2 = 15; // numstates2phred(24);
-    double         bias_priorfreq_indel_in_STR_div2 = 10; // numstates2phred(8);
-    double         bias_priorfreq_var_in_STR_div2 = 5; // numstates2phred(3);
+    double         bias_priorfreq_indel_in_str_div2 = 10; // numstates2phred(8);
+    double         bias_priorfreq_var_in_str_div2 = 5; // numstates2phred(3);
     
     double         bias_prior_var_DP_mul = 1.25 + DBLFLT_EPS;
     
@@ -179,7 +180,7 @@ struct CommandLineArgs {
     
     uvc1_flag_t    nobias_flag = 0x2;
     double         nobias_pos_indel_lenfrac_thres = 2.0; // set very low to disable position bias for InDels
-    uvc1_readpos_t nobias_pos_indel_STR_track_len = 16;
+    uvc1_readpos_t nobias_pos_indel_str_track_len = 16;
     
 // *** 07. parameters related to read families
     
@@ -194,7 +195,7 @@ struct CommandLineArgs {
     // 10: error of 10 PCR cycles using low-fidelity polymerase, https://www.nature.com/articles/s41598-020-63102-8
     // 13: reduction in error by using high-fidelity polymerase for UMI assay, https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3287198/ 
     // https://www.bio-rad.com/webroot/web/pdf/lsr/literature/Bulletin_7076.pdf
-    // uint16_t fam_phred_indel_err_red_by_high_fidelity_pol = 10; // 10 + 13;
+    // uint16_t fam_phred_indel_err_red_by_high_fidelity_pol is 10; // 10 + 13;
     // https://www.nature.com/articles/s41598-018-31064-7 : All libraries included PCR steps totaling 37 cycles. During Step 4, at cycles 21, 23, 25, 27,
     // 14: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3111315/ : Following 25 additional cycles of PCR, There were 19 cycles of PCR 
     uvc1_qual_t         fam_phred_indel_inc_before_barcode_labeling = 13 + 14; // 10 + 13;
@@ -208,7 +209,7 @@ struct CommandLineArgs {
     uvc1_qual_t         fam_phred_dscs_all = 58;
     
     uvc1_qual_t         fam_phred_pow_sscs_transversion_AT_TA_origin = 44-41+4; // A:T > T:A somatic mutations are uncommon
-    double              fam_phred_pow_sscs_snv_origin = 44 - 41; // 10*log((2.7e-3-3.5e-5)/(1.5e-4-3.5e-5))/log(10)*3 = 41 from https://doi.org/10.1073/pnas.1208715109 PMC3437896
+    double              fam_phred_pow_sscs_snv_origin = 44 - 41; // 10*log((2.7e-3-3.5e-5)/(1.5e-4-3.5e-5))/log(10)*3 is 41 from https://doi.org/10.1073/pnas.1208715109 PMC3437896
     double              fam_phred_pow_sscs_indel_origin = fam_phred_sscs_indel_open - (13 * 3);
     double              fam_phred_pow_dscs_all_origin = 0;
     
@@ -232,10 +233,11 @@ struct CommandLineArgs {
     
     uvc1_qual_t         syserr_MQ_min = 0;  //((vqual > syserr_phred_varcall_err_per_map_err_per_base) ? (vqual - syserr_phred_varcall_err_per_map_err_per_base) : 0); 
     uvc1_qual_t         syserr_MQ_max = 60; // from bwa
-    // uvc1_qual_t         syserr_phred_varcall_err_per_map_err_per_base = 10; // this is the max phred probability of varcall error per base per mapping error
+    // uvc1_qual_t         syserr_phred_varcall_err_per_map_err_per_base is 10; // this is the max phred probability of varcall error per base per mapping error
     
     double              syserr_MQ_XMR_expfrac = 0.03; // 23/750
     double              syserr_MQ_XMR_altfrac_coef = 2.0; // base and exponent multiplicative factor for the ALT allele
+    // SRR7890876_SRR7890881_fp_chr7_100955016_T_C in the MUC3A gene can be a true positive variant
     double              syserr_MQ_XMR_nonaltfrac_coef = 2.0; // base and exponent multiplicative factor for the non-ALT alleles
     double              syserr_MQ_XMR_pl_exponent = 3.0; // power-law exponent for penalty to the the region of high-basecall-quality XM regions.
     double              syserr_MQ_nonref_base = 40; // power-law exponent for penalty to the the region of high-basecall-quality XM regions.
@@ -266,6 +268,7 @@ struct CommandLineArgs {
     
     uvc1_qual_t         indel_BQ_max = 43-1;
     uvc1_readpos_t      indel_str_repeatsize_max = 6;
+    uvc1_readpos_t      indel_vntr_repeatsize_max = 35;
     double              indel_polymerase_size = 8.0;
     double              indel_polymerase_slip_rate = 8.0;
     double              indel_del_to_ins_err_ratio = 5.0; // 4.0; // https://www.ncbi.nlm.nih.gov/pmc/articles/PMC149199/ Table 1 homopolymer error
@@ -283,7 +286,7 @@ struct CommandLineArgs {
     // According to "A New Lossless DNA Compression Algorithm Based on A Single-Block Encoding Scheme" Table 7 Korea2009024, 
     // there is 2*577/800 bits of info per nucleotide for the human genome.
     uvc1_qual_t         indel_nonSTR_phred_per_base = 5;
-    uvc1_qual_t         indel_STR_phred_per_region = 5*2; // 15, set to 10 to allow some correlation, https://genomebiology.biomedcentral.com/articles/10.1186/s13059-018-1505-2
+    uvc1_qual_t         indel_str_phred_per_region = 5*2; // 15, set to 10 to allow some correlation, https://genomebiology.biomedcentral.com/articles/10.1186/s13059-018-1505-2
     
     // https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2734402/#bib41 : powlaw exponent of 1.5-1.6 for mut rate vs indel len.
     // https://pubmed.ncbi.nlm.nih.gov/18641631/ : SNV mutation rate near (up to a few hundred bp) heterozygous InDels are higher than expected.

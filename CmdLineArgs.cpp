@@ -301,7 +301,9 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
     
     ADD_OPTDEF2(app, penal4lowdep,
         "Maximum penalty in variant quality for low read support. ");
-        
+    ADD_OPTDEF2(app, assay_sequencing_BQ_max,
+        "Maximum basecall quality (BQ) determined by empirical error rate. ");
+       
 // *** 04. parameters for dedupping reads
     
     ADD_OPTDEF2(app, dedup_center_mult, 
@@ -335,7 +337,7 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
     
     ADD_OPTDEF2(app, bias_thres_PFXM1T_add,
         "The tier1-threshold of 10x mismatch (XM) below which the estimated 100x number of passing-filter (PF) reads decreases according to the inverse-square law. ");
-    ADD_OPTDEF2(app, bias_thres_PFXM1T_add,
+    ADD_OPTDEF2(app, bias_thres_PFXM2T_add,
         "The tier2-threshold of 10x mismatch (XM) below which the estimated 100x number of passing-filter (PF) reads decreases quadratically. ");
     ADD_OPTDEF2(app, bias_thres_PFGO1T_add,
         "The tier1-threshold of 10x gap-opening (GO) below which the estimated 100x number of PF reads decreases according to the inverse-square law. ");
@@ -344,7 +346,7 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
     
     ADD_OPTDEF2(app, bias_thres_PFXM1T_perc,
         "The percent increase in the corresponding threshold relative to the background noise level. ");
-    ADD_OPTDEF2(app, bias_thres_PFXM1T_perc,
+    ADD_OPTDEF2(app, bias_thres_PFXM2T_perc,
         "The percent increase in the corresponding threshold relative to the background noise level. ");
     ADD_OPTDEF2(app, bias_thres_PFGO1T_perc,
         "The percent increase in the corresponding threshold relative to the background noise level. ");
@@ -453,9 +455,9 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
         "given that the reads support both the ALT allele and some InDel allele(s). ");
     ADD_OPTDEF2(app, bias_priorfreq_indel_in_var_div2,
         "Additional reduction in the prior weight of the null hypothesis of no segment position bias, given that some InDel allele and this ALT allle overlap. ");
-    ADD_OPTDEF2(app, bias_priorfreq_indel_in_var_div2,
+    ADD_OPTDEF2(app, bias_priorfreq_indel_in_str_div2,
         "Additional reduction in the prior weight of the null hypothesis of no segment position bias, given that the variant is in an InDel region. ");
-    ADD_OPTDEF2(app, bias_priorfreq_var_in_STR_div2,
+    ADD_OPTDEF2(app, bias_priorfreq_var_in_str_div2,
         "Additional reduction in the prior weight of the null hypothesis of no segment position bias, given that this variant is in a STR region. ");
     
     ADD_OPTDEF2(app, bias_prior_var_DP_mul,
@@ -495,7 +497,7 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
     
     ADD_OPTDEF2(app, nobias_pos_indel_lenfrac_thres,
         "Threshold of (F*L) above which segment position bias is nullified, where F is allele fraction and L is InDel length (aka number of gap extensions). ");
-    ADD_OPTDEF2(app, nobias_pos_indel_STR_track_len,
+    ADD_OPTDEF2(app, nobias_pos_indel_str_track_len,
         "Threshold of short tandem repeat (STR) track length above which segment position bias is nullified if the variant is also the majority in the STR track. ");
     
 // *** 07. parameters related to read families
@@ -651,6 +653,8 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
         "For InDels, the maximum base quality of the InDel of one base (PMC4719071). ");
     ADD_OPTDEF2(app, indel_str_repeatsize_max,
         "For InDels, the maximum length of a repeating substring for the repeat to be considered as eligible for short tandem repeat (STR) (PMC5054066). ");
+    ADD_OPTDEF2(app, indel_vntr_repeatsize_max,
+        "For InDels, the maximum length of a repeating substring for the repeat to be considered as eligible for variable-number tandem repeat (VNTR). ");
     ADD_OPTDEF2(app, indel_polymerase_size,
         "For InDels, the number of bases that can be fit within the catalytic unit of the polymerase used for PCR (PMC149199). ");
     ADD_OPTDEF2(app, indel_polymerase_slip_rate,
@@ -679,7 +683,7 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
     
     ADD_OPTDEF2(app, indel_nonSTR_phred_per_base,
         "The Phred quality per each additional base to the sequenced-segment left/right end in non-STR regions. ");
-    ADD_OPTDEF2(app, indel_STR_phred_per_region,
+    ADD_OPTDEF2(app, indel_str_phred_per_region,
         "The Phred quality per each additional STR track to the sequenced-segment left/right end. ");
         
 // *** 12. parameters related to contamination
