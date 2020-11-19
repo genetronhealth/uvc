@@ -235,11 +235,11 @@ struct CommandLineArgs {
     uvc1_qual_t         syserr_MQ_max = 60; // from bwa
     // uvc1_qual_t         syserr_phred_varcall_err_per_map_err_per_base is 10; // this is the max phred probability of varcall error per base per mapping error
     
-    double              syserr_MQ_XMR_expfrac = 0.03; // 23/750
-    double              syserr_MQ_XMR_altfrac_coef = 2.0; // base and exponent multiplicative factor for the ALT allele
+    double              syserr_MQ_NMR_expfrac = 0.03; // 23/750
+    double              syserr_MQ_NMR_altfrac_coef = 2.0; // base and exponent multiplicative factor for the ALT allele
     // SRR7890876_SRR7890881_fp_chr7_100955016_T_C in the MUC3A gene can be a true positive variant
-    double              syserr_MQ_XMR_nonaltfrac_coef = 2.0; // base and exponent multiplicative factor for the non-ALT alleles
-    double              syserr_MQ_XMR_pl_exponent = 3.0; // power-law exponent for penalty to the the region of high-basecall-quality XM regions.
+    double              syserr_MQ_NMR_nonaltfrac_coef = 2.0; // base and exponent multiplicative factor for the non-ALT alleles
+    double              syserr_MQ_NMR_pl_exponent = 3.0; // power-law exponent for penalty to the the region of high-basecall-quality XM regions.
     double              syserr_MQ_nonref_base = 40; // power-law exponent for penalty to the the region of high-basecall-quality XM regions.
     
     // Make sure that, by default, all variants (which usually include hotspot variants) are found in the vcf output regardless of mapping quality.
@@ -315,6 +315,10 @@ struct CommandLineArgs {
     int32_t             microadjust_fam_lowfreq_invFA = 1000;
     uvc1_qual_t         microadjust_ref_MQ_dec_max = 15;
     
+    uvc1_qual_t         microadjust_syserr_MQ_NMR_tn_syserr_no_penal_qual_min = 30;
+    uvc1_qual_t         microadjust_syserr_MQ_NMR_tn_syserr_no_penal_qual_max = 39;
+    uvc1_readpos_t      microadjust_near_clip_dist = 2;
+
 // *** 14. parameters related to debugging in vcf
     uvc1_flag_t         debug_note_flag = 0x0;
     
@@ -329,8 +333,5 @@ struct CommandLineArgs {
     SequencingPlatform 
     selfUpdateByPlatform(void);
 };
-
-// bool
-// is_bitflag_checked(uint32_t bitflag_InDel_penal_t_UMI_n_UMI, bool is_InDel, bool is_penal, bool is_t_UMI, bool is_n_UMI);
 
 #endif

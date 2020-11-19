@@ -598,14 +598,14 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
     ADD_OPTDEF2(app, syserr_MQ_min,
         "Minimum mapping quality (MAPQ or MQ) of the aligned reads, which should be approximately the fraction of regions that are not unique in the entire genome. ");
     
-    ADD_OPTDEF2(app, syserr_MQ_XMR_expfrac,
+    ADD_OPTDEF2(app, syserr_MQ_NMR_expfrac,
         "Expected fraction of XM-affected base positions in the sequencing fragments covering a locus. "
         "By default, a position is affected if a SNV or InDel is found within 11 base pairs (one turn of DNA helix). ");
-    ADD_OPTDEF2(app, syserr_MQ_XMR_altfrac_coef,
+    ADD_OPTDEF2(app, syserr_MQ_NMR_altfrac_coef,
         "Base and exponent multiplicative factor for the ALT allele for computing the likelihood of variant being true positive. ");
-    ADD_OPTDEF2(app, syserr_MQ_XMR_nonaltfrac_coef,
+    ADD_OPTDEF2(app, syserr_MQ_NMR_nonaltfrac_coef,
         "Base and exponent multiplicative factor for the non-ALT alleles for computing the likelihood of variant being true positive. ");
-    ADD_OPTDEF2(app, syserr_MQ_XMR_pl_exponent,
+    ADD_OPTDEF2(app, syserr_MQ_NMR_pl_exponent,
         "Exponent multiplicative factor for XM-induced systematic error associated with mapping qualities. ");
     ADD_OPTDEF2(app, syserr_MQ_nonref_base,
         "The variant quality induced by zero mapping quality. \n");
@@ -724,7 +724,17 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
         "The base-alignment quality of a deletion cannot be below this value at 100\% allele fraction. ");
     ADD_OPTDEF2(app, microadjust_ref_MQ_dec_max,
         "The base-alignment quality of a deletion cannot be below this value at 100\% allele fraction. ");
-
+    
+    ADD_OPTDEF2(app, microadjust_syserr_MQ_NMR_tn_syserr_no_penal_qual_min,
+        "If the decrease in MQ due to being in XM-affected region is above this threshold, "
+        "then the normal-sample variant quality is always subtracted from the tumor-sample variant quality in the T-vs-N comparison. ");
+    ADD_OPTDEF2(app, microadjust_syserr_MQ_NMR_tn_syserr_no_penal_qual_max,
+        "The maximum effective decrease in MQ in microadjust_syserr_MQ_NMR_tn_syserr_no_penal_qual. ");
+    
+    ADD_OPTDEF2(app, microadjust_near_clip_dist,
+        "A clip (soft or hard) affects this number of bases around it by adding depth to reduce allele fraction for amplicon data. "
+        "This prevent false positive calls around highly clipped positions. "); 
+    
 // *** 14 debugging
     ADD_OPTDEF2(app, debug_note_flag,
         "The flag used for advanced debugging. Please do not activate this option in normal production environments.");
