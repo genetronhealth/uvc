@@ -739,7 +739,7 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
         "Number of bases to fragment end above which the fragment side is considered to be long for increasing mapping quality. ");
     ADD_OPTDEF2(app, microadjust_longfrag_sidelength_max,
         "Fragment side length above which the fragment side is cappped for increasing mapping quality. ");
-    ADD_OPTDEF2(app, microadjust_longfrag_sidelength_qual_per_100bases,
+    ADD_OPTDEF2(app, microadjust_longfrag_sidelength_zeroMQpenalty,
         "The maximum increase in mapping quality per 100 bases on each side due to long fragment side length. ");
     
 // *** 14 debugging

@@ -3212,7 +3212,7 @@ BcfFormat_symbol_calc_DPv(
     const bool is_strong_amplicon = (fmt.APDP[5] * 100 > fmt.APDP[0] * 60);
     const bool is_weak_amplicon = (fmt.APDP[5] * 100 > fmt.APDP[0] * 40);
     bool is_real_amplicon = false;
-
+    
     const int a = 0;
     const bool is_rescued = (tpfa >= 0);
     const double pfa = (is_rescued ? tpfa : 0.5);
@@ -3398,7 +3398,9 @@ BcfFormat_symbol_calc_DPv(
     
     // const double aXM2FA = (double)(LAST(fmt.a2XM2) / 100.0 / MAX(1, aDP));
     // const double aXMFA = (fmt.aXM1[a] + 50.0)  / (fmt.AXM2[0] + (fmt.aXM1[a] - fmt.aXM2[a]) + 100.0);
-    const double aPFFA = (fmt.aPF1[a] + pfa * (is_rescued ? 100.0 : (double)(fmt.a2XM2[a] / MAX(1, aDP)))) / (fmt.APF2[0] + (fmt.aPF1[a] - fmt.aPF2[a]) + 1.0*100);
+    // const double aPFFA = (fmt.aPF1[a] + pfa * (is_rescued ? 100.0 : (double)(fmt.a2XM2[a] / MAX(1, aDP)))) / (fmt.APF2[0] + (fmt.aPF1[a] - fmt.aPF2[a]) + 1.0*100);
+    const double aPFFA = (fmt.aPF1[a] + pfa * 100.0) / (fmt.APF2[0] + (fmt.aPF1[a] - fmt.aPF2[a]) + 100.0);
+
     const auto aSSFAx2 = dp4_to_pcFA<true>(
             // fmt.aDPff[a] + fmt.aDPrf[a], fmt.aDPfr[a] + fmt.aDPrr[a], fmt.ADPff[0] + fmt.ADPrf[0], fmt.ADPfr[0] + fmt.ADPrr[0], 
             fmt.aRIf[a], fmt.aLIr[a], fmt.ARIf[0], fmt.ALIr[0],
@@ -3453,8 +3455,34 @@ BcfFormat_symbol_calc_DPv(
     cROFA1 = MAX(aDPFA * 1e-4, cROFA1) * tn_mult;
     cROFA2 = MAX(aDPFA * 1e-4, cROFA2) * tn_mult;
     
+    // compute systematic error here
+    
+    const auto fBTA = (double)(fmt.BTAf[0] + fmt.BTAr[0] + 200);
+    const auto fBTB = (double)(fmt.BTBf[0] + fmt.BTBr[0] + 6);
+    const auto fbTA = (double)(fmt.bTAf[a] + fmt.bTAr[a] + 100);
+    const auto fbTB = (double)(fmt.bTBf[a] + fmt.bTBr[a] + 3);
+    
+    const double frag_sidelen_frac = 1.0 - MIN(
+            BETWEEN((fmt.bTAf[a] + 100) / (fmt.bDPf[a] + 1) - paramset.microadjust_longfrag_sidelength_min, 0, paramset.microadjust_longfrag_sidelength_max) 
+                / paramset.microadjust_longfrag_sidelength_zeroMQpenalty,
+            BETWEEN((fmt.bTAr[a] + 100) / (fmt.bDPr[a] + 1) - paramset.microadjust_longfrag_sidelength_min, 0, paramset.microadjust_longfrag_sidelength_max) 
+                / paramset.microadjust_longfrag_sidelength_zeroMQpenalty);
+    
+    const double alt_frac_mut_affected_tpos = fbTB / fbTA; // is low by default
+    const double nonalt_frac_mut_affected_tpos = (fBTB + paramset.contam_any_mul_frac * fbTB - fbTB) / (fBTA + paramset.contam_any_mul_frac * fbTA - fbTA); // is same as alt by default
+    const double frac_mut_affected_pos = MAX(paramset.syserr_MQ_NMR_expfrac, 
+              paramset.syserr_MQ_NMR_altfrac_coef    * alt_frac_mut_affected_tpos * frag_sidelen_frac
+            - paramset.syserr_MQ_NMR_nonaltfrac_coef * nonalt_frac_mut_affected_tpos);
+    const uvc1_qual_t bNMQ = round(numstates2phred(pow(frac_mut_affected_pos / paramset.syserr_MQ_NMR_expfrac, (paramset.syserr_MQ_NMR_pl_exponent))) * (frac_mut_affected_pos)); 
+    
+    clear_push(fmt.bNMa, round(100 * alt_frac_mut_affected_tpos));
+    clear_push(fmt.bNMb, round(100 * nonalt_frac_mut_affected_tpos));
+    clear_push(fmt.bNMQ, bNMQ);
+    
+    // end of computation of systematic error
+    
     auto min_aFA_vec = std::vector<double>{{
-            aDPFA,
+            aDPFA * alt_frac_mut_affected_tpos,
             aLPFA2,
             aRPFA2,
             aLBFA2,
@@ -3855,39 +3883,19 @@ BcfFormat_symbol_calc_qual(
         absMinMQ = 40 - BETWEEN(diffAaMQs, -20, 20);
     }
     */
-    const auto fBTA = (double)(fmt.BTAf[0] + fmt.BTAr[0] + 200);
-    const auto fBTB = (double)(fmt.BTBf[0] + fmt.BTBr[0] + 6);
-    const auto fbTA = (double)(fmt.bTAf[a] + fmt.bTAr[a] + 100);
-    const auto fbTB = (double)(fmt.bTBf[a] + fmt.bTBr[a] + 3);
-    
-    const double alt_frac_mut_affected_tpos = fbTB / fbTA; // is low by default
-    const double nonalt_frac_mut_affected_tpos = (fBTB + paramset.contam_any_mul_frac * fbTB - fbTB) / (fBTA + paramset.contam_any_mul_frac * fbTA - fbTA); // is same as alt by default
-    const double frac_mut_affected_pos = MAX(paramset.syserr_MQ_NMR_expfrac, 
-              paramset.syserr_MQ_NMR_altfrac_coef    * alt_frac_mut_affected_tpos 
-            - paramset.syserr_MQ_NMR_nonaltfrac_coef * nonalt_frac_mut_affected_tpos);
-    const uvc1_qual_t bNMQ = round(numstates2phred(pow(frac_mut_affected_pos / paramset.syserr_MQ_NMR_expfrac, (paramset.syserr_MQ_NMR_pl_exponent))) * (frac_mut_affected_pos)); 
+    clear_push(fmt.aAaMQ, diffAaMQs);
     
     const uvc1_qual_t readlenMQcap = (fmt.APXM[2]) / MAX(1, fmt.APDP[0]) - 17;
     const uvc1_qual_t _systematicMQVQadd = (uvc1_qual_t)((symbol == refsymbol) ? 0 : (MIN(paramset.germ_phred_homalt_snp, ADP * 3)));
-    const uvc1_qual_t longfrag_sidelength_qual_inc = MIN(
-            BETWEEN((fmt.bTAf[a] + 100) / (fmt.bDPf[a] + 1) - paramset.microadjust_longfrag_sidelength_min, 0, paramset.microadjust_longfrag_sidelength_max) 
-                * paramset.microadjust_longfrag_sidelength_qual_per_100bases / 100,
-            BETWEEN((fmt.bTAr[a] + 100) / (fmt.bDPr[a] + 1) - paramset.microadjust_longfrag_sidelength_min, 0, paramset.microadjust_longfrag_sidelength_max) 
-                * paramset.microadjust_longfrag_sidelength_qual_per_100bases / 100);
     
     const uvc1_qual_t _systematicMQ = (((refsymbol == symbol) && (ADP > aDP * 2)) 
                 ? fmt.bMQ[a] 
-                : (fmt.bMQ[a] * (paramset.syserr_MQ_max - paramset.syserr_MQ_nonref_base) / paramset.syserr_MQ_max + paramset.syserr_MQ_nonref_base + longfrag_sidelength_qual_inc))
+                : (fmt.bMQ[a] * (paramset.syserr_MQ_max - paramset.syserr_MQ_nonref_base) / paramset.syserr_MQ_max + paramset.syserr_MQ_nonref_base))
             - (uvc1_qual_t)(MAX(0, diffAaMQs))
-            - (uvc1_qual_t)(bNMQ) 
+            - (uvc1_qual_t)(fmt.bNMQ[a]) 
             - (uvc1_qual_t)(numstates2phred((ADP + 1.0) / (aDP + 0.5)));
     const auto systematicMQVQ = MIN(MAX(_systematicMQ, paramset.syserr_MQ_min) + _systematicMQVQadd, readlenMQcap);
-    
-    clear_push(fmt.aAaMQ, diffAaMQs);
-    clear_push(fmt.bNMQ, bNMQ);
-    clear_push(fmt.bNMa, round(100 * alt_frac_mut_affected_tpos));
-    clear_push(fmt.bNMb, round(100 * nonalt_frac_mut_affected_tpos));
-    
+   
     const uvc1_qual_t systematicBQVQ = (
             ((SEQUENCING_PLATFORM_IONTORRENT != paramset.inferred_sequencing_platform) && isSymbolSubstitution(AlignmentSymbol(LAST(fmt.VTI)))) 
             ? fmt.aBQQ[a] : (200));
