@@ -735,6 +735,13 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
         "A clip (soft or hard) affects this number of bases around it by adding depth to reduce allele fraction for amplicon data. "
         "This prevent false positive calls around highly clipped positions. "); 
     
+    ADD_OPTDEF2(app, microadjust_longfrag_sidelength_min,
+        "Number of bases to fragment end above which the fragment side is considered to be long for increasing mapping quality. ");
+    ADD_OPTDEF2(app, microadjust_longfrag_sidelength_max,
+        "Fragment side length above which the fragment side is cappped for increasing mapping quality. ");
+    ADD_OPTDEF2(app, microadjust_longfrag_sidelength_qual_per_100bases,
+        "The maximum increase in mapping quality per 100 bases on each side due to long fragment side length. ");
+    
 // *** 14 debugging
     ADD_OPTDEF2(app, debug_note_flag,
         "The flag used for advanced debugging. Please do not activate this option in normal production environments.");

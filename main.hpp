@@ -2376,8 +2376,10 @@ struct Symbol2CountCoverageSet {
                     uvc1_base_t n_cov_positions = 0;
                     uvc1_base_t n_near_mut_positions = 0;
                     for (size_t i = 0; i < cov_mut_vec.size(); i++) {
-                        if ((cov_mut_vec[i]) & 0x1) {n_cov_positions++;}
-                        if ((cov_mut_vec[i]) & 0x4) {n_near_mut_positions++;}
+                        if ((cov_mut_vec[i]) & 0x1) {
+                            n_cov_positions++;
+                            if ((cov_mut_vec[i]) & 0x4) { n_near_mut_positions++; }
+                        }
                     }
                     const auto b10xSeqTlen = n_cov_positions;
                     const auto b10xSeqTNevents = n_near_mut_positions;
@@ -3866,10 +3868,16 @@ BcfFormat_symbol_calc_qual(
     const uvc1_qual_t bNMQ = round(numstates2phred(pow(frac_mut_affected_pos / paramset.syserr_MQ_NMR_expfrac, (paramset.syserr_MQ_NMR_pl_exponent))) * (frac_mut_affected_pos)); 
     
     const uvc1_qual_t readlenMQcap = (fmt.APXM[2]) / MAX(1, fmt.APDP[0]) - 17;
-    const uvc1_qual_t _systematicMQVQadd = (uvc1_qual_t)((symbol == refsymbol) ? 0 : MIN(paramset.germ_phred_homalt_snp, ADP * 3));
+    const uvc1_qual_t _systematicMQVQadd = (uvc1_qual_t)((symbol == refsymbol) ? 0 : (MIN(paramset.germ_phred_homalt_snp, ADP * 3)));
+    const uvc1_qual_t longfrag_sidelength_qual_inc = MIN(
+            BETWEEN((fmt.bTAf[a] + 100) / (fmt.bDPf[a] + 1) - paramset.microadjust_longfrag_sidelength_min, 0, paramset.microadjust_longfrag_sidelength_max) 
+                * paramset.microadjust_longfrag_sidelength_qual_per_100bases / 100,
+            BETWEEN((fmt.bTAr[a] + 100) / (fmt.bDPr[a] + 1) - paramset.microadjust_longfrag_sidelength_min, 0, paramset.microadjust_longfrag_sidelength_max) 
+                * paramset.microadjust_longfrag_sidelength_qual_per_100bases / 100);
+    
     const uvc1_qual_t _systematicMQ = (((refsymbol == symbol) && (ADP > aDP * 2)) 
                 ? fmt.bMQ[a] 
-                : (fmt.bMQ[a] * (paramset.syserr_MQ_max - paramset.syserr_MQ_nonref_base) / paramset.syserr_MQ_max + paramset.syserr_MQ_nonref_base))
+                : (fmt.bMQ[a] * (paramset.syserr_MQ_max - paramset.syserr_MQ_nonref_base) / paramset.syserr_MQ_max + paramset.syserr_MQ_nonref_base + longfrag_sidelength_qual_inc))
             - (uvc1_qual_t)(MAX(0, diffAaMQs))
             - (uvc1_qual_t)(bNMQ) 
             - (uvc1_qual_t)(numstates2phred((ADP + 1.0) / (aDP + 0.5)));

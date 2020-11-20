@@ -318,7 +318,11 @@ struct CommandLineArgs {
     uvc1_qual_t         microadjust_syserr_MQ_NMR_tn_syserr_no_penal_qual_min = 30;
     uvc1_qual_t         microadjust_syserr_MQ_NMR_tn_syserr_no_penal_qual_max = 39;
     uvc1_readpos_t      microadjust_near_clip_dist = 2;
-
+    
+    uvc1_readpos_t      microadjust_longfrag_sidelength_min = 300;
+    uvc1_readpos_t      microadjust_longfrag_sidelength_max = 600;
+    uvc1_readpos_t      microadjust_longfrag_sidelength_qual_per_100bases = 5;
+    
 // *** 14. parameters related to debugging in vcf
     uvc1_flag_t         debug_note_flag = 0x0;
     
