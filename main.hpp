@@ -3461,12 +3461,11 @@ BcfFormat_symbol_calc_DPv(
     const auto fBTB = (double)(fmt.BTBf[0] + fmt.BTBr[0] + 6);
     const auto fbTA = (double)(fmt.bTAf[a] + fmt.bTAr[a] + 100);
     const auto fbTB = (double)(fmt.bTBf[a] + fmt.bTBr[a] + 3);
-    
+    // aLPL
     const double frag_sidelen_frac = 1.0 - MIN(
-            BETWEEN((fmt.bTAf[a] + 100) / (fmt.bDPf[a] + 1) - paramset.microadjust_longfrag_sidelength_min, 0, paramset.microadjust_longfrag_sidelength_max) 
-                / paramset.microadjust_longfrag_sidelength_zeroMQpenalty,
-            BETWEEN((fmt.bTAr[a] + 100) / (fmt.bDPr[a] + 1) - paramset.microadjust_longfrag_sidelength_min, 0, paramset.microadjust_longfrag_sidelength_max) 
-                / paramset.microadjust_longfrag_sidelength_zeroMQpenalty);
+        BETWEEN(fmt.APLRI[0] / MAX(1, fmt.APLRI[1]) - paramset.microadjust_longfrag_sidelength_min, 0, paramset.microadjust_longfrag_sidelength_max), 
+        BETWEEN(fmt.APLRI[2] / MAX(1, fmt.APLRI[3]) - paramset.microadjust_longfrag_sidelength_min, 0, paramset.microadjust_longfrag_sidelength_max))
+        / paramset.microadjust_longfrag_sidelength_zeroMQpenalty;
     
     const double alt_frac_mut_affected_tpos = fbTB / fbTA; // is low by default
     const double nonalt_frac_mut_affected_tpos = (fBTB + paramset.contam_any_mul_frac * fbTB - fbTB) / (fBTA + paramset.contam_any_mul_frac * fbTA - fbTA); // is same as alt by default
@@ -3482,7 +3481,7 @@ BcfFormat_symbol_calc_DPv(
     // end of computation of systematic error
     
     auto min_aFA_vec = std::vector<double>{{
-            aDPFA * alt_frac_mut_affected_tpos,
+            aDPFA * BETWEEN(1.0 + aDPFA - alt_frac_mut_affected_tpos, 0.1, 1.0),
             aLPFA2,
             aRPFA2,
             aLBFA2,
