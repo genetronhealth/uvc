@@ -1409,12 +1409,12 @@ dealwith_segbias(
         
         if (xm1500 > const_XM2T) {
             ampfact1 = 100 * mathsquare(const_XM2T) / mathsquare(xm1500);
-        } else { 
+        } else {
             ampfact1 = 100; 
         }
         if (bq < paramset.bias_thres_PFBQ2) {
             ampfact2 = 100 * mathsquare(bq) / mathsquare(paramset.bias_thres_PFBQ2);
-        } else { 
+        } else {
             ampfact2 = 100; 
         }
         symbol_to_seg_format_depth_set.seginfo_aPF2 += (ampfact1 * ampfact2 / (100));

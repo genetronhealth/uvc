@@ -110,53 +110,6 @@ sam_fname_to_contigs(
         const std::string & input_bam_fname, 
         const std::string & bed_fname);
 
-struct _RevComplement {
-    char data[128];
-    char table16[16];
-    _RevComplement() {
-        for (int i = 0; i < 128; i++) {
-            data[i] = (char)i; 
-        }
-        data['A'] = 'T';
-        data['T'] = 'A'; 
-        data['C'] = 'G'; 
-        data['G'] = 'C'; 
-        data['a'] = 't';
-        data['t'] = 'a'; 
-        data['c'] = 'g'; 
-        data['g'] = 'c'; 
-        for (int i = 0; i < 16; i++) {
-            table16[i] = (char)i;
-        }
-        table16[1] = 8/1;
-        table16[2] = 8/2;
-        table16[4] = 8/4;
-        table16[8] = 8/8;
-    }
-};
-
-const _RevComplement THE_REV_COMPLEMENT;
-
-/*
-template <class TContainer>
-int 
-revcompln(TContainer & str, size_t len) {
-    for (size_t i = 0; i < len / 2; i++) {
-        autoswap(str[i], str[len-1-i]);
-    }
-    for (size_t i = 0; i < len; i++) {
-        str[i] = THE_REV_COMPLEMENT.data[str[i]];    
-    }
-    return 0;
-}
-
-template <class TContainer>
-int 
-revcompl(TContainer & str) {
-    return revcompln(str, str.size());
-}
-*/
-
 int 
 clean_fill_strand_umi_readset(
         std::vector<std::array<std::vector<std::vector<bam1_t *>>, 2>> &umi_strand_readset);
@@ -165,7 +118,6 @@ int
 fill_strand_umi_readset_with_strand_to_umi_to_reads(
         std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, uvc1_flag_t>> &umi_strand_readset,
         std::map<uvc1_hash_t, std::pair<std::array<std::map<uvc1_hash_t, std::vector<bam1_t *>>, 2>, uvc1_flag_t>> &umi_to_strand_to_reads,
-        // uvc1_qual_t baq_per_aligned_base,
         const CommandLineArgs & paramset,
         uvc1_flag_t specialflag);
 
@@ -174,28 +126,15 @@ bamfname_to_strand_to_familyuid_to_reads(
         std::map<uvc1_hash_t, std::pair<std::array<std::map<uvc1_hash_t, std::vector<bam1_t *>>, 2>, uvc1_flag_t>> &umi_to_strand_to_reads,
         uvc1_refgpos_t & extended_inclu_beg_pos,
         uvc1_refgpos_t & extended_exclu_end_pos,
-        // const std::string input_bam_fname, 
         uvc1_refgpos_t tid, 
         uvc1_refgpos_t fetch_tbeg, 
         uvc1_refgpos_t fetch_tend, 
         bool end2end, 
-        // uvc1_qual_t min_mapq, 
-        // uvc1_readpos_t min_alnlen, 
         size_t regionbatch_ordinal, 
         size_t regionbatch_tot_num,
         const std::string UMI_STRUCT_STRING, 
         const hts_idx_t * hts_idx,
-        // const bool is_molecule_tag_enabled,
-        // const bool is_pair_end_merge_enabled, 
-        // const bool disable_duplex,
         size_t thread_id,
-        // double dedup_center_mult,
-        // uvc1_unsigned_int_t dedup_amplicon_count_to_surrcount_ratio,
-        // uvc1_unsigned_int_t dedup_amplicon_count_to_surrcount_ratio_twosided,
-        // double dedup_amplicon_end2end_ratio,
-        // bool always_log,
-        // bool is_proton,
-        // uvc1_flag_t dedup_flag,
         const CommandLineArgs & paramset,
         uvc1_flag_t specialflag);
 #endif

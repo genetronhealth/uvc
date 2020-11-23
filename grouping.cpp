@@ -3,21 +3,36 @@
 
 #define UPDATE_MIN(a, b) ((a) = MIN((a), (b)));
 // position of 5' is the starting position, but position of 3' is unreliable without mate info.
-const uvc1_readpos_t ARRPOS_MARGIN = MAX_INSERT_SIZE; // 1200; // 1600;
-const uvc1_readpos_t ARRPOS_OUTER_RANGE = 10; // 11;
-const uvc1_readpos_t ARRPOS_INNER_RANGE = 3; // 4;
+const uvc1_readpos_t ARRPOS_MARGIN = MAX_INSERT_SIZE;
+const uvc1_readpos_t ARRPOS_OUTER_RANGE = 10;
+const uvc1_readpos_t ARRPOS_INNER_RANGE = 3;
 
-/*
-auto 
-MIN(auto a, auto b) {
-    return a < b ? a : b;
-}
+struct _RevComplement {
+    char data[128];
+    char table16[16];
+    _RevComplement() {
+        for (int i = 0; i < 128; i++) {
+            data[i] = (char)i;
+        }
+        data['A'] = 'T';
+        data['T'] = 'A';
+        data['C'] = 'G';
+        data['G'] = 'C';
+        data['a'] = 't';
+        data['t'] = 'a';
+        data['c'] = 'g';
+        data['g'] = 'c';
+        for (int i = 0; i < 16; i++) {
+            table16[i] = (char)i;
+        }
+        table16[1] = 8/1;
+        table16[2] = 8/2;
+        table16[4] = 8/4;
+        table16[8] = 8/8;
+    }
+};
 
-auto 
-MAX(auto a, auto b) {
-    return a > b ? a : b;
-}
-*/
+const _RevComplement THE_REV_COMPLEMENT;
 
 int 
 bed_fname_to_contigs(
@@ -239,32 +254,6 @@ sam_fname_to_contigs(
     return ret; 
 }
 
-/*
-enum {
-    POS_BOTH_5PS_ARE_RELIABLE = 0;
-    POS_ONE_5P = 1;
-    POS_TWO_5P = 2;
-    //POS_ONLY1_5P_UNPAIRED_READ = 1;
-    //POS_ONLY1_5P_NOT_PROPERLY_PAIRED_READ = 2;
-    POS_3P_OR_5P_IS_OUT_OF_RANGE = 4;
-    POS_OTHER_5P_DOMINATES_THIS_5P = 8; // the other end of the paired read is very high in frequency compared with this end
-    POS_OTHER_5P_DOMINATES_EACH_5P = 16; // the other end of the paired read is very high in frequency overall
-} PositionType;
-*/
-/**
- * Schematics of coverage
- *        -
- *       ---   -
- *    - ----- ---
- *   ------------
- *   OOOIIICIIIOO
- * where:
- * O denotes outer region (Non-center positions just around the inner regions)
- * I denotes inner region (positions that the center covers)
- * C denotes center (position at which a maximal number of reads start or end)
- * - denotes the start or end of any read passing the threshold
- */
-
 enum FilterReason {
     NOT_FILTERED,
     NOT_MAPPED,
@@ -282,17 +271,17 @@ fill_isrc_isr2_beg_end_with_aln(bool & isrc, bool & isr2, uvc1_refgpos_t & tBeg,
         const uvc1_qual_t min_mapqual, const uvc1_readpos_t min_aln_len, const bool end2end, const bool is_pair_end_merge_enabled) {
     num_seqs = 0;
     if (aln->core.flag & 0x4) {
-        return NOT_MAPPED; // unmapped
+        return NOT_MAPPED;
     }
     if ((aln->core.flag & 0x900) != 0) {
-        return NOT_PRIMARY_ALN; // unmapped
+        return NOT_PRIMARY_ALN;
     }
 
     if (aln->core.qual < min_mapqual) { 
-        return LOW_MAPQ; // mapq too low 
+        return LOW_MAPQ;
     }
     if (SIGN2UNSIGN(bam_endpos(aln) - aln->core.pos) < min_aln_len) {
-        return LOW_ALN_LEN; // alignment length too short
+        return LOW_ALN_LEN;
     }
 
     isrc = ((aln->core.flag & 0x10) == 0x10);
@@ -320,10 +309,10 @@ fill_isrc_isr2_beg_end_with_aln(bool & isrc, bool & isr2, uvc1_refgpos_t & tBeg,
     auto tOrdBeg = MIN(tBeg, tEnd);
     auto tOrdEnd = MAX(tBeg, tEnd);
     if (tOrdBeg + (ARRPOS_MARGIN - ARRPOS_OUTER_RANGE) <= fetch_tbeg || fetch_tend - 1 + (ARRPOS_MARGIN - ARRPOS_OUTER_RANGE) <= tOrdEnd) {
-        return OUT_OF_RANGE; // is out of range
+        return OUT_OF_RANGE;
     }
     if (end2end && !(tOrdBeg <= fetch_tbeg && tOrdEnd >= fetch_tend)) {
-        return NOT_END_TO_END; // did not span the entire genomic region
+        return NOT_END_TO_END;
     }
     return NOT_FILTERED;
 }
@@ -341,7 +330,7 @@ poscounter_to_pos2pcenter(
     
     for (uvc1_refgpos_t locov_pos = ARRPOS_INNER_RANGE; locov_pos < UNSIGN2SIGN(pos_to_count.size()) - ARRPOS_INNER_RANGE; locov_pos++) {
         auto locov_count = pos_to_count[locov_pos];
-        pos_to_center_pos[locov_pos] = locov_pos; // identity mapping by default
+        pos_to_center_pos[locov_pos] = locov_pos;
         auto max_count = locov_count;
         // check if inner_pos is attracted by outer position
         for (auto hicov_pos = locov_pos - ARRPOS_INNER_RANGE; hicov_pos < locov_pos + ARRPOS_INNER_RANGE + 1; hicov_pos++) {
@@ -403,62 +392,6 @@ clean_fill_strand_umi_readset(
     return 0;
 }
 
-/*
-// ad-hoc adjustment of BQ in homopolymer region
-int 
-apply_bq_err_correction(bam1_t *aln, uvc1_unsigned_int_t homopol_minBQ_inc = 5, uvc1_unsigned_int_t homopol_min_len = 4) {
-    if (0 == aln->core.l_qseq) { return -1; }
-    uvc1_unsigned_int_t prev_b = 0;
-    uvc1_unsigned_int_t homopol_len = 1;
-    uvc1_unsigned_int_t nextpos = 0;
-    const uint8_t *seq = bam_get_seq(aln);
-    uint8_t *qual = bam_get_qual(aln);
-    for (uvc1_unsigned_int_t thispos = 0; thispos != aln->core.l_qseq; thispos = nextpos) {
-        const auto b = bam_seqi(seq, thispos);
-        uint8_t qmin = qual[thispos];
-        for (nextpos = thispos + 1; nextpos != aln->core.l_qseq && b == bam_seqi(seq, nextpos); nextpos++) {
-            qmin = MIN(qmin, qual[nextpos]);
-        }
-        if (nextpos - thispos >= homopol_min_len) {
-            for (uvc1_unsigned_int_t pos = thispos; pos != nextpos; pos++) {
-                qual[pos] = MIN(qual[pos], qmin + homopol_minBQ_inc);
-            }
-        }
-    }
-    return 0;
-}
-*/
-
-#if 0
-int 
-apply_bq_err_correction2(const bam1_t *aln, uvc1_unsigned_int_t dec_per_base, uvc1_unsigned_int_t homopol_min_len, uvc1_unsigned_int_t max_dec) {
-    if (0 == aln->core.l_qseq) { return -1; }
-    
-    int inclu_beg_poss[2] = {0, aln->core.l_qseq - 1};
-    int exclu_end_poss[2] = {aln->core.l_qseq, 0 - 1};
-    int pos_incs[2] = {1, -1};
-    uvc1_unsigned_int_t qsum = 0;
-    uvc1_unsigned_int_t qnum = 0;
-    uvc1_unsigned_int_t prev_b = 0;
-    uvc1_unsigned_int_t strand = ((aln->core.flag & 0x10) ? 1 : 0);
-    uvc1_unsigned_int_t homopol_len = 1;
-    for (auto i = inclu_beg_poss[strand]; i != exclu_end_poss[strand]; i += pos_incs[strand]) {
-        auto b = bam_get_seq(aln)[i];
-        if (b == prev_b) {
-            homopol_len++;
-            if (homopol_len >= homopol_min_len) {
-                auto bam_qual_dec = MIN(homopol_len - homopol_min_len + 1, max_dec);
-                auto q = bam_get_qual(aln)[i];
-                bam_get_qual(aln)[i] = MAX(bam_qual_dec, q) - bam_qual_dec;
-            }
-        } else {
-            homopol_len = 1;
-        }
-        prev_b = b;
-    }
-    return 0;
-}
-#endif
 int 
 apply_bq_err_correction3(bam1_t *aln, const uvc1_qual_t assay_sequencing_BQ_max) {
     if ((0 == aln->core.l_qseq) || (aln->core.flag & 0x4)) { return -1; }
@@ -469,12 +402,9 @@ apply_bq_err_correction3(bam1_t *aln, const uvc1_qual_t assay_sequencing_BQ_max)
     
     const auto cigar = bam_get_cigar(aln);
     const int strand = ((aln->core.flag & 0x10) ? 1 : 0);
-    // uvc1_readpos_t 
-    int inclu_beg_poss[2] = {0, aln->core.l_qseq - 1};
-    // uvc1_readpos_t
-    int exclu_end_poss[2] = {aln->core.l_qseq, 0 - 1};
-    // uvc1_readpos_t 
-    int end_clip_len = 0;
+    uvc1_readpos_t inclu_beg_poss[2] = {0, aln->core.l_qseq - 1};
+    uvc1_readpos_t exclu_end_poss[2] = {aln->core.l_qseq, 0 - 1};
+    uvc1_readpos_t end_clip_len = 0;
     if (aln->core.n_cigar > 0) {
         auto cigar_1elem = cigar[0];
         if (bam_cigar_op(cigar_1elem) == BAM_CSOFT_CLIP) {
@@ -496,11 +426,8 @@ apply_bq_err_correction3(bam1_t *aln, const uvc1_qual_t assay_sequencing_BQ_max)
         }
     }
     
-    const // uvc1_refgpos_t 
-    int pos_incs[2] = {1, -1};
+    const uvc1_refgpos_t pos_incs[2] = {1, -1};
     {
-        // uvc1_qual_t qsum = 0;
-        // uvc1_unsigned_int_t qnum = 0;
         uint8_t prev_b = 0;
         uvc1_unsigned_int_t distinct_cnt = 0;
         int termpos = exclu_end_poss[strand] - pos_incs[strand];
@@ -514,8 +441,8 @@ apply_bq_err_correction3(bam1_t *aln, const uvc1_qual_t assay_sequencing_BQ_max)
             }
         }
         uvc1_readpos_t homopol_tracklen = abs(termpos - (exclu_end_poss[strand] - pos_incs[strand]));
-        uvc1_qual_t tail_penal = (end_clip_len >= 20 ? 1 : 0) // (end_clip_len > 16 ? 2 : (end_clip_len > 8 ? 1 : 0)) 
-                + (homopol_tracklen >= 15 ? 2 : (homopol_tracklen >= 10 ? 1 : 0)); // + ((homopol_tracklen >= 15) ? 3 : (homopol_tracklen >= 12 ? 2 : (homopol_tracklen >= 9 ? 1 : 0)));
+        uvc1_qual_t tail_penal = (end_clip_len >= 20 ? 1 : 0)
+                + (homopol_tracklen >= 15 ? 2 : (homopol_tracklen >= 10 ? 1 : 0));
         if (tail_penal > 0) {
             const bool is_in_log_reg = (aln->core.tid == 0 && aln->core.pos < 9509431 && aln->core.pos > 9509400);
             if (is_in_log_reg) {
@@ -523,7 +450,6 @@ apply_bq_err_correction3(bam1_t *aln, const uvc1_qual_t assay_sequencing_BQ_max)
             }
             for (uvc1_refgpos_t pos = exclu_end_poss[strand] - pos_incs[strand]; pos != (inclu_beg_poss[strand] - pos_incs[strand]) && pos != termpos; pos -= pos_incs[strand]) {
                 const uvc1_qual_t q = bam_get_qual(aln)[pos];
-                // bam_get_qual(aln)[pos] = q * 5 / (5 + tail_penal);
                 bam_get_qual(aln)[pos] = MAX(bam_get_qual(aln)[pos], tail_penal + 1) - tail_penal;
                 if (is_in_log_reg) {
                     LOG(logINFO) << "\tQuality adjustment at pos " << pos << " : " << q << " -> " << (int)bam_get_qual(aln)[pos]; 
@@ -542,11 +468,6 @@ apply_bq_err_correction3(bam1_t *aln, const uvc1_qual_t assay_sequencing_BQ_max)
                 if (homopol_len >= 4 && b == seq_nt16_table['G']) {
                     bam_get_qual(aln)[pos] = MAX(bam_get_qual(aln)[pos], 1 + 1) - 1;
                 }
-                /*
-                if (homopol_len >= 3 && b == seq_nt16_table['C']) {
-                    bam_get_qual(aln)[pos] = MAX(bam_get_qual(aln)[pos], 1 + 1) - 1;
-                }
-                */
             } else {
                 prev_b = b;
                 homopol_len = 1;
@@ -556,58 +477,10 @@ apply_bq_err_correction3(bam1_t *aln, const uvc1_qual_t assay_sequencing_BQ_max)
     return 0;
 }
 
-#if 0
-int 
-apply_baq(bam1_t *aln, const uvc1_unsigned_int_t baq_per_aligned_base, uvc1_unsigned_int_t baq_per_new_base = 1, uvc1_unsigned_int_t baq_maxinc_per_base = 1) {
-    // const uvc1_unsigned_int_t max_baq_per_base = baq_per_aligned_base + baq_maxinc_per_base;
-    const uint32_t n_cigar = aln->core.n_cigar;
-    const uint32_t *cigar =  bam_get_cigar(aln);
-    if (0 == n_cigar || 0 == aln->core.l_qseq) { return -1; }
-    int read_beg = ((n_cigar > 1 && bam_cigar_op(cigar        [0]) == BAM_CSOFT_CLIP) ? bam_cigar_oplen(cigar[        0]) : 0);
-    int read_end = aln->core.l_qseq - 1 - 
-                   ((n_cigar > 1 && bam_cigar_op(cigar[n_cigar-1]) == BAM_CSOFT_CLIP) ? bam_cigar_oplen(cigar[n_cigar-1]) : 0);
-    
-    int inclu_beg_poss[2] = {read_beg, read_end};
-    int exclu_end_poss[2] = {read_end + 1, read_beg - 1};
-    int pos_incs[2] = {1, -1};
-    uvc1_unsigned_int_t qsum = 0;
-    uvc1_unsigned_int_t qnum = 0;
-    
-    uvc1_unsigned_int_t strand = ((aln->core.flag & 0x10) ? 0 : 1);
-    for (auto i = inclu_beg_poss[strand]; i != exclu_end_poss[strand]; i += pos_incs[strand]) {
-        auto q = bam_get_qual(aln)[i];
-        qsum += q;
-        qnum += 1;
-        bam_get_qual(aln)[i] = MIN(q, qsum / qnum + q/3);
-    }
-    
-#if 0 // application of BAQ is too early here and is therefore disabled
-    for (int strand = 0; strand < 2; strand++) {
-        uvc1_unsigned_int_t base2cnt[16] = {0};
-        uvc1_unsigned_int_t nbases = 0;
-        auto curr_baq_per_base = baq_per_aligned_base - 2;
-        for (auto i = inclu_beg_poss[strand]; i != exclu_end_poss[strand]; i += pos_incs[strand]) {
-            auto base = bam_get_seq(aln)[i];
-            if (0 == base2cnt[base]) {
-                curr_baq_per_base += baq_per_new_base;
-                curr_baq_per_base = MIN(curr_baq_per_base, max_baq_per_base);
-            }
-            base2cnt[base]++;
-            nbases++;
-            bam_get_qual(aln)[i] = MIN((bam_get_qual(aln))[i], baq_per_aligned_base * nbases);
-            if (baq_per_aligned_base * nbases > 48) { break; }
-        }
-    }
-#endif
-    return 0;
-}
-#endif
-
 int 
 fill_strand_umi_readset_with_strand_to_umi_to_reads(
         std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, uvc1_flag_t>> &umi_strand_readset,
         std::map<uvc1_hash_t, std::pair<std::array<std::map<uvc1_hash_t, std::vector<bam1_t *>>, 2>, uvc1_flag_t>> &umi_to_strand_to_reads,
-        // uvc1_qual_t baq_per_aligned_base
         const CommandLineArgs & paramset,
         const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
     for (auto & umi_to_strand_to_reads_element : umi_to_strand_to_reads) {
@@ -619,8 +492,6 @@ fill_strand_umi_readset_with_strand_to_umi_to_reads(
                 const std::vector<bam1_t *> alns = read.second;
                 umi_strand_readset.back().first[strand].push_back(std::vector<bam1_t *>());
                 for (auto aln : alns) {
-                    // apply_baq(aln, baq_per_aligned_base);
-                    // apply_bq_err_correction(aln); //, 1, 3, 4);
                     apply_bq_err_correction3(aln, paramset.assay_sequencing_BQ_max);
                     umi_strand_readset.back().first[strand].back().push_back(aln);
                 }
@@ -674,28 +545,15 @@ bamfname_to_strand_to_familyuid_to_reads(
         std::map<uvc1_hash_t, std::pair<std::array<std::map<uvc1_hash_t, std::vector<bam1_t *>>, 2>, uvc1_flag_t>> &umi_to_strand_to_reads,
         uvc1_refgpos_t & extended_inclu_beg_pos, 
         uvc1_refgpos_t & extended_exclu_end_pos,
-        // const std::string bam_input_fname, 
         uvc1_refgpos_t tid, 
         uvc1_refgpos_t fetch_tbeg, 
         uvc1_refgpos_t fetch_tend, 
         bool end2end, 
-        // uvc1_qual_t min_mapq,
-        // uvc1_qual_t min_alnlen, 
         size_t regionbatch_ordinal, 
         size_t regionbatch_tot_num,
         const std::string UMI_STRUCT_STRING, 
         const hts_idx_t * hts_idx,
-        // const bool is_molecule_tag_enabled,
-        // const bool is_pair_end_merge_enabled,
-        // const bool disable_duplex,
         size_t thread_id,
-        // const double dedup_center_mult,
-        // uvc1_unsigned_int_t dedup_amplicon_count_to_surrcount_ratio,
-        // uvc1_unsigned_int_t dedup_amplicon_count_to_surrcount_ratio_twosided,
-        // double dedup_amplicon_end2end_ratio,
-        // bool always_log,
-        // bool is_proton,
-        // const uvc1_flag_t dedup_flag,
         const CommandLineArgs & paramset,
         const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
     assert (fetch_tend > fetch_tbeg);
@@ -940,8 +798,6 @@ bamfname_to_strand_to_familyuid_to_reads(
     sam_itr_destroy(hts_itr);
     
     bam_destroy1(aln);
-    // sam_index_destroy(hts_idx); // TODO: reuse index if possible
-    // hts_idx_destroy(hts_idx);
     sam_close(sam_infile);
     if (should_log) { LOG(logINFO) << "Thread " << thread_id << " finished dedupping."; }
     return std::array<uvc1_readnum_t, 3>({num_pass_alns, pcrpassed, umi_pcrpassed});
