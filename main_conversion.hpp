@@ -481,10 +481,13 @@ struct SegFormatThresSet {
     uvc1_readpos_t segthres_aLPxT;
     uvc1_readpos_t segthres_aRPxT;
     
+#if ENABLE_XMGOT
     uvc1_base1500x_t segthres_aXM1T; // mismatch, higher means more bias
     uvc1_base1500x_t segthres_aXM2T; 
     uvc1_base1500x_t segthres_aGO1T; // gap-open, higher means more bias
     uvc1_base1500x_t segthres_aGO2T; 
+#endif
+    
     uvc1_readpos_t segthres_aLI1T; // distance to left insert end, higher means more bias
     uvc1_readpos_t segthres_aLI2T; 
     uvc1_readpos_t segthres_aRI1T; // distance to right insert end

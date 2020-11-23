@@ -101,6 +101,7 @@ struct CommandLineArgs {
     uvc1_readpos_t   bias_thres_aLPxT_add = 5;
     uvc1_readpos_t   bias_thres_aLPxT_perc = 160;
     
+#if ENABLE_XMGOT
     uvc1_base1500x_t   bias_thres_PFXM1T_add = 130; // 35; // set very high to disable mismatch bias
     uvc1_base1500x_t   bias_thres_PFXM2T_add = 20;
     uvc1_base1500x_t   bias_thres_PFGO1T_add = 125; // set very high to disable gap bias
@@ -113,6 +114,7 @@ struct CommandLineArgs {
     
     uvc1_readnum100x_t bias_thres_PFXM1NT_perc = 70; // for normal
     uvc1_readnum100x_t bias_thres_PFGO1NT_perc = 70; // for normal
+#endif
     
     uvc1_readpos_t     bias_thres_aLRP1t_minus = 10;
     uvc1_readpos_t     bias_thres_aLRP2t_minus = 5;
@@ -231,6 +233,8 @@ struct CommandLineArgs {
     uvc1_deciphred_t    syserr_minABQ_cap_snv = 0;
     uvc1_deciphred_t    syserr_minABQ_cap_indel = 0;
     
+    uvc1_refgpos_t      syserr_mut_region_n_bases = 11;
+
     uvc1_qual_t         syserr_MQ_min = 0;  //((vqual > syserr_phred_varcall_err_per_map_err_per_base) ? (vqual - syserr_phred_varcall_err_per_map_err_per_base) : 0); 
     uvc1_qual_t         syserr_MQ_max = 60; // from bwa
     // uvc1_qual_t         syserr_phred_varcall_err_per_map_err_per_base is 10; // this is the max phred probability of varcall error per base per mapping error

@@ -160,8 +160,9 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("APLRP" , 4,         BCF_INTEGER, "Summed distance to left and right ends, summed insertion length, and summed deletion length."),
     
     BcfFormatStruct("__Ac"  , 1,         BCF_SEP,     "Threshold for each type of bias (tier-1 means weak bias and tier-2 means strong bias)."),
-
+#if ENABLE_XMGOT
     BcfFormatStruct("AXMT"  , 2,         BCF_INTEGER, "Number of mismatches on read-segment above which there is tier-1 and tier-2 mismatch bias."),
+#endif
     BcfFormatStruct("ALRIT" , 4,         BCF_INTEGER, "Number of bases to left (01) and right (23) insert ends above which there is tier-1 and tier-2 insert bias."),
     BcfFormatStruct("ALRIt" , 4,         BCF_INTEGER, "Number of bases to left (01) and right (23) insert ends below which there is tier-1 and tier-2 insert bias."),
     BcfFormatStruct("ALRPt" , 4,         BCF_INTEGER, "Number of bases to left (01) and right (23) read-segment ends below which there is tier-1 and tier-2 position bias."),

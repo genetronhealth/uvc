@@ -334,7 +334,8 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
         "The threshold for the number of bases to the left/right sequenced-segment end below which the segment is considered to be affected by position bias. ");
     ADD_OPTDEF2(app, bias_thres_aLPxT_perc,
         "The threshold --bias_thres_aLPxT_add is increased by thisparam/100 times the average length of nearby InDels. ");
-    
+
+#if ENABLE_XMGOT
     ADD_OPTDEF2(app, bias_thres_PFXM1T_add,
         "The tier1-threshold of 10x mismatch (XM) below which the estimated 100x number of passing-filter (PF) reads decreases according to the inverse-square law. ");
     ADD_OPTDEF2(app, bias_thres_PFXM2T_add,
@@ -357,6 +358,7 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
         "The percent increase in the corresponding threshold relative to the background noise level for the matched normal sample. ");
     ADD_OPTDEF2(app, bias_thres_PFGO1NT_perc,
         "The percent increase in the corresponding threshold relative to the background noise level for the matched normal sample. ");
+#endif
     
     ADD_OPTDEF2(app, bias_thres_aLRP1t_minus,
         "The tier-1-threshold of the number of bases to the left/right segment ends (LRP) below which the read support is not effective, "
@@ -592,6 +594,9 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
     ADD_OPTDEF2(app, syserr_minABQ_cap_indel, 
         "Average base quality (ABQ) below which variant quality is capped to ABQ for InDels and hybrid selection. "
         "The ecommended value is 13 for Illumina and 0 for IonTorrent. ");
+    
+    ADD_OPTDEF2(app, syserr_mut_region_n_bases,
+        "The mutations that are within this number of bases from each other are assumed to be caused by the same mutation event. ");
     
     ADD_OPTDEF2(app, syserr_MQ_max,
         "Maximum mapping quality (MAPQ or MQ) of the aligned reads, highly recommended to be the 60 from BWA. ");
