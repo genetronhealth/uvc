@@ -1,6 +1,5 @@
 # Example command to build: make all -j9 && make deploy
 
-# Multi threads and single thread debug
 release : uvc.rel.out debarcode 
 release-cppt : uvc.cppt.out
 debug-mt : uvc.mt.out 
@@ -8,11 +7,11 @@ debug-st : uvc.st.out
 debug-no : uvc.no.out
 all : release release-cppt debug-mt debug-st debug-no
 
-HDR=CmdLineArgs.hpp common.hpp grouping.hpp logging.hpp main.hpp main_conversion.hpp version.h CLI11-1.7.1/CLI11.hpp #precompiled/precompiled_main.hpp
+HDR=CmdLineArgs.hpp common.hpp grouping.hpp logging.hpp main.hpp main_conversion.hpp version.h CLI11-1.7.1/CLI11.hpp
 SRC=CmdLineArgs.cpp common.cpp grouping.cpp logging.cpp main.cpp                     version.cpp 
 DEP=bcf_formats.step1.hpp instcode.hpp Makefile
 
-HTSPATH=ext/htslib-1.9-lowdep/libhts.a #ext/htslib/htslib-1.9-mindep/libhts.a 
+HTSPATH=ext/htslib-1.9-lowdep/libhts.a
 HTSFLAGS=$(HTSPATH) -I ext/htslib-1.9-lowdep/ -pthread -lm -lz -lbz2 -llzma # -lcurl -lcrypto # can be changed depending on the specific installed components of htslib (please refer to the INSTALL file in htslib)
 CC=gcc  # can be changed to clang or other compilers as needed
 CXX=g++ # can be changed to clang or other compilers as needed
@@ -21,12 +20,6 @@ COMMIT_VERSION=$(shell git rev-parse HEAD | head -c 7)
 COMMIT_DIFF_SH=$(shell git diff HEAD --shortstat)
 COMMIT_DIFF_FULL=$(shell echo "R\"ZXF_specQUOTE(\n $$(git diff HEAD | sed 's/ZXF_specQUOTE/ZXF_specquote/g') \n)ZXF_specQUOTE\"" > gitdiff.txt)
 VERFLAGS=-DCOMMIT_VERSION="\"$(COMMIT_VERSION)\"" -DCOMMIT_DIFF_SH="\"$(COMMIT_DIFF_SH)\"" -DCOMMIT_DIFF_FULL="\"$(COMMIT_DIFF_FULL)\""
-
-#precompiled/precompiled_main.hpp.gch : precompiled/precompiled_main.hpp
-#	$(CXX)  -O3 -DNDEBUG -H precompiled/precompiled_main.hpp
-
-#minivc     : minivc.c version.h Makefile
-#	$(CC) -O3 -o minivc    $(VERFLAGS) minivc.c ${HTSFLAGS}
 
 debarcode  : debarcode_main.c version.h Makefile
 	$(CC) -O3 -o debarcode $(VERFLAGS) debarcode_main.c ${HTSFLAGS}
