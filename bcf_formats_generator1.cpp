@@ -62,8 +62,6 @@ const std::string vcf_number_to_header_str(int num) {
 const std::vector<std::pair<std::string, std::string>> FILTER_VEC = {
     std::make_pair("noVar",         "Not a variant (for example, when REF and ALT are the same), but still included to get all statistics."),
     std::make_pair("upstreamDel",   "Deletion extended from another upstream deletion"),
-    std::make_pair("cad3",          "Less than 3 clean deduped reads"),
-    std::make_pair("caf3",          "Less than 3/10000 allele fraction base on clean deduped reads"),
     std::make_pair("s50",           "Less than 50\% of samples have data"),
     std::make_pair("Q10",           "Quality below 10 and no other filters"),
     std::make_pair("Q20",           "Quality below 20 and no other filters"),
@@ -72,14 +70,6 @@ const std::vector<std::pair<std::string, std::string>> FILTER_VEC = {
     std::make_pair("Q50",           "Quality below 50 and no other filters"),
     std::make_pair("Q60",           "Quality below 60 and no other filters"),
     
-    /*
-    std::make_pair("GPBL1",         "For FORMAT/FT: Haplotype position bias on the left  mapping coordinate for raw reads with unmerged R1 and R2 ends"),
-    std::make_pair("GPBR1",         "For FORMAT/FT: Haplotype position bias on the right mapping coordinate for raw reads with unmerged R1 and R2 ends"),
-    std::make_pair("GPBLR1",        "For FORMAT/FT: Haplotype position bias on left and right mapping coordinates for raw reads with unmerged R1 and R2 ends"),
-    std::make_pair("GPBL2",         "For FORMAT/FT: Diplotype position bias on the left  mapping coordinate for raw reads with unmerged R1 and R2 ends"),
-    std::make_pair("GPBR2",         "For FORMAT/FT: Diplotype position bias on the right mapping coordinate for raw reads with unmerged R1 and R2 ends"),
-    std::make_pair("GPBLR2",        "For FORMAT/FT: Diplotype position bias on left and right mapping coordinates for raw reads with unmerged R1 and R2 ends"),
-    */
     std::make_pair("ASI",           "For FORMAT/FTS: Stranded insert bias, meaning the most-supported strand has abnormal insert size."),
     std::make_pair("AXMB",          "For FORMAT/FTS: Absolute mismatch bias, meaning the variant is suppported by reads with a high number of mismatches"),
     std::make_pair("ABQB",          "For FORMAT/FTS: Absolute base-quality (BQ) bias, meaning the variant is suppported by reads with low base qualities at the variant site"),
@@ -97,11 +87,8 @@ const std::vector<std::pair<std::string, std::string>> FILTER_VEC = {
     std::make_pair("PB2R",          "For FORMAT/FTS: Position bias on the right mapping coordinate of the insert relative to all alleles"),
     
     std::make_pair("SB1",           "For FORMAT/FTS: Strand bias relative to all alleles"),
-    // std::make_pair("ROB0",          "For FORMAT/FTS: Read-orientation bias using all deduplicated reads relative to all alleles"),
     std::make_pair("ROB1",          "For FORMAT/FTS: Read-orientation bias using deduplicated reads families passing the base-quality threshold for generating barcode families relative to all alleles"),
     std::make_pair("ROB2",          "For FORMAT/FTS: Read-orientation bias using tier-2 barcode families relative to all alleles"),
-    // std::make_pair("ROB3",          "For FORMAT/FTS: Read-orientation bias using tier-3 barcode families relative to all alleles"),
-        
 };
 
 struct BcfFormatStruct {
@@ -142,36 +129,38 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("c2DP"  , 1,         BCF_INTEGER, "Consensus barcode family depth of coverage using tier-2 thresholds for grouping fragments into families. "),
     BcfFormatStruct("c2AD"  , BCF_NUM_R, BCF_INTEGER, "Consensus barcode family depth of coverage supporting the ALT allele using tier-2 thresholds for grouping fragments into families. "),
     
-    // BcfFormatStruct("BQ"       , 1, BCF_INTEGER, "Root mean square (RMS) base quality of the ALT [base read, duped]"), 
-    // BcfFormatStruct("MQ"       , 1, BCF_INTEGER, "Root mean square (RMS) mapping quality of the ALT [base read, duped]"), 
-
     BcfFormatStruct("__Aa"  , 1,         BCF_SEP,     "Preparation statistics for segment biases at this position."),
-    BcfFormatStruct("APDP"  , 1+4+4+1,   BCF_INTEGER, "Total segment depth, "
-                              "segment depths within the indel length of insertion/deletion, segment depths within the tandem-repeat track length of insertion/deletion, "
-                              "segment depth of high quality, "
-                              "sum of squares of insertion lengths, sum of squares of deletion lengths, sum of the inverses of insertion lengths, sum of the inverses of deletion lengths, "
-                              "and total segment depth of PCR amplicons."),
-    BcfFormatStruct("APXM"  , 4+1+3,     BCF_INTEGER, "Total number of mismatches and total number of gap openings."),
-    
+    BcfFormatStruct("APDP"  , 1+4+4+1,   BCF_INTEGER, "Total segment depth (1), "
+                              "segment depths within the indel length of insertion (2) and deletion (3), "
+                              "segment depths within the tandem-repeat track length of insertion (4) and deletion (5), "
+                              "PCR-amplicon (6), SNV (7), and DNV (8) segment depths, "
+                              "segment depth of high quality (9), "
+                              "and near-clip segment depth (10)."),
+    BcfFormatStruct("APXM"  , 4+3,       BCF_INTEGER, "Expected number of mismatches (1) and gap openings (2) in a 1500-bp window. "
+                              "Total sum of query length (3). "
+                              "The (sum of squares (4,5)) and (sum of 100 divided by (6,7)) of insertion (4,6) and deletion (5,7) lengths."),
+       
     BcfFormatStruct("__Ab"  , 1,         BCF_SEP,     "Preparation statistics for segment biases at this position."),
-    BcfFormatStruct("APLRID", 4,         BCF_INTEGER, "Total number of mismatches and total number of gap openings."),
-    BcfFormatStruct("APPB"  , 4+4+2,     BCF_INTEGER, "Preparation statistics for position bias."),
+    BcfFormatStruct("APLRID", 4,         BCF_INTEGER, "Summed insertion (1,2) and deletion (3,4) lengths to the left (1,3) and right (2,4) ends of the InDel-affected region."),
     BcfFormatStruct("APLRI" , 4,         BCF_INTEGER, "Summed distance to left insert end and the number of such inserts, and similarly for right insert end."),
     BcfFormatStruct("APLRP" , 4,         BCF_INTEGER, "Summed distance to left and right ends, summed insertion length, and summed deletion length."),
     
     BcfFormatStruct("__Ac"  , 1,         BCF_SEP,     "Threshold for each type of bias (tier-1 means weak bias and tier-2 means strong bias)."),
-#if ENABLE_XMGOT
+#if COMPILATION_TRY_HIGH_DEPTH_POS_BIAS
+    BcfFormatStruct("APPB"  , 4+4,       BCF_INTEGER, "Preparation statistics for position bias."),
+#endif 
+#if COMPILATION_ENABLE_XMGOT
     BcfFormatStruct("AXMT"  , 2,         BCF_INTEGER, "Number of mismatches on read-segment above which there is tier-1 and tier-2 mismatch bias."),
 #endif
-    BcfFormatStruct("ALRIT" , 4,         BCF_INTEGER, "Number of bases to left (01) and right (23) insert ends above which there is tier-1 and tier-2 insert bias."),
-    BcfFormatStruct("ALRIt" , 4,         BCF_INTEGER, "Number of bases to left (01) and right (23) insert ends below which there is tier-1 and tier-2 insert bias."),
-    BcfFormatStruct("ALRPt" , 4,         BCF_INTEGER, "Number of bases to left (01) and right (23) read-segment ends below which there is tier-1 and tier-2 position bias."),
-    BcfFormatStruct("ALRBt" , 4,         BCF_INTEGER, "Base alignment quality (BAQ) to left (01) and right (23) read-segment ends below which there is tier-1 and tier-2 position bias."),
+
+    BcfFormatStruct("ALRPxT", 2,         BCF_INTEGER, "Number of bases to left (1,2) and right (3.4) segment ends above which the segment is not used for computing position bias."),
+    BcfFormatStruct("ALRIT" , 4,         BCF_INTEGER, "Number of bases to left (1,2) and right (3.4) insert ends above which there is tier-1 and tier-2 insert bias."),
+    BcfFormatStruct("ALRIt" , 4,         BCF_INTEGER, "Number of bases to left (1,2) and right (3,4) insert ends below which there is tier-1 and tier-2 insert bias."),
+    BcfFormatStruct("ALRPt" , 4,         BCF_INTEGER, "Number of bases to left (1,2) and right (3,4) read-segment ends below which there is tier-1 and tier-2 position bias."),
+    BcfFormatStruct("ALRBt" , 4,         BCF_INTEGER, "Base alignment quality (BAQ) to left (1,2) and right (3,4) read-segment ends below which there is tier-1 and tier-2 position bias."),
 
     BcfFormatStruct("__AQ"  , 1,         BCF_SEP,     "Statistics of the raw sequencing segments for (all alleles) and (the padded deletion allele)."),
     BcfFormatStruct("AMQs"  , 2,         BCF_INTEGER, "Raw sequencing segment sum of mapping qualities."),
-    //  BcfFormatStruct("AXMp1" , 2,         BCF_INTEGER, "Raw sequencing segment sum of 100x depths normalized by the arithmetic inverse of mismatches in a 150-bp region window "
-   //                           "(zero or one mismatch counts as 100, two mismatches count as 100/2=50, threee mismatches count as 100/3=33, etc.)."),
     
     BcfFormatStruct("A1BQf" , 2,         BCF_INTEGER, "Summed sequencing-segment base quality on the forward strand."),
     BcfFormatStruct("A1BQr" , 2,         BCF_INTEGER, "Summed sequencing-segment base quality on the reverse strand."),     
@@ -205,30 +194,17 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("AP1"   , 2,         BCF_INTEGER, "Raw sequencing segment depth of reads passing left and right number of bases threshold of distance."),
     BcfFormatStruct("AP2"   , 2,         BCF_INTEGER, "Raw sequencing segment depth of reads that are either labeled with UMIs or not coming from PCR amplicons."),
 
-
-    //BcfFormatStruct("AXM1"  , 2,         BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 relative mismatch bias "
-    //                "(for capping quality from tumor-normal comparison)."),
-    //BcfFormatStruct("AXM2"  , 2,         BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 relative mismatch bias "
-    //                "(for capping quality from tumor-normal comparison)."),
-    
     BcfFormatStruct("__A5"  , 1,         BCF_SEP,     "As before."),
     BcfFormatStruct("ALI1"  , 2,         BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 insert bias on the left side."),
     BcfFormatStruct("ALI2"  , 2,         BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 insert bias on the right side."),
     BcfFormatStruct("ALIr"  , 2,         BCF_INTEGER, "Raw sequencing segment depth eligible for  left-side reverse-strand bias computation."),
     
-    // BcfFormatStruct("ALILf" , 2,         BCF_INTEGER, "Raw summed distance (number of bases) to the left-side insert end on the forward read orientation."),
-    // BcfFormatStruct("ALILr" , 2,         BCF_INTEGER, "Raw summed distance (number of bases) to the left-side insert end on the reverse read orientation."),
     BcfFormatStruct("ARI1"  , 2,         BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 insert bias on the left side."),
     BcfFormatStruct("ARI2"  , 2,         BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 insert bias on the right side."),
     BcfFormatStruct("ARIf"  , 2,         BCF_INTEGER, "Raw sequencing segment depth eligible for right-side forward-strand bias computation."),
     
-    // BcfFormatStruct("ARILf" , 2,         BCF_INTEGER, "Raw summed distance (number of bases) to the right-side insert end on the forward read orientation."),
-    //BcfFormatStruct("ARILr" , 2,         BCF_INTEGER, "Raw summed distance (number of bases) to the right-side insert end on the reverse read orientation."),
-    
     BcfFormatStruct("__aQ"  , 1,         BCF_SEP,     "Statistics of the raw sequencing segments for the REF and each ALT allele."),
     BcfFormatStruct("aMQs"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment sum of mapping qualities."),
-    // BcfFormatStruct("aXMp1" , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment sum of 100x depths normalized by the arithmetic inverse of mismatches in a 150-bp region window "
-    //                          "(zero or one mismatch counts as 100, two mismatches count as 100/2=50, threee mismatches count as 100/3=33, etc.)."),
     BcfFormatStruct("a1BQf" , BCF_NUM_R, BCF_INTEGER, "Summed sequencing-segment base quality on the forward strand."),
     BcfFormatStruct("a1BQr" , BCF_NUM_R, BCF_INTEGER, "Summed sequencing-segment base quality on the reverse strand."),     
     
@@ -261,11 +237,6 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("aPF2"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 relative mismatch bias and base quality bias."),
     BcfFormatStruct("aP1"   , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth of reads passing left and right number of bases threshold of distance."),
     BcfFormatStruct("aP2"   , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth of reads that are either labeled with UMIs or not coming from PCR amplicons."),
-    
-    // BcfFormatStruct("aXM1"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 relative mismatch bias "
-    //                "(for capping quality from tumor-normal comparison)."),
-    // BcfFormatStruct("aXM2"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 relative mismatch bias "
-    //                "(for capping quality from tumor-normal comparison)."),
     
     BcfFormatStruct("__a5"  , 1,         BCF_SEP,     "As before."),
     BcfFormatStruct("aLI1"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 insert bias on the left side."),
@@ -340,7 +311,6 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     
     BcfFormatStruct("__e1"  , 1,         BCF_SEP,     "Error variables inferred from systematically low basecall qualities (BQs)."),
     
-    // BcfFormatStruct("a1XM"  , BCF_NUM_R, BCF_INTEGER, "Total number of mismatches normalized with read length."),
     BcfFormatStruct("aBQ"   , BCF_NUM_R, BCF_SIG_INT, "Root-mean-square base quality for sequencing segments."),
     BcfFormatStruct("a2BQf" , BCF_NUM_R, BCF_INTEGER, "Summed squared/32 sequencing-segment base quality on the forward strand."),
     BcfFormatStruct("a2BQr" , BCF_NUM_R, BCF_INTEGER, "Summed squared/32 sequencing-segment base quality on the reverse strand."),     

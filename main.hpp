@@ -967,7 +967,6 @@ update_seg_format_prep_sets_by_aln(
                 seg_format_prep_sets.getRefByPos(rpos).segprep_a_dp += 1;
                 seg_format_prep_sets.getRefByPos(rpos).segprep_a_qlen += (rend - aln->core.pos);
                 seg_format_prep_sets.getRefByPos(rpos).segprep_a_XM1500 += xm1500;
-                seg_format_prep_sets.getRefByPos(rpos).segprep_a_XM100inv += 100 * 10 / MAX(10, xm1500);
                 seg_format_prep_sets.getRefByPos(rpos).segprep_a_GO1500 += go1500;
                 if (aln->core.isize != 0) {
                     if (isrc) { 
@@ -1027,7 +1026,7 @@ update_seg_format_prep_sets_by_aln(
             const auto & rtr2 = rtr_vec[MIN(rpos - region_offset + paramset.indel_adj_tracklen_dist, UNSIGN2SIGN(rtr_vec.size()) - 1)];
             
             // this code has the potential to be useful at extremely high sequencing depth, which usually does not occur in practice
-            /* 
+#if COMPILATION_TRY_HIGH_DEPTH_POS_BIAS
             const auto ins_rbeg = MAX(aln->core.pos, rpos - 100);
             const auto ins_rend = MIN(rend + UNSIGN2SIGN(cigar_oplen), rpos + 100);
             for (auto rpos2 = ins_rbeg + 1; rpos2 < ins_rend; rpos2++) {
@@ -1041,7 +1040,7 @@ update_seg_format_prep_sets_by_aln(
                 seg_format_prep_sets.getRefByPos(rpos2).segprep_aa_r_ins_dist_x_wei += rdist * rweight;
                 seg_format_prep_sets.getRefByPos(rpos2).segprep_aa_r_ins_weight += rweight;
             }
-            */
+#endif
             const auto unitlen2 = MAX(1, (rtr1.tracklen > rtr2.tracklen) ? rtr1.unitlen : rtr2.unitlen);
             const uvc1_refgpos_t nbases = (cigar_oplen * paramset.indel_adj_indellen_perc / 100);
             for (uvc1_refgpos_t rpos2 = MAX(rpos - nbases, aln->core.pos); rpos2 < MIN(rpos + nbases, rend); rpos2++) {
@@ -1065,7 +1064,7 @@ update_seg_format_prep_sets_by_aln(
             assert (rtr1.begpos <= rtr2.begpos || !fprintf(stderr, "AssertionError: %d <= %d failed for rtr1 and rtr2!\n", rtr1.begpos, rtr2.begpos));
             
             // this code has the potential to be useful at extremely high sequencing depth, which usually does not occur in practice
-            /*
+#if COMPILATION_TRY_HIGH_DEPTH_POS_BIAS
             const auto del_rbeg = MAX(aln->core.pos + UNSIGN2SIGN(cigar_oplen), rpos - 100);
             const auto del_rend = MIN(rend - UNSIGN2SIGN(cigar_oplen), rpos + 100);
             for (auto rpos2 = del_rbeg + 1; rpos2 < del_rend; rpos2++) {
@@ -1079,7 +1078,7 @@ update_seg_format_prep_sets_by_aln(
                 seg_format_prep_sets.getRefByPos(rpos2).segprep_aa_r_del_dist_x_wei += rdist * rweight;
                 seg_format_prep_sets.getRefByPos(rpos2).segprep_aa_r_del_weight += rweight;
             }
-            */
+#endif
             for (uvc1_refgpos_t rpos2 = rpos; rpos2 < rpos + UNSIGN2SIGN(cigar_oplen); rpos2++) {
                 seg_format_prep_sets.getRefByPos(rpos2).segprep_a_pcr_dp += pcr_dp_inc;
                 seg_format_prep_sets.getRefByPos(rpos2).segprep_a_dp += 1;
@@ -1161,7 +1160,7 @@ update_seg_format_thres_from_prep_sets(
     assert(seg_format_thres_sets.getIncluBegPosition() == seg_format_prep_sets.getIncluBegPosition());
     assert(seg_format_thres_sets.getExcluEndPosition() == seg_format_prep_sets.getExcluEndPosition());
     for (uvc1_refgpos_t epos = seg_format_prep_sets.getIncluBegPosition(); epos != seg_format_prep_sets.getExcluEndPosition(); epos++) {
-#if ENABLE_XMGOT
+#if COMPILATION_ENABLE_XMGOT
         const uvc1_readnum_t segprep_a_dp = MAX(seg_format_prep_sets.getByPos(epos).segprep_a_dp, 1);
 #endif
         const auto & p = seg_format_prep_sets.getByPos(epos);
@@ -1199,7 +1198,7 @@ update_seg_format_thres_from_prep_sets(
         
         const bool is_normal = (NOT_PROVIDED != paramset.vcf_tumor_fname);
         
-#if ENABLE_XMGOT
+#if COMPILATION_ENABLE_XMGOT
         const auto bias_thres_PFXM1T_perc = (is_normal ? paramset.bias_thres_PFXM1NT_perc : paramset.bias_thres_PFXM1T_perc);
         const auto bias_thres_PFGO1T_perc = (is_normal ? paramset.bias_thres_PFGO1NT_perc : paramset.bias_thres_PFGO1T_perc);
         
@@ -1303,7 +1302,7 @@ dealwith_segbias(
     
     // symbol_to_seg_format_depth_set.seginfo_aXMp1 += 1000 / MAX(xm1500, 10);
 
-#if ENABLE_XMGOT
+#if COMPILATION_ENABLE_XMGOT
     const auto const_XM1T = seg_format_thres_set.segthres_aXM1T;
     const auto const_XM2T = seg_format_thres_set.segthres_aXM2T;
     const auto const_GO1T = seg_format_thres_set.segthres_aGO1T;
@@ -1329,7 +1328,7 @@ dealwith_segbias(
     
     if (isGap) {
         ampfact1 = 100;
-#if ENABLE_XMGOT
+#if COMPILATION_ENABLE_XMGOT
         if (xm1500 > const_XM1T || go1500 > const_GO1T) {
             ampfact1 = MIN(
                     100 * mathsquare(const_XM1T) / MAX(1, mathsquare(xm1500)), 
@@ -1344,7 +1343,7 @@ dealwith_segbias(
         symbol_to_seg_format_depth_set.seginfo_aPF1 += MIN(ampfact1, ampfact2);
         
         ampfact1 = 100;
-#if ENABLE_XMGOT
+#if COMPILATION_ENABLE_XMGOT
         if ((xm1500 > const_XM2T || go1500 > const_GO2T)) {
             ampfact1 = MIN(
                     100 * mathsquare(const_XM2T) / MAX(1, mathsquare(xm1500)),
@@ -1360,7 +1359,7 @@ dealwith_segbias(
         
     } else {
         ampfact1 = 100;
-#if ENABLE_XMGOT
+#if COMPILATION_ENABLE_XMGOT
         if (xm1500 > const_XM1T) {
             ampfact1 = 100 * mathsquare(const_XM1T) / mathsquare(xm1500);
         }
@@ -1373,7 +1372,7 @@ dealwith_segbias(
         symbol_to_seg_format_depth_set.seginfo_aPF1 += (ampfact1 * ampfact2 / (100));
         
         ampfact1 = 100;
-#if ENABLE_XMGOT
+#if COMPILATION_ENABLE_XMGOT
         if (xm1500 > const_XM2T) {
             ampfact1 = 100 * mathsquare(const_XM2T) / mathsquare(xm1500);
         }
@@ -2851,16 +2850,13 @@ BcfFormat_symboltype_init(bcfrec::BcfFormat & fmt,
         p.segprep_a_qlen,
         
         // no longer used afterwards
-        p.segprep_a_XM100inv,
         
         p.segprep_a_near_ins_pow2len, 
         p.segprep_a_near_del_pow2len,
         p.segprep_a_near_ins_inv100len, 
         p.segprep_a_near_del_inv100len,
-
     }};
     
-
     fmt.APLRID = {{
         p.segprep_a_near_ins_l_pow2len,
         p.segprep_a_near_ins_r_pow2len,
@@ -2872,23 +2868,26 @@ BcfFormat_symboltype_init(bcfrec::BcfFormat & fmt,
     fmt.APLRP = {{ p.segprep_a_l_dist_sum, p.segprep_a_r_dist_sum, p.segprep_a_inslen_sum, p.segprep_a_dellen_sum }};
     
     const auto & t = symbol2CountCoverageSet12.seg_format_thres_sets.getByPos(refpos);
+
+#if COMPILATION_TRY_HIGH_DEPTH_POS_BIAS // can be useful at very high depth
     fmt.APPB  = {{
         p.segprep_aa_l_ins_dist_x_wei,
         p.segprep_aa_l_ins_weight,
         p.segprep_aa_r_ins_dist_x_wei,
         p.segprep_aa_r_ins_weight,
-
+        
         p.segprep_aa_l_del_dist_x_wei,
         p.segprep_aa_l_del_weight,
         p.segprep_aa_r_del_dist_x_wei,
         p.segprep_aa_r_del_weight,
-
-        t.segthres_aLPxT,
-        t.segthres_aRPxT,
     }};
-#if ENABLE_XMGOT 
-    fmt.AXMT =  {{ t.segthres_aXM2T, t.segthres_aXM2T }};
 #endif
+#if COMPILATION_ENABLE_XMGOT 
+    fmt.AXMT = {{ t.segthres_aXM2T, t.segthres_aXM2T }};
+#endif
+
+    fmt.ALRPxT = {{ t.segthres_aLPxT, t.segthres_aRPxT }};
+    
     fmt.ALRIT = {{ t.segthres_aLI1T, t.segthres_aLI2T, t.segthres_aRI1T, t.segthres_aRI2T }};
     fmt.ALRIt = {{ t.segthres_aLI1t, t.segthres_aLI2t, t.segthres_aRI1t, t.segthres_aRI2t }};
     fmt.ALRPt = {{ t.segthres_aLP1t, t.segthres_aLP2t, t.segthres_aRP1t, t.segthres_aRP2t }};
@@ -4571,7 +4570,7 @@ append_vcf_record(
     float lowestVAQ = MIN(tlodq, 4) + 0.5 + (prob2realphred(1 / (double)(tki.bDP + 1)) * (tki.bDP) / (double)(tki.BDP + + tki.bDP + 1));
     
     uvc1_qual_t somaticq = MIN(tlodq, nlodq);
-    float vcfqual = ((tki.ref_alt.size() > 0) ? ((float)somaticq) : MAX((float)tlodq, lowestVAQ));
+    float vcfqual = calc_non_negative((tki.ref_alt.size() > 0) ? ((float)somaticq) : MAX((float)tlodq, lowestVAQ));
     std::string infostring = std::string(tki.ref_alt.size() > 0 ? "SOMATIC" : "ANY_VAR");
     infostring += std::string(";SomaticQ=") + std::to_string(somaticq);
     infostring += std::string(";TLODQ=") + std::to_string(tlodq);

@@ -55,13 +55,6 @@ CENTER(auto a, auto b, int center = 0) {
     return ((abs(a - center) < abs(b - center)) ? a : b);
 }
 
-/*
-auto 
-MIN(auto a, auto b) {
-    return (a < b ? a : b);
-}
-*/
-
 auto
 MIN3(auto a, auto b, auto c) {
     return MIN(a, MIN(b, c));
@@ -86,13 +79,6 @@ MINVEC(auto v) {
     }
     return ret;
 }
-
-/*
-auto 
-MAX(auto a, auto b) {
-    return (a > b ? a :b);
-}
-*/
 
 auto 
 MAX3(auto a, auto b, auto c) {
@@ -160,16 +146,6 @@ calc_non_negative(const T v, T base = pow(10.0, 0.1), T thres = 10.0) {
 
 template <class T>
 T
-calc_score_with_dimret(const T v, T penal_mult, T thres) {
-    if (v > thres) {
-        return (v - thres) * penal_mult + thres;
-    } else {
-        return v;
-    }
-}
-
-template <class T>
-T
 calc_score_with_penal_at_low_val(const T v, T penal_mult, T thres = 60.0) {
     return v * penal_mult;
     // enable the following if it makes sense.
@@ -178,11 +154,6 @@ calc_score_with_penal_at_low_val(const T v, T penal_mult, T thres = 60.0) {
     } else {
         return thres * penal_mult + (v - thres);
     }
-}
-
-auto 
-safediv0(auto a, auto b) {
-    return (b != 0 ? a / b : 0);
 }
 
 auto 
@@ -246,7 +217,6 @@ static_assert(calc_binom_10log10_likeratio(0.1, 90, 10) > 763); // 10/log(10) * 
 static_assert(calc_binom_10log10_likeratio(0.1, 90, 10) < 764); // 10/log(10) * (90*log(9)+10*log(1/9))
 static_assert(abs(calc_binom_10log10_likeratio(0.1, 1, 99)) < 1e-4); // 10/log(10) * (90*log(9)+10*log(1/9))
 
-//template <class T, class V>
 template <class T=int>
 T
 collectget(const auto & collection, size_t idx, T defaultval = 0) {
@@ -329,11 +299,10 @@ const _CharToSymbol CHAR_TO_SYMBOL;
 struct TumorKeyInfo {
     std::string ref_alt;
     int32_t VTI = -1;
-    // std::string FTS;
     uvc1_refgpos_t pos = 0;
     
-    uvc1_readnum_t BDP = 0; // 
-    uvc1_readnum_t bDP = 0; // 
+    uvc1_readnum_t BDP = 0;
+    uvc1_readnum_t bDP = 0;
     
     uvc1_readnum_t CDP12 = 0;
     uvc1_readnum_t cDP12 = 0;
@@ -348,7 +317,6 @@ struct TumorKeyInfo {
     uvc1_qual_t cVQ2 = 0;
     uvc1_qual_t cPCQ2 = 0;
     
-    // std::vector<uvc1_qual_t> nAFA;
     uvc1_qual_t bNMQ = 0;
     bcf1_t *bcf1_record = NULL;
     /*
@@ -373,49 +341,51 @@ string2symbolseq(const std::string & instring) {
 
 struct SegFormatPrepSet {
     uvc1_readnum_t segprep_a_dp;
-    uvc1_readnum_t segprep_a_pcr_dp; // SEG_a_PCR_DP,    // depth of PCR amplicons
-    uvc1_readnum_t segprep_a_highBQ_dp;      // SEG_a_highBQ_DP, // depth of high-BQ bases
-    uvc1_readnum_t segprep_a_near_clip_dp;
-    uvc1_readnum100x_t segprep_a_XM1500;         // SEG_a_XM,        // number of mismatches per 1500 bases
-    uvc1_readnum100x_t segprep_a_GO1500;         // SEG_a_GO,        // number of gap openings per 1500 bases
-    uvc1_readnum100x_t segprep_a_XM100inv;       // SEG_a_XM100INV,  // number of inverse 
-    uvc1_readpos_t segprep_a_LI;    // SEG_a_LI,
-    uvc1_readnum_t segprep_a_LIDP;  // SEG_a_LIDP,
-    uvc1_readpos_t segprep_a_RI;    // SEG_a_RI,
-    uvc1_readnum_t segprep_a_RIDP;  // SEG_a_RIDP,
-    
-    uvc1_readnum_t segprep_a_snv_dp;
-    uvc1_readnum_t segprep_a_dnv_dp;
-    uvc1_readnum_t segprep_a_qlen;
-
-    uvc1_readpos_t segprep_a_l_dist_sum; // SEG_a_L_DIST_SUM,
-    uvc1_readpos_t segprep_a_r_dist_sum; // SEG_a_R_DIST_SUM,
-    uvc1_readpos_t segprep_a_inslen_sum; // SEG_a_INSLEN_SUM,
-    uvc1_readpos_t segprep_a_dellen_sum; // SEG_a_DELLEN_SUM,
-    
-    uvc1_qual_t segprep_a_l_BAQ_sum;  //  SEG_a_L_BAQ_SUM,
-    uvc1_qual_t segprep_a_r_BAQ_sum;  //  SEG_a_R_BAQ_SUM,
-    uvc1_qual_t segprep_a_insBAQ_sum; //  SEG_a_INSBAQ_SUM,
-    uvc1_qual_t segprep_a_delBAQ_sum; //  SEG_a_DELBAQ_SUM,
-    
-    uvc1_readpos_t segprep_a_near_ins_pow2len; //  SEG_a_NEAR_INS_LEN,
-    uvc1_readpos_t segprep_a_near_del_pow2len; //  SEG_a_NEAR_DEL_LEN,
-    
-    uvc1_readpos_t segprep_a_near_ins_l_pow2len;    
-    uvc1_readpos_t segprep_a_near_ins_r_pow2len;    
-    uvc1_readpos_t segprep_a_near_del_l_pow2len;    
-    uvc1_readpos_t segprep_a_near_del_r_pow2len;    
-    
-    uvc1_readnum100x_t segprep_a_near_ins_inv100len; //  SEG_a_NEAR_INS_INV100LEN,
-    uvc1_readnum100x_t segprep_a_near_del_inv100len; //  SEG_a_NEAR_DEL_INV100LEN,
-
-    uvc1_readnum_t segprep_a_at_ins_dp; //  SEG_a_AT_INS_DP,
-    uvc1_readnum_t segprep_a_at_del_dp; //  SEG_a_AT_DEL_DP,
     uvc1_readnum_t segprep_a_near_ins_dp; // SEG_a_NEAR_INS_DP,
     uvc1_readnum_t segprep_a_near_del_dp; // SEG_a_NEAR_DEL_DP,
     uvc1_readnum_t segprep_a_near_RTR_ins_dp; // SEG_a_NEAR_RTR_INS_DP,
     uvc1_readnum_t segprep_a_near_RTR_del_dp; // SEG_a_NEAR_RTR_DEL_DP,
     
+    uvc1_readnum_t segprep_a_pcr_dp;       // depth of PCR amplicons
+    uvc1_readnum_t segprep_a_snv_dp;
+    uvc1_readnum_t segprep_a_dnv_dp;
+    uvc1_readnum_t segprep_a_highBQ_dp;    // depth of high-BQ bases
+    
+    uvc1_readnum_t segprep_a_near_clip_dp;
+    
+    uvc1_readnum_t segprep_a_at_ins_dp; // SEG_a_AT_INS_DP,
+    uvc1_readnum_t segprep_a_at_del_dp; // SEG_a_AT_DEL_DP,
+
+    uvc1_readnum100x_t segprep_a_XM1500;   // number of mismatches per 1500 bases
+    uvc1_readnum100x_t segprep_a_GO1500;   // number of gap openings per 1500 bases
+    uvc1_readnum_t segprep_a_qlen;
+
+    uvc1_readpos_t segprep_a_near_ins_pow2len; // SEG_a_NEAR_INS_LEN,
+    uvc1_readpos_t segprep_a_near_del_pow2len; // SEG_a_NEAR_DEL_LEN,
+    uvc1_readnum100x_t segprep_a_near_ins_inv100len; // SEG_a_NEAR_INS_INV100LEN,
+    uvc1_readnum100x_t segprep_a_near_del_inv100len; // SEG_a_NEAR_DEL_INV100LEN,
+
+    uvc1_readpos_t segprep_a_near_ins_l_pow2len;    
+    uvc1_readpos_t segprep_a_near_ins_r_pow2len;    
+    uvc1_readpos_t segprep_a_near_del_l_pow2len;    
+    uvc1_readpos_t segprep_a_near_del_r_pow2len;    
+    
+    uvc1_readpos_t segprep_a_LI;
+    uvc1_readnum_t segprep_a_LIDP;
+    uvc1_readpos_t segprep_a_RI;
+    uvc1_readnum_t segprep_a_RIDP;
+    
+    uvc1_readpos_t segprep_a_l_dist_sum;
+    uvc1_readpos_t segprep_a_r_dist_sum;
+    uvc1_readpos_t segprep_a_inslen_sum;
+    uvc1_readpos_t segprep_a_dellen_sum;
+    
+    uvc1_qual_t segprep_a_l_BAQ_sum;
+    uvc1_qual_t segprep_a_r_BAQ_sum;
+    uvc1_qual_t segprep_a_insBAQ_sum;
+    uvc1_qual_t segprep_a_delBAQ_sum;
+    
+#if COMPILATION_TRY_HIGH_DEPTH_POS_BIAS
     // data-driven border for position bias
     uvc1_readnum_t segprep_aa_l_ins_dist_x_wei;
     uvc1_readnum_t segprep_aa_l_ins_weight;
@@ -426,62 +396,21 @@ struct SegFormatPrepSet {
     uvc1_readnum_t segprep_aa_l_del_weight;
     uvc1_readnum_t segprep_aa_r_del_dist_x_wei;
     uvc1_readnum_t segprep_aa_r_del_weight;
-    
-    // SEG_FORMAT_PREP_SET_END,
+#endif
+
 };
 #define NUM_SEG_FORMAT_PREP_SETS ((size_t)SEG_FORMAT_PREP_SET_END)
 
 uvc1_readnum_big_t
 calc_indel_weight(const auto indelsize, const auto borderlen) {
-    /*
-    if (0 == inslen) {
-        (1024) * mathcube(1) / mathcube(8); = // = 16
-    }
-    */
-    return (1024L * 1024L) * mathcube(indelsize) / mathcube(MAX(borderlen, 8)); // 1000 * 1000 * 100 * 100 * 100 / 256 < 5e8 (<< 8e20)
+    return (1024L * 1024L) * mathcube(indelsize) / mathcube(MAX(borderlen, 8));
 }
 
-/*
-enum SegFormatThresSet {
-    // SEG_aEP1t, // edge position, closer means more bias
-    // SEG_aEP2t, 
-    SEG_aLPxT,
-    SEG_aRPxT,
-    
-    SEG_aXM1T, // mismatch, higher means more bias
-    SEG_aXM2T, 
-    SEG_aGO1T, // gap-open, higher means more bias
-    SEG_aGO2T, 
-    SEG_aLI1T, // distance to left insert end, higher means more bias
-    SEG_aLI2T, 
-    SEG_aRI1T, // distance to right insert end
-    SEG_aRI2T, 
-    SEG_aLI1t, // distance to left insert end, lower means more bias
-    SEG_aLI2t, 
-    SEG_aRI1t, // distance to right insert end, lower means more bias
-    SEG_aRI2t,  
-    
-    SEG_aLP1t,
-    SEG_aLP2t,
-    SEG_aRP1t,
-    SEG_aRP2t,
-    
-    SEG_aLB1t,
-    SEG_aLB2t,
-    SEG_aRB1t,
-    SEG_aRB2t,
-    
-    SEG_FORMAT_THRES_SET_END
-};
-#define NUM_SEG_FORMAT_THRES_SETS ((size_t)SEG_FORMAT_THRES_SET_END)
-*/
 struct SegFormatThresSet {
-    // SEG_aEP1t, // edge position, closer means more bias
-    // SEG_aEP2t, 
     uvc1_readpos_t segthres_aLPxT;
     uvc1_readpos_t segthres_aRPxT;
     
-#if ENABLE_XMGOT
+#if COMPILATION_ENABLE_XMGOT
     uvc1_base1500x_t segthres_aXM1T; // mismatch, higher means more bias
     uvc1_base1500x_t segthres_aXM2T; 
     uvc1_base1500x_t segthres_aGO1T; // gap-open, higher means more bias
@@ -507,72 +436,18 @@ struct SegFormatThresSet {
     uvc1_qual_t segthres_aRB1t;
     uvc1_qual_t segthres_aRB2t;
 };
-// #define NUM_SEG_FORMAT_THRES_SETS ((size_t)SEG_FORMAT_THRES_SET_END)
-
-/*
-enum SegFormatDepthSet {
-    SEG_aMQs,
-    SEG_aXMp1,
-    SEG_aP1,
-
-    SEG_aDPff,
-    SEG_aDPfr,
-    SEG_aDPrf,
-    SEG_aDPrr,
-    
-    SEG_aXM1,
-    SEG_aXM2,
-    SEG_aBM2,
-    
-    SEG_aBQ1, // base-quality bias
-    SEG_aBQ2,
-    
-    SEG_aPF1, // mismatch
-    SEG_aPF2, 
-    
-    SEG_aLP1, // left seg pos
-    SEG_aLP2,
-    SEG_aLPL,
-    SEG_aRP1, // right seg pos
-    SEG_aRP2,
-    SEG_aRPL,
-    
-    SEG_aLB1, // left seg pos
-    SEG_aLB2,
-    SEG_aLBL,
-    SEG_aRB1, // right seg pos
-    SEG_aRB2,
-    SEG_aRBL,
-    
-    SEG_aLI1, // left insert
-    SEG_aLI2,
-    SEG_aLILf,
-    SEG_aLILr,
-    
-    SEG_aRI1, // right insert
-    SEG_aRI2,
-    SEG_aRILf,
-    SEG_aRILr,
-    
-    SEG_FORMAT_DEPTH_SET_END
-};
-#define NUM_SEG_FORMAT_DEPTH_SETS ((size_t)SEG_FORMAT_DEPTH_SET_END)
-*/
 
 struct SegFormatInfoSet {
     // allele-specific
     uvc1_readnum100x_t seginfo_a2XM2;
     uvc1_readnum100x_t seginfo_a2BM2;    
    
-    uvc1_readnum100x_t seginfo_aPF1; // mismatch and BQ
+    uvc1_readnum100x_t seginfo_aPF1; // BQ without mismatches
     uvc1_readnum100x_t seginfo_aPF2; 
-    // uvc1_readnum100x_t seginfo_aXM1; // mismatch
-    // uvc1_readnum100x_t seginfo_aXM2; 
     
     uvc1_readnum_t seginfo_aBQ2; // number passing BQ filter
     
     uvc1_qual_t seginfo_aMQs;
-    // uvc1_readnum_t seginfo_aXMp1;
     uvc1_readnum_t seginfo_aP1;
     uvc1_readnum_t seginfo_aP2;
     
@@ -580,8 +455,6 @@ struct SegFormatInfoSet {
     uvc1_readnum_t seginfo_aDPfr;
     uvc1_readnum_t seginfo_aDPrf;
     uvc1_readnum_t seginfo_aDPrr;
-    
-    // uvc1_qual_t seginfo_aBQ1; // base-quality bias
         
     uvc1_readnum_t seginfo_aLP1; // left seg pos
     uvc1_readnum_t seginfo_aLP2;
@@ -599,13 +472,9 @@ struct SegFormatInfoSet {
     
     uvc1_readnum_t seginfo_aLI1; // left insert
     uvc1_readnum_t seginfo_aLI2;
-    // uvc1_readpos_t seginfo_aLILf;
-    // uvc1_readpos_t seginfo_aLILr;
     
     uvc1_readnum_t seginfo_aRI1; // right insert
     uvc1_readnum_t seginfo_aRI2;
-    // uvc1_readpos_t seginfo_aRILf;
-    // uvc1_readpos_t seginfo_aRILr;
     
     uvc1_readnum_t seginfo_aRIf;
     uvc1_readnum_t seginfo_aLIr;
@@ -639,15 +508,7 @@ enum DuplexFormatDepthSet {
 };
 #define NUM_DUPLEX_FORMAT_DEPTH_SETS ((size_t)DUPLEX_FORMAT_TAG_SET_END)
 
-// MIN(A-BQ-syserr-QUAL-bidir (onlyIllumina),
-//     B-MQ-QUAL,
-//     // precursor A-FA-QUAL,
-//     MAX(MIN(B-FA-QUAL (base0 ), B-DPQ-iiderr-QUAL), 
-//         MIN(C-FA-QUAL (base30), C-DPQ-iiderr-QUAL-bidir))
-//         MIN(D-FA-QUAL (base60), D-DPQ-iiderr-QUAL))
 enum VQFormatTagSet {
-    
-    // VQ_a1XM,
     
     VQ_a1BQf,
     VQ_a1BQr,

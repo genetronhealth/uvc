@@ -1,7 +1,8 @@
 #ifndef common_hpp_INCLUDED
 #define common_hpp_INCLUDED
 
-#define ENABLE_XMGOT 0
+#define COMPILATION_ENABLE_XMGOT 0
+#define COMPILATION_TRY_HIGH_DEPTH_POS_BIAS 0
 
 // #include "precompiled/precompiled_main.hpp"
 

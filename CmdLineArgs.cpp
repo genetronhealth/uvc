@@ -335,7 +335,7 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
     ADD_OPTDEF2(app, bias_thres_aLPxT_perc,
         "The threshold --bias_thres_aLPxT_add is increased by thisparam/100 times the average length of nearby InDels. ");
 
-#if ENABLE_XMGOT
+#if COMPILATION_ENABLE_XMGOT
     ADD_OPTDEF2(app, bias_thres_PFXM1T_add,
         "The tier1-threshold of 10x mismatch (XM) below which the estimated 100x number of passing-filter (PF) reads decreases according to the inverse-square law. ");
     ADD_OPTDEF2(app, bias_thres_PFXM2T_add,

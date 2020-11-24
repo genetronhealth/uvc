@@ -1,9 +1,5 @@
 #include "logging.hpp"
 
-#define LOG(level) \
-if (level > Log::ReportingLevel()) ; \
-else Log().Get(level)
-
 // Defined in header: enum TLogLevel{ logCRITICAL ,  logERROR ,  logWARNING ,  logINFO ,  logINFO2,   logDEBUG ,  logDEBUG1 ,  logDEBUG2 ,  logDEBUG3 ,  logDEBUG4 };
 const char *TLogLevelToString[10] = {"logCRITICAL", "logERROR", "logWARNING", "logINFO", "logINFO2", "logDEBUG", "logDEBUG1", "logDEBUG2", "logDEBUG3", "logDEBUG4"};
 

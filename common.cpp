@@ -19,7 +19,7 @@ const std::vector<std::string> ASSAY_TYPE_TO_MSG = {
 const std::vector<std::string> MOLECULE_TAG_TO_MSG = {
     [MOLECULE_TAG_AUTO] = "Automatically infer assay type from the data",
     [MOLECULE_TAG_NONE] = "Molecule is not tagged",
-    [MOLECULE_TAG_BARCODING] = "Molecule is tagged with an unique molecular identifer on one strand as in SAFE-SEQ",
+    [MOLECULE_TAG_BARCODING] = "Molecule is tagged with an unique molecular identifer on one strand as in Safe-SeqS",
     [MOLECULE_TAG_DUPLEX] = "Molecule is tagged with a duplex tag",
 };
 

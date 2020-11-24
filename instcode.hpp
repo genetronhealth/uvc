@@ -7,7 +7,6 @@
 #endif
 
 // this code is instantiated multiple times, with INDELTYPE as instantiation parameter.
-// template <AlignmentSymbol link1, AlignmentSymbol link2, AlignmentSymbol link3p> // , LinkType linkType>
 std::array<uvc1_readnum_t, 2>
 #if INDEL_ID == 1
 fill_by_indel_info2_1
@@ -22,8 +21,6 @@ fill_by_indel_info2_2
         const std::map<uvc1_refgpos_t, std::map<INDELTYPE, uvc1_readnum_t>> & bq_tsum_depth,
         const std::map<uvc1_refgpos_t, std::map<INDELTYPE, uvc1_readnum_t>> & fq_tsum_depth,
         const std::string & refchars IGNORE_UNUSED_PARAM,
-        // const std::string & repeatunit, 
-        // uvc1_readpos_t repeatnum
         const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
     
     assert(isSymbolIns(symbol) || isSymbolDel(symbol));
