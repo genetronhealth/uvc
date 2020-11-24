@@ -1854,7 +1854,6 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
                     if (1 == inslen && !is_multiallelic_ins) { phredvalue += BETWEEN(phredinc - 3, 0, 4); }
                     const uvc1_readnum_t thisdp = (seg_format_prep_sets.getByPos(rpos).segprep_a_at_ins_dp); 
                     const uvc1_readnum_t neardp = (MAX(seg_format_prep_sets.getByPos(rpos).segprep_a_near_ins_dp, seg_format_prep_sets.getByPos(rpos).segprep_a_near_RTR_ins_dp));
-                    const uvc1_readnum_t qfromBQ2_ratiothres = (NOT_PROVIDED == paramset.vcf_tumor_fname ? 2 : 4);
                     uvc1_qual_t insbase_minphred = 80;
                     for (uvc1_refgpos_t qpos2 = qpos; qpos2 < qpos + UNSIGN2SIGN(cigar_oplen); qpos2++) {
                         UPDATE_MIN(insbase_minphred, BAM_PHREDI(aln, qpos2));

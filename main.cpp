@@ -648,10 +648,11 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                             LOG(logDEBUG4) << "gVCFblock at " << refpos << " is indeed found, tumor_gvcf_format == " << tumor_gvcf_format; 
                         } else {
                             tumor_gvcf_format = std::string("\t.:.,.:-1");
+                            LOG(logDEBUG4) << "gVCFblock at " << refpos << " is not found, tkis.size() == " << tkis.size();
                         }
                     } else {
                         tumor_gvcf_format = std::string("\t.:.,.:.");
-                        LOG(logDEBUG4) << "gVCFblock at " << refpos << " is not found, tkis.size() == " << tkis.size();
+                        LOG(logDEBUG4) << "gVCFblock at " << refpos << " is not found at all.";
                     }
                 }
                 buf_out_string_pass += gvcf_blockline + tumor_gvcf_format + "\n";
@@ -970,7 +971,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                                 argmin_nlodq_symbol = normsymbol;
                                 if (paramset.should_add_note) {
                                     fmt.note += std::string("/nlodqDeltaIs/") 
-                                        + other_join(std::array<double, 5> {{ tAD, tDP, nAD, nDP, nlodq_inc }}, "/") + "#" 
+                                        + other_join(std::array<double, 5> {{(double)tAD, (double)tDP, (double)nAD, (double)nDP, (double)nlodq_inc }}, "/") + "#" 
                                         + std::to_string(std::get<0>(nlodq_fmtptr1_fmtptr2_tup)) + "#"
                                         + SYMBOL_TO_DESC_ARR[FIRST(std::get<1>(nlodq_fmtptr1_fmtptr2_tup)->VTI)] + "//"
                                         + SYMBOL_TO_DESC_ARR[LAST(std::get<1>(nlodq_fmtptr1_fmtptr2_tup)->VTI)] + "//"
@@ -1009,7 +1010,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
             } // fmt_tki_tup_vec
         } // end of SYMBOL_TYPE_ARR
     } // zerobased_pos
-
+    
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id  << " starts destroying bam records"; }
     for (auto strand_readset : umi_strand_readset) {
         for (int strand = 0; strand < 2; strand++) {
