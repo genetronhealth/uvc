@@ -47,7 +47,7 @@ fi
 
 export PATH="${scriptdir}:${PATH}" # remove this line in the rare case that an important executable is shadowed by this command
 
-bcftools view --threads $numthreads -i "(vNLODQ[0:0] > ${minNLODQ} && vNLODQ[0:1] > ${minNLODQ}) && (TYPE == 'snps' && QUAL  < ${minSNVqual} || TYPE != 'snps' && QUAL  < ${minNonSNVqual})" "${1}" -Oz -o "${2}.nonorm.vcf.gz"
+bcftools view --threads $numthreads -i "(vNLODQ[0:0] > ${minNLODQ} && vNLODQ[0:1] > ${minNLODQ}) && (TYPE == 'snps' && QUAL  < ${minSNVqual} && vAC[1:0] == 0 || TYPE != 'snps' && QUAL  < ${minNonSNVqual}) && vAC[1:1] == 0" "${1}" -Oz -o "${2}.nonorm.vcf.gz"
 bcftools index --threads $numthreads -ft "${2}.nonorm.vcf.gz"
 bcftools view --threads $numthreads -i "(vNLODQ[0:0] > ${minNLODQ} && vNLODQ[0:1] > ${minNLODQ}) && (TYPE == 'snps' && QUAL >= ${minSNVqual} || TYPE != 'snps' && QUAL >= ${minNonSNVqual})" "${1}" | bcftools norm -m+${3} -Oz -o "${2}.norm.vcf.gz"
 bcftools index --threads $numthreads -ft "${2}.norm.vcf.gz"
