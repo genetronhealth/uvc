@@ -162,6 +162,11 @@ als_to_string(const char *const* const allele, uint32_t n_allele) {
     return ret;
 }
 
+#define BCF_GET_FORMAT_INT32_WITH_CHECK(v) \
+        ndst_val = 0; \
+        valsize = bcf_get_format_int32(bcf_hdr, line, v, &bcfints, &ndst_val); \
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for %s and line %d!\n", ndst_val, valsize, v, line->pos));
+
 const std::map<std::tuple<uvc1_refgpos_t, uvc1_refgpos_t, AlignmentSymbol>, std::vector<TumorKeyInfo>>
 rescue_variants_from_vcf(
         const auto & tid_beg_end_e2e_vec, 
@@ -262,28 +267,7 @@ if (GVCF_SYMBOL != symbol) {
         valsize = bcf_get_format_int32(bcf_hdr, line, "bDPr", &bcfints, &ndst_val);
         assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for bDPr and line %d!\n", ndst_val, valsize, line->pos));
         tki.bDP += bcfints[1];
-
-        ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line, "CDP12f", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for CDP12f and line %d!\n", ndst_val, valsize, line->pos));
-        tki.CDP12 = bcfints[0];
         
-        ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line, "CDP12r", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for CDP12r and line %d!\n", ndst_val, valsize, line->pos));
-        tki.CDP12 += bcfints[0];
-        
-        ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line, "cDP12f", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cDP12f and line %d!\n", ndst_val, valsize, line->pos));
-        tki.cDP12 = bcfints[1];
-        
-        ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line, "cDP12r", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cDP12r and line %d!\n", ndst_val, valsize, line->pos));
-        tki.cDP12 += bcfints[1];
-        
-
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "CDP1x", &bcfints, &ndst_val);
         assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for CDP1x and line %d!\n", ndst_val, valsize, line->pos));
@@ -328,6 +312,29 @@ if (GVCF_SYMBOL != symbol) {
         valsize = bcf_get_format_int32(bcf_hdr, line, "bNMQ", &bcfints, &ndst_val);
         assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for bNMQ and line %d!\n", ndst_val, valsize, line->pos));
         tki.bNMQ = bcfints[1];
+
+        // extra code for backward compatibility
+
+        BCF_GET_FORMAT_INT32_WITH_CHECK("CDP1f");
+        tki.tDP = bcfints[0];
+        BCF_GET_FORMAT_INT32_WITH_CHECK("CDP1r");
+        tki.tDP += bcfints[0];
+        
+        BCF_GET_FORMAT_INT32_WITH_CHECK("cDP1f");
+        tki.tADR = {{ bcfints[0], bcfints[1] }};
+        BCF_GET_FORMAT_INT32_WITH_CHECK("cDP1r");
+        for (int i = 0; i < 2; i++) { tki.tADR[i] += bcfints[i]; }
+        
+        BCF_GET_FORMAT_INT32_WITH_CHECK("CDP2f");
+        tki.tDPC = bcfints[0];
+        BCF_GET_FORMAT_INT32_WITH_CHECK("CDP2r");
+        tki.tDPC += bcfints[0];
+        
+        BCF_GET_FORMAT_INT32_WITH_CHECK("cDP2f");
+        tki.tADCR = {{ bcfints[0], bcfints[1] }};
+        BCF_GET_FORMAT_INT32_WITH_CHECK("cDP2r");
+        for (int i = 0; i < 2; i++) { tki.tADCR[i] += bcfints[i]; }
+        
 }
         tki.pos = line->pos;
         tki.ref_alt = als_to_string(line->d.allele, line->n_allele);
@@ -942,7 +949,10 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                 const bool will_generate_out = (NOT_PROVIDED == paramset.vcf_tumor_fname 
                         ? (paramset.outvar_flag & OUTVAR_ANY)
                         : (tki.ref_alt.size() > 0 && (paramset.outvar_flag & OUTVAR_SOMATIC)));
-                if (will_generate_out) {
+                const bool is_out_blocked = (
+                        ((BASE_NN == symbol) && !(OUTVAR_BASE_NN & paramset.outvar_flag)) 
+                     || ((LINK_NN == symbol) && !(OUTVAR_LINK_NN & paramset.outvar_flag)));
+                if (will_generate_out && !is_out_blocked) {
                     fmt.GT = TT_HETERO[0];
                     nlodq = std::get<0>(nlodq_fmtptr1_fmtptr2_tup);
                     assert ((NOT_PROVIDED == paramset.vcf_tumor_fname) == (0 == tki.ref_alt.size()));
@@ -985,7 +995,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                         }
                         nlodq += nlodq_inc;
                     }
-        
+                    
                     append_vcf_record(
                             buf_out_string_pass,
                             std::get<0>(tname_tseqlen_tuple).c_str(),

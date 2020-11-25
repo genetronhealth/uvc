@@ -4306,12 +4306,19 @@ generate_vcf_header(
     ret += "##INFO=<ID=SomaticQ,Number=A,Type=Float,Description=\"Somatic quality of the variant, the PHRED-scale probability that this variant is not somatic.\">\n";
     ret += "##INFO=<ID=TLODQ,Number=A,Type=Float,Description=\"Tumor log-of-data-likelihood quality, the PHRED-scale probability that this variant is not of biological origin (i.e., artifactual).\">\n";
     ret += "##INFO=<ID=NLODQ,Number=A,Type=Float,Description=\"Normal log-of-data-likelihood quality, the PHRED-scale probability that this variant is of germline origin.\">\n";
-    ret += "##INFO=<ID=NLODV,Number=A,Type=Float,Description=\"The variant symbol that minimizes NLODQ.\">\n";
+    ret += "##INFO=<ID=NLODV,Number=A,Type=String,Description=\"The variant symbol that minimizes NLODQ.\">\n";
 
     ret += "##INFO=<ID=TNBQF,Number=4,Type=Float,Description=\"Binomial reward, power-law reward, systematic-error penalty, and normal-adjusted tumor variant quality computed using deduplicated read fragments.\">\n";
-    ret += "##INFO=<ID=TNBQN,Number=4,Type=Float,Description=\"TNBQF using non-bias-adjusted deduplicated read fragments.\">\n";
-    ret += "##INFO=<ID=TNBQP,Number=1,Type=Float,Description=\"Bias-induced penalty to deduplicated read fragments after comparing tumor bias with normal bias.\">\n";
     ret += "##INFO=<ID=TNCQF,Number=4,Type=Float,Description=\"Binomial reward, power-law reward, systematic-error penalty, and normal-adjusted tumor variant quality computed using consensus families of read fragments.\">\n";
+    
+    ret += "##INFO=<ID=tDP,Number=1,Type=Integer,Description=\"Tumor total deduped depth (deprecated, please see CDP1f and CDP1r).\">\n";
+    ret += "##INFO=<ID=tADR,Number=R,Type=Integer,Description=\"Tumor deduped depth of each allele (deprecated, please see cDP1f and cDP1r).\">\n";
+    ret += "##INFO=<ID=nDP,Number=1,Type=Integer,Description=\"Normal total deduped depth (deprecated, please see CDP1f and CDP1r).\">\n";
+    ret += "##INFO=<ID=nADR,Number=R,Type=Integer,Description=\"Normal deduped depth of each allele (deprecated, please see cDP1f and cDP1r).\">\n";
+    ret += "##INFO=<ID=tDPC,Number=1,Type=Integer,Description=\"Tumor total UMI-barcoded-family depth (deprecated, please see CDP2f and CDP2r).\">\n";
+    ret += "##INFO=<ID=tADCR,Number=R,Type=Integer,Description=\"Tumor UMI-barcoded-family depth of each allele (deprecated, please see cDP2f and cDP2r).\">\n";
+    ret += "##INFO=<ID=tbDP,Number=1,Type=Integer,Description=\"Tumor total non-deduped depth (deprecated, please see BDPf and BDPr).\">\n";
+    
     ret += "##INFO=<ID=RU,Number=1,Type=String,Description=\"The shortest repeating unit in the reference\">\n";
     ret += "##INFO=<ID=RC,Number=1,Type=Integer,Description=\"The number of non-interrupted RUs in the reference\">\n";
     ret += "##INFO=<ID=R3X2,Number=6,Type=Integer,Description=\"Repeat start position, repeat track length, and repeat unit size at the two positions before and after this VCF position.\">\n"; 
@@ -4385,8 +4392,27 @@ fill_tki(auto & tki, const auto & fmt, size_t a = 1) {
     tki.cPCQ2 = fmt.cPCQ2.at(a);
     
     tki.bNMQ = fmt.bNMQ.at(a);
+    
     return 0;
 };
+
+template <bool TIsFmtTumor>
+int 
+fill_conditional_tki(auto & tki, const auto & fmt) {
+    // extra code for backward compatibility
+    if (TIsFmtTumor) {
+        tki.tDP = (fmt.CDP1f[0] + fmt.CDP1r[0]);
+        tki.tADR = {{ fmt.cDP1f[0] + fmt.cDP1r[0], LAST(fmt.cDP1f) + LAST(fmt.cDP1r) }};
+        tki.nDP = 0;
+        tki.nADR = {{ 0 }};
+        tki.tDPC = (fmt.CDP2f[0] + fmt.CDP2r[0]);
+        tki.tADCR = {{ fmt.cDP2f[0] + fmt.cDP2r[0], LAST(fmt.cDP2f) + LAST(fmt.cDP2r) }};
+    } else {
+        tki.nDP = (fmt.CDP1f[0] + fmt.CDP1r[0]);
+        tki.nADR = {{ fmt.cDP1f[0] + fmt.cDP1r[0], LAST(fmt.cDP1f) + LAST(fmt.cDP1r) }};
+    }
+    return TIsFmtTumor;
+}
 
 const auto
 calc_binom_powlaw_syserr_normv_quals(
@@ -4464,6 +4490,9 @@ append_vcf_record(
     const bcfrec::BcfFormat & nfm = (tki.ref_alt.size() > 0 ? fmt : FORMAT_UNCOV);
     if (tki.ref_alt.size() == 0) {
         fill_tki(tki, fmt);
+        fill_conditional_tki<true>(tki, fmt);
+    } else {
+        fill_conditional_tki<false>(tki, fmt);
     }
     const auto regionpos = refpos - region_offset;
     uvc1_refgpos_t vcfpos;
@@ -4578,6 +4607,15 @@ append_vcf_record(
     infostring += std::string(";NLODV=") + SYMBOL_TO_DESC_ARR[argmin_nlodq_symbol];
     infostring += std::string(";TNBQF=") + other_join(b_binom_powlaw_syserr_normv_q4filter);
     infostring += std::string(";TNCQF=") + other_join(c_binom_powlaw_syserr_normv_q4);
+    
+    infostring += std::string(";tDP=") + std::to_string(tki.tDP);
+    infostring += std::string(";tADR=") + other_join(tki.tADR, ",");
+    infostring += std::string(";nDP=") + std::to_string(tki.nDP);
+    infostring += std::string(";nADR=") + other_join(tki.nADR, ",");
+    infostring += std::string(";tDPC=") + std::to_string(tki.tDPC);
+    infostring += std::string(";tADCR=") + other_join(tki.tADCR, ",");
+    infostring += std::string(";tbDP=") + std::to_string(tki.BDP);
+    
     infostring += std::string(";RU=") + repeatunit + ";RC=" + std::to_string(repeatnum);
     // This can be useful for debugging only.
     if ((paramset.debug_note_flag & DEBUG_NOTE_FLAG_BITMASK_BAQ_OFFSETARR)) { 

@@ -304,9 +304,6 @@ struct TumorKeyInfo {
     uvc1_readnum_t BDP = 0;
     uvc1_readnum_t bDP = 0;
     
-    uvc1_readnum_t CDP12 = 0;
-    uvc1_readnum_t cDP12 = 0;
-    
     uvc1_readnum100x_t CDP1x = 0;
     uvc1_readnum100x_t cDP1x = 0;
     uvc1_qual_t cVQ1 = 0;
@@ -319,6 +316,14 @@ struct TumorKeyInfo {
     
     uvc1_qual_t bNMQ = 0;
     bcf1_t *bcf1_record = NULL;
+    
+    uvc1_readnum_t tDP = 0;
+    std::array<uvc1_readnum_t, 2> tADR = {{ 0 }};
+    uvc1_readnum_t nDP = 0;
+    std::array<uvc1_readnum_t, 2> nADR = {{ 0 }};
+    uvc1_readnum_t tDPC = 0;
+    std::array<uvc1_readnum_t, 2> tADCR = {{ 0 }};
+    
     /*
     ~TumorKeyInfo() {
         if (bcf1_record != NULL) {

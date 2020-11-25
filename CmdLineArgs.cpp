@@ -191,11 +191,14 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
     ADD_OPTDEF(app, 
         "--outvar-flag", 
            outvar_flag, 
-        std::string("Output-variant flag in bits specifying which type of variants are in the VCF output. ") +
-        "The " + std::to_string(OUTVAR_GERMLINE) + " bit indicates germline variant. " +
-        "The " + std::to_string(OUTVAR_SOMATIC) + " bit indicates somatic variant. " +
-        "The " + std::to_string(OUTVAR_ANY) + " bit indicates variant of any origin. " +
-        "The " + std::to_string(OUTVAR_GVCF) + " bit indicates symbolic GVCF-like region. ");
+        std::string("Output-variant flag in bits specifying which type of variants are in the VCF output. ")
+        + "The " + std::to_string(OUTVAR_GERMLINE) + " bit indicates germline variant. "
+        + "The " + std::to_string(OUTVAR_SOMATIC) + " bit indicates somatic variant. "
+        + "The " + std::to_string(OUTVAR_ANY) + " bit indicates variant of any origin. "
+        + "The " + std::to_string(OUTVAR_GVCF) + " bit indicates symbolic GVCF-like region. "
+        + "The " + std::to_string(OUTVAR_BASE_NN) + " bit indicates padded deletion at a nucleotide-base position between two adjacent gap positions. "
+        + "The " + std::to_string(OUTVAR_LINK_NN) + " bit indicates padded deletion at a gap position between two adjacent nucleotide-base positions. "
+        );
     app.add_flag(
         "-A,--all-out", 
            should_output_all, 
