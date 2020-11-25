@@ -1264,8 +1264,9 @@ dealwith_segbias(
         const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
     
     const bool is_assay_amplicon = (dflag & 0x4);
+    const bool is_normal_used_to_filter_vars_on_primers = (paramset.tn_is_paired && (0x1 & paramset.tn_flag));
     const bool is_assay_UMI = (dflag & 0x1);
-
+    
     const auto indel_len = UNSIGN2SIGN(indel_len_arg);
     const uvc1_refgpos_t bias_thres_veryhighBQ = paramset.bias_thres_highBQ; // veryhigh overriden by high. TODO: check if it makes sense?
     
@@ -1431,7 +1432,7 @@ dealwith_segbias(
     const bool is_l_nonbiased = (((0 == (aln->core.flag & 0x8)) || (0 == (aln->core.flag & 0x1))) && seg_l_nbases > seg_r_nbases);
     const bool is_r_nonbiased = (((0 == (aln->core.flag & 0x8)) || (0 == (aln->core.flag & 0x1))) && seg_l_nbases < seg_r_nbases);
     // rc : test if the left-side of the insert is biased, and vice versa.
-    const bool is_pos_good_for_bias_calc = ((!is_assay_amplicon) || ((is_far_from_edge && is_unaffected_by_edge))); 
+    const bool is_pos_good_for_bias_calc = ((!is_assay_amplicon) || (!is_normal_used_to_filter_vars_on_primers) || ((is_far_from_edge && is_unaffected_by_edge))); 
     if (isrc) {
         auto dist2iend = frag_l_nbases2;
         if ((dist2iend >= seg_format_thres_set.segthres_aLI1t) && (dist2iend <= seg_format_thres_set.segthres_aLI1T || isGap) 
@@ -3139,7 +3140,6 @@ BcfFormat_symbol_calc_DPv(
     
     const bool is_strong_amplicon = (fmt.APDP[5] * 100 > fmt.APDP[0] * 60);
     const bool is_weak_amplicon = (fmt.APDP[5] * 100 > fmt.APDP[0] * 40);
-    bool is_real_amplicon = false;
     
     const int a = 0;
     const bool is_rescued = (tpfa >= 0);
@@ -3155,8 +3155,8 @@ BcfFormat_symbol_calc_DPv(
     double _counterbias_P_FA = 1e-9;
     double _counterbias_BQ_FA = 1e-9;
     double _dir_bias_div = 1.0;
-    is_real_amplicon = ((NOT_PROVIDED == paramset.vcf_tumor_fname) ? is_strong_amplicon : is_weak_amplicon);
-    if ((is_real_amplicon && (0x2 == (0x2 & paramset.nobias_flag))) || ((!is_real_amplicon) && (0x1 == (0x1 & paramset.nobias_flag)))) {
+    const bool is_real_amplicon1 = ((NOT_PROVIDED == paramset.vcf_tumor_fname) ? is_strong_amplicon : is_weak_amplicon);
+    if ((is_real_amplicon1 && (0x2 == (0x2 & paramset.nobias_flag))) || ((!is_real_amplicon1) && (0x1 == (0x1 & paramset.nobias_flag)))) {
         
         // counter bias : position 23-10 bp and base quality 13
         // not-pos-bias < pos-bias
@@ -3263,7 +3263,7 @@ BcfFormat_symbol_calc_DPv(
             MAX(1, f.aRBL[a]) / (double)MAX(1, f.aBQ2[a]), MAX(1, f.ARBL[0]) / (double)MAX(1, f.ABQ2[0]), ((is_in_indel_read) ? paramset.bias_FA_pseudocount_indel_in_read : 0.5));
     double aLBFA = aLBFAx2[0];
     double aRBFA = aRBFAx2[0];
-    is_real_amplicon = ((NOT_PROVIDED == paramset.vcf_tumor_fname) ? is_weak_amplicon : is_strong_amplicon);
+    const bool is_real_amplicon2 = ((NOT_PROVIDED == paramset.vcf_tumor_fname) ? is_weak_amplicon : is_strong_amplicon);
     
     std::array<double, 2> _aLIFAx2 = {{ 0, 0 }};
     {
@@ -3276,7 +3276,7 @@ BcfFormat_symbol_calc_DPv(
                 aLpd, ALpd, 0.25, 0.5);
         
     }
-    double aLIFA = _aLIFAx2[0] * ((is_real_amplicon) ? (dir_bias_div) : MAX(dir_bias_div, aDPFA / _aLIFAx2[1]));
+    double aLIFA = _aLIFAx2[0] * ((is_real_amplicon2) ? (dir_bias_div) : MAX(dir_bias_div, aDPFA / _aLIFAx2[1]));
     
     std::array<double, 2> _aRIFAx2 = {{ 0, 0 }};
     {
@@ -3288,7 +3288,7 @@ BcfFormat_symbol_calc_DPv(
                 paramset.powlaw_exponent, phred2nat(aIpriorfreq),
                 aRpd, ARpd, 0.25, 0.5);
     }
-    double aRIFA = _aRIFAx2[0] * ((is_real_amplicon) ? (dir_bias_div) : MAX(dir_bias_div, aDPFA / _aRIFAx2[1]));
+    double aRIFA = _aRIFAx2[0] * ((is_real_amplicon2) ? (dir_bias_div) : MAX(dir_bias_div, aDPFA / _aRIFAx2[1]));
     
     const double aSIFA = MAX( 
         (f.aLI1[a] + 0.5) / (f.ALI2[0] + f.aLI1[a] - f.aLI2[a] + 1.0), 
@@ -3386,7 +3386,8 @@ BcfFormat_symbol_calc_DPv(
         BETWEEN(fmt.APLRI[2] / MAX(1, fmt.APLRI[3]) - paramset.microadjust_longfrag_sidelength_min, 0, paramset.microadjust_longfrag_sidelength_max))
         / paramset.microadjust_longfrag_sidelength_zeroMQpenalty;
     
-    const double alt_frac_mut_affected_tpos = fbTB / fbTA; // is low by default
+    const double _alt_frac_mut_affected_tpos = fbTB / fbTA; // is low by default
+    const double alt_frac_mut_affected_tpos = (is_real_amplicon1 ? (0.25 * MIN(_alt_frac_mut_affected_tpos, 0.25) + MAX(0, _alt_frac_mut_affected_tpos - 0.25) * 1.25)  : _alt_frac_mut_affected_tpos);
     const double nonalt_frac_mut_affected_tpos = (fBTB + paramset.contam_any_mul_frac * fbTB - fbTB) / (fBTA + paramset.contam_any_mul_frac * fbTA - fbTA); // is same as alt by default
     const double frac_mut_affected_pos = MAX(paramset.syserr_MQ_NMR_expfrac, 
               paramset.syserr_MQ_NMR_altfrac_coef    * alt_frac_mut_affected_tpos * frag_sidelen_frac
