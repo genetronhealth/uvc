@@ -26,7 +26,7 @@ struct CommandLineArgs {
     uvc1_flag_t outvar_flag = OUTVAR_SOMATIC + OUTVAR_ANY + OUTVAR_GVCF + OUTVAR_BASE_NN;
     bool        should_output_all = false;
     bool        should_output_all_germline = false;
-    double      vqual = (double)15; // 10; set to 20 for less output
+    double      vqual = (double)15; // set to 20 for less output
     
     AssayType assay_type = ASSAY_TYPE_AUTO;
     
@@ -34,8 +34,8 @@ struct CommandLineArgs {
     uvc1_qual_t        fam_thres_highBQ_indel = 13;
     uvc1_readnum_t     fam_thres_dup1add = 2;
     uvc1_readnum100x_t fam_thres_dup1perc = 80;
-    uvc1_readnum_t     fam_thres_dup2add = 3; // + 1; // 3
-    uvc1_readnum100x_t fam_thres_dup2perc = 70; // 85;
+    uvc1_readnum_t     fam_thres_dup2add = 3;
+    uvc1_readnum100x_t fam_thres_dup2perc = 70; // 85 for more consensus specificity
     
 // *** 01. parameters of the names of files, samples, regions, etc.
     
@@ -53,7 +53,7 @@ struct CommandLineArgs {
     uvc1_readpos_t    min_aln_len = 0;
     uvc1_qual_t       min_mapqual = 0; // 40; // from GATK
 
-    uvc1_readnum_t    min_depth_thres = 3; // 4; // 3 is used for germline
+    uvc1_readnum_t    min_depth_thres = 3; // 3 is used for germline, 4 is sufficienty for somatic
     uvc1_readnum_t    min_altdp_thres = 2;
     uvc1_readnum_t    vdp = INT32_MAX;
     uvc1_readnum_t    vad = INT32_MAX;
@@ -68,7 +68,7 @@ struct CommandLineArgs {
     SequencingPlatform inferred_sequencing_platform=sequencing_platform; // NOTE: this is not on command-line
     PairEndMerge pair_end_merge = PAIR_END_MERGE_YES;
     bool              disable_duplex = false;
-    uvc1_readpos_t    primerlen = 23; // https://link.springer.com/chapter/10.1007/978-1-4020-6241-4_5 : 18 - 22 bps
+    uvc1_readpos_t    primerlen = 0; // 23; // https://link.springer.com/chapter/10.1007/978-1-4020-6241-4_5 : 18 - 22 bps
                                 // https://genome.cshlp.org/content/3/3/S30.full.pdf : 18 - 24 bps
     uvc1_readpos_t    central_readlen = 0; // estimate from the data
     uvc1_qual_t       bq_phred_added_misma = 0; // estimate from the data
@@ -87,8 +87,8 @@ struct CommandLineArgs {
     // PCR stutter noise at (di,tri,tetra,...)-nucleotide generates +-(2,3,4...) shift in read end position, 
     // so more accurate dedupping requires us to consider these cases. This constant is good enough for the general case.
     double           dedup_center_mult = 5; 
-    double           dedup_amplicon_count_to_surrcount_ratio = 16; // 20;
-    double           dedup_amplicon_count_to_surrcount_ratio_twosided = 4; // 5; // 6;
+    double           dedup_amplicon_count_to_surrcount_ratio = 16; // can be 20
+    double           dedup_amplicon_count_to_surrcount_ratio_twosided = 4; // can be 5 or 6
     double           dedup_amplicon_end2end_ratio = 1.5;
     
     uvc1_flag_t      dedup_flag = 0x0;
@@ -96,7 +96,7 @@ struct CommandLineArgs {
 // *** 05. parameters related to bias thresholds
     
     uvc1_qual_t      bias_thres_highBQ = 20;
-    uvc1_qual_t      bias_thres_highBAQ = 20; // 23;
+    uvc1_qual_t      bias_thres_highBAQ = 20; // is 20+3 for SNVs
     
     uvc1_readpos_t   bias_thres_aLPxT_add = 5;
     uvc1_readpos_t   bias_thres_aLPxT_perc = 160;
@@ -156,29 +156,29 @@ struct CommandLineArgs {
     
     uvc1_readnum100x_t bias_prior_DPadd_perc = 50;
    
-    double         bias_priorfreq_pos = 40; // numstates2phred(1024*9/2); // 1024*9/2; // set very high to disable position bias, insert-end bias, strand bias, and orientation bias.
-    double         bias_priorfreq_indel_in_read_div = 20; // numstates2phred(32+64);
-    double         bias_priorfreq_indel_in_var_div2 = 15; // numstates2phred(24);
-    double         bias_priorfreq_indel_in_str_div2 = 10; // numstates2phred(8);
-    double         bias_priorfreq_var_in_str_div2 = 5; // numstates2phred(3);
+    double         bias_priorfreq_pos = 40; // set very high to disable position bias, insert-end bias, strand bias, and orientation bias.
+    double         bias_priorfreq_indel_in_read_div = 20;
+    double         bias_priorfreq_indel_in_var_div2 = 15;
+    double         bias_priorfreq_indel_in_str_div2 = 10;
+    double         bias_priorfreq_var_in_str_div2 = 5;
     
     double         bias_prior_var_DP_mul = 1.25 + DBLFLT_EPS;
     
-    uvc1_qual_t    bias_priorfreq_ipos_snv = 60-15; //numstates2phred(1e5); // set very high to disable insert-end bias
-    uvc1_qual_t    bias_priorfreq_ipos_indel = 60-15; // numstates2phred(3e3);
-    uvc1_qual_t    bias_priorfreq_strand_snv_base = 10; // numstates2phred(10); // set very high to disable strand bias
-    uvc1_qual_t    bias_priorfreq_strand_indel = 60-15; // numstates2phred(3e3);
+    uvc1_qual_t    bias_priorfreq_ipos_snv = 60-15; // set very high to disable insert-end bias
+    uvc1_qual_t    bias_priorfreq_ipos_indel = 60-15;
+    uvc1_qual_t    bias_priorfreq_strand_snv_base = 10; // set very high to disable strand bias
+    uvc1_qual_t    bias_priorfreq_strand_indel = 60-15;
     
     double         bias_FA_pseudocount_indel_in_read = 0.5/10.0;
     
-    double         bias_priorfreq_orientation_snv_base = 60-15; // numstates2phred(1e5); // set very high to disable orientation bias
-    double         bias_priorfreq_orientation_indel_base = 60-15; // numstates2phred(1e5); 
+    double         bias_priorfreq_orientation_snv_base = 60-15; // set very high to disable orientation bias
+    double         bias_priorfreq_orientation_indel_base = 60-15;
     double         bias_orientation_counter_avg_end_len = 20;
     
     uvc1_qual_t    bias_FA_powerlaw_noUMI_phred_inc_snv = 5;
     uvc1_qual_t    bias_FA_powerlaw_noUMI_phred_inc_indel = 7; // this is actually the intrinsic lower error rate of indel instead of the one after reduction by bias.
-    uvc1_qual_t    bias_FA_powerlaw_withUMI_phred_inc_snv = 5+3; // +4; // 7+7;
-    uvc1_qual_t    bias_FA_powerlaw_withUMI_phred_inc_indel = 7; // +3; // 7+7;
+    uvc1_qual_t    bias_FA_powerlaw_withUMI_phred_inc_snv = 5+3;
+    uvc1_qual_t    bias_FA_powerlaw_withUMI_phred_inc_indel = 7;
     
     uvc1_flag_t    nobias_flag = 0x2;
     double         nobias_pos_indel_lenfrac_thres = 2.0; // set very low to disable position bias for InDels
@@ -188,8 +188,8 @@ struct CommandLineArgs {
     
     uvc1_readnum_t      fam_thres_emperr_all_flat_snv = 4;
     uvc1_readnum100x_t  fam_thres_emperr_con_perc_snv = 67;
-    uvc1_readnum_t      fam_thres_emperr_all_flat_indel = 4; // 5;
-    uvc1_readnum100x_t  fam_thres_emperr_con_perc_indel = 67; // 75;
+    uvc1_readnum_t      fam_thres_emperr_all_flat_indel = 4; // can be 5
+    uvc1_readnum100x_t  fam_thres_emperr_con_perc_indel = 67; // can be 75
     
     uvc1_readnum_t      fam_min_n_copies = 300 * 3; // 300 DNA copies per nanogram of DNA
     uvc1_readnum100x_t  fam_min_overseq_perc = 250; // percent fold of over-sequencing
@@ -200,7 +200,7 @@ struct CommandLineArgs {
     // uint16_t fam_phred_indel_err_red_by_high_fidelity_pol is 10; // 10 + 13;
     // https://www.nature.com/articles/s41598-018-31064-7 : All libraries included PCR steps totaling 37 cycles. During Step 4, at cycles 21, 23, 25, 27,
     // 14: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3111315/ : Following 25 additional cycles of PCR, There were 19 cycles of PCR 
-    uvc1_qual_t         fam_phred_indel_inc_before_barcode_labeling = 13 + 14; // 10 + 13;
+    uvc1_qual_t         fam_phred_indel_inc_before_barcode_labeling = 13 + 14; // can be 10 + 13
     // https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3616734/ : all major library-prep artifacts
     uvc1_qual_t         fam_phred_sscs_transition_CG_TA = 40; // Cytosine deamination into Uracil, especially in FFPE samples, also by UV light radiation, more upstream
     uvc1_qual_t         fam_phred_sscs_transition_AT_GC = 44; // https://en.wikipedia.org/wiki/DNA_oxidation, DNA synthesis error, more downstream
@@ -222,11 +222,11 @@ struct CommandLineArgs {
     uvc1_deciphred_t    syserr_BQ_sbratio_q_add = 5; // note: this is 10*phred, or equivalently in deciphred
     uvc1_deciphred_t    syserr_BQ_sbratio_q_max = 40;
     uvc1_deciphred_t    syserr_BQ_xmratio_q_add = 5;
-    uvc1_deciphred_t    syserr_BQ_xmratio_q_max = 40; // 30;
+    uvc1_deciphred_t    syserr_BQ_xmratio_q_max = 40;
     uvc1_deciphred_t    syserr_BQ_bmratio_q_add = 5;
     uvc1_deciphred_t    syserr_BQ_bmratio_q_max = 40;
     
-    int                 syserr_BQ_strand_favor_mul = 3; // 40;
+    int                 syserr_BQ_strand_favor_mul = 3;
     
     uvc1_deciphred_t    syserr_minABQ_pcr_snv = 0;   // will be inferred from sequencing platform
     uvc1_deciphred_t    syserr_minABQ_pcr_indel = 0; // will be inferred from sequencing platform
@@ -235,9 +235,8 @@ struct CommandLineArgs {
     
     uvc1_refgpos_t      syserr_mut_region_n_bases = 11;
 
-    uvc1_qual_t         syserr_MQ_min = 0;  //((vqual > syserr_phred_varcall_err_per_map_err_per_base) ? (vqual - syserr_phred_varcall_err_per_map_err_per_base) : 0); 
+    uvc1_qual_t         syserr_MQ_min = 0; 
     uvc1_qual_t         syserr_MQ_max = 60; // from bwa
-    // uvc1_qual_t         syserr_phred_varcall_err_per_map_err_per_base is 10; // this is the max phred probability of varcall error per base per mapping error
     
     double              syserr_MQ_NMR_expfrac = 0.03; // 23/750
     double              syserr_MQ_NMR_altfrac_coef = 2.0; // base and exponent multiplicative factor for the ALT allele
@@ -264,7 +263,7 @@ struct CommandLineArgs {
     
     uvc1_qual_t tn_q_inc_max = 9;
     // PHRED-scaled likelihood that the observed allele fraction additively deviates from the expected allele fraction by a multiplicative factor of 2
-    double      tn_syserr_norm_devqual = 15.0; // (double)(12.5); 
+    double      tn_syserr_norm_devqual = 15.0; // can be (double)(12.5);
     uvc1_flag_t tn_is_paired = false;
     uvc1_flag_t tn_flag = 0x1;
 
@@ -275,7 +274,7 @@ struct CommandLineArgs {
     uvc1_readpos_t      indel_vntr_repeatsize_max = 35;
     double              indel_polymerase_size = 8.0;
     double              indel_polymerase_slip_rate = 8.0;
-    double              indel_del_to_ins_err_ratio = 5.0; // 4.0; // https://www.ncbi.nlm.nih.gov/pmc/articles/PMC149199/ Table 1 homopolymer error
+    double              indel_del_to_ins_err_ratio = 5.0; // https://www.ncbi.nlm.nih.gov/pmc/articles/PMC149199/ Table 1 homopolymer error
     uvc1_readpos_t      indel_adj_tracklen_dist = 6;
     uvc1_readnum100x_t  indel_adj_indellen_perc = 160;
     
@@ -290,7 +289,8 @@ struct CommandLineArgs {
     // According to "A New Lossless DNA Compression Algorithm Based on A Single-Block Encoding Scheme" Table 7 Korea2009024, 
     // there is 2*577/800 bits of info per nucleotide for the human genome.
     uvc1_qual_t         indel_nonSTR_phred_per_base = 5;
-    uvc1_qual_t         indel_str_phred_per_region = 5*2; // 15, set to 10 to allow some correlation, https://genomebiology.biomedcentral.com/articles/10.1186/s13059-018-1505-2
+    // https://genomebiology.biomedcentral.com/articles/10.1186/s13059-018-1505-2
+    uvc1_qual_t         indel_str_phred_per_region = 5*2; // should be 15 but set to 10 to allow some correlation
     
     // https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2734402/#bib41 : powlaw exponent of 1.5-1.6 for mut rate vs indel len.
     // https://pubmed.ncbi.nlm.nih.gov/18641631/ : SNV mutation rate near (up to a few hundred bp) heterozygous InDels are higher than expected.
@@ -298,8 +298,8 @@ struct CommandLineArgs {
 // *** 12. parameters related to contamination
     
     double              contam_any_mul_frac = 0.02; // from the ContEst paper at https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3167057/
-    double              contam_t2n_mul_frac = 0.05; // 0.0625; // from the DeTiN paper at https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6528031/ 
-
+    double              contam_t2n_mul_frac = 0.05; // from the DeTiN paper at https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6528031/ 
+    
 // *** 13. parameters related to micro-adjustment (they do not have any clear theory support)
     int32_t             microadjust_xm = 7;
     uvc1_readpos_t      microadjust_cliplen = 5;
@@ -312,7 +312,7 @@ struct CommandLineArgs {
     uvc1_readpos_t      microadjust_nobias_pos_indel_maxlen = 16;
     uvc1_qual_t         microadjust_nobias_pos_indel_bMQ = 50;
     uvc1_readnum100x_t  microadjust_nobias_pos_indel_perc = 50;
-    double              microadjust_nobias_strand_all_fold = 5; // 20;
+    double              microadjust_nobias_strand_all_fold = 5; // it was reduced from 20
     double              microadjust_refbias_indel_max = 2.0;
     
     uvc1_qual_t         microadjust_fam_binom_qual_halving_thres = 22;

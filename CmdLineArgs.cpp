@@ -27,26 +27,6 @@ replace_underscore_with_hyphen(const std::string astring) {
     return ret;
 }
 
-#if 0
-bool
-is_bitflag_checked(uint32_t bitflag_InDel_penal_t_UMI_n_UMI, bool is_InDel, bool is_penal, bool is_t_UMI, bool is_n_UMI) {
-    uint32_t bitflag_index = 0;
-    if (!is_InDel) {
-        bitflag_index += 8;
-    }
-    if (!is_penal) {
-        bitflag_index += 4;
-    } 
-    if (!is_t_UMI) {
-        bitflag_index += 2;
-    }
-    if (!is_n_UMI) {
-        bitflag_index += 1;
-    }
-    return ((0x1L << bitflag_index) & bitflag_InDel_penal_t_UMI_n_UMI);
-}
-#endif
-
 SequencingPlatform 
 CommandLineArgs::selfUpdateByPlatform() {
     SequencingPlatform inferred_sequencing_platform = this->sequencing_platform;
@@ -100,7 +80,6 @@ CommandLineArgs::selfUpdateByPlatform() {
         syserr_minABQ_cap_snv += 0;
         syserr_minABQ_cap_indel += 0;
         
-        // bias_thres_highBQ -= 4;
         fam_thres_highBQ_snv = 0;
         fam_thres_highBQ_indel = 0;
         bias_thres_PFBQ1 -= 30;
@@ -618,12 +597,6 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
     ADD_OPTDEF2(app, syserr_MQ_nonref_base,
         "The variant quality induced by zero mapping quality. \n");
     
-    /*
-    ADD_OPTDEF(app, 
-        "--syserr-phred-varcall-err-per-map-err-per-base", 
-           syserr_phred_varcall_err_per_map_err_per_base,
-        "The root-mean square mapping quality added by this number is the maximum possible TLOD part of variant quality. "); 
-    */
 // *** 09. parameters related to germline vars 
     
     ADD_OPTDEF2(app, germ_hetero_FA,
@@ -644,6 +617,7 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
         "Phred-scaled prior probability of 1/2 heterozygous germline polymorphism at a genomic position for SNPs (common empirical knowledge). ");
         
 // *** 10. parameters related to tumor-normal-pairs.
+    
     ADD_OPTDEF2(app, tn_q_inc_max,
         "Maximum Phred-scale increase in variant quality by comparing the tumor with its matched normal. Theoretically, it should be Phred-scaled 2 to the power of --powlaw-exponent. ");
     ADD_OPTDEF2(app, tn_syserr_norm_devqual,
@@ -657,6 +631,7 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
     
 // *** 11. parameters related to InDels.
     // https://www.ncbi.nlm.nih.gov/pmc/articles/PMC149199/
+    
     ADD_OPTDEF2(app, indel_BQ_max,
         "For InDels, the maximum base quality of the InDel of one base (PMC4719071). ");
     ADD_OPTDEF2(app, indel_str_repeatsize_max,
@@ -751,6 +726,7 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
         "The maximum increase in mapping quality per 100 bases on each side due to long fragment side length. ");
     
 // *** 14 debugging
+    
     ADD_OPTDEF2(app, debug_note_flag,
         "The flag used for advanced debugging. Please do not activate this option in normal production environments.");
 
@@ -778,7 +754,6 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
             bed_region_fname = bed_in_fname;
         }
         parsing_result_flag = 0;
-        // if (t2n_add_contam_transfrac < (double)FLT_MIN) { t2n_add_contam_transfrac = (double)FLT_MIN; }
     });
     
     CLI11_PARSE(app, argc, argv);

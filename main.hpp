@@ -293,7 +293,7 @@ const char* SYMBOL_TO_DESC_ARR[] = {
     [LINK_D3P] = "<LD3P>", [LINK_D2] = "<LD2>", [LINK_D1] = "<LD1>",
     [LINK_I3P] = "<LI3P>", [LINK_I2] = "<LI2>", [LINK_I1] = "<LI1>",
     [LINK_NN] = "*",
-    [END_ALIGNMENT_SYMBOLS] = "<ALN_SYMBOL_END>",
+    [END_ALIGNMENT_SYMBOLS] = "<NONE>",
     [GVCF_SYMBOL] = "<NON_REF>",
 };
 

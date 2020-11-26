@@ -346,10 +346,10 @@ string2symbolseq(const std::string & instring) {
 
 struct SegFormatPrepSet {
     uvc1_readnum_t segprep_a_dp;
-    uvc1_readnum_t segprep_a_near_ins_dp; // SEG_a_NEAR_INS_DP,
-    uvc1_readnum_t segprep_a_near_del_dp; // SEG_a_NEAR_DEL_DP,
-    uvc1_readnum_t segprep_a_near_RTR_ins_dp; // SEG_a_NEAR_RTR_INS_DP,
-    uvc1_readnum_t segprep_a_near_RTR_del_dp; // SEG_a_NEAR_RTR_DEL_DP,
+    uvc1_readnum_t segprep_a_near_ins_dp;
+    uvc1_readnum_t segprep_a_near_del_dp;
+    uvc1_readnum_t segprep_a_near_RTR_ins_dp;
+    uvc1_readnum_t segprep_a_near_RTR_del_dp;
     
     uvc1_readnum_t segprep_a_pcr_dp;       // depth of PCR amplicons
     uvc1_readnum_t segprep_a_snv_dp;
@@ -358,17 +358,17 @@ struct SegFormatPrepSet {
     
     uvc1_readnum_t segprep_a_near_clip_dp;
     
-    uvc1_readnum_t segprep_a_at_ins_dp; // SEG_a_AT_INS_DP,
-    uvc1_readnum_t segprep_a_at_del_dp; // SEG_a_AT_DEL_DP,
+    uvc1_readnum_t segprep_a_at_ins_dp;
+    uvc1_readnum_t segprep_a_at_del_dp;
 
     uvc1_readnum100x_t segprep_a_XM1500;   // number of mismatches per 1500 bases
     uvc1_readnum100x_t segprep_a_GO1500;   // number of gap openings per 1500 bases
     uvc1_readnum_t segprep_a_qlen;
 
-    uvc1_readpos_t segprep_a_near_ins_pow2len; // SEG_a_NEAR_INS_LEN,
-    uvc1_readpos_t segprep_a_near_del_pow2len; // SEG_a_NEAR_DEL_LEN,
-    uvc1_readnum100x_t segprep_a_near_ins_inv100len; // SEG_a_NEAR_INS_INV100LEN,
-    uvc1_readnum100x_t segprep_a_near_del_inv100len; // SEG_a_NEAR_DEL_INV100LEN,
+    uvc1_readpos_t segprep_a_near_ins_pow2len;
+    uvc1_readpos_t segprep_a_near_del_pow2len;
+    uvc1_readnum100x_t segprep_a_near_ins_inv100len;
+    uvc1_readnum100x_t segprep_a_near_del_inv100len;
 
     uvc1_readpos_t segprep_a_near_ins_l_pow2len;    
     uvc1_readpos_t segprep_a_near_ins_r_pow2len;    
