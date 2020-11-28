@@ -47,7 +47,27 @@ fi
 
 export PATH="${scriptdir}:${PATH}" # remove this line in the rare case that an important executable is shadowed by this command
 
-bcftools view --threads $numthreads -i "(vNLODQ[0:0] > ${minNLODQ} && vNLODQ[0:1] > ${minNLODQ}) && (TYPE == 'snps' && QUAL  < ${minSNVqual} && vAC[1:0] == 0 || TYPE != 'snps' && QUAL  < ${minNonSNVqual}) && vAC[1:1] == 0" "${1}" -Oz -o "${2}.nonorm.vcf.gz"
+vcfnf=$(bcftools view --header-only "${1}" | tail -n1 | awk '{print NF}')
+if [ ${vcfnf} -eq 10 ]; then
+    si=0
+elif [ ${vcfnf} -eq 11 ]; then
+    si=1
+else
+    echo "The input VCF ${1} has ${vcfnf} columns, but only 10 (tumor-only sample) or 11 (tumor and normal samples) are expected!"
+    exit 1
+fi
+
+bcftools view --threads $numthreads -i \
+"(vNLODQ[0:0] > ${minNLODQ} && vNLODQ[0:1] > ${minNLODQ}) 
+&& ((TYPE == 'snps' && QUAL >= ${minSNVqual}) || (TYPE != 'snps' && QUAL >= ${minNonSNVqual}) 
+    || ((cVQ1M[${si}:0] >= cVQ2M[${si}:0]) && (cVQ1M[${si}:0] - cVQ1[${si}:1] == 0)) 
+    || ((cVQ1M[${si}:0] <= cVQ2M[${si}:0]) && (cVQ2M[${si}:0] - cVQ2[${si}:1] == 0))" "${1}" \
+| bcftools norm -m+${3} -Oz -o "${2}"
+bcftools index --threads $numthreads -ft "${2}"
+
+exit 0
+
+bcftools view --threads $numthreads -i "(vNLODQ[0:0] > ${minNLODQ} && vNLODQ[0:1] > ${minNLODQ}) && (TYPE == 'snps' && QUAL  < ${minSNVqual} && vAC[${si}:0] == 0 || TYPE != 'snps' && QUAL  < ${minNonSNVqual}) && vAC[${si}:1] == 0" "${1}" -Oz -o "${2}.nonorm.vcf.gz"
 bcftools index --threads $numthreads -ft "${2}.nonorm.vcf.gz"
 bcftools view --threads $numthreads -i "(vNLODQ[0:0] > ${minNLODQ} && vNLODQ[0:1] > ${minNLODQ}) && (TYPE == 'snps' && QUAL >= ${minSNVqual} || TYPE != 'snps' && QUAL >= ${minNonSNVqual})" "${1}" | bcftools norm -m+${3} -Oz -o "${2}.norm.vcf.gz"
 bcftools index --threads $numthreads -ft "${2}.norm.vcf.gz"

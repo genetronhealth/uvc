@@ -3695,7 +3695,7 @@ BcfFormat_symbol_calc_qual(
     uvc1_qual_t sscs_powlaw_qual_v = round((paramset.powlaw_exponent * numstates2phred(umi_cFA)    + sscs_base_2));
     uvc1_qual_t sscs_powlaw_qual_w = round((paramset.powlaw_exponent * numstates2phred(min_bcFA_w) + sscs_base_2)
             + tn_q_inc_max);
-    
+        
     double dFA = (double)(fmt.dDP2[a] + 0.5) / (double)(fmt.DDP1[0] + 1.0);
     double dSNR = (double)(fmt.dDP2[a] + 0.5) / (double)(fmt.dDP1[0] + 1.0);
     uvc1_qual_big_t dFA_vq_binom = ((uvc1_qual_big_t)paramset.fam_phred_dscs_all - (uvc1_qual_big_t)round(numstates2phred(dSNR / dFA))) 
@@ -3769,10 +3769,9 @@ BcfFormat_symbol_calc_qual(
         
         // assume that first PCR-cycle InDel error rate approx equals to in-vivo error rate over multiple cell generations.
         const double sscs_indel_ic = numstates2phred((double)mathsquare(MAX(indelstring.size() + (isSymbolIns(symbol) ? INS_N_ANCHOR_BASES : 0), 1U)) / (double)(MAX(UNSIGN2SIGN(eff_tracklen1), eff_tracklen2) + 1));
-        
         sscs_powlaw_qual_v += round(sscs_indel_ic);
         sscs_powlaw_qual_w += round(sscs_indel_ic);
-        sscs_binom_qual += round(indel_pq);
+        sscs_binom_qual += round(indel_pq);        
     }
     
     clear_push(fmt.aAaMQ, diffAaMQs);
@@ -3830,9 +3829,15 @@ BcfFormat_symbol_calc_qual(
     // This adjustment makes sure that variant with UMI support is ranked before variant without UMI suppport.
     const std::array<uvc1_qual_t, 10> cysotine_deanim_to_score = {{0,1,1, 1,1,2, 2,2,2, 3}};
     const std::array<uvc1_qual_t, 5> other_to_score = {{0,2,3, 3,4}};
-    const uvc1_qual_t mincVQ2 = (is_cytosine_deanim_CT 
+    uvc1_qual_t mincVQ2 = (is_cytosine_deanim_CT 
         ? cysotine_deanim_to_score[MIN(cDP2, UNSIGN2SIGN(cysotine_deanim_to_score.size()) - 1)] 
         : other_to_score[MIN(cDP2, UNSIGN2SIGN(other_to_score.size()) - 1)]); 
+    
+    if (isSymbolIns(symbol) || isSymbolDel(symbol)) {
+        // NOTE: germ_phred_homalt_snp is correctly used here because it represents the probability that a random genomic position is at the beginning of an STR track
+        const uvc1_qual_t sscs_floor_qual_v = MIN(paramset.germ_phred_homalt_snp + numstates2phred(umi_cFA), fmt.cDP2v[a] * 3 / 100) + (isSymbolIns(symbol) ? INS_N_ANCHOR_BASES : 0) * 3;
+        UPDATE_MAX(mincVQ2, sscs_floor_qual_v);
+    }
     
     const uvc1_qual_big_t dVQinc = MIN(dFA_vq_binom, dFA_vq_powlaw - indel_penal4multialleles) - MAX(0, MIN(LAST(fmt.cIAQ), LAST(fmt.cPLQ2) - indel_penal4multialleles));
     clear_push(fmt.dVQinc, dVQinc, a);

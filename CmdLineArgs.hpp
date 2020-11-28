@@ -200,7 +200,7 @@ struct CommandLineArgs {
     // uint16_t fam_phred_indel_err_red_by_high_fidelity_pol is 10; // 10 + 13;
     // https://www.nature.com/articles/s41598-018-31064-7 : All libraries included PCR steps totaling 37 cycles. During Step 4, at cycles 21, 23, 25, 27,
     // 14: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3111315/ : Following 25 additional cycles of PCR, There were 19 cycles of PCR 
-    uvc1_qual_t         fam_phred_indel_inc_before_barcode_labeling = 13 + 14; // can be 10 + 13
+    uvc1_qual_t         fam_phred_indel_inc_before_barcode_labeling = 14; // can be 13 + 14 or 10 + 13
     // https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3616734/ : all major library-prep artifacts
     uvc1_qual_t         fam_phred_sscs_transition_CG_TA = 40; // Cytosine deamination into Uracil, especially in FFPE samples, also by UV light radiation, more upstream
     uvc1_qual_t         fam_phred_sscs_transition_AT_GC = 44; // https://en.wikipedia.org/wiki/DNA_oxidation, DNA synthesis error, more downstream
