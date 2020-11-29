@@ -539,7 +539,9 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
     ADD_OPTDEF2(app, fam_phred_pow_sscs_snv_origin, 
         "The phred-score that is subtracted from phred-sscs to get the power-law quality adjustment for all other types of SNVs (PMC3437896). ");
     ADD_OPTDEF2(app, fam_phred_pow_sscs_indel_origin, 
-        "The phred-score that is subtracted from phred-sscs to get the power-law quality adjustment for InDels. ");
+        "The phred-score that is subtracted from phred-sscs to get the power-law quality adjustment for InDels. "
+        "Note: somatic expansion/contraction naturally occurs in vivo with a probablity of approximately 0.01 per STR locus per cell generation (pubmed.ncbi.nlm.nih.gov/9111867). "
+        "Hence, STR calls with low UMI-allele-fractions that are not in germline high-confidence regions are not necessarily false positive. ");
     ADD_OPTDEF2(app, fam_phred_pow_dscs_all_origin,
         "The phred-score that is subtracted from phred-dscs to get the power-law quality adjustment (PMC3437896). ");
     
