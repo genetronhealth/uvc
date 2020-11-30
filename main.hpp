@@ -3777,7 +3777,8 @@ BcfFormat_symbol_calc_qual(
         sscs_powlaw_qual_w += round(sscs_indel_ic);
         sscs_binom_qual += round(indel_pq);
         indel_UMI_penal = MIN(
-                non_neg_minus((fmt.BDPf[0] + fmt.BDPr[0] + 1.0) / (double)(fmt.CDP1f[0] + fmt.CDP1r[0] + 1.0) * 9, 40),
+                non_neg_minus((fmt.BDPf[0] + fmt.BDPr[0] + 1.0) / (double)(fmt.CDP1f[0] + fmt.CDP1r[0] + 1.0) * paramset.fam_indel_nonUMI_phred_dec_per_fold_overseq,
+                    (paramset.fam_thres_emperr_all_flat_indel + 1) * paramset.fam_indel_nonUMI_phred_dec_per_fold_overseq),
                 non_neg_minus(fmt.CDP2f[0] + fmt.CDP2r[0], paramset.fam_min_n_copies));
     }
     

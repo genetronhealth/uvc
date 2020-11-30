@@ -194,6 +194,8 @@ struct CommandLineArgs {
     uvc1_readnum_t      fam_min_n_copies = 300 * 3; // 300 DNA copies per nanogram of DNA
     uvc1_readnum100x_t  fam_min_overseq_perc = 250; // percent fold of over-sequencing
     
+    uvc1_readnum100x_t  fam_indel_nonUMI_phred_dec_per_fold_overseq = 9;
+
     // 10: error of 10 PCR cycles using low-fidelity polymerase, https://www.nature.com/articles/s41598-020-63102-8
     // 13: reduction in error by using high-fidelity polymerase for UMI assay, https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3287198/ 
     // https://www.bio-rad.com/webroot/web/pdf/lsr/literature/Bulletin_7076.pdf
