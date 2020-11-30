@@ -3731,6 +3731,8 @@ BcfFormat_symbol_calc_qual(
     uvc1_qual_t indel_penal4multialleles_soma = 0;
     const std::string & indelstring = fmt.gapSa[a];
     
+    uvc1_qual_t indel_UMI_penal = 0;
+    
     if (indelstring.size() > 0 && fmt.cDP0a[a] > 0) {
         const double indel_pq = (double)MIN(indel_phred(paramset.indel_polymerase_slip_rate, 
                 UNSIGN2SIGN(repeatunit.size()), repeatnum), 24) + 2 - (double)10;
@@ -3771,7 +3773,10 @@ BcfFormat_symbol_calc_qual(
         const double sscs_indel_ic = numstates2phred((double)mathsquare(MAX(indelstring.size() + (isSymbolIns(symbol) ? INS_N_ANCHOR_BASES : 0), 1U)) / (double)(MAX(UNSIGN2SIGN(eff_tracklen1), eff_tracklen2) + 1));
         sscs_powlaw_qual_v += round(sscs_indel_ic);
         sscs_powlaw_qual_w += round(sscs_indel_ic);
-        sscs_binom_qual += round(indel_pq);        
+        sscs_binom_qual += round(indel_pq);
+        indel_UMI_penal = MIN(
+                non_neg_minus((fmt.BDPf[0] + fmt.BDPr[0] + 1.0) / (double)(fmt.CDP1f[0] + fmt.CDP1r[0] + 1.0) * 9, 40),
+                non_neg_minus(fmt.CDP2f[0] + fmt.CDP2r[0], paramset.fam_min_n_copies));
     }
     
     clear_push(fmt.aAaMQ, diffAaMQs);
@@ -3824,7 +3829,7 @@ BcfFormat_symbol_calc_qual(
                 MIN(systematicBQVQ, systematicMQVQ),
                 LAST(fmt.bIAQ) - (is_rescued ? 0 : penal4BQerr), 
                 LAST(fmt.cPLQ1)) - indel_penal4multialleles_soma;
-    clear_push(fmt.cVQ1, MAX(0, MIN(bcVQ1, LAST(fmt.bTINQ))), a);
+    clear_push(fmt.cVQ1, MAX(0, MIN(bcVQ1, LAST(fmt.bTINQ)) - indel_UMI_penal), a);
     
     // This adjustment makes sure that variant with UMI support is ranked before variant without UMI suppport.
     const std::array<uvc1_qual_t, 10> cysotine_deanim_to_score = {{0,1,1, 1,1,2, 2,2,2, 3}};
@@ -3835,7 +3840,7 @@ BcfFormat_symbol_calc_qual(
     
     if (isSymbolIns(symbol) || isSymbolDel(symbol)) {
         // NOTE: germ_phred_homalt_snp is correctly used here because it represents the probability that a random genomic position is at the beginning of an STR track
-        const uvc1_qual_t sscs_floor_qual_v = MIN(paramset.germ_phred_homalt_snp + numstates2phred(umi_cFA), fmt.cDP2v[a] * 3 / 100) + (isSymbolIns(symbol) ? INS_N_ANCHOR_BASES : 0) * 3;
+        const uvc1_qual_t sscs_floor_qual_v = MIN(paramset.germ_phred_homalt_indel + numstates2phred(umi_cFA), fmt.cDP2v[a] * 3 / 100) + ((isSymbolIns(symbol) ? INS_N_ANCHOR_BASES : 0) - INS_N_ANCHOR_BASES) * 3;
         UPDATE_MAX(mincVQ2, sscs_floor_qual_v);
     }
     
