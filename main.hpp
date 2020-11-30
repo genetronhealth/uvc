@@ -3770,7 +3770,9 @@ BcfFormat_symbol_calc_qual(
         duped_frag_binom_qual += round(indel_pq);
         
         // assume that first PCR-cycle InDel error rate approx equals to in-vivo error rate over multiple cell generations.
-        const double sscs_indel_ic = numstates2phred((double)mathsquare(MAX(indelstring.size() + (isSymbolIns(symbol) ? INS_N_ANCHOR_BASES : 0), 1U)) / (double)(MAX(UNSIGN2SIGN(eff_tracklen1), eff_tracklen2) + 1));
+        const double sscs_indel_ic = numstates2phred((double)mathsquare(
+                MAX(indelstring.size() + non_neg_minus(INS_N_ANCHOR_BASES * 3, (isSymbolIns(symbol) ? 0 : rtr1.tracklen / MAX(1, rtr1.unitlen))),
+                1U)) / (double)(MAX(UNSIGN2SIGN(eff_tracklen1), eff_tracklen2) + 1));
         sscs_powlaw_qual_v += round(sscs_indel_ic);
         sscs_powlaw_qual_w += round(sscs_indel_ic);
         sscs_binom_qual += round(indel_pq);
