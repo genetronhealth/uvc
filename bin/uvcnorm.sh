@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+DEFAULT_NORM_FLAG="both"
 DEFAULT_NUM_THREADS=4
 DEFAULT_MIN_SNV_QUAL=58.5
 DEFAULT_MIN_NON_SNV_QUAL=49.5
@@ -7,11 +8,11 @@ DEFAULT_MIN_NLODQ=-9999
 
 scriptdir="$(dirname "$(which "$0")")"
 
-if [ $# -lt 3 ]; then
+if [ $# -lt 2 ]; then
     echo "Usage: $0 <input-vcf> <output-vcf> <multiallelic-control> <num-threads> [<min-SNV-QUAL>] [<min-non-SNV-QUAL>] [<min-NLODQ>]"
     echo "    input-vcf: uvc-generated VCF with non-normalized variants. "
     echo "    output-vcf: normalized VCF. "
-    echo "    multiallelic-control: snps|indels|both|any, same as the --multiallelics option in bcftools. "
+    echo "    multiallelic-control: snps|indels|both|any, same as the --multiallelics option in bcftools [${DEFAULT_NORM_FLAG}]. "
     echo "    num-threads: the number of threads to use, same as the --threads option in bcftools [${DEFAULT_NUM_THREADS}]. "
     echo "    min-SNV-qual: the minimum QUAL at each position below which the variant is always not merged [${DEFAULT_MIN_SNV_QUAL}]. "
     echo "    min-non-SNV-qual: the minimum QUAL  at each position below which the variant is always not merged [${DEFAULT_MIN_NON_SNV_QUAL}]. "
@@ -19,6 +20,12 @@ if [ $# -lt 3 ]; then
     echo "        This option can remove tumor SNV/InDel with InDel/SNV in the matched normal at the same position, respectively. "
     echo "        Set to a very negative value to disable this filter [${DEFAULT_MIN_NLODQ}]. "
     exit 1
+fi
+
+if [ -z "${3}" ]; then
+    normflag="${DEFAULT_NORM_FLAG}"
+else
+    normflag="${3}"
 fi
 
 if [ -z "${4}" ]; then
@@ -62,7 +69,7 @@ bcftools view --threads $numthreads -i \
 && ((TYPE == 'snps' && QUAL >= ${minSNVqual}) || (TYPE != 'snps' && QUAL >= ${minNonSNVqual}) 
     || ((cVQ1M[${si}:0] - cVQ2M[${si}:0] >= 0) && (cVQ1M[${si}:0] - cVQ1[${si}:1] == 0)) 
     || ((cVQ1M[${si}:0] - cVQ2M[${si}:0] <  0) && (cVQ2M[${si}:0] - cVQ2[${si}:1] == 0)))" "${1}" \
-| bcftools norm -m+${3} -Oz -o "${2}"
+| bcftools norm -m+${normflag} -Oz -o "${2}"
 bcftools index --threads $numthreads -ft "${2}"
 
 exit 0
