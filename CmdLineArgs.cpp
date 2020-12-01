@@ -370,7 +370,7 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
     ADD_OPTDEF2(app, bias_thres_aLRB1Nt_avgmul_perc,
         "The percent of the tier-1 average BAQ to the left/right segment ends (LRP) below which the read support is not effective "
         "for the matched normal sample. ");
-
+    
     ADD_OPTDEF2(app, bias_thres_aLRI1T_perc,
         "Tier-1 percent coefficient of the average number of bases to the left/right insert ends (LRI), "
             "used for determinating the threshold below which the read support is not effective. ");
@@ -401,8 +401,7 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
     ADD_OPTDEF2(app, bias_thres_PFBQ1,
         "The tier-1 threshold of base quality (BQ) below which "
             "the estimated 100x number of PF (passing filter) reads decreases according to the inverse-square law. ");
-    ADD_OPTDEF2(app,
-           bias_thres_PFBQ2,
+    ADD_OPTDEF2(app, bias_thres_PFBQ2,
         "The tier-2 threshold of base quality (BQ) below which "
             "the estimated 100x number of PF (passing filter) reads decreases according to the inverse-square law. ");
     
@@ -491,7 +490,7 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
     ADD_OPTDEF2(app, fam_thres_highBQ_indel,
         "Threshold of base quality below which the base support is discarded in a barcode family for InDels for the Illumina/BGI platforms. ");
     ADD_OPTDEF2(app, fam_thres_dup1add,
-        "Tier-1 threshold of barcode-family size (10.1073/pnas.1105422108, supermutant). ");
+        "Tier-1 threshold of barcode-family size (PMC3111315, supermutant). ");
     ADD_OPTDEF2(app, fam_thres_dup1perc,
         "Tier-1 threshold of barcode-family percent identity derived from allele consensus. ");
     ADD_OPTDEF2(app, fam_thres_dup2add,
@@ -518,7 +517,7 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
         + REPLACE_UNDERSCORE_WITH_HYPHEN(fam_thres_emperr_all_flat_indel) + " + 1). ");
     
     ADD_OPTDEF2(app, fam_phred_indel_inc_before_barcode_labeling,
-        "PHRED-scaled fraction of InDel errors that occurred before the attachment of UMI single-strand barcodes. ");
+        "PHRED-scaled fraction of InDel errors that occurred before the attachment of UMI single-strand barcodes (PMC3111315). ");
     ADD_OPTDEF2(app, fam_phred_sscs_transition_CG_TA, 
         "Maximum phred score for single-strand consensus sequences (SSCSs) for C > T transition which is mainly caused by cytosine deanimation (PMC3437896). ");
     ADD_OPTDEF2(app, fam_phred_sscs_transition_AT_GC, 
@@ -543,7 +542,7 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
     ADD_OPTDEF2(app, fam_phred_pow_sscs_snv_origin, 
         "The phred-score that is subtracted from phred-sscs to get the power-law quality adjustment for all other types of SNVs (PMC3437896). ");
     ADD_OPTDEF2(app, fam_phred_pow_sscs_indel_origin, 
-        "The phred-score that is subtracted from phred-sscs to get the power-law quality adjustment for InDels. "
+        "The phred-score that is subtracted from phred-sscs to get the power-law quality adjustment for InDels (PMC3287198). "
         "Note: somatic expansion/contraction naturally occurs in vivo with a probablity of approximately 0.001 per STR locus per cell generation "
         "(pubmed.ncbi.nlm.nih.gov/9111867 : 1e-2, PMC5054066 : 1e-5 to 1e-3, PMID 8401493: 1e-3). "
         "Hence, STR calls with low UMI allele-fractions that are not in germline high-confidence regions are not necessarily false positive. ");

@@ -3671,7 +3671,7 @@ BcfFormat_symbol_calc_qual(
     const uvc1_qual_big_t contam_sscs_withmin_qual = (uvc1_qual_big_t)round(calc_binom_10log10_likeratio(t2n_contam_frac, cDP2, CDP2 - cDP2)) + 9 - 3;
     
     uvc1_qual_big_t sscs_binom_qual = int64mul(MAX(sscs_binom_qual_fw, sscs_binom_qual_rv), cIADmincnt) / (cIADnormcnt) - (non_duplex_binom_dec_x10) * cIADmincnt;
-    if (MAX(sscs_binom_qual_fw, sscs_binom_qual_rv) > paramset.microadjust_fam_binom_qual_halving_thres) {
+    if (MAX(sscs_binom_qual_fw, sscs_binom_qual_rv) > paramset.microadjust_fam_binom_qual_halving_thres && isSymbolSubstitution(symbol)) {
         sscs_binom_qual = MIN(sscs_binom_qual, 
                 paramset.microadjust_fam_binom_qual_halving_thres 
                 + (MAX(sscs_binom_qual_fw, sscs_binom_qual_rv) - paramset.microadjust_fam_binom_qual_halving_thres) / 2); // intrinsic bias
@@ -3736,7 +3736,7 @@ BcfFormat_symbol_calc_qual(
     if (indelstring.size() > 0 && fmt.cDP0a[a] > 0) {
         const double indel_pq = (double)MIN(indel_phred(paramset.indel_polymerase_slip_rate, 
                 UNSIGN2SIGN(repeatunit.size()), repeatnum), 24) + 2 - (double)10;
-        const auto eff_tracklen1 = (repeatunit.size() * (size_t)MAX(1, repeatnum) - repeatunit.size());
+        const auto eff_tracklen1 = (UNSIGN2SIGN(repeatunit.size()) * UNSIGN2SIGN(MAX(1, repeatnum)) - UNSIGN2SIGN(repeatunit.size()));
         const auto eff_tracklen2 = (MAX(rtr1.tracklen - rtr1.unitlen, rtr2.tracklen - rtr2.unitlen) / 3);
         const double indel_ic = numstates2phred((double)MAX(indelstring.size() + (isSymbolIns(symbol) ? INS_N_ANCHOR_BASES : 0), (size_t)1) / (double)(MAX(UNSIGN2SIGN(eff_tracklen1), eff_tracklen2) + 1));
         auto indelcdepth = (isSymbolIns(symbol) ? ins_cdepth : del_cdepth);
@@ -3770,16 +3770,13 @@ BcfFormat_symbol_calc_qual(
         duped_frag_binom_qual += round(indel_pq);
         
         // assume that first PCR-cycle InDel error rate approx equals to in-vivo error rate over multiple cell generations.
-        const double sscs_indel_ic = numstates2phred((double)mathsquare(
-                MAX(indelstring.size() + non_neg_minus(INS_N_ANCHOR_BASES * 3, (isSymbolIns(symbol) ? 0 : rtr1.tracklen / MAX(1, rtr1.unitlen))),
-                1U)) / (double)(MAX(UNSIGN2SIGN(eff_tracklen1), eff_tracklen2) + 1));
-        sscs_powlaw_qual_v += round(sscs_indel_ic);
-        sscs_powlaw_qual_w += round(sscs_indel_ic);
-        sscs_binom_qual += round(indel_pq);
-        indel_UMI_penal = MIN(
-                non_neg_minus((fmt.BDPf[0] + fmt.BDPr[0] + 1.0) / (double)(fmt.CDP1f[0] + fmt.CDP1r[0] + 1.0) * paramset.fam_indel_nonUMI_phred_dec_per_fold_overseq,
-                    (paramset.fam_thres_emperr_all_flat_indel + 1) * paramset.fam_indel_nonUMI_phred_dec_per_fold_overseq),
-                non_neg_minus(fmt.CDP2f[0] + fmt.CDP2r[0], paramset.fam_min_n_copies));
+        const double sscs_indel_ic = numstates2phred((double)mathsquare(MAX(indelstring.size(), 1U)) / (double)(MAX(UNSIGN2SIGN(eff_tracklen1), eff_tracklen2) + 1));
+        const uvc1_qual_t extra_reward = non_neg_minus(7*3, 2*(isSymbolIns(symbol) ? 0 : MAX(UNSIGN2SIGN(eff_tracklen1), eff_tracklen2))) - 11;
+        sscs_powlaw_qual_v += round(sscs_indel_ic) + extra_reward;
+        sscs_powlaw_qual_w += round(sscs_indel_ic) + extra_reward;
+        sscs_binom_qual += round(indel_pq) + extra_reward;
+        indel_UMI_penal = non_neg_minus((fmt.BDPf[0] + fmt.BDPr[0] + 1.0) / (double)(fmt.CDP1f[0] + fmt.CDP1r[0] + 1.0) * paramset.fam_indel_nonUMI_phred_dec_per_fold_overseq,
+                (paramset.fam_thres_emperr_all_flat_indel + 1) * paramset.fam_indel_nonUMI_phred_dec_per_fold_overseq);
     }
     
     clear_push(fmt.aAaMQ, diffAaMQs);

@@ -202,7 +202,7 @@ struct CommandLineArgs {
     // uint16_t fam_phred_indel_err_red_by_high_fidelity_pol is 10; // 10 + 13;
     // https://www.nature.com/articles/s41598-018-31064-7 : All libraries included PCR steps totaling 37 cycles. During Step 4, at cycles 21, 23, 25, 27,
     // 14: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3111315/ : Following 25 additional cycles of PCR, There were 19 cycles of PCR 
-    uvc1_qual_t         fam_phred_indel_inc_before_barcode_labeling = 10; // can be 13, 13 + 14, or 10 + 13
+    uvc1_qual_t         fam_phred_indel_inc_before_barcode_labeling = 14; // can be 13, 13 + 14, or 10 + 13
     // https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3616734/ : all major library-prep artifacts
     uvc1_qual_t         fam_phred_sscs_transition_CG_TA = 40; // Cytosine deamination into Uracil, especially in FFPE samples, also by UV light radiation, more upstream
     uvc1_qual_t         fam_phred_sscs_transition_AT_GC = 44; // https://en.wikipedia.org/wiki/DNA_oxidation, DNA synthesis error, more downstream
@@ -214,7 +214,7 @@ struct CommandLineArgs {
     
     uvc1_qual_t         fam_phred_pow_sscs_transversion_AT_TA_origin = 44-41+4; // A:T > T:A somatic mutations are uncommon
     double              fam_phred_pow_sscs_snv_origin = 44 - 41; // 10*log((2.7e-3-3.5e-5)/(1.5e-4-3.5e-5))/log(10)*3 is 41 from https://doi.org/10.1073/pnas.1208715109 PMC3437896
-    double              fam_phred_pow_sscs_indel_origin = fam_phred_sscs_indel_open - fam_phred_indel_inc_before_barcode_labeling * 3;
+    double              fam_phred_pow_sscs_indel_origin = fam_phred_sscs_indel_open - 9 * 3;
     double              fam_phred_pow_dscs_all_origin = 0;
     
 // *** 08. parameters related to systematic errors
