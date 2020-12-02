@@ -3771,7 +3771,11 @@ BcfFormat_symbol_calc_qual(
         
         // assume that first PCR-cycle InDel error rate approx equals to in-vivo error rate over multiple cell generations.
         const double sscs_indel_ic = numstates2phred((double)mathsquare(MAX(indelstring.size(), 1U)) / (double)(MAX(UNSIGN2SIGN(eff_tracklen1), eff_tracklen2) + 1));
-        const uvc1_qual_t extra_reward = non_neg_minus(7*3, 2*(isSymbolIns(symbol) ? 0 : MAX(UNSIGN2SIGN(eff_tracklen1), eff_tracklen2))) - 11;
+        const uvc1_qual_t sscs_ins_vs_del_inc = round(paramset.powlaw_exponent * numstates2phred(paramset.indel_del_to_ins_err_ratio));
+        const uvc1_qual_t extra_reward = non_neg_minus(
+                sscs_ins_vs_del_inc,
+                sscs_indel_ic * (isSymbolIns(symbol) ? 0 : MAX(UNSIGN2SIGN(eff_tracklen1), eff_tracklen2)) / round(paramset.indel_polymerase_size)) 
+            - sscs_ins_vs_del_inc / 2;
         sscs_powlaw_qual_v += round(sscs_indel_ic) + extra_reward;
         sscs_powlaw_qual_w += round(sscs_indel_ic) + extra_reward;
         sscs_binom_qual += round(indel_pq) + extra_reward;
