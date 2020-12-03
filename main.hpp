@@ -3389,7 +3389,7 @@ BcfFormat_symbol_calc_DPv(
         / paramset.microadjust_longfrag_sidelength_zeroMQpenalty;
     
     const double _alt_frac_mut_affected_tpos = fbTB / fbTA; // is low by default
-    const double alt_frac_mut_affected_tpos = (is_real_amplicon1 ? (0.25 * MIN(_alt_frac_mut_affected_tpos, 0.25) + MAX(0, _alt_frac_mut_affected_tpos - 0.25) * 1.25)  : _alt_frac_mut_affected_tpos);
+    const double alt_frac_mut_affected_tpos = (is_real_amplicon1 ? (MAX(0, _alt_frac_mut_affected_tpos - 0.2) * 1.25) : _alt_frac_mut_affected_tpos);
     const double nonalt_frac_mut_affected_tpos = (fBTB + paramset.contam_any_mul_frac * fbTB - fbTB) / (fBTA + paramset.contam_any_mul_frac * fbTA - fbTA); // is same as alt by default
     const double frac_mut_affected_pos = MAX(paramset.syserr_MQ_NMR_expfrac, 
               paramset.syserr_MQ_NMR_altfrac_coef    * alt_frac_mut_affected_tpos * frag_sidelen_frac
