@@ -275,7 +275,7 @@ enum AlignmentSymbol {
     LINK_I1, // = 12, 
     LINK_NN, //  = 13, // padded InDel-noInDel symbol in deleted sequence
     END_ALIGNMENT_SYMBOLS,
-    GVCF_SYMBOL,
+    MGVCF_SYMBOL,
 };
 
 #define NUM_ALIGNMENT_SYMBOLS 14

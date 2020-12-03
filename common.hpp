@@ -42,7 +42,7 @@
 #define OUTVAR_GERMLINE 0x1
 #define OUTVAR_SOMATIC 0x2
 #define OUTVAR_ANY 0x4
-#define OUTVAR_GVCF 0x8
+#define OUTVAR_MGVCF 0x8
 #define OUTVAR_BASE_NN 0x10
 #define OUTVAR_LINK_NN 0x20
 

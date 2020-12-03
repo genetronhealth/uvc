@@ -27,6 +27,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+const uvc1_refgpos_t MGVCF_REGION_MAX_SIZE = 1000;
+
 // T=uvc1_readnum_t for deletion and T=string for insertion
 template <class T>
 uvc1_readnum_t
@@ -294,7 +296,7 @@ const char* SYMBOL_TO_DESC_ARR[] = {
     [LINK_I3P] = "<LI3P>", [LINK_I2] = "<LI2>", [LINK_I1] = "<LI1>",
     [LINK_NN] = "*",
     [END_ALIGNMENT_SYMBOLS] = "<NONE>",
-    [GVCF_SYMBOL] = "<NON_REF>",
+    [MGVCF_SYMBOL] = "<NON_REF>",
 };
 
 template <class T>
@@ -4316,8 +4318,9 @@ generate_vcf_header(
     ret += "##INFO=<ID=ANY_VAR,Number=0,Type=Flag,Description=\"Any type of variant which may be caused by germline polymorphism and/or somatic mutation\">\n";
     ret += "##INFO=<ID=GERMLINE,Number=0,Type=Flag,Description=\"germline variant\">\n";
     ret += "##INFO=<ID=SOMATIC,Number=0,Type=Flag,Description=\"Somatic variant\">\n";
-    ret += "##INFO=<ID=GVCF_BLOCK,Number=0,Type=Flag,Description=\"GVCF-like genomic region block consisting of 1000 consecutive positions.\">\n";
-    
+    ret += "##INFO=<ID=MGVCF_BLOCK,Number=0,Type=Flag,Description=\"Multi-sample GVCF-like genomic regions consisting of " + std::to_string(MGVCF_REGION_MAX_SIZE) + " consecutive positions. " 
+        + "MGVCF is modified from GVCF to allow for easy comparison of sequencing depths of multiple samples at any arbitrary position. "
+        + "More detail is described in FORMAT/POS_VT_BDP_CDP_HomRefQ.\">\n";
     ret += "##INFO=<ID=SomaticQ,Number=A,Type=Float,Description=\"Somatic quality of the variant, the PHRED-scale probability that this variant is not somatic.\">\n";
     ret += "##INFO=<ID=TLODQ,Number=A,Type=Float,Description=\"Tumor log-of-data-likelihood quality, the PHRED-scale probability that this variant is not of biological origin (i.e., artifactual).\">\n";
     ret += "##INFO=<ID=NLODQ,Number=A,Type=Float,Description=\"Normal log-of-data-likelihood quality, the PHRED-scale probability that this variant is of germline origin.\">\n";
@@ -4347,16 +4350,18 @@ generate_vcf_header(
     ret += std::string("") + "##FORMAT=<ID=CDP1,Number=2,Type=Integer,Description=\"CDP1f + CDP1r\">\n";
     ret += std::string("") + "##FORMAT=<ID=cDP1,Number=2,Type=Integer,Description=\"cDP1f + cDP1r\">\n";
 
-    ret += std::string("") + "##FORMAT=<ID=POS_BDP_CDP_HomRefQ_VT,Number=.,Type=Integer,Description=\"Multiple gVCF regions. "
-            "Each region has its offset to VCF POS, minimum duped depth without duplicates kept, minimum deduped depth with duplicates removed, "
-                "likelihood of the homozygous-reference (homref) genotype (GT), and position type. "
+    ret += std::string("") + "##FORMAT=<ID=POS_VT_BDP_CDP_HomRefQ,Number=.,Type=Integer,Description=\"Summary of multiple GVCF regions in a line with INFO/MGVCF. "
+            "Each region has its begin position, type of begin position, minimum duped depth without duplicates kept, minimum deduped depth with duplicates removed, "
+                "and likelihood of the homozygous-reference (homref) genotype (GT) in this region. "
             "Each set of 5 consecutive integers describes one region in this record. "
-            "The position types -1 and -2 mean SNV and InDel positions, respectively. "
+            "The (inclusive) begin position of the current region is the (exclusive) end position of the previous region. "
+            "The position types -1 and -2 mean SNV and InDel sub-positions, respectively. "
+            "Each genomic position (e.g., chr1:99) is divided into one SNV sub-position and one InDel sub-position that is right after the SNV sub-position. "
             "The SNV prior of homref GT is used here. "
             "Thus, the actual InDel likelihood of homref GT is the one shown here plus " 
             + std::to_string(paramset.germ_phred_hetero_indel - paramset.germ_phred_hetero_snp) + ". " +
-            "The last number is the ending position of the block of regions. "
-            "Warning: HomRefQ is computed by a very fast but imprecise algorithm, so it is not as accurate at GQ. \">\n";
+            "The last number is the SNV ending sub-position of the set of regions on this VCF line. "
+            "Warning: HomRefQ is computed by a very fast but imprecise algorithm, so it is not as accurate as GQ. \">\n";
     
     ret += std::string("") + "##phasing=partial\n";
     ret += std::string("") + "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t" 

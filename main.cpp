@@ -19,8 +19,6 @@
 #include "omp.h"
 #endif
 
-const uvc1_refgpos_t GVCF_REGION_MAX_SIZE = 1000;
-
 void 
 xfree(void *ptr) {
     if (NULL != ptr) { free(ptr); }
@@ -224,7 +222,7 @@ rescue_variants_from_vcf(
         bcf1_t *line = bcf_sr_get_line(sr, 0);
         bcf_unpack(line, BCF_UN_ALL);
         
-        // skip over all symbolic alleles except GVCF
+        // skip over all symbolic alleles except MGVCF
         bool should_continue = false;
         for (uint32_t i = 1; i < line->n_allele; i++) {
             if ('<' == line->d.allele[i][0] && (strcmp("<NON_REF>", line->d.allele[i]) || !is_tumor_format_retrieved)) {
@@ -240,15 +238,15 @@ rescue_variants_from_vcf(
         assert((2 == line->n_allele) || !fprintf(stderr, "Bcf line %d has %d alleles!\n", line->pos, line->n_allele));
         const AlignmentSymbol symbol = AlignmentSymbol(bcfints[1]);
         
-        auto symbolpos = ((isSymbolSubstitution(symbol) || GVCF_SYMBOL == symbol) ? (line->pos) : (line->pos + 1));
+        auto symbolpos = ((isSymbolSubstitution(symbol) || MGVCF_SYMBOL == symbol) ? (line->pos) : (line->pos + 1));
         TumorKeyInfo tki;
         tki.VTI = bcfints[1];
 
-if (GVCF_SYMBOL == symbol) {
+if (MGVCF_SYMBOL == symbol) {
         LOG(logINFO) << "gVCFblock with pos " << symbolpos << " was retrieved";
 }
 
-if (GVCF_SYMBOL != symbol) {
+if (MGVCF_SYMBOL != symbol) {
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "BDPf", &bcfints, &ndst_val);
@@ -572,7 +570,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                     symboltype, 
                     refsymbol, 
                     0);
-            if ((paramset.outvar_flag & OUTVAR_GVCF) && ((((refpos + 1) % GVCF_REGION_MAX_SIZE) == 0) 
+            if ((paramset.outvar_flag & OUTVAR_MGVCF) && ((((refpos + 1) % MGVCF_REGION_MAX_SIZE) == 0) 
                     || (refpos == incluBegPosition)) && (SYMBOL_TYPE_ARR[0] == symboltype)) {
                 const auto & frag_format_depth_sets = symbolToCountCoverageSet12.symbol_to_frag_format_depth_sets;
                 const auto & fam_format_depth_sets = symbolToCountCoverageSet12.symbol_to_fam_format_depth_sets_2strand;
@@ -580,8 +578,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                 uvc1_readnum_t prev_tot_bdepth = 0;
                 uvc1_readnum_t prev_tot_cdepth = 0;
                 uvc1_qual_t prev_refQ = 200;
-                std::vector<uvc1_rp_diff_t> posoffset_BDP_CDP_refQ_stype_1dvec;
-                const auto rp2end = MIN(refpos + GVCF_REGION_MAX_SIZE + 1, symbolToCountCoverageSet12.getUnifiedExcluEndPosition());
+                std::vector<uvc1_rp_diff_t> pos_stype_BDP_CDP_refQ_1dvec;
+                const auto rp2end = MIN(refpos + MGVCF_REGION_MAX_SIZE + 1, symbolToCountCoverageSet12.getUnifiedExcluEndPosition());
                 for (uvc1_refgpos_t rp2 = refpos; rp2 < rp2end; rp2++) {
                     for (SymbolType stype : SYMBOL_TYPES_IN_VCF_ORDER) {
                         const uvc1_rp_diff_t refstring_offset = rp2 - extended_inclu_beg_pos;
@@ -618,11 +616,11 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                         if ((incluBegPosition == rp2) || (abs(curr_refQ - prev_refQ) > 10)
                                 || are_depths_diff(curr_tot_bdepth, prev_tot_bdepth, 100 + 30, 3)
                                 || are_depths_diff(curr_tot_cdepth, prev_tot_cdepth, 100 + 30, 3)) {
-                            posoffset_BDP_CDP_refQ_stype_1dvec.push_back(rp2 - refpos);
-                            posoffset_BDP_CDP_refQ_stype_1dvec.push_back(curr_tot_bdepth);
-                            posoffset_BDP_CDP_refQ_stype_1dvec.push_back(curr_tot_cdepth);
-                            posoffset_BDP_CDP_refQ_stype_1dvec.push_back(curr_refQ);
-                            posoffset_BDP_CDP_refQ_stype_1dvec.push_back(-1-(int32_t)stype);
+                            pos_stype_BDP_CDP_refQ_1dvec.push_back(rp2 - ((BASE_SYMBOL == stype) ? (0) : (1)));
+                            pos_stype_BDP_CDP_refQ_1dvec.push_back(-1-(int32_t)stype);
+                            pos_stype_BDP_CDP_refQ_1dvec.push_back(curr_tot_bdepth);
+                            pos_stype_BDP_CDP_refQ_1dvec.push_back(curr_tot_cdepth);
+                            pos_stype_BDP_CDP_refQ_1dvec.push_back(curr_refQ);
                             prev_tot_bdepth = curr_tot_bdepth;
                             prev_tot_cdepth = curr_tot_cdepth;
                             prev_refQ = curr_refQ;
@@ -639,17 +637,17 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                     std::string("<NON_REF>"),
                     std::string("."), 
                     std::string("."), 
-                    std::string("GVCF_BLOCK"),
-                    std::string("GT:VTI:POS_BDP_CDP_HomRefQ_VT"),
-                    std::string(".") + ":" + std::to_string(match_refsymbol) + "," + std::to_string(GVCF_SYMBOL) + ":" 
-                            + other_join(posoffset_BDP_CDP_refQ_stype_1dvec, ",") + "," + std::to_string(rp2end - refpos),
+                    std::string("MGVCF_BLOCK"),
+                    std::string("GT:VTI:POS_VT_BDP_CDP_HomRefQ"),
+                    std::string(".") + ":" + std::to_string(match_refsymbol) + "," + std::to_string(MGVCF_SYMBOL) + ":" 
+                            + other_join(pos_stype_BDP_CDP_refQ_1dvec, ",") + "," + std::to_string(rp2end - refpos),
                 }}, "\t");
                 
                 std::string tumor_gvcf_format = "";
                 if (paramset.is_tumor_format_retrieved && NOT_PROVIDED != paramset.vcf_tumor_fname) { 
-                    const auto tkis_it = tid_pos_symb_to_tkis.find(std::make_tuple(tid, refpos, GVCF_SYMBOL));
+                    const auto tkis_it = tid_pos_symb_to_tkis.find(std::make_tuple(tid, refpos, MGVCF_SYMBOL));
                     if (tkis_it != tid_pos_symb_to_tkis.end()) {
-                        const auto & tkis = tid_pos_symb_to_tkis.find(std::make_tuple(tid, refpos, GVCF_SYMBOL))->second;
+                        const auto & tkis = tid_pos_symb_to_tkis.find(std::make_tuple(tid, refpos, MGVCF_SYMBOL))->second;
                         if (tkis.size() == 1) {
                             tumor_gvcf_format = bcf1_to_string(bcf_hdr, tkis[0].bcf1_record);
                             LOG(logDEBUG4) << "gVCFblock at " << refpos << " is indeed found, tumor_gvcf_format == " << tumor_gvcf_format; 

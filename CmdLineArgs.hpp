@@ -23,7 +23,7 @@ struct CommandLineArgs {
     
     size_t      max_cpu_num = 8;
     
-    uvc1_flag_t outvar_flag = OUTVAR_SOMATIC + OUTVAR_ANY + OUTVAR_GVCF + OUTVAR_BASE_NN;
+    uvc1_flag_t outvar_flag = OUTVAR_SOMATIC + OUTVAR_ANY + OUTVAR_MGVCF + OUTVAR_BASE_NN;
     bool        should_output_all = false;
     bool        should_output_all_germline = false;
     double      vqual = (double)15; // set to 20 for less output
@@ -267,7 +267,7 @@ struct CommandLineArgs {
     // PHRED-scaled likelihood that the observed allele fraction additively deviates from the expected allele fraction by a multiplicative factor of 2
     double      tn_syserr_norm_devqual = 15.0; // can be (double)(12.5);
     uvc1_flag_t tn_is_paired = false;
-    uvc1_flag_t tn_flag = 0x1;
+    uvc1_flag_t tn_flag = 0x0;
 
 // *** 11. parameters related to InDels.
     
