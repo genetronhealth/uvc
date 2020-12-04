@@ -647,16 +647,17 @@ bamfname_to_strand_to_familyuid_to_reads(
         }
         const char *qname = bam_get_qname(aln);
         const uvc1_hash_t qname_hash = strhash(qname);
+        const size_t qname_len = strlen(qname);
         const char *umi_beg1 = strchr(qname,   '#');
-        const char *umi_beg = ((NULL != umi_beg1) ? (umi_beg1 + 1) : (qname + aln->core.l_qname));
+        const char *umi_beg = ((NULL != umi_beg1) ? (umi_beg1 + 1) : (qname + qname_len));
         const char *umi_end1 = strchr(umi_beg, '#');
-        const char *umi_end = ((NULL != umi_end1) ? (umi_end1    ) : (qname + aln->core.l_qname)); 
+        const char *umi_end = ((NULL != umi_end1) ? (umi_end1    ) : (qname + qname_len)); 
        
         int is_umi_found = ((umi_beg + 1 < umi_end) && (MOLECULE_TAG_NONE != paramset.molecule_tag)); // UMI has at least one letter
         int is_duplex_found = 0;
         uvc1_hash_t umihash = 0;
+        const size_t umi_len = umi_end - umi_beg;
         if (is_umi_found) {
-            size_t umi_len = umi_end - umi_beg;
             size_t umi_half = (umi_end - umi_beg - 1) / 2;
             if ((umi_len % 2 == 1 ) && ( '+' == umi_beg[umi_half]) && (!paramset.disable_duplex)) {
                 uvc1_hash_t umihash_part1 = strnhash(umi_beg               , umi_half); // alpha
@@ -791,6 +792,9 @@ bamfname_to_strand_to_familyuid_to_reads(
                     << "barcode_umihash = " << (is_umi_found ? umihash : 0) << " ; "
                     << "molecule_hash = " << molecule_hash << " ; "
                     << "qname_hash = " << qname_hash << " ; "
+                    << "dflag = " << dflag << " ; "
+                    << "UMIstring = " << umi_beg << " ; "
+                    << "UMIsize = " << umi_len << " ; "
                     << "num_qname_from_molecule_so_far = " << umi_to_strand_to_reads[molecule_hash].first[strand].size() << " ; ";
         }
         alnidx += 1;
