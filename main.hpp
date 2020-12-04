@@ -2526,7 +2526,7 @@ struct Symbol2CountCoverageSet {
                     read_family_mmm_ampl.updateByMajorMinusMinor(read_ampBQerr_fragWithR1R2, false); 
                 }
                 if ((0x2 == (alns2pair2dflag.second & 0x2)) && alns2pair[0].size() > 0 && alns2pair[1].size() > 0) { // is duplex
-                    read_duplex_amplicon.template updateByConsensus<false>(read_family_mmm_ampl);
+                    read_duplex_amplicon.template updateByConsensus<false>(read_family_con_ampl);
                 }
                 std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>> pos_symbol_string;
                 for (auto epos = read_family_mmm_ampl.getIncluBegPosition(); 
@@ -3700,11 +3700,12 @@ BcfFormat_symbol_calc_qual(
         
     double dFA = (double)(fmt.dDP2[a] + 0.5) / (double)(fmt.DDP1[0] + 1.0);
     double dSNR = (double)(fmt.dDP2[a] + 0.5) / (double)(fmt.dDP1[0] + 1.0);
-    uvc1_qual_big_t dFA_vq_binom = ((uvc1_qual_big_t)paramset.fam_phred_dscs_all - (uvc1_qual_big_t)round(numstates2phred(dSNR / dFA))) 
+    double dnormFA = dFA * pow(dSNR, 1.0 / paramset.powlaw_exponent);
+    uvc1_qual_big_t dFA_vq_binom = ((uvc1_qual_big_t)paramset.fam_phred_dscs_all - (uvc1_qual_big_t)round(numstates2phred(1.0 / (dnormFA))))
             * (uvc1_qual_big_t)fmt.dDP2[a] * (uvc1_qual_big_t)cIADmincnt / (uvc1_qual_big_t)cIADnormcnt;
     uvc1_qual_t dFA_vq_powlaw = paramset.powlaw_anyvar_base + (paramset.fam_phred_dscs_all - paramset.fam_phred_pow_dscs_all_origin) 
-            + (uvc1_qual_t)round(numstates2phred(dFA * MIN(1.0, (double)((fmt.cDP1v[a]) + 0.5) / (double)(fmt.cDP1f[a] * 100 + fmt.cDP1r[a] * 100))));
-
+            + (uvc1_qual_t)round(numstates2phred((dnormFA) * MIN(1.0, (double)((fmt.cDP1v[a]) + 0.5) / (double)(fmt.CDP1f[0] * 100 + fmt.CDP1r[0] * 100 + 1.0))));
+    
 // This code is supposed to work given highly accurate estimation of InDel error.
 // However, it seems that in practice, the estimation of InDel errors is not sufficiently accurate.
 // Perhaps we can enable this code once an accurate method for estimating InDel errors is found.
@@ -3850,12 +3851,12 @@ BcfFormat_symbol_calc_qual(
         UPDATE_MAX(mincVQ2, sscs_floor_qual_v);
     }
     
-    const uvc1_qual_big_t dVQinc = MIN(dFA_vq_binom, dFA_vq_powlaw - indel_penal4multialleles) - MAX(0, MIN(LAST(fmt.cIAQ), LAST(fmt.cPLQ2) - indel_penal4multialleles));
+    const uvc1_qual_big_t dVQinc = MIN(dFA_vq_binom, dFA_vq_powlaw) - MAX(0, MIN(LAST(fmt.cIAQ), LAST(fmt.cPLQ2)));
     clear_push(fmt.dVQinc, dVQinc, a);
     
     const uvc1_qual_t cVQ2 = MIN3(MIN(systematicBQVQ, systematicMQVQ),
             LAST(fmt.cIAQ) + MAX(0, dVQinc),
-            LAST(fmt.cPLQ2)) - indel_penal4multialleles + MAX(0, dVQinc);
+            LAST(fmt.cPLQ2) + MAX(0, dVQinc)) - indel_penal4multialleles;
     clear_push(fmt.cVQ2, MAX(mincVQ2, MIN(cVQ2, LAST(fmt.cTINQ))), a);
     
     // TODO; check if reducing all allele read count to increase alt allele frac in case of ref bias makes more sense
