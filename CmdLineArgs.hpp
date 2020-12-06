@@ -55,9 +55,13 @@ struct CommandLineArgs {
 
     uvc1_readnum_t    min_depth_thres = 3; // 3 is used for germline, 4 is sufficienty for somatic
     uvc1_readnum_t    min_altdp_thres = 2;
-    uvc1_readnum_t    vdp = INT32_MAX;
-    uvc1_readnum_t    vad = INT32_MAX;
     
+    uvc1_readnum_big_t vdp = 800;
+    uvc1_readnum_t     vad = 3;
+    
+    uvc1_readnum_t     min_r_ad = 0;
+    uvc1_readnum_t     min_a_ad = 0;
+
     bool        should_add_note = false;
     bool        always_log = false;
        
@@ -301,7 +305,7 @@ struct CommandLineArgs {
     
     double              contam_any_mul_frac = 0.02; // from the ContEst paper at https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3167057/
     double              contam_t2n_mul_frac = 0.05; // from the DeTiN paper at https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6528031/ 
-    
+
 // *** 13. parameters related to micro-adjustment (they do not have any clear theory support)
     int32_t             microadjust_xm = 7;
     uvc1_readpos_t      microadjust_cliplen = 5;

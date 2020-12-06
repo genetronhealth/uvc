@@ -4662,8 +4662,11 @@ append_vcf_record(
     }
     vcffilter.pop_back();
     
-    const bool keep_var = (((vcfqual >= paramset.vqual) || (tki.BDP >= paramset.vdp) || (tki.bDP >= paramset.vad)) && (symbol != refsymbol || should_output_ref_allele));
-    if (keep_var) {
+    const bool keep_var = (((vcfqual >= paramset.vqual)
+                || (tki.bDP >= paramset.vad && tki.BDP >= paramset.vdp))
+            && (symbol != refsymbol || (should_output_ref_allele)));
+    const auto min_ad = ((symbol == refsymbol) ? paramset.min_r_ad : paramset.min_a_ad);
+    if (keep_var && tki.bDP >= min_ad) {
         out_string += string_join(std::array<std::string, 9>{{
                 std::string(tname), std::to_string(vcfpos), ".", vcfref, vcfalt, std::to_string(vcfqual), vcffilter, 
                 infostring, bcfrec::FORMAT_STRING_PER_REC}}, "\t") + "\t";

@@ -232,13 +232,23 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
         "Minimum mapping quality below which the alignment is filtered out. ");
     
     ADD_OPTDEF2(app, min_depth_thres, 
-        "Minimum depth of all alleles below which results are fitlered out and therefore not in the output VCF. ");
+        "Minimum total depth below which allele record is not in the -o output VCF. " 
+        "The paramters --all-out and --all-germline-out take precedence over this parameter. ");
     ADD_OPTDEF2(app, min_altdp_thres, 
-        "Minimum depth of ALT below which results are filtered out. ");
+        "Minimum depth of an allele below which allele record is not in the -o output VCF. "
+        "The paramters --all-out and --all-germline-out take precedence over this parameter. ");
+    
     ADD_OPTDEF2(app, vdp,
-        "Every variant at each locus with at least this total depth is always in the -o file. ");
+        "Every variant allele with at least this total depth is always in the -o output VCF if the --vad condition is also satisfied. ");
     ADD_OPTDEF2(app, vad,
-        "Every variant that satisfies this minimum allele depth is always in the -o file. ");
+        "Every variant allele with at least this allele depth is always in the -o output VCF if the --vdp condition is also satisfied. ");
+    
+    ADD_OPTDEF2(app, min_r_ad,
+        "Every reference allele with less than this allele depth is always not in the -o output VCF. "
+        "This paramter takes precedence over the --all-out and --all-germline-out parameters. ");
+    ADD_OPTDEF2(app, min_a_ad,
+        "Every variant allele with less than this allele depth is always not in the -o output VCF. "
+        "This paramter takes precedence over the --all-out and --all-germline-out parameters. ");
     
     ADD_OPTDEF2(app, should_add_note, 
         "Flag indicating if the program generates more detail (can be used for debugging) in the VCF result file. ");
