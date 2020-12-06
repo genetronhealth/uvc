@@ -45,7 +45,6 @@ struct CommandLineArgs {
     
 // *** 02. parameters that control input, output, and logs (driven by computational requirements and resources)
     
-    bool somaticGT = true;
     bool is_tumor_format_retrieved = true;
     
     // https://www.biostars.org/p/110670/

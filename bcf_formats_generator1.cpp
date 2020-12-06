@@ -106,7 +106,7 @@ struct BcfFormatStruct {
 
 // philosophy : record signal instead of noise if possible.
 const std::vector<BcfFormatStruct> FORMAT_VEC = {
-    BcfFormatStruct("GT"    , 1, BCF_STRING,  "Genotype (this is a guess for the GT of tumor cells if --somaticGT was set to true)"),
+    BcfFormatStruct("GT"    , 1, BCF_STRING,  "Genotype (for tumor cells, this is only a guess)"),
     BcfFormatStruct("GQ"    , 1, BCF_INTEGER, "Genotype Quality"),
     BcfFormatStruct("HQ"    , 2, BCF_INTEGER, "Haplotype Quality"),
     BcfFormatStruct("FT"    , 1, BCF_STRING,  "Sample genotype filter indicating if this genotype was 'called' (similar in concept to the FILTER field). "

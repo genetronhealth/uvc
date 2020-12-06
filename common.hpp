@@ -46,6 +46,10 @@
 #define OUTVAR_BASE_NN 0x10
 #define OUTVAR_LINK_NN 0x20
 
+#define OPT_ONLY_PRINT_VCF_HEADER "/only-print-vcf-header/"
+#define PLAT_ILLUMINA_LIKE "Illumina/BGI"
+#define PLAT_ION_LIKE "IonTorrent/LifeTechnologies/ThermoFisher"
+
 #define MAX_INSERT_SIZE 2000 // (1024*2) // https://doi.org/10.2147/AGG.S162531
 #define NORM_INSERT_SIZE(b) { if (abs((b)->core.isize) >= MAX_INSERT_SIZE) { (b)->core.isize = 0; } }
 #define DBLFLT_EPS ((double)FLT_EPSILON)
@@ -114,7 +118,7 @@ enum SequencingPlatform {
 
 extern const std::vector<std::string> SEQUENCING_PLATFORM_TO_MSG;
 
-extern const std::vector<std::string> SEQUENCING_PLATFORM_TO_DESC;
+extern const std::vector<std::string> SEQUENCING_PLATFORM_TO_NAME;
 
 enum PairEndMerge {
     PAIR_END_MERGE_YES,

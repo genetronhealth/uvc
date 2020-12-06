@@ -1049,6 +1049,18 @@ main(int argc, char **argv) {
     CommandLineArgs paramset;
     int parsing_result_flag = -1;
     int parsing_result_ret = paramset.initFromArgCV(parsing_result_flag, argc, argv);
+    if (paramset.bam_input_fname.compare(OPT_ONLY_PRINT_VCF_HEADER) == 0) {
+        std::string header_outstring = generate_vcf_header(
+            argc, 
+            argv, 
+            0, 
+            NULL, 
+            NULL,
+            OPT_ONLY_PRINT_VCF_HEADER,
+            paramset);
+        std::cout << header_outstring << std::endl;
+        return 0;
+    }
     if (parsing_result_ret || parsing_result_flag) {
         return parsing_result_ret; 
     }

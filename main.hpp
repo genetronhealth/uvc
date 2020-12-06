@@ -4303,14 +4303,15 @@ generate_vcf_header(
     }
     ret += "\n";
     ret += std::string("") + "##variantCallerInferredParameters=<" 
-            + "inferred_sequencing_platform=" +  SEQUENCING_PLATFORM_TO_DESC.at(paramset.inferred_sequencing_platform)
+            + "inferred_sequencing_platform=" +  SEQUENCING_PLATFORM_TO_NAME.at(paramset.inferred_sequencing_platform)
             + ",central_readlen=" + std::to_string(paramset.central_readlen) 
             + ">\n";
     ret += std::string("") + "##reference=" + paramset.fasta_ref_fname + "\n";
     for (int i = 0; i < n_targets; i++) {
         ret += std::string("") + "##contig=<ID=" + target_name[i] + ",length=" + std::to_string(target_len[i]) + ">\n";
     }
-    ret += std::string("") + "##ALT=<ID=NON_REF,Description=\"Represents any possible alternative allele at this location, where POS (start position) is one-based inclusive.\">\n";
+    ret += std::string("") + "##ALT=<ID=NON_REF,Description=\"Represents any possible alternative allele at this location, where POS (start position) is one-based inclusive. "
+        + "CAVEAT: this VCF line record is similar to a GVCF block but does not conform to the GVCF specifications.\">\n";
     
     for (size_t i = 0; i < bcfrec::FILTER_NUM; i++) {
         ret += std::string("") + bcfrec::FILTER_LINES[i] + "\n";
@@ -4322,7 +4323,10 @@ generate_vcf_header(
     ret += "##INFO=<ID=MGVCF_BLOCK,Number=0,Type=Flag,Description=\"Multi-sample GVCF-like genomic regions consisting of " + std::to_string(MGVCF_REGION_MAX_SIZE) + " consecutive positions. " 
         + "MGVCF is modified from GVCF to allow for easy comparison of sequencing depths of multiple samples at any arbitrary position. "
         + "More detail is described in FORMAT/POS_VT_BDP_CDP_HomRefQ.\">\n";
-    ret += "##INFO=<ID=SomaticQ,Number=A,Type=Float,Description=\"Somatic quality of the variant, the PHRED-scale probability that this variant is not somatic.\">\n";
+    ret += ("##INFO=<ID=SomaticQ,Number=A,Type=Float,Description=\"Somatic quality of the variant, the PHRED-scale probability that this variant is not somatic. "
+          "CAVEAT: if only tumor bam file is provided, then this quality usually cannot reach 60 even with the help of a very big germline database because "
+          "germline and somatic variants share similar characteristics in the tumor. "
+          "Therefore, a matched normal is absolutely required to confidently determine the germline-vs-somatic origin of a biological variant.\">\n");
     ret += "##INFO=<ID=TLODQ,Number=A,Type=Float,Description=\"Tumor log-of-data-likelihood quality, the PHRED-scale probability that this variant is not of biological origin (i.e., artifactual).\">\n";
     ret += "##INFO=<ID=NLODQ,Number=A,Type=Float,Description=\"Normal log-of-data-likelihood quality, the PHRED-scale probability that this variant is of germline origin.\">\n";
     ret += "##INFO=<ID=NLODV,Number=A,Type=String,Description=\"The variant symbol that minimizes NLODQ.\">\n";
@@ -4362,7 +4366,7 @@ generate_vcf_header(
             "Thus, the actual InDel likelihood of homref GT is the one shown here plus " 
             + std::to_string(paramset.germ_phred_hetero_indel - paramset.germ_phred_hetero_snp) + ". " +
             "The last number is the SNV ending sub-position of the set of regions on this VCF line. "
-            "Warning: HomRefQ is computed by a very fast but imprecise algorithm, so it is not as accurate as GQ. \">\n";
+            "CAVEAT: HomRefQ is computed by a very fast but imprecise algorithm, so it is not as accurate as GQ. \">\n";
     
     ret += std::string("") + "##phasing=partial\n";
     ret += std::string("") + "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t" 
