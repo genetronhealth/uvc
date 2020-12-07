@@ -697,8 +697,8 @@ bamfname_to_strand_to_familyuid_to_reads(
                 end2surrcount = MAX(end2surrcount, end_count);
             }
         }
-        double begfrac = (double)(beg2count + 1 + 2*std::log2(beg2count + beg2surrcount + 1)) / (double)(beg2surrcount + 1 + 2*std::log2(beg2count + beg2surrcount + 1));
-        double endfrac = (double)(end2count + 1 + 2*std::log2(end2count + beg2surrcount + 1)) / (double)(end2surrcount + 1 + 2*std::log2(end2count + beg2surrcount + 1));
+        double begfrac = (double)(beg2count + 1) / (double)(beg2surrcount + 2);
+        double endfrac = (double)(end2count + 1) / (double)(end2surrcount + 2);
         
         const bool is_beg_amplicon = (begfrac > paramset.dedup_amplicon_count_to_surrcount_ratio_twosided);
         const bool is_end_amplicon = (endfrac > paramset.dedup_amplicon_count_to_surrcount_ratio_twosided);
@@ -709,9 +709,7 @@ bamfname_to_strand_to_familyuid_to_reads(
                 || (is_beg_amplicon && is_end_amplicon));
         pcrpassed += is_assay_amplicon;
         
-        //const uint8_t *bam_aux_data = bam_aux_get(aln, "NM");
-        //const unsigned int nm_cnt = ((bam_aux_data != NULL) ? bam_aux2i(bam_aux_data) : 0);
-        // beg end qname UMI misma = 1 2 4 8 16
+        // beg end qname UMI = 1 2 4 8
         // IonTorrent amplicon without UMI: beg + qname
         // IonTorrent capture  without UMI: beg + qname
         // IonTorrent amplicon with    UMI: beg + UMI
@@ -745,7 +743,7 @@ bamfname_to_strand_to_familyuid_to_reads(
             } else if (is_beg_amplicon && is_end_amplicon) {
                 dedup_idflag = 0x7;
             } else {
-                dedup_idflag = 0x3; //  + 0x10;
+                dedup_idflag = 0x3;
             }
         }
         
