@@ -4666,8 +4666,15 @@ append_vcf_record(
     }
     vcffilter.pop_back();
     
+    const auto vad1curr = LAST(fmt.aBQ2);
+    const auto vdp1curr = fmt.ABQ2[0];
+    const auto vad2curr = tki.bDP;
+    const auto vdp2curr = tki.BDP;
+    
     const bool keep_var = (((vcfqual >= paramset.vqual)
-                || (tki.bDP >= paramset.vad && tki.BDP >= paramset.vdp))
+            || ((NOT_PROVIDED == paramset.vcf_tumor_fname) && 
+                    ((vad1curr >= paramset.vad1 && vdp1curr >= paramset.vdp1 && (vdp1curr * paramset.vfa1) <= vad1curr)
+                  || (vad2curr >= paramset.vad2 && vdp2curr >= paramset.vdp2 && (vdp2curr * paramset.vfa2) <= vad2curr))))
             && (symbol != refsymbol || (should_output_ref_allele)));
     const auto min_ad = ((symbol == refsymbol) ? paramset.min_r_ad : paramset.min_a_ad);
     if (keep_var && tki.bDP >= min_ad) {

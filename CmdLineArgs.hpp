@@ -52,11 +52,14 @@ struct CommandLineArgs {
     uvc1_readpos_t    min_aln_len = 0;
     uvc1_qual_t       min_mapqual = 0; // 40; // from GATK
 
-    uvc1_readnum_t    min_depth_thres = 3; // 3 is used for germline, 4 is sufficienty for somatic
     uvc1_readnum_t    min_altdp_thres = 2;
     
-    uvc1_readnum_big_t vdp = 800;
-    uvc1_readnum_t     vad = 3;
+    uvc1_readnum_t     vdp1 = 1000;
+    uvc1_readnum_t     vad1 = 4;
+    double             vfa1 = 0.002;
+    uvc1_readnum_t     vdp2 = 10000;
+    uvc1_readnum_t     vad2 = 8;
+    double             vfa2 = 0.0002;
     
     uvc1_readnum_t     min_r_ad = 0;
     uvc1_readnum_t     min_a_ad = 0;

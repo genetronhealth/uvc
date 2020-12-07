@@ -21,6 +21,8 @@
 #define ADD_OPTDEF(app, k, v, msg) (app.add_option(k, v, msg, true))
 #define ADD_OPTDEF2(app, k, msg) (app.add_option(REPLACE_UNDERSCORE_WITH_HYPHEN(k), k, msg, true))
 
+#define UPDATE_NON_NEG_MINUS(a, b) { (a) = ((a) - MIN((a), (b))); }
+
 const std::string 
 replace_underscore_with_hyphen(const std::string astring) {
     std::string ret = "";
@@ -87,10 +89,10 @@ CommandLineArgs::selfUpdateByPlatform() {
         syserr_minABQ_cap_snv += 0;
         syserr_minABQ_cap_indel += 0;
         
-        fam_thres_highBQ_snv = 0;
-        fam_thres_highBQ_indel = 0;
-        bias_thres_PFBQ1 -= 30;
-        bias_thres_PFBQ2 -= 30;
+        UPDATE_NON_NEG_MINUS(fam_thres_highBQ_snv, 30);
+        UPDATE_NON_NEG_MINUS(fam_thres_highBQ_indel, 30);
+        UPDATE_NON_NEG_MINUS(bias_thres_PFBQ1, 30);
+        UPDATE_NON_NEG_MINUS(bias_thres_PFBQ2, 30);
     }
     if (SEQUENCING_PLATFORM_ILLUMINA == inferred_sequencing_platform && SEQUENCING_PLATFORM_OTHER != this->sequencing_platform) {
         bq_phred_added_indel += 0;
@@ -235,23 +237,30 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
     ADD_OPTDEF2(app, min_mapqual,
         "Minimum mapping quality below which the alignment is filtered out. ");
     
-    ADD_OPTDEF2(app, min_depth_thres, 
-        "Minimum total depth below which allele record is not in the <--output> VCF. " 
-        "The paramters <--all-out> and <--all-germline-out> take precedence over this parameter. ");
     ADD_OPTDEF2(app, min_altdp_thres, 
-        "Minimum depth of an allele below which allele record is not in the <--output> VCF. "
+        "Minimum allele depth of fragments below which allele record is not in the <--output> VCF. "
         "The paramters <--all-out> and <--all-germline-out> take precedence over this parameter. ");
     
-    ADD_OPTDEF2(app, vdp,
-        "Every variant allele with at least this total depth is always in the <--output> VCF if the <--vad> condition is also satisfied. ");
-    ADD_OPTDEF2(app, vad,
-        "Every variant allele with at least this allele depth is always in the <--output> VCF if the <--vdp> condition is also satisfied. ");
+    ADD_OPTDEF2(app, vdp1,
+        "Every variant allele with at least this total depth of highBQ segments is always in the <--output> VCF if the <--vad1> and <--vfa1> conditions are also satisfied. "
+        "This is used to rescue potential variant candidates in regions with high sequencing depth. ");
+    ADD_OPTDEF2(app, vad1,
+        "Every variant allele with at least this allele depth of highBQ segments is always in the <--output> VCF if the <--vdp1> and <--vfa1> conditions are also satisfied. ");
+    ADD_OPTDEF2(app, vfa1,
+        "Every variant allele with at least this allele fraction of highBQ segments is always in the <--output> VCF if the <--vdp1> and <--vad1> conditions are also satisfied. ");
+    ADD_OPTDEF2(app, vdp2,
+        "Every variant allele with at least this total depth of fragments is always in the <--output> VCF if the <--vad2> and <--vfa2> conditions are also satisfied. "
+        "This is used to rescue potential variant candidates in regions with high fragment depth. ");
+    ADD_OPTDEF2(app, vad2,
+        "Every variant allele with at least this allele depth of fragments is always in the <--output> VCF if the <--vdp2> and <--vfa2> conditions are also satisfied. ");
+    ADD_OPTDEF2(app, vfa2,
+        "Every variant allele with at least this allele fraction of fragments is always in the <--output> VCF if the <--vdp2> and <--vad2> conditions are also satisfied. ");
     
     ADD_OPTDEF2(app, min_r_ad,
-        "Every reference allele with less than this allele depth is always not in the <--output> VCF. "
+        "Every reference allele with less than this allele depth of fragments is always not in the <--output> VCF. "
         "This paramter takes precedence over the parameters <--all-out> and <--all-germline-out>. ");
     ADD_OPTDEF2(app, min_a_ad,
-        "Every variant allele with less than this allele depth is always not in the <--output> VCF. "
+        "Every variant allele with less than this allele depth of fragments is always not in the <--output> VCF. "
         "This paramter takes precedence over the parameters <--all-out> and <--all-germline-out>. ");
     
     ADD_OPTDEF2(app, should_add_note, 
@@ -420,10 +429,12 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
     
     ADD_OPTDEF2(app, bias_thres_PFBQ1,
         "The tier-1 threshold of base quality (BQ) below which "
-            "the estimated 100x number of PF (passing filter) reads decreases according to the inverse-square law. ");
+            "the estimated 100x number of PF (passing filter) reads decreases according to the inverse-square law for " PLAT_ILLUMINA_LIKE ". "
+            "For " PLAT_ION_LIKE ", this parameter will be subtracted by 30 before being used. ");
     ADD_OPTDEF2(app, bias_thres_PFBQ2,
         "The tier-2 threshold of base quality (BQ) below which "
-            "the estimated 100x number of PF (passing filter) reads decreases according to the inverse-square law. ");
+            "the estimated 100x number of PF (passing filter) reads decreases according to the inverse-square law for " PLAT_ILLUMINA_LIKE ". "
+            "For " PLAT_ION_LIKE ", this parameter will be subtracted by 30 before being used. ");
     
     ADD_OPTDEF2(app, bias_thres_aXM1T_add,
         "The tier-1-threshold of 10x mismatch (XM) below which the read support is not effective. ");
@@ -506,9 +517,11 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
 // *** 07. parameters related to read families
     
     ADD_OPTDEF2(app, fam_thres_highBQ_snv,
-        "Threshold of base quality below which the base support is discarded in a barcode family for SNVs (PMC6477992, in code). ");
+        "Threshold of base quality below which the base support is discarded in a barcode family for " PLAT_ILLUMINA_LIKE  " (PMC6477992, in code) for SNVs. "
+        "For " PLAT_ION_LIKE ", this paramter will be subtracted by 30 before being used. ");
     ADD_OPTDEF2(app, fam_thres_highBQ_indel,
-        "Threshold of base quality below which the base support is discarded in a barcode family for InDels for " PLAT_ILLUMINA_LIKE ". ");
+        "Threshold of base quality below which the base support is discarded in a barcode family for " PLAT_ILLUMINA_LIKE  " for InDels. "
+        "For " PLAT_ION_LIKE ", this paramter will be subtracted by 30 before being used. ");
     ADD_OPTDEF2(app, fam_thres_dup1add,
         "Tier-1 threshold of barcode-family size (PMC3111315, supermutant). ");
     ADD_OPTDEF2(app, fam_thres_dup1perc,
