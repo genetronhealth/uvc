@@ -1,5 +1,7 @@
 // This code is used for generating a list of positions that may be of variant candidates in BED format. 
 // This code is not actually used for calling somatic variants because the speedup gained from using this bed file is too low.
+// However, this code can still be useful in some scenarios (such as preparing a bed file for calling high-confidence variants in low-coverage bam file).
+// Thus, this source file is kept.
 
 #include <array>
 #include <string>

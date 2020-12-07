@@ -1,21 +1,81 @@
 #ifndef common_hpp_INCLUDED
 #define common_hpp_INCLUDED
 
+#define COMPILATION_ENABLE_XMGOT 0
+#define COMPILATION_TRY_HIGH_DEPTH_POS_BIAS 0
+
+// #include "precompiled/precompiled_main.hpp"
+
 #include <array>
 #include <string>
 #include <vector>
 
-#define NUM_BUCKETS (64+8)
-#define SIGN2UNSIGN(a) ((unsigned int)(a))
+#include <float.h>
+#include <limits.h>
 
-#define VCFQUAL_NUM_BINS 120 // max vcfqual is at 105, so vcfqual that is higher than the max is reserved
-#define RCC_NUM 2
-#define RCC_NFS 6
+#ifdef __GNUC__
+#if __GNUC__ > 3
+#define IGNORE_UNUSED_PARAM __attribute__((unused))
+#else
+#define IGNORE_UNUSED_PARAM // let warning pop up but still compile fine
+#endif
+#else
+#define IGNORE_UNUSED_PARAM 
+#endif
+
+#define SIGN2UNSIGN(x) ((x)) // disabled
+#define UNSIGN2SIGN(x) ((const int64_t)(x))
+
+#define MIN(x, y) (((x) < (y)) ? (x) : (y))
+#define MAX(x, y) (((x) > (y)) ? (x) : (y))
+
+// conversion between Phred, nat, bit, frac, and states
+#define  phred2nat(x) ((log(10.0)/10.0) * (x))
+#define  nat2phred(x) ((10.0/log(10.0)) * (x))
+#define frac2phred(x) (-(10.0/log(10.0)) * log(x))
+#define phred2frac(x) (pow(10.0, (-x)/10.0))
+#define numstates2phred(x) ((10.0/log(10.0)) * log(x))
+#define phred2numstates(x) (pow(10.0, (x)/10.0))
+
+#define numstates2deciphred(x) ((uvc1_qual_t)round((100.0/log(10.0)) * log(x)))
 
 #define OUTVAR_GERMLINE 0x1
 #define OUTVAR_SOMATIC 0x2
 #define OUTVAR_ANY 0x4
-#define OUTVAR_NONREF 0x8
+#define OUTVAR_MGVCF 0x8
+#define OUTVAR_BASE_NN 0x10
+#define OUTVAR_LINK_NN 0x20
+
+#define OPT_ONLY_PRINT_VCF_HEADER "/only-print-vcf-header/"
+#define PLAT_ILLUMINA_LIKE "Illumina/BGI"
+#define PLAT_ION_LIKE "IonTorrent/LifeTechnologies/ThermoFisher"
+
+#define MAX_INSERT_SIZE 2000 // (1024*2) // https://doi.org/10.2147/AGG.S162531
+#define NORM_INSERT_SIZE(b) { if (abs((b)->core.isize) >= MAX_INSERT_SIZE) { (b)->core.isize = 0; } }
+#define DBLFLT_EPS ((double)FLT_EPSILON)
+
+#define INT64MUL(x, y) ((int64_t)(x) * (int64_t)(y))
+
+typedef uint64_t uvc1_unsigned_int_t; // It seems that a bug in g++ causes compiling error if this type is defined as (unsigned int)
+
+typedef int32_t uvc1_qual_t;    // quality (usually Phred-scaled)
+typedef int32_t uvc1_deciphred_t; // 10x Phred
+
+typedef int32_t uvc1_readnum_t; // depth of segment, fragment, family, etc. // max 2 billion reads
+typedef int32_t uvc1_readnum100x_t; // 100x depth of segment, fragment, etc. // max 20 million reads
+typedef int32_t uvc1_readpos_t; // position with respect to the read, fragment, or insert
+typedef int32_t uvc1_refgpos_t; // position with respect to the reference genome
+typedef int32_t uvc1_rp_diff_t;
+
+typedef int32_t uvc1_base_t;
+typedef int32_t uvc1_base1500x_t;
+
+typedef int64_t uvc1_readnum_big_t;
+typedef int64_t uvc1_readpos_big_t;
+typedef int64_t uvc1_qual_big_t; // big qual
+
+typedef uint32_t uvc1_flag_t;
+typedef uint64_t uvc1_hash_t;
 
 enum BiasType {
     BIAS_FRAG_DUP = 1,
@@ -27,17 +87,10 @@ enum BiasType {
     BIAS_SSEG_END = 128,
 };
 
-const std::vector<std::string> BIAS_TYPE_TO_MSG = {
-    "Fragment duplication bias with bitmask " + std::to_string(BIAS_FRAG_DUP),
-    "Fragment position bias with bitmask " + std::to_string(BIAS_FRAG_POS),
-    "Fragment strand bias with bitmask " + std::to_string(BIAS_FRAG_STR),
-    "Fragment mismatch bias with bitmas " + std::to_string(BIAS_FRAG_MIS),
-    "Sequencing-segment position bias with bitmask " + std::to_string(BIAS_SSEG_POS),
-    "Sequencing-segment strand bias with bitmask "  + std::to_string(BIAS_SSEG_STR),
-    "Sequencing-segment two-sided position bias with bitmask "  + std::to_string(BIAS_SSEG_END)
-};
+extern const std::vector<std::string> BIAS_TYPE_TO_MSG;
 
-const char *const NOT_PROVIDED = "";
+// const char *const NOT_PROVIDED = "";
+#define NOT_PROVIDED ("")
 
 enum AssayType {
     ASSAY_TYPE_AUTO,
@@ -45,11 +98,7 @@ enum AssayType {
     ASSAY_TYPE_AMPLICON,
 };
 
-const std::vector<std::string> ASSAY_TYPE_TO_MSG = {
-    [ASSAY_TYPE_AUTO] = "Automatically infer assay type from the data",
-    [ASSAY_TYPE_CAPTURE] = "Data is generatd from a capture-based assay",
-    [ASSAY_TYPE_AMPLICON] = "Data is generated from an amplicon-based assay", 
-};
+extern const std::vector<std::string> ASSAY_TYPE_TO_MSG;
 
 enum MoleculeTag {
     MOLECULE_TAG_AUTO,
@@ -58,12 +107,7 @@ enum MoleculeTag {
     MOLECULE_TAG_DUPLEX,
 };
 
-const std::vector<std::string> MOLECULE_TAG_TO_MSG = {
-    [MOLECULE_TAG_AUTO] = "Automatically infer assay type from the data",
-    [MOLECULE_TAG_NONE] = "Molecule is not tagged",
-    [MOLECULE_TAG_BARCODING] = "Molecule is tagged with an unique molecular identifer on one strand as in SAFE-SEQ", 
-    [MOLECULE_TAG_DUPLEX] = "Molecule is tagged with a duplex tag",
-};
+extern const std::vector<std::string> MOLECULE_TAG_TO_MSG;
 
 enum SequencingPlatform {
     SEQUENCING_PLATFORM_AUTO,
@@ -72,39 +116,26 @@ enum SequencingPlatform {
     SEQUENCING_PLATFORM_OTHER,
 };
 
-const std::vector<std::string> SEQUENCING_PLATFORM_TO_MSG = {
-    [SEQUENCING_PLATFORM_AUTO] = "Automatically infer assay type from the data",
-    [SEQUENCING_PLATFORM_ILLUMINA] = "Illumina sequencing platform (compatible with BGI)",
-    [SEQUENCING_PLATFORM_IONTORRENT] = "IonTorrent sequencing platform by Life Technologies",
-    [SEQUENCING_PLATFORM_OTHER] = "Other sequencing platform (for example, Nanopore)",
-};
+extern const std::vector<std::string> SEQUENCING_PLATFORM_TO_MSG;
 
-const std::vector<std::string> SEQUENCING_PLATFORM_TO_DESC = {
-    [SEQUENCING_PLATFORM_AUTO] = "AUTO",
-    [SEQUENCING_PLATFORM_ILLUMINA] = "ILLUMINA/BGI",
-    [SEQUENCING_PLATFORM_IONTORRENT] = "IONTORRENT/LifeTechnologies",
-    [SEQUENCING_PLATFORM_OTHER] = "OTHER",
-};
+extern const std::vector<std::string> SEQUENCING_PLATFORM_TO_NAME;
 
 enum PairEndMerge {
     PAIR_END_MERGE_YES,
     PAIR_END_MERGE_NO,
 };
 
-const std::vector<std::string> PAIR_END_MERGE_TO_MSG = {
-    [PAIR_END_MERGE_YES] = "paired-end sequenced segments are merged",
-    [PAIR_END_MERGE_NO]  = "paired-end sequenced segments are not merged",
-};
+extern const std::vector<std::string> PAIR_END_MERGE_TO_MSG;
 
+extern const std::array<std::string, 2> GT_HETERO;
+extern const std::array<std::string, 2> GT_HOMREF;
+extern const std::array<std::string, 2> GT_HOMALT;
 
-const std::array<std::string, 2> GT_HETERO = {{"0/1", "0/."}};
-const std::array<std::string, 2> GT_HOMREF = {{"0/0", "0/0"}};
-const std::array<std::string, 2> GT_HOMALT = {{"1/1", "./."}};
+extern const std::array<std::string, 2> TT_HETERO;
+extern const std::array<std::string, 2> TT_HOMREF;
+extern const std::array<std::string, 2> TT_HOMALT;
 
-const std::array<std::string, 2> TT_HETERO = {{"./1", "1/."}};
-const std::array<std::string, 2> TT_HOMREF = {{"./1", "1/."}};
-const std::array<std::string, 2> TT_HOMALT = {{"1/1", "1/."}};
-
+/*
 struct TnDP4 {
     unsigned int nvars= 0;
     unsigned int tuAD = 0;
@@ -181,13 +212,19 @@ struct VcStats {
         return 0;
     }
 };
-
+*/
 // region_pos32_unitlen8_repeatnum16_qual8_vec
 struct RegionalTandemRepeat {
-    uint32_t begpos = 0;
-    uint16_t tracklen = 0;
-    uint8_t unitlen = 0;
-    uint8_t indelphred = 40;
+    uvc1_refgpos_t begpos = 0;
+    uvc1_readpos_t tracklen = 0;
+    uvc1_readpos_t unitlen = 0;
+
+    uvc1_qual_t indelphred = 40 + 3;
+
+    uvc1_refgpos_t anyTR_begpos = 0;
+    uvc1_readpos_t anyTR_tracklen = 0;
+    uvc1_readpos_t anyTR_unitlen = 0;
+    
     // uint8_t edgeBAQ;
 };
 
@@ -209,10 +246,12 @@ enum ErrorCorrectionType {
     END_ERROR_CORRECTION_TYPES
 };
 */
-
+/*
 bool ispowerof2(auto num) {
     return (num & (num-1)) == 0;
 }
+*/
+#define ispowerof2(num) (((num) & ((num)-1)) == 0)
 
 #endif
 

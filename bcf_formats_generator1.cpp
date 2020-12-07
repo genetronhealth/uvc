@@ -24,7 +24,7 @@ enum BCF_DATA_TYPE {
 
 const char * CPP_DATA_STRING[] = {
     "std::string",
-    "uint32_t",
+    "int32_t", // "uint32_t",
     "int32_t",
     "float",
     "bool",
@@ -62,8 +62,6 @@ const std::string vcf_number_to_header_str(int num) {
 const std::vector<std::pair<std::string, std::string>> FILTER_VEC = {
     std::make_pair("noVar",         "Not a variant (for example, when REF and ALT are the same), but still included to get all statistics."),
     std::make_pair("upstreamDel",   "Deletion extended from another upstream deletion"),
-    std::make_pair("cad3",          "Less than 3 clean deduppd reads"),
-    std::make_pair("caf3",          "Less than 3/10000 allele fraction base on clean deduped reads"),
     std::make_pair("s50",           "Less than 50\% of samples have data"),
     std::make_pair("Q10",           "Quality below 10 and no other filters"),
     std::make_pair("Q20",           "Quality below 20 and no other filters"),
@@ -71,26 +69,26 @@ const std::vector<std::pair<std::string, std::string>> FILTER_VEC = {
     std::make_pair("Q40",           "Quality below 40 and no other filters"),
     std::make_pair("Q50",           "Quality below 50 and no other filters"),
     std::make_pair("Q60",           "Quality below 60 and no other filters"),
-    std::make_pair("GPBL1",         "For FORMAT/FT: Haplotype position bias on the left  mapping coordinate for raw reads with unmerged R1 and R2 ends"),
-    std::make_pair("GPBR1",         "For FORMAT/FT: Haplotype position bias on the right mapping coordinate for raw reads with unmerged R1 and R2 ends"),
-    std::make_pair("GPBLR1",        "For FORMAT/FT: Haplotype position bias on left and right mapping coordinates for raw reads with unmerged R1 and R2 ends"),
-    std::make_pair("GPBL2",         "For FORMAT/FT: Diplotype position bias on the left  mapping coordinate for raw reads with unmerged R1 and R2 ends"),
-    std::make_pair("GPBR2",         "For FORMAT/FT: Diplotype position bias on the right mapping coordinate for raw reads with unmerged R1 and R2 ends"),
-    std::make_pair("GPBLR2",        "For FORMAT/FT: Diplotype position bias on left and right mapping coordinates for raw reads with unmerged R1 and R2 ends"),
-    std::make_pair("DB1",           "For FORMAT/FTS: Deduplication bias for duped base reads, meaning a high portion of variant evidence is from singleton families"),
-    std::make_pair("DB2",           "For FORMAT/FTS: Deduplication bias for deduped consensus families, meaning a high portion of variant evidence is from singleton families"),
-    std::make_pair("MB1",           "For FORMAT/FTS: Mismatch bias for duped base reads, meaning reads supporting the ALT allele have many more mismatches than reads supporting other alleles."),
-    std::make_pair("MB2",           "For FORMAT/FTS: Mismatch bias for deduped consensus families, meaning families supporting the ALT allele have many more mismatches than families supporting other alleles."),
-    std::make_pair("PB1L",          "For FORMAT/FTS: Position bias on the left  mappping coordinate for duped base reads"),
-    std::make_pair("PB1R",          "For FORMAT/FTS: Position bias on the right mappping coordinate for duped base reads"),
-    std::make_pair("PB2L",          "For FORMAT/FTS: Position bias on the left  mappping coordinate for deduped consensus families"),
-    std::make_pair("PB2R",          "For FORMAT/FTS: Position bias on the right mappping coordinate for deduped consensus families"),
-    std::make_pair("SB1",           "For FORMAT/FTS: Strand bias for duped base reads"),
-    std::make_pair("SB2",           "For FORMAT/FTS: Strand bias for deduped consensus families"),
-    std::make_pair("QTD1",          "For FORMAT/FTS: Quality-threshold difference for duped base reads, meaning variant evidence is from outlier reads"),
-    std::make_pair("QTD2",          "For FORMAT/FTS: Quality-threshold difference for deduped consensus families, meaning variant evidence is from outlier families"), 
-    std::make_pair("DBthis",        "For FORMAT/FTS: Allele-fraction-based deduplication bias for this ALT allele, meaning variant evidence is from abnormally small families"),
-    std::make_pair("DBrest",        "For FORMAT/FTS: Allele-fraction-based deduplication bias for the non-ALT alelles, meaning variant evidence is from abnormally large families")
+    
+    std::make_pair("ASI",           "For FORMAT/FTS: Stranded insert bias, meaning the most-supported strand has abnormal insert size."),
+    std::make_pair("AXMB",          "For FORMAT/FTS: Absolute mismatch bias, meaning the variant is suppported by reads with a high number of mismatches"),
+    std::make_pair("ABQB",          "For FORMAT/FTS: Absolute base-quality (BQ) bias, meaning the variant is suppported by reads with low base qualities at the variant site"),
+
+    std::make_pair("PFB",           "For FORMAT/FTS: Passing-filter bias, meaning the variant allele is supported by reads with low base qualities at the variant site and/or with high number of mismatches relative to all alleles."),
+    
+    std::make_pair("DB1",           "For FORMAT/FTS: Deduplication bias for the under-amplification of variant reads, meaning the variant is under-amplified by PCR relative to all alleles"),
+    std::make_pair("DB2",           "For FORMAT/FTS: Deduplication bias for the over-amplification of variant reads, meaning the variant is over-amplified by PCR relative to all alleles"),
+    
+    std::make_pair("BB1L",          "For FORMAT/FTS: Alignment bias on the left mappping coordinate of the sequenced segment relative to all alleles."),
+    std::make_pair("BB1R",          "For FORMAT/FTS: Alignment bias on the right mappping coordinate of the sequenced segment relative to all alleles."),
+    std::make_pair("PB1L",          "For FORMAT/FTS: Position bias on the left mappping coordinate of the sequenced segment relative to all alleles."),
+    std::make_pair("PB1R",          "For FORMAT/FTS: Position bias on the right mappping coordinate of the sequenced segment relative to all alleles."),
+    std::make_pair("PB2L",          "For FORMAT/FTS: Position bias on the left mapping coordinate of the insert relative to all alleles."),
+    std::make_pair("PB2R",          "For FORMAT/FTS: Position bias on the right mapping coordinate of the insert relative to all alleles"),
+    
+    std::make_pair("SB1",           "For FORMAT/FTS: Strand bias relative to all alleles"),
+    std::make_pair("ROB1",          "For FORMAT/FTS: Read-orientation bias using deduplicated reads families passing the base-quality threshold for generating barcode families relative to all alleles"),
+    std::make_pair("ROB2",          "For FORMAT/FTS: Read-orientation bias using tier-2 barcode families relative to all alleles"),
 };
 
 struct BcfFormatStruct {
@@ -106,212 +104,342 @@ struct BcfFormatStruct {
     }
 };
 
+// philosophy : record signal instead of noise if possible.
 const std::vector<BcfFormatStruct> FORMAT_VEC = {
-    BcfFormatStruct("GT"       , 1, BCF_STRING,  "Genotype (this is a guess for the GT of tumor cells if --somaticGT was set to true)"),
-    BcfFormatStruct("GQ"       , 1, BCF_INTEGER, "Genotype Quality"),
-    BcfFormatStruct("HQ"       , 2, BCF_INTEGER, "Haplotype Quality"),
-    BcfFormatStruct("DP"       , 1, BCF_INTEGER, "Fragment depth supporting any allele [consensus family, deduped]"),
-    BcfFormatStruct("FA"       , 1, BCF_FLOAT,   "Frequency of the ALT allele [consensus family, deduped]"),
-    BcfFormatStruct("FR"       , 1, BCF_FLOAT,   "Frequency of the REF allele [consensus family, deduped]"),
-    BcfFormatStruct("BQ"       , 1, BCF_INTEGER, "Root mean square (RMS) base quality of the ALT [base read, duped]"), 
-    BcfFormatStruct("MQ"       , 1, BCF_INTEGER, "Root mean square (RMS) mapping quality of the ALT [base read, duped]"), 
-    BcfFormatStruct("FT"       , 1, BCF_STRING,  "Sample genotype filter indicating if this genotype was 'called' (similar in concept to the FILTER field). "
-                                                 "Again, use PASS to indicate that all filters have been passed, a semi-colon separated list of codes for filters "
-                                                 "that fail, or ‘.’ to indicate that filters have not been applied. "
-                                                 "These values should be described in the meta-information in the same way as FILTERs "
-                                                 "(String, no white-space or semi-colons permitted)"),
+    BcfFormatStruct("GT"    , 1, BCF_STRING,  "Genotype (for tumor cells, this is only a guess)"),
+    BcfFormatStruct("GQ"    , 1, BCF_INTEGER, "Genotype Quality"),
+    BcfFormatStruct("HQ"    , 2, BCF_INTEGER, "Haplotype Quality"),
+    BcfFormatStruct("FT"    , 1, BCF_STRING,  "Sample genotype filter indicating if this genotype was 'called' (similar in concept to the FILTER field). "
+                                              "Again, use PASS to indicate that all filters have been passed, a semi-colon separated list of codes for filters "
+                                              "that fail, or ‘.’ to indicate that filters have not been applied. "
+                                              "These values should be described in the meta-information in the same way as FILTERs "
+                                              "(String, no white-space or semi-colons permitted)"),
+    BcfFormatStruct("FTS"   , 1, BCF_STRING,  "Sample variant filter indicating if this variant was 'called' (similar in concept to the FILTER field). "
+                                              "Again, use PASS to indicate that all filters have been passed, "
+                                              "an amperstand-separated list of codes for filters that fail, "
+                                              "or '.' to indicate that filters have not been applied. "
+                                              "These values should be described in the meta-information in the same way as FILTERs. "
+                                              "No white-space, semi-colons, or amperstand permitted."),
     
-    BcfFormatStruct("__A1"     , 1, BCF_SEP,     "Dummy header (separator) for genotype-related FORMAT fields. The description of each associated FORMAT is shown below. "),
-    BcfFormatStruct("FTS"      , 1, BCF_STRING,  "Sample variant filter indicating if this variant was 'called' (similar in concept to the FILTER field). "
-                                                 "Again, use PASS to indicate that all filters have been passed, "
-                                                 "an amperstand-separated list of codes for filters that fail, "
-                                                 "or '.' to indicate that filters have not been applied. "
-                                                 "These values should be described in the meta-information in the same way as FILTERs. "
-                                                 "No white-space, semi-colons, or amperstand permitted."),
-    BcfFormatStruct("FTSV"     , BCF_NUM_D, BCF_INTEGER, "Percent bias values for the FTS strings"),
-    BcfFormatStruct("DPHQ"     , 1, BCF_INTEGER, "Fragment depth supporting any allele if low-quality bases are ignored which means only high quality (HQ) bases are used [base read, duped]"),
-    BcfFormatStruct("ADHQ"     , 1, BCF_INTEGER, "Fragment depth supporting the ALT allele if low-quality bases are ignored which means only high quality (HQ) bases are used [base read, duped]"),
-    BcfFormatStruct("ALODQ"    , 1, BCF_SIG_INT, "Artifact log-likelihood of data quality in PHRED-scale."),
-    BcfFormatStruct("BLODQ"    , 1, BCF_SIG_INT, "Bias-of-allele log-likelihood of data quality in PHRED-scale."),
-    BcfFormatStruct("EROR"     , 5, BCF_INTEGER, "Deduplication bias, position bias, strand bias, and mismatch bias of the evidence reduction odds ratio for deduplicated reads, and the maximum of all biases in FTS"), 
+    BcfFormatStruct("__A_"  , 1,         BCF_SEP,     "Summary statistics."),
+    BcfFormatStruct("DP"    , 1,         BCF_INTEGER, "Fragment depth of coverage with duplicates removed. "),
+    BcfFormatStruct("AD"    , BCF_NUM_R, BCF_INTEGER, "Fragment depth supporting the ALT allele with duplicates removed. "),
+    BcfFormatStruct("bDP"   , 1,         BCF_INTEGER, "Fragment depth of coverage with duplicates kept. "),
+    BcfFormatStruct("bAD"   , BCF_NUM_R, BCF_INTEGER, "Fragment depth supporting the ALT allele with duplicates kept. "),
+    BcfFormatStruct("c2DP"  , 1,         BCF_INTEGER, "Consensus barcode family depth of coverage using tier-2 thresholds for grouping fragments into families. "),
+    BcfFormatStruct("c2AD"  , BCF_NUM_R, BCF_INTEGER, "Consensus barcode family depth of coverage supporting the ALT allele using tier-2 thresholds for grouping fragments into families. "),
+    
+    BcfFormatStruct("__Aa"  , 1,         BCF_SEP,     "Preparation statistics for segment biases at this position."),
+    BcfFormatStruct("APDP"  , 1+4+4+1,   BCF_INTEGER, "Total segment depth (1), "
+                              "segment depths within the indel length of insertion (2) and deletion (3), "
+                              "segment depths within the tandem-repeat track length of insertion (4) and deletion (5), "
+                              "PCR-amplicon (6), SNV (7), and DNV (8) segment depths, "
+                              "segment depth of high quality (9), "
+                              "and near-clip segment depth (10)."),
+    BcfFormatStruct("APXM"  , 4+3,       BCF_INTEGER, "Expected number of mismatches (1) and gap openings (2) in a 1500-bp window. "
+                              "Total sum of query length (3). "
+                              "The (sum of squares (4,5)) and (sum of 100 divided by (6,7)) of insertion (4,6) and deletion (5,7) lengths."),
+       
+    BcfFormatStruct("__Ab"  , 1,         BCF_SEP,     "Preparation statistics for segment biases at this position."),
+    BcfFormatStruct("APLRID", 4,         BCF_INTEGER, "Summed insertion (1,2) and deletion (3,4) lengths to the left (1,3) and right (2,4) ends of the InDel-affected region."),
+    BcfFormatStruct("APLRI" , 4,         BCF_INTEGER, "Summed distance to left insert end and the number of such inserts, and similarly for right insert end."),
+    BcfFormatStruct("APLRP" , 4,         BCF_INTEGER, "Summed distance to left and right ends, summed insertion length, and summed deletion length."),
+    
+    BcfFormatStruct("__Ac"  , 1,         BCF_SEP,     "Threshold for each type of bias (tier-1 means weak bias and tier-2 means strong bias)."),
+#if COMPILATION_TRY_HIGH_DEPTH_POS_BIAS
+    BcfFormatStruct("APPB"  , 4+4,       BCF_INTEGER, "Preparation statistics for position bias."),
+#endif 
+#if COMPILATION_ENABLE_XMGOT
+    BcfFormatStruct("AXMT"  , 2,         BCF_INTEGER, "Number of mismatches on read-segment above which there is tier-1 and tier-2 mismatch bias."),
+#endif
+
+    BcfFormatStruct("ALRPxT", 2,         BCF_INTEGER, "Number of bases to left (1,2) and right (3.4) segment ends above which the segment is not used for computing position bias."),
+    BcfFormatStruct("ALRIT" , 4,         BCF_INTEGER, "Number of bases to left (1,2) and right (3.4) insert ends above which there is tier-1 and tier-2 insert bias."),
+    BcfFormatStruct("ALRIt" , 4,         BCF_INTEGER, "Number of bases to left (1,2) and right (3,4) insert ends below which there is tier-1 and tier-2 insert bias."),
+    BcfFormatStruct("ALRPt" , 4,         BCF_INTEGER, "Number of bases to left (1,2) and right (3,4) read-segment ends below which there is tier-1 and tier-2 position bias."),
+    BcfFormatStruct("ALRBt" , 4,         BCF_INTEGER, "Base alignment quality (BAQ) to left (1,2) and right (3,4) read-segment ends below which there is tier-1 and tier-2 position bias."),
+
+    BcfFormatStruct("__AQ"  , 1,         BCF_SEP,     "Statistics of the raw sequencing segments for (all alleles) and (the padded deletion allele)."),
+    BcfFormatStruct("AMQs"  , 2,         BCF_INTEGER, "Raw sequencing segment sum of mapping qualities."),
+    
+    BcfFormatStruct("A1BQf" , 2,         BCF_INTEGER, "Summed sequencing-segment base quality on the forward strand."),
+    BcfFormatStruct("A1BQr" , 2,         BCF_INTEGER, "Summed sequencing-segment base quality on the reverse strand."),
+    
+    BcfFormatStruct("__A1"  , 1,         BCF_SEP,     "Depths of the raw sequencing segments for (all alleles) and (the padded deletion allele)."),
+    BcfFormatStruct("ADPff" , 2,         BCF_INTEGER, "Raw sequencing segment depth with the R1-forward orientation and strand."),
+    BcfFormatStruct("ADPfr" , 2,         BCF_INTEGER, "Raw sequencing segment depth with the R2-reverse orientation and strand."),
+    BcfFormatStruct("ADPrf" , 2,         BCF_INTEGER, "Raw sequencing segment depth with the R2-forward orientation and strand."),
+    BcfFormatStruct("ADPrr" , 2,         BCF_INTEGER, "Raw sequencing segment depth with the R1-reverse orientation and strand."),
+    
+    BcfFormatStruct("__A2"  , 1,         BCF_SEP,     "Depths of the raw sequencing segments for (all alleles) and (the padded deletion allele)."),
+    BcfFormatStruct("ALP1"  , 2,         BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 left-side position bias."),
+    BcfFormatStruct("ALP2"  , 2,         BCF_INTEGER, "RSEaw sequencing segment depth unaffected by tier-2 left-side position bias."),
+    BcfFormatStruct("ALPL"  , 2,         BCF_INTEGER, "Raw summed distance (number of bases) to the left-side sequencing-segment end."),
+    BcfFormatStruct("ARP1"  , 2,         BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 right-side position bias."),
+    BcfFormatStruct("ARP2"  , 2,         BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 right-side position bias."),
+    BcfFormatStruct("ARPL"  , 2,         BCF_INTEGER, "Raw summed distance (number of bases) to the right-side sequencing-segment end."),
+    
+    BcfFormatStruct("__A3"  , 1,         BCF_SEP,     "Depths of the raw sequencing segments for (all alleles) and (the padded deletion allele)."),
+    BcfFormatStruct("ALB1"  , 2,         BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 left-side position bias."),
+    BcfFormatStruct("ALB2"  , 2,         BCF_INTEGER, "RSEaw sequencing segment depth unaffected by tier-2 left-side position bias."),
+    BcfFormatStruct("ALBL"  , 2,         BCF_INTEGER, "Raw summed distance (number of bases) to the left-side sequencing-segment end."),
+    BcfFormatStruct("ARB1"  , 2,         BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 right-side position bias."),
+    BcfFormatStruct("ARB2"  , 2,         BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 right-side position bias."),
+    BcfFormatStruct("ARBL"  , 2,         BCF_INTEGER, "Raw summed distance (number of bases) to the right-side sequencing-segment end."),
+    
+    BcfFormatStruct("__A4"  , 1,         BCF_SEP,     "As before."),
+    BcfFormatStruct("ABQ2"  , 2,         BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 base quality bias."),
+    BcfFormatStruct("APF1"  , 2,         BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 mismatch bias."),
+    BcfFormatStruct("APF2"  , 2,         BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 mismatch bias."),
+    BcfFormatStruct("AP1"   , 2,         BCF_INTEGER, "Raw sequencing segment depth of reads passing left and right number of bases threshold of distance."),
+    BcfFormatStruct("AP2"   , 2,         BCF_INTEGER, "Raw sequencing segment depth of reads that are either labeled with UMIs or not coming from PCR amplicons."),
+
+    BcfFormatStruct("__A5"  , 1,         BCF_SEP,     "As before."),
+    BcfFormatStruct("ALI1"  , 2,         BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 insert bias on the left side."),
+    BcfFormatStruct("ALI2"  , 2,         BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 insert bias on the right side."),
+    BcfFormatStruct("ALIr"  , 2,         BCF_INTEGER, "Raw sequencing segment depth eligible for left-side reverse-strand bias computation."),
+    
+    BcfFormatStruct("ARI1"  , 2,         BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 insert bias on the left side."),
+    BcfFormatStruct("ARI2"  , 2,         BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 insert bias on the right side."),
+    BcfFormatStruct("ARIf"  , 2,         BCF_INTEGER, "Raw sequencing segment depth eligible for right-side forward-strand bias computation."),
+    
+    BcfFormatStruct("__aQ"  , 1,         BCF_SEP,     "Statistics of the raw sequencing segments for the REF and each ALT allele."),
+    BcfFormatStruct("aMQs"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment sum of mapping qualities."),
+    BcfFormatStruct("a1BQf" , BCF_NUM_R, BCF_INTEGER, "Summed sequencing-segment base quality on the forward strand."),
+    BcfFormatStruct("a1BQr" , BCF_NUM_R, BCF_INTEGER, "Summed sequencing-segment base quality on the reverse strand."),
+    
+    BcfFormatStruct("__a1"  , 1,         BCF_SEP,     "Depths of the raw sequencing segments for the REF and each ALT allele."),
+    BcfFormatStruct("aDPff" , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth with the R1-forward orientation and strand."),
+    BcfFormatStruct("aDPfr" , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth with the R2-reverse orientation and strand."),
+    BcfFormatStruct("aDPrf" , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth with the R2-forward orientation and strand."),
+    BcfFormatStruct("aDPrr" , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth with the R1-reverse orientation and strand."),
+    
+    BcfFormatStruct("__a2"  , 1,         BCF_SEP,     "As before."),
+    
+    BcfFormatStruct("aLP1"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 left-side position bias."),
+    BcfFormatStruct("aLP2"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 left-side position bias."),
+    BcfFormatStruct("aLPL"  , BCF_NUM_R, BCF_INTEGER, "Raw summed distance (number of bases) to the left-side sequencing-segment end."),
+    BcfFormatStruct("aRP1"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 right-side position bias."),
+    BcfFormatStruct("aRP2"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 right-side position bias."),
+    BcfFormatStruct("aRPL"  , BCF_NUM_R, BCF_INTEGER, "Raw summed distance (number of bases) to the right-side sequencing-segment end."),
+    
+    BcfFormatStruct("__a3"  , 1,         BCF_SEP,     "As before."),
+    BcfFormatStruct("aLB1"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 left-side position bias."),
+    BcfFormatStruct("aLB2"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 left-side position bias."),
+    BcfFormatStruct("aLBL"  , BCF_NUM_R, BCF_INTEGER, "Raw summed distance (number of bases) to the left-side sequencing-segment end."),
+    BcfFormatStruct("aRB1"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 right-side position bias."),
+    BcfFormatStruct("aRB2"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 right-side position bias."),
+    BcfFormatStruct("aRBL"  , BCF_NUM_R, BCF_INTEGER, "Raw summed distance (number of bases) to the right-side sequencing-segment end."),
+    
+    BcfFormatStruct("__a4"  , 1,         BCF_SEP,     "As before."),
+    BcfFormatStruct("aBQ2"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 base quality bias."),
+    BcfFormatStruct("aPF1"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 relative mismatch bias and base quality bias."),
+    BcfFormatStruct("aPF2"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 relative mismatch bias and base quality bias."),
+    BcfFormatStruct("aP1"   , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth of reads passing left and right number of bases threshold of distance."),
+    BcfFormatStruct("aP2"   , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth of reads that are either labeled with UMIs or not coming from PCR amplicons."),
+    
+    BcfFormatStruct("__a5"  , 1,         BCF_SEP,     "As before."),
+    BcfFormatStruct("aLI1"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 insert bias on the left side."),
+    BcfFormatStruct("aLI2"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 insert bias on the right side."),
+    BcfFormatStruct("aRI1"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 insert bias on the left side."),
+    BcfFormatStruct("aRI2"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 insert bias on the left side."),
+    BcfFormatStruct("aLIr"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth eligible for left-side reverse-strand bias computation."),
+    BcfFormatStruct("aRIf"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth eligible for right-side forward-strand bias computation."),
+    
+    BcfFormatStruct("__B1"  , 1,         BCF_SEP,     "Non-deduped fragment depth for (all alleles) and (the padded deletion allele)."),
+    BcfFormatStruct("BDPf"  , 2,         BCF_INTEGER, "Non-deduped fragment depth on the forward strand for (all alleles) and (the padded deletion allele)."),
+    BcfFormatStruct("BTAf"  , 2,         BCF_INTEGER, "Non-deduped sum of sequenced fragment positions on the forward strand for "
+                    "(all alleles) and (the padded deletion allele)."),
+    BcfFormatStruct("BTBf"  , 2,         BCF_INTEGER, "Non-deduped sum of sequenced fragment positions near mutations on the forward strand for "
+                    "(all alleles) and (the padded deletion allele)."),
+    BcfFormatStruct("BDPr"  , 2,         BCF_INTEGER, "Non-deduped fragment depth on the reverse strand for (all alleles) and (the padded deletion allele)."),
+    BcfFormatStruct("BTAr"  , 2,         BCF_INTEGER, "Non-deduped sum of sequenced fragment positions on the reverse strand for "
+                    "(all alleles) and (the padded deletion allele)."),
+    BcfFormatStruct("BTBr"  , 2,         BCF_INTEGER, "Non-deduped sum of sequenced fragment positions near mutations on the reverse strand for "
+                    "(all alleles) and (the padded deletion allele)."),
+    
+    BcfFormatStruct("__b1"  , 1,         BCF_SEP,     "Non-deduped depths of the fragments for the REF allele and each ATL allele."),
+    
+    BcfFormatStruct("bDPf"  , BCF_NUM_R, BCF_INTEGER, "See BDPf."),
+    BcfFormatStruct("bTAf"  , BCF_NUM_R, BCF_INTEGER, "See BTAf."),
+    BcfFormatStruct("bTBf"  , BCF_NUM_R, BCF_INTEGER, "See BTBf."),
+    BcfFormatStruct("bDPr"  , BCF_NUM_R, BCF_INTEGER, "See BDPr."),
+    BcfFormatStruct("bTAr"  , BCF_NUM_R, BCF_INTEGER, "See BTAr."),
+    BcfFormatStruct("bTBr"  , BCF_NUM_R, BCF_INTEGER, "See BTBr."),
+    
+    BcfFormatStruct("__C1"  , 1,         BCF_SEP,     "Deduped depths of the unique molecular fragments for (all alleles) and (the padded deletion allele)."),
+    BcfFormatStruct("CDP1f" , 2,         BCF_INTEGER, "Nonfiltered deduped depth of the unique molecular fragments on the forward read orientation."),
+    BcfFormatStruct("CDP12f", 2,         BCF_INTEGER, "BQ-filtered deduped depth of the unique molecular fragments on the forward read orientation ."),
+    BcfFormatStruct("CDP2f" , 2,         BCF_INTEGER, "Weak consensus deduped depth of the unique molecular fragments on the forward read orientation."),
+    BcfFormatStruct("CDP3f" , 2,         BCF_INTEGER, "Strong consensus deduped depth of the unique molecular fragments on the forward read orientation."),
+    BcfFormatStruct("C1DPf" , 2,         BCF_INTEGER, "Singleton deduped depth of the unique molecular fragments on the forward read orientation."),
+    BcfFormatStruct("CDPMf" , 2,         BCF_INTEGER, "Major duped fragment depth on the forward read orientation."),
+    BcfFormatStruct("CDPmf" , 2,         BCF_INTEGER, "Minor duped fragment depth on the forward read orientation."),
+    
+    BcfFormatStruct("__C2"  , 1,         BCF_SEP,     "As before."),
+    BcfFormatStruct("CDP1r" , 2,         BCF_INTEGER, "Nonfiltered deduped depth of the unique molecular fragments on the reverse read orientation."),
+    BcfFormatStruct("CDP12r", 2,         BCF_INTEGER, "BQ-Filtered deduped depth of the unique molecular fragments on the reverse read orientation."),
+    BcfFormatStruct("CDP2r" , 2,         BCF_INTEGER, "Weak consensus deduped depth of the unique molecular fragments on the reverse read orientation."),
+    BcfFormatStruct("CDP3r" , 2,         BCF_INTEGER, "Strong consensus deduped depth of the unique molecular fragments on the reverse read orientation."),
+    BcfFormatStruct("C1DPr" , 2,         BCF_INTEGER, "Singleton deduped depth of the unique molecular fragments on the reverse read orientation."),
+    BcfFormatStruct("CDPMr" , 2,         BCF_INTEGER, "Major duped fragment depth on the reverse read orientation."),
+    BcfFormatStruct("CDPmr" , 2,         BCF_INTEGER, "Minor duped fragment depth on the reverse read orientation."),
+    
+    BcfFormatStruct("__c1"  , 1,         BCF_SEP,     "Deduped depths of the unique molecular fragments for the REF allele and each ALT allele."),
+    BcfFormatStruct("cDP1f" , BCF_NUM_R, BCF_INTEGER, "Nonfiltered deduped depth of the unique molecular fragments on the forward read orientation."),
+    BcfFormatStruct("cDP12f", BCF_NUM_R, BCF_INTEGER, "BQ-filtered deduped depth of the unique molecular fragments on the forward read orientation."),
+    BcfFormatStruct("cDP2f" , BCF_NUM_R, BCF_INTEGER, "Weak consensus deduped depth of the unique molecular fragments on the forward read orientation."),
+    BcfFormatStruct("cDP3f" , BCF_NUM_R, BCF_INTEGER, "Strong consensus deduped depth of the unique molecular fragments on the forward read orientation."),
+    BcfFormatStruct("c1DPf" , BCF_NUM_R, BCF_INTEGER, "Singleton deduped depth of the unique molecular fragments on the forward read orientation."),
+    BcfFormatStruct("cDPMf" , BCF_NUM_R, BCF_INTEGER, "Major duped fragment depth on the forward read orientation."),
+    BcfFormatStruct("cDPmf" , BCF_NUM_R, BCF_INTEGER, "Minor duped fragment depth on the forward read orientation."),
+    
+    BcfFormatStruct("__c2"  , 1,         BCF_SEP,     "As before."),
+    BcfFormatStruct("cDP1r" , BCF_NUM_R, BCF_INTEGER, "Nonfiltered deduped depth of the unique molecular fragments on the reverse read orientation."),
+    BcfFormatStruct("cDP12r", BCF_NUM_R, BCF_INTEGER, "BQ-filtered deduped depth of the unique molecular fragments on the reverse read orientation."),
+    BcfFormatStruct("cDP2r" , BCF_NUM_R, BCF_INTEGER, "Weak consensus deduped depth of the unique molecular fragments on the reverse read orientation."),
+    BcfFormatStruct("cDP3r" , BCF_NUM_R, BCF_INTEGER, "Strong consensus deduped depth of the unique molecular fragments on the reverse read orientation."),
+    BcfFormatStruct("c1DPr" , BCF_NUM_R, BCF_INTEGER, "Singleton deduped depth of the unique molecular fragments on the reverse read orientation."),
+    BcfFormatStruct("cDPMr" , BCF_NUM_R, BCF_INTEGER, "Major duped fragment depth on the reverse read orientation."),
+    BcfFormatStruct("cDPmr" , BCF_NUM_R, BCF_INTEGER, "Minor duped fragment depth on the reverse read orientation."),
+    
+    BcfFormatStruct("__Dd"  , 1,         BCF_SEP,     "Duplex depths of the original double-strand molecular fragments."),
+    BcfFormatStruct("DDP1"  , 2,         BCF_INTEGER, "Duplex depth with allele diaagreement on the two strands for (all alleles) and (the padded deletion allele)."),
+    BcfFormatStruct("DDP2"  , 2,         BCF_INTEGER, "Duplex depth with allele agreement on the two strands for (all alleles) and (the padded deletion allele)."),
+    BcfFormatStruct("dDP1"  , BCF_NUM_R, BCF_INTEGER, "Duplex depth with allele disagreement on the two strands for the REF allele and each ALT allele."),
+    BcfFormatStruct("dDP2"  , BCF_NUM_R, BCF_INTEGER, "Duplex depth with allele agreement on the two strands for the REF allele and each ALT allele."),
+    
+    BcfFormatStruct("__e1"  , 1,         BCF_SEP,     "Error variables inferred from systematically low basecall qualities (BQs)."),
+    
+    BcfFormatStruct("aBQ"   , BCF_NUM_R, BCF_SIG_INT, "Root-mean-square base quality for sequencing segments."),
+    BcfFormatStruct("a2BQf" , BCF_NUM_R, BCF_INTEGER, "Summed squared/32 sequencing-segment base quality on the forward strand."),
+    BcfFormatStruct("a2BQr" , BCF_NUM_R, BCF_INTEGER, "Summed squared/32 sequencing-segment base quality on the reverse strand."),
+    BcfFormatStruct("a2XM2" , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by absolute mismatch bias."),
+    BcfFormatStruct("a2BM2" , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by absolute base-specific mismatch bias."),
+    BcfFormatStruct("aBQQ"  , BCF_NUM_R, BCF_SIG_INT, "Variant quality capped by systematic error inferred from base qualities."),
+
+    BcfFormatStruct("__e2"  , 1,         BCF_SEP,     "Error variables inferred from systematically low mapping qualities (MAPQs or MQs)."),
+    
+    BcfFormatStruct("bMQ"   , BCF_NUM_R, BCF_SIG_INT, "Root-mean-square mapping quality for read fragments (max of R1 and R2 MQ is taken)."),
+    BcfFormatStruct("aAaMQ" , BCF_NUM_R, BCF_SIG_INT, "Read segment difference of average mapping quality between the ALT allele and the non-ALT alleles."),
+    BcfFormatStruct("bNMQ"  , BCF_NUM_R, BCF_INTEGER, "Phred penalty inferred from high-BQ mismatches to the mapping quality (MAPQ). "
+                    "This penalty increases the MAPQ-related systematic error."),
+    BcfFormatStruct("bNMa"  , BCF_NUM_R, BCF_INTEGER, "Percent of the number of fragment positions that are affected by nearby high-BQ mutation "
+                    "(by default, nearby means within one turn of DNA helix) for the ALT alleles."),
+    BcfFormatStruct("bNMb"  , BCF_NUM_R, BCF_INTEGER, "Percent of the number of fragment positions that are affected by nearby high-BQ mutation "
+                    "(by default, nearby means within one turn of DNA helix) for all non-ALT alleles."),
+    BcfFormatStruct("bMQQ"  , BCF_NUM_R, BCF_SIG_INT, "Variant quality capped by systematic error inferred from mapping qualities."),
+
+    BcfFormatStruct("__e3"  , 1,         BCF_SEP,     "Quality-related variables assuming IID read support (IID: independent and identically distributed) for duped reads."),
+    BcfFormatStruct("bIAQb" , BCF_NUM_R, BCF_SIG_INT, "IID allele quality maximized with IAD and IDQ."),
+    BcfFormatStruct("bIADb" , BCF_NUM_R, BCF_INTEGER, "IID allele depth (number of reads supporting each ALT)"),
+    BcfFormatStruct("bIDQb" , BCF_NUM_R, BCF_SIG_INT, "IDD quality threshold per read support."),
+    
+    BcfFormatStruct("__e4"  , 1,         BCF_SEP,     "Quality-related variables assuming read supports are IID for deduped reads."),
+    BcfFormatStruct("cIAQf" , BCF_NUM_R, BCF_SIG_INT, "IID allele quality maximized with IAD and IDQ on the forward read orientation."),
+    BcfFormatStruct("cIADf" , BCF_NUM_R, BCF_INTEGER, "IID allele depth (number of reads supporting each ALT) on the forward read orientation."),
+    BcfFormatStruct("cIDQf" , BCF_NUM_R, BCF_SIG_INT, "IDD quality threshold per read support on the forward read orientation."),
+    
+    BcfFormatStruct("__e5"  , 1,         BCF_SEP,     "Quality-related variables assuming read supports are IID for deduped reads."),
+    BcfFormatStruct("cIAQr" , BCF_NUM_R, BCF_SIG_INT, "IID allele quality maximized with IAD and IDQ on the reverse read orientation."),
+    BcfFormatStruct("cIADr" , BCF_NUM_R, BCF_INTEGER, "IID allele depth (number of reads supporting each ALT) on the reverse read orientation."),
+    BcfFormatStruct("cIDQr" , BCF_NUM_R, BCF_SIG_INT, "IDD quality threshold per read support on the reverse read orientation."),
+    
+    BcfFormatStruct("__e6"  , 1,         BCF_SEP,     "Binomial variant qualities."),
+    BcfFormatStruct("bIAQ"  , BCF_NUM_R, BCF_SIG_INT, "The duped fragment binomial variant quality by assuming statistical independence."),
+    BcfFormatStruct("cIAQ"  , BCF_NUM_R, BCF_SIG_INT, "The deduplicated fragment binomial variant quality by assuming statistical independence."),
+    BcfFormatStruct("bTINQ" , BCF_NUM_R, BCF_SIG_INT, "The fragment binomial tumor-in-normal quality by assuming statistical independence."),
+    BcfFormatStruct("cTINQ" , BCF_NUM_R, BCF_SIG_INT, "The single-strand-consensus-sequence binomial tumor-in-normal quality by assuming statistical independence."),
  
-    BcfFormatStruct("__A2"     , 1, BCF_SEP,     "Dummy header (separator) for genotype-related FORMAT fields. The description of each associated FORMAT is shown below. "),
-    BcfFormatStruct("RefBias"  , 1, BCF_INTEGER, "Reference bias (on average, the read supporting the ALT is shorter than the read supporting the REF by this many bases)"),
-    BcfFormatStruct("GTa"      , 1, BCF_STRING,  "Genotype of this alelle"),
-    BcfFormatStruct("GQa"      , 1, BCF_INTEGER, "Genotype Quality of this allele"),
-    BcfFormatStruct("GLa"      , 3, BCF_SIG_INT, "Genotype Likelihood of this allele"),
-    BcfFormatStruct("GSTa"     ,10, BCF_SIG_INT, "Genotype Statistics of this allele"),
-    BcfFormatStruct("GTb"      , 1, BCF_STRING,  "Genotype of other alelles"),
-    BcfFormatStruct("GQb"      , 1, BCF_INTEGER, "Genotype Quality of other alleles"),
-    BcfFormatStruct("GLb"      , 3, BCF_SIG_INT, "Genotype Likelihood of other alleles"),
-    BcfFormatStruct("GSTb"     ,10, BCF_SIG_INT, "Genotype Statistics of other alleles"),
-    
-    BcfFormatStruct("__A3"     , 1, BCF_SEP,     "Depth and REF/ALT allele frequency for base read and consensus family"),  
-    BcfFormatStruct("bDP"      , 1, BCF_INTEGER, "Fragment depth supporting any allele [base read, duped]"),
-    BcfFormatStruct("bADR"     , BCF_NUM_R, BCF_INTEGER, "Fragment depth supporting each REF and ALT allele [base read, duped]"),
-    BcfFormatStruct("cDP"      , 1, BCF_INTEGER, "Fragment depth supporting any allele [consensus family, deduped]"),
-    BcfFormatStruct("cADR"     , BCF_NUM_R, BCF_INTEGER, "Fragment depth supporting each REF and ALT allele [consensus family, deduped]"),
-    
-    BcfFormatStruct("__A4"     , 1, BCF_SEP,     "Consensus/variant allele type/quality"),  
-    BcfFormatStruct("OType"    , 1, BCF_STRING,  "The non-reference allele type with the most evidence other than the ALT allele type of this record"),
-    BcfFormatStruct("ORAQs"    , 2, BCF_FLOAT,   "Qualities of OType and reference allele type"),
-    BcfFormatStruct("VType"    , 1, BCF_STRING,  "Variant type for the ALT allele"),
-    // BcfFormatStruct("VAQs"     , 2, BCF_FLOAT,   "Raw variant allele quality (VAQ) and VAQ of the specific form(s) of InDel in ALT assuming other forms of InDels are noise"),
-    // BcfFormatStruct("VAQAB"    , 1, BCF_FLOAT,   "Variant Allele Quality adjusted with bias"),
-    BcfFormatStruct("VQ1"      , BCF_NUM_A, BCF_SIG_INT, "Variant allele quality capped by base alignment quality"),
-    BcfFormatStruct("VQ2"      , BCF_NUM_A, BCF_SIG_INT, "Variant allele quality capped by base quality"),
-    BcfFormatStruct("VQ3"      , BCF_NUM_A, BCF_SIG_INT, "Variant allele quality capped by base quality"),
-    BcfFormatStruct("VQ4"      , BCF_NUM_A, BCF_SIG_INT, "Variant allele quality capped by base quality"),
-    BcfFormatStruct("VQ5"      , BCF_NUM_A, BCF_SIG_INT, "Variant allele quality capped by base quality"),
-    BcfFormatStruct("VAQ"      , BCF_NUM_A, BCF_SIG_INT, "Variant allele quality of the call"),
-    
-    BcfFormatStruct("__A5"     , 1, BCF_SEP,     "Sum of base qualities (bAllBQ/bAltBQ/bRefBQ) and consensus-family qualities (cAllBQ/cAltBQ/cRefBQ) for ALL/ALT/REF alleles"), // global 
-    BcfFormatStruct("bAllBQ"   , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("bAltBQ"   , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("bRefBQ"   , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("cAllBQ"   , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("cAltBQ"   , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("cRefBQ"   , 2, BCF_INTEGER, "see above"),
-    
-    BcfFormatStruct("__A6"     , 1, BCF_SEP,     "Sum of square/10 consensus-family qualities and number of high-confidence families, and and duplication bias (aDB). All biases are percentages where 100% means no bias."), // global
-    //BcfFormatStruct("cAllBQ2"  , 2, BCF_INTEGER, "see above"),
-    //BcfFormatStruct("cAltBQ2"  , 2, BCF_INTEGER, "see above"),
-    //BcfFormatStruct("cRefBQ2"  , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("cAllHD"   , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("cAltHD"   , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("cRefHD"   , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("aDB"      , 2, BCF_INTEGER, "see above"),
-    
-    BcfFormatStruct("__aa"     , 1, BCF_SEP,     "Sequencing-segment statistics. In aDP and aAD, the four-directions are (fw-fw, fw-rv, rv-fw, rv-rv) strand orientations corresponding to (R1+, R2-, R2+, R1-)"),
-    BcfFormatStruct("aDP"      , 4, BCF_INTEGER, "Four-direction raw depths total and summed for ALL alleles [unmerged]"),
-    BcfFormatStruct("aRD"      , 4, BCF_INTEGER, "Four-direction raw depths specific to only the ALT allele  [unmerged]"),
-    BcfFormatStruct("aAD"      , 4, BCF_INTEGER, "Four-direction raw depths specific to only the ALT allele  [unmerged]"),
-    BcfFormatStruct("aGapDPs"  , 4, BCF_INTEGER, "Raw depths for non-InDel bases, deletion symbol, estimated total and summed number of bases to the left and right sides of the InDel [unmerged]"),
-    
-    BcfFormatStruct("__ab"     , 1, BCF_SEP,     "More sequencing-segment statistics."),
-    BcfFormatStruct("aXMRD"    , 4, BCF_INTEGER, "Four-direction total numbers of mismatches (the XM sam tag) specific to only the REF allele [unmerged]"),
-    BcfFormatStruct("aXMAD"    , 4, BCF_INTEGER, "Four-direction total numbers of mismatches (the XM sam tag) specific to only the ALT allele [unmerged]"),
-    BcfFormatStruct("aBQAD"    , 4, BCF_INTEGER, "Four-direction total sum of base qualities of the ALT allele  [unmerged"),
-    
-    BcfFormatStruct("__ac"     , 1, BCF_SEP,     "More sequencing-segment statistics."),
-    BcfFormatStruct("aPBDP"    , 3, BCF_INTEGER, "Raw depths within the left&right, left, and right regions for all the alleles [unmerged]"),
-    BcfFormatStruct("aPBAD"    , 3, BCF_INTEGER, "Raw depths within the left&right, left, and right regions for the ALT allele  [unmerged]"),
-    BcfFormatStruct("aB"       , 4, BCF_INTEGER, "For sequencing-segments: strand, left&right position, left position, and right position biases [unmerged]"),
-    BcfFormatStruct("aBAQDP"   , 1, BCF_INTEGER, "Total summed base alignment quality (BAQ) of all alleles [unmerged]"),
-    BcfFormatStruct("aBAQADR"  , BCF_NUM_R, BCF_INTEGER, "Total summed base alignment quality (BAQ) of each REF and ALT allele [unmerged]"),
+    BcfFormatStruct("__e7"  , 1,         BCF_SEP,     "Power-law variant quality statistics for deduped read fragments."),
+    BcfFormatStruct("cPCQ1" , BCF_NUM_R, BCF_SIG_INT, "The deduplicatd read fragment power-law variant allele quality cap that is not lowered by using matched normal."),
+    BcfFormatStruct("cPLQ1" , BCF_NUM_R, BCF_SIG_INT, "The deduplicatd read fragment power-law variant allele quality."),
+    BcfFormatStruct("cVQ1"  , BCF_NUM_R, BCF_SIG_INT, "The final variant quality computed with deduplicated read fragments."),
+    BcfFormatStruct("gVQ1"  , BCF_NUM_R, BCF_SIG_INT, "The final variant quality computed with deduplicated read fragments used for germline variant calls."),
 
-    BcfFormatStruct("__ba"     , 1, BCF_SEP,     "Forward&reverse max-bias base distances to left/right end positions (T1PTL/T1PTR) and position bias (T1PBL/T1PBR) [base read, duped]"), 
-    BcfFormatStruct("bPTL"     , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("bPTR"     , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("bPBL"     , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("bPBR"     , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("bMMT"     , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("bMMB"     , 2, BCF_INTEGER, "see above"),
-    
-    BcfFormatStruct("__bb"     , 1, BCF_SEP,     "Forward&reverse sum of : base distances to left/right end positions (T1SDL/T1SDR) and non-normalized/normalized strand bias (T1SB1/T1SBR) [base read, duped]"),
-    BcfFormatStruct("bSDL"     , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("bSDR"     , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("bSB1"     , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("bSBR"     , 2, BCF_INTEGER, "see above"),
-    
-    BcfFormatStruct("__bc"     , 1, BCF_SEP,     "Forward&reverse depth (DP1), allele depth (AD1), allele depth after weak filter (AD2), quality threshold for weak filter (QT2) [base read, duped]"),
-    BcfFormatStruct("bDP1"     , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("bAD1"     , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("bRD1"     , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("bAD2"     , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("bQT2"     , 2, BCF_INTEGER, "see above"),
-    
-    BcfFormatStruct("__bd"     , 1, BCF_SEP,     "Forward&reverse allele depth after strong filter (AD3), quality threshold for strong filter (QT3), and variant quality after strong filter (VQ3) [duped]"),
-    BcfFormatStruct("bAD3"     , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("bADB"     , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("bQT3"     , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("bVQ3"     , 2, BCF_FLOAT,   "see above"),
-    
-    BcfFormatStruct("__be"     , 1, BCF_SEP,     "Forward&reverse  allele root-mean-squre MQ (bMQ1) and (sum of squared MQ) / (sum of MQ) (bMQ2), where MQ is mapping quality, and the same for base quality BQ [duped]"),
-    BcfFormatStruct("bMQ1"     , 2, BCF_INTEGER, "see above"),
-    //BcfFormatStruct("bMQ2"     , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("bBQ1"     , 2, BCF_INTEGER, "see above"),
-    //BcfFormatStruct("bBQ2"     , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("bNSB"     , 2, BCF_INTEGER, "Total number of sequenced bases on all reads covering this position [base read, duped]"), 
-    // BcfFormatStruct("bEDRD"    , 2, BCF_INTEGER, "Summed Phred-scaled edit distance of reads supporting the REF where an InDel corresponds to 2 edits [base read, duped]"),
-    // BcfFormatStruct("bEDAD"    , 2, BCF_INTEGER, "Summed Phred-scaled edit distance of reads supporting the ALT where an InDel corresponds to 2 edits [base read, duped]"),
+    BcfFormatStruct("__e8"  , 1,         BCF_SEP,     "Power-law variant quality statistics for SSCS UMI-barcoded families."),
+    BcfFormatStruct("cPCQ2" , BCF_NUM_R, BCF_SIG_INT, "The SSCS power-law variant allele quality cap that is not lowered by using matched normal."),
+    BcfFormatStruct("cPLQ2" , BCF_NUM_R, BCF_SIG_INT, "The single-strand-consensus-sequence (SSCS) UMI-barcoded power-law variant allele quality."),
+    BcfFormatStruct("cVQ2"  , BCF_NUM_R, BCF_SIG_INT, "The final variant allele quality computed with SSCS UMI-barcoded families."),
+    BcfFormatStruct("cMmQ"  , BCF_NUM_R, BCF_INTEGER, "The empirical base quality estimated with high-quality UMI barcode families. "
+                                                      "This field is defined to be the Phred-scale fraction of minor read support "
+                                                      "to the sum of major and major read support, "
+                                                       "where major means agreement with UMI consensus, and minor means disagreement with UMI consensus. "),
+    BcfFormatStruct("dVQinc", BCF_NUM_R, BCF_SIG_INT, "The increase in cVQ2 (excluding systematic error) contributed by "
+                                                      "double-strand-consensus-sequences (DSCSs) of duplex barcode famillies. "
+                                                      "Negative value means no increase."),
 
-    BcfFormatStruct("__bf"     , 1, BCF_SEP,     "Forward&reverse total depth (bDPLQ), ALT depth (bADLQ), and REF depth (bRDLQ) supported by low-quality (LQ) bases [duped]"),
-    BcfFormatStruct("bDPLQ"    , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("bADLQ"    , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("bRDLQ"    , 2, BCF_INTEGER, "see above"),
-    
-      
-    BcfFormatStruct("__ca"     , 1, BCF_SEP,     "Same as __ba but for single-strand families instead of reads [consensus family, deduped]"),
-    BcfFormatStruct("cPTL"     , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("cPTR"     , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("cPBL"     , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("cPBR"     , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("cMMT"     , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("cMMB"     , 2, BCF_INTEGER, "see above"),
-    
-    BcfFormatStruct("__cb"     , 1, BCF_SEP,     "Same as __bb but for single-strand families instead of reads [consensus family, deduped]"), 
-    BcfFormatStruct("cSDL"     , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("cSDR"     , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("cSB1"     , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("cSBR"     , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("cNSB"     , 2, BCF_INTEGER, "Total number of sequenced bases on all reads covering this position [consensus family, deduped]"),
+    BcfFormatStruct("__Ef1" , 1,         BCF_SEP,     "Effective read support for deduplicated read fragments for all alleles and the padded-deletion allele."),
+    BcfFormatStruct("CDP1v" , 2        , BCF_INTEGER, "The effective number of deduplicated read fragments supporting all alleles multiplied by 100 "
+                                                      "for within-sample comparison."),
+    BcfFormatStruct("CDP1w" , 2        , BCF_INTEGER, "The effective number of deduplicated read fragments supporting all alleles multiplied by 100 "
+                                                      "for sample-specific variant-quality cap."), 
+    BcfFormatStruct("CDP1x" , 2        , BCF_INTEGER, "The effective number of deduplicated read fragments supporting all alleles multiplied by 100 "),
 
-    BcfFormatStruct("__cc"     , 1, BCF_SEP,     "Same as __bc but for single-strand families instead of reads [consensus family, deduped]"), 
-    BcfFormatStruct("cDP1"     , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("cAD1"     , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("cRD1"     , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("cAD2"     , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("cQT2"     , 2, BCF_INTEGER, "see above"),
+    BcfFormatStruct("__ef1" , 1,         BCF_SEP,     "Effective read support for deduplicated read fragments for the REF allele and each ALT allele."),
+    BcfFormatStruct("cDP1v" , BCF_NUM_R, BCF_INTEGER, "The effective number of deduplicated read fragments supporting each allele multiplied by 100 "
+                                                      "for within-sample comparison."),
+    BcfFormatStruct("cDP1w" , BCF_NUM_R, BCF_INTEGER, "The effective number of deduplicated read fragments supporting each allele multiplied by 100 "
+                                                      "for sample-specific variant-quality cap."),
+    BcfFormatStruct("cDP1x" , BCF_NUM_R, BCF_INTEGER, "The effective number of deduplicated read fragments supporting each allele multiplied by 100 "
+                                                      "for between-sample comparison."),
     
-    BcfFormatStruct("__cd"     , 1, BCF_SEP,     "Same as __bd but for single-strand families instead of reads [consensus family, deduped]"),
-    BcfFormatStruct("cAD3"     , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("cADB"     , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("cQT3"     , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("cVQ3"     , 2, BCF_FLOAT,   "see above"),
+    BcfFormatStruct("__Ef2" , 1,         BCF_SEP,     "Effective read support for SSCS UMI-barcoded families."),
+    BcfFormatStruct("CDP2v" , 2        , BCF_INTEGER, "The effective number of SSCS UMI-barcoded families supporting all alleles multiplied by 100 "
+                                                      "for within-sample comparison."),
+    BcfFormatStruct("CDP2w" , 2        , BCF_INTEGER, "The effective number of SSCS UMI-barcoded families supporting all alleles multiplied by 100 "
+                                                      "for sample-specific variant-quality cap."), 
+    BcfFormatStruct("CDP2x" , 2        , BCF_INTEGER, "The effective number of SSCS UMI-barcoded families supporting all alleles multiplied by 100 "
+                                                      "for between-sample comparison."),
+
+    BcfFormatStruct("__ef2" , 1,         BCF_SEP,     "Effective read support for SSCS UMI-barcoded families."),
+    BcfFormatStruct("cDP2v" , BCF_NUM_R, BCF_INTEGER, "The effective number of SSCS UMI-barcoded families supporting each allele multiplied by 100 "
+                                                      "for within-sample comparison."),
+    BcfFormatStruct("cDP2w" , BCF_NUM_R, BCF_INTEGER, "The effective number of SSCS UMI-barcoded families supporting each allele multiplied by 100 "
+                                                      "for sample-specific variant-quality cap."),
+    BcfFormatStruct("cDP2x" , BCF_NUM_R, BCF_INTEGER, "The effective number of SSCS UMI-barcoded families supporting each allele multiplied by 100 "
+                                                      "for between-sample comparison."),
+        
+    BcfFormatStruct("__f1"  , 1,         BCF_SEP,     "Filter-related informationn including counter-filters that rescue variants."),
+    BcfFormatStruct("CONTQ" , BCF_NUM_R, BCF_SIG_INT, "Likelihood of the variant signal if the variant signal is contaminated. "
+                                                      "This value rescues variants in the matched normal control sample."),
+    BcfFormatStruct("nPF"   , BCF_NUM_D, BCF_SIG_INT, "Phred prior bias probability for base position and BAQ."),
+    BcfFormatStruct("nNFA"  , BCF_NUM_D, BCF_SIG_INT, "DeciPhred allele fractions computed using nullified bias (meaning that bias in ALT is countered by bias in REF). "),
+    BcfFormatStruct("nAFA"  , BCF_NUM_D, BCF_SIG_INT, "DeciPhred allele fractions computed with sequencing-segment depths, "
+            "reduced by none, left base position, base right position, left BAQ, right BAQ, left insert positoin, right insert position, strand, and pasing-filter biases (8 biases), respectively. "),
+    BcfFormatStruct("nBCFA",  BCF_NUM_D, BCF_SIG_INT, "DeciPhred allele fractions computed with duped and deduped depths, "
+            "using duped depth, deduped depth, tier-2 consensus family depth, tier-3 consensus family depth, tier-1 read-orientation depth, and tier-2 read-orientation depth, respectively. "),
     
-    BcfFormatStruct("__ce"     , 1, BCF_SEP,     "number of read supports generated by signal (cMajor) and noise (cMinor) inferred from heterogeneity of families, "
-                                                 "and strand-specific VAQ (non-adjusted: cVAQ1; adjusted with BQ, MQ, and strand balance: cVAQ2) [consensus family, deduped]"),
-    BcfFormatStruct("cMajor"   , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("cMinor"   , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("cVAQ1"    , 2, BCF_FLOAT,   "see above"),
-    BcfFormatStruct("cVAQ2"    , 2, BCF_FLOAT,   "see above"),
+    BcfFormatStruct("__g1"  , 1,         BCF_SEP,     "General variant-related information."),
+    BcfFormatStruct("VTI"   , BCF_NUM_R, BCF_INTEGER, "Variant-type ID of each allele."),
+    BcfFormatStruct("VTD"   , BCF_NUM_R, BCF_STRING,  "Variant-type description of each allele"),
+    BcfFormatStruct("cVQ1M" , 2,         BCF_SIG_INT, "Consensus allele qualities for deduped fragments and UMI families"),
+    BcfFormatStruct("cVQ2M" , 2,         BCF_SIG_INT, "Consensus allele qualities for deduped fragments and UMI families"),
+    BcfFormatStruct("cVQAM" , 2,         BCF_STRING,  "Consensus allele symbolic descriptions for deduped fragments and UMI families"),
+    BcfFormatStruct("cVQSM" , 2,         BCF_STRING,  "Consensus allele InDel strings for deduped fragments and UMI families"),
     
-    BcfFormatStruct("__cf"     , 1, BCF_SEP,     "Forward&reverse number of families without any filtering (REF/ALT/ALL total: cRDTT/cADTT/cDPTT, "
-                                                 "REF/ALT/ALL allele singleton: cRDT1/cADT1/cDPT1, REF/ALT/ALL allele failing 80\% consensus : cRDTN/cADTN/cDPTN). "),
-    BcfFormatStruct("cADTT"    , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("cADT1"    , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("cADTC"    , 2, BCF_INTEGER, "(TT - T1 - TN) for ALT"),
-    BcfFormatStruct("cRDTT"    , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("cRDT1"    , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("cRDTC"    , 2, BCF_INTEGER, "(TT - T1 - TN) for REF"),
-    BcfFormatStruct("cDPTT"    , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("cDPT1"    , 2, BCF_INTEGER, "see above"),
-    BcfFormatStruct("cDPTC"    , 2, BCF_INTEGER, "(TT - T1 - TN) for ALL"),
+    BcfFormatStruct("__g2"   , 1,        BCF_SEP,     "Gap-related information for InDels."), 
+    BcfFormatStruct("gapNf"  ,BCF_NUM_D, BCF_INTEGER, "Number of InDel sequences on the forward read orientation."),
+    BcfFormatStruct("gapNr"  ,BCF_NUM_D, BCF_INTEGER, "Number of InDel sequences on the reverse read orientation."),
+    BcfFormatStruct("gapSeq" ,BCF_NUM_D, BCF_STRING,  "InDel sequences"),
+    BcfFormatStruct("gapbAD1",BCF_NUM_D, BCF_INTEGER, "Duped read count of each gapSeq"),
+    BcfFormatStruct("gapcAD1",BCF_NUM_D, BCF_INTEGER, "Deduped read count of each gapSeq"),
     
-    BcfFormatStruct("__da"     , 1, BCF_SEP,     "Same as __ba and __ca but for duplex families [duplex family, DSCS1-deduped]"),
-    BcfFormatStruct("dDP1"     , 1, BCF_INTEGER, "see above"),
-    BcfFormatStruct("dAD1"     , 1, BCF_INTEGER, "see above"),
-    BcfFormatStruct("dVQ3"     , 1, BCF_INTEGER, "see above"),
-    BcfFormatStruct("dAD3"     , 1, BCF_INTEGER, "see above"),
+    BcfFormatStruct("bDPa"   ,BCF_NUM_R, BCF_INTEGER, "Number of non-deduplicated fragments supporting each ALT allele which is more precise for InDels."),
+    BcfFormatStruct("cDP0a"  ,BCF_NUM_R, BCF_INTEGER, "Number of deduplicated fragments supporting each ALT allele which is more precise for InDels"),
+    BcfFormatStruct("gapSa"  ,BCF_NUM_R, BCF_STRING,  "InDel string of each allele"),
     
-    BcfFormatStruct("__ea"    , 1, BCF_SEP,     "Number of indels in forward&reverse strand (gapNum), max cAD diff (gapcADD), total cAD depth (gapcADT), indel sequences (gapSeq), duped read count of each gapSeq, dedup family count of each gapSeq, and duped/deduped sub/all allele read counts (gapDP4)"), 
-    BcfFormatStruct("gapNum"   , 2, BCF_INTEGER, "see above"), // 2 * number-of-alts
-    BcfFormatStruct("gapcADD"  , 2, BCF_INTEGER, "see above"), // 2 * number-of-alts
-    BcfFormatStruct("gapcADT"  , 2, BCF_INTEGER, "see above"), // 2 * number-of-alts
-    BcfFormatStruct("gapSeq"   , BCF_NUM_D, BCF_STRING,  "see above"),
-    BcfFormatStruct("gapbAD1"  , BCF_NUM_D, BCF_INTEGER, "see above"),
-    BcfFormatStruct("gapcAD1"  , BCF_NUM_D, BCF_INTEGER, "see above"),
-    BcfFormatStruct("gapDP4"   , 4, BCF_INTEGER, "see above"),
-    BcfFormatStruct("gapbNRD"  , 4, BCF_INTEGER, "Forward&reverse (02&13) strand-specific duped read count for any insertion&deletion (01&23)"),
-    // BcfFormatStruct("gapbNNRD" , 2, BCF_INTEGER, "Highest duped read count for any insertion&deletion nearby"),
-    BcfFormatStruct("RCC"      , RCC_NFS*RCC_NUM, BCF_INTEGER, 
-                                "STR-unit position of the mode, two indel counts of -2 and -1 STR units, mode count, two ins counts of +1 and +2 STR units with respect to the mode"),
-    BcfFormatStruct("bHap"     , 1, BCF_STRING,  "Duped forward&reverse linkage in the format of ((position&variantType)...depth)... "
-                                                 "where ()... means more elements following the format in the preceding parenthesis. "),
-    BcfFormatStruct("cHap"     , 1, BCF_STRING,  "Dedup forward&reverse linkage in the format of ((position&variantType)...depth)... "
-                                                 "where ()... means more elements following the format in the preceding parenthesis. "),    
-    BcfFormatStruct("note"     , 1, BCF_STRING,  "Additional note as comment for the given variant")
+    BcfFormatStruct("__h1"   , 1,        BCF_SEP,     "Haplotype-related information."), 
+
+    BcfFormatStruct("bHap"  , 1,         BCF_STRING,  "Duped forward&reverse linkage in the format of ((position&variantType)...depth)... "
+                                                      "where ()... means more elements following the format in the preceding parenthesis. "),
+    BcfFormatStruct("cHap"  , 1,         BCF_STRING,  "Dedup forward&reverse linkage in the format of ((position&variantType)...depth)... "
+                                                      "where ()... means more elements following the format in the preceding parenthesis. "),
+    BcfFormatStruct("vAC"   , 2,         BCF_INTEGER,  "Number of SNVs and InDels that passed their variant quality thresholds at this position. This field can be used to filter out multiallelic variants or to merge alleles at the same position."),
+    BcfFormatStruct("vNLODQ", 2,         BCF_SIG_INT,  "Number of SNVs and InDels that passed their variant quality thresholds at this position. This field can be used to filter out SNV-in-tumor with InDel-in-normal or InDel-in-tumor with SNV-in-normal at the same position."),
+    
+
+    BcfFormatStruct("note"  , 1,         BCF_STRING,  "Additional note as comment for the given variant")
 };
 
 /*
@@ -379,7 +507,7 @@ main(int argc, char **argv) {
     }
     std::cout << "};\n";
    
-    std::cout << "const char *const FORMAT_STR_PER_REC = \"";  
+    std::cout << "const char *const FORMAT_STRING_PER_REC = \"";  
     itnum = 0;
     for (auto fmt : FORMAT_VEC) {
         if (itnum) {
@@ -402,7 +530,7 @@ main(int argc, char **argv) {
             if (0 == fmt.number) { assert (CPP_DATA_STRING[fmt.type] == std::string("bool")); }
             std::cout << "    " << CPP_DATA_STRING[fmt.type] << " " << fmt.id << " = " << CPP_DATA_VALUES[fmt.type] << ";" << "\n";
         } else if (1 < fmt.number) {
-            std::cout << "    std::array <" << CPP_DATA_STRING[fmt.type] << ", " << fmt.number << ">" << fmt.id << ";" << "\n";
+            std::cout << "    std::array <" << CPP_DATA_STRING[fmt.type] << ", " << fmt.number << ">" << fmt.id << " = {{" << CPP_DATA_VALUES[fmt.type] << "}};" << "\n";
         } else {
             std::cout << "    std::vector<" << CPP_DATA_STRING[fmt.type] << ">" << fmt.id << ";" << "\n";
         }
@@ -424,17 +552,37 @@ main(int argc, char **argv) {
             std::cout << "        if (0 != i) { outstring += \",\"; }; outstring += " << (fmt.type == BCF_STRING ? "" : "std::to_string") 
                     << "(" << "fmt." << fmt.id << "[i]" << ");\n";
             std::cout << "    };\n";
-            if (BCF_STRING == fmt.type) {
-                std::cout << "        if (fmt. " << fmt.id << ".size() == 1 && fmt." << fmt.id << "[0].size() == 0) { outstring += \",\"; };";
-            }
-            if (BCF_NUM_D == fmt.type) {
-                std::cout << "        if (fmt. " << fmt.id << "[0].size() == 0) { outstring += \"0\"; };";
-            }
         }
         itnum++;
     }
     std::cout << "\n    return 0;};\n";
     
+    std::cout << "#include <assert.h>\n";
+    
+    std::cout << "static int resetBcfFormatD(BcfFormat & fmt) {\n";
+    
+    for (auto fmt : FORMAT_VEC) {
+        if (BCF_NUM_D == fmt.number) {
+            std::cout << "    fmt." << fmt.id << ".clear();\n";
+        }
+    }
+    std::cout << "\n    return 0;};\n";
+    
+    std::cout << "static int streamFrontPushBcfFormatR(BcfFormat & dst, const BcfFormat & src) {\n";
+    
+    for (auto fmt : FORMAT_VEC) {
+        if (BCF_NUM_R == fmt.number) {
+            std::cout << "    assert(dst." << fmt.id << ".size() == 1 || !fprintf(stderr, \"\%lu == 1 failed for " << fmt.id 
+                    << "\", dst." << fmt.id << ".size() ) );\n";
+            std::cout << "    assert(src." << fmt.id << ".size() == 1 || !fprintf(stderr, \"\%lu == 1 failed for " << fmt.id 
+                    << "\", src." << fmt.id << ".size() ) );\n";
+            std::cout << "    auto " << fmt.id << "_tmp = dst." << fmt.id << "[0];\n";
+            std::cout << "    dst." << fmt.id << "[0] = src." << fmt.id << "[0];\n";
+            std::cout << "    dst." << fmt.id << ".push_back(" << fmt.id << "_tmp);\n";
+        }
+    }
+    std::cout << "\n    return 0;};\n";
+
     std::cout << "const char *const FORMAT_LINES[] = {\n";
     for (auto fmt : FORMAT_VEC) {
         std::cout << "    " 

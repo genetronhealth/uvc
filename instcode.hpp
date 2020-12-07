@@ -3,27 +3,25 @@
 #if INDEL_ID == 1
 #define INDELTYPE std::string
 #else
-#define INDELTYPE uint32_t
+#define INDELTYPE uvc1_readpos_t
 #endif
 
 // this code is instantiated multiple times, with INDELTYPE as instantiation parameter.
-// template <AlignmentSymbol link1, AlignmentSymbol link2, AlignmentSymbol link3p> // , LinkType linkType>
-std::array<unsigned int, 2>
+std::array<uvc1_readnum_t, 2>
 #if INDEL_ID == 1
 fill_by_indel_info2_1
 #else
 fill_by_indel_info2_2
 #endif
 (bcfrec::BcfFormat & fmt,
-        const Symbol2CountCoverageSet & symbol2CountCoverageSet, 
-        const unsigned int strand, 
-        const unsigned int refpos, 
+        const Symbol2CountCoverageSet & symbol2CountCoverageSet IGNORE_UNUSED_PARAM, 
+        const int strand, 
+        const uvc1_refgpos_t refpos, 
         const AlignmentSymbol symbol,
-        const std::map<std::uint32_t, std::map<INDELTYPE, uint32_t>> & bq_tsum_depth,
-        const std::map<std::uint32_t, std::map<INDELTYPE, uint32_t>> & fq_tsum_depth,
-        const std::string & refchars, 
-        const std::string & repeatunit, 
-        unsigned int repeatnum) {
+        const std::map<uvc1_refgpos_t, std::map<INDELTYPE, uvc1_readnum_t>> & bq_tsum_depth,
+        const std::map<uvc1_refgpos_t, std::map<INDELTYPE, uvc1_readnum_t>> & fq_tsum_depth,
+        const std::string & refchars IGNORE_UNUSED_PARAM,
+        const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
     
     assert(isSymbolIns(symbol) || isSymbolDel(symbol));
     if (isSymbolIns(symbol)) {
@@ -37,30 +35,31 @@ fill_by_indel_info2_2
     }
     assert(bq_tsum_depth.find(refpos) != bq_tsum_depth.end());
     
-    std::vector<std::tuple<uint32_t, uint32_t, std::string>> bqfq_depth_mutform_tuples;
+    std::vector<std::tuple<uvc1_readnum_t, uvc1_readnum_t, std::string>> bqfq_depth_mutform_tuples;
     for (auto indel2data4 : bq_tsum_depth.at(refpos)) {
         const auto indel = indel2data4.first;
 #if INDEL_ID == 1
         const std::string indelstring = indel2data4.first;
 #else
-        const std::string indelstring = refchars.substr(refpos - symbol2CountCoverageSet.duplex_tsum_depth.getIncluBegPosition(), indel2data4.first); 
+        const std::string indelstring = refchars.substr(refpos - symbol2CountCoverageSet.getUnifiedIncluBegPosition(), indel2data4.first); 
 #endif
         if (indelstring.size() == 0) {
             continue;
         }
         
-        const uint32_t bqdata = posToIndelToData_get(bq_tsum_depth, refpos, indel);
-        const uint32_t fqdata = posToIndelToData_get(fq_tsum_depth, refpos, indel);
+        const uvc1_readnum_t bqdata = posToIndelToData_get(bq_tsum_depth, refpos, indel);
+        const uvc1_readnum_t fqdata = posToIndelToData_get(fq_tsum_depth, refpos, indel);
         assert(bqdata > 0);
         bqfq_depth_mutform_tuples.push_back(std::make_tuple(fqdata, bqdata, indelstring));
     }
-    unsigned int gapbAD1sum = 0;
-    unsigned int gapcAD1sum = 0;
+    uvc1_readnum_t gapbAD1sum = 0;
+    uvc1_readnum_t gapcAD1sum = 0;
     std::sort(bqfq_depth_mutform_tuples.rbegin(), bqfq_depth_mutform_tuples.rend());
-    fmt.gapNum[strand] = bqfq_depth_mutform_tuples.size();
-    unsigned int prev_gapseq_len = 0;
-    unsigned int prev_gap_cAD = 0;
-    unsigned int maxdiff = 0; 
+    auto & gapN = ((0 == strand) ? fmt.gapNf : fmt.gapNr);
+    gapN.push_back(bqfq_depth_mutform_tuples.size());
+    uvc1_readpos_t prev_gapseq_len = 0;
+    uvc1_readnum_t prev_gap_cAD = 0;
+    uvc1_readnum_t maxdiff = 0; 
     for (auto bqfq_depth_mutform : bqfq_depth_mutform_tuples) {
         const auto gap_seq = std::get<2>(bqfq_depth_mutform);
         assert(gap_seq.size() > 0);
@@ -69,7 +68,7 @@ fill_by_indel_info2_2
         fmt.gapSeq.push_back(gap_seq);
         fmt.gapbAD1.push_back(gap_bAD);
         fmt.gapcAD1.push_back(gap_cAD);
-        if (gap_seq.size() != prev_gapseq_len && prev_gap_cAD > gap_cAD) {
+        if ((UNSIGN2SIGN(gap_seq.size()) != prev_gapseq_len) && (prev_gap_cAD > gap_cAD)) {
             maxdiff = MAX(maxdiff, prev_gap_cAD - gap_cAD);
         }
         prev_gapseq_len = gap_seq.size();

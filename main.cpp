@@ -19,8 +19,6 @@
 #include "omp.h"
 #endif
 
-const unsigned int G_BLOCK_SIZE = 1000;
-
 void 
 xfree(void *ptr) {
     if (NULL != ptr) { free(ptr); }
@@ -52,7 +50,7 @@ clearstring(BGZF * bgzip_file, const std::string & outstring_allp, bool is_outpu
 };
 
 std::string 
-load_refstring(const faidx_t *ref_faidx, unsigned int tid, unsigned int incbeg, unsigned int excend) {
+load_refstring(const faidx_t *ref_faidx, uvc1_refgpos_t tid, uvc1_refgpos_t incbeg, uvc1_refgpos_t excend) {
     assert(incbeg < excend);
     if (NULL == ref_faidx) {
         return std::string(excend - incbeg, 'n');
@@ -60,7 +58,7 @@ load_refstring(const faidx_t *ref_faidx, unsigned int tid, unsigned int incbeg, 
     const char *tname = faidx_iseq(ref_faidx, tid);
     int regionlen;
     char *fetchedseq = faidx_fetch_seq(ref_faidx, tname, incbeg, excend - 1, &regionlen);
-    assert (regionlen == (int)(excend - incbeg) || !fprintf(stderr, "%d == %u - %u failed", regionlen, excend, incbeg));
+    assert (regionlen == (excend - incbeg) || !fprintf(stderr, "%d == %u - %u failed", regionlen, excend, incbeg));
     std::string ret(fetchedseq);
     for (size_t i = 0; i < ret.size(); i++) {
         ret[i] = toupper(ret[i]);
@@ -79,49 +77,26 @@ map2vector(const std::map<TKey, TVal> & key2val4map) {
     return ret;
 };
 
-std::map<std::pair<unsigned int, AlignmentSymbol>, std::set<size_t>>
-mutform2count4vec_to_simplemut2indices(std::vector<std::pair<std::basic_string<std::pair<unsigned int, AlignmentSymbol>>, std::array<unsigned int, 2>>> mutform2count4vec) {
-    std::map<std::pair<unsigned int, AlignmentSymbol>, std::set<size_t>> simplemut2indices;
+std::map<std::pair<uvc1_refgpos_t, AlignmentSymbol>, std::set<size_t>>
+mutform2count4vec_to_simplemut2indices(std::vector<std::pair<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>>> mutform2count4vec) {
+    std::map<std::pair<uvc1_refgpos_t, AlignmentSymbol>, std::set<size_t>> simplemut2indices;
     for (size_t i = 0; i < mutform2count4vec.size(); i++) {
         auto counts = mutform2count4vec[i].second; 
         if (counts[0] + counts[1] < 2) { continue; }
-        std::basic_string<std::pair<unsigned int, AlignmentSymbol>> mutset = mutform2count4vec[i].first;
+        std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>> mutset = mutform2count4vec[i].first;
         for (auto simplemut : mutset) {
             simplemut2indices.insert(std::make_pair(simplemut, std::set<size_t>()));
             simplemut2indices[simplemut].insert(i);
-            
-            //for (std::pair<unsigned int, AlignmentSymbol> simplemut : mutforms) {
-            //    simplemut2indices.insert(std::make_pair(simplemut, std::set<size_t>()));
-            //    simplemut2indices[simplemut].insert(i);
-            //}
         }
     }
     return simplemut2indices;
 };
 
-/*
-std::map<unsigned int, std::set<size_t>> simplemut2indices
-simplemut2indices4vec_to_pos2idx( mutform2count4vec) {
-    std::map<unsigned int, std::set<size_t>> simplemut2indices;
-    for (size_t i = 0; i < mutform2count4vec_bq.size(); i++) {
-        for (auto mutform : mutform2count4vec_bq[i].first) {
-            for (auto pos_symb : mutform) {
-                unsigned int pos = pos_symb.first;
-                if (pos_symb.second > 1) {
-                    simplemut2indices.insert(std::make_pair(pos, std::set<size_t>()));
-                    simplemut2indices[pos].insert(i);
-                }
-            }
-        }
-    }
-}
-*/
-
 int 
 bgzip_string(std::string & compressed_outstring, const std::string & uncompressed_outstring) {
     char *compressed_outstr = (char*)malloc(uncompressed_outstring.size() * sizeof(char));
     if (NULL == compressed_outstr) {
-        fprintf(stderr, "The library function malloc failed at line %d in file %s !\n", __LINE__, __FILE__);
+        fprintf(stderr, "The library function malloc failed at line %d in file %s!\n", __LINE__, __FILE__);
         exit(-1);
     }
     size_t compressed_capacity = uncompressed_outstring.size();
@@ -131,7 +106,7 @@ bgzip_string(std::string & compressed_outstring, const std::string & uncompresse
         if (compressed_totlen + BGZF_BLOCK_SIZE >= compressed_capacity) {
             char *compressed_outstr_tmp = (char*)realloc(compressed_outstr, (compressed_capacity * 2 + BGZF_BLOCK_SIZE) * sizeof(char));
             if (NULL == compressed_outstr_tmp) {
-                fprintf(stderr, "The library function realloc failed at line %d in file %s !\n", __LINE__, __FILE__);
+                fprintf(stderr, "The library function realloc failed at line %d in file %s!\n", __LINE__, __FILE__);
                 exit(-2);
             }
             compressed_outstr = compressed_outstr_tmp;
@@ -143,8 +118,8 @@ bgzip_string(std::string & compressed_outstring, const std::string & uncompresse
         bgzf_compress(compressed_outstr + compressed_totlen, &compressed_len, uncompressed_outstring.c_str() + uncompress_totlen, block_len, 5);
         uncompress_totlen += block_len;
         compressed_totlen += compressed_len;
-        // fprintf(stderr, "Compressed %d out of %d raw data into %d\n", uncompressed_totlen, uncompressed_outstring.size(), compressed_totlen);
     } while (uncompress_totlen < uncompressed_outstring.size());
+    
     compressed_outstring += std::string(compressed_outstr, compressed_totlen);
     free(compressed_outstr);
     return 0;
@@ -153,152 +128,27 @@ bgzip_string(std::string & compressed_outstring, const std::string & uncompresse
 struct BatchArg {
     std::string outstring_allp;
     std::string outstring_pass;
-    VcStats vc_stats;
-    unsigned int thread_id;
+    int thread_id;
     hts_idx_t *hts_idx;
     faidx_t *ref_faidx;
     bcf_hdr_t *bcf_hdr;
     bcf_srs_t *sr;
     
-    std::tuple<unsigned int, unsigned int, unsigned int, bool, unsigned int> tid_beg_end_e2e_tuple;
-    std::tuple<std::string, unsigned int> tname_tseqlen_tuple;
-    unsigned int region_ordinal; // deprecated
-    unsigned int region_tot_num; // deprecated
-    unsigned int regionbatch_ordinal;
-    unsigned int regionbatch_tot_num;
+    std::tuple<uvc1_refgpos_t, uvc1_refgpos_t, uvc1_refgpos_t, bool, uvc1_readnum_t> tid_beg_end_e2e_tuple;
+    std::tuple<std::string, uint32_t> tname_tseqlen_tuple;
+    size_t regionbatch_ordinal;
+    size_t regionbatch_tot_num;
 
     const CommandLineArgs paramset;
     const std::string UMI_STRUCT_STRING;
     const bool is_vcf_out_pass_to_stdout;
-    const bool is_vcf_out_empty_string;
-};
-
-unsigned int
-gen_fq_tsum_depths(const auto & fq_tsum_depth, unsigned int refpos) {
-    std::array<unsigned int, 3> fq_tsum_depths = {{0, 0, 0}};
-    for (unsigned int strand = 0; strand < 2; strand++) {
-        fq_tsum_depths[0] += fq_tsum_depth.at(strand).getByPos(refpos+0).sumBySymbolType(LINK_SYMBOL);
-        fq_tsum_depths[1] += fq_tsum_depth.at(strand).getByPos(refpos+0).sumBySymbolType(BASE_SYMBOL);
-        fq_tsum_depths[2] += fq_tsum_depth.at(strand).getByPos(refpos+1).sumBySymbolType(LINK_SYMBOL);
-    }
-    return MIN(MIN(fq_tsum_depths[0], fq_tsum_depths[2]), fq_tsum_depths[1]);
-}
-
-std::vector<unsigned int>
-gen_dp100(const auto & fq_tsum_depth, unsigned int inclu_beg, unsigned int exclu_end) {
-    assert (inclu_beg <= exclu_end);
-    std::vector<unsigned int> dp100;
-    dp100.reserve(exclu_end - inclu_beg);
-    //for (unsigned int rpos2 = refpos; rpos2 < MIN(refpos+100, rpos_exclu_end); rpos2++) {
-    for (unsigned int rpos2 = inclu_beg; rpos2 < exclu_end; rpos2++) {
-        unsigned int fq_tsum_depth_g = gen_fq_tsum_depths(fq_tsum_depth, rpos2);
-        dp100.push_back(fq_tsum_depth_g);
-    }
-    return dp100;
-}
-
-std::string 
-dp100_to_string(const std::vector<unsigned int> & bg1dp100, const std::vector<unsigned int> & bg2dp100, 
-        const std::string & chromosome, unsigned int refpos, bool is_rev) {
-    assert (bg1dp100.size() == bg2dp100.size());
-    std::string ret = chromosome + "\t" + std::to_string(refpos) + 
-            "\t.\tN\t<DP100" + (is_rev ? "RV" : "FW") + ">\t.\t.\t.\tGT:bgNPOS:bg1DPS:bg2DPS\t.:" + std::to_string(bg1dp100.size()) + ":";
-    for (auto dp : bg1dp100) {
-        ret += std::to_string(dp) + ",";
-    }
-    ret += "-1:";
-    for (auto dp : bg2dp100) {
-        ret += std::to_string(dp) + ",";
-    }
-    ret += "-1\n";
-    return ret;
-}
-
-std::string
-genomic_reg_info_to_string(const std::string & chromosome, 
-        unsigned int incluBeg, SymbolType stypeBeg,
-        unsigned int incluEnd, SymbolType stypeEnd,
-        const unsigned int gbDPmin, const unsigned int gcDPmin,
-        const std::string &gfGTmm2, const unsigned int gfGQmin,
-        const std::string & refstring, unsigned int refstring_offset) {
-    unsigned int begpos = incluBeg; // = (stypeBeg == BASE_SYMBOL ? (incluBeg+1) : incluBeg);
-    unsigned int endpos = incluEnd; // = (stypeEnd == BASE_SYMBOL ? (excluEnd+1) : (excluEnd));
-    unsigned int refstring_idx = begpos - refstring_offset;
-    const std::string begchar = (refstring_idx > 0 ? refstring.substr(refstring_idx - 1, 1) : "n");
-    std::string ret = chromosome + "\t" + std::to_string(begpos)
-            + "\t.\t" + begchar + "\t<NON_REF" + ">\t.\t.\t.\tGT:GQ:gbDP:gcDP:gSTS:gBEG:gEND\t"
-            +               (gfGTmm2) + ":"
-            + std::to_string(gfGQmin) + ":"
-            + std::to_string(gbDPmin) + ":"
-            + std::to_string(gcDPmin) + ":"
-            + std::to_string(stypeBeg) + "," + std::to_string(stypeEnd) + ":"
-            + std::to_string(begpos) + ":"
-            + std::to_string(endpos) + "\n";
-    return ret;
-}
-
-const bool
-is_sig_higher_than(auto a, auto b, unsigned int mfact, unsigned int afact) {
-    return (a * 100 > b * (100 + mfact)) && (a > b + afact);
-}
-
-const bool
-is_sig_out(auto a, auto minval, auto maxval, unsigned int mfact, unsigned int afact) {
-    return is_sig_higher_than(a, minval, mfact, afact) || is_sig_higher_than(maxval, a, mfact, afact);
-}
-
-struct TumorKeyInfo {
-    std::string ref_alt;
-    std::string FTS;
-    int32_t pos = 0;
-    float VAQ = 0;
-    int32_t DP = 0;
-    float FA = 0;
-    float FR = 0;
-    int32_t BQ = 0;
-    int32_t MQ = 0;
-   
-    int32_t cADTC = 0;
-    int32_t cRDTC = 0;
-    int32_t cDPTC = 0;
-    
-    int32_t bDP = 0;
-    std::array<int32_t, 2> bAD1 = {{0}};
-    int32_t autoBestAllBQ = 0;
-    int32_t autoBestAltBQ = 0;
-    int32_t autoBestRefBQ = 0;
-    int32_t autoBestAllHD = 0;
-    int32_t autoBestAltHD = 0;
-    int32_t autoBestRefHD = 0;
-    int32_t cAllBQ = 0;
-    int32_t cAltBQ = 0;
-    int32_t cRefBQ = 0;
-    int32_t dAD3 = 0;
-    std::array<int32_t, 4> gapDP4 = {{0}};
-    std::array<int32_t, 6*RCC_NUM> RCC = {{0}};
-    std::array<int32_t, 3> GLa = {{0}};
-    std::array<int32_t, 3> GLb = {{0}};
-    std::array<int32_t, 5> EROR = {{0}};
-    std::array<int32_t, 4> gapbNRD = {{0}};
-    std::array<int32_t, 3> aPBAD = {{0}};
-    std::array<int32_t, 4> aAD = {{0}};
-    // std::array<int32_t, 2> gapbNNRD = {0};
-    bcf1_t *bcf1_record = NULL;
-    /*
-    ~TumorKeyInfo() {
-        if (bcf1_record != NULL) {
-            // this line must be elsewhere apparently due to the subtle differences between C and C++.
-            // bcf_destroy(bcf1_record);
-        }
-    }
-    */
 };
 
 std::string 
-als_to_string(const char *const* const allele, unsigned int m_allele) {
+als_to_string(const char *const* const allele, uint32_t n_allele) {
     std::string ret;
-    ret.reserve(m_allele*2);
-    for (unsigned int i = 0; i < m_allele; i++) {
+    ret.reserve(n_allele*2);
+    for (uint32_t i = 0; i < n_allele; i++) {
         if (0 == i) {
             ret += allele[i];
         } else if (1 == i) {
@@ -307,39 +157,30 @@ als_to_string(const char *const* const allele, unsigned int m_allele) {
             ret += std::string(",") + allele[i];
         }
     }
-    /*
-    ret.reserve(m_als+1);
-    unsigned int n_alleles = 0;
-    for (unsigned int i = 0; i < m_als; i++) {
-        if ('\0' == als[i]) {
-            if (0 == n_alleles) {
-                ret += "\t";
-            } else if ((i+1) != m_als) {
-                ret += ",";
-            } else {
-                // pass
-            }
-            n_alleles++;
-        } else {
-            ret += als[i];
-        }
-    }
-    */
     return ret;
 }
 
-const std::map<std::tuple<unsigned int, unsigned int, AlignmentSymbol>, std::vector<TumorKeyInfo>>
-rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_tname_tlen_tuple_vec, const std::string & vcf_tumor_fname, const auto *bcf_hdr, 
+#define BCF_GET_FORMAT_INT32_WITH_CHECK(v) \
+        ndst_val = 0; \
+        valsize = bcf_get_format_int32(bcf_hdr, line, v, &bcfints, &ndst_val); \
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for %s and line %d!\n", ndst_val, valsize, v, line->pos));
+
+const std::map<std::tuple<uvc1_refgpos_t, uvc1_refgpos_t, AlignmentSymbol>, std::vector<TumorKeyInfo>>
+rescue_variants_from_vcf(
+        const auto & tid_beg_end_e2e_vec, 
+        const auto & tid_to_tname_tlen_tuple_vec, 
+        const std::string & vcf_tumor_fname, 
+        const auto *bcf_hdr, 
         const bool is_tumor_format_retrieved) {
-    std::map<std::tuple<unsigned int, unsigned int, AlignmentSymbol>, std::vector<TumorKeyInfo>> ret;
+    std::map<std::tuple<uvc1_refgpos_t, uvc1_refgpos_t, AlignmentSymbol>, std::vector<TumorKeyInfo>> ret;
     if (NOT_PROVIDED == vcf_tumor_fname) {
         return ret;
     }
     std::string regionstring;
     for (const auto & tid_beg_end_e2e : tid_beg_end_e2e_vec) {
-        const unsigned int tid = std::get<0>(tid_beg_end_e2e);
-        const unsigned int rpos_inclu_beg = std::get<1>(tid_beg_end_e2e);
-        const unsigned int rpos_exclu_end = std::get<2>(tid_beg_end_e2e);
+        const uvc1_refgpos_t tid = std::get<0>(tid_beg_end_e2e);
+        const uvc1_refgpos_t rpos_inclu_beg = std::get<1>(tid_beg_end_e2e);
+        const uvc1_refgpos_t rpos_exclu_end = std::get<2>(tid_beg_end_e2e);
         
         const auto & tname_tseqlen_tuple = tid_to_tname_tlen_tuple_vec[tid];
         if (0 < regionstring.size()) { regionstring += std::string(","); }
@@ -360,12 +201,15 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
     
     // int retflag = // bcf_sr_set_opt(srs[i], BCF_SR_PAIR_LOGIC, BCF_SR_PAIR_BOTH_REF); 
     bcf_sr_set_regions(sr, regionstring.c_str(), false);
-    /*int sr_set_opt_retval =*/ 
-    bcf_sr_set_opt(sr, BCF_SR_REQUIRE_IDX);
+    int sr_set_opt_retval = bcf_sr_set_opt(sr, BCF_SR_REQUIRE_IDX);
+    if (sr_set_opt_retval < 0) {
+        LOG(logCRITICAL) << "The validation of the index file for the tumor vcf " << vcf_tumor_fname << " failed with return code " << sr_set_opt_retval;
+        exit(-8);
+    }
     int sr_add_reader_retval = bcf_sr_add_reader(sr, vcf_tumor_fname.c_str());
     if (sr_add_reader_retval != 1) {
         LOG(logCRITICAL) << "Failed to synchronize-read the tumor vcf " << vcf_tumor_fname << " with return code " << sr_add_reader_retval;
-        exit(-7);
+        exit(-9);
     }
     
     int valsize = 0; 
@@ -378,235 +222,126 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
         bcf1_t *line = bcf_sr_get_line(sr, 0);
         bcf_unpack(line, BCF_UN_ALL);
         
-        // skip over all symbolic alleles
+        // skip over all symbolic alleles except MGVCF
         bool should_continue = false;
-        for (unsigned int i = 1; i < line->n_allele; i++) {
-            if ('<' == line->d.allele[i][0]) {
+        for (uint32_t i = 1; i < line->n_allele; i++) {
+            if ('<' == line->d.allele[i][0] && (strcmp("<NON_REF>", line->d.allele[i]) || !is_tumor_format_retrieved)) {
                 should_continue = true;
             }
         }
+
         if (should_continue) { continue; }
         ndst_val = 0;
-        valsize = bcf_get_format_char(bcf_hdr, line, "VType", &bcfstring, &ndst_val);
+        valsize = bcf_get_format_int32(bcf_hdr, line, "VTI", &bcfints, &ndst_val);
         if (valsize <= 0) { continue; }
-        assert(ndst_val == valsize);
-        assert(2 == line->n_allele || !fprintf(stderr, "Bcf line %d has %d alleles!\n", line->pos, line->n_allele));
-        std::string desc(bcfstring);
-        // LOG(logINFO) << "Trying to retrieve the symbol " << desc << " at pos " << line->pos << " valsize = " << valsize << " ndst_val = " << ndst_val;
-        AlignmentSymbol symbol = DESC_TO_SYMBOL_MAP.at(desc);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for VTI and line %d!\n", ndst_val, valsize, line->pos));
+        assert((2 == line->n_allele) || !fprintf(stderr, "Bcf line %d has %d alleles!\n", line->pos, line->n_allele));
+        const AlignmentSymbol symbol = AlignmentSymbol(bcfints[1]);
         
-        auto symbolpos = (isSymbolSubstitution(symbol) ? (line->pos) : (line->pos + 1));
-        /*
-        if (symbolpos < extended_inclu_beg_pos && isSymbolDel(symbol)) {
-            continue;
-        }
-        auto intpos = symbolpos - extended_inclu_beg_pos;
-        if (!(intpos < extended_posidx_to_symbol_to_tkinfo.size())) {
-            LOG(logINFO) << "Warning!!! Trying to retrieve the symbol " << desc << " at pos " << line->pos << " valsize = " << valsize << " ndst_val = " << ndst_val;
-            fprintf(stderr, "%d < %d failed with regionstring %s!\n", intpos, extended_posidx_to_symbol_to_tkinfo.size(), regionstring.c_str());
-            abort();
-        }
-        */
+        auto symbolpos = ((isSymbolSubstitution(symbol) || MGVCF_SYMBOL == symbol) ? (line->pos) : (line->pos + 1));
         TumorKeyInfo tki;
+        tki.VTI = bcfints[1];
+
+if (MGVCF_SYMBOL == symbol) {
+        LOG(logINFO) << "gVCFblock with pos " << symbolpos << " was retrieved";
+}
+
+if (MGVCF_SYMBOL != symbol) {
         
         ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line, "VAQ", &bcfints, &ndst_val);
-        assert((1 == ndst_val && 1 == valsize) || !fprintf(stderr, "1 == %d && 1 == %d failed for VAQ and line %d!\n", ndst_val, valsize, line->pos));
-        tki.VAQ = bcfints[0];
+        valsize = bcf_get_format_int32(bcf_hdr, line, "BDPf", &bcfints, &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for BDPf and line %d!\n", ndst_val, valsize, line->pos));
+        tki.BDP = bcfints[0];
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line, "BDPr", &bcfints, &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for BDPr and line %d!\n", ndst_val, valsize, line->pos));
+        tki.BDP += bcfints[0];
 
         ndst_val = 0;
-        valsize = bcf_get_format_float(bcf_hdr, line,  "FA", &bcffloats,  &ndst_val);
-        assert((1 == ndst_val && 1 == valsize) || !fprintf(stderr, "1 == %d && 1 == %d failed for FA!\n", ndst_val, valsize));
-        tki.FA = bcffloats[0];
+        valsize = bcf_get_format_int32(bcf_hdr, line, "bDPf", &bcfints, &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for bDPf and line %d!\n", ndst_val, valsize, line->pos));
+        tki.bDP = bcfints[1];
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line, "bDPr", &bcfints, &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for bDPr and line %d!\n", ndst_val, valsize, line->pos));
+        tki.bDP += bcfints[1];
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line, "CDP1x", &bcfints, &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for CDP1x and line %d!\n", ndst_val, valsize, line->pos));
+        tki.CDP1x = bcfints[0];
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line, "cDP1x", &bcfints, &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cDP1x and line %d!\n", ndst_val, valsize, line->pos));
+        tki.cDP1x = bcfints[1];
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line, "cVQ1", &bcfints, &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cVQ1 and line %d!\n", ndst_val, valsize, line->pos));
+        tki.cVQ1 = bcfints[1];
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line, "cPCQ1", &bcfints, &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cPCQ1 and line %d!\n", ndst_val, valsize, line->pos));
+        tki.cPCQ1 = bcfints[1];
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line, "CDP2x", &bcfints, &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for CDP2x and line %d!\n", ndst_val, valsize, line->pos));
+        tki.CDP2x = bcfints[0];
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line, "cDP2x", &bcfints, &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cDP2x and line %d!\n", ndst_val, valsize, line->pos));
+        tki.cDP2x = bcfints[1];
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line, "cVQ2", &bcfints, &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cVQ2 and line %d!\n", ndst_val, valsize, line->pos));
+        tki.cVQ2 = bcfints[1];
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line, "cPCQ2", &bcfints, &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cPCQ2 and line %d!\n", ndst_val, valsize, line->pos));
+        tki.cPCQ2 = bcfints[1];
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line, "bNMQ", &bcfints, &ndst_val);
+        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for bNMQ and line %d!\n", ndst_val, valsize, line->pos));
+        tki.bNMQ = bcfints[1];
 
-        ndst_val = 0;
-        valsize = bcf_get_format_float(bcf_hdr, line,  "FR", &bcffloats,  &ndst_val);
-        assert((1 == ndst_val && 1 == valsize) || !fprintf(stderr, "1 == %d && 1 == %d failed for FR!\n", ndst_val, valsize)); 
-        tki.FR = bcffloats[0];
-        
-        ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line,  "BQ", &bcfints,  &ndst_val);
-        assert((1 == ndst_val && 1 == valsize) || !fprintf(stderr, "1 == %d && 1 == %d failed for BQ!\n", ndst_val, valsize));
-        tki.BQ = bcfints[0];
-        
-        ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line,  "MQ", &bcfints,  &ndst_val);
-        assert((1 == ndst_val && 1 == valsize) || !fprintf(stderr, "1 == %d && 1 == %d failed for MQ!\n", ndst_val, valsize)); 
-        tki.MQ = bcfints[0];
-        
+        // extra code for backward compatibility
 
-        ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line,  "cADTC", &bcfints,  &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cADTC!\n", ndst_val, valsize));
-        tki.cADTC = bcfints[0] + bcfints[1];
+        BCF_GET_FORMAT_INT32_WITH_CHECK("CDP1f");
+        tki.tDP = bcfints[0];
+        BCF_GET_FORMAT_INT32_WITH_CHECK("CDP1r");
+        tki.tDP += bcfints[0];
         
-        ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line,  "cRDTC", &bcfints,  &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cRDTC!\n", ndst_val, valsize));
-        tki.cRDTC = bcfints[0] + bcfints[1];
+        BCF_GET_FORMAT_INT32_WITH_CHECK("cDP1f");
+        tki.tADR = {{ bcfints[0], bcfints[1] }};
+        BCF_GET_FORMAT_INT32_WITH_CHECK("cDP1r");
+        for (int i = 0; i < 2; i++) { tki.tADR[i] += bcfints[i]; }
         
-        ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line,  "cDPTC", &bcfints,  &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cDPTC!\n", ndst_val, valsize));
-        tki.cDPTC = bcfints[0] + bcfints[1];
-
-        ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line,  "DP", &bcfints,  &ndst_val);
-        assert((1 == ndst_val && 1 == valsize) || !fprintf(stderr, "1 == %d && 1 == %d failed for DP!\n", ndst_val, valsize));
-        tki.DP = bcfints[0];
+        BCF_GET_FORMAT_INT32_WITH_CHECK("CDP2f");
+        tki.tDPC = bcfints[0];
+        BCF_GET_FORMAT_INT32_WITH_CHECK("CDP2r");
+        tki.tDPC += bcfints[0];
         
-        ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line,  "bDP", &bcfints,  &ndst_val);
-        assert((1 == ndst_val && 1 == valsize) || !fprintf(stderr, "1 == %d && 1 == %d failed for DP!\n", ndst_val, valsize));
-        tki.bDP = bcfints[0]; 
+        BCF_GET_FORMAT_INT32_WITH_CHECK("cDP2f");
+        tki.tADCR = {{ bcfints[0], bcfints[1] }};
+        BCF_GET_FORMAT_INT32_WITH_CHECK("cDP2r");
+        for (int i = 0; i < 2; i++) { tki.tADCR[i] += bcfints[i]; }
         
-        ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line,  "cAllBQ", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cAllBQ!\n", ndst_val, valsize));
-        tki.autoBestAllBQ = bcfints[0] + bcfints[1];
-        
-        ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line,  "cAltBQ", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cAltBQ!\n", ndst_val, valsize));
-        tki.autoBestAltBQ = bcfints[0] + bcfints[1];
-        
-        ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line,  "cRefBQ", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cRefBQ!\n", ndst_val, valsize));
-        tki.autoBestRefBQ = bcfints[0] + bcfints[1];
-        
-        ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line,  "cAllHD", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cAllHD!\n", ndst_val, valsize));
-        tki.autoBestAllHD = bcfints[0] + bcfints[1];
-
-        ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line,  "cAltHD", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cAltHD!\n", ndst_val, valsize));
-        tki.autoBestAltHD = bcfints[0] + bcfints[1];
-        
-        ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line,  "cRefHD", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cRefHD!\n", ndst_val, valsize));
-        tki.autoBestRefHD = bcfints[0] + bcfints[1];
-        
-        ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line,  "cAllBQ", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cAllBQ!\n", ndst_val, valsize));
-        tki.cAllBQ = bcfints[0] + bcfints[1];
-        
-        ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line,  "cAltBQ", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cAltBQ2!\n", ndst_val, valsize));
-        tki.cAltBQ = bcfints[0] + bcfints[1];
-        
-        ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line,  "cRefBQ", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cRefBQ!\n", ndst_val, valsize));
-        tki.cRefBQ = bcfints[0] + bcfints[1];
-        
-        ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line,  "dAD3", &bcfints, &ndst_val);
-        assert((1 == ndst_val && 1 == valsize) || !fprintf(stderr, "1 == %d && 1 == %d failed for dAD3!\n", ndst_val, valsize));
-        tki.dAD3 = bcfints[0];
-        
-        ndst_val = 0;
-        valsize = bcf_get_format_char(bcf_hdr, line, "FTS", &bcfstring, &ndst_val);
-        assert((ndst_val == valsize && 0 < valsize) || !fprintf(stderr, "%d == %d && nonzero failed for FTS!\n", ndst_val, valsize));
-        /*
-        for (int ftidx = 0; ftidx < valsize - 1; ftidx++) {
-            if (';' == bcfstring[ftidx]) {
-                bcfstring[ftidx] = '.';
-            }
-        }
-        */
-        tki.FTS = std::string(bcfstring, valsize-1);
-        
-        ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line,  "gapDP4", &bcfints, &ndst_val);
-        assert((tki.gapDP4.size() == ndst_val && tki.gapDP4.size() == valsize) || !fprintf(stderr, "%lu == %d && %lu == %d failed for gapDP4!\n", tki.gapDP4.size(), ndst_val, tki.gapDP4.size(), valsize));
-        for (size_t i = 0; i < tki.gapDP4.size(); i++) {
-            tki.gapDP4[i] = bcfints[i];
-        }
-        ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line,  "RCC", &bcfints, &ndst_val);
-        assert((tki.RCC.size() == ndst_val && tki.RCC.size() == valsize) || !fprintf(stderr, "%lu == %d && %lu == %d failed for RCC!\n", tki.RCC.size(), ndst_val, tki.RCC.size(), valsize));
-        for (size_t i = 0; i < tki.RCC.size(); i++) {
-            tki.RCC[i] = bcfints[i];
-        }
-        
-        ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line,  "GLa", &bcfints, &ndst_val);
-        assert((tki.GLa.size() == ndst_val && tki.GLa.size() == valsize) || !fprintf(stderr, "%lu == %d && %lu == %d failed for GQa!\n", tki.GLa.size(), ndst_val, tki.GLa.size(), valsize));
-        for (size_t i = 0; i < tki.GLa.size(); i++) {
-            tki.GLa[i] = bcfints[i];
-        }
-        
-        ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line,  "GLb", &bcfints, &ndst_val);
-        assert((tki.GLb.size() == ndst_val && tki.GLb.size() == valsize) || !fprintf(stderr, "%lu == %d && %lu == %d failed for GQb!\n", tki.GLb.size(), ndst_val, tki.GLb.size(), valsize));
-        for (size_t i = 0; i < tki.GLb.size(); i++) {
-            tki.GLb[i] = bcfints[i];
-        }
-        
-        ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line,  "EROR",  &bcfints, &ndst_val);
-        assert((tki.EROR.size() == ndst_val && tki.EROR.size() == valsize) || !fprintf(stderr, "%lu == %d && %lu == %d failed for EROR!\n", tki.EROR.size(), ndst_val, tki.EROR.size(), valsize));
-        for (size_t i = 0; i < tki.EROR.size(); i++) {
-            tki.EROR[i] = bcfints[i];
-        }
-        
-        ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line,  "gapbNRD",&bcfints,&ndst_val);
-        assert((tki.gapbNRD.size() == ndst_val && tki.gapbNRD.size() == valsize) || !fprintf(stderr, "%lu == %d && %lu == %d failed for gapbNRD!\n", tki.gapbNRD.size(), ndst_val, tki.gapbNRD.size(), valsize));
-        for (size_t i = 0; i < tki.gapbNRD.size(); i++) {
-            tki.gapbNRD[i] = bcfints[i];
-        }
-        
-        ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line,  "aPBAD",&bcfints,&ndst_val);
-        assert((tki.aPBAD.size() == ndst_val && tki.aPBAD.size() == valsize) || !fprintf(stderr, "%lu == %d && %lu == %d failed for aPBAD!\n", tki.aPBAD.size(), ndst_val, tki.aPBAD.size(), valsize));
-        for (size_t i = 0; i < tki.aPBAD.size(); i++) {
-            tki.aPBAD[i] = bcfints[i];
-        }
-        
-        ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line,  "aAD",&bcfints,&ndst_val);
-        assert((tki.aAD.size() == ndst_val && tki.aAD.size() == valsize) || !fprintf(stderr, "%lu == %d && %lu == %d failed for aAD!\n", tki.aAD.size(), ndst_val, tki.aAD.size(), valsize));
-        for (size_t i = 0; i < tki.aAD.size(); i++) {
-            tki.aAD[i] = bcfints[i];
-        }
-        
-        /*
-        ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line,  "gapbNNRD",&bcfints,&ndst_val);
-        assert((tki.gapbNNRD.size() == ndst_val && tki.gapbNNRD.size() == valsize) || !fprintf(stderr, "%lu == %d && %lu == %d failed for gapbNNRD!\n", tki.gapbNNRD.size(), ndst_val, tki.gapbNNRD.size(), valsize));
-        for (size_t i = 0; i < tki.gapbNNRD.size(); i++) {
-            tki.gapbNNRD[i] = bcfints[i];
-        }
-        */
-        
-        ndst_val = 0;
-        valsize = bcf_get_format_int32(bcf_hdr, line,  "bAD1",  &bcfints, &ndst_val);
-        assert((tki.bAD1.size() == ndst_val && tki.bAD1.size() == valsize) || !fprintf(stderr, "%lu == %d && %lu == %d failed for gapbNRD!\n", tki.bAD1.size(), ndst_val, tki.bAD1.size(), valsize));
-        for (size_t i = 0; i < tki.bAD1.size(); i++) {
-            tki.bAD1[i] = bcfints[i];
-        }
-        
-        ndst_val = 0;
-        valsize = bcf_get_format_char(bcf_hdr, line, "cHap", &bcfstring, &ndst_val);
-        assert((ndst_val == valsize && 0 < valsize) || !fprintf(stderr, "%d == %d && nonzero failed for cHap!\n", ndst_val, valsize));
-        tki.FTS += std::string(";tcHap=") + std::string(bcfstring);
-        
+}
         tki.pos = line->pos;
         tki.ref_alt = als_to_string(line->d.allele, line->n_allele);
         if (is_tumor_format_retrieved) {
             tki.bcf1_record = bcf_dup(line);
         }
-        const auto retkey = std::make_tuple(line->rid, symbolpos, symbol);            
+        const auto retkey = std::make_tuple(line->rid, symbolpos, symbol);
         ret.insert(std::make_pair(retkey, std::vector<TumorKeyInfo>()));
         ret[retkey].push_back(tki);
-        // ret.insert(std::make_pair(retkey, tki));
     }
     xfree(bcfstring);
     xfree(bcfints);
@@ -615,161 +350,168 @@ rescue_variants_from_vcf(const auto & tid_beg_end_e2e_vec, const auto & tid_to_t
     return ret;
 }
 
+template <bool TIsAnyTandemRepeat = false>
+CoveredRegion<uvc1_qual_big_t> 
+region_repeatvec_to_baq_offsetarr(
+        const std::vector<RegionalTandemRepeat> & region_repeatvec, 
+        uvc1_refgpos_t tid,
+        uvc1_refgpos_t extended_inclu_beg_pos, 
+        uvc1_refgpos_t extended_exclu_end_pos,
+        const CommandLineArgs & paramset) {
+    auto ret = CoveredRegion<uvc1_qual_big_t>(tid, extended_inclu_beg_pos, extended_exclu_end_pos);    
+    uvc1_qual_big_t baq_prefixsum = 0;
+    for (auto i = extended_inclu_beg_pos; i < extended_exclu_end_pos; i++) {
+        auto rtr_idx = i - extended_inclu_beg_pos;
+        const auto & rtr = region_repeatvec[rtr_idx];
+        const auto tracklen2 = (TIsAnyTandemRepeat ? rtr.anyTR_tracklen : rtr.tracklen);
+        assert (rtr.begpos <= rtr_idx);
+        assert (rtr.unitlen > 0);
+        assert (tracklen2 >= rtr.unitlen);
+        if (tracklen2 / rtr.unitlen >= 3 || (tracklen2 / rtr.unitlen >= 2 && tracklen2 >= (uvc1_readpos_t)round(paramset.indel_polymerase_size))) {
+            baq_prefixsum += (paramset.indel_str_phred_per_region * 10) / (tracklen2) + 1;
+            ret.getRefByPos(i) = baq_prefixsum;
+        } else {
+            baq_prefixsum += paramset.indel_nonSTR_phred_per_base * 10;
+            ret.getRefByPos(i) = baq_prefixsum;
+        }
+    }
+    for (auto i = extended_inclu_beg_pos; i < extended_exclu_end_pos; i++) {
+        ret.getRefByPos(i) /= 10;
+    }
+    return ret;
+}
+
+bool 
+are_depths_diff(uvc1_readnum_t currDP, uvc1_readnum_t prevDP, uvc1_readnum_t mul_perc_ratio, uvc1_readnum_t add_num_ratio) {
+    const uvc1_readnum_t minDP = MIN(currDP, prevDP);
+    const uvc1_readnum_t maxDP = MAX(currDP, prevDP);
+    if (minDP * mul_perc_ratio >= maxDP * 100) {
+        return false;
+    }
+    if (minDP + add_num_ratio >= maxDP) {
+        return false;
+    }
+    return true;
+}
+
 int 
 process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
     
-    std::string & outstring_allp = arg.outstring_allp;
     std::string & outstring_pass = arg.outstring_pass;
     const hts_idx_t *const hts_idx = arg.hts_idx;
     const faidx_t *const ref_faidx = arg.ref_faidx;
     
     const bcf_hdr_t *const bcf_hdr = arg.bcf_hdr;
-    // bcf_srs_t *const sr = arg.sr;
-    
     const CommandLineArgs & paramset = arg.paramset;
     const std::string UMI_STRUCT_STRING = arg.UMI_STRUCT_STRING;
-    const std::tuple<unsigned int, unsigned int, unsigned int, bool, unsigned int> tid_beg_end_e2e_tuple = arg.tid_beg_end_e2e_tuple;
-    const std::tuple<std::string, unsigned int> tname_tseqlen_tuple = arg.tname_tseqlen_tuple;
-    //const unsigned int region_ordinal = arg.region_ordinal;
-    //const unsigned int region_tot_num = arg.region_tot_num;
-    const unsigned int regionbatch_ordinal = arg.regionbatch_ordinal;
-    const unsigned int regionbatch_tot_num = arg.regionbatch_tot_num;
-    const unsigned int thread_id = arg.thread_id;
-    const bool should_output_all = !arg.is_vcf_out_empty_string;
-    const bool should_let_all_pass = paramset.should_let_all_pass;
-    const bool is_vcf_out_pass_to_stdout = arg.is_vcf_out_pass_to_stdout;
+    const std::tuple<uvc1_refgpos_t, uvc1_refgpos_t, uvc1_refgpos_t, bool, uvc1_readnum_t> tid_beg_end_e2e_tuple = arg.tid_beg_end_e2e_tuple;
+    const std::tuple<std::string, uvc1_refgpos_t> tname_tseqlen_tuple = arg.tname_tseqlen_tuple;
+    const auto regionbatch_ordinal = arg.regionbatch_ordinal;
+    const auto regionbatch_tot_num = arg.regionbatch_tot_num;
+    const auto thread_id = arg.thread_id;
+    const auto is_vcf_out_pass_to_stdout = arg.is_vcf_out_pass_to_stdout;
     
     bool is_loginfo_enabled = (ispowerof2(regionbatch_ordinal + 1) || ispowerof2(regionbatch_tot_num - regionbatch_ordinal));
     std::string raw_out_string;
     std::string raw_out_string_pass;
-    // faidx_t *ref_faidx = (fasta_ref_fname.size() > 0 ? fai_load(fasta_ref_fname.c_str()) : NULL);
     
     auto tid = std::get<0>(tid_beg_end_e2e_tuple);
     auto incluBegPosition = std::get<1>(tid_beg_end_e2e_tuple);
     auto excluEndPosition = std::get<2>(tid_beg_end_e2e_tuple);
     auto end2end = std::get<3>(tid_beg_end_e2e_tuple);
-    // auto nreads = std::get<4>(tid_beg_end_e2e_tuple);
     
-    std::map<uint64_t, std::pair<std::array<std::map<uint64_t, std::vector<bam1_t *>>, 2>, int>> umi_to_strand_to_reads;
-    unsigned int bam_inclu_beg_pos, bam_exclu_end_pos; 
-    std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, int>> umi_strand_readset;
+    std::map<uint64_t, std::pair<std::array<std::map<uint64_t, std::vector<bam1_t *>>, 2>, uint32_t>> umi_to_strand_to_reads;
+    uvc1_refgpos_t bam_inclu_beg_pos, bam_exclu_end_pos; 
+    std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, uint32_t>> umi_strand_readset;
 
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts bamfname_to_strand_to_familyuid_to_reads with pair_end_merge = " << paramset.pair_end_merge; }
-    std::array<unsigned int, 3> passed_pcrpassed_umipassed = bamfname_to_strand_to_familyuid_to_reads(
+    std::array<uvc1_readnum_t, 3> passed_pcrpassed_umipassed = bamfname_to_strand_to_familyuid_to_reads(
             umi_to_strand_to_reads,
             bam_inclu_beg_pos,
             bam_exclu_end_pos,
-            paramset.bam_input_fname,
             tid,
             incluBegPosition, 
             excluEndPosition,
             end2end,
-            paramset.min_mapqual,
-            paramset.min_aln_len,
             regionbatch_ordinal,
             regionbatch_tot_num,
             UMI_STRUCT_STRING,
             hts_idx,
-            paramset.assay_type,
-            MOLECULE_TAG_NONE != paramset.molecule_tag,
-            PAIR_END_MERGE_NO != paramset.pair_end_merge,
-            paramset.disable_duplex,
             thread_id,
-            paramset.dedup_center_mult,
-            paramset.dedup_amplicon_count_to_surrcount_ratio,
-            paramset.dedup_amplicon_end2end_ratio,
-            paramset.always_log,
-            (SEQUENCING_PLATFORM_IONTORRENT == paramset.sequencing_platform),
-            paramset.dedup_flag,
+            paramset,
             0);
-    unsigned int num_passed_reads = passed_pcrpassed_umipassed[0];
-    unsigned int num_pcrpassed_reads = passed_pcrpassed_umipassed[1];
-    unsigned int num_umipassed_reads = passed_pcrpassed_umipassed[2];
-    bool is_umi_barcoded = (num_umipassed_reads * 2 > num_passed_reads);
-    bool is_by_capture = ((num_pcrpassed_reads) * 2 <= num_passed_reads);
+    const auto num_passed_reads = passed_pcrpassed_umipassed[0];
+    const auto num_pcrpassed_reads = passed_pcrpassed_umipassed[1];
+    const bool is_by_capture = ((num_pcrpassed_reads) * 2 <= num_passed_reads);
     const AssayType inferred_assay_type = ((ASSAY_TYPE_AUTO == paramset.assay_type) ? (is_by_capture ? ASSAY_TYPE_CAPTURE : ASSAY_TYPE_AMPLICON) : (paramset.assay_type));
     
     if (0 == num_passed_reads) { return -1; };
-    unsigned int minABQ_snv = ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? paramset.minABQ_pcr_snv : paramset.minABQ_cap_snv);
-    unsigned int minABQ_indel = ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? paramset.minABQ_pcr_indel : paramset.minABQ_cap_indel);
+    const uvc1_qual_t minABQ_snv = ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? paramset.syserr_minABQ_pcr_snv : paramset.syserr_minABQ_cap_snv);
+    const uvc1_qual_t minABQ_indel = ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? paramset.syserr_minABQ_pcr_indel : paramset.syserr_minABQ_cap_indel);
     
-    const unsigned int rpos_inclu_beg = MAX(incluBegPosition, bam_inclu_beg_pos);
-    const unsigned int rpos_exclu_end = MIN(excluEndPosition, bam_exclu_end_pos); 
-    const unsigned int extended_inclu_beg_pos = (unsigned int)MAX(0, MIN(((int)incluBegPosition) - 100, (int)bam_inclu_beg_pos));
-    const unsigned int extended_exclu_end_pos = MIN(std::get<1>(tname_tseqlen_tuple), MAX(excluEndPosition + 100, bam_exclu_end_pos));
+    const uvc1_refgpos_t rpos_inclu_beg = MAX(incluBegPosition, bam_inclu_beg_pos);
+    const uvc1_refgpos_t rpos_exclu_end = MIN(excluEndPosition, bam_exclu_end_pos); 
+    const uvc1_refgpos_t extended_inclu_beg_pos = MAX(0, MIN(incluBegPosition - 100, bam_inclu_beg_pos));
+    const uvc1_refgpos_t extended_exclu_end_pos = MIN(std::get<1>(tname_tseqlen_tuple), MAX(excluEndPosition + 100, bam_exclu_end_pos));
     
-    //std::vector<std::array<TumorKeyInfo, NUM_ALIGNMENT_SYMBOLS>> extended_posidx_to_symbol_to_tkinfo(extended_exclu_end_pos - extended_inclu_beg_pos + 1);
     const auto tkis_beg = tid_pos_symb_to_tkis.lower_bound(std::make_tuple(tid, extended_inclu_beg_pos    , AlignmentSymbol(0)));
     const auto tkis_end = tid_pos_symb_to_tkis.upper_bound(std::make_tuple(tid, extended_exclu_end_pos + 1, AlignmentSymbol(0)));
     std::vector<bool> extended_posidx_to_is_rescued(extended_exclu_end_pos - extended_inclu_beg_pos + 1, false);
-    unsigned int num_rescued = 0;
+    int num_rescued = 0;
     for (auto tkis_it = tkis_beg; tkis_it != tkis_end; tkis_it++) {
         auto symbolpos = std::get<1>(tkis_it->first);
         extended_posidx_to_is_rescued[symbolpos - extended_inclu_beg_pos] = true;
         num_rescued++;
         if (is_loginfo_enabled) {
-            // NOTE: the true positive short del at 22:17946835 in NA12878-NA24385 mixture is overwhelmed by the false positve long del spanning the true positive short del.
-            // However, so far manual check with limited experience cannot confirm that the true positive is indeed a true positive.
-            // TODO: have to see more examples of this case and adjust code accordingly.
+            // The short deletion at 22:17946835 in NA12878-NA24385 mixture is overwhelmed by the false positve long del spanning the true positive short del.
+            // Due to the VCF specs and left alignment as best practice, the symmetry between left and right alignments are broken. 
+            // Thus, this variant is true positive if using left alignemnt but false positive if using right alignment. 
+            // TODO: modifications to the VCF specs or somatic-variant definitions.
             LOG(logDEBUG4) << "Thread " << thread_id << " iterated over symbolpos " << symbolpos << " and symbol " << std::get<2>(tkis_it->first) << " as a rescued var";
         }
     }
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " deals with " << num_rescued << " tumor-sample variants in region " << extended_inclu_beg_pos << " to " << extended_exclu_end_pos + 1 ;}
-    // auto tki_it = tki_beg; 
-    //if (paramset.vcf_tumor_fname.size() != 0) {
-        // do not check tumor vcf here.
-    //}
     
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts converting umi_to_strand_to_reads with is_by_capture = " << is_by_capture << "  " ;}
-    fill_strand_umi_readset_with_strand_to_umi_to_reads(umi_strand_readset, umi_to_strand_to_reads, paramset.baq_per_aligned_base);
+    fill_strand_umi_readset_with_strand_to_umi_to_reads(
+            umi_strand_readset, 
+            umi_to_strand_to_reads, 
+            paramset,
+            0);
     
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts constructing symbolToCountCoverageSet12 with " << extended_inclu_beg_pos << (" , ") << extended_exclu_end_pos; }
     // + 1 accounts for insertion at the end of the region, this should happen rarely for only re-aligned reads at around once per one billion base pairs
     Symbol2CountCoverageSet symbolToCountCoverageSet12(tid, extended_inclu_beg_pos, extended_exclu_end_pos + 1); 
     if (is_loginfo_enabled) { LOG(logINFO)<< "Thread " << thread_id << " starts updateByRegion3Aln with " << umi_strand_readset.size() << " families"; }
     std::string refstring = load_refstring(ref_faidx, tid, extended_inclu_beg_pos, extended_exclu_end_pos);
-    std::vector<RegionalTandemRepeat> region_repeatvec = refstring2repeatvec(refstring);
-    // repeatvec_LOG(region_repeatvec, extended_inclu_beg_pos);
+    std::vector<RegionalTandemRepeat> region_repeatvec = refstring2repeatvec(
+            refstring, 
+            paramset.indel_str_repeatsize_max,
+            paramset.indel_vntr_repeatsize_max, // https://en.wikipedia.org/wiki/Variable_number_tandem_repeat
+            paramset.indel_BQ_max,
+            paramset.indel_polymerase_slip_rate,
+            paramset.indel_del_to_ins_err_ratio,
+            0);
+    const auto & baq_offsetarr = region_repeatvec_to_baq_offsetarr(region_repeatvec, tid, extended_inclu_beg_pos, extended_exclu_end_pos + 1, paramset);
+    const auto & baq_offsetarr2 = region_repeatvec_to_baq_offsetarr<true>(region_repeatvec, tid, extended_inclu_beg_pos, extended_exclu_end_pos + 1, paramset);
 
-    std::vector<std::tuple<unsigned int, unsigned int, unsigned int>> adjcount_x_rpos_x_misma_vec;
-    std::map<std::basic_string<std::pair<unsigned int, AlignmentSymbol>>, std::array<unsigned int, 2>> mutform2count4map_bq;
-    std::map<std::basic_string<std::pair<unsigned int, AlignmentSymbol>>, std::array<unsigned int, 2>> mutform2count4map_fq;
-    const PhredMutationTable sscs_mut_table(
-                paramset.phred_max_sscs_transition_CG_TA, 
-                paramset.phred_max_sscs_transition_TA_CG, 
-                paramset.phred_max_sscs_transversion_any,
-                paramset.phred_max_sscs_indel_open,
-                paramset.phred_max_sscs_indel_ext);
+    assert(((baq_offsetarr.getExcluEndPosition() - baq_offsetarr.getIncluBegPosition()) == UNSIGN2SIGN(region_repeatvec.size())) 
+            || !fprintf(stderr, "%d - %d == %lu failed (baq == repeat in size)!\n", baq_offsetarr.getExcluEndPosition(), baq_offsetarr.getIncluBegPosition(), region_repeatvec.size()));
+    
+    std::map<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>> mutform2count4map_bq;
+    std::map<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>> mutform2count4map_fq;
+    
     symbolToCountCoverageSet12.updateByRegion3Aln(
             mutform2count4map_bq, 
             mutform2count4map_fq,
             umi_strand_readset, 
+            
             refstring,
             region_repeatvec,
-            paramset.bq_phred_added_misma, 
-            paramset.bq_phred_added_indel, 
-            paramset.should_add_note, 
-            paramset.phred_max_frag_indel_ext, 
-            paramset.phred_max_frag_indel_basemax, 
-            sscs_mut_table,
-            minABQ_snv,
-            ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? paramset.ess_georatio_dedup_amp : paramset.ess_georatio_dedup_cap),
-            paramset.ess_georatio_duped_pcr,
-            !paramset.disable_dup_read_merge, 
-            is_loginfo_enabled, 
-            thread_id, 
-            paramset.fixedthresBQ, 
-            paramset.nogap_phred,
-            paramset.highqual_thres_snv, 
-            paramset.highqual_thres_indel, 
-            paramset.uni_bias_r_max,
-            SEQUENCING_PLATFORM_IONTORRENT == paramset.sequencing_platform,
-            inferred_assay_type,
-            paramset.phred_frac_indel_error_before_barcode_labeling,
-            paramset.baq_per_aligned_base,
-            paramset.regside_nbases,
-            ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? paramset.bias_flag_amp_snv : paramset.bias_flag_cap_snv),
-            ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? paramset.bias_flag_amp_indel : paramset.bias_flag_cap_indel),
+            baq_offsetarr,
+            baq_offsetarr2,
+            
+            paramset,
             0);
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts analyzing phasing info"; }
     auto mutform2count4vec_bq = map2vector(mutform2count4map_bq);
@@ -779,494 +521,507 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
     
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id  << " starts generating block gzipped vcf"; }
     
-    std::string buf_out_string;
     std::string buf_out_string_pass;
-    
     const std::set<size_t> empty_size_t_set;
-    const unsigned int capDP = 10*1000*1000;
     
-    unsigned int gbDPmin = capDP;
-    unsigned int gbDPmax = 0;
-    unsigned int gcDPmin = capDP;
-    unsigned int gcDPmax = 0;
-    std::string gfGTmm2 = "./.";
-    unsigned int gfGQmin = capDP;
-    unsigned int gfGQmax = 0;
-    
-    unsigned int prevPosition = rpos_inclu_beg;
-    SymbolType prevSymbolType = NUM_SYMBOL_TYPES;
-    
-    std::array<CoveredRegion<uint32_t>, 2> bq_ins_2bdepths = {{
-        CoveredRegion<uint32_t>(tid, extended_inclu_beg_pos, extended_exclu_end_pos + 1), 
-        CoveredRegion<uint32_t>(tid, extended_inclu_beg_pos, extended_exclu_end_pos + 1)
-    }};
-    std::array<CoveredRegion<uint32_t>, 2> bq_del_2bdepths = {{
-        CoveredRegion<uint32_t>(tid, extended_inclu_beg_pos, extended_exclu_end_pos + 1),
-        CoveredRegion<uint32_t>(tid, extended_inclu_beg_pos, extended_exclu_end_pos + 1)
-    }};
-    for (unsigned int refpos = extended_inclu_beg_pos; refpos <= extended_exclu_end_pos; refpos++) {
-        for (unsigned int strand = 0; strand < 2; strand++) {
-            unsigned int link_ins_cnt = 0;
-            for (const auto ins_symbol : INS_SYMBOLS) {
-                link_ins_cnt += symbolToCountCoverageSet12.bq_tsum_depth.at(strand).getByPos(refpos).getSymbolCount(ins_symbol);
-            }
-            if (extended_inclu_beg_pos < refpos) {
-                bq_ins_2bdepths[strand].getRefByPos(refpos-1) += link_ins_cnt;
-            }
-            bq_ins_2bdepths[strand].getRefByPos(refpos) += link_ins_cnt;
- 
-            for (const auto del_symbol : DEL_SYMBOLS) {
-                const auto & pos_to_dlen_to_data = symbolToCountCoverageSet12.bq_tsum_depth.at(strand).getPosToDlenToData(del_symbol);
-                if (pos_to_dlen_to_data.find(refpos) != pos_to_dlen_to_data.end()) {
-                    for (const auto & indel2data : pos_to_dlen_to_data.at(refpos)) {
-                        unsigned int dlen = indel2data.first;
-                        unsigned int cnt = indel2data.second;
-                        if (extended_inclu_beg_pos < refpos) {
-                            bq_del_2bdepths[strand].getRefByPos(refpos-1) += cnt;
-                        }
-                        for (unsigned d = 0; d <= dlen; d++) {
-                            if ((refpos + d) <= rpos_exclu_end) {
-                                bq_del_2bdepths[strand].getRefByPos(refpos+d) += cnt;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    // This code can result in false negative InDels, but it looks like these false negative InDels can be avoided with proper (but potentially very complex) normalization
-    // Therefore, this code and all other code related to this code are commented out for now.
-    /*
-    std::array<CoveredRegion<uint32_t>, 2> bq_indel_adjmax_depths = {
-        CoveredRegion<uint32_t>(tid, extended_inclu_beg_pos, extended_exclu_end_pos + 1),
-        CoveredRegion<uint32_t>(tid, extended_inclu_beg_pos, extended_exclu_end_pos + 1)
-    };
-    for (unsigned int refpos = extended_inclu_beg_pos; refpos <= extended_exclu_end_pos; refpos++) {
-        auto totins = bq_ins_2bdepths[0].getByPos(refpos) + bq_ins_2bdepths[1].getByPos(refpos);
-        if (totins > 0) {
-            for (unsigned int p2 = MAX(extended_inclu_beg_pos + 20, refpos) - 20; p2 <= MIN(refpos + 20, extended_exclu_end_pos); p2++) {
-                bq_indel_adjmax_depths[0].getRefByPos(p2) = MAX(bq_indel_adjmax_depths[0].getByPos(p2), totins);
-            }
-        }
-        auto totdel = bq_del_2bdepths[0].getByPos(refpos) + bq_del_2bdepths[1].getByPos(refpos);
-        if (totdel > 0) {
-            for (unsigned int p2 = MAX(extended_inclu_beg_pos + 20, refpos) - 20; p2 <= MIN(refpos + 20, extended_exclu_end_pos); p2++) {
-                bq_indel_adjmax_depths[1].getRefByPos(p2) = MAX(bq_indel_adjmax_depths[1].getByPos(p2), totdel);
-            }
-        }
-    }
-    */
-    RegionalTandemRepeat defaultRTR;
-    
-    for (unsigned int refpos = rpos_inclu_beg; refpos <= rpos_exclu_end; refpos++) {
+    for (uvc1_refgpos_t zerobased_pos = rpos_inclu_beg; zerobased_pos <= rpos_exclu_end; zerobased_pos++) {
         std::string repeatunit;
-        unsigned int repeatnum = 0;
+        uvc1_readpos_t repeatnum = 0;
         
-        unsigned int rridx = refpos - extended_inclu_beg_pos;
-        indelpos_to_context(repeatunit, repeatnum, refstring, rridx);
-        const RegionalTandemRepeat & rtr1 = ((rridx > 0)                           ? (region_repeatvec[rridx-1]) : defaultRTR);
-        const RegionalTandemRepeat & rtr2 = ((rridx + 1 < region_repeatvec.size()) ? (region_repeatvec[rridx+1]) : defaultRTR);
-        const std::array<SymbolType, 2> stype_to_immediate_prev = {{LINK_SYMBOL, BASE_SYMBOL}};
+        uvc1_rp_diff_t rridx = zerobased_pos - extended_inclu_beg_pos;
+        indelpos_to_context(repeatunit, repeatnum, refstring, rridx, paramset.indel_str_repeatsize_max);
         
-        std::array<unsigned int, 2> stype2refqual = {{0, 0}};
-        for (SymbolType symbolType : SYMBOL_TYPES_IN_VCF_ORDER) {
+        const std::array<AlignmentSymbol, 2> symboltype_to_refsymbol = {{
+                ((UNSIGN2SIGN(refstring.size()) == ((zerobased_pos - 1) - extended_inclu_beg_pos) || (-1 == ((zerobased_pos - 1) - extended_inclu_beg_pos))) 
+                ? BASE_NN : CHAR_TO_SYMBOL.data.at(refstring.at((zerobased_pos - 1) - extended_inclu_beg_pos))),
+                LINK_M, 
+        }};
+        const auto refsize = UNSIGN2SIGN(refstring.size());
+        const auto refidx = zerobased_pos - extended_inclu_beg_pos;
+        const AlignmentSymbol prev_base1 = ((refidx     >= 2      ) ? CHAR_TO_SYMBOL.data.at(refstring.at((refidx - 2))) : BASE_NN);
+        const AlignmentSymbol prev_base2 = ((refidx     >= 3      ) ? CHAR_TO_SYMBOL.data.at(refstring.at((refidx - 3))) : BASE_NN);
+        const AlignmentSymbol next_base1 = ((refidx     <  refsize) ? CHAR_TO_SYMBOL.data.at(refstring.at((refidx)))     : BASE_NN);
+        const AlignmentSymbol next_base2 = ((refidx + 1 <  refsize) ? CHAR_TO_SYMBOL.data.at(refstring.at((refidx + 1))) : BASE_NN);
+        
+        std::array<bcfrec::BcfFormat, 2> st_to_init_fmt = {{bcfrec::BcfFormat(), bcfrec::BcfFormat()}};
+        
+        std::array<std::vector<std::tuple<bcfrec::BcfFormat, TumorKeyInfo>>, NUM_SYMBOL_TYPES> st_to_fmt_tki_tup_vec;
+        uvc1_readnum_t ins_bdepth = 0;
+        uvc1_readnum_t del_bdepth = 0;
+        uvc1_readnum_t ins_cdepth = 0;
+        uvc1_readnum_t del_cdepth = 0;
+        
+        uvc1_readnum_t ins1_bdepth = 0;
+        uvc1_readnum_t del1_bdepth = 0;
+        uvc1_readnum_t ins1_cdepth = 0;
+        uvc1_readnum_t del1_cdepth = 0;
+        
+        for (const SymbolType symboltype : SYMBOL_TYPE_ARR)
+        {
+            if (zerobased_pos == rpos_inclu_beg && BASE_SYMBOL == symboltype) { continue; } 
+            const uvc1_refgpos_t refpos = (BASE_SYMBOL == symboltype ? (zerobased_pos - 1) : zerobased_pos);
+            
             TumorKeyInfo THE_DUMMY_TUMOR_KEY_INFO;
-            bcfrec::BcfFormat init_fmt;
-            const AlignmentSymbol refsymbol = (LINK_SYMBOL == symbolType ? LINK_M : (
-                    refstring.size() == (refpos - extended_inclu_beg_pos) ? BASE_NN : CHAR_TO_SYMBOL.data.at(refstring.at(refpos - extended_inclu_beg_pos))));
-            std::array<unsigned int, 2> bDPcDP = BcfFormat_init(
-                    init_fmt, 
+            const AlignmentSymbol refsymbol = symboltype_to_refsymbol[symboltype];
+            std::array<uvc1_readnum_t, 2> bDPcDP = BcfFormat_symboltype_init(
+                    st_to_init_fmt[symboltype], 
                     symbolToCountCoverageSet12, 
                     refpos, 
-                    symbolType, 
-                    !paramset.disable_dup_read_merge, 
+                    symboltype, 
                     refsymbol, 
                     0);
-            AlignmentSymbol most_confident_symbol = END_ALIGNMENT_SYMBOLS;
-            float most_confident_qual = 0;
-            std::string most_confident_GT = "./.";
-            float most_confident_GQ = 0;
-            
-            AlignmentSymbol most_confident_nonref_symbol = (LINK_SYMBOL == symbolType ? LINK_NN : BASE_NN);
-            float most_confident_nonref_qual = -FLT_MAX;
-            AlignmentSymbol most_confident_nonref_symbol_2 = most_confident_nonref_symbol;
-            float most_confident_nonref_qual_2 = most_confident_nonref_qual;
-            float refqual = 0;
-            //std::vector<bcfrec::BcfFormat> fmts(SYMBOL_TYPE_TO_INCLU_END[symbolType] - SYMBOL_TYPE_TO_INCLU_BEG[symbolType] + 1, init_fmt);
-            // ., , indelstring, bdepth, tkiidx
-            std::vector<std::tuple<bcfrec::BcfFormat, AlignmentSymbol, unsigned int, std::string, int>> fmts;
-            if (rpos_exclu_end != refpos && bDPcDP[0] >= paramset.min_depth_thres) {
-                std::vector<AlignmentSymbol> majorsymbols;
-                for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; symbol = AlignmentSymbol(1+(unsigned int)symbol)) {
-                    auto symbol_bdepth = 
-                          symbolToCountCoverageSet12.bq_tsum_depth.at(0).getByPos(refpos).getSymbolCount(symbol)
-                        + symbolToCountCoverageSet12.bq_tsum_depth.at(1).getByPos(refpos).getSymbolCount(symbol);
-                    if (symbol_bdepth * 4 > bDPcDP[0]) {
-                        majorsymbols.push_back(symbol);
-                    }
-                }
-                if (majorsymbols.size() == 0) {
-                    majorsymbols.push_back(refsymbol);
-                }
-                for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; symbol = AlignmentSymbol(1+(unsigned int)symbol)) {
-                    unsigned int phred_max_sscs_all = 200;
-                    for (auto majorsymbol : majorsymbols) {
-                        UPDATE_MIN(phred_max_sscs_all, sscs_mut_table.toPhredErrRate(majorsymbol, symbol));
-                    }
-                    const bool is_rescued = (
-                            extended_posidx_to_is_rescued[refpos - extended_inclu_beg_pos] &&
-                            (tid_pos_symb_to_tkis.end() != tid_pos_symb_to_tkis.find(std::make_tuple(tid, refpos, symbol)))); 
-                    unsigned int phred_max_sscs = sscs_mut_table.toPhredErrRate(refsymbol, symbol);
-                    const auto bdepth = symbolToCountCoverageSet12.bq_tsum_depth.at(0).getByPos(refpos).getSymbolCount(symbol)
-                                      + symbolToCountCoverageSet12.bq_tsum_depth.at(1).getByPos(refpos).getSymbolCount(symbol);
-                    const bool pass_thres = (bdepth >= paramset.min_altdp_thres);
-                    if ((!is_rescued) && (!pass_thres) && (refsymbol != symbol)) {
-                        continue;
-                    }
-                    
-                    const auto simplemut = std::make_pair(refpos, symbol);
-                    auto indices_bq = (simplemut2indices_bq.find(simplemut) != simplemut2indices_bq.end() ? simplemut2indices_bq[simplemut] : empty_size_t_set); 
-                    auto indices_fq = (simplemut2indices_fq.find(simplemut) != simplemut2indices_fq.end() ? simplemut2indices_fq[simplemut] : empty_size_t_set);
-                    std::vector<TumorKeyInfo> tkis;
-                    if (is_rescued) {
-                        tkis = tid_pos_symb_to_tkis.find(std::make_tuple(tid, refpos, symbol))->second;
-                    }
-                    
-                    auto fmt = init_fmt;
-                    int tkiidx = 0;
-                    std::vector<std::tuple<unsigned int, std::string, int>> bad0a_indelstring_tkiidx_vec;
-                    if (isSymbolIns(symbol) || isSymbolDel(symbol)) {
-                        for (size_t strand = 0; strand < 2; strand++) {
-                            if (0 < symbolToCountCoverageSet12.bq_tsum_depth.at(strand).getByPos(refpos).getSymbolCount(symbol)) {
-                                fill_by_indel_info(
-                                        fmt, 
-                                        symbolToCountCoverageSet12,
-                                        strand,
-                                        refpos,
-                                        symbol,
-                                        refstring,
-                                        repeatunit,
-                                        repeatnum
-                                );
-                            }
+            if ((paramset.outvar_flag & OUTVAR_MGVCF) && ((((refpos + 1) % MGVCF_REGION_MAX_SIZE) == 0) 
+                    || (refpos == incluBegPosition)) && (SYMBOL_TYPE_ARR[0] == symboltype)) {
+                const auto & frag_format_depth_sets = symbolToCountCoverageSet12.symbol_to_frag_format_depth_sets;
+                const auto & fam_format_depth_sets = symbolToCountCoverageSet12.symbol_to_fam_format_depth_sets_2strand;
+                
+                uvc1_readnum_t prev_tot_bdepth = 0;
+                uvc1_readnum_t prev_tot_cdepth = 0;
+                uvc1_qual_t prev_refQ = 200;
+                std::vector<uvc1_rp_diff_t> pos_stype_BDP_CDP_refQ_1dvec;
+                const auto rp2end = MIN(refpos + MGVCF_REGION_MAX_SIZE + 1, symbolToCountCoverageSet12.getUnifiedExcluEndPosition());
+                for (uvc1_refgpos_t rp2 = refpos; rp2 < rp2end; rp2++) {
+                    for (SymbolType stype : SYMBOL_TYPES_IN_VCF_ORDER) {
+                        const uvc1_rp_diff_t refstring_offset = rp2 - extended_inclu_beg_pos;
+                        if (refstring_offset > UNSIGN2SIGN(refstring.size())) { 
+                            fprintf(stderr, "The refstring offset %d at tid %d pos %d is invalid!\n\n", refstring_offset, tid, refpos); 
+                            abort(); 
                         }
-                        if (is_rescued) {
-                            for (const auto & tki : tkis) {
-                                unsigned int tabpos = tki.ref_alt.find("\t");
-                                const auto & vcfref = tki.ref_alt.substr(0, tabpos);
-                                const auto & vcfalt = tki.ref_alt.substr(tabpos + 1);
-                                std::string indelstring;
-                                if (vcfref.size() > vcfalt.size()) {
-                                    indelstring = vcfref.substr(vcfalt.size());
-                                } else {
-                                    assert (vcfref.size() < vcfalt.size());
-                                    indelstring = vcfalt.substr(vcfref.size());
-                                }
-                                bad0a_indelstring_tkiidx_vec.push_back(std::make_tuple(bdepth, indelstring, tkiidx));
-                                tkiidx++;
-                            }
+                        const AlignmentSymbol base_m = ((refstring_offset < UNSIGN2SIGN(refstring.size())) 
+                            ? CHAR_TO_SYMBOL.data[refstring.substr(refstring_offset, 1)[0]] 
+                            : BASE_N);
+                        const auto refsymbol = ((BASE_SYMBOL == stype) ? (base_m) : (LINK_M));
+                        uvc1_readnum_t curr_tot_bdepth = 0;
+                        uvc1_readnum_t curr_tot_cdepth = 0;
+                        for (int strand = 0; strand < 2; strand++) {
+                            curr_tot_bdepth += formatSumBySymbolType(frag_format_depth_sets[strand].getByPos(rp2), stype, FRAG_bDP);
+                            curr_tot_cdepth += formatSumBySymbolType(fam_format_depth_sets[strand].getByPos(rp2), stype, FAM_cDP1);
+                        }
+                        const auto ref_cdepth = fam_format_depth_sets[0].getByPos(rp2)[refsymbol][FAM_cDP1] + fam_format_depth_sets[1].getByPos(rp2)[refsymbol][FAM_cDP1];
+                        const auto nonref_cdepth = curr_tot_cdepth - ref_cdepth;
+                        
+                        // contam, lower  nonref-FA -> close to zero qual
+                        const auto ref_like_binom = -calc_binom_10log10_likeratio(paramset.contam_any_mul_frac, nonref_cdepth + 0.5, curr_tot_cdepth + 1.0);
+                        const auto ref_like_powlaw = -MAX(0, paramset.powlaw_exponent * (10/log(10)) 
+                                * logit2((nonref_cdepth + 0.5) / (curr_tot_cdepth + 1.0), paramset.contam_any_mul_frac));
+                        
+                        // hetero, higher nonref-FA (lower ref-FA) -> close to zero qual
+                        const auto nonref_like_binom = -calc_binom_10log10_likeratio(paramset.germ_hetero_FA, ref_cdepth + 0.5, curr_tot_cdepth + 1.0);
+                        const auto nonref_like_powlaw = -MAX(0, paramset.powlaw_exponent * (10/log(10)) 
+                                * logit2((ref_cdepth + 0.5) / (curr_tot_cdepth + 1.0), paramset.germ_hetero_FA));
+                        
+                        const uvc1_qual_t curr_refQ = paramset.germ_phred_hetero_snp 
+                                + (uvc1_qual_t)round(MAX(ref_like_binom, ref_like_powlaw) 
+                                - (uvc1_qual_t)round(MAX(nonref_like_binom, nonref_like_powlaw)));
+                        if ((incluBegPosition == rp2) || (abs(curr_refQ - prev_refQ) > 10)
+                                || are_depths_diff(curr_tot_bdepth, prev_tot_bdepth, 100 + 30, 3)
+                                || are_depths_diff(curr_tot_cdepth, prev_tot_cdepth, 100 + 30, 3)) {
+                            pos_stype_BDP_CDP_refQ_1dvec.push_back(rp2 - ((BASE_SYMBOL == stype) ? (0) : (1)));
+                            pos_stype_BDP_CDP_refQ_1dvec.push_back(-1-(int32_t)stype);
+                            pos_stype_BDP_CDP_refQ_1dvec.push_back(curr_tot_bdepth);
+                            pos_stype_BDP_CDP_refQ_1dvec.push_back(curr_tot_cdepth);
+                            pos_stype_BDP_CDP_refQ_1dvec.push_back(curr_refQ);
+                            prev_tot_bdepth = curr_tot_bdepth;
+                            prev_tot_cdepth = curr_tot_cdepth;
+                            prev_refQ = curr_refQ;
+                        }
+                    }
+                }
+                const auto vcfREF = refstring.substr(refpos - extended_inclu_beg_pos, 1);
+                const AlignmentSymbol match_refsymbol = CHAR_TO_SYMBOL.data[vcfREF[0]];
+                const std::string gvcf_blockline = string_join(std::vector<std::string>{{
+                    std::get<0>(tname_tseqlen_tuple), 
+                    std::to_string(refpos + 1),
+                    std::string("."), 
+                    vcfREF,
+                    std::string("<NON_REF>"),
+                    std::string("."), 
+                    std::string("."), 
+                    std::string("MGVCF_BLOCK"),
+                    std::string("GT:VTI:POS_VT_BDP_CDP_HomRefQ"),
+                    std::string(".") + ":" + std::to_string(match_refsymbol) + "," + std::to_string(MGVCF_SYMBOL) + ":" 
+                            + other_join(pos_stype_BDP_CDP_refQ_1dvec, ",") + "," + std::to_string(rp2end - refpos),
+                }}, "\t");
+                
+                std::string tumor_gvcf_format = "";
+                if (paramset.is_tumor_format_retrieved && NOT_PROVIDED != paramset.vcf_tumor_fname) { 
+                    const auto tkis_it = tid_pos_symb_to_tkis.find(std::make_tuple(tid, refpos, MGVCF_SYMBOL));
+                    if (tkis_it != tid_pos_symb_to_tkis.end()) {
+                        const auto & tkis = tid_pos_symb_to_tkis.find(std::make_tuple(tid, refpos, MGVCF_SYMBOL))->second;
+                        if (tkis.size() == 1) {
+                            tumor_gvcf_format = bcf1_to_string(bcf_hdr, tkis[0].bcf1_record);
+                            LOG(logDEBUG4) << "gVCFblock at " << refpos << " is indeed found, tumor_gvcf_format == " << tumor_gvcf_format; 
                         } else {
-                            // bad0a_indelstring_tkiidx_vec.push_back(std::make_tuple(bdepth, std::string(""), (is_rescued ? 0 : -1)));
-                            const auto bad0a_indelstring_pairvec = indel_get_majority(
-                                    fmt, /*prev_is_tumor, tki, false, */
-                                    std::get<0>(tname_tseqlen_tuple).c_str(), 
-                                    refpos, 
-                                    symbol, 
-                                    true);
-                            for (const auto & bad0a_indelstring_pair : bad0a_indelstring_pairvec) {
-                                bad0a_indelstring_tkiidx_vec.push_back(std::make_tuple(bad0a_indelstring_pair.first, bad0a_indelstring_pair.second, -1));
-                            }
+                            tumor_gvcf_format = std::string("\t.:.,.:-1");
+                            LOG(logDEBUG4) << "gVCFblock at " << refpos << " is not found, tkis.size() == " << tkis.size();
                         }
                     } else {
-                        bad0a_indelstring_tkiidx_vec.push_back(std::make_tuple(bdepth, std::string(""), (is_rescued ? 0 : -1)));
-                    }
-                    
-                    for (const auto & bad0a_indelstring_tkiidx : bad0a_indelstring_tkiidx_vec) {
-                        fill_by_symbol(fmt, //[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]], 
-                            symbolToCountCoverageSet12, 
-                            refpos, 
-                            symbol, 
-                            refstring,
-                            extended_inclu_beg_pos, 
-                            mutform2count4vec_bq, 
-                            indices_bq, 
-                            mutform2count4vec_fq, 
-                            indices_fq,
-                            ((BASE_SYMBOL == symbolType) ? minABQ_snv : minABQ_indel),
-                            paramset.minMQ1,
-                            paramset.maxMQ,
-                            phred_max_sscs,
-                            paramset.phred_max_dscs_all,
-                            !paramset.disable_dup_read_merge,
-                            !paramset.enable_dup_read_vqual,
-                            is_rescued,
-                            (NOT_PROVIDED != paramset.vcf_tumor_fname),
-                            repeatunit,
-                            repeatnum,
-                            (is_rescued ? tkis.at(std::get<2>(bad0a_indelstring_tkiidx)) : THE_DUMMY_TUMOR_KEY_INFO),
-                            paramset.any_mul_contam_frac,
-                            paramset.t2n_mul_contam_frac,
-                            paramset.t2n_add_contam_frac,
-                            paramset.t2n_add_contam_transfrac,
-                            paramset.min_edge_dist,
-                            paramset.central_readlen,
-                            paramset.baq_per_aligned_base,
-                            paramset.powlaw_exponent,
-                            bq_ins_2bdepths,
-                            bq_del_2bdepths,
-                            paramset.somaticGT,
-                            (paramset.ref_bias_awareness & ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? 0x1 : 0x2)),
-                            // ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? paramset.phred_umi_dimret_qual : ((double)FLT_MAX)),
-                            (is_umi_barcoded ? ((BASE_SYMBOL == symbolType) ? paramset.phred_umi_dimret_mult_snv : paramset.phred_umi_dimret_mult_indel) : 1.0),
-                            // bq_indel_adjmax_depths,
-                            (SEQUENCING_PLATFORM_IONTORRENT == paramset.sequencing_platform ? 200.0 : ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? paramset.amp_BQ_sqr_coef : paramset.cap_BQ_sqr_coef)),
-                            paramset.phred_varcall_err_per_map_err_per_base,
-                            paramset.phred_snv_to_indel_ratio,
-                            (SEQUENCING_PLATFORM_IONTORRENT == paramset.sequencing_platform), 
-                            
-                            paramset.powlaw_anyvar_base,
-                            (init_fmt.bDP > init_fmt.DP * paramset.highqual_min_ratio), // tUseHD1
-                            paramset.phred_triallelic_indel,
-                            (paramset.phred_max_dscs_all - paramset.phred_pow_dscs_origin),
-                            (phred_max_sscs_all  - ((BASE_SYMBOL == symbolType) ? paramset.phred_pow_sscs_origin : paramset.phred_pow_sscs_indel_origin)),
-                            std::get<0>(bad0a_indelstring_tkiidx),
-                            std::get<1>(bad0a_indelstring_tkiidx),
-                            0);
-                        fmts.push_back(std::make_tuple(fmt, symbol, std::get<0>(bad0a_indelstring_tkiidx), std::get<1>(bad0a_indelstring_tkiidx), std::get<2>(bad0a_indelstring_tkiidx)));
+                        tumor_gvcf_format = std::string("\t.:.,.:.");
+                        LOG(logDEBUG4) << "gVCFblock at " << refpos << " is not found at all.";
                     }
                 }
-                // for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; symbol = AlignmentSymbol(1+(unsigned int)symbol)) {
-                for (const auto & fmtinfo : fmts) {
-                    const auto &fmt = std::get<0>(fmtinfo);
-                    const auto symbol = std::get<1>(fmtinfo);
-                    const auto & vaqvec = fmt.VAQ;
-                    auto vaq = (vaqvec.size() == 0 ? 0 : vaqvec[0]);
-                    if (refsymbol == symbol) { 
-                        refqual = vaq; 
-                        stype2refqual[symbolType] = vaq;
-                    }
-                    if (vaq >= most_confident_qual) {
-                        most_confident_symbol = symbol;
-                        most_confident_qual = vaq;
-                        most_confident_GT = fmt.GT;
-                        most_confident_GQ = fmt.GQ;
-                    }
-                    if (vaq >= most_confident_nonref_qual && refsymbol != symbol) {
-                        most_confident_nonref_symbol_2 = most_confident_nonref_symbol;
-                        most_confident_nonref_qual_2 = most_confident_nonref_qual;
-                        most_confident_nonref_symbol = symbol;
-                        most_confident_nonref_qual = vaq;
-                    }
-                }
+                buf_out_string_pass += gvcf_blockline + tumor_gvcf_format + "\n";
             }
-            if ((rpos_exclu_end != refpos || LINK_SYMBOL == symbolType) && (paramset.outvar_flag & OUTVAR_NONREF)) {
-                auto bDPval = bDPcDP[0];
-                auto cDPval = bDPcDP[1];
-                auto fGTmm2 = (most_confident_GQ >= 10 ? most_confident_GT : "./.");
-                auto fGQval = most_confident_GQ;
-                bool gbDPhasWideRange = (is_sig_out(bDPval, gbDPmin, gbDPmax, 130,  3) || (0 == gbDPmax && bDPval > gbDPmax) || (0 == bDPval && gbDPmin > bDPval));
-                bool gcDPhasWideRange = (is_sig_out(cDPval, gcDPmin, gcDPmax, 130,  3));
-                bool gfGQhasWideRange = (is_sig_out(fGQval, gfGQmin, gfGQmax, 130, 10) || (std::string(fGTmm2) != gfGTmm2));
-                if (gbDPhasWideRange || gcDPhasWideRange || gfGQhasWideRange ||
-                        (refpos - prevPosition >= G_BLOCK_SIZE) || (refpos == rpos_exclu_end)) {
-                    auto iendPosition = (LINK_SYMBOL == symbolType ? (refpos - 1) : refpos);
-                    auto iendSymbolType = stype_to_immediate_prev[symbolType];
-                    
-                    unsigned int begpos = (BASE_SYMBOL == prevSymbolType ? (prevPosition+1) : prevPosition);
-                    unsigned int endpos = (BASE_SYMBOL == iendSymbolType ? (iendPosition+1) : iendPosition);
-                    
-                    std::string genomicInfoString = ((0 == gbDPmax || (bcf_hdr != NULL && paramset.is_tumor_format_retrieved)) ? "" : genomic_reg_info_to_string(
-                            std::get<0>(tname_tseqlen_tuple),
-                            begpos, prevSymbolType,
-                            endpos, iendSymbolType,
-                            gbDPmin, gcDPmin,
-                            gfGTmm2, gfGQmin,
-                            refstring, extended_inclu_beg_pos));
-                    raw_out_string += genomicInfoString + buf_out_string;
-                    raw_out_string_pass += genomicInfoString + buf_out_string_pass;
-                    buf_out_string.clear();
-                    buf_out_string_pass.clear();
-                    prevPosition = refpos;
-                    prevSymbolType = symbolType;
-                    gbDPmin = bDPval;
-                    gbDPmax = bDPval;
-                    gcDPmin = cDPval;
-                    gcDPmax = cDPval;
-                    gfGTmm2 = fGTmm2;
-                    gfGQmin = fGQval;
-                    gfGQmax = fGQval;
-                } else {
-                    UPDATE_MIN(gbDPmin, bDPval);
-                    UPDATE_MAX(gbDPmax, bDPval);
-                    UPDATE_MIN(gcDPmin, cDPval);
-                    UPDATE_MAX(gcDPmax, cDPval);
-                    UPDATE_MIN(gfGQmin, fGQval);
-                    UPDATE_MAX(gfGQmax, fGQval);
+            
+            const auto ref_bdepth = 
+                        symbolToCountCoverageSet12.symbol_to_frag_format_depth_sets[0].getByPos(refpos)[refsymbol][FRAG_bDP]
+                      + symbolToCountCoverageSet12.symbol_to_frag_format_depth_sets[1].getByPos(refpos)[refsymbol][FRAG_bDP];
+            
+            for (AlignmentSymbol symbol : SYMBOL_TYPE_TO_SYMBOLS[symboltype])
+            {
+                const bool is_pos_rescued = (NOT_PROVIDED != paramset.vcf_tumor_fname && (extended_posidx_to_is_rescued[refpos - extended_inclu_beg_pos]));
+                const bool is_var_rescued = (is_pos_rescued && (tid_pos_symb_to_tkis.end() != tid_pos_symb_to_tkis.find(std::make_tuple(tid, refpos, symbol)))); 
+                const auto bdepth = 
+                        symbolToCountCoverageSet12.symbol_to_frag_format_depth_sets[0].getByPos(refpos)[symbol][FRAG_bDP]
+                      + symbolToCountCoverageSet12.symbol_to_frag_format_depth_sets[1].getByPos(refpos)[symbol][FRAG_bDP];
+                const auto cdepth = 
+                        MAX(symbolToCountCoverageSet12.symbol_to_fam_format_depth_sets_2strand[0].getByPos(refpos)[symbol][FAM_cDP1],
+                            symbolToCountCoverageSet12.symbol_to_fam_format_depth_sets_2strand[0].getByPos(refpos)[symbol][FAM_cDP12])
+                      + MAX(symbolToCountCoverageSet12.symbol_to_fam_format_depth_sets_2strand[1].getByPos(refpos)[symbol][FAM_cDP1],
+                            symbolToCountCoverageSet12.symbol_to_fam_format_depth_sets_2strand[1].getByPos(refpos)[symbol][FAM_cDP12]);
+                if (isSymbolIns(symbol)) {
+                    ins_bdepth += bdepth;
+                    ins_cdepth += cdepth;
+                    if (LINK_I1 == symbol) {
+                        ins1_bdepth += bdepth;
+                        ins1_cdepth += cdepth;
+                    }
+                } else if (isSymbolDel(symbol)) {
+                    del_bdepth += bdepth;
+                    del_cdepth += cdepth;
+                    if (LINK_D1 == symbol) {
+                        del1_bdepth += bdepth;
+                        del1_cdepth += cdepth;
+                    }
                 }
-            }
-            if (rpos_exclu_end != refpos && bDPcDP[0] >= paramset.min_depth_thres) {
-                bool is_probably_germline = false;
-                //for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType] + n_additional_symbols; symbol = AlignmentSymbol(1+(unsigned int)symbol)) {
-                for (auto & fmtinfo : fmts) {
-                    auto & fmt = std::get<0>(fmtinfo);
-                    auto & symbol = std::get<1>(fmtinfo);
-                    auto & tkiidx = std::get<4>(fmtinfo);
-                    // auto & fmt = fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]];
-                    const bool pass_thres = ((fmt.bAD1[0] + fmt.bAD1[1]) >= paramset.min_altdp_thres);
-                    const bool is_rescued = (tkiidx >= 0); //(
-                            //extended_posidx_to_is_rescued[refpos - extended_inclu_beg_pos] &&
-                            //(tid_pos_symb_to_tkis.end() != tid_pos_symb_to_tkis.find(std::make_tuple(tid, refpos, symbol)))); 
-                    std::vector<TumorKeyInfo> tkis;
-                    if (is_rescued) {
-                        tkis = tid_pos_symb_to_tkis.find(std::make_tuple(tid, refpos, symbol))->second; 
-                    }
-                    if (pass_thres && (symbol != refsymbol)) {
-                        is_probably_germline = true;
-                    }
-                    const bool will_generate_out = (is_rescued ? (paramset.outvar_flag & OUTVAR_SOMATIC) : (pass_thres && (paramset.outvar_flag & OUTVAR_ANY)));
-                    if (will_generate_out || (refsymbol == symbol)) {
-                        auto nonref_symbol_12 = (most_confident_nonref_symbol != symbol ? most_confident_nonref_symbol : most_confident_nonref_symbol_2);
-                        auto nonref_qual_12 = (most_confident_nonref_symbol != symbol ? most_confident_nonref_qual : most_confident_nonref_qual_2);
-                        fmt.OType = SYMBOL_TO_DESC_ARR[nonref_symbol_12];
-                        // const auto & vaqvec = fmts[refsymbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]].VAQ;
-                        // auto ref_qual = (vaqvec.size() == 0 ? 0 : vaqvec[0]);
-                        fmt.ORAQs = {{ ((float)nonref_qual_12), ((float)refqual) }};
-                        unsigned int phred_max_sscs = sscs_mut_table.toPhredErrRate(refsymbol, symbol);
-                        append_vcf_record(buf_out_string, 
-                                buf_out_string_pass, 
-                                arg.vc_stats,
-                                symbolToCountCoverageSet12,
-                                std::get<0>(tname_tseqlen_tuple).c_str(),
-                                refpos, 
-                                symbol, 
-                                fmt,
-                                refstring, 
-                                extended_inclu_beg_pos, 
-                                paramset.vqual, 
-                                should_output_all, 
-                                should_let_all_pass,
-                                (is_rescued ? tkis.at(tkiidx) : THE_DUMMY_TUMOR_KEY_INFO),
-                                (NOT_PROVIDED != paramset.vcf_tumor_fname),
-                                paramset.phred_germline_polymorphism,
-                                paramset.uni_bias_thres, // = 180
-                                bcf_hdr, 
-                                paramset.is_tumor_format_retrieved,
-                                ((BASE_SYMBOL == symbolType) ? paramset.highqual_thres_snv : (LINK_SYMBOL == symbolType ? paramset.highqual_thres_indel : 0)),
-                                paramset.highqual_min_ratio,
-                                paramset.any_mul_contam_frac,
-                                paramset.t2n_mul_contam_frac,
-                                paramset.t2n_add_contam_frac,
-                                paramset.t2n_add_contam_transfrac,
-                                repeatunit, 
-                                repeatnum,
-                                // SEQUENCING_PLATFORM_IONTORRENT == paramset.sequencing_platform,
-                                // paramset.maxMQ,
-                                paramset.central_readlen,
-                                paramset.phred_triallelic_indel,
-                                phred_max_sscs,
-                                paramset.phred_max_dscs_all,
-                                ((BASE_SYMBOL == symbolType) ? paramset.phred_pow_sscs_origin : paramset.phred_pow_sscs_indel_origin),
-                                paramset.phred_pow_dscs_origin,
-                                paramset.vad,
-                                paramset.is_somatic_snv_filtered_by_any_nonref_germline_snv,
-                                paramset.is_somatic_indel_filtered_by_any_nonref_germline_indel,
-                                // ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? paramset.amp_BQ_sqr_coef : paramset.cap_BQ_sqr_coef),
-                                // paramset.phred_varcall_err_per_map_err_per_base,
-                                paramset.powlaw_exponent,
-                                paramset.powlaw_anyvar_base,
-                                paramset.syserr_maxqual,
-                                paramset.syserr_norm_devqual,
-                                // paramset.phred_umi_dimret_qual,
-                                paramset.phred_umi_dimret_mult_indel,
-                                paramset.bitflag_InDel_penal_t_UMI_n_UMI,
-                                paramset.haplo_in_diplo_allele_perc,
-                                paramset.diplo_oneside_posbias_perc,
-                                paramset.diplo_twoside_posbias_perc,
-                                paramset.haplo_oneside_posbias_perc,
-                                paramset.haplo_twoside_posbias_perc,
-                                paramset.phred_snv_to_indel_ratio,
-                                rtr1,
-                                rtr2,
-                                // std::get<2>(fmtinfo), // indel bdepth
-                                std::get<3>(fmtinfo), // indel string
-                                0);
-                    }
+                if ((NOT_PROVIDED == paramset.vcf_tumor_fname)
+                        &&    (((refsymbol != symbol) && (bdepth < paramset.min_altdp_thres))
+                            || ((refsymbol == symbol) && (bDPcDP[0] - ref_bdepth < paramset.min_altdp_thres)))
+                        && (!paramset.should_output_all)) {
+                    continue;
                 }
                 
-                if (is_probably_germline && (paramset.outvar_flag & OUTVAR_GERMLINE)) {
-#if 0                    
-                    int indelph = 40;
-                    if (rtr1.tracklen >= 8 && rtr1.unitlen >= 1) {
-                        indelph = MIN(indelph, 40 - (int)indel_phred(8.0*(4+1+3), rtr1.unitlen, rtr1.unitlen, rtr1.tracklen / rtr1.unitlen));
-                    }
-                    if (rtr2.tracklen >= 8 && rtr2.unitlen >= 1) {
-                        indelph = MIN(indelph, 40 - (int)indel_phred(8.0*(4+1+3), rtr2.unitlen, rtr2.unitlen, rtr2.tracklen / rtr2.unitlen));
-                    }
-                    indelph = MAX(6, indelph);
-#endif
-                    std::vector<std::pair<AlignmentSymbol, bcfrec::BcfFormat*>> symbol_format_vec;
-                    //for (AlignmentSymbol symbol = SYMBOL_TYPE_TO_INCLU_BEG[symbolType]; 
-                    //     symbol <= SYMBOL_TYPE_TO_INCLU_END[symbolType]; 
-                    //     symbol = AlignmentSymbol(1+(unsigned int)symbol)) {
-                    for (auto & fmtinfo : fmts) {
-                        auto & fmt = std::get<0>(fmtinfo);
-                        auto & symbol = std::get<1>(fmtinfo);
-#if 0
-                        // auto & fmt = fmts[symbol - SYMBOL_TYPE_TO_INCLU_BEG[symbolType]];
-                        if (refsymbol == symbol) {
-                            auto central_readlen = MAX(paramset.central_readlen, 30U); 
-                            double ref_bias = (double)MIN(fmt.RefBias, central_readlen - 30U) / (double)central_readlen;
-                            // double con_bias = MIN(fmt.DP * 2e-4, paramset.any_mul_contam_frac);
-                            double aln_bias = mathsquare((double)SUMVEC(fmt.aXMAD) / ((double)SUMVEC(fmt.aAD) + DBL_EPSILON) / (NM_XM_MULT_NORM_COEF)) / 2.0; 
-                            // / 10.0;
-                            double biasfrac_binom = MIN(0.9, MAX3(0.004, ref_bias / 2.0, aln_bias) + pow(0.1, indelph/10.0));
-                            double biasfrac_power = MIN(0.9,  MAX(0.004, paramset.any_mul_contam_frac) + pow(0.1, indelph/10.0));
-                            
-                            double    ref_dep = compute_norm_ad(&fmt, BASE_SYMBOL == symbolType);
-                            double nonref_dep = SUM2(fmt.cDPTT) - ref_dep;
-                            
-                            
-                            /* fmt.BLODQ = MAX(0, (int)MIN(
-                                    calc_binom_10log10_likeratio(biasfrac_binom, ref_dep, ref_dep + MAX(DBL_EPSILON, nonref_dep)),
-                                    paramset.powlaw_exponent * (10.0/log(10.0)) * log((ref_dep + 0.5) / (nonref_dep + 0.5) / biasfrac_power))) */;
-                            fmt.note += other_join(std::array<double, 4>{{ ref_bias, aln_bias, biasfrac_binom, biasfrac_power }}, "#") + "##";
-                        } else {
-                            fmt.BLODQ = 999;
+                if ((NOT_PROVIDED != paramset.vcf_tumor_fname) && (!is_pos_rescued)) {
+                    continue;
+                }
+                const auto simplemut = std::make_pair(refpos, symbol);
+                const auto indices_bq = (simplemut2indices_bq.find(simplemut) != simplemut2indices_bq.end() ? simplemut2indices_bq[simplemut] : empty_size_t_set); 
+                const auto indices_fq = (simplemut2indices_fq.find(simplemut) != simplemut2indices_fq.end() ? simplemut2indices_fq[simplemut] : empty_size_t_set);
+                std::vector<TumorKeyInfo> tkis;
+                if (is_var_rescued) {
+                    tkis = tid_pos_symb_to_tkis.find(std::make_tuple(tid, refpos, symbol))->second;
+                }
+                
+                auto fmt = st_to_init_fmt[symboltype];
+                int tkiidx = 0;
+                std::vector<std::tuple<uvc1_readnum_t, uvc1_readnum_t, std::string, TumorKeyInfo>> bcad0a_indelstring_tki_vec;
+                if (isSymbolIns(symbol) || isSymbolDel(symbol)) {
+                    for (int strand = 0; strand < 2; strand++) {
+                        if (0 < symbolToCountCoverageSet12.symbol_to_frag_format_depth_sets[strand].getByPos(refpos)[symbol][FRAG_bDP]) {
+                            fill_by_indel_info(
+                                    fmt, 
+                                    symbolToCountCoverageSet12,
+                                    strand,
+                                    refpos,
+                                    symbol,
+                                    refstring,
+                                    0);
                         }
-#endif
-                        if (refsymbol == symbol) {
-                            if (isSymbolSubstitution(refsymbol)) {
-                                fmt.BLODQ = MIN(fmt.ALODQ, stype2refqual[LINK_SYMBOL]);
+                    }
+                    if (is_var_rescued) {
+                        for (const auto & tki : tkis) {
+                            const auto tabpos = tki.ref_alt.find("\t");
+                            const auto & vcfref = tki.ref_alt.substr(0, tabpos);
+                            const auto & vcfalt = tki.ref_alt.substr(tabpos + 1);
+                            std::string indelstring;
+                            if (vcfref.size() > vcfalt.size()) {
+                                indelstring = vcfref.substr(vcfalt.size());
                             } else {
-                                fmt.BLODQ = 888;
+                                assert (vcfref.size() < vcfalt.size());
+                                indelstring = vcfalt.substr(vcfref.size());
                             }
+                            bcad0a_indelstring_tki_vec.push_back(std::make_tuple(bdepth, cdepth, indelstring, tki));
+                            tkiidx++;
                         }
-                        symbol_format_vec.push_back(std::make_pair(symbol, &fmt));
+                    } else {
+                        const auto bcad0a_arr_indelstring_pairvec = indel_get_majority(
+                                fmt,
+                                std::get<0>(tname_tseqlen_tuple).c_str(), 
+                                refpos, 
+                                symbol, 
+                                (NOT_PROVIDED != paramset.vcf_tumor_fname),
+                                0);
+                        for (const auto & bcad0a_arr_indelstring_pair : bcad0a_arr_indelstring_pairvec) {
+                            bcad0a_indelstring_tki_vec.push_back(std::make_tuple(
+                                    bcad0a_arr_indelstring_pair.first[0], 
+                                    bcad0a_arr_indelstring_pair.first[1], 
+                                    bcad0a_arr_indelstring_pair.second, 
+                                    THE_DUMMY_TUMOR_KEY_INFO));
+                        }
                     }
-                    clear_push(init_fmt.VAQ, -999);
-                    init_fmt.ALODQ = -999;
-                    while (symbol_format_vec.size() < 4) {
-                        symbol_format_vec.push_back(std::make_pair(END_ALIGNMENT_SYMBOLS, &init_fmt));
+                } else if (is_var_rescued) {
+                    for (const auto & tki : tkis) {
+                        bcad0a_indelstring_tki_vec.push_back(std::make_tuple(bdepth, cdepth, std::string(""), tki));
                     }
-                    // TumorKeyInfo tki;
-                    output_germline(
-                            buf_out_string_pass,
-                            refsymbol,
-                            symbol_format_vec,
-                            std::get<0>(tname_tseqlen_tuple).c_str(), // tname,
-                            refstring,
+                } else {
+                    bcad0a_indelstring_tki_vec.push_back(std::make_tuple(bdepth, cdepth, std::string(""), THE_DUMMY_TUMOR_KEY_INFO));
+                }
+                
+                for (const auto & bcad0a_indelstring_tki : bcad0a_indelstring_tki_vec) {
+                    const auto & indelstring = std::get<2>(bcad0a_indelstring_tki);
+                    const auto & tki = std::get<3>(bcad0a_indelstring_tki);
+                    const bool is_homopol_1bp = (prev_base1 == refsymbol && next_base1 == refsymbol);
+                    const bool is_homopol_2bp = (prev_base2 == refsymbol && next_base2 == refsymbol);
+                    BcfFormat_symbol_init(
+                            fmt,
+                            symbolToCountCoverageSet12,
                             refpos,
-                            extended_inclu_beg_pos, // regionpos,
-                            paramset.central_readlen,
-                            // tki, 
+                            symbol,
+                            mutform2count4vec_bq,     
+                            indices_bq,
+                            mutform2count4vec_fq, 
+                            indices_fq,
+                            std::get<0>(bcad0a_indelstring_tki),
+                            std::get<1>(bcad0a_indelstring_tki),
+                            indelstring,
+                            (isSymbolSubstitution(symbol) 
+                                    ? non_neg_minus(minABQ_snv, (is_homopol_1bp ? (is_homopol_2bp ? 20 : 10) : 0))
+                                    : minABQ_indel),
+                            paramset,
                             0);
+                    BcfFormat_symbol_calc_DPv(
+                            fmt,
+                            region_repeatvec[MAX(refpos - extended_inclu_beg_pos, 3) - 3],
+                            region_repeatvec[MIN(refpos - extended_inclu_beg_pos + 3, UNSIGN2SIGN(region_repeatvec.size()) - 1)],
+                            ((is_var_rescued && (tki.VTI == LAST(fmt.VTI))) ? ((double)(tki.cDP1x + 1) / (double)(tki.CDP1x + 2)) : -1.0), /* tpfa */
+                            refsymbol,
+                            paramset,
+                            0);
+                    st_to_fmt_tki_tup_vec[symboltype].push_back(std::make_tuple(fmt, std::get<3>(bcad0a_indelstring_tki)));
                 }
             }
-        }    
-    }
+        } // end of iterations within symboltype
+        const size_t string_pass_old_size = buf_out_string_pass.size();
+        auto st_to_nlodq_fmtptr1_fmtptr2_tup = std::array<std::tuple<uvc1_qual_t, bcfrec::BcfFormat*, bcfrec::BcfFormat*>, NUM_SYMBOL_TYPES>();
+        std::array<int32_t, NUM_SYMBOL_TYPES> curr_vAC = {{ 0 }};
+        for (SymbolType symboltype : SYMBOL_TYPE_ARR) {
+            if (zerobased_pos == rpos_inclu_beg && BASE_SYMBOL == symboltype) { continue; } 
+            const uvc1_refgpos_t refpos = (BASE_SYMBOL == symboltype ? (zerobased_pos - 1) : zerobased_pos);
+            const AlignmentSymbol refsymbol = symboltype_to_refsymbol[symboltype];
+            
+            auto & fmt_tki_tup_vec = st_to_fmt_tki_tup_vec[symboltype];
+            
+            if (fmt_tki_tup_vec.size() == 0) { continue; }
+                BcfFormat_symbol_sum_DPv(fmt_tki_tup_vec);
+                
+                std::vector<std::tuple<uvc1_qual_t, uvc1_qual_t, uvc1_qual_t, AlignmentSymbol, std::string>> maxVQ_VQ1_VQ2_symbol_indelstr_tup_vec;
+                for (auto & fmt_tki_tup : fmt_tki_tup_vec) 
+                {
+                    const auto VTI = LAST(std::get<0>(fmt_tki_tup).VTI);
+                    assert((VTI >= 0 && VTI <= END_ALIGNMENT_SYMBOLS) || !fprintf(stderr, "VTI %d at pos %d is invalid!\n", VTI, refpos));
+                    AlignmentSymbol symbol = (VTI >= 0 ? AlignmentSymbol(VTI) : END_ALIGNMENT_SYMBOLS);
+                    auto & fmt = std::get<0>(fmt_tki_tup);
+                    const auto & tki = std::get<1>(fmt_tki_tup);
+                    BcfFormat_symbol_calc_qual(
+                            fmt,
+                            
+                            ins_cdepth,
+                            del_cdepth,
+                            
+                            ins1_cdepth,
+                            del1_cdepth,
+                            
+                            repeatunit,
+                            repeatnum,
+                            
+                            NOT_PROVIDED != paramset.vcf_tumor_fname,
+                            region_repeatvec.at(MAX(refpos - extended_inclu_beg_pos, 3) - 3),
+                            region_repeatvec.at(MIN(refpos - extended_inclu_beg_pos + 3, UNSIGN2SIGN(region_repeatvec.size()) - 1)),
+                            tid,
+                            refpos,
+                            refsymbol,
+                            ((NOT_PROVIDED != paramset.vcf_tumor_fname && (tki.VTI == LAST(fmt.VTI))) ? 
+                                ((double)(tki.bDP + 0.5) / (double)(tki.BDP + 1.0)) : -1.0),
+                            paramset,
+                            0);
+                    if (refsymbol != symbol) {
+                        uvc1_qual_t cVQ1 = LAST(std::get<0>(fmt_tki_tup).cVQ1);
+                        uvc1_qual_t cVQ2 = LAST(std::get<0>(fmt_tki_tup).cVQ2);
+                        maxVQ_VQ1_VQ2_symbol_indelstr_tup_vec.push_back(std::make_tuple(MAX(cVQ1, cVQ2), cVQ1, cVQ2, symbol, LAST(std::get<0>(fmt_tki_tup).gapSa)));
+                        const uvc1_qual_t germ_phred_het3al = ((BASE_SYMBOL == symboltype) ? paramset.germ_phred_het3al_snp : paramset.germ_phred_het3al_indel);
+                        if (MAX(cVQ1, cVQ2) >= germ_phred_het3al) {
+                            curr_vAC[symboltype] += 1;
+                        }
+                    }
+                }
+                std::sort(maxVQ_VQ1_VQ2_symbol_indelstr_tup_vec.rbegin(), maxVQ_VQ1_VQ2_symbol_indelstr_tup_vec.rend());
+                for (auto & fmt_tki_tup : fmt_tki_tup_vec) {
+                    std::get<0>(fmt_tki_tup).cVQ1M = {{ -999 }};
+                    std::get<0>(fmt_tki_tup).cVQ2M = {{ -999 }};
+                    std::get<0>(fmt_tki_tup).cVQAM = {{ SYMBOL_TO_DESC_ARR[END_ALIGNMENT_SYMBOLS] }};
+                    std::get<0>(fmt_tki_tup).cVQSM = {{ "" }};
+                    size_t tup_vec_idx = 0;
+                    for (const auto & maxVQ_VQ1_VQ2_symbol_indelstr_tup : maxVQ_VQ1_VQ2_symbol_indelstr_tup_vec) {
+                        std::get<0>(fmt_tki_tup).cVQ1M[tup_vec_idx] = std::get<1>(maxVQ_VQ1_VQ2_symbol_indelstr_tup);
+                        std::get<0>(fmt_tki_tup).cVQ2M[tup_vec_idx] = std::get<2>(maxVQ_VQ1_VQ2_symbol_indelstr_tup);
+                        std::get<0>(fmt_tki_tup).cVQAM[tup_vec_idx] = SYMBOL_TO_DESC_ARR[std::get<3>(maxVQ_VQ1_VQ2_symbol_indelstr_tup)];
+                        std::get<0>(fmt_tki_tup).cVQSM[tup_vec_idx] = std::get<4>(maxVQ_VQ1_VQ2_symbol_indelstr_tup);
+                        tup_vec_idx += 1;
+                        if (std::get<0>(fmt_tki_tup).cVQ1M.size() == tup_vec_idx) { break; }
+                    }
+                }
+                auto reffmt = st_to_init_fmt[symboltype];
+                auto & init_fmt = st_to_init_fmt[symboltype];
+                bool is_ref_found = false;
+                for (auto & fmt_tki_tup : fmt_tki_tup_vec) {
+                    if (refsymbol == (AlignmentSymbol)(LAST(std::get<0>(fmt_tki_tup).VTI))) {  
+                        reffmt = std::get<0>(fmt_tki_tup); 
+                        is_ref_found = true; 
+                    }
+                }
+                if(!is_ref_found) {
+                    fprintf(stderr, "The position %s:%d with symboltype %d has no REF allele!\n",
+                            std::get<0>(tname_tseqlen_tuple).c_str(), refpos, symboltype);
+                    abort();
+                }
+                for (auto & fmt_tki_tup : fmt_tki_tup_vec) {
+                    streamFrontPushBcfFormatR(std::get<0>(fmt_tki_tup), reffmt);
+                }
+                                    
+                std::vector<std::pair<AlignmentSymbol, bcfrec::BcfFormat*>> symbol_format_vec;
+                for (auto & fmt_tki_tup : fmt_tki_tup_vec) {
+                    auto & fmt = std::get<0>(fmt_tki_tup);
+                    auto symbol = (AlignmentSymbol)(LAST(fmt.VTI));
+                    if (paramset.should_add_note) {
+                        fmt.note += std::string("/symb/") + std::to_string(symbol) + 
+                            std::string("/gVQ1/CONTQ/") + std::to_string(LAST(fmt.gVQ1)) + "/" + std::to_string(LAST(fmt.CONTQ))  + "//";
+                    }
+                    if (symbol != BASE_NN) {
+                        symbol_format_vec.push_back(std::make_pair(symbol, &fmt));
+                    }
+                }
+                clear_push(init_fmt.VTI, (int32_t)END_ALIGNMENT_SYMBOLS); 
+                clear_push(init_fmt.gVQ1, 0); // can use a very negative number to force out all homref alleles
+                clear_push(init_fmt.CONTQ, 0);
+                clear_push(init_fmt.cDP12f, 0);
+                clear_push(init_fmt.cDP12r, 0);
+                clear_push(init_fmt.cDP0a, 0);
+                clear_push(init_fmt.cDP1v, 50);
+                while (symbol_format_vec.size() <= 4) {
+                    symbol_format_vec.push_back(std::make_pair(END_ALIGNMENT_SYMBOLS, &init_fmt));
+                }
+                auto nlodq_fmtptr1_fmtptr2_tup = output_germline(
+                        buf_out_string_pass,
+                        refsymbol,
+                        symbol_format_vec,
+                        std::get<0>(tname_tseqlen_tuple).c_str(),
+                        refstring,
+                        refpos,
+                        extended_inclu_beg_pos,
+                        paramset,
+                        0);
+                st_to_nlodq_fmtptr1_fmtptr2_tup[symboltype] = nlodq_fmtptr1_fmtptr2_tup;
+                for (auto & fmt_tki_tup : st_to_fmt_tki_tup_vec[symboltype]) {
+                    auto & tmpref = std::get<0>(fmt_tki_tup).vNLODQ[symboltype];
+                    tmpref = std::get<0>(nlodq_fmtptr1_fmtptr2_tup);
+                }
+        } // end of iterations within symboltype
+        const bool is_germline_var_generated = (buf_out_string_pass.size() > string_pass_old_size);
+        for (const auto symboltype : SYMBOL_TYPE_ARR) {
+            if (zerobased_pos == rpos_inclu_beg && BASE_SYMBOL == symboltype) { continue; } 
+            const uvc1_refgpos_t refpos = (BASE_SYMBOL == symboltype ? (zerobased_pos - 1) : zerobased_pos);
+            const auto refsymbol = symboltype_to_refsymbol[symboltype];
+            
+            auto & fmt_tki_tup_vec = st_to_fmt_tki_tup_vec[symboltype];
+            const auto & nlodq_fmtptr1_fmtptr2_tup = st_to_nlodq_fmtptr1_fmtptr2_tup[symboltype];
+            
+            uvc1_qual_t nlodq = ((BASE_SYMBOL == symboltype) ? paramset.germ_phred_hetero_snp : paramset.germ_phred_hetero_indel);
+            AlignmentSymbol argmin_nlodq_symbol = END_ALIGNMENT_SYMBOLS; 
+            for (auto & fmt_tki_tup : fmt_tki_tup_vec) 
+            {
+                auto & fmt = std::get<0>(fmt_tki_tup);
+                assert(fmt.vAC.size() == curr_vAC.size());
+                for (size_t i = 0; i < fmt.vAC.size(); i++) { fmt.vAC[i] = curr_vAC[i]; }
+                const auto & symbol = (AlignmentSymbol)(LAST(fmt.VTI));
+                auto & tki = std::get<1>(fmt_tki_tup);
+                const bool will_generate_out = (NOT_PROVIDED == paramset.vcf_tumor_fname 
+                        ? (paramset.outvar_flag & OUTVAR_ANY)
+                        : (tki.ref_alt.size() > 0 && (paramset.outvar_flag & OUTVAR_SOMATIC)));
+                const bool is_out_blocked = (
+                        ((BASE_NN == symbol) && !(OUTVAR_BASE_NN & paramset.outvar_flag)) 
+                     || ((LINK_NN == symbol) && !(OUTVAR_LINK_NN & paramset.outvar_flag)));
+                if (will_generate_out && !is_out_blocked) {
+                    fmt.GT = TT_HETERO[0];
+                    nlodq = std::get<0>(nlodq_fmtptr1_fmtptr2_tup);
+                    assert ((NOT_PROVIDED == paramset.vcf_tumor_fname) == (0 == tki.ref_alt.size()));
+                    if (NOT_PROVIDED != paramset.vcf_tumor_fname) {
+                        uvc1_qual_t nlodq_inc = 999;
+                        const auto fmtptrs = std::vector<bcfrec::BcfFormat*> {{ std::get<1>(nlodq_fmtptr1_fmtptr2_tup), std::get<2>(nlodq_fmtptr1_fmtptr2_tup) }} ;
+                        for (const auto *fmtptr : fmtptrs) {
+                            const AlignmentSymbol normsymbol = AlignmentSymbol(LAST(fmtptr->VTI));
+                            auto bgerr_norm_max_ad = collectget(fmtptr->cDP1x, 1, 50); 
+                            double tAD = (tki.cDP1x + 1) / 100.0;
+                            double tDP = (tki.CDP1x + 2) / 100.0;
+                            double nAD = (bgerr_norm_max_ad + 1) / 100.0;
+                            double nDP = (fmtptr->CDP1x[0] + 2) / 100.0;
+                            double bjpfrac = ((tAD) / (tDP)) / ((nAD) / (nDP));
+                            uvc1_qual_t binom_b10log10like = calc_binom_10log10_likeratio((tDP - tAD) / (tDP), nDP - nAD, nAD);
+                            uvc1_qual_t powlaw_b10log10like = (paramset.powlaw_exponent * 10 / log(10) * log(bjpfrac));
+                            uvc1_qual_t phred_het3al_chance_inc_snp = 2 * paramset.germ_phred_hetero_snp - paramset.germ_phred_het3al_snp;
+                            uvc1_qual_t phred_het3al_chance_inc_indel = 2 * paramset.germ_phred_hetero_indel - paramset.germ_phred_het3al_indel;
+                            uvc1_qual_t triallele_inc = ((normsymbol != symbol) ? 
+                                    (isSymbolSubstitution(symbol) ? phred_het3al_chance_inc_snp : phred_het3al_chance_inc_indel) : 0);
+                            uvc1_qual_t triallele_thr = 3; // 8;
+                            const auto new_nlodq_inc = BETWEEN(MIN(binom_b10log10like, powlaw_b10log10like), -triallele_thr, paramset.powlaw_anyvar_base) 
+                                    + triallele_inc;
+                            if (nlodq_inc > new_nlodq_inc) {
+                                nlodq_inc = new_nlodq_inc;
+                                argmin_nlodq_symbol = normsymbol;
+                                if (paramset.should_add_note) {
+                                    fmt.note += std::string("/nlodqDeltaIs/") 
+                                        + other_join(std::array<double, 5> {{(double)tAD, (double)tDP, (double)nAD, (double)nDP, (double)nlodq_inc }}, "/") + "#" 
+                                        + std::to_string(std::get<0>(nlodq_fmtptr1_fmtptr2_tup)) + "#"
+                                        + SYMBOL_TO_DESC_ARR[FIRST(std::get<1>(nlodq_fmtptr1_fmtptr2_tup)->VTI)] + "//"
+                                        + SYMBOL_TO_DESC_ARR[LAST(std::get<1>(nlodq_fmtptr1_fmtptr2_tup)->VTI)] + "//"
+                                        + SYMBOL_TO_DESC_ARR[LAST(std::get<2>(nlodq_fmtptr1_fmtptr2_tup)->VTI)] + "//"
+                                        + other_join(std::get<1>(nlodq_fmtptr1_fmtptr2_tup)->gVQ1, "/") + "//"
+                                        + other_join(std::get<2>(nlodq_fmtptr1_fmtptr2_tup)->gVQ1, "/") + "//"
+                                        + other_join(std::get<1>(nlodq_fmtptr1_fmtptr2_tup)->CONTQ, "/") + "//"
+                                        + other_join(std::get<2>(nlodq_fmtptr1_fmtptr2_tup)->CONTQ, "/") + "//";
+                                }
+                            }
+                        }
+                        nlodq += nlodq_inc;
+                    }
+                    
+                    append_vcf_record(
+                            buf_out_string_pass,
+                            std::get<0>(tname_tseqlen_tuple).c_str(),
+                            refpos,
+                            extended_inclu_beg_pos,
+                            refstring,
+                            region_repeatvec,
+                            repeatunit,
+                            repeatnum,
+                            refsymbol,
+                            symbol,
+                            fmt,
+                            tki,
+                            nlodq,
+                            argmin_nlodq_symbol,
+                            (paramset.should_output_all || is_germline_var_generated),
+                            bcf_hdr,
+                            baq_offsetarr,
+                            paramset,
+                            0);
+                }
+            } // fmt_tki_tup_vec
+        } // end of SYMBOL_TYPE_ARR
+    } // zerobased_pos
+    
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id  << " starts destroying bam records"; }
     for (auto strand_readset : umi_strand_readset) {
-        for (unsigned int strand = 0; strand < 2; strand++) {
+        for (int strand = 0; strand < 2; strand++) {
             auto readset = strand_readset.first[strand]; 
             for (auto read : readset) {
                 for (bam1_t *b : read) {
@@ -1275,11 +1030,10 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
             }
         }
     }
-    bgzip_string(outstring_allp, raw_out_string);
     if (!is_vcf_out_pass_to_stdout) {
-        bgzip_string(outstring_pass, raw_out_string_pass);
+        bgzip_string(outstring_pass, buf_out_string_pass);
     } else {
-        outstring_pass += raw_out_string_pass;
+        outstring_pass += buf_out_string_pass;
     }
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id  << " is done with current task"; }
     return 0;
@@ -1294,8 +1048,19 @@ main(int argc, char **argv) {
     const std::string UMI_STRUCT_STRING = ((UMI_STRUCT != NULL && strlen(UMI_STRUCT) > 0) ? std::string(UMI_STRUCT) : std::string(""));
     CommandLineArgs paramset;
     int parsing_result_flag = -1;
-    SequencingPlatform inferred_sequencing_platform = SEQUENCING_PLATFORM_AUTO;
-    int parsing_result_ret = paramset.initFromArgCV(parsing_result_flag, inferred_sequencing_platform, argc, argv);
+    int parsing_result_ret = paramset.initFromArgCV(parsing_result_flag, argc, argv);
+    if (paramset.bam_input_fname.compare(OPT_ONLY_PRINT_VCF_HEADER) == 0) {
+        std::string header_outstring = generate_vcf_header(
+            argc, 
+            argv, 
+            0, 
+            NULL, 
+            NULL,
+            OPT_ONLY_PRINT_VCF_HEADER,
+            paramset);
+        std::cout << header_outstring << std::endl;
+        return 0;
+    }
     if (parsing_result_ret || parsing_result_flag) {
         return parsing_result_ret; 
     }
@@ -1304,19 +1069,10 @@ main(int argc, char **argv) {
     LOG(logINFO) << GIT_DIFF_FULL;
     LOG(logINFO) << "</GIT_DIFF_FULL_DISPLAY_MSG>";
     
-    std::vector<std::tuple<std::string, unsigned int>> tid_to_tname_tseqlen_tuple_vec;
+    std::vector<std::tuple<std::string, uvc1_refgpos_t>> tid_to_tname_tseqlen_tuple_vec;
     samfname_to_tid_to_tname_tseq_tup_vec(tid_to_tname_tseqlen_tuple_vec, paramset.bam_input_fname);
     
-    const unsigned int nthreads = paramset.max_cpu_num;
-    bool is_vcf_out_empty_string = (std::string("") == paramset.vcf_output_fname);
-    BGZF *fp_allp = NULL;
-    if (!is_vcf_out_empty_string) { 
-        fp_allp = bgzf_open(paramset.vcf_output_fname.c_str(), "w");
-        if (NULL == fp_allp) {
-            LOG(logERROR) << "Unable to open the bgzip file " << paramset.vcf_output_fname;
-            exit(-8);
-        }
-    }
+    const int nthreads = paramset.max_cpu_num;
     bool is_vcf_out_pass_empty_string = (std::string("") == paramset.vcf_out_pass_fname);
     bool is_vcf_out_pass_to_stdout = (std::string("-") == paramset.vcf_out_pass_fname);
     BGZF *fp_pass = NULL;
@@ -1342,9 +1098,9 @@ main(int argc, char **argv) {
     }
 
 #if defined(USE_STDLIB_THREAD)
-    const unsigned int nidxs = nthreads * 2 + 1;
+    const size_t nidxs = nthreads * 2 + 1;
 #else
-    const unsigned int nidxs = nthreads;
+    const size_t nidxs = nthreads;
 #endif
     
     bcf_hdr_t *g_bcf_hdr = NULL;
@@ -1382,34 +1138,24 @@ main(int argc, char **argv) {
         }
     }
     
-    VcStats all_vc_stats;
-
     bam_hdr_t * samheader = sam_hdr_read(samfiles[0]);
-    std::string header_outstring = generate_vcf_header(paramset.fasta_ref_fname.c_str(), 
-            SEQUENCING_PLATFORM_TO_DESC.at(inferred_sequencing_platform).c_str(), 
-            paramset.central_readlen, 
-            paramset.minABQ_pcr_snv, 
-            paramset.minABQ_pcr_indel, 
-            paramset.minABQ_cap_snv, 
-            paramset.minABQ_cap_indel, 
+    std::string header_outstring = generate_vcf_header(
             argc, 
             argv, 
             samheader->n_targets, 
             samheader->target_name, 
             samheader->target_len,
-            paramset.sample_name.c_str(), 
             g_sample, 
-            paramset.is_tumor_format_retrieved);
-    clearstring<false>(fp_allp, header_outstring);
+            paramset);
     clearstring<false>(fp_pass, header_outstring, is_vcf_out_pass_to_stdout);
 
-    std::vector<std::tuple<unsigned int, unsigned int, unsigned int, bool, unsigned int>> tid_beg_end_e2e_tuple_vec1;
-    std::vector<std::tuple<unsigned int, unsigned int, unsigned int, bool, unsigned int>> tid_beg_end_e2e_tuple_vec2;
-    std::map<std::tuple<unsigned int, unsigned int, AlignmentSymbol>, std::vector<TumorKeyInfo>> tid_pos_symb_to_tkis1; 
-    std::map<std::tuple<unsigned int, unsigned int, AlignmentSymbol>, std::vector<TumorKeyInfo>> tid_pos_symb_to_tkis2; 
+    std::vector<std::tuple<uvc1_refgpos_t, uvc1_refgpos_t, uvc1_refgpos_t, bool, uvc1_readnum_t>> tid_beg_end_e2e_tuple_vec1;
+    std::vector<std::tuple<uvc1_refgpos_t, uvc1_refgpos_t, uvc1_refgpos_t, bool, uvc1_readnum_t>> tid_beg_end_e2e_tuple_vec2;
+    std::map<std::tuple<uvc1_refgpos_t, uvc1_refgpos_t, AlignmentSymbol>, std::vector<TumorKeyInfo>> tid_pos_symb_to_tkis1; 
+    std::map<std::tuple<uvc1_refgpos_t, uvc1_refgpos_t, AlignmentSymbol>, std::vector<TumorKeyInfo>> tid_pos_symb_to_tkis2; 
     SamIter samIter(paramset.bam_input_fname, paramset.tier1_target_region, paramset.bed_region_fname, nthreads); 
-    unsigned int n_sam_iters = 0;    
-    int iter_nreads = samIter.iternext(tid_beg_end_e2e_tuple_vec1);
+    int64_t n_sam_iters = 0;
+    int64_t iter_nreads = samIter.iternext(tid_beg_end_e2e_tuple_vec1);
     LOG(logINFO) << "PreProcessed " << iter_nreads << " reads in super-contig no " << (n_sam_iters);
     // rescue_variants_from_vcf
     tid_pos_symb_to_tkis1 = rescue_variants_from_vcf(tid_beg_end_e2e_tuple_vec1, tid_to_tname_tseqlen_tuple_vec, paramset.vcf_tumor_fname, g_bcf_hdr, paramset.is_tumor_format_retrieved);
@@ -1439,12 +1185,12 @@ main(int argc, char **argv) {
         }
         LOG(logINFO) << bedstring_header << bedstring;
         if (bed_out.is_open()) { bed_out << bedstring; }
-        const unsigned int allridx = 0;  
-        const unsigned int incvalue = tid_beg_end_e2e_tuple_vec.size();
+        const size_t allridx = 0;  
+        const size_t incvalue = tid_beg_end_e2e_tuple_vec.size();
         
-        unsigned int nreads = 0;
-        unsigned int npositions = 0;
-        for (unsigned int j = 0; j < incvalue; j++) {
+        uvc1_unsigned_int_t nreads = 0;
+        uvc1_unsigned_int_t npositions = 0;
+        for (size_t j = 0; j < incvalue; j++) {
             auto region_idx = allridx + j;
             nreads += std::get<4>(tid_beg_end_e2e_tuple_vec[region_idx]);
             npositions += std::get<2>(tid_beg_end_e2e_tuple_vec[region_idx]) - std::get<1>(tid_beg_end_e2e_tuple_vec[region_idx]); 
@@ -1454,15 +1200,15 @@ main(int argc, char **argv) {
         
         // distribute inputs as evenly as possible
 #if defined(USE_STDLIB_THREAD)
-        const unsigned int UNDERLOAD_RATIO = 1;
+        const uvc1_unsigned_int_t UNDERLOAD_RATIO = 1;
 #else
-        const unsigned int UNDERLOAD_RATIO = 4;
+        const uvc1_unsigned_int_t UNDERLOAD_RATIO = 4;
 #endif
-        unsigned int curr_nreads = 0;
-        unsigned int curr_npositions = 0;
-        unsigned int curr_zerobased_region_idx = 0;
-        std::vector<std::pair<unsigned int, unsigned int>> beg_end_pair_vec;
-        for (unsigned int j = 0; j < incvalue; j++) {
+        uvc1_unsigned_int_t curr_nreads = 0;
+        uvc1_unsigned_int_t curr_npositions = 0;
+        uvc1_unsigned_int_t curr_zerobased_region_idx = 0;
+        std::vector<std::pair<size_t, size_t>> beg_end_pair_vec;
+        for (size_t j = 0; j < incvalue; j++) {
             auto region_idx = allridx + j;
             curr_nreads += std::get<4>(tid_beg_end_e2e_tuple_vec[region_idx]);
             curr_npositions += std::get<2>(tid_beg_end_e2e_tuple_vec[region_idx]) - std::get<1>(tid_beg_end_e2e_tuple_vec[region_idx]); 
@@ -1485,11 +1231,10 @@ main(int argc, char **argv) {
 #endif
         std::vector<BatchArg> batchargs;
         batchargs.reserve(beg_end_pair_vec.size());
-        for (unsigned int beg_end_pair_idx = 0; beg_end_pair_idx < beg_end_pair_vec.size(); beg_end_pair_idx++) {
+        for (size_t beg_end_pair_idx = 0; beg_end_pair_idx < beg_end_pair_vec.size(); beg_end_pair_idx++) {
             struct BatchArg a = {
                     outstring_allp : "",
                     outstring_pass : "",
-                    vc_stats : VcStats(),
                     thread_id : 0,
                     hts_idx : NULL, 
                     ref_faidx : NULL,
@@ -1498,24 +1243,21 @@ main(int argc, char **argv) {
                     
                     tid_beg_end_e2e_tuple : tid_beg_end_e2e_tuple_vec.at(0),
                     tname_tseqlen_tuple : tid_to_tname_tseqlen_tuple_vec.at(0),
-                    region_ordinal : n_sam_iters,
-                    region_tot_num : (unsigned int)(INT32_MAX - 1),
                     regionbatch_ordinal : 0,
                     regionbatch_tot_num : 0,
 
                     paramset : paramset, 
                     UMI_STRUCT_STRING : UMI_STRUCT_STRING,
                     is_vcf_out_pass_to_stdout : is_vcf_out_pass_to_stdout,
-                    is_vcf_out_empty_string : is_vcf_out_empty_string
             };
             batchargs.push_back(a);
         }
-        unsigned int beg_end_pair_size = beg_end_pair_vec.size();
+        size_t beg_end_pair_size = beg_end_pair_vec.size();
 
 #if defined(_OPENMP) && !defined(USE_STDLIB_THREAD)
 #pragma omp parallel for schedule(dynamic, 1) num_threads(nthreads)
 #endif
-        for (unsigned int beg_end_pair_idx = 0; beg_end_pair_idx < beg_end_pair_size; beg_end_pair_idx++) {
+        for (size_t beg_end_pair_idx = 0; beg_end_pair_idx < beg_end_pair_size; beg_end_pair_idx++) {
             
 #if defined(_OPENMP) && !defined(USE_STDLIB_THREAD)
             size_t thread_id = omp_get_thread_num();
@@ -1530,7 +1272,7 @@ main(int argc, char **argv) {
             batcharg.ref_faidx = ref_faidxs[thread_id];
             batcharg.sr = srs[thread_id];
 
-            std::pair<unsigned int, unsigned int> beg_end_pair = beg_end_pair_vec[beg_end_pair_idx];
+            std::pair<size_t, size_t> beg_end_pair = beg_end_pair_vec[beg_end_pair_idx];
 #if defined(USE_STDLIB_THREAD)
             std::thread athread([
                         &batcharg, allridx, beg_end_pair, beg_end_pair_idx, &tid_beg_end_e2e_tuple_vec, &tid_to_tname_tseqlen_tuple_vec, &tid_pos_symb_to_tkis1
@@ -1539,10 +1281,14 @@ main(int argc, char **argv) {
                     LOG(logINFO) << "Thread " << batcharg.thread_id << " will process the sub-chunk " << beg_end_pair_idx << " which ranges from " 
                             << beg_end_pair.first << " to " << beg_end_pair.second;
                     
-                    for (unsigned int j = beg_end_pair.first; j < beg_end_pair.second; j++) {
+                    for (size_t j = beg_end_pair.first; j < beg_end_pair.second; j++) {
                         batcharg.regionbatch_ordinal = j;
                         batcharg.regionbatch_tot_num = beg_end_pair.second;
+                        assert (((size_t)(allridx + j) < tid_beg_end_e2e_tuple_vec.size())
+                                || !fprintf(stderr, "%lu + %lu < %lu failed!\n", allridx, j, tid_beg_end_e2e_tuple_vec.size()));
                         batcharg.tid_beg_end_e2e_tuple = tid_beg_end_e2e_tuple_vec.at(allridx + j);
+                        assert (((size_t)std::get<0>(batcharg.tid_beg_end_e2e_tuple)) < tid_to_tname_tseqlen_tuple_vec.size() 
+                                || !fprintf(stderr, "%lu < %lu failed!\n", (size_t)std::get<0>(batcharg.tid_beg_end_e2e_tuple), tid_to_tname_tseqlen_tuple_vec.size()));
                         batcharg.tname_tseqlen_tuple = tid_to_tname_tseqlen_tuple_vec.at(std::get<0>(batcharg.tid_beg_end_e2e_tuple));
                         process_batch(batcharg, tid_pos_symb_to_tkis1);
                     }
@@ -1556,14 +1302,10 @@ main(int argc, char **argv) {
             t.join();
         }
 #endif
-        for (unsigned int beg_end_pair_idx = 0; beg_end_pair_idx < beg_end_pair_vec.size(); beg_end_pair_idx++) {
-            if (batchargs[beg_end_pair_idx].outstring_allp.size() > 0) {
-                clearstring<true>(fp_allp, batchargs[beg_end_pair_idx].outstring_allp); // empty string means end of file
-            }
+        for (size_t beg_end_pair_idx = 0; beg_end_pair_idx < beg_end_pair_vec.size(); beg_end_pair_idx++) {
             if (batchargs[beg_end_pair_idx].outstring_pass.size() > 0) {
                 clearstring<true>(fp_pass, batchargs[beg_end_pair_idx].outstring_pass); // empty string means end of file
             }
-            all_vc_stats.update(batchargs[beg_end_pair_idx].vc_stats);
         }
         read_bam_thread.join(); // end this iter
         for (auto tid_pos_symb_to_tkis1_pair: tid_pos_symb_to_tkis1) {
@@ -1576,14 +1318,8 @@ main(int argc, char **argv) {
         autoswap(tid_beg_end_e2e_tuple_vec1, tid_beg_end_e2e_tuple_vec2);
         autoswap(tid_pos_symb_to_tkis1, tid_pos_symb_to_tkis2);
     }
-    if (NOT_PROVIDED != paramset.vc_stats_fname) {
-        std::ofstream vc_stats_ofstream(paramset.vc_stats_fname.c_str());
-        all_vc_stats.write_tsv(vc_stats_ofstream);
-    } else {
-        all_vc_stats.write_tsv(std::cerr);
-    }
-    clearstring<true>(fp_allp, std::string("")); // write end of file
-    clearstring<true>(fp_pass, std::string(""), is_vcf_out_pass_to_stdout);
+    
+    clearstring<true>(fp_pass, std::string(""), is_vcf_out_pass_to_stdout); // write end of file
     bam_hdr_destroy(samheader);
     if (NULL != g_bcf_hdr) {
         bcf_hdr_destroy(g_bcf_hdr);
@@ -1603,16 +1339,10 @@ main(int argc, char **argv) {
         }
     }
     // bgzf_flush is internally called by bgzf_close
-    if (fp_allp) {
-        int closeresult = bgzf_close(fp_allp);
-        if (closeresult != 0) {
-            LOG(logERROR) << "Unable to close the bgzip file " << paramset.vcf_output_fname;
-        }
-    }
     if (fp_pass) {
         int closeresult = bgzf_close(fp_pass);
         if (closeresult != 0) {
-            LOG(logERROR) << "Unable to close the bgzip file " << paramset.vcf_output_fname;
+            LOG(logERROR) << "Unable to close the bgzip file " << paramset.vcf_out_pass_fname;
         }
     }
     std::clock_t c_end = std::clock();
