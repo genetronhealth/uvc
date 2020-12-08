@@ -6,7 +6,8 @@ The script uvcTN.sh in the bin directory takes two BAM files corresponding to tu
 
 UVC requires BASH 4.0+ (4.0 is the minimum version required) and a compiler that supports the C++14 standard.
 The Makefile in this directory compiles with g++, but the Makefile can be easily modified to use another compiler instead of g++ (for example, clang).
-To install from scratch, please run: (./install-dependencies.sh && make clean && make all -j4 && make deploy).
+To install from scratch, please run: (./install-dependencies.sh && make clean && make all -j4 && make deploy). 
+Please note that ./install-dependencies.sh requires bzip2 to decompress the downloaded files with the (.tar.bz2) extension.
 UVC depends on git 2.12+, htslib 1.6+ and bcftools 1.6+ (lower versions of htslib and bcftools may also work, but are not tested).
 If these two dependencies were already installed, then install-dependencies.sh may not be necessary.
 For trouble-shooting with the installation of htslib and bcftools, please check their official repositories at https://github.com/samtools/htslib and https://github.com/samtools/bcftools.
