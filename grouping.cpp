@@ -128,13 +128,17 @@ SamIter::iternext(std::vector<bedline_t> & tid_beg_end_e2e_vec) {
             nreads_tot += nreads;
             auto prev_nreads = next_nreads;
             if (tid != -1) {
-                tid_beg_end_e2e_vec.push_back(std::make_tuple(tid, MAX(tbeg, prev_tbeg), MAX(tend, prev_tbeg), false, nreads));
-                prev_tbeg = MAX(tend, prev_tbeg);
+                auto this_beg = MAX(MAX(prev_tbeg, prev_tend), tbeg / 1000 * 1000);
+                auto this_end = MAX(MAX(prev_tbeg, prev_tend), tend);
+                tid_beg_end_e2e_vec.push_back(std::make_tuple(tid, this_beg, this_end, false, nreads));
+                prev_tbeg = this_beg;
+                prev_tend = this_end;
                 endingpos = INT32_MAX;
                 next_nreads = 0;
             }
             if (tid != alnrecord->core.tid) {
                 prev_tbeg = 0;
+                prev_tend = 0;
                 tid = alnrecord->core.tid;
             }
             if (is_uncov) {

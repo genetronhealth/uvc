@@ -44,6 +44,7 @@ struct SamIter {
     uvc1_refgpos_t tbeg = INT32_MAX;
     uvc1_refgpos_t tend = INT32_MAX;
     uvc1_refgpos_t prev_tbeg = 0;
+    uvc1_refgpos_t prev_tend = 0;
     uvc1_readnum_big_t nreads = 0;
     uvc1_readnum_big_t next_nreads = 0;
     bam1_t *alnrecord = bam_init1();
