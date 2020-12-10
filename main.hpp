@@ -2428,7 +2428,7 @@ struct Symbol2CountCoverageSet {
 
                             paramset,
                             0);
-
+                    
                     read_family_con_ampl.updateByFiltering(read_ampBQerr_fragWithR1R2, std::array<uvc1_qual_t, NUM_SYMBOL_TYPES> {{ 
                             paramset.fam_thres_highBQ_snv, 0
                     }});
@@ -4354,18 +4354,23 @@ generate_vcf_header(
     ret += std::string("") + "##FORMAT=<ID=GST,Number=.,Type=Integer,Description=\"The genotype statistics\">\n";
     ret += std::string("") + "##FORMAT=<ID=CDP1,Number=2,Type=Integer,Description=\"CDP1f + CDP1r\">\n";
     ret += std::string("") + "##FORMAT=<ID=cDP1,Number=2,Type=Integer,Description=\"cDP1f + cDP1r\">\n";
-
+    
     ret += std::string("") + "##FORMAT=<ID=POS_VT_BDP_CDP_HomRefQ,Number=.,Type=Integer,Description=\"Summary of multiple GVCF regions in a line with INFO/MGVCF. "
-            "Each region has its begin position, type of begin position, minimum duped depth without duplicates kept, minimum deduped depth with duplicates removed, "
-                "and likelihood of the homozygous-reference (homref) genotype (GT) in this region. "
-            "Each set of 5 consecutive integers describes one region in this record. "
+            "This field conforms to the following regular expression: ((<pos>,<postype>,<.>,<dup>,<dedup>,<dedupBQ>,<homrefQ>,<.>)+<endpos>) "
+            "where (x)+ means one or more occurrence of the expression x. "
+            "The integer <pos> denotes position (coordinate on the reference sequence) that separates adjacent regions on the reference sequence. "
+            "The integer <postype> denotes position type, where 1 and 2 mean SNV and InDel sub-positions, respectively. "
+            "The missing integer represented by the dot symbol <.> is a sentinel value that delimits region separators (aka positions) and region information. "
+            "The integer <dup> is the minimum non-deduplicated fragment depth of the region. "
+            "The integer <dedup> is the minimum deduplicated fragment depth (with duplicated fragments counted only once). "
+            "The integer <dedupBQ> is similar to <dedup> but is computed using only support with R1R2-adjusted BQ passing the threshold set by the command-line parameter --fam-thres-highBQ. "
+            "The integer <homrefQ> is the minimum likelihood of the homozygous-reference (homref) genotype (GT) in this region. "
+            "The integer <endpos> denotes the SNV ending sub-position of the set of regions on this VCF line, and <endpos> is the last number in this field. "
             "The (inclusive) begin position of the current region is the (exclusive) end position of the previous region. "
-            "The position types -1 and -2 mean SNV and InDel sub-positions, respectively. "
-            "Each genomic position (e.g., chr1:99) is divided into one SNV sub-position and one InDel sub-position that is right after the SNV sub-position. "
+            "Each genomic position (e.g., chr1:99) is divided into (a) one SNV sub-position and (b) one InDel sub-position that is right after the SNV sub-position. "
             "The SNV prior of homref GT is used here. "
-            "Thus, the actual InDel likelihood of homref GT is the one shown here plus " 
-            + std::to_string(paramset.germ_phred_hetero_indel - paramset.germ_phred_hetero_snp) + ". " +
-            "The last number is the SNV ending sub-position of the set of regions on this VCF line. "
+            "Thus, the actual InDel likelihood of homref GT is the one shown here plus "
+            + std::to_string(paramset.germ_phred_hetero_indel - paramset.germ_phred_hetero_snp) + ". " +    
             "CAVEAT: HomRefQ is computed by a very fast but imprecise algorithm, so it is not as accurate as GQ. \">\n";
     
     ret += std::string("") + "##phasing=partial\n";

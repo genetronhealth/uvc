@@ -570,14 +570,16 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                     symboltype, 
                     refsymbol, 
                     0);
-            if ((paramset.outvar_flag & OUTVAR_MGVCF) && ((((refpos + 1) % MGVCF_REGION_MAX_SIZE) == 0) 
+            if ((paramset.outvar_flag & OUTVAR_MGVCF) && ((((refpos) % MGVCF_REGION_MAX_SIZE) == 0) 
                     || (refpos == incluBegPosition)) && (SYMBOL_TYPE_ARR[0] == symboltype)) {
                 const auto & frag_format_depth_sets = symbolToCountCoverageSet12.symbol_to_frag_format_depth_sets;
                 const auto & fam_format_depth_sets = symbolToCountCoverageSet12.symbol_to_fam_format_depth_sets_2strand;
                 
+                const uvc1_qual_t init_refQ = (INT_MAX / 2 + 1);
                 uvc1_readnum_t prev_tot_bdepth = 0;
                 uvc1_readnum_t prev_tot_cdepth = 0;
-                uvc1_qual_t prev_refQ = 200;
+                uvc1_readnum_t prev_tot_cdep12 = 0;
+                uvc1_qual_t prev_refQ = init_refQ;
                 std::vector<uvc1_rp_diff_t> pos_stype_BDP_CDP_refQ_1dvec;
                 const auto rp2end = MIN(refpos + MGVCF_REGION_MAX_SIZE + 1, symbolToCountCoverageSet12.getUnifiedExcluEndPosition());
                 for (uvc1_refgpos_t rp2 = refpos; rp2 < rp2end; rp2++) {
@@ -593,12 +595,16 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                         const auto refsymbol = ((BASE_SYMBOL == stype) ? (base_m) : (LINK_M));
                         uvc1_readnum_t curr_tot_bdepth = 0;
                         uvc1_readnum_t curr_tot_cdepth = 0;
+                        uvc1_readnum_t curr_tot_cdep12 = 0;
                         for (int strand = 0; strand < 2; strand++) {
                             curr_tot_bdepth += formatSumBySymbolType(frag_format_depth_sets[strand].getByPos(rp2), stype, FRAG_bDP);
                             curr_tot_cdepth += formatSumBySymbolType(fam_format_depth_sets[strand].getByPos(rp2), stype, FAM_cDP1);
+                            curr_tot_cdep12 += formatSumBySymbolType(fam_format_depth_sets[strand].getByPos(rp2), stype, FAM_cDP12);
                         }
-                        const auto ref_cdepth = fam_format_depth_sets[0].getByPos(rp2)[refsymbol][FAM_cDP1] + fam_format_depth_sets[1].getByPos(rp2)[refsymbol][FAM_cDP1];
-                        const auto nonref_cdepth = curr_tot_cdepth - ref_cdepth;
+                        const auto ref_cdepth = 
+                                fam_format_depth_sets[0].getByPos(rp2)[refsymbol][FAM_cDP12] + 
+                                fam_format_depth_sets[1].getByPos(rp2)[refsymbol][FAM_cDP12];
+                        const auto nonref_cdepth = curr_tot_cdep12 - ref_cdepth;
                         
                         // contam, lower  nonref-FA -> close to zero qual
                         const auto ref_like_binom = -calc_binom_10log10_likeratio(paramset.contam_any_mul_frac, nonref_cdepth + 0.5, curr_tot_cdepth + 1.0);
@@ -613,16 +619,21 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                         const uvc1_qual_t curr_refQ = paramset.germ_phred_hetero_snp 
                                 + (uvc1_qual_t)round(MAX(ref_like_binom, ref_like_powlaw) 
                                 - (uvc1_qual_t)round(MAX(nonref_like_binom, nonref_like_powlaw)));
-                        if ((incluBegPosition == rp2) || (abs(curr_refQ - prev_refQ) > 10)
+                        if ((init_refQ == prev_refQ) || (abs(curr_refQ - prev_refQ) > 10)
                                 || are_depths_diff(curr_tot_bdepth, prev_tot_bdepth, 100 + 30, 3)
-                                || are_depths_diff(curr_tot_cdepth, prev_tot_cdepth, 100 + 30, 3)) {
-                            pos_stype_BDP_CDP_refQ_1dvec.push_back(rp2 - ((BASE_SYMBOL == stype) ? (0) : (1)));
-                            pos_stype_BDP_CDP_refQ_1dvec.push_back(-1-(int32_t)stype);
+                                || are_depths_diff(curr_tot_cdepth, prev_tot_cdepth, 100 + 30, 3)
+                                || are_depths_diff(curr_tot_cdep12, prev_tot_cdep12, 100 + 30, 3)) {
+                            pos_stype_BDP_CDP_refQ_1dvec.push_back(rp2 + ((BASE_SYMBOL == stype) ? (1) : (0)));
+                            pos_stype_BDP_CDP_refQ_1dvec.push_back(1+(int32_t)stype);
+                            pos_stype_BDP_CDP_refQ_1dvec.push_back(INT32_MIN);
                             pos_stype_BDP_CDP_refQ_1dvec.push_back(curr_tot_bdepth);
                             pos_stype_BDP_CDP_refQ_1dvec.push_back(curr_tot_cdepth);
+                            pos_stype_BDP_CDP_refQ_1dvec.push_back(curr_tot_cdep12);
                             pos_stype_BDP_CDP_refQ_1dvec.push_back(curr_refQ);
+                            pos_stype_BDP_CDP_refQ_1dvec.push_back(INT32_MIN);
                             prev_tot_bdepth = curr_tot_bdepth;
                             prev_tot_cdepth = curr_tot_cdepth;
+                            prev_tot_cdep12 = curr_tot_cdep12;
                             prev_refQ = curr_refQ;
                         }
                     }
@@ -640,7 +651,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                     std::string("MGVCF_BLOCK"),
                     std::string("GT:VTI:POS_VT_BDP_CDP_HomRefQ"),
                     std::string(".") + ":" + std::to_string(match_refsymbol) + "," + std::to_string(MGVCF_SYMBOL) + ":" 
-                            + other_join(pos_stype_BDP_CDP_refQ_1dvec, ",") + "," + std::to_string(rp2end - refpos),
+                            + int32t_join(pos_stype_BDP_CDP_refQ_1dvec, ",") + "," + std::to_string(rp2end),
                 }}, "\t");
                 
                 std::string tumor_gvcf_format = "";

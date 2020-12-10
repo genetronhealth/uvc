@@ -257,6 +257,20 @@ other_join(const auto & container, std::string sep = std::string(",")) {
     return ret;
 }
 
+std::string 
+int32t_join(const auto & container, std::string sep = std::string(",")) {
+    std::string ret = "";
+    for (const auto & e : container) {
+        if (e == INT32_MIN) {
+            ret += ".,";
+        } else {
+            ret += std::to_string(e) + sep;
+        }
+    }
+    if (ret.size() > 0) { ret.pop_back(); }
+    return ret;
+}
+
 // variant-call data structures and functions
 
 enum AlignmentSymbol {
