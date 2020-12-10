@@ -2,21 +2,25 @@
 
 scriptdir="$(dirname "$(which "$0")")"
 if [ $# -lt 5 ]; then
-    echo "Usage: $0 <REF> <tumor-bam> <normal-bam> <output-directory> <tumor-sample-name>[,<normal-sample-name>][/<nprocs>[,<nprocs2>]/<parallel|qsub>] [<all-params>] [--tumor-params <tumor-params>] [--normal-params <normal-params>]"
-    echo "    The output bgzipped vcf file is <output-directory>/<normal-sample-name>_uvc1.vcf.gz if normal-sample-name is provided or <output-directory>/<tumor-sample-name>_N_uvc1.vcf.gz if normal-sample-name is not provided. "
-    echo "    <nprocs> is the number of processes corresponding to the number of chromosomes that are run concurrently in parallel, "
-    echo "        where 0 (zero, which is the default value) means no chromosome-level parallelization. "
-    echo "    <nprocs2> is the number of threads used by bcftools. "
-    echo "    <parallel|qsub> means the string parallel or qsub. "
-    echo "        The string parallel requires GNU parallel to be installed and the string qsub requires the variable UVC_QSUB_CMD to be set. "
-    echo "        For example, UVC_QSUB_CMD can be \"qsub -V -S /bin/sh\". "
-    echo "        Please note that the qsub option is deprecated because the number of qsub commands is equal to the number of reference fasta sequences. "
-    echo "        More commands result in more output files and more overhead. " 
-    echo "        Therefore, please do not use the qsub option if the reference fasta file contains a lot of sequences. "
-    echo "    <all-params> is the set of parameters to ${scriptdir}/uvc1 for both tumor and normal samples. "
-    echo "     --tumor-parameters is optional and is followed by the parameters to ${scriptdir}/uvc1 for only the  tumor-sample. "
-    echo "    --normal-parameters is optional and is followed by the parameters to ${scriptdir}/uvc1 for only the normal-sample. "
-    echo "    For help on the usage of \"${scriptdir}/uvc1\", please enter \"${scriptdir}/uvc1\" -h "
+    echo "Usage: $0 <REF> <tumorBam> <normalBam> <outputName> <tumorSampleName>[,<normalSampleName>][/<nprocs>[,<nprocs2>]/<parallel|qsub>] [<allParams>] [--tumor-params <tumorParams>] [--normal-params <normalParams>]"
+    echo "  The output bgzipped vcf file is "
+    echo "    <outputName> (with <outputName>.byproduct/<tumorSampleName>_T_uvc1.vcf.gz as intermediate tumor vcf) if <normalSampleName> is provided or "
+    echo "    <outputName>/<tumorSampleName>_N_uvc1.vcf.gz (with <outputName>/<tumorSampleName>_T_uvc1.vcf.gz as intermediate tumor vcf) if normalSampleName is not provided. "
+    echo "  <nprocs> is the number of processes corresponding to the number of chromosomes that are run concurrently in parallel, "
+    echo "    where 0 (zero, which is the default value) means no chromosome-level parallelization. "
+    echo "  <nprocs2> is the number of threads used by bcftools. "
+    echo "  <parallel|qsub> means the string parallel or qsub. "
+    echo "    The string parallel requires GNU parallel to be installed and the string qsub requires the variable UVC_QSUB_CMD to be set. "
+    echo "    For example, UVC_QSUB_CMD can be \"qsub -V -S /bin/sh\". "
+    echo "    Please note that the qsub option is deprecated because of two reasons: "
+    echo "      1. The number of qsub commands is equal to the number of reference fasta sequences. "
+    echo "      1. Afterwards, the user has to manually merge the VCF results generated from their respective reference fasta sequences. "
+    echo "    More commands result in more output files and more overhead. " 
+    echo "    Therefore, please do not use the qsub option especially if the reference fasta file contains a lot of sequences. "
+    echo "  <allParams> is the set of command-line parameters (i.e. arguments) to ${scriptdir}/uvc1 for both tumor and normal samples. "
+    echo "    --tumor-params is optional and is followed by the parameters to ${scriptdir}/uvc1 for only the  tumor-sample. "
+    echo "    --normal-params is optional and is followed by the parameters to ${scriptdir}/uvc1 for only the normal-sample. "
+    echo "  For help on the usage of \"${scriptdir}/uvc1\", please enter \"${scriptdir}/uvc1\" -h "
     exit 1
 fi
 
@@ -45,49 +49,48 @@ for p in "${@:6}"; do
     fi
 done
 
-echo TUMOR-PARAMETERS "${tparams[@]}" 
-echo NORMAL-PARAMETERS "${nparams[@]}" 
+echo "cmdLineArgParser.infoMessage.T: the command-line parameters are ( ${tparams[@]} ) for generating the tumor vcf"
+echo "cmdLineArgParser.infoMessage.N: the command-line parameters are ( ${nparams[@]} ) for generating the normal vcf"
 
 set -evx
 
 ref="$1"
 tbam="$2"
 nbam="$3"
-outdir="$4"
 samplename=$(echo "$5/0/parallel" | awk -F"/" '{print $1}')
 nprocsa=$(echo "$5/0/parallel" | awk -F"/" '{print $2}')
 nprocs=$(echo "${nprocsa}" | awk -F"," '{print $1}')
 nprocs2=$(echo "${nprocsa},4" | awk -F"," '{print $2}')
 paratool=$(echo "$5/0/parallel" | awk -F"/" '{print $3}')
 
-mkdir -p "${outdir}"
-
 if [ $(echo "${samplename}" | awk -F "," '{print NF}') -eq 2 ]; then
     tsample=$(echo "${samplename}" | awk -F "," '{print $1}')
     nsample=$(echo "${samplename}" | awk -F "," '{print $2}')
+    outdir="${4}.byproduct"
+    nvcfgz="${4}"
 else
     tsample="${samplename}_T"
     nsample="${samplename}_N"
+    outdir="$4"
+    nvcfgz="${outdir}/${nsample}_uvc1.vcf.gz"
 fi
-
-tbed="${outdir}/${tsample}_uvc1.bed"
-
-tvcfgz="${outdir}/${tsample}_uvc1.vcf.gz"
-nvcfgz="${outdir}/${nsample}_uvc1.vcf.gz"
-
-tlog="${outdir}/${tsample}_uvc1.stderr"
 nlog="${outdir}/${nsample}_uvc1.stderr"
+tvcfgz="${outdir}/${tsample}_uvc1.vcf.gz"
+tlog="${outdir}/${tsample}_uvc1.stderr"
+tbed="${outdir}/${tsample}_uvc1.bed"
+mkdir -p "${outdir}"
 
 export PATH="${scriptdir}:${PATH}" # remove this line in the rare case that an important executable is shadowed by this command
 
 if [ "${nprocs}" -gt 0 ]; then
     tnames=$(cat "${ref}.fai" | awk '{print $1}')
     if [ "${paratool}" = "parallel" ]; then
+        mkdir -p "${outdir}/parallel-results/"
         for tname in ${tnames}; do
-            echo "${0}" "${ref}" "${tbam}" "${nbam}" "${outdir}/${tname}" "${samplename}" --targets "${tname}" "${@:6}" 
+            echo "${0}" "${ref}" "${tbam}" "${nbam}" "${outdir}/parallel-results/${tname}.uvc1.vcf.gz" "${tsample},${nsample}" --targets "${tname}" "${@:6}" 
         done > "${outdir}/run_parallel.sh"
         cat "${outdir}/run_parallel.sh" | parallel -j "${nprocs}"
-        bcftools concat -n -Oz -o "${nvcfgz}" "${outdir}/"*"/${nsample}_uvc1.vcf.gz"
+        bcftools concat -n -Oz -o "${nvcfgz}" "${outdir}/parallel-results/"*".uvc1.vcf.gz"
         bcftools index -ft --threads "${nprocs2}" "${nvcfgz}"
     elif [ "${paratool}" = "qsub" ]; then
         echo "The use of the qsub command that is automatically generated by this script is deprecated! Please consider using either "
