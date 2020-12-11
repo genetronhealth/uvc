@@ -27,8 +27,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-const uvc1_refgpos_t MGVCF_REGION_MAX_SIZE = 1000;
-
 // T=uvc1_readnum_t for deletion and T=string for insertion
 template <class T>
 uvc1_readnum_t

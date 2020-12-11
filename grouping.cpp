@@ -128,7 +128,7 @@ SamIter::iternext(std::vector<bedline_t> & tid_beg_end_e2e_vec) {
             nreads_tot += nreads;
             auto prev_nreads = next_nreads;
             if (tid != -1) {
-                auto this_beg = MAX(MAX(prev_tbeg, prev_tend), tbeg / 1000 * 1000);
+                auto this_beg = MAX(MAX(prev_tbeg, prev_tend), tbeg / MGVCF_REGION_MAX_SIZE * MGVCF_REGION_MAX_SIZE);
                 auto this_end = MAX(MAX(prev_tbeg, prev_tend), tend);
                 tid_beg_end_e2e_vec.push_back(std::make_tuple(tid, this_beg, this_end, false, nreads));
                 prev_tbeg = this_beg;
@@ -179,83 +179,6 @@ samfname_to_tid_to_tname_tseq_tup_vec(
     bam_hdr_destroy(samheader);
     sam_close(sam_infile);
     return 0;
-}
-
-int 
-sam_fname_to_contigs(
-        std::vector<bedline_t> & tid_beg_end_e2e_vec,
-        std::vector<std::tuple<std::string, uvc1_refgpos_t>> & tid_to_tname_tlen_tuple_vec,
-        const std::string & bam_input_fname, 
-        const std::string & bed_fname) {
-    
-    tid_beg_end_e2e_vec.clear();
-    tid_to_tname_tlen_tuple_vec.clear();
-    samFile *sam_infile = sam_open(bam_input_fname.c_str(), "r");
-    bam_hdr_t * samheader = sam_hdr_read(sam_infile);
-    tid_to_tname_tlen_tuple_vec.reserve(samheader->n_targets);
-    
-    for (uvc1_refgpos_t tid = 0; tid < UNSIGN2SIGN(samheader->n_targets); tid++) {
-        tid_to_tname_tlen_tuple_vec.push_back(std::make_tuple(std::string(samheader->target_name[tid]), samheader->target_len[tid]));
-    }
-    int ret;
-    if (bed_fname != NOT_PROVIDED) {
-        ret = bed_fname_to_contigs(tid_beg_end_e2e_vec, bed_fname, samheader);    
-    } else {
-        ret = 0;
-        uvc1_refgpos_t endingpos = INT32_MAX;
-        uvc1_refgpos_t tid = -1;
-        uvc1_refgpos_t tbeg = -1;
-        uvc1_refgpos_t tend = -1;
-        uvc1_readnum_t nreads = 0;
-        uvc1_readnum_t next_nreads = 0;
-        bam1_t *alnrecord = bam_init1();
-        while (sam_read1(sam_infile, samheader, alnrecord) >= 0) {
-            NORM_INSERT_SIZE(alnrecord);
-            ret++;
-            if (BAM_FUNMAP & alnrecord->core.flag) {
-                continue;
-            }
-            const bool is_uncov = (SIGN2UNSIGN(alnrecord->core.tid) != tid || SIGN2UNSIGN(alnrecord->core.pos) > tend);
-            if (INT32_MAX == endingpos) {
-                uvc1_readpos_t n_overlap_positions = MIN(SIGN2UNSIGN(48), (SIGN2UNSIGN(16) + tend - MIN(tend, SIGN2UNSIGN(alnrecord->core.pos))));
-                uvc1_readpos_t npositions = (tend - MIN(tbeg, tend));
-                bool has_many_positions = (npositions > INT64MUL(n_overlap_positions, (1024)));
-                bool has_many_reads = (nreads > INT64MUL(n_overlap_positions, (1024 * 5)));
-                if (has_many_positions || has_many_reads) {
-                    endingpos = SIGN2UNSIGN(MAX(bam_endpos(alnrecord), 
-                            MIN(alnrecord->core.pos, alnrecord->core.mpos) + MIN(abs(alnrecord->core.isize), ARRPOS_MARGIN)))
-                            + (ARRPOS_OUTER_RANGE * 2);
-                }
-            }
-            next_nreads += ((bam_endpos(alnrecord)) > endingpos ? 1 : 0);
-            if (is_uncov || (endingpos < (alnrecord->core.pos))) {
-                auto prev_nreads = next_nreads;
-                if (tid != -1) {
-                    tid_beg_end_e2e_vec.push_back(std::make_tuple(tid, tbeg, tend, false, nreads));
-                    endingpos = INT32_MAX;
-                    next_nreads = 0;
-                }
-                tid = SIGN2UNSIGN(alnrecord->core.tid);
-                if (is_uncov) {
-                    tbeg = alnrecord->core.pos;
-                    tend = bam_endpos(alnrecord);
-                } else {
-                    tbeg = tend;
-                    tend = MAX(tbeg, SIGN2UNSIGN(bam_endpos(alnrecord))) + SIGN2UNSIGN(1);
-                }
-                nreads = prev_nreads;
-            }
-            tend = MAX(tend, SIGN2UNSIGN(bam_endpos(alnrecord)));
-            nreads += 1;
-        }
-        if (tid != -1) {
-            tid_beg_end_e2e_vec.push_back(std::make_tuple(tid, tbeg, tend, false, nreads));
-        }
-        bam_destroy1(alnrecord);
-    }
-    bam_hdr_destroy(samheader);
-    sam_close(sam_infile);
-    return ret; 
 }
 
 enum FilterReason {

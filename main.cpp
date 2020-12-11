@@ -962,7 +962,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                         ((BASE_NN == symbol) && !(OUTVAR_BASE_NN & paramset.outvar_flag)) 
                      || ((LINK_NN == symbol) && !(OUTVAR_LINK_NN & paramset.outvar_flag)));
                 if (will_generate_out && !is_out_blocked) {
-                    fmt.GT = TT_HETERO[0];
+                    fmt.GT = "./1";
                     nlodq = std::get<0>(nlodq_fmtptr1_fmtptr2_tup);
                     assert ((NOT_PROVIDED == paramset.vcf_tumor_fname) == (0 == tki.ref_alt.size()));
                     if (NOT_PROVIDED != paramset.vcf_tumor_fname) {

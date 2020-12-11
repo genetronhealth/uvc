@@ -105,13 +105,6 @@ samfname_to_tid_to_tname_tseq_tup_vec(
         const std::string & bam_input_fname);
 
 int 
-sam_fname_to_contigs(
-        std::vector<bedline_t> & tid_beg_end_e2e_vec,
-        std::vector<std::tuple<std::string, uvc1_refgpos_t>> & tid_to_tname_tlen_tuple_vec,
-        const std::string & input_bam_fname, 
-        const std::string & bed_fname);
-
-int 
 clean_fill_strand_umi_readset(
         std::vector<std::array<std::vector<std::vector<bam1_t *>>, 2>> &umi_strand_readset);
 
