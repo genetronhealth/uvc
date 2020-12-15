@@ -4084,13 +4084,14 @@ output_germline(
     uvc1_qual_t phred_tri_al = (isSubst ? paramset.germ_phred_het3al_snp : paramset.germ_phred_het3al_indel); 
     // https://www.genetics.org/content/184/1/233 and https://www.fsigenetics.com/article/S1872-4973(20)30003-X/fulltext : triallelic-SNP-phred = 29*2-3+5
     
+    const auto contqadd = (phred_hetero - paramset.germ_phred_hetero_snp);
     if (is_rescued) {
-        UPDATE_MIN(a0LODQ, ref_alt1_alt2_alt3[0].second->CONTQ[1]);
+        UPDATE_MIN(a0LODQ, ref_alt1_alt2_alt3[0].second->CONTQ[1] + contqadd);
         UPDATE_MIN(a1LODQ, ref_alt1_alt2_alt3[1].second->CONTQ[1]);
         UPDATE_MIN(a2LODQ, ref_alt1_alt2_alt3[2].second->CONTQ[1]);
         UPDATE_MIN(a3LODQ, ref_alt1_alt2_alt3[3].second->CONTQ[1]);
     } else {
-        UPDATE_MIN(a0LODQ, ref_alt1_alt2_alt3[0].second->CONTQ[1]);
+        UPDATE_MIN(a0LODQ, ref_alt1_alt2_alt3[0].second->CONTQ[1] + contqadd);
     }
     // Two principles: 
     //  1. Every unexpected signal given a genotype reduces the likelihood of this genotype
