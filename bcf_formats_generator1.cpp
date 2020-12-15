@@ -17,6 +17,7 @@ enum BCF_DATA_TYPE {
     BCF_STRING,
     BCF_INTEGER,
     BCF_SIG_INT,
+    BCF_BIG_SIG_INT,
     BCF_FLOAT,
     BCF_SEP,
     NUM_BCF_DATA_TYPES
@@ -26,6 +27,7 @@ const char * CPP_DATA_STRING[] = {
     "std::string",
     "int32_t", // "uint32_t",
     "int32_t",
+    "int64_t",
     "float",
     "bool",
     NULL
@@ -33,6 +35,7 @@ const char * CPP_DATA_STRING[] = {
 
 const char * CPP_DATA_VALUES[] = {
     "\"\"",
+    "0",
     "0",
     "0",
     "0",
@@ -44,6 +47,7 @@ const char * BCF_DATA_STRING[] = {
     "String",
     "Integer",
     "Integer",
+    "Integer", // may overflow
     "Float",
     "String",
     NULL
@@ -136,9 +140,9 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
                               "PCR-amplicon (6), SNV (7), and DNV (8) segment depths, "
                               "segment depth of high quality (9), "
                               "and near-clip segment depth (10)."),
-    BcfFormatStruct("APXM"  , 4+3,       BCF_INTEGER, "Expected number of mismatches (1) and gap openings (2) in a 1500-bp window. "
-                              "Total sum of query length (3). "
-                              "The (sum of squares (4,5)) and (sum of 100 divided by (6,7)) of insertion (4,6) and deletion (5,7) lengths."),
+    BcfFormatStruct("APXM"  , 4+3+1,     BCF_BIG_SIG_INT, "Expected number of mismatches (1) and gap openings (2) in a 1500-bp window. "
+                              "Total sum of query length (3). Total sum of average InDel length of each sequenced segment (4). "
+                              "The (sum of squares (5,6)) and (sum of 100 divided by (7,8)) of insertion (5,7) and deletion (6,8) lengths."),
        
     BcfFormatStruct("__Ab"  , 1,         BCF_SEP,     "Preparation statistics for segment biases at this position."),
     BcfFormatStruct("APLRID", 4,         BCF_INTEGER, "Summed insertion (1,2) and deletion (3,4) lengths to the left (1,3) and right (2,4) ends of the InDel-affected region."),
@@ -174,10 +178,10 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("__A2"  , 1,         BCF_SEP,     "Depths of the raw sequencing segments for (all alleles) and (the padded deletion allele)."),
     BcfFormatStruct("ALP1"  , 2,         BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 left-side position bias."),
     BcfFormatStruct("ALP2"  , 2,         BCF_INTEGER, "RSEaw sequencing segment depth unaffected by tier-2 left-side position bias."),
-    BcfFormatStruct("ALPL"  , 2,         BCF_INTEGER, "Raw summed distance (number of bases) to the left-side sequencing-segment end."),
+    BcfFormatStruct("ALPL"  , 2,         BCF_INTEGER, "Raw summed distance (number of bases) to the left-side sequencing-segment end using only high-quality bases far from alignment ends."),
     BcfFormatStruct("ARP1"  , 2,         BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 right-side position bias."),
     BcfFormatStruct("ARP2"  , 2,         BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 right-side position bias."),
-    BcfFormatStruct("ARPL"  , 2,         BCF_INTEGER, "Raw summed distance (number of bases) to the right-side sequencing-segment end."),
+    BcfFormatStruct("ARPL"  , 2,         BCF_INTEGER, "Raw summed distance (number of bases) to the right-side sequencing-segment end using only high-quality bases far from alignment ends."),
     
     BcfFormatStruct("__A3"  , 1,         BCF_SEP,     "Depths of the raw sequencing segments for (all alleles) and (the padded deletion allele)."),
     BcfFormatStruct("ALB1"  , 2,         BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 left-side position bias."),
@@ -218,10 +222,13 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     
     BcfFormatStruct("aLP1"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 left-side position bias."),
     BcfFormatStruct("aLP2"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 left-side position bias."),
-    BcfFormatStruct("aLPL"  , BCF_NUM_R, BCF_INTEGER, "Raw summed distance (number of bases) to the left-side sequencing-segment end."),
+    BcfFormatStruct("aLPL"  , BCF_NUM_R, BCF_INTEGER, "Raw summed distance (number of bases) to the left-side sequencing-segment end using only high-quality bases far from alignment ends."),
+    BcfFormatStruct("aLPT"  , BCF_NUM_R, BCF_INTEGER, "Raw summed distance (number of bases) to the left-side sequencing-segment end."),
+
     BcfFormatStruct("aRP1"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 right-side position bias."),
     BcfFormatStruct("aRP2"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 right-side position bias."),
-    BcfFormatStruct("aRPL"  , BCF_NUM_R, BCF_INTEGER, "Raw summed distance (number of bases) to the right-side sequencing-segment end."),
+    BcfFormatStruct("aRPL"  , BCF_NUM_R, BCF_INTEGER, "Raw summed distance (number of bases) to the right-side sequencing-segment end using only high-quality bases far from alignment ends."),
+    BcfFormatStruct("aRPT"  , BCF_NUM_R, BCF_INTEGER, "Raw summed distance (number of bases) to the right-side sequencing-segment end."),
     
     BcfFormatStruct("__a3"  , 1,         BCF_SEP,     "As before."),
     BcfFormatStruct("aLB1"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 left-side position bias."),

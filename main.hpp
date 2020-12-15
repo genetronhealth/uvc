@@ -954,6 +954,8 @@ update_seg_format_prep_sets_by_aln(
     const uvc1_base1500x_t xm_cnt = nm_cnt - nge_cnt;
     const uvc1_base1500x_t xm1500 = xm_cnt * 1500 / (rend - aln->core.pos);
     const uvc1_base1500x_t go1500 = ngo_cnt * 1500 / (rend - aln->core.pos);
+    const uvc1_base1500x_t avg_gaplen = nge_cnt / MAX(1, ngo_cnt);
+    
     const uvc1_refgpos_t frag_pos_L = MIN(aln->core.pos, aln->core.mpos); 
     const uvc1_refgpos_t frag_pos_R = (frag_pos_L + abs(aln->core.isize));
     const bool isrc = ((aln->core.flag & 0x10) == 0x10); 
@@ -973,6 +975,8 @@ update_seg_format_prep_sets_by_aln(
                 seg_format_prep_sets.getRefByPos(rpos).segprep_a_qlen += (rend - aln->core.pos);
                 seg_format_prep_sets.getRefByPos(rpos).segprep_a_XM1500 += xm1500;
                 seg_format_prep_sets.getRefByPos(rpos).segprep_a_GO1500 += go1500;
+                seg_format_prep_sets.getRefByPos(rpos).segprep_a_GAPLEN += avg_gaplen;
+
                 if (aln->core.isize != 0) {
                     if (isrc) { 
                         seg_format_prep_sets.getRefByPos(rpos).segprep_a_LI += MIN(rpos - frag_pos_L + 1, MAX_INSERT_SIZE);
@@ -1091,6 +1095,7 @@ update_seg_format_prep_sets_by_aln(
                 seg_format_prep_sets.getRefByPos(rpos2).segprep_a_highBQ_dp += 1;
                 seg_format_prep_sets.getRefByPos(rpos2).segprep_a_XM1500 += xm1500;
                 seg_format_prep_sets.getRefByPos(rpos2).segprep_a_GO1500 += go1500;
+                seg_format_prep_sets.getRefByPos(rpos2).segprep_a_GAPLEN += avg_gaplen;
                 if (aln->core.isize != 0) {
                     if (isrc) { 
                         seg_format_prep_sets.getRefByPos(rpos2).segprep_a_LI += MIN(rpos - frag_pos_L + 1, MAX_INSERT_SIZE); 
@@ -1308,7 +1313,9 @@ dealwith_segbias(
     
     
     symbol_to_seg_aDP_depth_set += 1;
-    
+    symbol_to_seg_format_depth_set.seginfo_aLPT += seg_l_nbases;
+    symbol_to_seg_format_depth_set.seginfo_aRPT += seg_r_nbases;
+
     // symbol_to_seg_format_depth_set.seginfo_aXMp1 += 1000 / MAX(xm1500, 10);
 
 #if COMPILATION_ENABLE_XMGOT
@@ -2875,12 +2882,13 @@ BcfFormat_symboltype_init(bcfrec::BcfFormat & fmt,
         p.segprep_a_XM1500,
         p.segprep_a_GO1500,
         p.segprep_a_qlen,
-        
-        // no longer used afterwards
-        
+
+        p.segprep_a_GAPLEN,
         p.segprep_a_near_ins_pow2len, 
         p.segprep_a_near_del_pow2len,
-        p.segprep_a_near_ins_inv100len, 
+        // no longer used afterwards
+        
+        p.segprep_a_near_ins_inv100len,
         p.segprep_a_near_del_inv100len,
     }};
     
@@ -3047,11 +3055,13 @@ BcfFormat_symbol_init(
     filla_symbol_fmt(fmt.aLP1, symbol_to_seg_format_depth_sets, seginfo_aLP1, refpos, symbol, a);
     filla_symbol_fmt(fmt.aLP2, symbol_to_seg_format_depth_sets, seginfo_aLP2, refpos, symbol, a);
     filla_symbol_fmt(fmt.aLPL, symbol_to_seg_format_depth_sets, seginfo_aLPL, refpos, symbol, a);
+    filla_symbol_fmt(fmt.aLPT, symbol_to_seg_format_depth_sets, seginfo_aLPT, refpos, symbol, a);
 
     filla_symbol_fmt(fmt.aRP1, symbol_to_seg_format_depth_sets, seginfo_aRP1, refpos, symbol, a);
     filla_symbol_fmt(fmt.aRP2, symbol_to_seg_format_depth_sets, seginfo_aRP2, refpos, symbol, a);
     filla_symbol_fmt(fmt.aRPL, symbol_to_seg_format_depth_sets, seginfo_aRPL, refpos, symbol, a);
-    
+    filla_symbol_fmt(fmt.aRPT, symbol_to_seg_format_depth_sets, seginfo_aRPT, refpos, symbol, a);
+
     filla_symbol_fmt(fmt.aLB1, symbol_to_seg_format_depth_sets, seginfo_aLB1, refpos, symbol, a);
     filla_symbol_fmt(fmt.aLB2, symbol_to_seg_format_depth_sets, seginfo_aLB2, refpos, symbol, a);
     filla_symbol_fmt(fmt.aLBL, symbol_to_seg_format_depth_sets, seginfo_aLBL, refpos, symbol, a);
@@ -3240,19 +3250,22 @@ BcfFormat_symbol_calc_DPv(
     
     // read level
     if (is_in_indel_read || is_in_dnv_read || 
-            (((isSymbolIns(symbol) || isSymbolDel(symbol)) && fmt.APXM[0] > fmt.APXM[1] * paramset.microadjust_bias_pos_indel_misma_to_indel_ratio))) {
-        _aPpriorfreq -= paramset.bias_priorfreq_indel_in_read_div; 
+            (((isSymbolIns(symbol) || isSymbolDel(symbol)) 
+                && (fmt.APXM[0] > fmt.APXM[1] * paramset.microadjust_bias_pos_indel_misma_to_indel_ratio)))) {
+        _aPpriorfreq -= paramset.bias_priorfreq_indel_in_read_div;
         _aBpriorfreq -= paramset.bias_priorfreq_indel_in_read_div;
     }
     // regional level
     if (LINK_M != symbol && LINK_NN != symbol) { 
-        if (is_in_indel_len)           { _aBpriorfreq -= paramset.bias_priorfreq_indel_in_var_div2; }
-        else if (is_in_indel_rtr)      { _aBpriorfreq -= paramset.bias_priorfreq_indel_in_str_div2; }
-        else if (is_in_rtr)            { _aBpriorfreq -= paramset.bias_priorfreq_var_in_str_div2; }
-        
-        if (is_in_indel_len)       { _aPpriorfreq -= paramset.bias_priorfreq_indel_in_var_div2; }
-        else if (is_in_indel_rtr)  { _aPpriorfreq -= paramset.bias_priorfreq_indel_in_str_div2; }
-        else if (is_in_rtr)        { _aPpriorfreq -= paramset.bias_priorfreq_var_in_str_div2; }
+        double maxpf = 0;
+        if (is_in_indel_len) { UPDATE_MAX(maxpf, paramset.bias_priorfreq_indel_in_var_div2); }
+        if (is_in_indel_rtr) { UPDATE_MAX(maxpf, paramset.bias_priorfreq_indel_in_str_div2); }
+        if (is_in_rtr)       { UPDATE_MAX(maxpf, paramset.bias_priorfreq_var_in_str_div2); }
+        if (is_in_indel_read && (isSymbolDel(symbol)) && (fmt.APXM[3] * 2 > UNSIGN2SIGN(3 * LAST(fmt.gapSa).size())) && (MIN(fmt.aLPT[a], fmt.aRPT[a]) < aDP * 20)) {
+            UPDATE_MAX(maxpf, 10);
+        }
+        _aBpriorfreq -= maxpf;
+        _aPpriorfreq -= maxpf;
     }
     
     const double aPpriorfreq = _aPpriorfreq + allbias_allprior;
@@ -3344,7 +3357,7 @@ BcfFormat_symbol_calc_DPv(
         aLIFA = aRIFA = MAX(aLIFA, aRIFA); // reference error or long indel on either the left or right frag side does not affect the ref SNP allele.
     }
     
-    const auto avg_sqr_indel_len = MAX(fmt.APXM[3] / MAX(1, fmt.APDP[1]), fmt.APXM[4] / MAX(1, fmt.APDP[2]));
+    const auto avg_sqr_indel_len = MAX(fmt.APXM[4] / MAX(1, fmt.APDP[1]), fmt.APXM[5] / MAX(1, fmt.APDP[2]));
     if ((!isSymbolSubstitution(symbol)) 
             && (mathsquare(16) < avg_sqr_indel_len)
             && (LINK_M == symbol || LINK_NN == symbol || (UNSIGN2SIGN(mathsquare(LAST(fmt.gapSa).size() * 2)) < avg_sqr_indel_len))) {

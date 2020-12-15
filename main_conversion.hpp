@@ -377,6 +377,7 @@ struct SegFormatPrepSet {
 
     uvc1_readnum100x_t segprep_a_XM1500;   // number of mismatches per 1500 bases
     uvc1_readnum100x_t segprep_a_GO1500;   // number of gap openings per 1500 bases
+    uvc1_readnum100x_t segprep_a_GAPLEN;   
     uvc1_readnum_t segprep_a_qlen;
 
     uvc1_readpos_t segprep_a_near_ins_pow2len;
@@ -478,10 +479,12 @@ struct SegFormatInfoSet {
     uvc1_readnum_t seginfo_aLP1; // left seg pos
     uvc1_readnum_t seginfo_aLP2;
     uvc1_readpos_t seginfo_aLPL;
+    uvc1_readpos_t seginfo_aLPT;
     uvc1_readnum_t seginfo_aRP1; // right seg pos
     uvc1_readnum_t seginfo_aRP2;
     uvc1_readpos_t seginfo_aRPL;
-    
+    uvc1_readpos_t seginfo_aRPT;
+
     uvc1_readnum_t seginfo_aLB1; // left seg pos
     uvc1_readnum_t seginfo_aLB2;
     uvc1_readpos_t seginfo_aLBL;
