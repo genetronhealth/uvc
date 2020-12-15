@@ -891,7 +891,7 @@ ref_to_phredvalue(uvc1_refgpos_t & n_units,
                 << repeatsize_at_max_repeatnum << ", "
                 << max_repeatnum << ") = " << decphred; 
     }
-    n_units = ((0 == cigar_oplen % repeatsize_at_max_repeatnum) ? (cigar_oplen / repeatsize_at_max_repeatnum) : 0);
+    n_units = ((0 == cigar_oplen % repeatsize_at_max_repeatnum) ? (cigar_oplen / repeatsize_at_max_repeatnum) : ((1 == cigar_oplen) ? 1 : 0));
     return max_phred - MIN(max_phred, decphred) + indel_len_rusize_phred(cigar_oplen, repeatsize_at_max_repeatnum); 
 }
 
@@ -1256,6 +1256,7 @@ dealwith_segbias(
         const CoveredRegion<uvc1_qual_big_t> & baq_offsetarr,
         const CoveredRegion<uvc1_qual_big_t> & baq_offsetarr2,
         
+        const auto cigar_op,
         const auto indel_len_arg,
         const uvc1_refgpos_t dist_to_interfering_indel,
         const uvc1_flag_t dflag,
@@ -1314,7 +1315,7 @@ dealwith_segbias(
     const auto const_RPxT = seg_format_thres_set.segthres_aRPxT; 
     const auto const_LPxT = (isGap ? _const_LPxT : MIN(_const_LPxT, const_RPxT));
 
-    const bool is_far_from_edge = (seg_l_nbases >= const_LPxT) && (seg_r_nbases >= const_RPxT);
+    const bool is_far_from_edge = (seg_l_nbases >= const_LPxT + ((BAM_CINS == cigar_op) ? indel_len : 0)) && (seg_r_nbases >= const_RPxT);
     const auto bias_thres_highBAQ = paramset.bias_thres_highBAQ + (isGap ? 0 : 3);
     const bool is_unaffected_by_edge = (seg_l_baq >= bias_thres_highBAQ && seg_r_baq >= bias_thres_highBAQ);
     
@@ -1762,6 +1763,7 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
                                     baq_offsetarr,
                                     baq_offsetarr2,
                                     
+                                    cigar_op,
                                     0,
                                     dist_to_interfering_indel,
                                     dflag,
@@ -1810,6 +1812,7 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
                                 baq_offsetarr,
                                 baq_offsetarr2,
                                 
+                                cigar_op,
                                 0,
                                 10000,
                                 dflag,
@@ -1891,6 +1894,7 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
                                 baq_offsetarr,
                                 baq_offsetarr2,
                                 
+                                cigar_op,
                                 cigar_oplen,
                                 10000,
                                 dflag,
@@ -1987,6 +1991,7 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
                                 baq_offsetarr,
                                 baq_offsetarr2,
                                 
+                                cigar_op,
                                 cigar_oplen,
                                 10000,
                                 dflag,
@@ -2021,6 +2026,7 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
                                         baq_offsetarr,
                                         baq_offsetarr2,
                                         
+                                        cigar_op,
                                         cigar_oplen,
                                         MIN(rpos - prev_indel_rpos, next_indel_rpos - rpos),
                                         dflag,
@@ -3956,7 +3962,14 @@ indel_get_majority(
                 indelstrings.push_back(std::make_pair(indelit.second, indelit.first));
             }
         }
-        std::sort(indelstrings.rbegin(), indelstrings.rend());
+        struct InDelLess {
+            bool operator() (
+                    const std::pair<std::array<uvc1_readnum_t, 2>, std::string>& x, 
+                    const std::pair<std::array<uvc1_readnum_t, 2>, std::string>& y) const {
+                return ((mathsquare((int64_t)x.first[0]) * (int64_t)x.second.size()) < (mathsquare((int64_t)y.first[0]) * (int64_t)y.second.size()));
+            }
+        } InDelLess;
+        std::sort(indelstrings.rbegin(), indelstrings.rend(), InDelLess);
     }
     return indelstrings;
 }
