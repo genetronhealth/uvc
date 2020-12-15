@@ -3248,6 +3248,7 @@ BcfFormat_symbol_calc_DPv(
     
     const bool is_in_dnv_read = ((SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform) && (f.APDP[7] * 2 > f.APDP[6]));
     
+    const bool is_outlier_del = (is_in_indel_read && (isSymbolDel(symbol)) && (fmt.APXM[3] * 2 > UNSIGN2SIGN(3 * LAST(fmt.gapSa).size())) && (MIN(fmt.aLPT[a], fmt.aRPT[a]) < aDP * 20)); 
     // read level
     if (is_in_indel_read || is_in_dnv_read || 
             (((isSymbolIns(symbol) || isSymbolDel(symbol)) 
@@ -3261,7 +3262,7 @@ BcfFormat_symbol_calc_DPv(
         if (is_in_indel_len) { UPDATE_MAX(maxpf, paramset.bias_priorfreq_indel_in_var_div2); }
         if (is_in_indel_rtr) { UPDATE_MAX(maxpf, paramset.bias_priorfreq_indel_in_str_div2); }
         if (is_in_rtr)       { UPDATE_MAX(maxpf, paramset.bias_priorfreq_var_in_str_div2); }
-        if (is_in_indel_read && (isSymbolDel(symbol)) && (fmt.APXM[3] * 2 > UNSIGN2SIGN(3 * LAST(fmt.gapSa).size())) && (MIN(fmt.aLPT[a], fmt.aRPT[a]) < aDP * 20)) {
+        if (is_outlier_del) {
             UPDATE_MAX(maxpf, 10);
         }
         _aBpriorfreq -= maxpf;
@@ -3340,7 +3341,9 @@ BcfFormat_symbol_calc_DPv(
         if (    (MIN(UNSIGN2SIGN(indelstring.size()), paramset.microadjust_nobias_pos_indel_maxlen) * aDPFA * indel_multialleles_coef 
                     >= paramset.nobias_pos_indel_lenfrac_thres) || 
                 (MAX(rtr1.tracklen, rtr2.tracklen) >= paramset.nobias_pos_indel_str_track_len
-                    && is_in_indel_major_reg && !(fmt.APXM[0] > fmt.APXM[1] * paramset.microadjust_nobias_pos_indel_misma_to_indel_ratio))) {
+                    && is_in_indel_major_reg 
+                    && (!is_outlier_del)
+                    && !(fmt.APXM[0] > fmt.APXM[1] * paramset.microadjust_nobias_pos_indel_misma_to_indel_ratio))) {
             aLPFA += 2.0;
             aRPFA += 2.0;
             aLBFA += 2.0;
