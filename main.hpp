@@ -1315,7 +1315,7 @@ dealwith_segbias(
     const auto const_RPxT = seg_format_thres_set.segthres_aRPxT; 
     const auto const_LPxT = (isGap ? _const_LPxT : MIN(_const_LPxT, const_RPxT));
 
-    const bool is_far_from_edge = (seg_l_nbases >= const_LPxT + ((BAM_CINS == cigar_op) ? indel_len : 0)) && (seg_r_nbases >= const_RPxT);
+    const bool is_far_from_edge = (seg_l_nbases >= const_LPxT + ((BAM_CINS == cigar_op) ? non_neg_minus(indel_len, 16) : 0)) && (seg_r_nbases >= const_RPxT);
     const auto bias_thres_highBAQ = paramset.bias_thres_highBAQ + (isGap ? 0 : 3);
     const bool is_unaffected_by_edge = (seg_l_baq >= bias_thres_highBAQ && seg_r_baq >= bias_thres_highBAQ);
     
@@ -3322,6 +3322,10 @@ BcfFormat_symbol_calc_DPv(
     } else if (LINK_M == symbol || LINK_NN == symbol) {
         aLBFA = (double)MIN(aLBFA, MAX(1, LAST(fmt.aLB1)) / (double)MAX(1, ADP));
         aRBFA = (double)MIN(aRBFA, MAX(1, LAST(fmt.aRB1)) / (double)MAX(1, ADP));
+        if (16 * 16 < MAX(fmt.APXM[3] / MAX(1, fmt.APDP[1]), fmt.APXM[4]/ MAX(1, fmt.APDP[2]))) {
+            aLPFA = (double)MIN(aLPFA, MAX(1, LAST(fmt.aLP1)) / (double)MAX(1, ADP));
+            aRPFA = (double)MIN(aRPFA, MAX(1, LAST(fmt.aRP1)) / (double)MAX(1, ADP));
+        }
     } else if (refsymbol == symbol) {
         aLIFA = aRIFA = MAX(aLIFA, aRIFA); // reference error or long indel on either the left or right frag side does not affect the ref SNP allele.
     }
