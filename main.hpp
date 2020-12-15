@@ -1852,7 +1852,8 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
                 }
             } else if (cigar_op == BAM_CINS) {
 if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <= rpos && rpos < iend)) {
-                const bool is_ins_at_read_end = ((0 == qpos) || qpos + UNSIGN2SIGN(cigar_oplen) >= (aln->core.l_qseq));
+                const auto nbases2end = MIN(qpos, UNSIGN2SIGN(aln->core.l_qseq) - UNSIGN2SIGN(qpos + UNSIGN2SIGN(cigar_oplen)));
+                const bool is_ins_at_read_end = (nbases2end <= 0);
                 uvc1_readpos_t inslen = cigar_oplen;
                 if (is_ins_at_read_end) {
                     if (UNSIGN2SIGN(cigar_oplen) > paramset.debug_warn_min_read_end_ins_cigar_oplen) {
@@ -1904,7 +1905,7 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
                             ? qfromBQ1 : (TIsProton ? MIN(qfromBQ1 + proton_cigarlen2phred(cigar_oplen), MAX(3, qfromBQ1) * UNSIGN2SIGN(cigar_oplen)) : 80));
                     incvalue = non_neg_minus(MIN(qfromBQ2, phredvalue + symboltype2addPhred[LINK_SYMBOL]), micro_indel_penal) + 1;
                 }
-                if (!is_ins_at_read_end) {
+                if (nbases2end >= paramset.indel_filter_edge_dist) {
                     const auto symbol = insLenToSymbol(inslen, aln);
                     this->template inc<TUpdateType>(rpos, symbol, MAX(SIGN2UNSIGN(1), incvalue), aln);
                     if (TIsBiasUpdated) {
@@ -1945,7 +1946,8 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
                 qpos += cigar_oplen;
             } else if (cigar_op == BAM_CDEL) {
 if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <= rpos && rpos < iend)) {
-                const bool is_del_at_read_end = (0 == qpos || qpos + UNSIGN2SIGN(cigar_oplen) >= (aln->core.l_qseq));
+                const auto nbases2end = MIN(qpos, UNSIGN2SIGN(aln->core.l_qseq) - UNSIGN2SIGN(qpos));
+                const bool is_del_at_read_end = (nbases2end <= 0);
                 uvc1_readpos_t dellen = cigar_oplen;
                 if (is_del_at_read_end) {
                     LOG(logWARNING) << "Query " << bam_get_qname(aln) << " has deletion of legnth " << cigar_oplen << " at " << qpos
@@ -2001,7 +2003,7 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
                     uvc1_qual_t qfromBAQ = MAX3(delFAQ, qfromBQ1, MIN(qfromBAQl, qfromBAQr));
                     incvalue = non_neg_minus(MIN3(qfromBQ2, qfromBAQ, phredvalue + symboltype2addPhred[LINK_SYMBOL]), micro_indel_penal) + 1;
                 }
-                if (!is_del_at_read_end) {
+                if (nbases2end >= paramset.indel_filter_edge_dist) {
                     AlignmentSymbol symbol = delLenToSymbol(dellen, aln);
                     this->template inc<TUpdateType>(rpos, symbol, MAX(SIGN2UNSIGN(1), incvalue), aln);
                     if (TIsBiasUpdated) {
@@ -3248,7 +3250,9 @@ BcfFormat_symbol_calc_DPv(
     
     const bool is_in_dnv_read = ((SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform) && (f.APDP[7] * 2 > f.APDP[6]));
     
-    const bool is_outlier_del = (is_in_indel_read && (isSymbolDel(symbol)) && (fmt.APXM[3] * 2 > UNSIGN2SIGN(3 * LAST(fmt.gapSa).size())) && (MIN(fmt.aLPT[a], fmt.aRPT[a]) < aDP * 20)); 
+    // is_outlier_del is set to false to prevent potential false negative cals on Illumina
+    const bool is_outlier_del = false ; 
+    // (is_in_indel_read && (isSymbolDel(symbol)) && (fmt.APXM[3] * 2 > UNSIGN2SIGN(3 * LAST(fmt.gapSa).size())) && (MIN(fmt.aLPT[a], fmt.aRPT[a]) < aDP * 20)); 
     // read level
     if (is_in_indel_read || is_in_dnv_read || 
             (((isSymbolIns(symbol) || isSymbolDel(symbol)) 

@@ -707,7 +707,11 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
         "The Phred quality per each additional base to the sequenced-segment left/right end in non-STR regions. ");
     ADD_OPTDEF2(app, indel_str_phred_per_region,
         "The Phred quality per each additional STR track to the sequenced-segment left/right end. ");
-        
+    
+    ADD_OPTDEF2(app, indel_filter_edge_dist,
+        "For InDels, the number of bases to the sequenced segment left and right ends. "
+        "If the minimum of these two numbers is below this threshold, then the InDel support is filtered out. ");
+
 // *** 12. parameters related to contamination
     
     ADD_OPTDEF2(app, contam_any_mul_frac,
