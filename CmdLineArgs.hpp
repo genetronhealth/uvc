@@ -337,7 +337,8 @@ struct CommandLineArgs {
     
 // *** 14. parameters related to debugging in vcf
     uvc1_flag_t         debug_note_flag = 0x0;
-    
+    uvc1_readpos_t      debug_warn_min_read_end_ins_cigar_oplen = 16;
+
 // *** extra useful info
     // https://www.biostars.org/p/254467/#254868 : Question: Are these false somatic variants? Visual inspection with IGV
     // How to tell the difference between HDR and kataegis?

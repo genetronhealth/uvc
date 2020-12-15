@@ -1830,8 +1830,10 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
                 const bool is_ins_at_read_end = ((0 == qpos) || qpos + UNSIGN2SIGN(cigar_oplen) >= (aln->core.l_qseq));
                 uvc1_readpos_t inslen = cigar_oplen;
                 if (is_ins_at_read_end) {
-                    LOG(logWARNING) << "Query " << bam_get_qname(aln) << " has insertion of legnth " << cigar_oplen << " at " << qpos
-                            << " which is not exclusively between 0 and " << aln->core.l_qseq << " aligned to tid " << aln->core.tid << " and position " << rpos;
+                    if (UNSIGN2SIGN(cigar_oplen) > paramset.debug_warn_min_read_end_ins_cigar_oplen) {
+                        LOG(logWARNING) << "Query " << bam_get_qname(aln) << " has insertion of legnth " << cigar_oplen << " at " << qpos
+                                << " which is not exclusively between 0 and " << aln->core.l_qseq << " aligned to tid " << aln->core.tid << " and position " << rpos;
+                    }
                     incvalue = (0 != qpos ? BAM_PHREDI(aln, qpos-1) : 
                             ((qpos + UNSIGN2SIGN(cigar_oplen) < SIGN2UNSIGN(aln->core.l_qseq)) ? 
                             BAM_PHREDI(aln, qpos + SIGN2UNSIGN(cigar_oplen)) : 1)) 
@@ -4084,7 +4086,7 @@ output_germline(
     uvc1_qual_t phred_tri_al = (isSubst ? paramset.germ_phred_het3al_snp : paramset.germ_phred_het3al_indel); 
     // https://www.genetics.org/content/184/1/233 and https://www.fsigenetics.com/article/S1872-4973(20)30003-X/fulltext : triallelic-SNP-phred = 29*2-3+5
     
-    const auto contqadd = (phred_hetero - paramset.germ_phred_hetero_snp);
+    const uvc1_qual_t contqadd = 0; // (phred_hetero - paramset.germ_phred_hetero_snp); // this should be enabled only if the alignment is highly accurate.
     if (is_rescued) {
         UPDATE_MIN(a0LODQ, ref_alt1_alt2_alt3[0].second->CONTQ[1] + contqadd);
         UPDATE_MIN(a1LODQ, ref_alt1_alt2_alt3[1].second->CONTQ[1]);
