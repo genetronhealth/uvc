@@ -1118,13 +1118,13 @@ update_seg_format_prep_sets_by_aln(
             }
             
             const auto unitlen2 = MAX(1, (rtr1.tracklen > rtr2.tracklen) ? rtr1.unitlen : rtr2.unitlen);
-            const uvc1_refgpos_t nbases = (cigar_oplen * paramset.indel_adj_indellen_perc / 100);
-            
-            for (uvc1_refgpos_t rpos2 = MAX(rpos - nbases + UNSIGN2SIGN(cigar_oplen), aln->core.pos); rpos2 < MIN(rpos + nbases, rend); rpos2++) {
+            const uvc1_refgpos_t nbases_l = (cigar_oplen * (paramset.indel_adj_indellen_perc - 100) / 100);
+            const uvc1_refgpos_t nbases_r = (cigar_oplen * paramset.indel_adj_indellen_perc / 100);
+            for (uvc1_refgpos_t rpos2 = MAX(rpos - nbases_l + UNSIGN2SIGN(cigar_oplen), aln->core.pos); rpos2 < MIN(rpos + nbases_r, rend); rpos2++) {
                 seg_format_prep_sets.getRefByPos(rpos2).segprep_a_near_del_dp += 1;
                 seg_format_prep_sets.getRefByPos(rpos2).segprep_a_near_del_pow2len += mathsquare(cigar_oplen);
-                seg_format_prep_sets.getRefByPos(rpos2).segprep_a_near_del_l_pow2len += mathsquare(rpos2 + 1 - (rpos - nbases + UNSIGN2SIGN(cigar_oplen)));
-                seg_format_prep_sets.getRefByPos(rpos2).segprep_a_near_del_r_pow2len += mathsquare((rpos + nbases) - rpos2);
+                seg_format_prep_sets.getRefByPos(rpos2).segprep_a_near_del_l_pow2len += mathsquare(rpos2 + 1 - (rpos - nbases_l + UNSIGN2SIGN(cigar_oplen)));
+                seg_format_prep_sets.getRefByPos(rpos2).segprep_a_near_del_r_pow2len += mathsquare((rpos + nbases_r) - rpos2);
                 seg_format_prep_sets.getRefByPos(rpos2).segprep_a_near_del_inv100len += 100 / ((0 == cigar_oplen % unitlen2) ? (cigar_oplen / unitlen2) : 4);
             }
             
