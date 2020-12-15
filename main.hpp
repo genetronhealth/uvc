@@ -891,7 +891,12 @@ ref_to_phredvalue(uvc1_refgpos_t & n_units,
                 << repeatsize_at_max_repeatnum << ", "
                 << max_repeatnum << ") = " << decphred; 
     }
-    n_units = ((0 == cigar_oplen % repeatsize_at_max_repeatnum) ? (cigar_oplen / repeatsize_at_max_repeatnum) : ((1 == cigar_oplen) ? 1 : 0));
+    // The number of units should minimize InDel collision.
+    if (repeatsize_at_max_repeatnum * (max_repeatnum - 1) >= 6 - 1) {
+        n_units = ((0 == cigar_oplen % repeatsize_at_max_repeatnum) ? (cigar_oplen / repeatsize_at_max_repeatnum) : ((1 == cigar_oplen) ? 1 : 0)); 
+    } else {
+        n_units = 1 + (cigar_oplen / 6);
+    }
     return max_phred - MIN(max_phred, decphred) + indel_len_rusize_phred(cigar_oplen, repeatsize_at_max_repeatnum); 
 }
 
@@ -3320,15 +3325,20 @@ BcfFormat_symbol_calc_DPv(
             aRIFA += 2.0; 
         }
     } else if (LINK_M == symbol || LINK_NN == symbol) {
-        aLBFA = (double)MIN(aLBFA, MAX(1, LAST(fmt.aLB1)) / (double)MAX(1, ADP));
-        aRBFA = (double)MIN(aRBFA, MAX(1, LAST(fmt.aRB1)) / (double)MAX(1, ADP));
-        if (16 * 16 < MAX(fmt.APXM[3] / MAX(1, fmt.APDP[1]), fmt.APXM[4]/ MAX(1, fmt.APDP[2]))) {
-            aLPFA = (double)MIN(aLPFA, MAX(1, LAST(fmt.aLP1)) / (double)MAX(1, ADP));
-            aRPFA = (double)MIN(aRPFA, MAX(1, LAST(fmt.aRP1)) / (double)MAX(1, ADP));
-        }
+        aLBFA = (double)MIN(aLBFA, (0.25 + LAST(fmt.aLB1)) / (double)(0.5 + ADP));
+        aRBFA = (double)MIN(aRBFA, (0.25 + LAST(fmt.aRB1)) / (double)(0.5 + ADP));
     } else if (refsymbol == symbol) {
         aLIFA = aRIFA = MAX(aLIFA, aRIFA); // reference error or long indel on either the left or right frag side does not affect the ref SNP allele.
     }
+    
+    const auto avg_sqr_indel_len = MAX(fmt.APXM[3] / MAX(1, fmt.APDP[1]), fmt.APXM[4] / MAX(1, fmt.APDP[2]));
+    if ((!isSymbolSubstitution(symbol)) 
+            && (16 * 16 < avg_sqr_indel_len)
+            && (LINK_M == symbol || LINK_NN == symbol || (UNSIGN2SIGN(mathsquare(LAST(fmt.gapSa).size() * 2)) < avg_sqr_indel_len))) {
+        aLPFA = (double)MIN(aLPFA, (0.25 + LAST(fmt.aLP1)) / (double)(0.5 + fmt.ALP1[0]));
+        aRPFA = (double)MIN(aRPFA, (0.25 + LAST(fmt.aRP1)) / (double)(0.5 + fmt.ALP1[0]));
+    }
+    
     if (NOT_PROVIDED != paramset.vcf_tumor_fname) {
         aLIFA = aRIFA = MAX(aLIFA, aRIFA);
     }
