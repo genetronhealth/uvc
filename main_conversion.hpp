@@ -371,7 +371,8 @@ struct SegFormatPrepSet {
     uvc1_readnum_t segprep_a_highBQ_dp;    // depth of high-BQ bases
     
     uvc1_readnum_t segprep_a_near_clip_dp;
-    
+    uvc1_readnum_t segprep_a_confident_aln_dp;  // can be used for identifying regions requiring new alignments
+
     uvc1_readnum_t segprep_a_at_ins_dp;
     uvc1_readnum_t segprep_a_at_del_dp;
 

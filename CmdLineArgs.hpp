@@ -336,6 +336,9 @@ struct CommandLineArgs {
     uvc1_readpos_t      microadjust_longfrag_sidelength_max = 600;
     double              microadjust_longfrag_sidelength_zeroMQpenalty = 300;
     
+    uvc1_readpos_t      microadjust_confident_alignment_clip_maxlen = 6 * 4;
+    uvc1_readpos_t      microadjust_confident_alignment_indel_maxlen = 6 * 4;
+    
 // *** 14. parameters related to debugging in vcf
     uvc1_flag_t         debug_note_flag = 0x0;
     uvc1_readpos_t      debug_warn_min_read_end_ins_cigar_oplen = 16;

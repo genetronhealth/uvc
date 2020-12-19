@@ -768,6 +768,11 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
     ADD_OPTDEF2(app, microadjust_longfrag_sidelength_zeroMQpenalty,
         "The maximum increase in mapping quality per 100 bases on each side due to long fragment side length. ");
     
+    ADD_OPTDEF2(app, microadjust_confident_alignment_clip_maxlen,
+        "If an alignment has a clip spanning at least this number of bases, then this alignment is not confident and not counted in APDP[10]. ");
+    ADD_OPTDEF2(app, microadjust_confident_alignment_indel_maxlen,
+        "If an alignment has an InDel spanning at least this number of bases, then this alignment is not confident and not counted in APDP[10]. ");
+
 // *** 14 debugging
     
     ADD_OPTDEF2(app, debug_note_flag,

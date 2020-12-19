@@ -925,6 +925,9 @@ update_seg_format_prep_sets_by_aln(
     
     uvc1_refgpos_t qpos = 0;
     uvc1_refgpos_t rpos = aln->core.pos;
+    
+    uvc1_readpos_t max_clip_len = 0;
+    uvc1_readpos_t max_indel_len = 0;
     for (uint32_t i = 0; i < aln->core.n_cigar; i++) {
         const auto c = cigar[i];
         const auto cigar_op = bam_cigar_op(c);
@@ -942,12 +945,22 @@ update_seg_format_prep_sets_by_aln(
                 rpos += cigar_oplen;
             }
         } else if (cigar_op == BAM_CMATCH || cigar_op == BAM_CEQUAL || cigar_op == BAM_CDIFF) {
+            UPDATE_MAX(max_indel_len, UNSIGN2SIGN(cigar_oplen));
             qpos += cigar_oplen;
             rpos += cigar_oplen;
         } else {
+            if (cigar_op == BAM_CSOFT_CLIP || cigar_op == BAM_CHARD_CLIP) {
+                UPDATE_MAX(max_clip_len, UNSIGN2SIGN(cigar_oplen));
+            }
             process_cigar(qpos, rpos, cigar_op, cigar_oplen);
         }
     }
+    
+    const auto confident_aln_dp = (
+            (  (max_clip_len  <= paramset.microadjust_confident_alignment_clip_maxlen) 
+            && (max_indel_len <= paramset.microadjust_confident_alignment_indel_maxlen))
+            ? 1 : 0);
+    
     const auto *bam_aux_data = bam_aux_get(aln, "NM");
     const uvc1_refgpos_t nm_cnt = ((bam_aux_data != NULL) ? bam_aux2i(bam_aux_data) : nge_cnt);
     assert (nm_cnt >= nge_cnt);
@@ -976,6 +989,8 @@ update_seg_format_prep_sets_by_aln(
                 seg_format_prep_sets.getRefByPos(rpos).segprep_a_XM1500 += xm1500;
                 seg_format_prep_sets.getRefByPos(rpos).segprep_a_GO1500 += go1500;
                 seg_format_prep_sets.getRefByPos(rpos).segprep_a_GAPLEN += avg_gaplen;
+                
+                seg_format_prep_sets.getRefByPos(rpos).segprep_a_confident_aln_dp += confident_aln_dp;
 
                 if (aln->core.isize != 0) {
                     if (isrc) { 
@@ -1096,6 +1111,9 @@ update_seg_format_prep_sets_by_aln(
                 seg_format_prep_sets.getRefByPos(rpos2).segprep_a_XM1500 += xm1500;
                 seg_format_prep_sets.getRefByPos(rpos2).segprep_a_GO1500 += go1500;
                 seg_format_prep_sets.getRefByPos(rpos2).segprep_a_GAPLEN += avg_gaplen;
+
+                seg_format_prep_sets.getRefByPos(rpos).segprep_a_confident_aln_dp += confident_aln_dp;
+
                 if (aln->core.isize != 0) {
                     if (isrc) { 
                         seg_format_prep_sets.getRefByPos(rpos2).segprep_a_LI += MIN(rpos - frag_pos_L + 1, MAX_INSERT_SIZE); 
@@ -1329,7 +1347,7 @@ dealwith_segbias(
     const auto const_RPxT = seg_format_thres_set.segthres_aRPxT; 
     const auto const_LPxT = (isGap ? _const_LPxT : MIN(_const_LPxT, const_RPxT));
 
-    const bool is_far_from_edge = (seg_l_nbases + ((BAM_CINS == cigar_op) ? non_neg_minus(indel_len, 16) : 0) >= const_LPxT) && (seg_r_nbases >= const_RPxT);
+    const bool is_far_from_edge = (seg_l_nbases + ((BAM_CINS == cigar_op) ? non_neg_minus(indel_len, paramset.microadjust_nobias_pos_indel_maxlen) : 0) >= const_LPxT) && (seg_r_nbases >= const_RPxT);
     const auto bias_thres_highBAQ = paramset.bias_thres_highBAQ + (isGap ? 0 : 3);
     const bool is_unaffected_by_edge = (seg_l_baq >= bias_thres_highBAQ && seg_r_baq >= bias_thres_highBAQ);
     
@@ -2878,6 +2896,7 @@ BcfFormat_symboltype_init(bcfrec::BcfFormat & fmt,
         p.segprep_a_highBQ_dp,
         
         p.segprep_a_near_clip_dp,
+        p.segprep_a_confident_aln_dp,
     }};
     
     fmt.APXM = {{ 
@@ -3366,7 +3385,7 @@ BcfFormat_symbol_calc_DPv(
     
     const auto avg_sqr_indel_len = MAX(fmt.APXM[4] / MAX(1, fmt.APDP[1]), fmt.APXM[5] / MAX(1, fmt.APDP[2]));
     if ((!isSymbolSubstitution(symbol)) 
-            && (mathsquare(16) < avg_sqr_indel_len)
+            && (mathsquare(paramset.microadjust_nobias_pos_indel_maxlen) < avg_sqr_indel_len)
             && (LINK_M == symbol || LINK_NN == symbol || (UNSIGN2SIGN(mathsquare(LAST(fmt.gapSa).size() * 2)) < avg_sqr_indel_len))) {
         aLPFA = (double)MIN(aLPFA, (0.1 + LAST(fmt.aLP1)) / (double)(0.2 + fmt.ALP1[0]));
         aRPFA = (double)MIN(aRPFA, (0.1 + LAST(fmt.aRP1)) / (double)(0.2 + fmt.ALP1[0]));
