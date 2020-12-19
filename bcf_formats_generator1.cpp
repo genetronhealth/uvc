@@ -145,8 +145,8 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
                               "The (sum of squares (5,6)) and (sum of 100 divided by (7,8)) of insertion (5,7) and deletion (6,8) lengths."),
        
     BcfFormatStruct("__Ab"  , 1,         BCF_SEP,     "Preparation statistics for segment biases at this position."),
-    BcfFormatStruct("APLRID", 4,         BCF_INTEGER, "Summed insertion (1,2) and deletion (3,4) lengths to the left (1,3) and right (2,4) ends of the InDel-affected region."),
-    BcfFormatStruct("APLRI" , 4,         BCF_INTEGER, "Summed distance to left insert end and the number of such inserts, and similarly for right insert end."),
+    BcfFormatStruct("APLRID", 4,         BCF_BIG_SIG_INT, "Summed squared insertion (1,2) and deletion (3,4) lengths to the left (1,3) and right (2,4) ends of the InDel-affected region."),
+    BcfFormatStruct("APLRI" , 4,         BCF_BIG_SIG_INT, "Summed distance to left insert end and the number of such inserts, and similarly for right insert end."),
     BcfFormatStruct("APLRP" , 4,         BCF_INTEGER, "Summed distance to left and right ends, summed insertion length, and summed deletion length."),
     
     BcfFormatStruct("__Ac"  , 1,         BCF_SEP,     "Threshold for each type of bias (tier-1 means weak bias and tier-2 means strong bias)."),

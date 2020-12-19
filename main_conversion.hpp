@@ -376,24 +376,25 @@ struct SegFormatPrepSet {
     uvc1_readnum_t segprep_a_at_ins_dp;
     uvc1_readnum_t segprep_a_at_del_dp;
 
+    // not really 100x but at the same order of magnitude
     uvc1_readnum100x_t segprep_a_XM1500;   // number of mismatches per 1500 bases
     uvc1_readnum100x_t segprep_a_GO1500;   // number of gap openings per 1500 bases
     uvc1_readnum100x_t segprep_a_GAPLEN;   
-    uvc1_readnum_t segprep_a_qlen;
-
-    uvc1_readpos_t segprep_a_near_ins_pow2len;
-    uvc1_readpos_t segprep_a_near_del_pow2len;
+    uvc1_readnum100x_t segprep_a_qlen;
+    
+    uvc1_readpos_big_t segprep_a_near_ins_pow2len;
+    uvc1_readpos_big_t segprep_a_near_del_pow2len;
     uvc1_readnum100x_t segprep_a_near_ins_inv100len;
     uvc1_readnum100x_t segprep_a_near_del_inv100len;
 
-    uvc1_readpos_t segprep_a_near_ins_l_pow2len;    
-    uvc1_readpos_t segprep_a_near_ins_r_pow2len;    
-    uvc1_readpos_t segprep_a_near_del_l_pow2len;    
-    uvc1_readpos_t segprep_a_near_del_r_pow2len;    
+    uvc1_readpos_big_t segprep_a_near_ins_l_pow2len;    
+    uvc1_readpos_big_t segprep_a_near_ins_r_pow2len;    
+    uvc1_readpos_big_t segprep_a_near_del_l_pow2len;    
+    uvc1_readpos_big_t segprep_a_near_del_r_pow2len;    
     
-    uvc1_readpos_t segprep_a_LI;
+    uvc1_readpos_big_t segprep_a_LI;
     uvc1_readnum_t segprep_a_LIDP;
-    uvc1_readpos_t segprep_a_RI;
+    uvc1_readpos_big_t segprep_a_RI;
     uvc1_readnum_t segprep_a_RIDP;
     
     uvc1_readpos_t segprep_a_l_dist_sum;
@@ -401,10 +402,10 @@ struct SegFormatPrepSet {
     uvc1_readpos_t segprep_a_inslen_sum;
     uvc1_readpos_t segprep_a_dellen_sum;
     
-    uvc1_qual_t segprep_a_l_BAQ_sum;
-    uvc1_qual_t segprep_a_r_BAQ_sum;
-    uvc1_qual_t segprep_a_insBAQ_sum;
-    uvc1_qual_t segprep_a_delBAQ_sum;
+    uvc1_qual_big_t segprep_a_l_BAQ_sum;
+    uvc1_qual_big_t segprep_a_r_BAQ_sum;
+    uvc1_qual_big_t segprep_a_insBAQ_sum;
+    uvc1_qual_big_t segprep_a_delBAQ_sum;
     
 #if COMPILATION_TRY_HIGH_DEPTH_POS_BIAS
     // data-driven border for position bias
