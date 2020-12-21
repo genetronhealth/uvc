@@ -54,6 +54,13 @@ echo "cmdLineArgParser.infoMessage.N: the command-line parameters are ( ${nparam
 
 set -evx
 
+if [ -z "${UVC_BIN_EXE_FULL_NAME}" ]; then
+    UVC_BIN_EXE_FULL_NAME="${scriptdir}/uvc1"
+else
+    echo "WARNING: using UVC_BIN_EXE_FULL_NAME=${UVC_BIN_EXE_FULL_NAME} from environment variable."
+    echo "Please enter the shell command (unset UVC_BIN_EXE_FULL_NAME) before running uvcTN.sh if the default uvc binary exe full path should be used."
+fi
+
 ref="$1"
 tbam="$2"
 nbam="$3"
@@ -110,12 +117,12 @@ if [ "${nprocs}" -gt 0 ]; then
     fi
 else
     date
-    "${scriptdir}/uvc1" -f "${ref}" -s "${tsample}" "${tbam}" -o "${tvcfgz}" --tn-is-paired 1 --bed-out-fname "${tbed}" "${tparams[@]}" 2> "${tlog}"
+    "${UVC_BIN_EXE_FULL_NAME}" -f "${ref}" -s "${tsample}" "${tbam}" -o "${tvcfgz}" --tn-is-paired 1 --bed-out-fname "${tbed}" "${tparams[@]}" 2> "${tlog}"
     date 
     bcftools index -ft --threads "${nprocs2}" "${tvcfgz}" # or use tabix, requires htslib 1.6 or plus
 
     date
-    "${scriptdir}/uvc1" -f "${ref}" -s "${nsample}" "${nbam}" -o "${nvcfgz}" --tn-is-paired 1 --bed-in-fname  "${tbed}" "${nparams[@]}" --tumor-vcf "${tvcfgz}" 2> "${nlog}"
+    "${UVC_BIN_EXE_FULL_NAME}" -f "${ref}" -s "${nsample}" "${nbam}" -o "${nvcfgz}" --tn-is-paired 1 --bed-in-fname  "${tbed}" "${nparams[@]}" --tumor-vcf "${tvcfgz}" 2> "${nlog}"
     date
     bcftools index -ft --threads "${nprocs2}" "${nvcfgz}" # or use tabix, requires htslib 1.6 or plus
 fi
