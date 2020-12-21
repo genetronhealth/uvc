@@ -225,7 +225,7 @@ rescue_variants_from_vcf(
         // skip over all symbolic alleles except MGVCF
         bool should_continue = false;
         for (uint32_t i = 1; i < line->n_allele; i++) {
-            if ('<' == line->d.allele[i][0] && (strcmp("<NON_REF>", line->d.allele[i]) || !is_tumor_format_retrieved)) {
+            if ('<' == line->d.allele[i][0] && ((strcmp("<NON_REF>", line->d.allele[i]) && strcmp("<LONG_CLIP>", line->d.allele[i])) || !is_tumor_format_retrieved)) {
                 should_continue = true;
             }
         }
@@ -238,15 +238,18 @@ rescue_variants_from_vcf(
         assert((2 == line->n_allele) || !fprintf(stderr, "Bcf line %d has %d alleles!\n", line->pos, line->n_allele));
         const AlignmentSymbol symbol = AlignmentSymbol(bcfints[1]);
         
-        auto symbolpos = ((isSymbolSubstitution(symbol) || MGVCF_SYMBOL == symbol) ? (line->pos) : (line->pos + 1));
+        auto symbolpos = ((isSymbolSubstitution(symbol) || MGVCF_SYMBOL == symbol || LONG_CLIP_SYMBOL == symbol) ? (line->pos) : (line->pos + 1));
         TumorKeyInfo tki;
         tki.VTI = bcfints[1];
 
 if (MGVCF_SYMBOL == symbol) {
         LOG(logINFO) << "gVCFblock with pos " << symbolpos << " was retrieved";
 }
+if (LONG_CLIP_SYMBOL == symbol) {
+        LOG(logINFO) << "LONG_CLIP symbol with pos " << symbolpos << " was retrieved";
+}
 
-if (MGVCF_SYMBOL != symbol) {
+if (MGVCF_SYMBOL != symbol && LONG_CLIP_SYMBOL != symbol) {
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "BDPf", &bcfints, &ndst_val);
@@ -672,6 +675,44 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                     }
                 }
                 buf_out_string_pass += gvcf_blockline + tumor_gvcf_format + "\n";
+            }
+            
+            const auto aCDP = symbolToCountCoverageSet12.seg_format_prep_sets.getByPos(refpos).segprep_a_near_long_clip_dp;
+            const auto ADP = symbolToCountCoverageSet12.seg_format_prep_sets.getByPos(refpos).segprep_a_dp;
+            if ((OUTVAR_LONG_CLIP & paramset.outvar_flag)
+                    && (SYMBOL_TYPE_ARR[0] == symboltype)
+                    && (aCDP >= paramset.microadjust_alignment_clip_min_count)
+                    && (aCDP >= ADP * (paramset.microadjust_alignment_clip_min_frac - DBL_EPSILON))) {
+                const auto vcfREF = refstring.substr(refpos - extended_inclu_beg_pos, 1);
+                const AlignmentSymbol match_refsymbol = CHAR_TO_SYMBOL.data[vcfREF[0]];
+                const std::string vcfline = string_join(std::vector<std::string>{{
+                    std::get<0>(tname_tseqlen_tuple), // chrom
+                    std::to_string(refpos + 1), // pos
+                    std::string("."), // id
+                    vcfREF, // ref
+                    SYMBOL_TO_DESC_ARR[LONG_CLIP_SYMBOL], // alt
+                    std::string("."), // qual
+                    std::string("."), // filter
+                    std::string("LONG_CLIP"), // info
+                    std::string("GT:VTI:clipDP"), // format
+                    std::string(".") + ":" + std::to_string(match_refsymbol) + "," + std::to_string(LONG_CLIP_SYMBOL) 
+                            + ":" + std::to_string(ADP) + "," + std::to_string(aCDP) // format values
+                }}, "\t");
+                std::string tumor_format = "";
+                if (paramset.is_tumor_format_retrieved && NOT_PROVIDED != paramset.vcf_tumor_fname) { 
+                    const auto tkis_it = tid_pos_symb_to_tkis.find(std::make_tuple(tid, refpos, LONG_CLIP_SYMBOL));
+                    if (tkis_it != tid_pos_symb_to_tkis.end()) {
+                        const auto & tkis = tid_pos_symb_to_tkis.find(std::make_tuple(tid, refpos, LONG_CLIP_SYMBOL))->second;
+                        if (tkis.size() == 1) {
+                            tumor_format = bcf1_to_string(bcf_hdr, tkis[0].bcf1_record);
+                        } else {
+                            tumor_format = std::string("\t.:-1,-1:-1,-1");
+                        }
+                    } else {
+                        tumor_format = std::string("\t.:.,.:.,.");
+                    }
+                }
+                buf_out_string_pass += vcfline + tumor_format + "\n";
             }
             
             const auto ref_bdepth = 

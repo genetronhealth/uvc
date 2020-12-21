@@ -295,6 +295,7 @@ const char* SYMBOL_TO_DESC_ARR[] = {
     [LINK_NN] = "*",
     [END_ALIGNMENT_SYMBOLS] = "<NONE>",
     [MGVCF_SYMBOL] = "<NON_REF>",
+    [LONG_CLIP_SYMBOL] = "<LONG_CLIP>",
 };
 
 template <class T>
@@ -956,11 +957,6 @@ update_seg_format_prep_sets_by_aln(
         }
     }
     
-    const auto confident_aln_dp = (
-            (  (max_clip_len  <= paramset.microadjust_confident_alignment_clip_maxlen) 
-            && (max_indel_len <= paramset.microadjust_confident_alignment_indel_maxlen))
-            ? 1 : 0);
-    
     const auto *bam_aux_data = bam_aux_get(aln, "NM");
     const uvc1_refgpos_t nm_cnt = ((bam_aux_data != NULL) ? bam_aux2i(bam_aux_data) : nge_cnt);
     assert (nm_cnt >= nge_cnt);
@@ -989,8 +985,6 @@ update_seg_format_prep_sets_by_aln(
                 seg_format_prep_sets.getRefByPos(rpos).segprep_a_XM1500 += xm1500;
                 seg_format_prep_sets.getRefByPos(rpos).segprep_a_GO1500 += go1500;
                 seg_format_prep_sets.getRefByPos(rpos).segprep_a_GAPLEN += avg_gaplen;
-                
-                seg_format_prep_sets.getRefByPos(rpos).segprep_a_confident_aln_dp += confident_aln_dp;
 
                 if (aln->core.isize != 0) {
                     if (isrc) { 
@@ -1112,8 +1106,6 @@ update_seg_format_prep_sets_by_aln(
                 seg_format_prep_sets.getRefByPos(rpos2).segprep_a_GO1500 += go1500;
                 seg_format_prep_sets.getRefByPos(rpos2).segprep_a_GAPLEN += avg_gaplen;
 
-                seg_format_prep_sets.getRefByPos(rpos).segprep_a_confident_aln_dp += confident_aln_dp;
-
                 if (aln->core.isize != 0) {
                     if (isrc) { 
                         seg_format_prep_sets.getRefByPos(rpos2).segprep_a_LI += MIN(rpos - frag_pos_L + 1, MAX_INSERT_SIZE); 
@@ -1159,12 +1151,19 @@ update_seg_format_prep_sets_by_aln(
             seg_format_prep_sets.getRefByPos(rpos).segprep_a_at_del_dp += 1;
             rpos += cigar_oplen;
         } else {
+            const uvc1_refgpos_t rpos_delta = ((0 == i) ? (0) : (-1));
             if ((BAM_CSOFT_CLIP == cigar_op || BAM_CHARD_CLIP == cigar_op) && pcr_dp_inc) {
-                for (auto rpos2 = rpos - paramset.microadjust_near_clip_dist; rpos2 < rpos + paramset.microadjust_near_clip_dist; rpos2++) {
+                for (auto rpos2 = rpos + rpos_delta - paramset.microadjust_near_clip_dist; rpos2 <= rpos + rpos_delta + paramset.microadjust_near_clip_dist; rpos2++) {
                     if (seg_format_prep_sets.getIncluBegPosition() <= rpos2 && rpos2 < seg_format_prep_sets.getExcluEndPosition()) {
-                        seg_format_prep_sets.getRefByPos(rpos2).segprep_a_near_clip_dp += pcr_dp_inc;
+                        seg_format_prep_sets.getRefByPos(rpos2).segprep_a_near_pcr_clip_dp += pcr_dp_inc;
                     }
                 }
+            }
+            // if a clipped sequence is beyond the primer, then the clipped sequence should not be of biological origin anyway
+            if ((BAM_CSOFT_CLIP == cigar_op || BAM_CHARD_CLIP == cigar_op) 
+                    && (0 == pcr_dp_inc) 
+                    && (UNSIGN2SIGN(cigar_oplen) >= paramset.microadjust_alignment_clip_min_len)) {
+                seg_format_prep_sets.getRefByPos(rpos + rpos_delta).segprep_a_near_long_clip_dp += 1;
             }
             process_cigar(qpos, rpos, cigar_op, cigar_oplen);
         }
@@ -1306,7 +1305,7 @@ dealwith_segbias(
     const uvc1_qual_t seg_l_baq = baq_offsetarr.getByPos(rpos) - baq_offsetarr.getByPos(aln->core.pos) + 1;
     const uvc1_qual_t _seg_r_baq = baq_offsetarr.getByPos(rend-1) - baq_offsetarr.getByPos(rpos) + 1;
     const uvc1_qual_t seg_r_baq = (isGap ? MIN(_seg_r_baq, baq_offsetarr2.getByPos(rend-1) - baq_offsetarr2.getByPos(rpos) + 7) : _seg_r_baq);
-
+    
     const uvc1_refgpos_t seg_l_nbases = (rpos - aln->core.pos + 1);
     const uvc1_refgpos_t seg_r_nbases = (bam_endpos(aln) - rpos);
     const uvc1_refgpos_t frag_pos_L = MIN(aln->core.pos, aln->core.mpos);
@@ -1329,13 +1328,16 @@ dealwith_segbias(
         ? (isrc ? symbol_to_seg_format_depth_set.seginfo_aDPrr : symbol_to_seg_format_depth_set.seginfo_aDPrf) 
         : (isrc ? symbol_to_seg_format_depth_set.seginfo_aDPfr : symbol_to_seg_format_depth_set.seginfo_aDPff));
     
-    
     symbol_to_seg_aDP_depth_set += 1;
     symbol_to_seg_format_depth_set.seginfo_aLPT += seg_l_nbases;
     symbol_to_seg_format_depth_set.seginfo_aRPT += seg_r_nbases;
-
+    if (isrc) {
+        symbol_to_seg_format_depth_set.seginfo_aLIT += ((aln->core.isize != 0) ? frag_l_nbases2 : 0);
+    } else {
+        symbol_to_seg_format_depth_set.seginfo_aRIT += ((aln->core.isize != 0) ? frag_r_nbases2 : 0);
+    }
     // symbol_to_seg_format_depth_set.seginfo_aXMp1 += 1000 / MAX(xm1500, 10);
-
+    
 #if COMPILATION_ENABLE_XMGOT
     const auto const_XM1T = seg_format_thres_set.segthres_aXM1T;
     const auto const_XM2T = seg_format_thres_set.segthres_aXM2T;
@@ -1346,7 +1348,7 @@ dealwith_segbias(
     auto _const_LPxT = seg_format_thres_set.segthres_aLPxT; 
     const auto const_RPxT = seg_format_thres_set.segthres_aRPxT; 
     const auto const_LPxT = (isGap ? _const_LPxT : MIN(_const_LPxT, const_RPxT));
-
+    
     const bool is_far_from_edge = (seg_l_nbases + ((BAM_CINS == cigar_op) ? non_neg_minus(indel_len, paramset.microadjust_nobias_pos_indel_maxlen) : 0) >= const_LPxT) && (seg_r_nbases >= const_RPxT);
     const auto bias_thres_highBAQ = paramset.bias_thres_highBAQ + (isGap ? 0 : 3);
     const bool is_unaffected_by_edge = (seg_l_baq >= bias_thres_highBAQ && seg_r_baq >= bias_thres_highBAQ);
@@ -2895,8 +2897,8 @@ BcfFormat_symboltype_init(bcfrec::BcfFormat & fmt,
         p.segprep_a_dnv_dp,
         p.segprep_a_highBQ_dp,
         
-        p.segprep_a_near_clip_dp,
-        p.segprep_a_confident_aln_dp,
+        p.segprep_a_near_pcr_clip_dp,
+        p.segprep_a_near_long_clip_dp,
     }};
     
     fmt.APXM = {{ 
@@ -3076,13 +3078,11 @@ BcfFormat_symbol_init(
     filla_symbol_fmt(fmt.aLP1, symbol_to_seg_format_depth_sets, seginfo_aLP1, refpos, symbol, a);
     filla_symbol_fmt(fmt.aLP2, symbol_to_seg_format_depth_sets, seginfo_aLP2, refpos, symbol, a);
     filla_symbol_fmt(fmt.aLPL, symbol_to_seg_format_depth_sets, seginfo_aLPL, refpos, symbol, a);
-    filla_symbol_fmt(fmt.aLPT, symbol_to_seg_format_depth_sets, seginfo_aLPT, refpos, symbol, a);
-
+    
     filla_symbol_fmt(fmt.aRP1, symbol_to_seg_format_depth_sets, seginfo_aRP1, refpos, symbol, a);
     filla_symbol_fmt(fmt.aRP2, symbol_to_seg_format_depth_sets, seginfo_aRP2, refpos, symbol, a);
     filla_symbol_fmt(fmt.aRPL, symbol_to_seg_format_depth_sets, seginfo_aRPL, refpos, symbol, a);
-    filla_symbol_fmt(fmt.aRPT, symbol_to_seg_format_depth_sets, seginfo_aRPT, refpos, symbol, a);
-
+    
     filla_symbol_fmt(fmt.aLB1, symbol_to_seg_format_depth_sets, seginfo_aLB1, refpos, symbol, a);
     filla_symbol_fmt(fmt.aLB2, symbol_to_seg_format_depth_sets, seginfo_aLB2, refpos, symbol, a);
     filla_symbol_fmt(fmt.aLBL, symbol_to_seg_format_depth_sets, seginfo_aLBL, refpos, symbol, a);
@@ -3138,6 +3138,11 @@ BcfFormat_symbol_init(
     const auto & symbol_to_duplex_format_depth_sets = symbol2CountCoverageSet12.symbol_to_duplex_format_depth_sets;
     fill_symbol_fmt(fmt.dDP1,  symbol_to_duplex_format_depth_sets, DUPLEX_dDP1, refpos, symbol, a);
     fill_symbol_fmt(fmt.dDP2,  symbol_to_duplex_format_depth_sets, DUPLEX_dDP2, refpos, symbol, a);
+
+    filla_symbol_fmt(fmt.aLPT, symbol_to_seg_format_depth_sets, seginfo_aLPT, refpos, symbol, a);
+    filla_symbol_fmt(fmt.aRPT, symbol_to_seg_format_depth_sets, seginfo_aRPT, refpos, symbol, a);
+    filla_symbol_fmt(fmt.aLIT, symbol_to_seg_format_depth_sets, seginfo_aLIT, refpos, symbol, a);
+    filla_symbol_fmt(fmt.aRIT, symbol_to_seg_format_depth_sets, seginfo_aRIT, refpos, symbol, a);
     
     fmt.DP = fmt.CDP1f[0] + fmt.CDP1r[0];
     fmt.AD = vectorsum(fmt.cDP1f, fmt.cDP1r);
@@ -3455,9 +3460,15 @@ BcfFormat_symbol_calc_DPv(
     const auto fBTB = (double)(fmt.BTBf[0] + fmt.BTBr[0] + 6);
     const auto fbTA = (double)(fmt.bTAf[a] + fmt.bTAr[a] + 100);
     const auto fbTB = (double)(fmt.bTBf[a] + fmt.bTBr[a] + 3);
+    /*
     const double frag_sidelen_frac = 1.0 - MIN(
         BETWEEN(fmt.APLRI[0] / MAX(1, fmt.APLRI[1]) - paramset.microadjust_longfrag_sidelength_min, 0, paramset.microadjust_longfrag_sidelength_max), 
         BETWEEN(fmt.APLRI[2] / MAX(1, fmt.APLRI[3]) - paramset.microadjust_longfrag_sidelength_min, 0, paramset.microadjust_longfrag_sidelength_max))
+        / paramset.microadjust_longfrag_sidelength_zeroMQpenalty;
+    */
+    const double frag_sidelen_frac = 1.0 - MIN(
+        BETWEEN(fmt.aLIT[a] / MAX(1, fmt.aDPfr[a] + fmt.aDPrr[a]) - paramset.microadjust_longfrag_sidelength_min, 0, paramset.microadjust_longfrag_sidelength_max), 
+        BETWEEN(fmt.aRIT[a] / MAX(1, fmt.aDPff[a] + fmt.aDPrf[a]) - paramset.microadjust_longfrag_sidelength_min, 0, paramset.microadjust_longfrag_sidelength_max))
         / paramset.microadjust_longfrag_sidelength_zeroMQpenalty;
     
     const double _alt_frac_mut_affected_tpos = fbTB / fbTA; // is low by default
@@ -4391,7 +4402,7 @@ generate_vcf_header(
         ret += std::string("") + "##contig=<ID=" + target_name[i] + ",length=" + std::to_string(target_len[i]) + ">\n";
     }
     ret += std::string("") + "##ALT=<ID=NON_REF,Description=\"Represents any possible alternative allele at this location, where POS (start position) is one-based inclusive. "
-        + "CAVEAT: this VCF line record is similar to a GVCF block but does not conform to the GVCF specifications.\">\n";
+        + "CAVEAT: this VCF line record is similar to a GVCF block but does not conform to the GVCF specifications. \">\n";
     
     for (size_t i = 0; i < bcfrec::FILTER_NUM; i++) {
         ret += std::string("") + bcfrec::FILTER_LINES[i] + "\n";
@@ -4402,29 +4413,31 @@ generate_vcf_header(
     ret += "##INFO=<ID=SOMATIC,Number=0,Type=Flag,Description=\"Somatic variant\">\n";
     ret += "##INFO=<ID=MGVCF_BLOCK,Number=0,Type=Flag,Description=\"Multi-sample GVCF-like genomic regions consisting of " + std::to_string(MGVCF_REGION_MAX_SIZE) + " consecutive positions. " 
         + "MGVCF is modified from GVCF to allow for easy comparison of sequencing depths of multiple samples at any arbitrary position. "
-        + "More detail is described in FORMAT/POS_VT_BDP_CDP_HomRefQ.\">\n";
+        + "More detail is described in FORMAT/POS_VT_BDP_CDP_HomRefQ. \">\n";
+    ret += "##INFO=<ID=LONG_CLIP,Number=0,Type=Flag,Description=\"Position with abnormally high number of soft-clipped sequences adjacent to this position (which can be caused by long InDel, copy-number variation (CNV), structural variation (SV), etc.)\">\n";
+
     ret += ("##INFO=<ID=SomaticQ,Number=A,Type=Float,Description=\"Somatic quality of the variant, the PHRED-scale probability that this variant is not somatic. "
           "CAVEAT: if only tumor bam file is provided, then this quality usually cannot reach 60 even with the help of a very big germline database because "
           "germline and somatic variants share similar characteristics in the tumor. "
-          "Therefore, a matched normal is absolutely required to confidently determine the germline-vs-somatic origin of a biological variant.\">\n");
-    ret += "##INFO=<ID=TLODQ,Number=A,Type=Float,Description=\"Tumor log-of-data-likelihood quality, the PHRED-scale probability that this variant is not of biological origin (i.e., artifactual).\">\n";
-    ret += "##INFO=<ID=NLODQ,Number=A,Type=Float,Description=\"Normal log-of-data-likelihood quality, the PHRED-scale probability that this variant is of germline origin.\">\n";
-    ret += "##INFO=<ID=NLODV,Number=A,Type=String,Description=\"The variant symbol that minimizes NLODQ.\">\n";
+          "Therefore, a matched normal is absolutely required to confidently determine the germline-vs-somatic origin of a biological variant. \">\n");
+    ret += "##INFO=<ID=TLODQ,Number=A,Type=Float,Description=\"Tumor log-of-data-likelihood quality, the PHRED-scale probability that this variant is not of biological origin (i.e., artifactual). \">\n";
+    ret += "##INFO=<ID=NLODQ,Number=A,Type=Float,Description=\"Normal log-of-data-likelihood quality, the PHRED-scale probability that this variant is of germline origin. \">\n";
+    ret += "##INFO=<ID=NLODV,Number=A,Type=String,Description=\"The variant symbol that minimizes NLODQ. \">\n";
 
-    ret += "##INFO=<ID=TNBQF,Number=4,Type=Float,Description=\"Binomial reward, power-law reward, systematic-error penalty, and normal-adjusted tumor variant quality computed using deduplicated read fragments.\">\n";
-    ret += "##INFO=<ID=TNCQF,Number=4,Type=Float,Description=\"Binomial reward, power-law reward, systematic-error penalty, and normal-adjusted tumor variant quality computed using consensus families of read fragments.\">\n";
+    ret += "##INFO=<ID=TNBQF,Number=4,Type=Float,Description=\"Binomial reward, power-law reward, systematic-error penalty, and normal-adjusted tumor variant quality computed using deduplicated read fragments. \">\n";
+    ret += "##INFO=<ID=TNCQF,Number=4,Type=Float,Description=\"Binomial reward, power-law reward, systematic-error penalty, and normal-adjusted tumor variant quality computed using consensus families of read fragments. \">\n";
     
-    ret += "##INFO=<ID=tDP,Number=1,Type=Integer,Description=\"Tumor total deduped depth (deprecated, please see CDP1f and CDP1r).\">\n";
-    ret += "##INFO=<ID=tADR,Number=R,Type=Integer,Description=\"Tumor deduped depth of each allele (deprecated, please see cDP1f and cDP1r).\">\n";
-    ret += "##INFO=<ID=nDP,Number=1,Type=Integer,Description=\"Normal total deduped depth (deprecated, please see CDP1f and CDP1r).\">\n";
-    ret += "##INFO=<ID=nADR,Number=R,Type=Integer,Description=\"Normal deduped depth of each allele (deprecated, please see cDP1f and cDP1r).\">\n";
-    ret += "##INFO=<ID=tDPC,Number=1,Type=Integer,Description=\"Tumor total UMI-barcoded-family depth (deprecated, please see CDP2f and CDP2r).\">\n";
-    ret += "##INFO=<ID=tADCR,Number=R,Type=Integer,Description=\"Tumor UMI-barcoded-family depth of each allele (deprecated, please see cDP2f and cDP2r).\">\n";
-    ret += "##INFO=<ID=tbDP,Number=1,Type=Integer,Description=\"Tumor total non-deduped depth (deprecated, please see BDPf and BDPr).\">\n";
+    ret += "##INFO=<ID=tDP,Number=1,Type=Integer,Description=\"Tumor total deduped depth (deprecated, please see CDP1f and CDP1r). \">\n";
+    ret += "##INFO=<ID=tADR,Number=R,Type=Integer,Description=\"Tumor deduped depth of each allele (deprecated, please see cDP1f and cDP1r). \">\n";
+    ret += "##INFO=<ID=nDP,Number=1,Type=Integer,Description=\"Normal total deduped depth (deprecated, please see CDP1f and CDP1r). \">\n";
+    ret += "##INFO=<ID=nADR,Number=R,Type=Integer,Description=\"Normal deduped depth of each allele (deprecated, please see cDP1f and cDP1r). \">\n";
+    ret += "##INFO=<ID=tDPC,Number=1,Type=Integer,Description=\"Tumor total UMI-barcoded-family depth (deprecated, please see CDP2f and CDP2r). \">\n";
+    ret += "##INFO=<ID=tADCR,Number=R,Type=Integer,Description=\"Tumor UMI-barcoded-family depth of each allele (deprecated, please see cDP2f and cDP2r). \">\n";
+    ret += "##INFO=<ID=tbDP,Number=1,Type=Integer,Description=\"Tumor total non-deduped depth (deprecated, please see BDPf and BDPr). \">\n";
     
     ret += "##INFO=<ID=RU,Number=1,Type=String,Description=\"The shortest repeating unit in the reference\">\n";
     ret += "##INFO=<ID=RC,Number=1,Type=Integer,Description=\"The number of non-interrupted RUs in the reference\">\n";
-    ret += "##INFO=<ID=R3X2,Number=6,Type=Integer,Description=\"Repeat start position, repeat track length, and repeat unit size at the two positions before and after this VCF position.\">\n"; 
+    ret += "##INFO=<ID=R3X2,Number=6,Type=Integer,Description=\"Repeat start position, repeat track length, and repeat unit size at the two positions before and after this VCF position. \">\n"; 
     
     for (size_t i = 0; i < bcfrec::FORMAT_NUM; i++) {
         ret += std::string("") + bcfrec::FORMAT_LINES[i] + "\n";
@@ -4453,6 +4466,9 @@ generate_vcf_header(
             + std::to_string(paramset.germ_phred_hetero_indel - paramset.germ_phred_hetero_snp) + ". " +    
             "CAVEAT: HomRefQ is computed by a very fast but imprecise algorithm, so it is not as accurate as GQ. \">\n";
     
+    ret += std::string("") + "##FORMAT=<ID=clipDP,Number=2,Type=Integer,Description=\"Total segment depth and segment depth with adjacent long clips "
+            "(for the " + std::to_string(LONG_CLIP_SYMBOL) + " symbolic ALT allele indicating that this position has a lot of long (soft/hard) clips nearby). \">\n";
+
     ret += std::string("") + "##phasing=partial\n";
     ret += std::string("") + "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t" 
             + paramset.sample_name + ((tumor_sampleName != NULL && paramset.is_tumor_format_retrieved) ? (std::string("\t") + tumor_sampleName) : std::string("")) + "\n";

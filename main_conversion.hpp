@@ -290,6 +290,7 @@ enum AlignmentSymbol {
     LINK_NN, //  = 13, // padded InDel-noInDel symbol in deleted sequence
     END_ALIGNMENT_SYMBOLS,
     MGVCF_SYMBOL,
+    LONG_CLIP_SYMBOL,
 };
 
 #define NUM_ALIGNMENT_SYMBOLS 14
@@ -370,8 +371,8 @@ struct SegFormatPrepSet {
     uvc1_readnum_t segprep_a_dnv_dp;
     uvc1_readnum_t segprep_a_highBQ_dp;    // depth of high-BQ bases
     
-    uvc1_readnum_t segprep_a_near_clip_dp;
-    uvc1_readnum_t segprep_a_confident_aln_dp;  // can be used for identifying regions requiring new alignments
+    uvc1_readnum_t segprep_a_near_pcr_clip_dp;
+    uvc1_readnum_t segprep_a_near_long_clip_dp;
 
     uvc1_readnum_t segprep_a_at_ins_dp;
     uvc1_readnum_t segprep_a_at_del_dp;
@@ -481,12 +482,10 @@ struct SegFormatInfoSet {
     uvc1_readnum_t seginfo_aLP1; // left seg pos
     uvc1_readnum_t seginfo_aLP2;
     uvc1_readpos_t seginfo_aLPL;
-    uvc1_readpos_t seginfo_aLPT;
     uvc1_readnum_t seginfo_aRP1; // right seg pos
     uvc1_readnum_t seginfo_aRP2;
     uvc1_readpos_t seginfo_aRPL;
-    uvc1_readpos_t seginfo_aRPT;
-
+    
     uvc1_readnum_t seginfo_aLB1; // left seg pos
     uvc1_readnum_t seginfo_aLB2;
     uvc1_readpos_t seginfo_aLBL;
@@ -502,6 +501,11 @@ struct SegFormatInfoSet {
     
     uvc1_readnum_t seginfo_aRIf;
     uvc1_readnum_t seginfo_aLIr;
+
+    uvc1_readpos_t seginfo_aLPT;
+    uvc1_readpos_t seginfo_aRPT;
+    uvc1_readpos_t seginfo_aLIT;
+    uvc1_readpos_t seginfo_aRIT;
 };
 
 enum FragFormatDepthSet {

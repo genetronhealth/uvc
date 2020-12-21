@@ -188,6 +188,8 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
         + "The " + std::to_string(OUTVAR_MGVCF) + " bit indicates symbolic MGVCF (multi-sample genomic VCF). "
                 "Each line of MGVCF contains multiple regions of potentially very different depths. "
                 "MGVCF is similar to GVCF but allows for easy comparison of sequencing depths of multiple samples at any arbitrary position). "
+        + "The " + std::to_string(OUTVAR_LONG_CLIP) + " bit indicates position with a lot of adjacent long clips, "
+                "which can be a candidate for long InDel, CNV, SV, etc. "
         + "The " + std::to_string(OUTVAR_BASE_NN) + " bit indicates padded deletion at a nucleotide-base position between two adjacent gap positions. "
         + "The " + std::to_string(OUTVAR_LINK_NN) + " bit indicates padded deletion at a gap position between two adjacent nucleotide-base positions. "
         );
@@ -768,10 +770,15 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
     ADD_OPTDEF2(app, microadjust_longfrag_sidelength_zeroMQpenalty,
         "The maximum increase in mapping quality per 100 bases on each side due to long fragment side length. ");
     
-    ADD_OPTDEF2(app, microadjust_confident_alignment_clip_maxlen,
-        "If an alignment has a clip spanning at least this number of bases, then this alignment is not confident and not counted in APDP[10]. ");
-    ADD_OPTDEF2(app, microadjust_confident_alignment_indel_maxlen,
-        "If an alignment has an InDel spanning at least this number of bases, then this alignment is not confident and not counted in APDP[10]. ");
+    ADD_OPTDEF2(app, microadjust_alignment_clip_min_len,
+        "If an alignment position has a clip spanning at least this number of bases besides it, "
+        "then this alignment is a candidate for non-small variants and is not counted in APDP[10]. ");
+    ADD_OPTDEF2(app, microadjust_alignment_clip_min_frac,
+        "If a position has at least this fraction of alignments not couted in APDP[10] and satisfies <--microadjust-alignment-clip-min-count>, "
+        "then its generates a <LONG_CLIP> record in the VCF. ");
+    ADD_OPTDEF2(app, microadjust_alignment_clip_min_count,
+        "If a position has at least this number of alignments not couted in APDP[10] and satisfies <--microadjust-alignment-clip-min-frac>, "
+        "then its generates a <LONG_CLIP> record in the VCF. ");
 
 // *** 14 debugging
     

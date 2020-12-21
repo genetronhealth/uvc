@@ -23,7 +23,7 @@ struct CommandLineArgs {
     
     size_t      max_cpu_num = 8;
     
-    uvc1_flag_t outvar_flag = OUTVAR_SOMATIC + OUTVAR_ANY + OUTVAR_MGVCF + OUTVAR_BASE_NN;
+    uvc1_flag_t outvar_flag = OUTVAR_SOMATIC + OUTVAR_ANY + OUTVAR_MGVCF + OUTVAR_BASE_NN + OUTVAR_LONG_CLIP;
     bool        should_output_all = false;
     bool        should_output_all_germline = false;
     double      vqual = (double)15; // set to 20 for less output
@@ -336,8 +336,9 @@ struct CommandLineArgs {
     uvc1_readpos_t      microadjust_longfrag_sidelength_max = 600;
     double              microadjust_longfrag_sidelength_zeroMQpenalty = 300;
     
-    uvc1_readpos_t      microadjust_confident_alignment_clip_maxlen = 6 * 4;
-    uvc1_readpos_t      microadjust_confident_alignment_indel_maxlen = 6 * 4;
+    uvc1_readpos_t      microadjust_alignment_clip_min_len = 12;
+    double              microadjust_alignment_clip_min_frac = 0.05;
+    uvc1_readpos_t      microadjust_alignment_clip_min_count = 3;
     
 // *** 14. parameters related to debugging in vcf
     uvc1_flag_t         debug_note_flag = 0x0;
