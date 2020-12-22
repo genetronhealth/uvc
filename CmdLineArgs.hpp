@@ -338,7 +338,7 @@ struct CommandLineArgs {
     
     uvc1_readpos_t      microadjust_alignment_clip_min_len = 12;
     double              microadjust_alignment_clip_min_frac = 0.05;
-    uvc1_readpos_t      microadjust_alignment_clip_min_count = 3;
+    uvc1_readpos_t      microadjust_alignment_clip_min_count = 2;
     
 // *** 14. parameters related to debugging in vcf
     uvc1_flag_t         debug_note_flag = 0x0;

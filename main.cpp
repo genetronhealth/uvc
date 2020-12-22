@@ -526,13 +526,16 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
     
     std::string buf_out_string_pass;
     const std::set<size_t> empty_size_t_set;
-    
-    for (uvc1_refgpos_t zerobased_pos = rpos_inclu_beg; zerobased_pos <= rpos_exclu_end; zerobased_pos++) {
+    uvc1_readpos_t prev_tracklen = 0;
+    uvc1_readpos_t curr_tracklen = 0;
+
+    for (uvc1_refgpos_t zerobased_pos = rpos_inclu_beg; zerobased_pos <= rpos_exclu_end; zerobased_pos++, prev_tracklen = curr_tracklen) {
         std::string repeatunit;
         uvc1_readpos_t repeatnum = 0;
         
         uvc1_rp_diff_t rridx = zerobased_pos - extended_inclu_beg_pos;
         indelpos_to_context(repeatunit, repeatnum, refstring, rridx, paramset.indel_str_repeatsize_max);
+        curr_tracklen = repeatnum * UNSIGN2SIGN(repeatunit.size());
         
         const std::array<AlignmentSymbol, 2> symboltype_to_refsymbol = {{
                 ((UNSIGN2SIGN(refstring.size()) == ((zerobased_pos - 1) - extended_inclu_beg_pos) || (-1 == ((zerobased_pos - 1) - extended_inclu_beg_pos))) 
@@ -679,10 +682,13 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
             
             const auto aCDP = symbolToCountCoverageSet12.seg_format_prep_sets.getByPos(refpos).segprep_a_near_long_clip_dp;
             const auto ADP = symbolToCountCoverageSet12.seg_format_prep_sets.getByPos(refpos).segprep_a_dp;
+            
+            const bool is_in_long_track = (curr_tracklen > MAX(24, prev_tracklen));
+            const bool is_in_clip_region = ((aCDP >= paramset.microadjust_alignment_clip_min_count) 
+                    && (aCDP >= ADP * (paramset.microadjust_alignment_clip_min_frac - DBL_EPSILON)));
             if ((OUTVAR_LONG_CLIP & paramset.outvar_flag)
                     && (SYMBOL_TYPE_ARR[0] == symboltype)
-                    && (aCDP >= paramset.microadjust_alignment_clip_min_count)
-                    && (aCDP >= ADP * (paramset.microadjust_alignment_clip_min_frac - DBL_EPSILON))) {
+                    && (is_in_long_track || is_in_clip_region)) {
                 const auto vcfREF = refstring.substr(refpos - extended_inclu_beg_pos, 1);
                 const AlignmentSymbol match_refsymbol = CHAR_TO_SYMBOL.data[vcfREF[0]];
                 const std::string vcfline = string_join(std::vector<std::string>{{
@@ -693,7 +699,7 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                     SYMBOL_TO_DESC_ARR[LONG_CLIP_SYMBOL], // alt
                     std::string("."), // qual
                     std::string("."), // filter
-                    std::string("LONG_CLIP"), // info
+                    (std::string("LONG_CLIP;RU=") + repeatunit + ";RC=" + std::to_string(repeatnum)), // info
                     std::string("GT:VTI:clipDP"), // format
                     std::string(".") + ":" + std::to_string(match_refsymbol) + "," + std::to_string(LONG_CLIP_SYMBOL) 
                             + ":" + std::to_string(ADP) + "," + std::to_string(aCDP) // format values
