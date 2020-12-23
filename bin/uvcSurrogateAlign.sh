@@ -54,7 +54,7 @@ bcftools index --threads ${nbams} -ft "${outdir}/surrogate.vcf.gz"
 
 bcftools view --threads ${nbams} "${invcf}" -Oz -o "${outdir}/original-filt.vcf.gz"
 bcftools index --threads ${nbams} "${outdir}/original-filt.vcf.gz"
-bcftools view --threads ${nbams} -e "TYPE != \"indel\" || (abs(strlen(ALT)-strlen(REF)) < ${indelsize})" "${outdir}/surrogate.vcf.gz" -Oz -o "${outdir}/surrogate-filt.vcf.gz"
+bcftools view --threads ${nbams} -i "TYPE = \"indel\" && (abs(strlen(ALT)-strlen(REF)) > ${indelsize}) && GERMLINE=1 && GT != \"ref\"" "${outdir}/surrogate.vcf.gz" -Oz -o "${outdir}/surrogate-filt.vcf.gz"
 bcftools index --threads ${nbams} "${outdir}/surrogate-filt.vcf.gz"
 
 bcftools concat --threads ${nbams} -a -d ${GROUNDTRUTH_ALLELE_IDENTITY_FLAG} "${outdir}/surrogate-filt.vcf.gz" "${outdir}/original-filt.vcf.gz" -Oz -o "${outvcf}"
