@@ -7,6 +7,10 @@
 
 set -evx
 
+scriptdir="$(dirname "$(which "$0")")"
+
+export PATH="${scriptdir}:${PATH}" # remove this line in the rare case that an important executable is shadowed by this command
+
 if [ -z "${UVC_BIN_EXE_FULL_NAME}" ]; then
     UVC_BIN_EXE_FULL_NAME="${scriptdir}/uvc1"
 else

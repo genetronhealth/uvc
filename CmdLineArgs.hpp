@@ -71,7 +71,11 @@ struct CommandLineArgs {
     
     MoleculeTag molecule_tag = MOLECULE_TAG_AUTO;
     SequencingPlatform sequencing_platform = SEQUENCING_PLATFORM_AUTO;
-    SequencingPlatform inferred_sequencing_platform=sequencing_platform; // NOTE: this is not on command-line
+    
+    // NOTE: these two inferred parameters are not shown (and cannot be passed in as parameters) on the command-line.
+    SequencingPlatform inferred_sequencing_platform = sequencing_platform;
+    uvc1_qual_t        inferred_maxMQ = 0;
+    
     PairEndMerge pair_end_merge = PAIR_END_MERGE_YES;
     bool              disable_duplex = false;
     uvc1_readpos_t    primerlen = 0; // 23; // https://link.springer.com/chapter/10.1007/978-1-4020-6241-4_5 : 18 - 22 bps

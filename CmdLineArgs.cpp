@@ -55,6 +55,7 @@ CommandLineArgs::selfUpdateByPlatform() {
         uvc1_unsigned_int_t q30_n_fail_bases = 0;
         uvc1_unsigned_int_t q30_n_pass_bases = 0;
         while (sam_read1(sam_infile, samheader, b) >= 0 && (countPE + countSE) < 500) {
+            this->inferred_maxMQ = MAX(this->inferred_maxMQ, b->core.qual);
             if (b->core.flag & 0x1) {
                 countPE++;
             } else {

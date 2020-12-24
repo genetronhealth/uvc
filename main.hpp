@@ -3462,12 +3462,6 @@ BcfFormat_symbol_calc_DPv(
     const auto fBTB = (double)(fmt.BTBf[0] + fmt.BTBr[0] + 6);
     const auto fbTA = (double)(fmt.bTAf[a] + fmt.bTAr[a] + 100);
     const auto fbTB = (double)(fmt.bTBf[a] + fmt.bTBr[a] + 3);
-    /*
-    const double frag_sidelen_frac = 1.0 - MIN(
-        BETWEEN(fmt.APLRI[0] / MAX(1, fmt.APLRI[1]) - paramset.microadjust_longfrag_sidelength_min, 0, paramset.microadjust_longfrag_sidelength_max), 
-        BETWEEN(fmt.APLRI[2] / MAX(1, fmt.APLRI[3]) - paramset.microadjust_longfrag_sidelength_min, 0, paramset.microadjust_longfrag_sidelength_max))
-        / paramset.microadjust_longfrag_sidelength_zeroMQpenalty;
-    */
     const double frag_sidelen_frac = 1.0 - MIN(
         BETWEEN(fmt.aLIT[a] / MAX(1, fmt.aDPfr[a] + fmt.aDPrr[a]) - paramset.microadjust_longfrag_sidelength_min, 0, paramset.microadjust_longfrag_sidelength_max), 
         BETWEEN(fmt.aRIT[a] / MAX(1, fmt.aDPff[a] + fmt.aDPrf[a]) - paramset.microadjust_longfrag_sidelength_min, 0, paramset.microadjust_longfrag_sidelength_max))
@@ -3874,12 +3868,16 @@ BcfFormat_symbol_calc_qual(
     clear_push(fmt.aAaMQ, diffAaMQs);
     
     const uvc1_qual_t readlenMQcap = (fmt.APXM[2]) / MAX(1, fmt.APDP[0]) - 17;
-    const uvc1_qual_t _systematicMQVQadd = (uvc1_qual_t)((symbol == refsymbol) ? 0 : (MIN(paramset.germ_phred_homalt_snp, ADP * 3)));
+    const uvc1_qual_t diffMQ = (MAX(0, diffAaMQs));
+    const bool is_aln_extra_accurate = (paramset.inferred_maxMQ > 60);
+    const uvc1_qual_t _systematicMQVQadd = (uvc1_qual_t)((symbol == refsymbol) 
+            ? (is_aln_extra_accurate ? 0 : (0 - MAX(0, diffMQ - 10)))
+            : (MIN(paramset.germ_phred_homalt_snp, ADP * 3)));
     
-    const uvc1_qual_t _systematicMQ = (((refsymbol == symbol) && (ADP > aDP * 2)) 
-                ? fmt.bMQ[a] 
+    const uvc1_qual_t _systematicMQ = (((refsymbol == symbol) && (ADP > aDP * (1.0 + DBL_EPSILON) * (is_aln_extra_accurate ? 2.0 : 1.5)))
+                ? fmt.bMQ[a] // small
                 : (fmt.bMQ[a] * (paramset.syserr_MQ_max - paramset.syserr_MQ_nonref_base) / paramset.syserr_MQ_max + paramset.syserr_MQ_nonref_base))
-            - (uvc1_qual_t)(MAX(0, diffAaMQs))
+            - (uvc1_qual_t)(diffMQ)
             - (uvc1_qual_t)(fmt.bNMQ[a]) 
             - (uvc1_qual_t)(numstates2phred((ADP + 1.0) / (aDP + 0.5)));
     const auto systematicMQVQ = MIN(MAX(_systematicMQ, paramset.syserr_MQ_min) + _systematicMQVQadd, readlenMQcap);
