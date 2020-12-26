@@ -295,7 +295,7 @@ const char* SYMBOL_TO_DESC_ARR[] = {
     [LINK_NN] = "*",
     [END_ALIGNMENT_SYMBOLS] = "<NONE>",
     [MGVCF_SYMBOL] = "<NON_REF>",
-    [LONG_CLIP_SYMBOL] = "<LONG_CLIP>",
+    [ADDITIONAL_INDEL_CANDIDATE_SYMBOL] = "<ADDITIONAL_INDEL_CANDIDATE>",
 };
 
 template <class T>
@@ -1213,11 +1213,9 @@ update_seg_format_thres_from_prep_sets(
         auto & rtr = region_repeatvec[epos - seg_format_prep_sets.getIncluBegPosition()];
         if (p.segprep_a_near_ins_dp * paramset.indel_del_to_ins_err_ratio < p.segprep_a_near_del_dp) {
             rtr.indelphred += (uvc1_qual_t)round(numstates2phred(paramset.indel_del_to_ins_err_ratio)) / 2;
-            // rtr.indeltype = 0 - MAX(del_border_l_len, del_border_r_len); // dominated by deletions
         }
         if (p.segprep_a_near_del_dp * paramset.indel_del_to_ins_err_ratio < p.segprep_a_near_ins_dp) {
             rtr.indelphred -= (uvc1_qual_t)round(numstates2phred(paramset.indel_del_to_ins_err_ratio)) / 2;
-            // rtr.indeltype = 0 + MAX(ins_border_l_len, ins_border_r_len) / MAX(1, p.segprep_a_near_ins_dp); // dominated by insertions
         }
         const auto pc_inc1 = (uvc1_qual_t)(3 * 100 * MAX(1, p.segprep_a_near_ins_dp + p.segprep_a_near_del_dp)
                 / (MAX(1, p.segprep_a_near_ins_inv100len + p.segprep_a_near_del_inv100len))) - 3;
@@ -1338,7 +1336,6 @@ dealwith_segbias(
     } else {
         symbol_to_seg_format_depth_set.seginfo_aRIT += ((aln->core.isize != 0) ? frag_r_nbases2 : 0);
     }
-    // symbol_to_seg_format_depth_set.seginfo_aXMp1 += 1000 / MAX(xm1500, 10);
     
 #if COMPILATION_ENABLE_XMGOT
     const auto const_XM1T = seg_format_thres_set.segthres_aXM1T;
@@ -1539,7 +1536,7 @@ public:
         
         if (update_idx2symbol2data) {
             for (uvc1_refgpos_t epos = (other.getIncluBegPosition()); epos < UNSIGN2SIGN(other.getExcluEndPosition()); epos++) {
-                const std::array<AlignmentSymbol, NUM_SYMBOL_TYPES> consymbols = this->getRefByPos(epos).template updateByConsensus</*T_ConsensusType,*/ TIndelIsMajor>(other.getByPos(epos), incvalue);
+                const std::array<AlignmentSymbol, NUM_SYMBOL_TYPES> consymbols = this->getRefByPos(epos).template updateByConsensus<TIndelIsMajor>(other.getByPos(epos), incvalue);
                 if (update_pos2indel2count) {
                     if (isSymbolIns(consymbols[1])) {
                         posToIndelToCount_updateByConsensus(this->getRefPosToIseqToData(consymbols[1]), other.getPosToIseqToData(consymbols[1]), epos, incvalue);
@@ -1685,7 +1682,6 @@ public:
         const uvc1_base1500x_t go1500 = ngo_cnt * 1500 / (rend - aln->core.pos);
         
         std::vector<uvc1_refgpos_t> indel_rposs = {{ 0 }};
-        // std::vector<uvc1_refgpos_t> indel_clens = {{ 0 }}; // cigar
         size_t indel_rposs_idx = 0;
         std::array<uvc1_readpos_t, NUM_ALIGNMENT_SYMBOLS> bm_cnts = {{ 0 }}; // mismatch of the same base type
         {
@@ -1714,14 +1710,12 @@ public:
                     }
                     if (is_lowBQ) { 
                         indel_rposs.push_back(rpos); 
-                        // indel_clens.push_back(UNSIGN2SIGN(cigar_oplen));
                     }
                     qpos += cigar_oplen;
                 } else if (cigar_op == BAM_CDEL) {
                     bool is_lowBQ = (MIN(BAM_PHREDI(aln, MAX(1, qpos) - 1), BAM_PHREDI(aln, qpos)) <= paramset.bias_thres_interfering_indel_BQ);
                     if (is_lowBQ) { 
                         indel_rposs.push_back(rpos); 
-                        // indel_clens.push_back(-UNSIGN2SIGN(cigar_oplen));
                     }
                     rpos += cigar_oplen;
                 } else {
@@ -1729,7 +1723,6 @@ public:
                 }
             }
             indel_rposs.push_back(INT32_MAX); 
-            // indel_clens.push_back(INT32_MAX);
         }
         std::array<uvc1_base1500x_t, NUM_ALIGNMENT_SYMBOLS> bm1500s = {{ 0 }};
         for (size_t i = 0; i < bm_cnts.size(); i++) {
@@ -1780,8 +1773,6 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
                             }
                             uvc1_refgpos_t prev_indel_rpos = indel_rposs[indel_rposs_idx - 1];
                             uvc1_refgpos_t next_indel_rpos = indel_rposs[indel_rposs_idx];
-                            // uvc1_refgpos_t prev_indel_clen = indel_clens[indel_rposs_idx - 1];
-                            // uvc1_refgpos_t next_indel_clen = indel_clens[indel_rposs_idx];
                             
                             uvc1_refgpos_t dist_to_interfering_indel = 10000;
                             if (nge_cnt > 0) {
@@ -2272,7 +2263,6 @@ struct Symbol2CountCoverageSet {
                 }
             }
         }
-        // LOG(logINFO) << "Performed " << n_updates << " updates with this number of alignments.";
         for (const auto & alns2pair2dflag : alns3) {
             const auto & alns2pair = alns2pair2dflag.first;
             for (int strand = 0; strand < 2; strand++) {
@@ -3276,7 +3266,7 @@ BcfFormat_symbol_calc_DPv(
     
     const bool is_in_dnv_read = ((SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform) && (f.APDP[7] * 2 > f.APDP[6]));
     
-    // is_outlier_del is set to false to prevent potential false negative cals on Illumina
+    // is_outlier_del is set to false to prevent potential false negative calls on Illumina, it may be useful for some rare corner-cases in BGI data.
     const bool is_outlier_del = false ; 
     // (is_in_indel_read && (isSymbolDel(symbol)) && (fmt.APXM[3] * 2 > UNSIGN2SIGN(3 * LAST(fmt.gapSa).size())) && (MIN(fmt.aLPT[a], fmt.aRPT[a]) < aDP * 20)); 
     // read level
@@ -3321,7 +3311,7 @@ BcfFormat_symbol_calc_DPv(
     
     const auto aLPFAx2 = dp4_to_pcFA<false>(f.aLP1[a], aDP, f.ALP2[0] + f.aLP1[a] - f.aLP2[a], ADP, paramset.powlaw_exponent, phred2nat(aPpriorfreq),
             MAX(1, f.aLPL[a]) / (double)MAX(1, f.aBQ2[a]), MAX(1, f.ALPL[0]) / (double)MAX(1, f.ABQ2[0]), ((is_in_indel_read) ? paramset.bias_FA_pseudocount_indel_in_read : 0.5)); 
-            // use f.aBQ2[a] instead of aDP ???
+            // Here we should not use f.aBQ2[a] instead of aDP because biased read count is not in aBQ2.
     const auto aRPFAx2 = dp4_to_pcFA<false>(f.aRP1[a], aDP, f.ARP2[0] + f.aRP1[a] - f.aRP2[a], ADP, paramset.powlaw_exponent, phred2nat(aPpriorfreq),
             MAX(1, f.aRPL[a]) / (double)MAX(1, f.aBQ2[a]), MAX(1, f.ARPL[0]) / (double)MAX(1, f.ABQ2[0]), ((is_in_indel_read) ? paramset.bias_FA_pseudocount_indel_in_read : 0.5));
     double aLPFA = aLPFAx2[0];
@@ -3384,8 +3374,9 @@ BcfFormat_symbol_calc_DPv(
             aRIFA += 2.0; 
         }
     } else if (LINK_M == symbol || LINK_NN == symbol) {
-        aLBFA = (double)MIN(aLBFA, (0.1 + LAST(fmt.aLB1)) / (double)(0.2 + ADP));
-        aRBFA = (double)MIN(aRBFA, (0.1 + LAST(fmt.aRB1)) / (double)(0.2 + ADP));
+        double pc = paramset.bias_FA_pseudocount_indel_in_read; 
+        aLBFA = (double)MIN(aLBFA, (pc + LAST(fmt.aLB1)) / (double)(pc * 2 + ADP));
+        aRBFA = (double)MIN(aRBFA, (pc + LAST(fmt.aRB1)) / (double)(pc * 2 + ADP));
     } else if (refsymbol == symbol) {
         aLIFA = aRIFA = MAX(aLIFA, aRIFA); // reference error or long indel on either the left or right frag side does not affect the ref SNP allele.
     }
@@ -3394,8 +3385,9 @@ BcfFormat_symbol_calc_DPv(
     if ((!isSymbolSubstitution(symbol)) 
             && (mathsquare(paramset.microadjust_nobias_pos_indel_maxlen) < avg_sqr_indel_len)
             && (LINK_M == symbol || LINK_NN == symbol || (UNSIGN2SIGN(mathsquare(LAST(fmt.gapSa).size() * 2)) < avg_sqr_indel_len))) {
-        aLPFA = (double)MIN(aLPFA, (0.1 + LAST(fmt.aLP1)) / (double)(0.2 + fmt.ALP1[0]));
-        aRPFA = (double)MIN(aRPFA, (0.1 + LAST(fmt.aRP1)) / (double)(0.2 + fmt.ALP1[0]));
+        double pc = paramset.bias_FA_pseudocount_indel_in_read; 
+        aLPFA = (double)MIN(aLPFA, (pc + LAST(fmt.aLP1)) / (double)(pc * 2 + fmt.ALP1[0]));
+        aRPFA = (double)MIN(aRPFA, (pc + LAST(fmt.aRP1)) / (double)(pc * 2 + fmt.ALP1[0]));
     }
     
     if (NOT_PROVIDED != paramset.vcf_tumor_fname) {
@@ -3929,7 +3921,6 @@ BcfFormat_symbol_calc_qual(
         : other_to_score[MIN(cDP2, UNSIGN2SIGN(other_to_score.size()) - 1)]); 
     
     if (isSymbolIns(symbol) || isSymbolDel(symbol)) {
-        // NOTE: germ_phred_homalt_snp is correctly used here because it represents the probability that a random genomic position is at the beginning of an STR track
         const uvc1_qual_t sscs_floor_qual_v = MIN(paramset.germ_phred_homalt_indel + numstates2phred(umi_cFA), fmt.cDP2v[a] * 3 / 100) + ((isSymbolIns(symbol) ? INS_N_ANCHOR_BASES : 0) - INS_N_ANCHOR_BASES) * 3;
         UPDATE_MAX(mincVQ2, sscs_floor_qual_v);
     }
@@ -4133,9 +4124,9 @@ output_germline(
     auto fmtptr2 = ref_alt1_alt2_alt3[2].second;
     const bool isSubst = isSymbolSubstitution(refsymbol);
     const AlignmentSymbol symbolNN = ((isSubst || !is_rescued) ? BASE_NN : LINK_NN);
-    double ad0norm = compute_norm_ad(fmtptr0, 0); //, isSubst);
-    double ad1norm = compute_norm_ad(fmtptr1, 0); // isSubst, symbolNN == ref_alt1_alt2_alt3[1].first);
-    double ad2norm = compute_norm_ad(fmtptr2, 0); // isSubst, symbolNN == ref_alt1_alt2_alt3[2].first);
+    double ad0norm = compute_norm_ad(fmtptr0, 0);
+    double ad1norm = compute_norm_ad(fmtptr1, 0);
+    double ad2norm = compute_norm_ad(fmtptr2, 0);
     if (symbolNN == ref_alt1_alt2_alt3[1].first) {
         ad0norm += ad1norm;
         ad1norm = 0;
@@ -4414,7 +4405,7 @@ generate_vcf_header(
     ret += "##INFO=<ID=MGVCF_BLOCK,Number=0,Type=Flag,Description=\"Multi-sample GVCF-like genomic regions consisting of " + std::to_string(MGVCF_REGION_MAX_SIZE) + " consecutive positions. " 
         + "MGVCF is modified from GVCF to allow for easy comparison of sequencing depths of multiple samples at any arbitrary position. "
         + "More detail is described in FORMAT/POS_VT_BDP_CDP_HomRefQ. \">\n";
-    ret += "##INFO=<ID=LONG_CLIP,Number=0,Type=Flag,Description=\"Position with abnormally high number of soft-clipped sequences adjacent to this position (which can be caused by long InDel, copy-number variation (CNV), structural variation (SV), etc.)\">\n";
+    ret += "##INFO=<ID=ADDITIONAL_INDEL_CANDIDATE,Number=0,Type=Flag,Description=\"Position with an abnormally high number of (soft/hard)-clipped sequences adjacent to this position (which can be caused by long InDel, copy-number variation (CNV), structural variation (SV), etc.) or with a high STR track length after it\">\n";
 
     ret += ("##INFO=<ID=SomaticQ,Number=A,Type=Float,Description=\"Somatic quality of the variant, the PHRED-scale probability that this variant is not somatic. "
           "CAVEAT: if only tumor bam file is provided, then this quality usually cannot reach 60 even with the help of a very big germline database because "
@@ -4467,7 +4458,7 @@ generate_vcf_header(
             "CAVEAT: HomRefQ is computed by a very fast but imprecise algorithm, so it is not as accurate as GQ. \">\n";
     
     ret += std::string("") + "##FORMAT=<ID=clipDP,Number=2,Type=Integer,Description=\"Total segment depth and segment depth with adjacent long clips "
-            "(for the " + std::to_string(LONG_CLIP_SYMBOL) + " symbolic ALT allele indicating that this position has a lot of long (soft/hard) clips nearby). \">\n";
+            "(for the " + SYMBOL_TO_DESC_ARR[ADDITIONAL_INDEL_CANDIDATE_SYMBOL] + " symbolic ALT allele indicating that this position has a lot of long (soft/hard) clips nearby) or that this position is at the beginning of a long STR track\">\n";
 
     ret += std::string("") + "##phasing=partial\n";
     ret += std::string("") + "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t" 

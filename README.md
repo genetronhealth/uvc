@@ -36,7 +36,7 @@ For example, the UMI-labeled read name can be
 The auxiliary tool debarcode can be used for appending UMI sequences into read names.
 Running debarcode without any command-line argument will display its usage help.
 
-It is recommended to manual check the following outlier variant candidates:
+It is recommended to manually check the following outlier variant candidates if very high precision is required:
  1. for non-UMI data, variant candidates with FORMAT/FTS consisting of three or more filter strings (typically less than 1.5% of all variants).
  2. for UMI data, variant candidates with FORMAT/FTS consisting of one or more filter strings (typically less than 6% of all variants).
 
@@ -64,11 +64,14 @@ All bug reports, feature requests, and ideas for improvement are welcome (althou
 # Other things
 
 The environment variable ONE_STEP_UMI_STRUCT has special meaning to UVC.
-Please make sure that ONE_STEP_UMI_STRUCT is either not set or set to the empty string before running UVC.
+Please make sure that ONE_STEP_UMI_STRUCT is either not set (e.g., by using the unset shell command) or set to the empty string before running UVC.
 The python script extract-barcodes.py is obsolete and is replaced by debarcode.
 Compared with extract-barcodes.py, debarcode generates equivalent output but consumes only 40% of its runtime.
 The outputs of these two programs may not be the same in compressed space but are exactly the same in decompressed space.
-The program minivc is a simple SNV caller that runs very fast but has limited sensitivity. It can be used for estimating contamination.
+The script bin/uvcnorm.sh can be used for normalizing variants.
+By default, the normalization generates one SNV record per position and one InDel record per position.
+The script bin/uvcSurrogateAlign.sh is still under development and should be be used.
+
 
 For more information, please check the wiki.
 

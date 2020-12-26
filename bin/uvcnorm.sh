@@ -74,10 +74,3 @@ bcftools index --threads $numthreads -ft "${2}"
 
 exit 0
 
-bcftools view --threads $numthreads -i "(vNLODQ[0:0] > ${minNLODQ} && vNLODQ[0:1] > ${minNLODQ}) && (TYPE == 'snps' && QUAL  < ${minSNVqual} && vAC[${si}:0] == 0 || TYPE != 'snps' && QUAL  < ${minNonSNVqual}) && vAC[${si}:1] == 0" "${1}" -Oz -o "${2}.nonorm.vcf.gz"
-bcftools index --threads $numthreads -ft "${2}.nonorm.vcf.gz"
-bcftools view --threads $numthreads -i "(vNLODQ[0:0] > ${minNLODQ} && vNLODQ[0:1] > ${minNLODQ}) && (TYPE == 'snps' && QUAL >= ${minSNVqual} || TYPE != 'snps' && QUAL >= ${minNonSNVqual})" "${1}" | bcftools norm -m+${3} -Oz -o "${2}.norm.vcf.gz"
-bcftools index --threads $numthreads -ft "${2}.norm.vcf.gz"
-bcftools concat --threads $numthreads -a "${2}.nonorm.vcf.gz" "${2}.norm.vcf.gz" -Oz -o "${2}"
-rm "${2}.nonorm.vcf.gz" "${2}.nonorm.vcf.gz.tbi" "${2}.norm.vcf.gz" "${2}.norm.vcf.gz.tbi"
-

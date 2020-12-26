@@ -189,7 +189,7 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
         + "The " + std::to_string(OUTVAR_MGVCF) + " bit indicates symbolic MGVCF (multi-sample genomic VCF). "
                 "Each line of MGVCF contains multiple regions of potentially very different depths. "
                 "MGVCF is similar to GVCF but allows for easy comparison of sequencing depths of multiple samples at any arbitrary position). "
-        + "The " + std::to_string(OUTVAR_LONG_CLIP) + " bit indicates position with a lot of adjacent long clips, "
+        + "The " + std::to_string(OUTVAR_ADDITIONAL_INDEL_CANDIDATE) + " bit indicates position with noisy alignments nearby, "
                 "which can be a candidate for long InDel, CNV, SV, etc. "
         + "The " + std::to_string(OUTVAR_BASE_NN) + " bit indicates padded deletion at a nucleotide-base position between two adjacent gap positions. "
         + "The " + std::to_string(OUTVAR_LINK_NN) + " bit indicates padded deletion at a gap position between two adjacent nucleotide-base positions. "
@@ -776,11 +776,14 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
         "then this alignment is a candidate for non-small variants and is not counted in APDP[10]. ");
     ADD_OPTDEF2(app, microadjust_alignment_clip_min_frac,
         "If a position has at least this fraction of alignments not couted in APDP[10] and satisfies <--microadjust-alignment-clip-min-count>, "
-        "then its generates a <LONG_CLIP> record in the VCF. ");
+        "then it generates a <ADDITIONAL_INDEL_CANDIDATE> record in the VCF. ");
     ADD_OPTDEF2(app, microadjust_alignment_clip_min_count,
         "If a position has at least this number of alignments not couted in APDP[10] and satisfies <--microadjust-alignment-clip-min-frac>, "
-        "then its generates a <LONG_CLIP> record in the VCF. ");
-
+        "then it generates a <ADDITIONAL_INDEL_CANDIDATE> record in the VCF. ");
+    ADD_OPTDEF2(app, microadjust_alignment_tracklen_min,
+        "If a position has an STR track containing at least this number of bases, "
+        "then it generates a <ADDITIONAL_INDEL_CANDIDATE> record in the VCF. ");
+    
 // *** 14 debugging
     
     ADD_OPTDEF2(app, debug_note_flag,
