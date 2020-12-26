@@ -128,4 +128,5 @@ else
 fi
 
 date
+exit 0
 

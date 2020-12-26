@@ -290,7 +290,7 @@ enum AlignmentSymbol {
     LINK_NN, //  = 13, // padded InDel-noInDel symbol in deleted sequence
     END_ALIGNMENT_SYMBOLS,
     MGVCF_SYMBOL,
-    LONG_CLIP_SYMBOL,
+    ADDITIONAL_INDEL_CANDIDATE_SYMBOL,
 };
 
 #define NUM_ALIGNMENT_SYMBOLS 14
