@@ -217,7 +217,8 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("aRPT"  , BCF_NUM_R, BCF_INTEGER, "Raw summed distance (number of bases) to the right-side sequencing-segment end."),
     BcfFormatStruct("aLIT"  , BCF_NUM_R, BCF_INTEGER, "Raw summed distance (number of bases) to the left-side insert end."),
     BcfFormatStruct("aRIT"  , BCF_NUM_R, BCF_INTEGER, "Raw summed distance (number of bases) to the right-side insert end."),
-    
+    BcfFormatStruct("aP3"   , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth of reads that are not affected by nearby InDels."),
+
     BcfFormatStruct("__a1"  , 1,         BCF_SEP,     "Depths of the raw sequencing segments for the REF and each ALT allele."),
     BcfFormatStruct("aDPff" , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth with the R1-forward orientation and strand."),
     BcfFormatStruct("aDPfr" , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth with the R2-reverse orientation and strand."),
