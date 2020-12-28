@@ -1329,7 +1329,7 @@ dealwith_segbias(
         : (isrc ? symbol_to_seg_format_depth_set.seginfo_aDPfr : symbol_to_seg_format_depth_set.seginfo_aDPff));
     
     symbol_to_seg_aDP_depth_set += 1;
-    if ((dist_to_interfering_indel >= paramset.bias_thres_interfering_indel) && (seg_l_nbases > 1) && (seg_r_nbases > 1)) {
+    if (MIN3(dist_to_interfering_indel, seg_l_nbases, seg_r_nbases) >= paramset.bias_thres_interfering_indel) {
         symbol_to_seg_format_depth_set.seginfo_aP3 += 1;
     }
     
@@ -3264,7 +3264,7 @@ BcfFormat_symbol_calc_DPv(
     const double aDPFA1 = (aDP + pfa) / (double)(ADP + 1.0);
     const double labelFA = (fmt.aP2[a] + 1.5 + fmt.aP2[a]) / (fmt.AP2[0] + 2.0 + fmt.aP2[a]); // assay-type bias
     const double aDPFA = MIN(
-            (isSymbolSubstitution(symbol) ? MIN(aDPFA1, MAX(aDPFA1 / 2, aDPFAdel)) : (aDPFA1)),
+            (isSymbolSubstitution(symbol) ? MIN(aDPFA1, MAX(aDPFA1 / 3, aDPFAdel)) : (aDPFA1)), // the number 3 is magic
             labelFA * (ADP + 1.0) / (fmt.AP2[0] + 0.5) * unbias_ratio);
     // substitution in indel region, substitution in indel-prone region or indel, other cases 
     uvc1_readnum_t aDPplus = (isSymbolSubstitution(symbol) ? 0 : ((aDP + 1) * paramset.bias_prior_DPadd_perc / 100));
@@ -3704,7 +3704,8 @@ BcfFormat_symbol_calc_qual(
     const uvc1_readnum_t cDP2 = (fmt.cDP2f[a] + fmt.cDP2r[a]);
     const uvc1_readnum_t CDP2 = (fmt.CDP2f[0] + fmt.CDP2r[0]);
     
-    const auto diffAaMQs = (uvc1_qual_t)((fmt.AMQs[0] - fmt.aMQs[a]) / MAX(1, ADP - aDP)) - (uvc1_qual_t)(fmt.aMQs[a] / MAX(1, aDP));
+    const uvc1_qual_t aavgMQ = (uvc1_qual_t)(fmt.aMQs[a] / MAX(1, aDP));
+    const auto diffAaMQs = (uvc1_qual_t)((fmt.AMQs[0] - fmt.aMQs[a]) / MAX(1, ADP - aDP)) - aavgMQ;
     const auto tn_q_inc_max = paramset.tn_q_inc_max;
     
     const auto noUMI_bias_inc = MIN(paramset.bias_FA_powerlaw_noUMI_phred_inc_snv, aDP/2); 
@@ -3879,14 +3880,14 @@ BcfFormat_symbol_calc_qual(
             : (MIN(paramset.germ_phred_homalt_snp, ADP * 3)));
     const uvc1_qual_t _systematicMQVQminus = ((is_aln_extra_accurate || !isSymbolSubstitution(symbol)) 
             ? 0 
-            : MAX(0, 70 - 60 - fmt.bMQ[a]));
+            : MAX(0, ((60- 30) - aavgMQ) / 2));
     const uvc1_qual_t _systematicMQ = (((refsymbol == symbol) && (ADP > aDP * 2))
                 ? fmt.bMQ[a] // small
                 : (fmt.bMQ[a] * (paramset.syserr_MQ_max - paramset.syserr_MQ_nonref_base) / paramset.syserr_MQ_max + paramset.syserr_MQ_nonref_base))
             - (uvc1_qual_t)(diffMQ)
             - (uvc1_qual_t)(fmt.bNMQ[a])
             - (uvc1_qual_t)(numstates2phred((ADP + 1.0) / (aDP + 0.5)));
-    const auto systematicMQVQ = MIN(non_neg_minus(MAX(_systematicMQ, paramset.syserr_MQ_min) + _systematicMQVQadd, _systematicMQVQminus), readlenMQcap);
+    const auto systematicMQVQ = MIN((MAX(_systematicMQ, paramset.syserr_MQ_min) + _systematicMQVQadd), readlenMQcap);
     
     const uvc1_qual_t systematicBQVQ = (
             ((SEQUENCING_PLATFORM_IONTORRENT != paramset.inferred_sequencing_platform) && isSymbolSubstitution(AlignmentSymbol(LAST(fmt.VTI)))) 
@@ -3914,7 +3915,7 @@ BcfFormat_symbol_calc_qual(
     clear_push(fmt.gVQ1, MAX(
             0, 
             indel_q_inc + MIN3(
-                MIN(systematicBQVQ, systematicMQVQ),
+                MIN(systematicBQVQ, non_neg_minus(systematicMQVQ, _systematicMQVQminus)),
                 LAST(fmt.bIAQ) - penal4BQerr, 
                 LAST(fmt.cPLQ1)) - 2 * MAX3(
                     0, 
