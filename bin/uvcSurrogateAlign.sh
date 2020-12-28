@@ -43,7 +43,7 @@ if [ -z "${bed}" ]; then
     bed="${outdir}/superactive.bed"
     echo "Will generate the bed file ${bed} which contains superactive regions used for surrogate alignments. "
     printf "track name=superactive description=\"Containing super-active regions (regions with noisy alignments) for surrogate alignments.\"\n" > "${bed}"
-    bcftools query -f '%CHROM\t%POS0\t%END\t%ID\n' -i "ALT = \"<LONG_CLIP>\"" "${invcf}" | bedtools slop -b 120 -g "${ref}.fai" -i - | bedtools merge -i - >> "${bed}"
+    bcftools query -f '%CHROM\t%POS0\t%END\t%ID\n' -i "ALT = \"<ADDITIONAL_INDEL_CANDIDATE>\"" "${invcf}" | bedtools slop -b 120 -g "${ref}.fai" -i - | bedtools merge -i - >> "${bed}"
 fi
 
 samtools view -@ ${nbams} -L "${bed}" "${bam}" -bhu | samtools sort -@ ${nbams} -n -u -o - | samtools fastq -@ ${nbams} - -s "${fq0}" -1 "${fq1}" -2 "${fq2}"
