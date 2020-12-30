@@ -1356,7 +1356,7 @@ dealwith_segbias(
     const auto bias_thres_highBAQ = paramset.bias_thres_highBAQ + (isGap ? 0 : 3);
     const bool is_unaffected_by_edge = (seg_l_baq >= bias_thres_highBAQ && seg_r_baq >= bias_thres_highBAQ);
     
-    if (is_far_from_edge && is_unaffected_by_edge) {
+    if (is_far_from_edge && is_unaffected_by_edge && (MIN(frag_l_nbases2, frag_r_nbases2) > paramset.primerlen2 || !is_assay_amplicon)) {
         symbol_to_seg_format_depth_set.seginfo_aP1 += 1;
     }
     if (is_assay_UMI || !is_assay_amplicon) {
@@ -3218,10 +3218,17 @@ BcfFormat_symbol_calc_DPv(
     double _dir_bias_div = 1.0;
     const bool is_real_amplicon1 = ((NOT_PROVIDED == paramset.vcf_tumor_fname) ? is_strong_amplicon : is_weak_amplicon);
     if ((is_real_amplicon1 && (0x2 == (0x2 & paramset.nobias_flag))) || ((!is_real_amplicon1) && (0x1 == (0x1 & paramset.nobias_flag)))) {
-        
         // counter bias : position 23-10 bp and base quality 13
         // not-pos-bias < pos-bias
-        const bool is_pos_counterbias = ((fmt.AP1[0] < (ADP - fmt.AP1[0]) * unbias_ratio) && (!isSymbolSubstitution(symbol)));
+        const double using_bias_aFA = (aDP - LAST(fmt.aP1) + 0.5) / (ADP - fmt.AP1[0] + 1.0);
+        const double using_all_aFA = (aDP + 0.5) / (ADP + 1.0);
+        
+        // for ERP015684 T610 17_37871708_A_G, is_pos_counterbias becomes true to rescue the TP call by eliminating the primer-induced position bias and orientation bias
+        const bool is_pos_counterbias = (
+                   (using_bias_aFA * 4  < using_all_aFA * (unbias_ratio - DBL_EPSILON))
+                && (LAST(fmt.aP1) * (unbias_ratio - DBL_EPSILON) > aDP - LAST(fmt.aP1))
+                && ((ADP - fmt.AP1[0]) * 4 * (unbias_ratio - DBL_EPSILON)  > fmt.AP1[0])
+                && ((0 == paramset.primerlen && 0 != paramset.primerlen2) || !isSymbolSubstitution(symbol)));
         if (is_pos_counterbias) {
             UPDATE_MAX(_counterbias_P_FA, (LAST(fmt.aP1) + 0.5) / (MAX(fmt.AP1[0], fmt.APDP[9]) + 1.0));
         } else {

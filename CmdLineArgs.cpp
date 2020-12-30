@@ -296,6 +296,8 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
     ADD_OPTDEF2(app, primerlen,
         "Usual maximum number of bases from each end of each insert that are part of the primers for amplicon assay "
         "(22 from https://doi.org/10.1007/978-1-4020-6241-4_5 and 24 from https://doi.org/10.1101/gr.3.3.s30). ");
+    ADD_OPTDEF2(app, primerlen2,
+        "Primer length that is used to cancel out bias. ");
     
     ADD_OPTDEF2(app, central_readlen, 
         "Central (median) value for read lengths, 0 means estimate from the data. ");

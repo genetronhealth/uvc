@@ -79,7 +79,7 @@ struct CommandLineArgs {
     PairEndMerge pair_end_merge = PAIR_END_MERGE_YES;
     bool              disable_duplex = false;
     uvc1_readpos_t    primerlen = 0; // 23; // https://link.springer.com/chapter/10.1007/978-1-4020-6241-4_5 : 18 - 22 bps
-                                // https://genome.cshlp.org/content/3/3/S30.full.pdf : 18 - 24 bps
+    uvc1_readpos_t    primerlen2 = 23; // https://genome.cshlp.org/content/3/3/S30.full.pdf : 18 - 24 bps
     uvc1_readpos_t    central_readlen = 0; // estimate from the data
     uvc1_qual_t       bq_phred_added_misma = 0; // estimate from the data
     uvc1_qual_t       bq_phred_added_indel = 0; // estimate from the data
