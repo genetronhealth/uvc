@@ -312,7 +312,12 @@ if (MGVCF_SYMBOL != symbol && ADDITIONAL_INDEL_CANDIDATE_SYMBOL != symbol) {
         valsize = bcf_get_format_int32(bcf_hdr, line, "bNMQ", &bcfints, &ndst_val);
         assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for bNMQ and line %d!\n", ndst_val, valsize, line->pos));
         tki.bNMQ = bcfints[1];
-
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_int32(bcf_hdr, line, "vHGQ", &bcfints, &ndst_val);
+        assert((1 == ndst_val && 1 == valsize) || !fprintf(stderr, "1 == %d && 1 == %d failed for vHGQ and line %d!\n", ndst_val, valsize, line->pos));
+        tki.vHGQ = bcfints[0];
+        
         // extra code for backward compatibility
 
         BCF_GET_FORMAT_INT32_WITH_CHECK("CDP1f");
@@ -687,7 +692,8 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                     && (aCDP >= ADP * (paramset.microadjust_alignment_clip_min_frac - DBL_EPSILON)));
             if ((OUTVAR_ADDITIONAL_INDEL_CANDIDATE & paramset.outvar_flag)
                     && (SYMBOL_TYPE_ARR[0] == symboltype)
-                    && (is_in_long_track || is_in_clip_region)) {
+                    && (is_in_long_track || is_in_clip_region)
+                    && (ADP >= 2 * paramset.microadjust_alignment_clip_min_count)) {
                 const auto vcfREF = refstring.substr(refpos - extended_inclu_beg_pos, 1);
                 const AlignmentSymbol match_refsymbol = CHAR_TO_SYMBOL.data[vcfREF[0]];
                 const std::string vcfline = string_join(std::vector<std::string>{{
@@ -1009,7 +1015,11 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                      || ((LINK_NN == symbol) && !(OUTVAR_LINK_NN & paramset.outvar_flag)));
                 if (will_generate_out && !is_out_blocked) {
                     fmt.GT = "./1";
-                    nlodq = std::get<0>(nlodq_fmtptr1_fmtptr2_tup);
+                    const auto nlodq_singlesite = std::get<0>(nlodq_fmtptr1_fmtptr2_tup);
+                    // the 3 accounts for mapping error and copy-number variation
+                    const auto nlodq_singlesample = nlodq_singlesite - 3 
+                            + (isSymbolSubstitution(symbol) ? paramset.germ_phred_hetero_snp : paramset.germ_phred_hetero_indel);
+                    
                     assert ((NOT_PROVIDED == paramset.vcf_tumor_fname) == (0 == tki.ref_alt.size()));
                     if (NOT_PROVIDED != paramset.vcf_tumor_fname) {
                         uvc1_qual_t nlodq_inc = 999;
@@ -1048,9 +1058,13 @@ process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
                                 }
                             }
                         }
-                        nlodq += nlodq_inc;
+                        const auto totBDP = (fmt.BDPf[0] + fmt.BDPr[0]);
+                        const auto n_norm_alts = (totBDP - (FIRST(fmt.bDPf) + FIRST(fmt.bDPr))) + (LAST(fmt.bDPf) + LAST(fmt.bDPr));
+                        nlodq = MAX(nlodq_singlesite + nlodq_inc, tki.vHGQ + MIN(3, totBDP - n_norm_alts * (int)round(0.5 / paramset.contam_any_mul_frac)));
+                    } else {
+                        nlodq = nlodq_singlesample;
                     }
-                    
+                    fmt.vHGQ = nlodq_singlesample;
                     append_vcf_record(
                             buf_out_string_pass,
                             std::get<0>(tname_tseqlen_tuple).c_str(),

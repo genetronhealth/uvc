@@ -330,6 +330,7 @@ struct TumorKeyInfo {
     uvc1_qual_t cPCQ2 = 0;
     
     uvc1_qual_t bNMQ = 0;
+    uvc1_qual_t vHGQ = 0;
     bcf1_t *bcf1_record = NULL;
     
     uvc1_readnum_t tDP = 0;

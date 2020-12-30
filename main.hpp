@@ -3876,11 +3876,11 @@ BcfFormat_symbol_calc_qual(
     const uvc1_qual_t diffMQ = (MAX(0, diffAaMQs));
     const bool is_aln_extra_accurate = (paramset.inferred_maxMQ > 60);
     const uvc1_qual_t _systematicMQVQadd = (uvc1_qual_t)((symbol == refsymbol) 
-            ? 0
-            : (MIN(paramset.germ_phred_homalt_snp, ADP * 3)));
-    const uvc1_qual_t _systematicMQVQminus = ((is_aln_extra_accurate || !isSymbolSubstitution(symbol)) 
-            ? 0 
-            : MAX(0, ((60- 30) - aavgMQ) / 2));
+            ? 0 : (MIN(paramset.germ_phred_homalt_snp, ADP * 3)));
+    const bool is_MQ_unadjusted = (is_aln_extra_accurate || (!isSymbolSubstitution(symbol)) || (aDP > ADP * 3/4));
+    const uvc1_qual_t _systematicMQVQminus =  
+             (is_MQ_unadjusted ? 0 : (non_neg_minus((60- 30), aavgMQ) / 3))
+          + ((is_MQ_unadjusted || (refsymbol != symbol)) ? 0 : non_neg_minus(MIN(13, diffMQ), aavgMQ));
     const uvc1_qual_t _systematicMQ = (((refsymbol == symbol) && (ADP > aDP * 2))
                 ? fmt.bMQ[a] // small
                 : (fmt.bMQ[a] * (paramset.syserr_MQ_max - paramset.syserr_MQ_nonref_base) / paramset.syserr_MQ_max + paramset.syserr_MQ_nonref_base))
@@ -4524,7 +4524,7 @@ fill_tki(auto & tki, const auto & fmt, size_t a = 1) {
     tki.cPCQ2 = fmt.cPCQ2.at(a);
     
     tki.bNMQ = fmt.bNMQ.at(a);
-    
+    tki.vHGQ = fmt.vHGQ;
     return 0;
 };
 
