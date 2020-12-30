@@ -1356,7 +1356,8 @@ dealwith_segbias(
     const auto bias_thres_highBAQ = paramset.bias_thres_highBAQ + (isGap ? 0 : 3);
     const bool is_unaffected_by_edge = (seg_l_baq >= bias_thres_highBAQ && seg_r_baq >= bias_thres_highBAQ);
     
-    if (is_far_from_edge && is_unaffected_by_edge && (MIN(frag_l_nbases2, frag_r_nbases2) > paramset.primerlen2 || !is_assay_amplicon)) {
+    const auto min_dist2iend = ((aln->core.flag & 0x1) ? MIN(frag_l_nbases2, frag_r_nbases2) : (isrc ? seg_r_nbases : seg_l_nbases));
+    if (is_far_from_edge && is_unaffected_by_edge && (min_dist2iend > paramset.primerlen2 || !is_assay_amplicon)) {
         symbol_to_seg_format_depth_set.seginfo_aP1 += 1;
     }
     if (is_assay_UMI || !is_assay_amplicon) {
