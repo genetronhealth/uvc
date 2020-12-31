@@ -3267,12 +3267,13 @@ BcfFormat_symbol_calc_DPv(
     const double counterbias_BQ_FA = _counterbias_BQ_FA;
     const double dir_bias_div = _dir_bias_div;
     
-    const double aDPdel = (fmt.ADPff[1] + fmt.ADPfr[1] + fmt.ADPrf[1] + fmt.ADPrr[1]);
-    const double aDPFAdel = (fmt.aP3[a] + pfa) / (double)(aDPdel + 1.0);
-    const double aDPFA1 = (aDP + pfa) / (double)(ADP + 1.0);
+    // const double aDPdel = (fmt.ADPff[1] + fmt.ADPfr[1] + fmt.ADPrf[1] + fmt.ADPrr[1]); // APDP
+    const auto aDPgap = non_neg_minus(MAX(fmt.APDP[1], fmt.APDP[2]), fmt.aP3[a]);
+    const double aDPFAgap = ((rtr1.tracklen + rtr2.tracklen < paramset.indel_str_repeatsize_max) ? 1.0 : ((fmt.aP3[a] + pfa) / (aDPgap + 1.0)));
+    const double aDPFA1 = ((aDP + pfa) / (ADP + 1.0));
     const double labelFA = (fmt.aP2[a] + 1.5 + fmt.aP2[a]) / (fmt.AP2[0] + 2.0 + fmt.aP2[a]); // assay-type bias
     const double aDPFA = MIN(
-            (isSymbolSubstitution(symbol) ? MIN(aDPFA1, MAX(aDPFA1 / 3, aDPFAdel)) : (aDPFA1)), // the number 3 is magic
+            (isSymbolSubstitution(symbol) ? MIN(aDPFA1, MAX(aDPFA1 / 3, aDPFAgap)) : (aDPFA1)), // the number 3 is magic
             labelFA * (ADP + 1.0) / (fmt.AP2[0] + 0.5) * unbias_ratio);
     // substitution in indel region, substitution in indel-prone region or indel, other cases 
     uvc1_readnum_t aDPplus = (isSymbolSubstitution(symbol) ? 0 : ((aDP + 1) * paramset.bias_prior_DPadd_perc / 100));
@@ -3887,8 +3888,8 @@ BcfFormat_symbol_calc_qual(
             ? 0 : (MIN(paramset.germ_phred_homalt_snp, ADP * 3)));
     const bool is_MQ_unadjusted = (is_aln_extra_accurate || (!isSymbolSubstitution(symbol)) || (aDP > ADP * 3/4));
     const uvc1_qual_t _systematicMQVQminus =  
-             (is_MQ_unadjusted ? 0 : (non_neg_minus((60- 30), aavgMQ) / 3))
-          + ((is_MQ_unadjusted || (refsymbol != symbol)) ? 0 : non_neg_minus(MIN(13, diffMQ), aavgMQ));
+             (is_MQ_unadjusted ? 0 : (non_neg_minus((60- 30), aavgMQ) * 2 / 5))
+          + ((is_MQ_unadjusted || (refsymbol != symbol)) ? 0 : non_neg_minus(MIN(15, diffMQ), aavgMQ));
     const uvc1_qual_t _systematicMQ = (((refsymbol == symbol) && (ADP > aDP * 2))
                 ? fmt.bMQ[a] // small
                 : (fmt.bMQ[a] * (paramset.syserr_MQ_max - paramset.syserr_MQ_nonref_base) / paramset.syserr_MQ_max + paramset.syserr_MQ_nonref_base))
