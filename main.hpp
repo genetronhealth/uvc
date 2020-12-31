@@ -3834,7 +3834,8 @@ BcfFormat_symbol_calc_qual(
                 UNSIGN2SIGN(repeatunit.size()), repeatnum), 24) + 2 - (double)10;
         const auto eff_tracklen1 = (UNSIGN2SIGN(repeatunit.size()) * UNSIGN2SIGN(MAX(1, repeatnum)) - UNSIGN2SIGN(repeatunit.size()));
         const auto eff_tracklen2 = (MAX(rtr1.tracklen - rtr1.unitlen, rtr2.tracklen - rtr2.unitlen) / 3);
-        const double indel_ic = numstates2phred((double)MAX(indelstring.size() + (isSymbolIns(symbol) ? INS_N_ANCHOR_BASES : 0), (size_t)1) / (double)(MAX(UNSIGN2SIGN(eff_tracklen1), eff_tracklen2) + 1));
+        const double indel_ic = numstates2phred((double)MAX(indelstring.size() + (isSymbolIns(symbol) ? INS_N_ANCHOR_BASES : 0), (size_t)1) / (double)(MAX(UNSIGN2SIGN(eff_tracklen1), eff_tracklen2) + 1)) 
+                + (isSymbolIns(symbol) ? (numstates2phred(paramset.indel_del_to_ins_err_ratio) * MIN(200, fmt.cDP0a[a]) / 200) : 0);
         auto indelcdepth = (isSymbolIns(symbol) ? ins_cdepth : del_cdepth);
         if (LINK_D1 == symbol) {
             indelcdepth += ins1_cdepth;
