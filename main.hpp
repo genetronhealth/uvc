@@ -3713,8 +3713,6 @@ BcfFormat_symbol_calc_qual(
     const uvc1_readnum_t cDP2 = (fmt.cDP2f[a] + fmt.cDP2r[a]);
     const uvc1_readnum_t CDP2 = (fmt.CDP2f[0] + fmt.CDP2r[0]);
     
-    const uvc1_readnum_t bDP = (fmt.bDPf[a] + fmt.bDPr[a]);
-    
     const uvc1_qual_t aavgMQ = (uvc1_qual_t)(fmt.aMQs[a] / MAX(1, aDP));
     const auto diffAaMQs = (uvc1_qual_t)((fmt.AMQs[0] - fmt.aMQs[a]) / MAX(1, ADP - aDP)) - aavgMQ;
     const auto tn_q_inc_max = paramset.tn_q_inc_max;
@@ -3837,7 +3835,7 @@ BcfFormat_symbol_calc_qual(
         const auto eff_tracklen1 = (UNSIGN2SIGN(repeatunit.size()) * UNSIGN2SIGN(MAX(1, repeatnum)) - UNSIGN2SIGN(repeatunit.size()));
         const auto eff_tracklen2 = (MAX(rtr1.tracklen - rtr1.unitlen, rtr2.tracklen - rtr2.unitlen) / 3);
         const double indel_ic = numstates2phred((double)MAX(indelstring.size() + (isSymbolIns(symbol) ? INS_N_ANCHOR_BASES : 0), (size_t)1) / (double)(MAX(UNSIGN2SIGN(eff_tracklen1), eff_tracklen2) + 1)) 
-                + (isSymbolIns(symbol) ? (numstates2phred(paramset.indel_del_to_ins_err_ratio) * (MIN(200, fmt.cDP0a[a]) * (1 + MIN(cDP0, bDP))) / (200 * (1 + bDP))) : 0);
+                + (isSymbolIns(symbol) ? (numstates2phred(paramset.indel_del_to_ins_err_ratio) * MIN(200, fmt.cDP0a[a]) / 200) : 0);
         auto indelcdepth = (isSymbolIns(symbol) ? ins_cdepth : del_cdepth);
         if (LINK_D1 == symbol) {
             indelcdepth += ins1_cdepth;
@@ -3921,8 +3919,7 @@ BcfFormat_symbol_calc_qual(
     clear_push(fmt.cTINQ, contam_sscs_withmin_qual + contam_syserr_phred_bypassed, a);
 
     const uvc1_readnum_t aDPpc = ((refsymbol == symbol) ? 1 : 0);
-    const uvc1_qual_t penal4BQerr = (isSymbolSubstitution(symbol) ? (5 + MIN(non_neg_minus(40, aavgMQ), 20) / 2 
-            + UNSIGN2SIGN(((int64_t)paramset.penal4lowdep) / (int64_t)mathsquare((int64_t)MAX(1, aDP + aDPpc)))) : 0);
+    const uvc1_qual_t penal4BQerr = (isSymbolSubstitution(symbol) ? (5 + UNSIGN2SIGN(((int64_t)paramset.penal4lowdep) / (int64_t)mathsquare((int64_t)MAX(1, aDP + aDPpc)))) : 0);
     
     const uvc1_qual_t indel_q_inc = ((((!isSymbolIns(symbol)) && (!isSymbolDel(symbol))) || is_rescued) ? 0 : indel_len_rusize_phred(indelstring.size(), repeatnum));
     clear_push(fmt.gVQ1, MAX(
@@ -3935,8 +3932,10 @@ BcfFormat_symbol_calc_qual(
                     indel_penal4multialleles - paramset.indel_multiallele_soma_penal_thres, 
                     indel_penal4multialleles_g)),
     a);
+    const uvc1_qual_t systematicVQsomatic_minus = 15 - MIN(ADP * 15 / 100, 15);
+    const uvc1_qual_t systematicVQsomatic = non_neg_minus(MIN(systematicBQVQ, systematicMQVQ), systematicVQsomatic_minus);
     const auto bcVQ1 = MIN3(
-                MIN(systematicBQVQ, systematicMQVQ),
+                systematicVQsomatic,
                 LAST(fmt.bIAQ) - (is_rescued ? 0 : penal4BQerr), 
                 LAST(fmt.cPLQ1)) - indel_penal4multialleles_soma;
     clear_push(fmt.cVQ1, MAX(0, MIN(bcVQ1, LAST(fmt.bTINQ)) - indel_UMI_penal), a);
@@ -3956,7 +3955,7 @@ BcfFormat_symbol_calc_qual(
     const uvc1_qual_big_t dVQinc = MIN(dFA_vq_binom, dFA_vq_powlaw) - MAX(0, MIN(LAST(fmt.cIAQ), LAST(fmt.cPLQ2)));
     clear_push(fmt.dVQinc, dVQinc, a);
     
-    const uvc1_qual_t cVQ2 = MIN3(MIN(systematicBQVQ, systematicMQVQ),
+    const uvc1_qual_t cVQ2 = MIN3(systematicVQsomatic,
             LAST(fmt.cIAQ) + MAX(0, dVQinc),
             LAST(fmt.cPLQ2) + MAX(0, dVQinc)) - indel_penal4multialleles;
     clear_push(fmt.cVQ2, MAX(mincVQ2, MIN(cVQ2, LAST(fmt.cTINQ))), a);
