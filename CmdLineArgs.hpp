@@ -333,7 +333,7 @@ struct CommandLineArgs {
     uvc1_qual_t         microadjust_ref_MQ_dec_max = 15;
     
     uvc1_qual_t         microadjust_syserr_MQ_NMR_tn_syserr_no_penal_qual_min = 30;
-    uvc1_qual_t         microadjust_syserr_MQ_NMR_tn_syserr_no_penal_qual_max = 39;
+    uvc1_qual_t         microadjust_syserr_MQ_NMR_tn_syserr_no_penal_qual_max = 30+12;
     uvc1_readpos_t      microadjust_near_clip_dist = 2;
     
     uvc1_readpos_t      microadjust_longfrag_sidelength_min = 300; // both sides span at least one exon
