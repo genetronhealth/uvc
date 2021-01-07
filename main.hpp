@@ -2822,8 +2822,8 @@ fill_symbol_VQ_fmts(
     uvc1_readnum_t aDPf = fmt.aDPff[a] + fmt.aDPrf[a];
     uvc1_readnum_t aDPr = fmt.aDPfr[a] + fmt.aDPrr[a];
     uvc1_readnum_t ADP = fmt.ADPff[0] + fmt.ADPrf[0] + fmt.ADPfr[0] + fmt.ADPrr[0];
-    const uvc1_qual_t rssDPfBQ = (aDPf * sqrt(a2BQf * SQR_QUAL_DIV / MAX(1, aDPf)));
-    const uvc1_qual_t rssDPrBQ = (aDPr * sqrt(a2BQr * SQR_QUAL_DIV / MAX(1, aDPr)));
+    const uvc1_qual_t rssDPfBQ = (aDPf * sqrt(int64mul(a2BQf, SQR_QUAL_DIV) / MAX(1, aDPf)));
+    const uvc1_qual_t rssDPrBQ = (aDPr * sqrt(int64mul(a2BQr, SQR_QUAL_DIV) / MAX(1, aDPr)));
     
     const uvc1_qual_t rssDPbBQ = ((aDPf + aDPr) * sqrt((a2BQf + a2BQr) * SQR_QUAL_DIV / MAX(1, aDPf + aDPr)));
     

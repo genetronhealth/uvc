@@ -490,10 +490,10 @@ struct SegFormatInfoSet {
     
     uvc1_readnum_t seginfo_aLB1; // left seg pos
     uvc1_readnum_t seginfo_aLB2;
-    uvc1_readpos_t seginfo_aLBL;
+    uvc1_readpos_big_t seginfo_aLBL;
     uvc1_readnum_t seginfo_aRB1; // right seg pos
     uvc1_readnum_t seginfo_aRB2;
-    uvc1_readpos_t seginfo_aRBL;
+    uvc1_readpos_big_t seginfo_aRBL;
     
     uvc1_readnum_t seginfo_aLI1; // left insert
     uvc1_readnum_t seginfo_aLI2;
@@ -506,8 +506,8 @@ struct SegFormatInfoSet {
 
     uvc1_readpos_t seginfo_aLPT;
     uvc1_readpos_t seginfo_aRPT;
-    uvc1_readpos_t seginfo_aLIT;
-    uvc1_readpos_t seginfo_aRIT;
+    uvc1_readpos_big_t seginfo_aLIT;
+    uvc1_readpos_big_t seginfo_aRIT;
 };
 
 enum FragFormatDepthSet {
