@@ -3932,7 +3932,7 @@ BcfFormat_symbol_calc_qual(
                     indel_penal4multialleles - paramset.indel_multiallele_soma_penal_thres, 
                     indel_penal4multialleles_g)),
     a);
-    const uvc1_qual_t systematicVQsomatic_minus = 15 - MIN(ADP * 15 / 100, 15);
+    const uvc1_qual_t systematicVQsomatic_minus = (is_rescued ? 0 : (15 - MIN3(ADP * 15 / 100, aDP, 15)));
     const uvc1_qual_t systematicVQsomatic = non_neg_minus(MIN(systematicBQVQ, systematicMQVQ), systematicVQsomatic_minus);
     const auto bcVQ1 = MIN3(
                 systematicVQsomatic,
