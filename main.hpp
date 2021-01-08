@@ -3217,8 +3217,8 @@ BcfFormat_symbol_calc_DPv(
     double _counterbias_P_FA = 1e-9;
     double _counterbias_BQ_FA = 1e-9;
     double _dir_bias_div = 1.0;
-    const bool is_real_amplicon1 = ((NOT_PROVIDED == paramset.vcf_tumor_fname) ? is_strong_amplicon : is_weak_amplicon);
-    if ((is_real_amplicon1 && (0x2 == (0x2 & paramset.nobias_flag))) || ((!is_real_amplicon1) && (0x1 == (0x1 & paramset.nobias_flag)))) {
+    const bool is_nmore_amplicon = ((NOT_PROVIDED == paramset.vcf_tumor_fname) ? is_strong_amplicon : is_weak_amplicon);
+    if ((is_nmore_amplicon && (0x2 == (0x2 & paramset.nobias_flag))) || ((!is_nmore_amplicon) && (0x1 == (0x1 & paramset.nobias_flag)))) {
         // counter bias : position 23-10 bp and base quality 13
         // not-pos-bias < pos-bias
         const double using_bias_aFA = (aDP - LAST(fmt.aP1) + 0.5) / (ADP - fmt.AP1[0] + 1.0);
@@ -3344,7 +3344,7 @@ BcfFormat_symbol_calc_DPv(
             MAX(1, f.aRBL[a]) / (double)MAX(1, f.aBQ2[a]), MAX(1, f.ARBL[0]) / (double)MAX(1, f.ABQ2[0]), ((is_in_indel_read) ? paramset.bias_FA_pseudocount_indel_in_read : 0.5));
     double aLBFA = aLBFAx2[0];
     double aRBFA = aRBFAx2[0];
-    const bool is_real_amplicon2 = ((NOT_PROVIDED == paramset.vcf_tumor_fname) ? is_weak_amplicon : is_strong_amplicon);
+    const bool is_tmore_amplicon = ((NOT_PROVIDED == paramset.vcf_tumor_fname) ? is_weak_amplicon : is_strong_amplicon);
     
     std::array<double, 2> _aLIFAx2 = {{ 0, 0 }};
     {
@@ -3357,7 +3357,7 @@ BcfFormat_symbol_calc_DPv(
                 aLpd, ALpd, 0.25, 0.5);
         
     }
-    double aLIFA = _aLIFAx2[0] * ((is_real_amplicon2) ? (dir_bias_div) : MAX(dir_bias_div, aDPFA / _aLIFAx2[1]));
+    double aLIFA = _aLIFAx2[0] * ((is_tmore_amplicon) ? (dir_bias_div) : MAX(dir_bias_div, aDPFA / _aLIFAx2[1]));
     
     std::array<double, 2> _aRIFAx2 = {{ 0, 0 }};
     {
@@ -3369,7 +3369,7 @@ BcfFormat_symbol_calc_DPv(
                 paramset.powlaw_exponent, phred2nat(aIpriorfreq),
                 aRpd, ARpd, 0.25, 0.5);
     }
-    double aRIFA = _aRIFAx2[0] * ((is_real_amplicon2) ? (dir_bias_div) : MAX(dir_bias_div, aDPFA / _aRIFAx2[1]));
+    double aRIFA = _aRIFAx2[0] * ((is_tmore_amplicon) ? (dir_bias_div) : MAX(dir_bias_div, aDPFA / _aRIFAx2[1]));
     
     const double aSIFA = MAX( 
         (f.aLI1[a] + 0.5) / (f.ALI2[0] + f.aLI1[a] - f.aLI2[a] + 1.0), 
@@ -3481,7 +3481,7 @@ BcfFormat_symbol_calc_DPv(
         / paramset.microadjust_longfrag_sidelength_zeroMQpenalty;
     
     const double _alt_frac_mut_affected_tpos = fbTB / fbTA; // is low by default
-    const double alt_frac_mut_affected_tpos = (is_real_amplicon1 ? (MAX(0, _alt_frac_mut_affected_tpos - 0.2) * 1.25) : _alt_frac_mut_affected_tpos);
+    const double alt_frac_mut_affected_tpos = (is_nmore_amplicon ? (MAX(0, _alt_frac_mut_affected_tpos - 0.2) * 1.25) : _alt_frac_mut_affected_tpos);
     const double nonalt_frac_mut_affected_tpos = (fBTB + paramset.contam_any_mul_frac * fbTB - fbTB) / (fBTA + paramset.contam_any_mul_frac * fbTA - fbTA); // is same as alt by default
     const double frac_mut_affected_pos = MAX(paramset.syserr_MQ_NMR_expfrac, 
               paramset.syserr_MQ_NMR_altfrac_coef    * alt_frac_mut_affected_tpos * frag_sidelen_frac
@@ -3813,13 +3813,13 @@ BcfFormat_symbol_calc_qual(
     clear_push(fmt.cMmQ, cMmQ);
     
     const double eps = (double)FLT_EPSILON;
-    const bool is_indel_pena_applied = ((SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform) && (NOT_PROVIDED == paramset.vcf_tumor_fname));
-    const uvc1_qual_t indel_pena_base = (is_indel_pena_applied 
+    const bool is_indel_penal_applied = ((SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform) && (NOT_PROVIDED == paramset.vcf_tumor_fname));
+    const uvc1_qual_t indel_penal_base = (is_indel_penal_applied 
                 ? ((uvc1_qual_t)round(paramset.indel_multiallele_samepos_penal / log(2) 
                 * log((double)MAX3(aDP + eps, fmt.APDP[1], fmt.APDP[2]) / (double)(aDP + eps)))) 
                 : 0);
     if (paramset.should_add_note) {
-        fmt.note += std::string("/pb/") + std::to_string(indel_pena_base) + "/" 
+        fmt.note += std::string("/pb/") + std::to_string(indel_penal_base) + "/" 
                 + std::to_string(paramset.inferred_sequencing_platform) + "/(" + paramset.vcf_tumor_fname + ")/";
     }
     uvc1_qual_t indel_penal4multialleles = 0;
@@ -3897,27 +3897,44 @@ BcfFormat_symbol_calc_qual(
             - (uvc1_qual_t)(diffMQ)
             - (uvc1_qual_t)(fmt.bNMQ[a])
             - (uvc1_qual_t)(numstates2phred((ADP + 1.0) / (aDP + 0.5)));
-    const auto systematicMQVQ = MIN((MAX(_systematicMQ, paramset.syserr_MQ_min) + _systematicMQVQadd), readlenMQcap);
+    auto systematicMQVQ1 = MIN((MAX(_systematicMQ, paramset.syserr_MQ_min) + _systematicMQVQadd), readlenMQcap);
     
     const uvc1_qual_t systematicBQVQ = (
             ((SEQUENCING_PLATFORM_IONTORRENT != paramset.inferred_sequencing_platform) && isSymbolSubstitution(AlignmentSymbol(LAST(fmt.VTI)))) 
             ? fmt.aBQQ[a] : (200));
     
+    // ad-hoc
+    const bool is_strong_amplicon = (fmt.APDP[5] * 100 > fmt.APDP[0] * 60);
+    const bool is_weak_amplicon = (fmt.APDP[5] * 100 > fmt.APDP[0] * 40);
+    const bool is_tmore_amplicon = ((NOT_PROVIDED == paramset.vcf_tumor_fname) ? is_weak_amplicon : is_strong_amplicon);
+    
+    if (is_tmore_amplicon && (isSymbolIns(symbol) || isSymbolDel(symbol)) && (systematicBQVQ > 70)
+            && (fmt.APXM[1] / MAX(fmt.APDP[0], 1) > 20)) {
+        systematicMQVQ1 = 70 + ((systematicMQVQ1 - 70) * 5 / (fmt.APXM[1] / MAX(fmt.APDP[0], 1) - 15));
+    }
+    uvc1_qual_t indel_penal_base_add = 0;
+    if (is_tmore_amplicon && (isSymbolDel(symbol)) 
+            && (fmt.cDP0a[a] * 3 < 2 * (del_cdepth))) {
+        indel_penal_base_add = 7;
+    }
+    const auto systematicMQVQ = systematicMQVQ1;
+    const auto indel_penal_base2 = indel_penal_base + indel_penal_base_add;
+    
     const auto tn_syserr_q = systematicMQVQ + paramset.tn_q_inc_max;
     clear_push(fmt.bMQQ, systematicMQVQ);
     
-    clear_push(fmt.bIAQ, duped_frag_binom_qual - indel_pena_base, a);
-    clear_push(fmt.cIAQ, sscs_binom_qual - indel_pena_base, a);
+    clear_push(fmt.bIAQ, duped_frag_binom_qual - indel_penal_base2, a);
+    clear_push(fmt.cIAQ, sscs_binom_qual - indel_penal_base, a);
     
-    clear_push(fmt.cPCQ1, MIN(dedup_frag_powlaw_qual_w - indel_pena_base, tn_syserr_q), a);
-    clear_push(fmt.cPLQ1, dedup_frag_powlaw_qual_v - indel_pena_base, a);
+    clear_push(fmt.cPCQ1, MIN(dedup_frag_powlaw_qual_w - indel_penal_base2, tn_syserr_q), a);
+    clear_push(fmt.cPLQ1, dedup_frag_powlaw_qual_v - indel_penal_base2, a);
     
-    clear_push(fmt.cPCQ2, MIN(sscs_powlaw_qual_w - indel_pena_base, tn_syserr_q), a);
-    clear_push(fmt.cPLQ2, sscs_powlaw_qual_v - indel_pena_base, a);
+    clear_push(fmt.cPCQ2, MIN(sscs_powlaw_qual_w - indel_penal_base, tn_syserr_q), a);
+    clear_push(fmt.cPLQ2, sscs_powlaw_qual_v - indel_penal_base, a);
     
     clear_push(fmt.bTINQ, contam_frag_withmin_qual + contam_syserr_phred_bypassed, a);
     clear_push(fmt.cTINQ, contam_sscs_withmin_qual + contam_syserr_phred_bypassed, a);
-
+    
     const uvc1_readnum_t aDPpc = ((refsymbol == symbol) ? 1 : 0);
     const uvc1_qual_t penal4BQerr = (isSymbolSubstitution(symbol) ? (5 + UNSIGN2SIGN(((int64_t)paramset.penal4lowdep) / (int64_t)mathsquare((int64_t)MAX(1, aDP + aDPpc)))) : 0);
     
