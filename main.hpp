@@ -3915,9 +3915,9 @@ BcfFormat_symbol_calc_qual(
     uvc1_qual_t indel_penal_base_add = 0;
     if (is_tmore_amplicon && (isSymbolDel(symbol)) && (NOT_PROVIDED == paramset.vcf_tumor_fname)) {
         if (aDP * 4 < fmt.APDP[2]) {
-            indel_penal_base_add = 9;
+            indel_penal_base_add = 5;
         } else if (fmt.cDP0a[a] * 3 < 2 * (del_cdepth)) {
-            indel_penal_base_add = 7;
+            indel_penal_base_add = 2;
         }
     }
     // end ad-hoc
@@ -4642,7 +4642,7 @@ append_vcf_record(
         const bcfrec::BcfFormat & fmt,
         auto & tki,
 
-        const uvc1_qual_t nlodq,
+        const uvc1_qual_t nlodq1,
         const AlignmentSymbol argmin_nlodq_symbol,
         const bool should_output_ref_allele,
         const bcf_hdr_t *g_bcf_hdr,
@@ -4711,6 +4711,10 @@ append_vcf_record(
         paramset.microadjust_syserr_MQ_NMR_tn_syserr_no_penal_qual_min, 
         paramset.microadjust_syserr_MQ_NMR_tn_syserr_no_penal_qual_max) 
         - paramset.microadjust_syserr_MQ_NMR_tn_syserr_no_penal_qual_min; // guaranteed least penalty
+    auto tn_dec_both_tlodq_nlodq = 0;
+    if (tki.ref_alt.size() > 0 && tki.tDP > 500 && tki.nDP > 500 && (isSymbolDel(symbol)) && nfm.APDP[2] * 3 > nfm.APDP[0]) {
+        tn_dec_both_tlodq_nlodq = MIN(non_neg_minus(collectget(nfm.cVQ1, 1), 31), 9);
+    }
     const uvc1_qual_t prior_phred = ((SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform) 
             ? (3+8) : (3));
     const std::array<uvc1_qual_t, 4> b_binom_powlaw_syserr_normv_q4filter = (paramset.tn_syserr_norm_devqual >= 0 
@@ -4761,9 +4765,11 @@ append_vcf_record(
             non_neg_minus(collectget(nfm.cVQ2, 1), (isSymbolSubstitution(symbol) ? phred_het3al_chance_inc_snp : phred_het3al_chance_inc_indel)),
             0));
     
-    uvc1_qual_t tlodq = MAX(b_binom_powlaw_syserr_normv_q4filter[3], c_binom_powlaw_syserr_normv_q4[3]);
-    float lowestVAQ = MIN(tlodq, 4) + 0.5 + (prob2realphred(1 / (double)(tki.bDP + 1)) * (tki.bDP) / (double)(tki.BDP + + tki.bDP + 1));
+    uvc1_qual_t tlodq1 = MAX(b_binom_powlaw_syserr_normv_q4filter[3], c_binom_powlaw_syserr_normv_q4[3]);
+    float lowestVAQ = MIN(tlodq1, 4) + 0.5 + (prob2realphred(1 / (double)(tki.bDP + 1)) * (tki.bDP) / (double)(tki.BDP + + tki.bDP + 1));
     
+    const auto tlodq = tlodq1 - tn_dec_both_tlodq_nlodq;
+    const auto nlodq = nlodq1 - tn_dec_both_tlodq_nlodq;
     uvc1_qual_t somaticq = MIN(tlodq, nlodq);
     float vcfqual = calc_non_negative((tki.ref_alt.size() > 0) ? ((float)somaticq) : MAX((float)tlodq, lowestVAQ));
     std::string infostring = std::string(tki.ref_alt.size() > 0 ? "SOMATIC" : "ANY_VAR");
