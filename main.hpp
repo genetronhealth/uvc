@@ -3903,7 +3903,7 @@ BcfFormat_symbol_calc_qual(
             ((SEQUENCING_PLATFORM_IONTORRENT != paramset.inferred_sequencing_platform) && isSymbolSubstitution(AlignmentSymbol(LAST(fmt.VTI)))) 
             ? fmt.aBQQ[a] : (200));
     
-    // ad-hoc
+    // begin ad-hoc
     const bool is_strong_amplicon = (fmt.APDP[5] * 100 > fmt.APDP[0] * 60);
     const bool is_weak_amplicon = (fmt.APDP[5] * 100 > fmt.APDP[0] * 40);
     const bool is_tmore_amplicon = ((NOT_PROVIDED == paramset.vcf_tumor_fname) ? is_weak_amplicon : is_strong_amplicon);
@@ -3913,10 +3913,15 @@ BcfFormat_symbol_calc_qual(
         systematicMQVQ1 = 70 + ((systematicMQVQ1 - 70) * 5 / (fmt.APXM[1] / MAX(fmt.APDP[0], 1) - 15));
     }
     uvc1_qual_t indel_penal_base_add = 0;
-    if (is_tmore_amplicon && (isSymbolDel(symbol)) 
-            && (fmt.cDP0a[a] * 3 < 2 * (del_cdepth))) {
-        indel_penal_base_add = 7;
+    if (is_tmore_amplicon && (isSymbolDel(symbol)) && (NOT_PROVIDED == paramset.vcf_tumor_fname)) {
+        if (aDP * 4 < fmt.APDP[2]) {
+            indel_penal_base_add = 9;
+        } else if (fmt.cDP0a[a] * 3 < 2 * (del_cdepth)) {
+            indel_penal_base_add = 7;
+        }
     }
+    // end ad-hoc
+
     const auto systematicMQVQ = systematicMQVQ1;
     const auto indel_penal_base2 = indel_penal_base + indel_penal_base_add;
     
