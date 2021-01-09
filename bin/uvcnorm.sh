@@ -10,8 +10,8 @@ scriptdir="$(dirname "$(which "$0")")"
 
 if [ $# -lt 2 ]; then
     echo "Usage: $0 <input-vcf> <output-vcf> <multiallelic-control> <num-threads> [<min-SNV-QUAL>] [<min-non-SNV-QUAL>] [<min-NLODQ>]"
-    echo "    input-vcf: uvc-generated VCF with non-normalized variants. "
-    echo "    output-vcf: normalized VCF. "
+    echo "    input-vcf: UVC-generated VCF with non-normalized variants. "
+    echo "    output-vcf: normalized VCF, which can be evaluated by tools such as RTG vcfeval for assessing somatic-variant-calling performance. "
     echo "    multiallelic-control: snps|indels|both|any, same as the --multiallelics option in bcftools [${DEFAULT_NORM_FLAG}]. "
     echo "    num-threads: the number of threads to use, same as the --threads option in bcftools [${DEFAULT_NUM_THREADS}]. "
     echo "    min-SNV-qual: the minimum QUAL at each position below which the variant is always not merged [${DEFAULT_MIN_SNV_QUAL}]. "
@@ -65,7 +65,8 @@ else
 fi
 
 bcftools view --threads $numthreads -i \
-"(vNLODQ[0:0] > ${minNLODQ} && vNLODQ[0:1] > ${minNLODQ}) 
+" ALT != '*'
+&& (vNLODQ[0:0] > ${minNLODQ} && vNLODQ[0:1] > ${minNLODQ}) 
 && ((TYPE == 'snps' && QUAL >= ${minSNVqual}) || (TYPE != 'snps' && QUAL >= ${minNonSNVqual}) 
     || ((cVQ1M[${si}:0] - cVQ2M[${si}:0] >= 0) && (cVQ1M[${si}:0] - cVQ1[${si}:1] == 0)) 
     || ((cVQ1M[${si}:0] - cVQ2M[${si}:0] <  0) && (cVQ2M[${si}:0] - cVQ2[${si}:1] == 0)))" "${1}" \
