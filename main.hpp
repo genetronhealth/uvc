@@ -3891,10 +3891,24 @@ BcfFormat_symbol_calc_qual(
     const uvc1_qual_t _systematicMQVQminus =  
              (is_MQ_unadjusted ? 0 : (non_neg_minus((60- 30), aavgMQ) * 2 / 5))
           + ((is_MQ_unadjusted || (refsymbol != symbol)) ? 0 : non_neg_minus(MIN(15, diffMQ), aavgMQ));
+    
+    uvc1_qual_t diffMQ2 = diffMQ;
+    if (fmt.bMQ[a] < 20 && (NOT_PROVIDED == paramset.vcf_tumor_fname)) {
+        const auto aDPxf = (fmt.aDPff[a] + fmt.aDPrf[a] + 0.5);
+        const auto aDPxr = (fmt.aDPfr[a] + fmt.aDPrr[a] + 0.5);
+        const auto ADPxf = (fmt.ADPff[0] + fmt.ADPrf[0] + 1.0);
+        const auto ADPxr = (fmt.ADPfr[0] + fmt.ADPrr[0] + 1.0);
+        if ((aDPxr / ADPxr) * 2 < (aDPxf / ADPxf) || (aDPxf / ADPxf) * 2 < (aDPxr / ADPxr)
+                || (fmt.aLI1[a] + 0.5) / (fmt.ALI2[0] + 1.0) * (2 * (1.0+DBL_EPSILON)) < (aDPxr) / (ADPxr)
+                || (fmt.aRI1[a] + 0.5) / (fmt.ARI2[0] + 1.0) * (2 * (1.0+DBL_EPSILON)) < (aDPxf) / (ADPxf)) {
+            UPDATE_MAX(diffMQ2, 20 - MIN(fmt.bMQ[a], 20));
+        }
+    }
+    
     const uvc1_qual_t _systematicMQ = (((refsymbol == symbol) && (ADP > aDP * 2))
                 ? fmt.bMQ[a] // small
                 : (fmt.bMQ[a] * (paramset.syserr_MQ_max - paramset.syserr_MQ_nonref_base) / paramset.syserr_MQ_max + paramset.syserr_MQ_nonref_base))
-            - (uvc1_qual_t)(diffMQ)
+            - (uvc1_qual_t)(diffMQ2)
             - (uvc1_qual_t)(fmt.bNMQ[a])
             - (uvc1_qual_t)(numstates2phred((ADP + 1.0) / (aDP + 0.5)));
     auto systematicMQVQ1 = MIN((MAX(_systematicMQ, paramset.syserr_MQ_min) + _systematicMQVQadd), readlenMQcap);
@@ -3913,16 +3927,23 @@ BcfFormat_symbol_calc_qual(
         systematicMQVQ1 = 70 + ((systematicMQVQ1 - 70) * 5 / (fmt.APXM[1] / MAX(fmt.APDP[0], 1) - 15));
     }
     uvc1_qual_t indel_penal_base_add = 0;
-    if (is_tmore_amplicon && (isSymbolDel(symbol)) && (NOT_PROVIDED == paramset.vcf_tumor_fname)) {
-        if (aDP * 4 < fmt.APDP[2]) {
-            indel_penal_base_add = 5;
-        } else if (fmt.cDP0a[a] * 3 < 2 * (del_cdepth)) {
-            indel_penal_base_add = 2;
+    if (NOT_PROVIDED == paramset.vcf_tumor_fname) {
+        const auto delAPDP = MAX(fmt.APDP[2], fmt.APDP[4]);
+        if ((fmt.APDP[0] < 3 * delAPDP) && (fmt.APDP[0] < 3 * fmt.APDP[6]) && (aDP * 3 < delAPDP) && (aDP * 3 < fmt.APDP[6]) 
+                && isSymbolSubstitution(symbol) && (rtr2.tracklen >= 8 * rtr2.unitlen)) {
+            indel_penal_base_add = 9;
+        }
+        if (is_tmore_amplicon && (isSymbolDel(symbol))) {
+            if (aDP * 4 < fmt.APDP[2]) {
+                indel_penal_base_add = 5;
+            } else if (fmt.cDP0a[a] * 3 < 2 * (del_cdepth)) {
+                indel_penal_base_add = 2;
+            }
         }
     }
     // end ad-hoc
 
-    const auto systematicMQVQ = systematicMQVQ1;
+    const auto systematicMQVQ = MAX(0, systematicMQVQ1);
     const auto indel_penal_base2 = indel_penal_base + indel_penal_base_add;
     
     const auto tn_syserr_q = systematicMQVQ + paramset.tn_q_inc_max;
@@ -4711,6 +4732,7 @@ append_vcf_record(
         paramset.microadjust_syserr_MQ_NMR_tn_syserr_no_penal_qual_min, 
         paramset.microadjust_syserr_MQ_NMR_tn_syserr_no_penal_qual_max) 
         - paramset.microadjust_syserr_MQ_NMR_tn_syserr_no_penal_qual_min; // guaranteed least penalty
+    // if (is-in-STR and near-germline-del and )
     auto tn_dec_both_tlodq_nlodq = 0;
     if (tki.ref_alt.size() > 0 && tki.tDP > 500 && tki.nDP > 500 && (isSymbolDel(symbol)) && nfm.APDP[2] * 3 > nfm.APDP[0]) {
         tn_dec_both_tlodq_nlodq = MIN(non_neg_minus(collectget(nfm.cVQ1, 1), 31), 9);
