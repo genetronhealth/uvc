@@ -4732,7 +4732,18 @@ append_vcf_record(
         paramset.microadjust_syserr_MQ_NMR_tn_syserr_no_penal_qual_min, 
         paramset.microadjust_syserr_MQ_NMR_tn_syserr_no_penal_qual_max) 
         - paramset.microadjust_syserr_MQ_NMR_tn_syserr_no_penal_qual_min; // guaranteed least penalty
-    // if (is-in-STR and near-germline-del and )
+    
+    uvc1_qual_t tn_dec_by_wes = 0;
+    if (tki.ref_alt.size() > 0) {
+        const auto avgaLI = LAST(fmt.aLIT) / MAX(1, LAST(fmt.ADPfr) + LAST(fmt.ADPrr));
+        const auto avgaRI = LAST(fmt.aRIT) / MAX(1, LAST(fmt.ADPff) + LAST(fmt.ADPrf));
+        if (avgaLI < 300 && avgaRI < 300) { // heuristics: if the assay is WES, then capture is used, so there is greater variation in ALT read counts
+            uvc1_qual_t tn_dec_by_wes_fa = round(MIN(((nfm_cDP1x + 0.5) / (nfm_CDP1x + 1.0) - 0.01) * 200.0, 10.0));
+            uvc1_qual_t tn_dec_by_wes_dp = (int64mul(nfm_cDP1x, 3) / 100);
+            tn_dec_by_wes = MAX(0, MIN(tn_dec_by_wes_fa, tn_dec_by_wes_dp));
+        }
+    }
+    
     auto tn_dec_both_tlodq_nlodq = 0;
     if (tki.ref_alt.size() > 0 && tki.tDP > 500 && tki.nDP > 500 && (isSymbolDel(symbol)) && nfm.APDP[2] * 3 > nfm.APDP[0]) {
         tn_dec_both_tlodq_nlodq = MIN(non_neg_minus(collectget(nfm.cVQ1, 1), 31), 9);
@@ -4750,7 +4761,7 @@ append_vcf_record(
             non_neg_minus(collectget(nfm.cVQ1, 1), (isSymbolSubstitution(symbol) ? phred_het3al_chance_inc_snp : phred_het3al_chance_inc_indel)),
             paramset.tn_syserr_norm_devqual,
             prior_phred,
-            tn_dec_by_xm,
+            MAX(tn_dec_by_xm, tn_dec_by_wes),
             paramset.powlaw_exponent,
             0)
         : calc_binom_powlaw_syserr_normv_quals2(
@@ -4774,7 +4785,7 @@ append_vcf_record(
             non_neg_minus(collectget(nfm.cVQ2, 1), (isSymbolSubstitution(symbol) ? phred_het3al_chance_inc_snp : phred_het3al_chance_inc_indel)),
             paramset.tn_syserr_norm_devqual,
             prior_phred,
-            tn_dec_by_xm,
+            MAX(tn_dec_by_xm, tn_dec_by_wes),
             paramset.powlaw_exponent,
             0)
         : calc_binom_powlaw_syserr_normv_quals2(
