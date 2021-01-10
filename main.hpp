@@ -3551,7 +3551,7 @@ BcfFormat_symbol_calc_DPv(
     
     // self-rescue of the normal by high allele frac
     const double counterbias_normalgerm_FA = ((NOT_PROVIDED == paramset.vcf_tumor_fname || !does_fmt_imply_short_frag(fmt))
-        ? 1e-9 : BETWEEN(aDPFA * aDPFA * 6, aDPFA / 6, aDPFA));
+        ? 1e-9 : BETWEEN(aPFFA * aPFFA * 6, aPFFA / 6, aPFFA));
     double min_aFA = MAX4(MINVEC(min_aFA_vec), counterbias_P_FA, counterbias_BQ_FA, counterbias_normalgerm_FA);
     
     double dedup_FA = ((NOT_PROVIDED == paramset.vcf_tumor_fname) ? MIN(bFA, cFA0) : (MAX(bFA, cFA0)));
