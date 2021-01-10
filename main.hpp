@@ -222,6 +222,11 @@ isSymbolSubstitution(AlignmentSymbol symbol) {
     return (SYMBOL_TYPE_TO_INCLU_BEG[BASE_SYMBOL] <= symbol && symbol <= SYMBOL_TYPE_TO_INCLU_END[BASE_SYMBOL]);
 }
 
+// is not WGS (i.e., is hybrid-capture-WES or amplicon-PCR)
+bool
+does_fmt_imply_long_frag(const auto & fmt) {
+    return (fmt.APLRI[0] + fmt.APLRI[2]) > int64mul(fmt.APLRI[1] + fmt.APLRI[3], 250);
+}
 
 struct PhredMutationTable {
     const uvc1_qual_t transition_CG_TA;
@@ -3445,7 +3450,7 @@ BcfFormat_symbol_calc_DPv(
     double cROFA2 = cROFA2x2[0] * dir_bias_div;
     
     double bFA = (fmt.bDPa[a] + pfa) / (fmt.BDPf[0] + fmt.BDPr[0] + 1.0);
-    double cFA0 = (fmt.cDP0a[a] + pfa) / (fmt.CDP1f[0] + fmt.CDP1r[0] + 1.0);
+    double cFA0 = (fmt.cDP0a[a] + pfa * (does_fmt_imply_long_frag(fmt) ? 1.0 : 0.1)) / (fmt.CDP1f[0] + fmt.CDP1r[0] + 1.0);
 
     const bool is_strand_r_weak = ((f.ADPfr[0] + f.ADPrr[0]) * paramset.microadjust_nobias_strand_all_fold < (f.ADPff[0] + f.ADPrf[0]) * unbias_ratio);
     const bool is_strand_f_weak = ((f.ADPff[0] + f.ADPrf[0]) * paramset.microadjust_nobias_strand_all_fold < (f.ADPfr[0] + f.ADPrr[0]) * unbias_ratio);
@@ -4735,9 +4740,7 @@ append_vcf_record(
     
     uvc1_qual_t tn_dec_by_wes = 0;
     if (tki.ref_alt.size() > 0) {
-        const auto avgaLI = LAST(fmt.aLIT) / MAX(1, LAST(fmt.ADPfr) + LAST(fmt.ADPrr));
-        const auto avgaRI = LAST(fmt.aRIT) / MAX(1, LAST(fmt.ADPff) + LAST(fmt.ADPrf));
-        if (avgaLI < 300 && avgaRI < 300) { // heuristics: if the assay is WES, then capture is used, so there is greater variation in ALT read counts
+        if (does_fmt_imply_long_frag(fmt)) { // heuristics: if the assay is WES, then capture is used, so there is greater variation in ALT read counts
             uvc1_qual_t tn_dec_by_wes_fa = round(MIN(((nfm_cDP1x + 0.5) / (nfm_CDP1x + 1.0) - 0.01) * 200.0, 10.0));
             uvc1_qual_t tn_dec_by_wes_dp = (int64mul(nfm_cDP1x, 3) / 100);
             tn_dec_by_wes = MAX(0, MIN(tn_dec_by_wes_fa, tn_dec_by_wes_dp));
