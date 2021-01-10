@@ -224,8 +224,8 @@ isSymbolSubstitution(AlignmentSymbol symbol) {
 
 // is not WGS (i.e., is hybrid-capture-WES or amplicon-PCR)
 bool
-does_fmt_imply_long_frag(const auto & fmt) {
-    return (fmt.APLRI[0] + fmt.APLRI[2]) > int64mul(fmt.APLRI[1] + fmt.APLRI[3], 250);
+does_fmt_imply_short_frag(const auto & fmt) {
+    return (fmt.APLRI[0] + fmt.APLRI[2]) < int64mul(fmt.APLRI[1] + fmt.APLRI[3], 300);
 }
 
 struct PhredMutationTable {
@@ -3450,7 +3450,7 @@ BcfFormat_symbol_calc_DPv(
     double cROFA2 = cROFA2x2[0] * dir_bias_div;
     
     double bFA = (fmt.bDPa[a] + pfa) / (fmt.BDPf[0] + fmt.BDPr[0] + 1.0);
-    double cFA0 = (fmt.cDP0a[a] + pfa * (does_fmt_imply_long_frag(fmt) ? 1.0 : 0.1)) / (fmt.CDP1f[0] + fmt.CDP1r[0] + 1.0);
+    double cFA0 = (fmt.cDP0a[a] + pfa * (does_fmt_imply_short_frag(fmt) ? 0.1 : 1.0)) / (fmt.CDP1f[0] + fmt.CDP1r[0] + 1.0);
 
     const bool is_strand_r_weak = ((f.ADPfr[0] + f.ADPrr[0]) * paramset.microadjust_nobias_strand_all_fold < (f.ADPff[0] + f.ADPrf[0]) * unbias_ratio);
     const bool is_strand_f_weak = ((f.ADPff[0] + f.ADPrf[0]) * paramset.microadjust_nobias_strand_all_fold < (f.ADPfr[0] + f.ADPrr[0]) * unbias_ratio);
@@ -3549,7 +3549,10 @@ BcfFormat_symbol_calc_DPv(
         fmt.FTS = "PASS";
     }
     
-    double min_aFA = MAX3(MINVEC(min_aFA_vec), counterbias_P_FA, counterbias_BQ_FA);
+    // self-rescue of the normal by high allele frac
+    const double counterbias_normalgerm_FA = ((NOT_PROVIDED == paramset.vcf_tumor_fname || !does_fmt_imply_short_frag(fmt))
+        ? 1e-9 : BETWEEN(aDPFA * aDPFA * 6, aDPFA / 6, aDPFA));
+    double min_aFA = MAX4(MINVEC(min_aFA_vec), counterbias_P_FA, counterbias_BQ_FA, counterbias_normalgerm_FA);
     
     double dedup_FA = ((NOT_PROVIDED == paramset.vcf_tumor_fname) ? MIN(bFA, cFA0) : (MAX(bFA, cFA0)));
     double min_bcFA = MAX3(MIN3(bFA, cFA0, cROFA1), counterbias_P_FA, counterbias_BQ_FA);
@@ -4729,7 +4732,9 @@ append_vcf_record(
 
     const auto nfm_cDP1x = collectget(nfm.cDP1x, 1);
     const auto nfm_CDP1x = collectget(nfm.CDP1x, 0);
-
+    const auto nfm_cDP2x = collectget(nfm.cDP2x, 1);
+    const auto nfm_CDP2x = collectget(nfm.CDP2x, 0);
+    
     uvc1_refgpos_t phred_het3al_chance_inc_snp = MAX(0, 2 * paramset.germ_phred_hetero_snp - paramset.germ_phred_het3al_snp - TIN_CONTAM_MICRO_VQ_DELTA);
     uvc1_refgpos_t phred_het3al_chance_inc_indel = MAX(0, 2 * paramset.germ_phred_hetero_indel - paramset.germ_phred_het3al_indel - TIN_CONTAM_MICRO_VQ_DELTA);
     
@@ -4738,13 +4743,12 @@ append_vcf_record(
         paramset.microadjust_syserr_MQ_NMR_tn_syserr_no_penal_qual_max) 
         - paramset.microadjust_syserr_MQ_NMR_tn_syserr_no_penal_qual_min; // guaranteed least penalty
     
-    uvc1_qual_t tn_dec_by_wes = 0;
-    if (tki.ref_alt.size() > 0) {
-        if (does_fmt_imply_long_frag(fmt)) { // heuristics: if the assay is WES, then capture is used, so there is greater variation in ALT read counts
-            uvc1_qual_t tn_dec_by_wes_fa = round(MIN(((nfm_cDP1x + 0.5) / (nfm_CDP1x + 1.0) - 0.01) * 200.0, 10.0));
-            uvc1_qual_t tn_dec_by_wes_dp = (int64mul(nfm_cDP1x, 3) / 100);
-            tn_dec_by_wes = MAX(0, MIN(tn_dec_by_wes_fa, tn_dec_by_wes_dp));
-        }
+    double nfm_cDP1x_1add = 0;
+    double nfm_cDP2x_1add = 0;
+    if (tki.ref_alt.size() > 0 && does_fmt_imply_short_frag(fmt)) {
+        // heuristics: if the assay is not WGS, then hybrid-capture or PCR-amplicon is used, so there is greater variation in ALT read counts
+        nfm_cDP1x_1add = 0.5 * nfm_cDP1x / 100.0;
+        nfm_cDP2x_1add = 0.5 * nfm_cDP2x / 100.0;
     }
     
     auto tn_dec_both_tlodq_nlodq = 0;
@@ -4759,12 +4763,12 @@ append_vcf_record(
             (tki.CDP1x + 1.0) / 100.0 + 0.0, 
             (tki.cVQ1),
             (tki.cPCQ1),
-            (nfm_cDP1x + 0.5) / 100.0 + 0.0, 
-            (nfm_CDP1x + 1.0) / 100.0 + 0.0, 
+            (nfm_cDP1x + 0.5) / 100.0 + 0.0 + nfm_cDP1x_1add,
+            (nfm_CDP1x + 1.0) / 100.0 + 0.0 + nfm_cDP1x_1add,
             non_neg_minus(collectget(nfm.cVQ1, 1), (isSymbolSubstitution(symbol) ? phred_het3al_chance_inc_snp : phred_het3al_chance_inc_indel)),
             paramset.tn_syserr_norm_devqual,
             prior_phred,
-            MAX(tn_dec_by_xm, tn_dec_by_wes),
+            tn_dec_by_xm,
             paramset.powlaw_exponent,
             0)
         : calc_binom_powlaw_syserr_normv_quals2(
@@ -4772,8 +4776,8 @@ append_vcf_record(
             (tki.CDP1x + 1.0) / 100.0 + 0.0, 
             (tki.cVQ1),
             (tki.cPCQ1),
-            (nfm_cDP1x + 0.5) / 100.0 + 0.0, 
-            (nfm_CDP1x + 1.0) / 100.0 + 0.0, 
+            (nfm_cDP1x + 0.5) / 100.0 + 0.0 + nfm_cDP1x_1add,
+            (nfm_CDP1x + 1.0) / 100.0 + 0.0 + nfm_cDP1x_1add, 
             non_neg_minus(collectget(nfm.cVQ1, 1), (isSymbolSubstitution(symbol) ? phred_het3al_chance_inc_snp : phred_het3al_chance_inc_indel)),
             0));
     
@@ -4783,12 +4787,12 @@ append_vcf_record(
             (tki.CDP2x + 1.0) / 100.0 + 0.0, 
             (tki.cVQ2),
             (tki.cPCQ2),
-            (collectget(nfm.cDP2x, 1) + 0.0) / 100.0 + 0.5, 
-            (collectget(nfm.CDP2x, 0) + 0.0) / 100.0 + 1.0, 
+            (nfm_cDP2x + 0.0) / 100.0 + 0.5 + nfm_cDP2x_1add,
+            (nfm_CDP2x + 0.0) / 100.0 + 1.0 + nfm_cDP2x_1add,
             non_neg_minus(collectget(nfm.cVQ2, 1), (isSymbolSubstitution(symbol) ? phred_het3al_chance_inc_snp : phred_het3al_chance_inc_indel)),
             paramset.tn_syserr_norm_devqual,
             prior_phred,
-            MAX(tn_dec_by_xm, tn_dec_by_wes),
+            tn_dec_by_xm,
             paramset.powlaw_exponent,
             0)
         : calc_binom_powlaw_syserr_normv_quals2(
@@ -4796,8 +4800,8 @@ append_vcf_record(
             (tki.CDP2x + 1.0) / 100.0 + 0.0, 
             (tki.cVQ2),
             (tki.cPCQ2),
-            (collectget(nfm.cDP2x, 1) + 0.0) / 100.0 + 0.5, 
-            (collectget(nfm.CDP2x, 0) + 0.0) / 100.0 + 1.0, 
+            (nfm_cDP2x + 0.0) / 100.0 + 0.5 + nfm_cDP2x_1add,
+            (nfm_CDP2x + 0.0) / 100.0 + 1.0 + nfm_cDP2x_1add,
             non_neg_minus(collectget(nfm.cVQ2, 1), (isSymbolSubstitution(symbol) ? phred_het3al_chance_inc_snp : phred_het3al_chance_inc_indel)),
             0));
     
