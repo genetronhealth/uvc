@@ -3599,7 +3599,7 @@ BcfFormat_symbol_calc_DPv(
     double min_abcFA_w = MAX3(MINVEC(std::vector<double>{{
             aLPFA2, aRPFA2,
             aLBFA2, aRBFA2,
-            bFA }}), counterbias_P_FA, counterbias_BQ_FA);
+            bFA, aNCFA}}), counterbias_P_FA, counterbias_BQ_FA);
     clear_push(fmt.cDP1w, (uvc1_readnum100x_t)(calc_normFA_from_rawFA_refbias(min_abcFA_w, refbias) * (fmt.CDP1f[0] +fmt.CDP1r[0]) * 100), a);
     double min_abcFA_x = MINVEC(std::vector<double>{{ aPFFA, dedup_FA }});
     if (NOT_PROVIDED != paramset.vcf_tumor_fname) {
