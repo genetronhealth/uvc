@@ -713,11 +713,8 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
     ADD_OPTDEF2(app, indel_str_phred_per_region,
         "The Phred quality per each additional STR track to the sequenced-segment left/right end. ");
     
-    ADD_OPTDEF2(app, indel_filter_edge_dist_t,
-        "For tumor-sample InDels, the number of bases to the sequenced segment left and right ends. "
-        "If the minimum of these two numbers is below this threshold, then the InDel support is filtered out. ");
-    ADD_OPTDEF2(app, indel_filter_edge_dist_n,
-        "For normal-sample InDels, the number of bases to the sequenced segment left and right ends. "
+    ADD_OPTDEF2(app, indel_filter_edge_dist,
+        "For InDels, the number of bases to the sequenced segment left and right ends. "
         "If the minimum of these two numbers is below this threshold, then the InDel support is filtered out. ");
 
 // *** 12. parameters related to contamination
@@ -788,6 +785,22 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
     ADD_OPTDEF2(app, microadjust_alignment_tracklen_min,
         "If a position has an STR track containing at least this number of bases, "
         "then it generates a <ADDITIONAL_INDEL_CANDIDATE> record in the VCF. ");
+    
+    ADD_OPTDEF2(app, microadjust_germline_mix_with_del_snv_penalty,
+        "Phred penalty applied to a non-germline-level SNV if this SNV is near both germline-level SNV and germline-level InDel. ");
+    
+    ADD_OPTDEF2(app, lib_wgs_min_avg_fraglen,
+        "Minimum average fragment length, below which assay type is inferred to be non-WGS (whole-genome sequencing). ");
+    ADD_OPTDEF2(app, lib_nonwgs_ad_pseudocount,
+        "For non-WGS: pseudocount for ALT allele-depth for deduplicated reads");
+    ADD_OPTDEF2(app, lib_nonwgs_clip_penal_min_indelsize,
+        "For non-WGS: if this minimum InDel size is reached, then the effective allele fraction of this InDel is reduced by excessive clipping.");
+    ADD_OPTDEF2(app, lib_nonwgs_normal_full_self_rescue_fa,
+        "For non-WGS: raw normal allele-fraction (FA) above which the corresponding effective FA is always not reduced.");
+    ADD_OPTDEF2(app, lib_nonwgs_normal_min_self_rescue_fa_ratio,
+        "For non-WGS: normal effective allele-fraction (FA) cannot be reduced below this times the corresponding raw FA.");
+    ADD_OPTDEF2(app, lib_nonwgs_normal_add_mul_ad,
+        "For non-WGS: normal cross-sample read count is increased by this multiplicative factor. ");
     
 // *** 14 debugging
     

@@ -303,9 +303,8 @@ struct CommandLineArgs {
     uvc1_qual_t         indel_nonSTR_phred_per_base = 5;
     // https://genomebiology.biomedcentral.com/articles/10.1186/s13059-018-1505-2
     uvc1_qual_t         indel_str_phred_per_region = 5*2; // should be 15 but set to 10 to allow some correlation
-    uvc1_readpos_t      indel_filter_edge_dist_t = 4;
-    uvc1_readpos_t      indel_filter_edge_dist_n = 1;
-    
+    uvc1_readpos_t      indel_filter_edge_dist = 5;
+
     // https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2734402/#bib41 : powlaw exponent of 1.5-1.6 for mut rate vs indel len.
     // https://pubmed.ncbi.nlm.nih.gov/18641631/ : SNV mutation rate near (up to a few hundred bp) heterozygous InDels are higher than expected.
     
@@ -339,12 +338,21 @@ struct CommandLineArgs {
     
     uvc1_readpos_t      microadjust_longfrag_sidelength_min = 300; // both sides span at least one exon
     uvc1_readpos_t      microadjust_longfrag_sidelength_max = 600;
-    double              microadjust_longfrag_sidelength_zeroMQpenalty = 300;
-    
+    double              microadjust_longfrag_sidelength_zeroMQpenalty = 300;    
+
     uvc1_readpos_t      microadjust_alignment_clip_min_len = 12;
     double              microadjust_alignment_clip_min_frac = 0.05;
     uvc1_readpos_t      microadjust_alignment_clip_min_count = 2;
     uvc1_readpos_t      microadjust_alignment_tracklen_min = 25;
+    
+    uvc1_qual_t         microadjust_germline_mix_with_del_snv_penalty = 9;
+    
+    uvc1_readpos_t      lib_wgs_min_avg_fraglen = 300;
+    double              lib_nonwgs_ad_pseudocount = 0.1;
+    uvc1_readpos_t      lib_nonwgs_clip_penal_min_indelsize = 8;
+    double              lib_nonwgs_normal_full_self_rescue_fa = 0.1;
+    double              lib_nonwgs_normal_min_self_rescue_fa_ratio = 0.2;
+    double              lib_nonwgs_normal_add_mul_ad = 1.0;
     
 // *** 14. parameters related to debugging in vcf
     uvc1_flag_t         debug_note_flag = 0x0;

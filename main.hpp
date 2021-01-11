@@ -224,8 +224,8 @@ isSymbolSubstitution(AlignmentSymbol symbol) {
 
 // is not WGS (i.e., is hybrid-capture-WES or amplicon-PCR)
 bool
-does_fmt_imply_short_frag(const auto & fmt) {
-    return (fmt.APLRI[0] + fmt.APLRI[2]) < int64mul(fmt.APLRI[1] + fmt.APLRI[3], 300);
+does_fmt_imply_short_frag(const auto & fmt, const auto wgs_min_avg_fragsize) {
+    return (fmt.APLRI[0] + fmt.APLRI[2]) < int64mul(fmt.APLRI[1] + fmt.APLRI[3], wgs_min_avg_fragsize);
 }
 
 struct PhredMutationTable {
@@ -1940,9 +1940,7 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
                             ? qfromBQ1 : (TIsProton ? MIN(qfromBQ1 + proton_cigarlen2phred(cigar_oplen), MAX(3, qfromBQ1) * UNSIGN2SIGN(cigar_oplen)) : 80));
                     incvalue = non_neg_minus(MIN(qfromBQ2, phredvalue + symboltype2addPhred[LINK_SYMBOL]), micro_indel_penal) + 1;
                 }
-                const auto indel_filter_edge_dist = (NOT_PROVIDED == paramset.vcf_tumor_fname 
-                        ? paramset.indel_filter_edge_dist_t : paramset.indel_filter_edge_dist_n);
-                if (nbases2end >= indel_filter_edge_dist) {
+                if (nbases2end >= paramset.indel_filter_edge_dist) {
                     const auto symbol = insLenToSymbol(inslen, aln);
                     this->template inc<TUpdateType>(rpos, symbol, MAX(SIGN2UNSIGN(1), incvalue), aln);
                     if (TIsBiasUpdated) {
@@ -2041,9 +2039,7 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
                     uvc1_qual_t qfromBAQ = MAX3(delFAQ, qfromBQ1, MIN(qfromBAQl, qfromBAQr));
                     incvalue = non_neg_minus(MIN3(qfromBQ2, qfromBAQ, phredvalue + symboltype2addPhred[LINK_SYMBOL]), micro_indel_penal) + 1;
                 }
-                const auto indel_filter_edge_dist = (NOT_PROVIDED == paramset.vcf_tumor_fname 
-                        ? paramset.indel_filter_edge_dist_t : paramset.indel_filter_edge_dist_n);
-                if (nbases2end >= indel_filter_edge_dist) {
+                if (nbases2end >= paramset.indel_filter_edge_dist) {
                     AlignmentSymbol symbol = delLenToSymbol(dellen, aln);
                     this->template inc<TUpdateType>(rpos, symbol, MAX(SIGN2UNSIGN(1), incvalue), aln);
                     if (TIsBiasUpdated) {
@@ -3469,7 +3465,8 @@ BcfFormat_symbol_calc_DPv(
     double cROFA2 = cROFA2x2[0] * dir_bias_div;
     
     double bFA = (fmt.bDPa[a] + pfa) / (fmt.BDPf[0] + fmt.BDPr[0] + 1.0);
-    double cFA0 = (fmt.cDP0a[a] + pfa * (does_fmt_imply_short_frag(fmt) ? 0.1 : 1.0)) / (fmt.CDP1f[0] + fmt.CDP1r[0] + 1.0);
+    double cFA0 = (fmt.cDP0a[a] + pfa * (does_fmt_imply_short_frag(fmt, paramset.lib_wgs_min_avg_fraglen) ? paramset.lib_nonwgs_ad_pseudocount : 1.0)) 
+            / (fmt.CDP1f[0] + fmt.CDP1r[0] + 1.0);
 
     const bool is_strand_r_weak = ((f.ADPfr[0] + f.ADPrr[0]) * paramset.microadjust_nobias_strand_all_fold < (f.ADPff[0] + f.ADPrf[0]) * unbias_ratio);
     const bool is_strand_f_weak = ((f.ADPff[0] + f.ADPrf[0]) * paramset.microadjust_nobias_strand_all_fold < (f.ADPfr[0] + f.ADPrr[0]) * unbias_ratio);
@@ -3570,12 +3567,18 @@ BcfFormat_symbol_calc_DPv(
     
     // non-WGS clipping penalty for InDels
     const double aNCFA = ((NOT_PROVIDED == paramset.vcf_tumor_fname 
-            && does_fmt_imply_short_frag(fmt) && (isSymbolIns(symbol) || isSymbolDel(symbol)) && indelstring.size() >= 8)
-            ? MAX((LAST(fmt.aNC) + 0.5) / (ADP + 1.0), (1.0/3.0) * aDPFA) : 2.0);
+                && does_fmt_imply_short_frag(fmt, paramset.lib_wgs_min_avg_fraglen) 
+                && (isSymbolIns(symbol) || isSymbolDel(symbol)) 
+                && UNSIGN2SIGN(indelstring.size()) >= paramset.lib_nonwgs_clip_penal_min_indelsize)
+            ? MAX((LAST(fmt.aNC) + 0.5) / (ADP + 1.0), BETWEEN((LAST(fmt.cDP1f) + LAST(fmt.cDP1r)) / 300.0, 1.0/3.0, 2.0/3.0) * aDPFA) : 2.0);
     
     // self-rescue of the normal by high allele frac
-    const double counterbias_normalgerm_FA = ((NOT_PROVIDED == paramset.vcf_tumor_fname || !does_fmt_imply_short_frag(fmt))
-        ? 1e-9 : BETWEEN(aPFFA * aPFFA * 10, aPFFA / 5, aPFFA));
+    const double counterbias_normalgerm_FA = ((NOT_PROVIDED == paramset.vcf_tumor_fname || !does_fmt_imply_short_frag(fmt, paramset.lib_wgs_min_avg_fraglen))
+            ? 1e-9 
+            : BETWEEN(
+            aPFFA * aPFFA * (1.0 / paramset.lib_nonwgs_normal_full_self_rescue_fa), 
+            aPFFA * paramset.lib_nonwgs_normal_min_self_rescue_fa_ratio, 
+            aPFFA));
     const double counterbias_FA = MAX3(counterbias_P_FA, counterbias_BQ_FA, counterbias_normalgerm_FA);
     double min_aFA = MAX(MIN(MINVEC(min_aFA_vec), aNCFA), counterbias_FA);
     
@@ -3598,21 +3601,19 @@ BcfFormat_symbol_calc_DPv(
         refbias = (double)(indel_noinfo_nbases) / ((double)(MIN(f.ALPL[0], f.ARPL[0]) * 2 + indel_noinfo_nbases) / (double)(f.ABQ2[0] + 0.5));
         refbias = MIN(refbias, paramset.microadjust_refbias_indel_max);
     }
-    
     // non-UMI push
     double min_abcFA_v = MAX(MIN(min_aFA, min_bcFA), counterbias_FA);
     clear_push(fmt.cDP1v, (uvc1_readnum100x_t)(calc_normFA_from_rawFA_refbias(min_abcFA_v, refbias) * (fmt.CDP1f[0] +fmt.CDP1r[0]) * 100), a);
-    
     double min_abcFA_w = MAX(MINVEC(std::vector<double>{{
             aLPFA2, aRPFA2,
             aLBFA2, aRBFA2,
             bFA, aNCFA}}), counterbias_FA);
     clear_push(fmt.cDP1w, (uvc1_readnum100x_t)(calc_normFA_from_rawFA_refbias(min_abcFA_w, refbias) * (fmt.CDP1f[0] +fmt.CDP1r[0]) * 100), a);
-    
-    double min_abcFA_x = MAX(MINVEC(std::vector<double>{{ aPFFA, dedup_FA }}), counterbias_FA);
-    auto cDP1xAD = (uvc1_readnum100x_t)(min_abcFA_x * (fmt.CDP1f[0] +fmt.CDP1r[0]) * 100) + 1;
-    if (is_rescued && (isSymbolIns(symbol) || isSymbolDel(symbol)) && rtr2.tracklen < (rtr2.unitlen + 1) * 4) { cDP1xAD = MIN(int64mul(cDP1xAD, 4) / 3, fmt.aPF1[a]); }
-    clear_push(fmt.cDP1x, cDP1xAD, a);
+    double min_abcFA_x = MINVEC(std::vector<double>{{ aPFFA, dedup_FA }});
+    if (NOT_PROVIDED != paramset.vcf_tumor_fname) {
+        min_abcFA_x = MAX(min_abcFA_x, counterbias_FA);
+    }
+    clear_push(fmt.cDP1x, 1+(uvc1_readnum100x_t)                                       (min_abcFA_x * (fmt.CDP1f[0] +fmt.CDP1r[0]) * 100), a);
     
     // UMI push
     clear_push(fmt.cDP2v, (uvc1_readnum100x_t)(calc_normFA_from_rawFA_refbias(MIN(min_aFA * frac_umi2seg, cROFA2), refbias) 
@@ -3969,7 +3970,7 @@ BcfFormat_symbol_calc_qual(
         const auto delAPDP = MAX(fmt.APDP[2], fmt.APDP[4]);
         if ((fmt.APDP[0] < 3 * delAPDP) && (fmt.APDP[0] < 3 * fmt.APDP[6]) && (aDP * 3 < delAPDP) && (aDP * 3 < fmt.APDP[6]) 
                 && isSymbolSubstitution(symbol) && (rtr2.tracklen >= 8 * rtr2.unitlen)) {
-            indel_penal_base_add = 9;
+            indel_penal_base_add = paramset.microadjust_germline_mix_with_del_snv_penalty;
         }
         if (is_tmore_amplicon && (isSymbolDel(symbol))) {
             if (aDP * 4 < fmt.APDP[2]) {
@@ -4780,10 +4781,10 @@ append_vcf_record(
     
     double nfm_cDP1x_1add = 0;
     double nfm_cDP2x_1add = 0;
-    if (tki.ref_alt.size() > 0 && does_fmt_imply_short_frag(fmt)) {
+    if (tki.ref_alt.size() > 0 && does_fmt_imply_short_frag(fmt, paramset.lib_wgs_min_avg_fraglen)) {
         // heuristics: if the assay is not WGS, then hybrid-capture or PCR-amplicon is used, so there is greater variation in ALT read counts
-        nfm_cDP1x_1add = (1.0) * nfm_cDP1x / 100.0;
-        nfm_cDP2x_1add = (1.0) * nfm_cDP2x / 100.0;
+        nfm_cDP1x_1add = paramset.lib_nonwgs_normal_add_mul_ad * nfm_cDP1x / 100.0;
+        nfm_cDP2x_1add = paramset.lib_nonwgs_normal_add_mul_ad * nfm_cDP2x / 100.0;
     }
     
     auto tn_dec_both_tlodq_nlodq = 0;
