@@ -197,7 +197,7 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("APF2"  , 2,         BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 mismatch bias."),
     BcfFormatStruct("AP1"   , 2,         BCF_INTEGER, "Raw sequencing segment depth of reads passing left and right number of bases threshold of distance."),
     BcfFormatStruct("AP2"   , 2,         BCF_INTEGER, "Raw sequencing segment depth of reads that are either labeled with UMIs or not coming from PCR amplicons."),
-
+    
     BcfFormatStruct("__A5"  , 1,         BCF_SEP,     "As before."),
     BcfFormatStruct("ALI1"  , 2,         BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 insert bias on the left side."),
     BcfFormatStruct("ALI2"  , 2,         BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 insert bias on the right side."),
@@ -218,6 +218,7 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("aLIT"  , BCF_NUM_R, BCF_BIG_SIG_INT, "Raw summed distance (number of bases) to the left-side insert end."),
     BcfFormatStruct("aRIT"  , BCF_NUM_R, BCF_BIG_SIG_INT, "Raw summed distance (number of bases) to the right-side insert end."),
     BcfFormatStruct("aP3"   , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth of reads that are not affected by nearby InDels."),
+    BcfFormatStruct("aNC"   , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth of reads that do not have any clips (including soft and hard clips)."),
 
     BcfFormatStruct("__a1"  , 1,         BCF_SEP,     "Depths of the raw sequencing segments for the REF and each ALT allele."),
     BcfFormatStruct("aDPff" , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth with the R1-forward orientation and strand."),
@@ -249,7 +250,7 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("aPF2"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 relative mismatch bias and base quality bias."),
     BcfFormatStruct("aP1"   , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth of reads passing left and right number of bases threshold of distance."),
     BcfFormatStruct("aP2"   , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth of reads that are either labeled with UMIs or not coming from PCR amplicons."),
-
+    
     BcfFormatStruct("__a5"  , 1,         BCF_SEP,     "As before."),
     BcfFormatStruct("aLI1"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-1 insert bias on the left side."),
     BcfFormatStruct("aLI2"  , BCF_NUM_R, BCF_INTEGER, "Raw sequencing segment depth unaffected by tier-2 insert bias on the right side."),

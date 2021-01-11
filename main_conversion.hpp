@@ -475,7 +475,8 @@ struct SegFormatInfoSet {
     uvc1_readnum_t seginfo_aP1;
     uvc1_readnum_t seginfo_aP2;
     uvc1_readnum_t seginfo_aP3;
-    
+    uvc1_readnum_t seginfo_aNC;
+
     uvc1_readnum_t seginfo_aDPff;
     uvc1_readnum_t seginfo_aDPfr;
     uvc1_readnum_t seginfo_aDPrf;

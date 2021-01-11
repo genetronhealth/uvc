@@ -1294,7 +1294,8 @@ dealwith_segbias(
         const auto indel_len_arg,
         const uvc1_refgpos_t dist_to_interfering_indel,
         const uvc1_flag_t dflag,
-
+        const uvc1_refgpos_t clip_cnt,
+        
         const CommandLineArgs & paramset,
         const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
     
@@ -1336,6 +1337,9 @@ dealwith_segbias(
     symbol_to_seg_aDP_depth_set += 1;
     if (MIN3(dist_to_interfering_indel, seg_l_nbases, seg_r_nbases) >= paramset.bias_thres_interfering_indel) {
         symbol_to_seg_format_depth_set.seginfo_aP3 += 1;
+    }
+    if (0 == clip_cnt) {
+        symbol_to_seg_format_depth_set.seginfo_aNC += 1;
     }
     
     symbol_to_seg_format_depth_set.seginfo_aLPT += seg_l_nbases;
@@ -1673,8 +1677,9 @@ public:
         const auto rend = bam_endpos(aln);
         const std::array<uvc1_qual_t, NUM_SYMBOL_TYPES> symboltype2addPhred = {{paramset.bq_phred_added_misma, paramset.bq_phred_added_indel}};
         
-        uvc1_readnum_t nge_cnt = 0; // number of gap extensions.
-        uvc1_readnum_t ngo_cnt = 0; // number of gap opens.
+        uvc1_refgpos_t nge_cnt = 0; // number of gap extensions.
+        uvc1_refgpos_t ngo_cnt = 0; // number of gap opens.
+        uvc1_refgpos_t clip_cnt = 0;
         for (uvc1_unsigned_int_t i = 0; i < n_cigar; i++) {
             const auto c = cigar[i];
             const auto cigar_op = bam_cigar_op(c);
@@ -1682,8 +1687,11 @@ public:
                 nge_cnt += bam_cigar_oplen(c); 
                 ngo_cnt++; 
             }
+            if (BAM_CSOFT_CLIP == cigar_op || BAM_CHARD_CLIP == cigar_op) {
+                clip_cnt++;
+            }
         }
-
+        
         const auto *bam_aux_data = bam_aux_get(aln, "NM");
         const uvc1_readnum_t nm_cnt = ((bam_aux_data != NULL) ? bam_aux2i(bam_aux_data) : nge_cnt);
         assert (nm_cnt >= nge_cnt);
@@ -1817,7 +1825,8 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
                                     0,
                                     dist_to_interfering_indel,
                                     dflag,
-                                    
+                                    clip_cnt,
+
                                     paramset,
                                     0);
                         }
@@ -1866,6 +1875,7 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
                                 0,
                                 dist_to_interfering_indel,
                                 dflag,
+                                clip_cnt,
 
                                 paramset,
                                 0);
@@ -1951,7 +1961,8 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
                                 cigar_oplen,
                                 10000,
                                 dflag,
-                                
+                                clip_cnt,
+                                 
                                 paramset,
                                 0);
                     }
@@ -2049,6 +2060,7 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
                                 cigar_oplen,
                                 10000,
                                 dflag,
+                                clip_cnt,
                                 
                                 paramset,
                                 0);
@@ -2084,7 +2096,8 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
                                         cigar_oplen,
                                         MIN(rpos - prev_indel_rpos, next_indel_rpos - rpos),
                                         dflag,
-
+                                        clip_cnt,
+                                        
                                         paramset,
                                         0);
                             }
@@ -3143,11 +3156,13 @@ BcfFormat_symbol_init(
     fill_symbol_fmt(fmt.dDP1,  symbol_to_duplex_format_depth_sets, DUPLEX_dDP1, refpos, symbol, a);
     fill_symbol_fmt(fmt.dDP2,  symbol_to_duplex_format_depth_sets, DUPLEX_dDP2, refpos, symbol, a);
     
+    // extra
     filla_symbol_fmt(fmt.aLPT, symbol_to_seg_format_depth_sets, seginfo_aLPT, refpos, symbol, a);
     filla_symbol_fmt(fmt.aRPT, symbol_to_seg_format_depth_sets, seginfo_aRPT, refpos, symbol, a);
     filla_symbol_fmt(fmt.aLIT, symbol_to_seg_format_depth_sets, seginfo_aLIT, refpos, symbol, a);
     filla_symbol_fmt(fmt.aRIT, symbol_to_seg_format_depth_sets, seginfo_aRIT, refpos, symbol, a);
     filla_symbol_fmt(fmt.aP3,  symbol_to_seg_format_depth_sets, seginfo_aP3,  refpos, symbol, a);
+    filla_symbol_fmt(fmt.aNC,  symbol_to_seg_format_depth_sets, seginfo_aNC,  refpos, symbol, a);
     
     fmt.DP = fmt.CDP1f[0] + fmt.CDP1r[0];
     fmt.AD = vectorsum(fmt.cDP1f, fmt.cDP1r);
@@ -3379,8 +3394,8 @@ BcfFormat_symbol_calc_DPv(
     const double aSIFA = MAX( 
         (f.aLI1[a] + 0.5) / (f.ALI2[0] + f.aLI1[a] - f.aLI2[a] + 1.0), 
         (f.aRI1[a] + 0.5) / (f.ARI2[0] + f.aRI1[a] - f.aRI2[a] + 1.0));
+    const auto & indelstring = LAST(fmt.gapSa);
     if (isSymbolIns(symbol) || isSymbolDel(symbol)) {
-        const auto & indelstring = LAST(fmt.gapSa);
         const double indel_multialleles_coef = MAX(1, fmt.bDPa[a]) / (double)MAX(1, fmt.bDPf[a] + fmt.bDPr[a]);
         const bool is_in_indel_major_reg = ((MAX(f.APDP[1], f.APDP[3]) + MAX(f.APDP[2], f.APDP[4])) * 0.5 * (1.0+(double)FLT_EPSILON) < aDP * indel_multialleles_coef);
         // The 16 is from germ-HG002_het_fp_0-1_13_nochr1_173328669_A_ATTCAAGGACTTTCTTTTTACCAGCTGT
@@ -3549,10 +3564,15 @@ BcfFormat_symbol_calc_DPv(
         fmt.FTS = "PASS";
     }
     
+    // non-WGS clipping penalty for InDels
+    const double aNCFA = ((NOT_PROVIDED == paramset.vcf_tumor_fname 
+            && does_fmt_imply_short_frag(fmt) && (isSymbolIns(symbol) || isSymbolDel(symbol)) && indelstring.size() > 6)
+            ? MAX((LAST(fmt.aNC) + 0.5) / (ADP + 1.0), 0.5 * aDPFA) : 2.0);
+    
     // self-rescue of the normal by high allele frac
     const double counterbias_normalgerm_FA = ((NOT_PROVIDED == paramset.vcf_tumor_fname || !does_fmt_imply_short_frag(fmt))
-        ? 1e-9 : BETWEEN(aPFFA * aPFFA * 6, aPFFA / 6, aPFFA));
-    double min_aFA = MAX4(MINVEC(min_aFA_vec), counterbias_P_FA, counterbias_BQ_FA, counterbias_normalgerm_FA);
+        ? 1e-9 : BETWEEN(aPFFA * aPFFA * 10, aPFFA / 5, aPFFA));
+    double min_aFA = MAX4(MIN(MINVEC(min_aFA_vec), aNCFA), counterbias_P_FA, counterbias_BQ_FA, counterbias_normalgerm_FA);
     
     double dedup_FA = ((NOT_PROVIDED == paramset.vcf_tumor_fname) ? MIN(bFA, cFA0) : (MAX(bFA, cFA0)));
     double min_bcFA = MAX3(MIN3(bFA, cFA0, cROFA1), counterbias_P_FA, counterbias_BQ_FA);
@@ -3568,7 +3588,6 @@ BcfFormat_symbol_calc_DPv(
     
     double refbias = 0;
     if ((isSymbolIns(symbol) || isSymbolDel(symbol)) && is_rescued) {
-        const auto & indelstring = LAST(fmt.gapSa);
         const uvc1_readpos_t indel_noinfo_nbases = (UNSIGN2SIGN(indelstring.size()) * (isSymbolIns(symbol) ? 2 : 1) 
                 + MAX3(UNSIGN2SIGN(indelstring.size()), rtr1.tracklen, rtr2.anyTR_tracklen));
         refbias = (double)(indel_noinfo_nbases) / ((double)(MIN(f.ALPL[0], f.ARPL[0]) * 2 + indel_noinfo_nbases) / (double)(f.ABQ2[0] + 0.5));
@@ -4747,8 +4766,8 @@ append_vcf_record(
     double nfm_cDP2x_1add = 0;
     if (tki.ref_alt.size() > 0 && does_fmt_imply_short_frag(fmt)) {
         // heuristics: if the assay is not WGS, then hybrid-capture or PCR-amplicon is used, so there is greater variation in ALT read counts
-        nfm_cDP1x_1add = 0.5 * nfm_cDP1x / 100.0;
-        nfm_cDP2x_1add = 0.5 * nfm_cDP2x / 100.0;
+        nfm_cDP1x_1add = (1.0) * nfm_cDP1x / 100.0;
+        nfm_cDP2x_1add = (1.0) * nfm_cDP2x / 100.0;
     }
     
     auto tn_dec_both_tlodq_nlodq = 0;
