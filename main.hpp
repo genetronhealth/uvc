@@ -3566,16 +3566,17 @@ BcfFormat_symbol_calc_DPv(
     
     // non-WGS clipping penalty for InDels
     const double aNCFA = ((NOT_PROVIDED == paramset.vcf_tumor_fname 
-            && does_fmt_imply_short_frag(fmt) && (isSymbolIns(symbol) || isSymbolDel(symbol)) && indelstring.size() > 6)
-            ? MAX((LAST(fmt.aNC) + 0.5) / (ADP + 1.0), 0.5 * aDPFA) : 2.0);
+            && does_fmt_imply_short_frag(fmt) && (isSymbolIns(symbol) || isSymbolDel(symbol)) && indelstring.size() >= 8)
+            ? MAX((LAST(fmt.aNC) + 0.5) / (ADP + 1.0), (1.0/3.0) * aDPFA) : 2.0);
     
     // self-rescue of the normal by high allele frac
     const double counterbias_normalgerm_FA = ((NOT_PROVIDED == paramset.vcf_tumor_fname || !does_fmt_imply_short_frag(fmt))
         ? 1e-9 : BETWEEN(aPFFA * aPFFA * 10, aPFFA / 5, aPFFA));
-    double min_aFA = MAX4(MIN(MINVEC(min_aFA_vec), aNCFA), counterbias_P_FA, counterbias_BQ_FA, counterbias_normalgerm_FA);
+    const double counterbias_FA = MAX3(counterbias_P_FA, counterbias_BQ_FA, counterbias_normalgerm_FA);
+    double min_aFA = MAX(MIN(MINVEC(min_aFA_vec), aNCFA), counterbias_FA);
     
     double dedup_FA = ((NOT_PROVIDED == paramset.vcf_tumor_fname) ? MIN(bFA, cFA0) : (MAX(bFA, cFA0)));
-    double min_bcFA = MAX3(MIN3(bFA, cFA0, cROFA1), counterbias_P_FA, counterbias_BQ_FA);
+    double min_bcFA = MAX(MIN3(bFA, cFA0, cROFA1), counterbias_FA);
     
     auto min_cFA23_vec = std::vector<double> {{ cFA2, cFA3 }};
     
@@ -3594,16 +3595,16 @@ BcfFormat_symbol_calc_DPv(
         refbias = MIN(refbias, paramset.microadjust_refbias_indel_max);
     }
     // non-UMI push
-    double min_abcFA_v = MAX3(MIN(min_aFA, min_bcFA), counterbias_P_FA, counterbias_BQ_FA);
+    double min_abcFA_v = MAX(MIN(min_aFA, min_bcFA), counterbias_FA);
     clear_push(fmt.cDP1v, (uvc1_readnum100x_t)(calc_normFA_from_rawFA_refbias(min_abcFA_v, refbias) * (fmt.CDP1f[0] +fmt.CDP1r[0]) * 100), a);
-    double min_abcFA_w = MAX3(MINVEC(std::vector<double>{{
+    double min_abcFA_w = MAX(MINVEC(std::vector<double>{{
             aLPFA2, aRPFA2,
             aLBFA2, aRBFA2,
-            bFA, aNCFA}}), counterbias_P_FA, counterbias_BQ_FA);
+            bFA, aNCFA}}), counterbias_FA);
     clear_push(fmt.cDP1w, (uvc1_readnum100x_t)(calc_normFA_from_rawFA_refbias(min_abcFA_w, refbias) * (fmt.CDP1f[0] +fmt.CDP1r[0]) * 100), a);
     double min_abcFA_x = MINVEC(std::vector<double>{{ aPFFA, dedup_FA }});
     if (NOT_PROVIDED != paramset.vcf_tumor_fname) {
-        min_abcFA_x = MAX3(min_abcFA_x, counterbias_P_FA, counterbias_BQ_FA);
+        min_abcFA_x = MAX(min_abcFA_x, counterbias_FA);
     }
     clear_push(fmt.cDP1x, 1+(uvc1_readnum100x_t)                                       (min_abcFA_x * (fmt.CDP1f[0] +fmt.CDP1r[0]) * 100), a);
     
@@ -3714,7 +3715,8 @@ BcfFormat_symbol_calc_qual(
     
     const int a = 0;
     const auto symbol = AlignmentSymbol(LAST(fmt.VTI));
-    
+    const std::string & indelstring = fmt.gapSa[a];
+
     const PhredMutationTable sscs_mut_table(
             paramset.fam_phred_sscs_transition_CG_TA,
             paramset.fam_phred_sscs_transition_AT_GC,
@@ -3771,7 +3773,11 @@ BcfFormat_symbol_calc_qual(
     uvc1_qual_t phred_het3al_chance_inc_snp = MAX(0, 2 * paramset.germ_phred_hetero_snp - paramset.germ_phred_het3al_snp - TIN_CONTAM_MICRO_VQ_DELTA);
     uvc1_qual_t phred_het3al_chance_inc_indel = MAX(0, 2 * paramset.germ_phred_hetero_indel - paramset.germ_phred_het3al_indel - TIN_CONTAM_MICRO_VQ_DELTA);
     // systematic error affects both T and N upstream to the same extent, whereas T-in-N contamination affects only the N from T.
-    uvc1_qual_t contam_syserr_phred_bypassed = (isSymbolSubstitution(symbol) ? phred_het3al_chance_inc_snp : phred_het3al_chance_inc_indel);
+    uvc1_qual_t phred_het3al_chance_inc = (isSymbolSubstitution(symbol) ? phred_het3al_chance_inc_snp : phred_het3al_chance_inc_indel);
+    if (isSymbolIns(symbol) || isSymbolDel(symbol)) {
+        phred_het3al_chance_inc = non_neg_minus(phred_het3al_chance_inc_indel + 1, (uvc1_refgpos_t)indelstring.size());
+    }
+    const auto contam_syserr_phred_bypassed = phred_het3al_chance_inc;
     const uvc1_readnum_t normCDP1 = (fmt.CDP12f[0] + fmt.CDP12r[0] + 1);
     const uvc1_readnum_t normBDP = (fmt.BDPf[0] + fmt.BDPr[0] + 1);
     const uvc1_qual_big_t sscs_dec1a = 2 * int64mul(non_neg_minus(paramset.fam_min_n_copies, normCDP1),                             (powlaw_sscs_inc1 + 3))
@@ -3852,8 +3858,7 @@ BcfFormat_symbol_calc_qual(
     uvc1_qual_t indel_penal4multialleles = 0;
     uvc1_qual_t indel_penal4multialleles_g = 0;
     uvc1_qual_t indel_penal4multialleles_soma = 0;
-    const std::string & indelstring = fmt.gapSa[a];
-    
+        
     uvc1_qual_t indel_UMI_penal = 0;
     
     if (indelstring.size() > 0 && fmt.cDP0a[a] > 0) {
@@ -4757,6 +4762,11 @@ append_vcf_record(
     uvc1_refgpos_t phred_het3al_chance_inc_snp = MAX(0, 2 * paramset.germ_phred_hetero_snp - paramset.germ_phred_het3al_snp - TIN_CONTAM_MICRO_VQ_DELTA);
     uvc1_refgpos_t phred_het3al_chance_inc_indel = MAX(0, 2 * paramset.germ_phred_hetero_indel - paramset.germ_phred_het3al_indel - TIN_CONTAM_MICRO_VQ_DELTA);
     
+    uvc1_refgpos_t phred_het3al_chance_inc = (isSymbolSubstitution(symbol) ? phred_het3al_chance_inc_snp : phred_het3al_chance_inc_indel);
+    if (isSymbolIns(symbol) || isSymbolDel(symbol)) {
+        phred_het3al_chance_inc = non_neg_minus(phred_het3al_chance_inc_indel + 1, (uvc1_refgpos_t)indelstring.size());
+    }
+    
     const auto tn_dec_by_xm = BETWEEN(MIN(LAST(fmt.bNMQ), tki.bNMQ),
         paramset.microadjust_syserr_MQ_NMR_tn_syserr_no_penal_qual_min, 
         paramset.microadjust_syserr_MQ_NMR_tn_syserr_no_penal_qual_max) 
@@ -4784,7 +4794,7 @@ append_vcf_record(
             (tki.cPCQ1),
             (nfm_cDP1x + 0.5) / 100.0 + 0.0 + nfm_cDP1x_1add,
             (nfm_CDP1x + 1.0) / 100.0 + 0.0 + nfm_cDP1x_1add,
-            non_neg_minus(collectget(nfm.cVQ1, 1), (isSymbolSubstitution(symbol) ? phred_het3al_chance_inc_snp : phred_het3al_chance_inc_indel)),
+            non_neg_minus(collectget(nfm.cVQ1, 1), phred_het3al_chance_inc),
             paramset.tn_syserr_norm_devqual,
             prior_phred,
             tn_dec_by_xm,
@@ -4797,7 +4807,7 @@ append_vcf_record(
             (tki.cPCQ1),
             (nfm_cDP1x + 0.5) / 100.0 + 0.0 + nfm_cDP1x_1add,
             (nfm_CDP1x + 1.0) / 100.0 + 0.0 + nfm_cDP1x_1add, 
-            non_neg_minus(collectget(nfm.cVQ1, 1), (isSymbolSubstitution(symbol) ? phred_het3al_chance_inc_snp : phred_het3al_chance_inc_indel)),
+            non_neg_minus(collectget(nfm.cVQ1, 1), phred_het3al_chance_inc),
             0));
     
     const auto c_binom_powlaw_syserr_normv_q4 = (paramset.tn_syserr_norm_devqual >= 0 
@@ -4808,7 +4818,7 @@ append_vcf_record(
             (tki.cPCQ2),
             (nfm_cDP2x + 0.0) / 100.0 + 0.5 + nfm_cDP2x_1add,
             (nfm_CDP2x + 0.0) / 100.0 + 1.0 + nfm_cDP2x_1add,
-            non_neg_minus(collectget(nfm.cVQ2, 1), (isSymbolSubstitution(symbol) ? phred_het3al_chance_inc_snp : phred_het3al_chance_inc_indel)),
+            non_neg_minus(collectget(nfm.cVQ2, 1), phred_het3al_chance_inc),
             paramset.tn_syserr_norm_devqual,
             prior_phred,
             tn_dec_by_xm,
@@ -4821,7 +4831,7 @@ append_vcf_record(
             (tki.cPCQ2),
             (nfm_cDP2x + 0.0) / 100.0 + 0.5 + nfm_cDP2x_1add,
             (nfm_CDP2x + 0.0) / 100.0 + 1.0 + nfm_cDP2x_1add,
-            non_neg_minus(collectget(nfm.cVQ2, 1), (isSymbolSubstitution(symbol) ? phred_het3al_chance_inc_snp : phred_het3al_chance_inc_indel)),
+            non_neg_minus(collectget(nfm.cVQ2, 1), phred_het3al_chance_inc),
             0));
     
     uvc1_qual_t tlodq1 = MAX(b_binom_powlaw_syserr_normv_q4filter[3], c_binom_powlaw_syserr_normv_q4[3]);
