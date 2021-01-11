@@ -303,8 +303,9 @@ struct CommandLineArgs {
     uvc1_qual_t         indel_nonSTR_phred_per_base = 5;
     // https://genomebiology.biomedcentral.com/articles/10.1186/s13059-018-1505-2
     uvc1_qual_t         indel_str_phred_per_region = 5*2; // should be 15 but set to 10 to allow some correlation
-    uvc1_readpos_t      indel_filter_edge_dist = 5;
-
+    uvc1_readpos_t      indel_filter_edge_dist_t = 4;
+    uvc1_readpos_t      indel_filter_edge_dist_n = 1;
+    
     // https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2734402/#bib41 : powlaw exponent of 1.5-1.6 for mut rate vs indel len.
     // https://pubmed.ncbi.nlm.nih.gov/18641631/ : SNV mutation rate near (up to a few hundred bp) heterozygous InDels are higher than expected.
     

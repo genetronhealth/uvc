@@ -1940,7 +1940,9 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
                             ? qfromBQ1 : (TIsProton ? MIN(qfromBQ1 + proton_cigarlen2phred(cigar_oplen), MAX(3, qfromBQ1) * UNSIGN2SIGN(cigar_oplen)) : 80));
                     incvalue = non_neg_minus(MIN(qfromBQ2, phredvalue + symboltype2addPhred[LINK_SYMBOL]), micro_indel_penal) + 1;
                 }
-                if (nbases2end >= paramset.indel_filter_edge_dist) {
+                const auto indel_filter_edge_dist = (NOT_PROVIDED == paramset.vcf_tumor_fname 
+                        ? paramset.indel_filter_edge_dist_t : paramset.indel_filter_edge_dist_n);
+                if (nbases2end >= indel_filter_edge_dist) {
                     const auto symbol = insLenToSymbol(inslen, aln);
                     this->template inc<TUpdateType>(rpos, symbol, MAX(SIGN2UNSIGN(1), incvalue), aln);
                     if (TIsBiasUpdated) {
@@ -2039,7 +2041,9 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
                     uvc1_qual_t qfromBAQ = MAX3(delFAQ, qfromBQ1, MIN(qfromBAQl, qfromBAQr));
                     incvalue = non_neg_minus(MIN3(qfromBQ2, qfromBAQ, phredvalue + symboltype2addPhred[LINK_SYMBOL]), micro_indel_penal) + 1;
                 }
-                if (nbases2end >= paramset.indel_filter_edge_dist) {
+                const auto indel_filter_edge_dist = (NOT_PROVIDED == paramset.vcf_tumor_fname 
+                        ? paramset.indel_filter_edge_dist_t : paramset.indel_filter_edge_dist_n);
+                if (nbases2end >= indel_filter_edge_dist) {
                     AlignmentSymbol symbol = delLenToSymbol(dellen, aln);
                     this->template inc<TUpdateType>(rpos, symbol, MAX(SIGN2UNSIGN(1), incvalue), aln);
                     if (TIsBiasUpdated) {
@@ -3594,19 +3598,21 @@ BcfFormat_symbol_calc_DPv(
         refbias = (double)(indel_noinfo_nbases) / ((double)(MIN(f.ALPL[0], f.ARPL[0]) * 2 + indel_noinfo_nbases) / (double)(f.ABQ2[0] + 0.5));
         refbias = MIN(refbias, paramset.microadjust_refbias_indel_max);
     }
+    
     // non-UMI push
     double min_abcFA_v = MAX(MIN(min_aFA, min_bcFA), counterbias_FA);
     clear_push(fmt.cDP1v, (uvc1_readnum100x_t)(calc_normFA_from_rawFA_refbias(min_abcFA_v, refbias) * (fmt.CDP1f[0] +fmt.CDP1r[0]) * 100), a);
+    
     double min_abcFA_w = MAX(MINVEC(std::vector<double>{{
             aLPFA2, aRPFA2,
             aLBFA2, aRBFA2,
             bFA, aNCFA}}), counterbias_FA);
     clear_push(fmt.cDP1w, (uvc1_readnum100x_t)(calc_normFA_from_rawFA_refbias(min_abcFA_w, refbias) * (fmt.CDP1f[0] +fmt.CDP1r[0]) * 100), a);
-    double min_abcFA_x = MINVEC(std::vector<double>{{ aPFFA, dedup_FA }});
-    if (NOT_PROVIDED != paramset.vcf_tumor_fname) {
-        min_abcFA_x = MAX(min_abcFA_x, counterbias_FA);
-    }
-    clear_push(fmt.cDP1x, 1+(uvc1_readnum100x_t)                                       (min_abcFA_x * (fmt.CDP1f[0] +fmt.CDP1r[0]) * 100), a);
+    
+    double min_abcFA_x = MAX(MINVEC(std::vector<double>{{ aPFFA, dedup_FA }}), counterbias_FA);
+    auto cDP1xAD = (uvc1_readnum100x_t)(min_abcFA_x * (fmt.CDP1f[0] +fmt.CDP1r[0]) * 100) + 1;
+    if (is_rescued && (isSymbolIns(symbol) || isSymbolDel(symbol)) && rtr2.tracklen < (rtr2.unitlen + 1) * 4) { cDP1xAD = MIN(int64mul(cDP1xAD, 4) / 3, fmt.aPF1[a]); }
+    clear_push(fmt.cDP1x, cDP1xAD, a);
     
     // UMI push
     clear_push(fmt.cDP2v, (uvc1_readnum100x_t)(calc_normFA_from_rawFA_refbias(MIN(min_aFA * frac_umi2seg, cROFA2), refbias) 
