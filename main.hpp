@@ -3241,16 +3241,20 @@ BcfFormat_symbol_calc_DPv(
     if ((is_nmore_amplicon && (0x2 == (0x2 & paramset.nobias_flag))) || ((!is_nmore_amplicon) && (0x1 == (0x1 & paramset.nobias_flag)))) {
         // counter bias : position 23-10 bp and base quality 13
         // not-pos-bias < pos-bias
-        const double using_bias_aFA = (aDP - LAST(fmt.aP1) + 0.5) / (ADP - fmt.AP1[0] + 1.0);
-        const double using_all_aFA = (aDP + 0.5) / (ADP + 1.0);
+        const double using_bias_oddsA = prob2odds((aDP - LAST(fmt.aP1) + 0.5) / (ADP - fmt.AP1[0] + 1.0));
+        const double using_nobias_oddsA = prob2odds((LAST(fmt.aP1) + 0.5) / (fmt.AP1[0] + 1.0));
         
-        // for ERP015684 T610 17_37871708_A_G, is_pos_counterbias becomes true to rescue the TP call by eliminating the primer-induced position bias and orientation bias
+        // for ERP015684 T610 17_37871708_A_G, is_pos_counterbias=true to rescue the TP call by eliminating the primer-induced position bias and orientation bias
+        // for ERP015684 T610 16_68835770_C_T, is_pos_counterbias=true to rescue the TP call by eliminating the clipping-induced orientation bias
         const bool is_pos_counterbias = (
-                   (using_bias_aFA * 4  < using_all_aFA * (unbias_ratio - DBL_EPSILON))
+                   (using_bias_oddsA * 4  < using_nobias_oddsA * (unbias_ratio - DBL_EPSILON))
                 && (LAST(fmt.aP1) * (unbias_ratio - DBL_EPSILON) > aDP - LAST(fmt.aP1))
                 && ((ADP - fmt.AP1[0]) * 4 * (unbias_ratio - DBL_EPSILON)  > fmt.AP1[0])
                 && ((0 == paramset.primerlen && 0 != paramset.primerlen2) || !isSymbolSubstitution(symbol)));
         if (is_pos_counterbias) {
+            if (paramset.should_add_note) {
+                fmt.note += std::string("oddsA/") + std::to_string(using_bias_oddsA) + "/" + std::to_string(using_nobias_oddsA);
+            }
             UPDATE_MAX(_counterbias_P_FA, (LAST(fmt.aP1) + 0.5) / (MAX(fmt.AP1[0], fmt.APDP[9]) + 1.0));
         } else {
             UPDATE_MAX(_counterbias_P_FA, 2e-9);
