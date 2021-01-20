@@ -7,6 +7,7 @@
 // #include "precompiled/precompiled_main.hpp"
 
 #include <array>
+#include <cassert>
 #include <string>
 #include <vector>
 
