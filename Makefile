@@ -37,7 +37,7 @@ uvc.st.out : $(HDR) $(SRC) $(DEP)
 	$(CXX) -O2 -g -p    -o uvc.st.out   $(CXXFLAGS) $(VERFLAGS) $(SRC) $(HTSFLAGS) -fsanitize=address
 
 uvc.no.out : $(HDR) $(SRC) $(DEP)
-	$(CXX) -O0 -g -p    -o uvc.no.out   $(CXXFLAGS) $(VERFLAGS) $(SRC) $(HTSFLAGS) -fsanitize=address -Wextra
+	$(CXX) -O1 -g -p    -o uvc.no.out   $(CXXFLAGS) $(VERFLAGS) $(SRC) $(HTSFLAGS) -fsanitize=address -Wextra
 
 # multi-thread executable with runtime assertions and debug symbols, useful for debugging
 uvc.mt.out : $(HDR) $(SRC) $(DEP)
