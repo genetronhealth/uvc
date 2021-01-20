@@ -472,10 +472,13 @@ main(int argc, char **argv) {
     
     std::cout << "#ifndef bcf_formats_step1_INCLUDED\n";
     std::cout << "#define bcf_formats_step1_INCLUDED\n"; 
+    
     std::cout << "#include<array>\n";
     std::cout << "#include<ostream>\n";
     std::cout << "#include<string>\n";
     std::cout << "#include<vector>\n";
+    std::cout << "#include<assert.h>\n";
+    
     std::cout << "namespace bcfrec {\n";
     
     std::cout << "static const unsigned int FILTER_NUM = " << FILTER_VEC.size() << ";\n";
@@ -572,8 +575,6 @@ main(int argc, char **argv) {
         itnum++;
     }
     std::cout << "\n    return 0;};\n";
-    
-    std::cout << "#include <assert.h>\n";
     
     std::cout << "static int resetBcfFormatD(BcfFormat & fmt) {\n";
     
