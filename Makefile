@@ -11,8 +11,8 @@ HDR=CmdLineArgs.hpp common.hpp grouping.hpp logging.hpp main.hpp main_conversion
 SRC=CmdLineArgs.cpp common.cpp grouping.cpp logging.cpp main.cpp                     version.cpp 
 DEP=bcf_formats.step1.hpp instcode.hpp Makefile
 
-HTSPATH=ext/htslib-1.9-lowdep/libhts.a
-HTSFLAGS=$(HTSPATH) -I ext/htslib-1.9-lowdep/ -pthread -lm -lz -lbz2 -llzma # -lcurl -lcrypto # can be changed depending on the specific installed components of htslib (please refer to the INSTALL file in htslib)
+HTSPATH=ext/htslib-1.11-lowdep/libhts.a
+HTSFLAGS=$(HTSPATH) -I ext/htslib-1.11-lowdep/ -pthread -lm -lz -lbz2 -llzma # -lcurl -lcrypto # can be changed depending on the specific installed components of htslib (please refer to the INSTALL file in htslib)
 CC=gcc  # can be changed to clang or other compilers as needed
 CXX=g++ # can be changed to clang or other compilers as needed
 CXXFLAGS=-std=c++14 -static-libstdc++ -Wall
