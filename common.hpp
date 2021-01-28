@@ -47,7 +47,7 @@
 // substitutions
 
 #define SIGN2UNSIGN(x) ((x)) // disabled
-#define UNSIGN2SIGN(x) ((const int64_t)(x))
+#define UNSIGN2SIGN(x) ((int64_t)(x))
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
 #define INT64MUL(x, y) ((int64_t)(x) * (int64_t)(y))

@@ -714,8 +714,9 @@ is_indel_context_more_STR(uvc1_refgpos_t rulen1, uvc1_refgpos_t rc1, uvc1_refgpo
     }
 }
 
+template <class T1, class T2, class T3>
 uvc1_refgpos_t 
-indelpos_repeatsize_to_repeatnum(const auto & refstring, const auto refpos, const auto repeatsize){
+indelpos_repeatsize_to_repeatnum(const T1 & refstring, const T2 refpos, const T3 repeatsize) {
     uvc1_refgpos_t qidx = refpos;
     while ((qidx + repeatsize < UNSIGN2SIGN(refstring.size())) && refstring[qidx] == refstring[qidx+repeatsize]) {
         qidx++;
@@ -795,7 +796,7 @@ indel_phred(double ampfact, uvc1_refgpos_t repeatsize_at_max_repeatnum, uvc1_ref
 
 std::vector<RegionalTandemRepeat>
 refstring2repeatvec(
-        const auto & refstring,
+        const std::string & refstring,
         const uvc1_refgpos_t indel_str_repeatsize_max,
         const uvc1_refgpos_t indel_minisattelite_repeatsize_max,
         const uvc1_qual_t indel_BQ_max,
@@ -919,7 +920,7 @@ update_seg_format_prep_sets_by_aln(
         const std::vector<RegionalTandemRepeat> & rtr_vec,
         const CoveredRegion<uvc1_qual_big_t> & baq_offsetarr,
         const uvc1_refgpos_t region_offset,
-        const auto dflag,
+        const uvc1_flag_t dflag,
         const std::basic_string<AlignmentSymbol> & region_symbolvec,
         
         const CommandLineArgs & paramset,
@@ -1281,14 +1282,14 @@ update_seg_format_thres_from_prep_sets(
     return 0;
 }
 
-template <bool isGap, class T1, class T2, class T3, class T4, class T5, class T6, class T7>
+template <bool isGap, class T1, class T11, class T12, class T2, class T3, class T4, class T5, class T6, class T7>
 inline
 int
 dealwith_segbias(
         const T1 bq,
         const uvc1_refgpos_t rpos,
-        auto & symbol_to_seg_format_depth_set,
-        auto & symbol_to_VQ_format_tag_set,
+        T11 & symbol_to_seg_format_depth_set,
+        T12 & symbol_to_VQ_format_tag_set,
         const T2 & seg_format_thres_set,
         const bam1_t *aln,
         const T3 xm1500,
@@ -2721,9 +2722,12 @@ struct Symbol2CountCoverageSet {
         return 0;
     };
     
+    template <class T1, class T2>
     int 
     updateHapMap(std::map<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>> & mutform2count4map, 
-            const auto & tsum_depth, const auto read_count_field_id, int max_ploidy = 2+1) {
+            const T1 & tsum_depth,
+            const T2 read_count_field_id,
+            int max_ploidy = 2+1) {
         for (auto it = mutform2count4map.begin(); it != mutform2count4map.end();) {
             std::basic_string<std::pair<uvc1_readnum_t, AlignmentSymbol>> mutform = it->first;
             auto counts = it->second;
@@ -4709,6 +4713,7 @@ calc_binom_powlaw_syserr_normv_quals2(
     return std::array<uvc1_qual_t, 4> {{binom_b10log10like, powlaw_b10log10like, nVQ, tnVQ }};
 };
 
+template <class T>
 int
 append_vcf_record(
         std::string & out_string,
@@ -4730,7 +4735,7 @@ append_vcf_record(
         const AlignmentSymbol argmin_nlodq_symbol,
         const bool should_output_ref_allele,
         const bcf_hdr_t *g_bcf_hdr,
-        const auto & baq_offsetarr,
+        const T & baq_offsetarr,
         
         const CommandLineArgs & paramset,
         const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
