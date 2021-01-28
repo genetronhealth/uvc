@@ -165,12 +165,13 @@ als_to_string(const char *const* const allele, uint32_t n_allele) {
         valsize = bcf_get_format_int32(bcf_hdr, line, v, &bcfints, &ndst_val); \
         assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for %s and line %ld!\n", ndst_val, valsize, v, line->pos));
 
+template <class T1, class T2, class T3>
 const std::map<std::tuple<uvc1_refgpos_t, uvc1_refgpos_t, AlignmentSymbol>, std::vector<TumorKeyInfo>>
 rescue_variants_from_vcf(
-        const auto & tid_beg_end_e2e_vec, 
-        const auto & tid_to_tname_tlen_tuple_vec, 
+        const T1 & tid_beg_end_e2e_vec,
+        const T2 & tid_to_tname_tlen_tuple_vec,
         const std::string & vcf_tumor_fname, 
-        const auto *bcf_hdr, 
+        const T3 *bcf_hdr,
         const bool is_tumor_format_retrieved) {
     std::map<std::tuple<uvc1_refgpos_t, uvc1_refgpos_t, AlignmentSymbol>, std::vector<TumorKeyInfo>> ret;
     if (NOT_PROVIDED == vcf_tumor_fname) {
@@ -401,8 +402,9 @@ are_depths_diff(uvc1_readnum_t currDP, uvc1_readnum_t prevDP, uvc1_readnum_t mul
     return true;
 }
 
+template <class T>
 int 
-process_batch(BatchArg & arg, const auto & tid_pos_symb_to_tkis) {
+process_batch(BatchArg & arg, const T & tid_pos_symb_to_tkis) {
     
     std::string & outstring_pass = arg.outstring_pass;
     const hts_idx_t *const hts_idx = arg.hts_idx;

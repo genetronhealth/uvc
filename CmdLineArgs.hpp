@@ -328,6 +328,9 @@ struct CommandLineArgs {
     double              microadjust_nobias_strand_all_fold = 5; // it was reduced from 20
     double              microadjust_refbias_indel_max = 2.0;
     
+    double              microadjust_counterbias_pos_odds_ratio = 3.5;
+    double              microadjust_counterbias_pos_fold_ratio = 5.0;
+    
     uvc1_qual_t         microadjust_fam_binom_qual_halving_thres = 22;
     int32_t             microadjust_fam_lowfreq_invFA = 1000;
     uvc1_qual_t         microadjust_ref_MQ_dec_max = 15;

@@ -749,6 +749,13 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
     ADD_OPTDEF2(app, microadjust_refbias_indel_max,
         "Maximum reference bias for InDels. ");
     
+    ADD_OPTDEF2(app, microadjust_counterbias_pos_odds_ratio,
+        "The ratio of (allele odds computed using reads with no position bias) to (allele odds computed using reads with position bias), "
+        "above which rescue by position counterbias can be activated beause the non-ALT alleles are biased. ");
+    ADD_OPTDEF2(app, microadjust_counterbias_pos_fold_ratio,
+        "The ratio of (number of reads with no position bias) to (number of reads with position bias), "
+        "below which rescue by position counterbias can be activated beause sufficient part of sequencing depth is from reads with position bias. ");
+    
     ADD_OPTDEF2(app, microadjust_fam_binom_qual_halving_thres,
         "The base-alignment quality of a deletion cannot be below this value at 100\% allele fraction. ");
     ADD_OPTDEF2(app, microadjust_fam_lowfreq_invFA,

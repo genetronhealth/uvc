@@ -3268,9 +3268,9 @@ BcfFormat_symbol_calc_DPv(
         // for ERP015684 T610 17_37871708_A_G, is_pos_counterbias=true to rescue the TP call by eliminating the primer-induced position bias and orientation bias
         // for ERP015684 T610 16_68835770_C_T, is_pos_counterbias=true to rescue the TP call by eliminating the clipping-induced orientation bias
         const bool is_pos_counterbias = (
-                   (using_bias_oddsA * 4  < using_nobias_oddsA * (unbias_ratio - DBL_EPSILON))
+                   (using_bias_oddsA * paramset.microadjust_counterbias_pos_odds_ratio < using_nobias_oddsA * (unbias_ratio - DBL_EPSILON))
                 && (LAST(fmt.aP1) * (unbias_ratio - DBL_EPSILON) > aDP - LAST(fmt.aP1))
-                && ((ADP - fmt.AP1[0]) * 4 * (unbias_ratio - DBL_EPSILON)  > fmt.AP1[0])
+                && ((ADP - fmt.AP1[0]) * paramset.microadjust_counterbias_pos_fold_ratio * (unbias_ratio - DBL_EPSILON)  > fmt.AP1[0])
                 && ((0 == paramset.primerlen && 0 != paramset.primerlen2) || !isSymbolSubstitution(symbol)));
         if (is_pos_counterbias) {
             if (paramset.should_add_note) {
