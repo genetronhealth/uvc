@@ -192,8 +192,9 @@ enum FilterReason {
     NUM_FILTER_REASONS
 };
 
+template <class T>
 enum FilterReason
-fill_isrc_isr2_beg_end_with_aln(bool & isrc, bool & isr2, uvc1_refgpos_t & tBeg, uvc1_refgpos_t & tEnd, auto &num_seqs,
+fill_isrc_isr2_beg_end_with_aln(bool & isrc, bool & isr2, uvc1_refgpos_t & tBeg, uvc1_refgpos_t & tEnd, T &num_seqs,
         const bam1_t *aln, const uvc1_refgpos_t fetch_tbeg, const uvc1_refgpos_t fetch_tend,
         const uvc1_qual_t min_mapqual, const uvc1_readpos_t min_aln_len, const bool end2end, const bool is_pair_end_merge_enabled) {
     num_seqs = 0;

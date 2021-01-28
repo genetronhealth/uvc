@@ -20,58 +20,69 @@
 
 // math functions
 
-auto MEDIAN(const auto & v) {
+template <class T>
+auto MEDIAN(const T & v) {
     assert(v.size() > 0);
     return (v[(v.size() - 1) / 2] + v[(v.size()) / 2]) / 2;
 }
 
-auto FIRST(const auto & v) {
+template <class T>
+auto FIRST(const T & v) {
     assert(v.size() > 0);
     return v[0];
 }
 
-const auto LAST(const auto & v) {
+template <class T>
+auto LAST(const T & v) {
     assert(v.size() > 0);
     return v[(v.size()-1)];
 }
 
+template <class T1, class T2>
 int64_t
-int64mul(const auto a, const auto b) {
+int64mul(const T1 a, const T2 b) {
     return ((int64_t)a) * ((int64_t)b);
 }
 
+template <class T1, class T2>
 uint64_t
-uint64mul(const auto a, const auto b) {
+uint64mul(const T1 a, const T2 b) {
     return ((uint64_t)a) * ((uint64_t)b);
 }
 
+template <class T1, class T2>
 auto 
-non_neg_minus(auto a, auto b) {
+non_neg_minus(T1 a, T2 b) {
     return (a > b ? (a - b) : 0);
 }
 
+template <class T1, class T2>
 auto
-CENTER(auto a, auto b, int center = 0) {
+CENTER(T1 a, T2 b, int center = 0) {
     return ((abs(a - center) < abs(b - center)) ? a : b);
 }
 
+template <class T1, class T2, class T3>
 auto
-MIN3(auto a, auto b, auto c) {
+MIN3(T1 a, T2 b, T3 c) {
     return MIN(a, MIN(b, c));
 }
 
+template <class T1, class T2, class T3, class T4>
 auto
-MIN4(auto a, auto b, auto c, auto d) {
+MIN4(T1 a, T2 b, T3 c, T4 d) {
     return MIN(a, MIN3(b, c, d));
 }
 
+template <class T1, class T2, class T3, class T4, class T5>
 auto
-MIN5(auto a, auto b, auto c, auto d, auto e) {
+MIN5(T1 a, T2 b, T3 c, T4 d, T5 e) {
     return MIN(a, MIN4(b, c, d, e));
 }
 
+template <class T>
 auto
-MINVEC(auto v) {
+MINVEC(T v) {
     assert(v.size() > 0);
     auto ret = v[0];
     for (auto e : v) {
@@ -80,28 +91,33 @@ MINVEC(auto v) {
     return ret;
 }
 
-auto 
-MAX3(auto a, auto b, auto c) {
+template <class T1, class T2, class T3>
+auto
+MAX3(T1 a, T2 b, T3 c) {
     return MAX(a, MAX(b, c));
 }
 
-auto 
-MAX4(auto a, auto b, auto c, auto d) {
+template <class T1, class T2, class T3, class T4>
+auto
+MAX4(T1 a, T2 b, T3 c, T4 d) {
     return MAX(a, MAX3(b, c, d));
 }
 
-auto 
-MAX5(auto a, auto b, auto c, auto d, auto e) {
+template <class T1, class T2, class T3, class T4, class T5>
+auto
+MAX5(T1 a, T2 b, T3 c, T4 d, T5 e) {
     return MAX(a, MAX4(b, c, d, e));
 }
 
-auto 
-MAX6(auto a, auto b, auto c, auto d, auto e, auto f) {
+template <class T1, class T2, class T3, class T4, class T5, class T6>
+auto
+MAX6(T1 a, T2 b, T3 c, T4 d, T5 e, T6 f) {
     return MAX(a, MAX5(b, c, d, e, f));
 }
 
+template <class T>
 auto
-MAXVEC(auto v) {
+MAXVEC(T v) {
     assert(v.size() > 0);
     auto ret = v[0];
     for (auto e : v) {
@@ -110,23 +126,27 @@ MAXVEC(auto v) {
     return ret;
 }
 
+template <class T1, class T2, class T3>
 auto
-BETWEEN(auto v, auto a, auto b) {
+BETWEEN(T1 v, T2 a, T3 b) {
     return MIN(MAX(a, v), b);
 }
 
+template <class T1, class T2>
 void 
-UPDATE_MIN(auto & a, const auto & b) {
+UPDATE_MIN(T1 & a, const T2 & b) {
     a = MIN(a, b);
 }
 
+template <class T1, class T2>
 void 
-UPDATE_MAX(auto & a, const auto & b) {
+UPDATE_MAX(T1 & a, const T2 & b) {
     a = MAX(a, b);
 }
 
+template <class T>
 auto
-SUMVEC(const auto & vec) {
+SUMVEC(const T & vec) {
     auto r = 0;
     for (size_t i = 0; i < vec.size(); i++) {
         r += vec[i];
@@ -156,13 +176,15 @@ calc_score_with_penal_at_low_val(const T v, T penal_mult, T thres = 60.0) {
     }
 }
 
-auto 
-mathsquare(auto x) { 
+template <class T>
+auto
+mathsquare(T x) {
     return x * x; 
 }
 
-auto 
-mathcube(auto x) {
+template <class T>
+auto
+mathcube(T x) {
     return x * x * x;
 }
 
@@ -217,14 +239,15 @@ static_assert(calc_binom_10log10_likeratio(0.1, 90, 10) > 763); // 10/log(10) * 
 static_assert(calc_binom_10log10_likeratio(0.1, 90, 10) < 764); // 10/log(10) * (90*log(9)+10*log(1/9))
 static_assert(abs(calc_binom_10log10_likeratio(0.1, 1, 99)) < 1e-4); // 10/log(10) * (90*log(9)+10*log(1/9))
 
-template <class T=int>
+template <class T=int, class T1>
 T
-collectget(const auto & collection, size_t idx, T defaultval = 0) {
+collectget(const T1 & collection, size_t idx, T defaultval = 0) {
     return (idx < collection.size() ? collection[idx] : defaultval);
 }
 
+template <class T1, class T2>
 void
-clear_push(auto & collection, auto v, size_t idx = 0) {
+clear_push(T1 & collection, T2 v, size_t idx = 0) {
     if (0 == idx) {
         collection.clear();
     }
@@ -237,8 +260,9 @@ autoswap ( T& a, T& b ) {
     T c(a); a=b; b=c;
 }
 
+template <class T>
 std::string
-string_join(const auto & container, std::string sep = std::string(",")) {
+string_join(const T & container, std::string sep = std::string(",")) {
     std::string ret = "";
     for (auto e : container) {
         ret += e + sep;
@@ -247,8 +271,9 @@ string_join(const auto & container, std::string sep = std::string(",")) {
     return ret;
 }
 
+template <class T>
 std::string 
-other_join(const auto & container, std::string sep = std::string(",")) {
+other_join(const T & container, std::string sep = std::string(",")) {
     std::string ret = "";
     for (const auto & e : container) {
         ret += std::to_string(e) + sep;
@@ -257,8 +282,9 @@ other_join(const auto & container, std::string sep = std::string(",")) {
     return ret;
 }
 
+template <class T>
 std::string 
-int32t_join(const auto & container, std::string sep = std::string(",")) {
+int32t_join(const T & container, std::string sep = std::string(",")) {
     std::string ret = "";
     for (const auto & e : container) {
         if (e == INT32_MIN) {
@@ -425,8 +451,9 @@ struct SegFormatPrepSet {
 };
 #define NUM_SEG_FORMAT_PREP_SETS ((size_t)SEG_FORMAT_PREP_SET_END)
 
+template <class T1, class T2>
 uvc1_readnum_big_t
-calc_indel_weight(const auto indelsize, const auto borderlen) {
+calc_indel_weight(const T1 indelsize, const T2 borderlen) {
     return (1024L * 1024L) * mathcube(indelsize) / mathcube(MAX(borderlen, 8));
 }
 
@@ -581,13 +608,15 @@ enum VQFormatTagSet {
 };
 #define NUM_VQ_FORMAT_TAG_SETS ((size_t)VQ_FORMAT_TAG_SET_END)
 
+template <class T>
 uvc1_readnum_t
-seg_format_get_ad(const auto & s) {
+seg_format_get_ad(const T & s) {
     return s.seginfo_aDPff + s.seginfo_aDPfr + s.seginfo_aDPrf + s.seginfo_aDPrr;
 };
 
+template <class T1, class T2, class T3>
 uvc1_qual_t
-get_avgBQ(const auto & bg_seg_bqsum_conslogo, const auto & symbol_to_seg_format_depth_sets, const uvc1_refgpos_t epos, const auto s) {
+get_avgBQ(const T1 & bg_seg_bqsum_conslogo, const T2 & symbol_to_seg_format_depth_sets, const uvc1_refgpos_t epos, const T3 s) {
     const auto denom = seg_format_get_ad(symbol_to_seg_format_depth_sets.getByPos(epos)[s]);
     return bg_seg_bqsum_conslogo.getByPos(epos).getSymbolCount(s) / MAX(1, denom);
 }
@@ -685,8 +714,9 @@ prob2realphred(const double probvalue) {
     return -10 * log(probvalue) / log(10);
 }
 
+template <class T1, class T2, class T3, class T4>
 void
-process_cigar(auto & qpos, auto & rpos, auto cigar_op, auto cigar_oplen) {
+process_cigar(T1 & qpos, T2 & rpos, T3 cigar_op, T4 cigar_oplen) {
     if (cigar_op == BAM_CREF_SKIP) {
         rpos += cigar_oplen;
     } else if (cigar_op == BAM_CSOFT_CLIP) {
@@ -706,8 +736,9 @@ process_cigar(auto & qpos, auto & rpos, auto cigar_op, auto cigar_oplen) {
 
 #define NUM_BUCKETS 16
 
+template <class T>
 uvc1_qual_t 
-proton_cigarlen2phred(auto cigarlen) {
+proton_cigarlen2phred(T cigarlen) {
     uvc1_qual_t oplen2phred[12+1] = {
         0, // generated by the python code: for i in range(1,12+1):  print('(uvc_qual_t)round({}), //{}'.format(10/log(10)*log(i**3), i))
         (uvc1_qual_t)round(0.0), //1

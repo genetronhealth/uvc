@@ -166,14 +166,14 @@ isSymbolDel(const AlignmentSymbol symbol) {
 
 constexpr AlignmentSymbol 
 insLenToSymbol(uvc1_readpos_t len, const bam1_t *b) {
-    assert(len >= 0 || !fprintf(stderr, "Error: the bam record with qname %s at tid %d pos %d has insertion of length %d !\n", 
+    assert(len >= 0 || !fprintf(stderr, "Error: the bam record with qname %s at tid %d pos %ld has insertion of length %d !\n", 
             bam_get_qname(b), b->core.tid, b->core.pos, len));
     return (1 == len ? LINK_I1 : ((2 == len) ? LINK_I2 : LINK_I3P));
 }
 
 constexpr AlignmentSymbol 
 delLenToSymbol(uvc1_readpos_t len, const bam1_t *b) {
-    assert(len >= 0 || !fprintf(stderr, "Error: the bam record with qname %s at tid %d pos %d has deletion of length %d !\n", 
+    assert(len >= 0 || !fprintf(stderr, "Error: the bam record with qname %s at tid %d pos %ld has deletion of length %d !\n", 
             bam_get_qname(b), b->core.tid, b->core.pos, len));
     return (1 == len ? LINK_D1 : ((2 == len) ? LINK_D2 : LINK_D3P));
 }
@@ -223,8 +223,9 @@ isSymbolSubstitution(AlignmentSymbol symbol) {
 }
 
 // is not WGS (i.e., is hybrid-capture-WES or amplicon-PCR)
+template <class T1, class T2>
 bool
-does_fmt_imply_short_frag(const auto & fmt, const auto wgs_min_avg_fragsize) {
+does_fmt_imply_short_frag(const T1 & fmt, const T2 wgs_min_avg_fragsize) {
     return (fmt.APLRI[0] + fmt.APLRI[2]) < int64mul(fmt.APLRI[1] + fmt.APLRI[3], wgs_min_avg_fragsize);
 }
 
@@ -607,7 +608,9 @@ template <class TSymbol2Bucket2Count>
 class GenericSymbol2Bucket2CountCoverage : public CoveredRegion<TSymbol2Bucket2Count> {
     public:
     GenericSymbol2Bucket2CountCoverage() : CoveredRegion<TSymbol2Bucket2Count>(0, 0, 1) { }
-    GenericSymbol2Bucket2CountCoverage(auto tid, auto beg, auto end) : CoveredRegion<TSymbol2Bucket2Count>(tid, beg, end) {}
+    
+    template <class T1, class T2, class T3>
+    GenericSymbol2Bucket2CountCoverage(T1 tid, T2 beg, T3 end) : CoveredRegion<TSymbol2Bucket2Count>(tid, beg, end) {}
 };
 
 typedef std::array<molcount_t, NUM_BUCKETS> Bucket2Count;
@@ -626,11 +629,12 @@ typedef CoveredRegion<std::array<std::array<molcount_t, NUM_FAM_FORMAT_DEPTH_SET
 typedef CoveredRegion<std::array<std::array<molcount_t, NUM_DUPLEX_FORMAT_DEPTH_SETS>, NUM_ALIGNMENT_SYMBOLS>> Symbol2DuplexFormatDepthSets;
 typedef CoveredRegion<std::array<std::array<molcount_t, NUM_VQ_FORMAT_TAG_SETS>, NUM_ALIGNMENT_SYMBOLS>> Symbol2VQFormatTagSets;
 
+template <class T1, class T2, class T3>
 int
 formatSumBySymbolType(
-        const auto & xFormatYSets,
-        const auto symboltype,
-        const auto formatSet) {
+        const T1 & xFormatYSets,
+        const T2 symboltype,
+        const T3 formatSet) {
     int ret = 0;
     for (const auto symbol : SYMBOL_TYPE_TO_SYMBOLS[symboltype]) {
         ret += xFormatYSets[symbol][formatSet];
@@ -686,8 +690,9 @@ fillTidBegEndFromAlns3(uvc1_refgpos_t & tid, uvc1_refgpos_t & inc_beg, uvc1_refg
     return 0;
 };
 
+template <class T>
 bool 
-is_indel_context_more_STR(uvc1_refgpos_t rulen1, uvc1_refgpos_t rc1, uvc1_refgpos_t rulen2, uvc1_refgpos_t rc2, auto indel_str_repeatsize_max) {
+is_indel_context_more_STR(uvc1_refgpos_t rulen1, uvc1_refgpos_t rc1, uvc1_refgpos_t rulen2, uvc1_refgpos_t rc2, const T indel_str_repeatsize_max) {
     if (rulen2 * rc2 == 0) {
         return true;
     }
@@ -861,14 +866,15 @@ refstring2repeatvec(
     return region_repeatvec;
 }
 
+template <class T1, class T2>
 uvc1_qual_t
 ref_to_phredvalue(uvc1_refgpos_t & n_units, 
-        const auto & refstring, 
+        const T1 & refstring, 
         const uvc1_refgpos_t refpos, 
         const uvc1_qual_t max_phred, 
         double ampfact, 
         const uvc1_refgpos_t cigar_oplen, 
-        const auto cigar_op, 
+        const T2 cigar_op, 
         const uvc1_refgpos_t indel_str_repeatsize_max,
         const double indel_del_to_ins_err_ratio,
         const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
@@ -1175,14 +1181,15 @@ update_seg_format_prep_sets_by_aln(
             process_cigar(qpos, rpos, cigar_op, cigar_oplen);
         }
     }
-    assert(bam_endpos(aln) == rpos || !fprintf(stderr, "%u == %u failed for bam %s at tid %d position %d", 
-            bam_endpos(aln), rpos, bam_get_qname(aln), aln->core.tid, aln->core.pos)); 
+    assert(bam_endpos(aln) == rpos || !fprintf(stderr, "%ld == %d failed for bam %s at tid %d position %ld", 
+            bam_endpos(aln), rpos, bam_get_qname(aln), aln->core.tid, aln->core.pos));
     return 0;
 }
 
+template <class T>
 int
 update_seg_format_thres_from_prep_sets(
-        auto & region_repeatvec,
+        T & region_repeatvec,
         SegFormatThresSets & seg_format_thres_sets,
         const SegFormatPrepSets & seg_format_prep_sets,
         const CommandLineArgs & paramset,
@@ -1274,24 +1281,24 @@ update_seg_format_thres_from_prep_sets(
     return 0;
 }
 
-template <bool isGap>
+template <bool isGap, class T1, class T2, class T3, class T4, class T5, class T6, class T7>
 inline
 int
 dealwith_segbias(
-        const auto bq,
+        const T1 bq,
         const uvc1_refgpos_t rpos,
         auto & symbol_to_seg_format_depth_set,
         auto & symbol_to_VQ_format_tag_set,
-        const auto & seg_format_thres_set,
+        const T2 & seg_format_thres_set,
         const bam1_t *aln,
-        const auto xm1500,
-        const auto go1500 IGNORE_UNUSED_PARAM,
-        const auto bm1500,
+        const T3 xm1500,
+        const T4 go1500 IGNORE_UNUSED_PARAM,
+        const T5 bm1500,
         const CoveredRegion<uvc1_qual_big_t> & baq_offsetarr,
         const CoveredRegion<uvc1_qual_big_t> & baq_offsetarr2,
         
-        const auto cigar_op,
-        const auto indel_len_arg,
+        const T6 cigar_op,
+        const T7 indel_len_arg,
         const uvc1_refgpos_t dist_to_interfering_indel,
         const uvc1_flag_t dflag,
         const uvc1_refgpos_t clip_cnt,
@@ -1512,7 +1519,8 @@ template <class TSymbol2Count>
 class GenericSymbol2CountCoverage : public CoveredRegion<TSymbol2Count> {
 public:
     GenericSymbol2CountCoverage() : CoveredRegion<TSymbol2Count>(0, 0, 1) { };
-    GenericSymbol2CountCoverage(auto tid, auto beg, auto end) : CoveredRegion<TSymbol2Count>(tid, beg, end) {}
+    template <class T1, class T2, class T3>
+    GenericSymbol2CountCoverage(T1 tid, T2 beg, T3 end) : CoveredRegion<TSymbol2Count>(tid, beg, end) {}
     
     void
     assertUpdateIsLegal(const GenericSymbol2CountCoverage<TSymbol2Count> & other) const {
@@ -1644,21 +1652,21 @@ public:
         posToIndelToCount_inc(this->getRefPosToDlenToData(symbol), ipos, dlen, incvalue);
     };
     
-    template<bool TIsProton, ValueType TUpdateType, bool TIsBiasUpdated>
+    template<bool TIsProton, ValueType TUpdateType, bool TIsBiasUpdated, class T1, class T2, class T3, class T4, class T5>
     int // GenericSymbol2CountCoverage<TSymbol2Count>::
     updateByAln(
             const bam1_t *const aln, 
             
             const uvc1_refgpos_t region_offset,
-            const auto & region_symbolvec, 
+            const T1 & region_symbolvec, 
             const std::vector<RegionalTandemRepeat> & region_repeatvec,
             const CoveredRegion<uvc1_qual_big_t> & baq_offsetarr,
             const CoveredRegion<uvc1_qual_big_t> & baq_offsetarr2,
-
-            auto & seg_format_depth_sets,
-            auto & symbol_to_VQ_format_tag_sets,
-            const auto & seg_format_prep_sets,
-            const auto & seg_format_thres_sets,
+            
+            T2 & seg_format_depth_sets,
+            T3 & symbol_to_VQ_format_tag_sets,
+            const T4 & seg_format_prep_sets,
+            const T5 & seg_format_thres_sets,
             
             const uvc1_flag_t dflag,
             const CommandLineArgs & paramset,
@@ -1666,8 +1674,8 @@ public:
         
         static_assert(BASE_QUALITY_MAX == TUpdateType || SYMBOL_COUNT_SUM == TUpdateType);
         assert(this->tid == SIGN2UNSIGN(aln->core.tid));
-        assert(this->getIncluBegPosition() <= SIGN2UNSIGN(aln->core.pos)   || !fprintf(stderr, "%d <= %d failed", this->getIncluBegPosition(), aln->core.pos));
-        assert(this->getExcluEndPosition() >= SIGN2UNSIGN(bam_endpos(aln)) || !fprintf(stderr, "%d >= %d failed", this->getExcluEndPosition(), bam_endpos(aln)));
+        assert(this->getIncluBegPosition() <= SIGN2UNSIGN(aln->core.pos)   || !fprintf(stderr, "%d <= %ld failed", this->getIncluBegPosition(), aln->core.pos));
+        assert(this->getExcluEndPosition() >= SIGN2UNSIGN(bam_endpos(aln)) || !fprintf(stderr, "%d >= %ld failed", this->getExcluEndPosition(), bam_endpos(aln)));
         
         const bool is_assay_amplicon = (dflag & 0x4);
 
@@ -1775,7 +1783,7 @@ public:
             if (cigar_op == BAM_CMATCH || cigar_op == BAM_CEQUAL || cigar_op == BAM_CDIFF) {
                 for (uint32_t i2 = 0; i2 < cigar_oplen; i2++) {
                     assert((rpos >= SIGN2UNSIGN(aln->core.pos) && rpos < SIGN2UNSIGN(bam_endpos(aln)))
-                            || !fprintf(stderr, "Bam line with QNAME %s has rpos %d which is not the in range (%d - %d)", 
+                            || !fprintf(stderr, "Bam line with QNAME %s has rpos %d which is not the in range (%ld - %ld)", 
                             bam_get_qname(aln), rpos, aln->core.pos, bam_endpos(aln)));
 if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <= rpos && rpos < iend)) {
 
@@ -2114,24 +2122,25 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
         return 0;
     }
     
-    template <ValueType TUpdateType = BASE_QUALITY_MAX, bool TIsBiasUpdated = false>
+    template <ValueType TUpdateType = BASE_QUALITY_MAX, bool TIsBiasUpdated = false, 
+        class T1, class T2, class T3, class T4, class T5, class T6, class T7, class T8, class T9, class T10>
     int // GenericSymbol2CountCoverage<TSymbol2Count>::
     updateByRead1Aln(
             const std::vector<bam1_t *> & aln_vec,
             
             uvc1_refgpos_t region_offset,
-            const auto & region_symbolvec,
-            const auto & region_repeatvec,
-            const auto & baq_offsetarr,
-            const auto & baq_offsetarr2,
+            const T1 & region_symbolvec,
+            const T2 & region_repeatvec,
+            const T3 & baq_offsetarr,
+            const T4 & baq_offsetarr2,
             
-            auto & symbol_to_seg_format_depth_sets,
-            auto & symbol_to_VQ_format_tag_sets,
-            const auto & seg_format_prep_sets,
-            const auto & seg_format_thres_sets,
+            T5 & symbol_to_seg_format_depth_sets,
+            T6 & symbol_to_VQ_format_tag_sets,
+            const T7 & seg_format_prep_sets,
+            const T8 & seg_format_thres_sets,
             
-            const auto dflag,
-            const auto & paramset,
+            const T9 dflag,
+            const T10 & paramset,
             const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
         for (const bam1_t *aln : aln_vec) {
             if (SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform) {
@@ -2221,16 +2230,17 @@ struct Symbol2CountCoverageSet {
         return excluEndPosition;
     };
     
+    template <class T1, class T2, class T3>
     int 
     updateByAlns3UsingBQ(
             std::map<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>> & mutform2count4map,
             const std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, uvc1_flag_t>> & alns3, 
             
             const std::basic_string<AlignmentSymbol> & region_symbolvec,
-            auto & region_repeatvec,
-            const auto & baq_offsetarr,
-            const auto & baq_offsetarr2,
-
+            T1 & region_repeatvec,
+            const T2 & baq_offsetarr,
+            const T3 & baq_offsetarr2,
+            
             const CommandLineArgs & paramset,
             const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
         
@@ -2445,15 +2455,16 @@ struct Symbol2CountCoverageSet {
         return 0;
     };
     
+    template <class T1, class T2, class T3, class T4>
     int
     updateByAlns3UsingFQ(
             std::map<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>> & mutform2count4map,
-            const auto & alns3, 
+            const T1 & alns3, 
             
             const std::basic_string<AlignmentSymbol> & region_symbolvec,
-            const auto & region_repeatvec,
-            const auto & baq_offsetarr,
-            const auto & baq_offsetarr2,
+            const T2 & region_repeatvec,
+            const T3 & baq_offsetarr,
+            const T4 & baq_offsetarr2,
             
             const CommandLineArgs & paramset,
             const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
@@ -2745,7 +2756,7 @@ struct Symbol2CountCoverageSet {
             const CoveredRegion<uvc1_qual_big_t> & baq_offsetarr,
             const CoveredRegion<uvc1_qual_big_t> & baq_offsetarr2,
 
-            const auto & paramset,
+            const CommandLineArgs & paramset,
             const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
         
         std::basic_string<AlignmentSymbol> ref_symbol_string = string2symbolseq(refstring);
@@ -2778,12 +2789,13 @@ struct Symbol2CountCoverageSet {
     };
 };
 
+template <class T1, class T2, class T3, class T4>
 void 
 fill_symboltype_fmt(
-        auto & fmtDP,
-        const auto & symbol_to_abcd_format_depth_sets,
-        const auto format_field,
-        const auto refpos,
+        T1 & fmtDP,
+        const T2 & symbol_to_abcd_format_depth_sets,
+        const T3 format_field,
+        const T4 refpos,
         const SymbolType symboltype, 
         const AlignmentSymbol refsymbol IGNORE_UNUSED_PARAM) {
 
@@ -2800,13 +2812,14 @@ fill_symboltype_fmt(
     fmtDP[1] = symbol_to_abcd_format_depth_sets.getByPos(refpos)[symbolNN] . format_field; \
 };
 
+template <class T1, class T2, class T3, class T4, class T5>
 void
 fill_symbol_fmt(
-        auto & fmtAD,
-        const auto & symbol_to_abcd_format_depth_sets,
-        const auto format_field,
-        const auto refpos,
-        const auto symbol,
+        T1 & fmtAD,
+        const T2 & symbol_to_abcd_format_depth_sets,
+        const T3 format_field,
+        const T4 refpos,
+        const T5 symbol,
         const int allele_idx) {
     if (0 == allele_idx) {
         fmtAD.clear();
@@ -2824,10 +2837,11 @@ fill_symbol_fmt(
     fmtAD.push_back(cnt); \
 };
 
+template <class T1, class T2>
 int
 fill_symbol_VQ_fmts(
-        auto & fmt,
-        const auto & symbol_to_VQ_format_tag_sets,
+        T1 & fmt,
+        const T2 & symbol_to_VQ_format_tag_sets,
         const uvc1_refgpos_t refpos,
         const AlignmentSymbol symbol,
         uvc1_qual_t minABQ,
@@ -3049,8 +3063,9 @@ BcfFormat_symboltype_init(bcfrec::BcfFormat & fmt,
     return {{ fmt.BDPf[0] + fmt.BDPr[0], MAX(fmt.CDP1f[0], fmt.CDP12f[0]) + MAX(fmt.CDP1r[0], fmt.CDP12r[0]) }};
 };
 
+template <class T1, class T2>
 const auto 
-vectorsum(const auto v1, const auto v2) {
+vectorsum(const T1 v1, const T2 v2) {
     assert(v1.size() == v2.size());
     auto ret = v1;
     for (size_t i = 0; i < v1.size(); i++) {
@@ -3059,16 +3074,17 @@ vectorsum(const auto v1, const auto v2) {
     return ret;
 }
 
+template <class T1, class T2, class T3, class T4>
 std::array<uvc1_readnum_t, 2>
 BcfFormat_symbol_init(
         bcfrec::BcfFormat & fmt,
         const Symbol2CountCoverageSet & symbol2CountCoverageSet12, 
         uvc1_refgpos_t refpos, 
         const AlignmentSymbol symbol,
-        const auto & mutform2count4vec_bq,
-        const auto & indices_bq,
-        const auto & mutform2count4vec_fq,
-        const auto & indices_fq,
+        const T1 & mutform2count4vec_bq,
+        const T2 & indices_bq,
+        const T3 & mutform2count4vec_fq,
+        const T4 & indices_fq,
         const uvc1_readnum_t bDPa,
         const uvc1_readnum_t cDP0a,
         const std::string & gapSa,
@@ -3195,8 +3211,9 @@ calc_normFA_from_rawFA_refbias(double FA, double refbias) {
     return (FA + FA * refbias) / (FA + (1.0 - FA) / (1.0 + refbias) + FA * refbias);
 }
 
+template <class T1, class T2, class T3>
 int
-fmt_bias_push(auto & vecFA, const auto refFA, const auto biasFA, const double thresFAratio, std::string & fts, const std::string & ft) {
+fmt_bias_push(T1 & vecFA, const T2 refFA, const T3 biasFA, const double thresFAratio, std::string & fts, const std::string & ft) {
     vecFA.push_back(-numstates2deciphred(biasFA));
     if (biasFA * thresFAratio < refFA) {
         if (fts.size() > 0) { fts += std::string("&"); }
@@ -3683,8 +3700,9 @@ getptr_cCDPxvV2(bcfrec::BcfFormat & f, const ReductionType fidx) {
     abort();
 }
 
+template <class T>
 int
-BcfFormat_symbol_sum_DPv(auto & fmts) {
+BcfFormat_symbol_sum_DPv(T & fmts) {
     std::array<uvc1_readnum_t, NUM_REDUCTIONS> cDPxx1s = {{0}};
     std::array<uvc1_readnum_t, NUM_REDUCTIONS> cDPxx2s = {{0}};
     for (auto & fmt : fmts) {
@@ -3715,8 +3733,8 @@ BcfFormat_symbol_calc_qual(
         const std::string & repeatunit,
         const uvc1_readpos_t repeatnum,
         const bool is_rescued,
-        const auto & rtr1,
-        const auto & rtr2,
+        const RegionalTandemRepeat & rtr1,
+        const RegionalTandemRepeat & rtr2,
         uvc1_refgpos_t tid,
         uvc1_refgpos_t refpos,
         AlignmentSymbol refsymbol,
@@ -4087,8 +4105,9 @@ fill_by_indel_info(
     }
 };
 
+template <class T1, class T2>
 std::string 
-mutform2count4map_to_phase(const auto & mutform2count4vec, const auto & indices, uvc1_readnum_t pseudocount = 1) {
+mutform2count4map_to_phase(const T1 & mutform2count4vec, const T2 & indices, uvc1_readnum_t pseudocount = 1) {
     std::string phase_string;
     for (auto idx : indices) {
         auto mutform2count4pair = mutform2count4vec.at(idx);
@@ -4177,8 +4196,9 @@ compute_norm_ad(const bcfrec::BcfFormat *fmtp,
     return fmtp->cDP1v[fmtp->cDP1v.size()-1] / 100.0;
 }
 
+template <class T>
 const auto
-ALODQ(const auto x) {
+ALODQ(const T x) {
     return x->gVQ1[x->gVQ1.size() - 1];
 };
 
@@ -4607,7 +4627,7 @@ bcf1_to_string(const bcf_hdr_t *tki_bcf1_hdr, const bcf1_t *bcf1_record) {
 }
 
 int 
-fill_tki(auto & tki, const auto & fmt, size_t a = 1) {
+fill_tki(TumorKeyInfo & tki, const bcfrec::BcfFormat & fmt, size_t a = 1) {
     tki.BDP = fmt.BDPf.at(0) +fmt.BDPr.at(0);
     tki.bDP = fmt.bDPf.at(a) +fmt.bDPr.at(a);
     
@@ -4628,7 +4648,7 @@ fill_tki(auto & tki, const auto & fmt, size_t a = 1) {
 
 template <bool TIsFmtTumor>
 int 
-fill_conditional_tki(auto & tki, const auto & fmt) {
+fill_conditional_tki(TumorKeyInfo & tki, const bcfrec::BcfFormat & fmt) {
     // extra code for backward compatibility
     if (TIsFmtTumor) {
         tki.tDP = (fmt.CDP1f[0] + fmt.CDP1r[0]);
@@ -4646,12 +4666,12 @@ fill_conditional_tki(auto & tki, const auto & fmt) {
 
 const auto
 calc_binom_powlaw_syserr_normv_quals(
-        auto tAD, 
-        auto tDP, 
+        double tAD, 
+        double tDP, 
         uvc1_qual_t tVQ, 
         uvc1_qual_t tnVQcap,
-        auto nAD, 
-        auto nDP, 
+        double nAD, 
+        double nDP, 
         uvc1_qual_t nVQ, 
         const double penal_dimret_coef,
         const uvc1_qual_t prior_phred,
@@ -4675,12 +4695,12 @@ calc_binom_powlaw_syserr_normv_quals(
 
 const auto
 calc_binom_powlaw_syserr_normv_quals2(
-        auto tAD, 
-        auto tDP, 
+        double tAD,
+        double tDP, 
         uvc1_qual_t tVQ, 
         uvc1_qual_t tnVQcap,
-        auto nAD, 
-        auto nDP, 
+        double nAD,
+        double nDP,
         uvc1_qual_t nVQ,
         const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
     uvc1_qual_t binom_b10log10like = calc_binom_10log10_likeratio((tDP - tAD) / (tDP), nDP - nAD, nAD);
@@ -4704,7 +4724,7 @@ append_vcf_record(
         const AlignmentSymbol refsymbol,
         const AlignmentSymbol symbol,
         const bcfrec::BcfFormat & fmt,
-        auto & tki,
+        TumorKeyInfo & tki,
 
         const uvc1_qual_t nlodq1,
         const AlignmentSymbol argmin_nlodq_symbol,
