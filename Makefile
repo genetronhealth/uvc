@@ -15,7 +15,7 @@ HTSPATH=ext/htslib-1.11-lowdep/libhts.a
 HTSFLAGS=$(HTSPATH) -I ext/htslib-1.11-lowdep/ -pthread -lm -lz -lbz2 -llzma # -lcurl -lcrypto # can be changed depending on the specific installed components of htslib (please refer to the INSTALL file in htslib)
 CC=gcc  # can be changed to clang or other compilers as needed
 CXX=g++ # can be changed to clang or other compilers as needed
-CXXFLAGS=-std=c++14 -static-libstdc++ -Wall -fno-var-tracking-assignments
+CXXFLAGS=-std=c++14 -static-libstdc++ -Wall 
 COMMIT_VERSION=$(shell git rev-parse HEAD | head -c 7)
 COMMIT_DIFF_SH=$(shell git diff HEAD --shortstat)
 COMMIT_DIFF_FULL=$(shell echo "R\"ZXF_specQUOTE(\n $$(git diff HEAD | sed 's/ZXF_specQUOTE/ZXF_specquote/g') \n)ZXF_specQUOTE\"" > gitdiff.txt)
