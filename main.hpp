@@ -128,7 +128,7 @@ enum ValueType {
 };
 
 #define NUM_ALIGNMENT_SYMBOLS 14
-static_assert(NUM_ALIGNMENT_SYMBOLS == END_ALIGNMENT_SYMBOLS);
+STATIC_ASSERT_WITH_DEFAULT_MSG(NUM_ALIGNMENT_SYMBOLS == END_ALIGNMENT_SYMBOLS);
 
 #define NUM_INS_SYMBOLS 3
 const std::array<AlignmentSymbol, NUM_INS_SYMBOLS> INS_SYMBOLS = {{LINK_I1, LINK_I2, LINK_I3P}};
@@ -376,7 +376,7 @@ public:
     template <ValueType TUpdateType = SYMBOL_COUNT_SUM>
     int // update_max_inc : high GC : 3, even distribution of nucleotides : 6, conservative : 0
     incSymbolCount(const AlignmentSymbol symbol, const TInteger increment, const TInteger update_max_inc = 0) {
-        static_assert(BASE_QUALITY_MAX == TUpdateType || SYMBOL_COUNT_SUM == TUpdateType);
+        STATIC_ASSERT_WITH_DEFAULT_MSG(BASE_QUALITY_MAX == TUpdateType || SYMBOL_COUNT_SUM == TUpdateType);
         if (SYMBOL_COUNT_SUM == TUpdateType) {
             this->symbol2data[symbol] += increment;
         } else {
@@ -1692,7 +1692,7 @@ public:
             const CommandLineArgs & paramset,
             const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
         
-        static_assert(BASE_QUALITY_MAX == TUpdateType || SYMBOL_COUNT_SUM == TUpdateType);
+        STATIC_ASSERT_WITH_DEFAULT_MSG(BASE_QUALITY_MAX == TUpdateType || SYMBOL_COUNT_SUM == TUpdateType);
         assert(this->tid == SIGN2UNSIGN(aln->core.tid));
         assert(this->getIncluBegPosition() <= SIGN2UNSIGN(aln->core.pos)   || !fprintf(stderr, "%d <= %ld failed", this->getIncluBegPosition(), aln->core.pos));
         assert(this->getExcluEndPosition() >= SIGN2UNSIGN(bam_endpos(aln)) || !fprintf(stderr, "%d >= %ld failed", this->getExcluEndPosition(), bam_endpos(aln)));

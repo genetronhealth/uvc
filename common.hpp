@@ -24,6 +24,11 @@
 #define IGNORE_UNUSED_PARAM 
 #endif
 
+#define STRINGIZE_(x) #x
+#define STRINGIZE(x) STRINGIZE_(x)
+
+#define STATIC_ASSERT_WITH_DEFAULT_MSG(x) static_assert((x), "Static assertion failed at " __FILE__ ":" STRINGIZE(__LINE__));
+
 // constants
 
 #define MGVCF_REGION_MAX_SIZE 1000

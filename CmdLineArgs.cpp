@@ -14,9 +14,6 @@
 #define SYSERR_MINABQ_SNV_ILLUMINA 200
 #define SYSERR_MINABQ_INDEL_ILLUMINA 100
 
-#define STRINGIZE_(x) #x
-#define STRINGIZE(x) STRINGIZE_(x)
-
 #define REPLACE_UNDERSCORE_WITH_HYPHEN(x) (std::string("--") + replace_underscore_with_hyphen( #x ))
 #define ADD_OPTDEF(app, k, v, msg) (app.add_option(k, v, msg, true))
 #define ADD_OPTDEF2(app, k, msg) (app.add_option(REPLACE_UNDERSCORE_WITH_HYPHEN(k), k, msg, true))

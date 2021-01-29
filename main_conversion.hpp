@@ -234,10 +234,10 @@ main(int argc, char **argv) {
 }
 #endif
 
-static_assert(abs(calc_binom_10log10_likeratio(0.1, 10, 90)) < 1e-4);
-static_assert(calc_binom_10log10_likeratio(0.1, 90, 10) > 763); // 10/log(10) * (90*log(9)+10*log(1/9))
-static_assert(calc_binom_10log10_likeratio(0.1, 90, 10) < 764); // 10/log(10) * (90*log(9)+10*log(1/9))
-static_assert(abs(calc_binom_10log10_likeratio(0.1, 1, 99)) < 1e-4); // 10/log(10) * (90*log(9)+10*log(1/9))
+STATIC_ASSERT_WITH_DEFAULT_MSG(abs(calc_binom_10log10_likeratio(0.1, 10, 90)) < 1e-4);
+STATIC_ASSERT_WITH_DEFAULT_MSG(calc_binom_10log10_likeratio(0.1, 90, 10) > 763); // 10/log(10) * (90*log(9)+10*log(1/9))
+STATIC_ASSERT_WITH_DEFAULT_MSG(calc_binom_10log10_likeratio(0.1, 90, 10) < 764); // 10/log(10) * (90*log(9)+10*log(1/9))
+STATIC_ASSERT_WITH_DEFAULT_MSG(abs(calc_binom_10log10_likeratio(0.1, 1, 99)) < 1e-4); // 10/log(10) * (90*log(9)+10*log(1/9))
 
 template <class T=int, class T1>
 T

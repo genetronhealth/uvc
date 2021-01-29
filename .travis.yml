@@ -1,4 +1,4 @@
-dist: focal
+# https://docs.travis-ci.com/user/reference/overview/ : distributions xenial bionic focal # dist: xenial by default
 
 script:
   #- export CC=gcc-7
