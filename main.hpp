@@ -28,6 +28,7 @@
 #include <string.h>
 
 // T=uvc1_readnum_t for deletion and T=string for insertion
+
 template <class T>
 uvc1_readnum_t
 posToIndelToData_get(const std::map<uvc1_readnum_t, std::map<T, uvc1_readnum_t>> & pos2indel2data, const uvc1_readnum_t refpos, const T & indel, uvc1_readnum_t default1 = 0, uvc1_readnum_t default2 = 0) {
@@ -176,6 +177,16 @@ delLenToSymbol(uvc1_readpos_t len, const bam1_t *b) {
     assert(len >= 0 || !fprintf(stderr, "Error: the bam record with qname %s at tid %d pos %ld has deletion of length %d !\n", 
             bam_get_qname(b), b->core.tid, b->core.pos, len));
     return (1 == len ? LINK_D1 : ((2 == len) ? LINK_D2 : LINK_D3P));
+}
+
+int
+insSymbolToInsIdx(AlignmentSymbol s) {
+    return (LINK_I1 == s ? 0 : ((LINK_I2 == s) ? 1: 2));
+}
+
+int
+delSymbolToDelIdx(AlignmentSymbol s) {
+    return (LINK_D1 == s ? 0 : ((LINK_D2 == s) ? 1: 2));
 }
 
 enum SymbolType {
@@ -427,13 +438,13 @@ public:
         return 0;
     };
     
-    template <bool TIndelIsMajor = false>
+    template <bool TIndelIsMajor = false, bool TIgnorePaddedDel = false>
     int
     fillConsensusCounts(
             AlignmentSymbol & count_argmax, uvc1_qual_t & count_max, uvc1_qual_t & count_sum,
             const SymbolType symboltype) const {
         if (symboltype == BASE_SYMBOL) {
-            return this->template _fillConsensusCounts<false        >(count_argmax, count_max, count_sum, BASE_A, BASE_NN);
+            return this->template _fillConsensusCounts<false        >(count_argmax, count_max, count_sum, BASE_A, (TIgnorePaddedDel ? BASE_T : BASE_NN));
         } else if (symboltype == LINK_SYMBOL) {
             return this->template _fillConsensusCounts<TIndelIsMajor>(count_argmax, count_max, count_sum, LINK_M, LINK_NN);
         } else {
@@ -486,10 +497,12 @@ public:
         return consalpha;
     };
     
+    
     int
     updateByFiltering(
             std::array<AlignmentSymbol, NUM_SYMBOL_TYPES> & con_symbols, 
             const GenericSymbol2Count<TInteger> & other, 
+            const bool is_padded_del_ignored,
             const std::array<uvc1_qual_t, NUM_SYMBOL_TYPES> thres = {{0}},
             const uvc1_qual_t incvalue = 1) {
         int ret = 0;
@@ -499,7 +512,11 @@ public:
             if (LINK_SYMBOL == symboltype) {
                 other.template fillConsensusCounts<true >(consalpha, countalpha, totalalpha, symboltype);
             } else {
-                other.template fillConsensusCounts<false>(consalpha, countalpha, totalalpha, symboltype);
+                if (is_padded_del_ignored) {
+                    other.template fillConsensusCounts<false, true>(consalpha, countalpha, totalalpha, symboltype); 
+                } else {
+                    other.template fillConsensusCounts<false, false>(consalpha, countalpha, totalalpha, symboltype); 
+                }
             }
             auto adjcount = MAX(countalpha * 2, totalalpha) - totalalpha;
             if (adjcount >= thres[symboltype] && adjcount > 0) {
@@ -1576,6 +1593,7 @@ public:
     updateByFiltering(
             const GenericSymbol2CountCoverage<TSymbol2Count> &other, 
             const std::array<uvc1_qual_t, NUM_SYMBOL_TYPES> thres,
+            const bool is_padded_del_ignored,
             uvc1_readnum_t incvalue = 1,
             const bool update_pos2indel2count = true) {
         this->assertUpdateIsLegal(other);
@@ -1588,6 +1606,7 @@ public:
             int updateresult = this->getRefByPos(epos).updateByFiltering(
                     consymbols, 
                     other.getByPos(epos), 
+                    is_padded_del_ignored,
                     thres,
                     incvalue);
             if (update_pos2indel2count) {
@@ -2204,6 +2223,11 @@ struct Symbol2CountCoverageSet {
     std::array<Symbol2Bucket2CountCoverage, 2> dedup_ampDistr;
     Symbol2CountCoverageString additional_note;
     
+    std::array<std::array<std::map<uvc1_refgpos_t, std::map<uvc1_readpos_t, uvc1_readnum_t>>, NUM_INS_SYMBOLS>, 2> pos2dlen2data_cDP2;
+    std::array<std::array<std::map<uvc1_refgpos_t, std::map<uvc1_readpos_t, uvc1_readnum_t>>, NUM_INS_SYMBOLS>, 2> pos2dlen2data_cDP3;
+    std::array<std::array<std::map<uvc1_refgpos_t, std::map<std::string,    uvc1_readnum_t>>, NUM_DEL_SYMBOLS>, 2> pos2iseq2data_cDP2;
+    std::array<std::array<std::map<uvc1_refgpos_t, std::map<std::string,    uvc1_readnum_t>>, NUM_DEL_SYMBOLS>, 2> pos2iseq2data_cDP3;
+    
     Symbol2CountCoverageSet(uvc1_refgpos_t t, uvc1_refgpos_t beg, uvc1_refgpos_t end):
         tid(t), 
         incluBegPosition(beg), 
@@ -2511,9 +2535,10 @@ struct Symbol2CountCoverageSet {
                             paramset,
                             0);
                     
-                    read_family_con_ampl.updateByFiltering(read_ampBQerr_fragWithR1R2, std::array<uvc1_qual_t, NUM_SYMBOL_TYPES> {{ 
-                            paramset.fam_thres_highBQ_snv, 0
-                    }});
+                    read_family_con_ampl.updateByFiltering(
+                        read_ampBQerr_fragWithR1R2, 
+                        std::array<uvc1_qual_t, NUM_SYMBOL_TYPES> {{ paramset.fam_thres_highBQ_snv, 0 }},
+                        (paramset.microadjust_padded_deletion_flag & ((SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform) ? 0x2 : 0x1)));
                 }
                 for (auto epos = read_family_con_ampl.getIncluBegPosition(); epos < read_family_con_ampl.getExcluEndPosition(); epos++) {
                     const auto & con_ampl_symbol2count = read_family_con_ampl.getByPos(epos);
@@ -2528,9 +2553,29 @@ struct Symbol2CountCoverageSet {
                         }
                         if (paramset.fam_thres_dup1add <= tot_count && (con_count * 100 >= tot_count * paramset.fam_thres_dup1perc)) {
                             this->symbol_to_fam_format_depth_sets_2strand[strand].getRefByPos(epos)[con_symbol][FAM_cDP2] += 1;
+                            if (isSymbolIns(con_symbol)) {
+                                posToIndelToCount_updateByConsensus(
+                                        this->pos2iseq2data_cDP2[strand][insSymbolToInsIdx(con_symbol)],
+                                        read_family_con_ampl.getPosToIseqToData(con_symbol), epos, 1);
+                            }
+                            if (isSymbolDel(con_symbol)) {
+                                posToIndelToCount_updateByConsensus(
+                                        this->pos2dlen2data_cDP2[strand][delSymbolToDelIdx(con_symbol)],
+                                        read_family_con_ampl.getPosToDlenToData(con_symbol), epos, 1);
+                            }
                         }
                         if (paramset.fam_thres_dup2add <= tot_count && (con_count * 100 >= tot_count * paramset.fam_thres_dup2perc)) {
                             this->symbol_to_fam_format_depth_sets_2strand[strand].getRefByPos(epos)[con_symbol][FAM_cDP3] += 1;
+                            if (isSymbolIns(con_symbol)) {
+                                posToIndelToCount_updateByConsensus(
+                                        this->pos2iseq2data_cDP3[strand][insSymbolToInsIdx(con_symbol)],
+                                        read_family_con_ampl.getPosToIseqToData(con_symbol), epos, 1);
+                            }
+                            if (isSymbolDel(con_symbol)) {
+                                posToIndelToCount_updateByConsensus(
+                                        this->pos2dlen2data_cDP3[strand][delSymbolToDelIdx(con_symbol)],
+                                        read_family_con_ampl.getPosToDlenToData(con_symbol), epos, 1);
+                            }
                         }
                         
                         if (isSymbolIns(con_symbol)) {
@@ -2602,10 +2647,11 @@ struct Symbol2CountCoverageSet {
                             paramset,
                             0);
                     // The line below is similar to : read_family_mmm_ampl.updateByConsensus<SYMBOL_COUNT_SUM>(read_ampBQerr_fragWithR1R2);
-                    read_family_con_ampl.updateByFiltering(read_ampBQerr_fragWithR1R2, std::array<uvc1_qual_t, NUM_SYMBOL_TYPES> {{ 
-                            paramset.fam_thres_highBQ_snv, 0
-                    }});
-                    read_family_mmm_ampl.updateByMajorMinusMinor(read_ampBQerr_fragWithR1R2, false); 
+                    read_family_con_ampl.updateByFiltering(
+                        read_ampBQerr_fragWithR1R2, 
+                        std::array<uvc1_qual_t, NUM_SYMBOL_TYPES> {{ paramset.fam_thres_highBQ_snv, 0 }},
+                        (paramset.microadjust_padded_deletion_flag & ((SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform) ? 0x2 : 0x1)));
+                    read_family_mmm_ampl.updateByMajorMinusMinor(read_ampBQerr_fragWithR1R2, false);
                 }
                 if ((0x2 == (alns2pair2dflag.second & 0x2)) && alns2pair[0].size() > 0 && alns2pair[1].size() > 0) { // is duplex
                     read_duplex_amplicon.template updateByConsensus<false>(read_family_con_ampl);
@@ -3456,7 +3502,7 @@ BcfFormat_symbol_calc_DPv(
         aRPFA = (double)MIN(aRPFA, (pc + LAST(fmt.aRP1)) / (double)(pc * 2 + fmt.ALP1[0]));
     }
     
-    if (NOT_PROVIDED != paramset.vcf_tumor_fname) {
+    if (NOT_PROVIDED != paramset.vcf_tumor_fname || (SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform)) {
         aLIFA = aRIFA = MAX(aLIFA, aRIFA);
     }
     
@@ -4098,13 +4144,17 @@ fill_by_indel_info(
         return fill_by_indel_info2_1(fmt, symbol2CountCoverageSet, strand, refpos, symbol,
                 symbol2CountCoverageSet.symbol_to_frag_format_depth_sets.at(strand).getPosToIseqToData(symbol),
                 symbol2CountCoverageSet.symbol_to_fam_format_depth_sets_2strand.at(strand).getPosToIseqToData(symbol),
-                refstring, 
+                symbol2CountCoverageSet.pos2iseq2data_cDP2[strand][insSymbolToInsIdx(symbol)],
+                symbol2CountCoverageSet.pos2iseq2data_cDP3[strand][insSymbolToInsIdx(symbol)],
+                refstring,
                 0);
     } else {
         return fill_by_indel_info2_2(fmt, symbol2CountCoverageSet, strand, refpos, symbol,
                 symbol2CountCoverageSet.symbol_to_frag_format_depth_sets.at(strand).getPosToDlenToData(symbol),
                 symbol2CountCoverageSet.symbol_to_fam_format_depth_sets_2strand.at(strand).getPosToDlenToData(symbol),
-                refstring, 
+                symbol2CountCoverageSet.pos2dlen2data_cDP2[strand][delSymbolToDelIdx(symbol)],
+                symbol2CountCoverageSet.pos2dlen2data_cDP3[strand][delSymbolToDelIdx(symbol)],
+                refstring,
                 0);
     }
 };

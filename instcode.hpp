@@ -20,6 +20,9 @@ fill_by_indel_info2_2
         const AlignmentSymbol symbol,
         const std::map<uvc1_refgpos_t, std::map<INDELTYPE, uvc1_readnum_t>> & bq_tsum_depth,
         const std::map<uvc1_refgpos_t, std::map<INDELTYPE, uvc1_readnum_t>> & fq_tsum_depth,
+        const std::map<uvc1_refgpos_t, std::map<INDELTYPE, uvc1_readnum_t>> & fq_tsum_depth_cDP2,
+        const std::map<uvc1_refgpos_t, std::map<INDELTYPE, uvc1_readnum_t>> & fq_tsum_depth_cDP3,
+
         const std::string & refchars IGNORE_UNUSED_PARAM,
         const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
     
@@ -35,7 +38,7 @@ fill_by_indel_info2_2
     }
     assert(bq_tsum_depth.find(refpos) != bq_tsum_depth.end());
     
-    std::vector<std::tuple<uvc1_readnum_t, uvc1_readnum_t, std::string>> bqfq_depth_mutform_tuples;
+    std::vector<std::tuple<uvc1_readnum_t, uvc1_readnum_t, uvc1_readnum_t, uvc1_readnum_t, std::string>> bqfq_depth_mutform_tuples;
     for (auto indel2data4 : bq_tsum_depth.at(refpos)) {
         const auto indel = indel2data4.first;
 #if INDEL_ID == 1
@@ -49,8 +52,10 @@ fill_by_indel_info2_2
         
         const uvc1_readnum_t bqdata = posToIndelToData_get(bq_tsum_depth, refpos, indel);
         const uvc1_readnum_t fqdata = posToIndelToData_get(fq_tsum_depth, refpos, indel);
+        const uvc1_readnum_t fqdata_cDP2 = posToIndelToData_get(fq_tsum_depth_cDP2, refpos, indel);
+        const uvc1_readnum_t fqdata_cDP3 = posToIndelToData_get(fq_tsum_depth_cDP3, refpos, indel);
         assert(bqdata > 0);
-        bqfq_depth_mutform_tuples.push_back(std::make_tuple(fqdata, bqdata, indelstring));
+        bqfq_depth_mutform_tuples.push_back(std::make_tuple(fqdata, bqdata, fqdata_cDP2, fqdata_cDP3, indelstring));
     }
     uvc1_readnum_t gapbAD1sum = 0;
     uvc1_readnum_t gapcAD1sum = 0;
@@ -61,13 +66,17 @@ fill_by_indel_info2_2
     uvc1_readnum_t prev_gap_cAD = 0;
     uvc1_readnum_t maxdiff = 0; 
     for (auto bqfq_depth_mutform : bqfq_depth_mutform_tuples) {
-        const auto gap_seq = std::get<2>(bqfq_depth_mutform);
+        const auto gap_seq = std::get<2+2>(bqfq_depth_mutform);
         assert(gap_seq.size() > 0);
         auto gap_cAD = std::get<0>(bqfq_depth_mutform);
+        auto gap_cAD2 = std::get<2>(bqfq_depth_mutform);
+        auto gap_cAD3 = std::get<3>(bqfq_depth_mutform);
         auto gap_bAD = std::get<1>(bqfq_depth_mutform);
         fmt.gapSeq.push_back(gap_seq);
         fmt.gapbAD1.push_back(gap_bAD);
         fmt.gapcAD1.push_back(gap_cAD);
+        fmt.gcAD2.push_back(gap_cAD2);
+        fmt.gcAD3.push_back(gap_cAD3);
         if ((UNSIGN2SIGN(gap_seq.size()) != prev_gapseq_len) && (prev_gap_cAD > gap_cAD)) {
             maxdiff = MAX(maxdiff, prev_gap_cAD - gap_cAD);
         }

@@ -795,6 +795,9 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
     
     ADD_OPTDEF2(app, microadjust_germline_mix_with_del_snv_penalty,
         "Phred penalty applied to a non-germline-level SNV if this SNV is near both germline-level SNV and germline-level InDel. ");
+    ADD_OPTDEF2(app, microadjust_padded_deletion_flag,
+        "Bitwise flag indicating treatment of padded deletion. "
+        "Bits 0x1 and 0x2: padded deletion is ignored in the nucleotide-base consensus for the Illumina/BGI and ThermoFisher/LifeTech/IonTorrent sequencing platforms, respectively. ");
     
     ADD_OPTDEF2(app, lib_wgs_min_avg_fraglen,
         "Minimum average fragment length, below which assay type is inferred to be non-WGS (whole-genome sequencing). ");

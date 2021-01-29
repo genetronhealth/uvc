@@ -431,13 +431,17 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("cVQAM" , 2,         BCF_STRING,  "Consensus allele symbolic descriptions for deduped fragments and UMI families"),
     BcfFormatStruct("cVQSM" , 2,         BCF_STRING,  "Consensus allele InDel strings for deduped fragments and UMI families"),
     
-    BcfFormatStruct("__g2"   , 1,        BCF_SEP,     "Gap-related information for InDels."), 
+    BcfFormatStruct("__g2"   , 1,        BCF_SEP,     "Gap-related information for all observed InDel signals."), 
     BcfFormatStruct("gapNf"  ,BCF_NUM_D, BCF_INTEGER, "Number of InDel sequences on the forward read orientation."),
     BcfFormatStruct("gapNr"  ,BCF_NUM_D, BCF_INTEGER, "Number of InDel sequences on the reverse read orientation."),
     BcfFormatStruct("gapSeq" ,BCF_NUM_D, BCF_STRING,  "InDel sequences"),
     BcfFormatStruct("gapbAD1",BCF_NUM_D, BCF_INTEGER, "Duped read count of each gapSeq"),
     BcfFormatStruct("gapcAD1",BCF_NUM_D, BCF_INTEGER, "Deduped read count of each gapSeq"),
+    BcfFormatStruct("gcAD2",  BCF_NUM_D, BCF_INTEGER, "Deduped read count of each gapSeq using tier-2 consensus"),
+    BcfFormatStruct("gcAD3",  BCF_NUM_D, BCF_INTEGER, "Deduped read count of each gapSeq using tier-3 consensus"),
     
+    BcfFormatStruct("__g3"   , 1,        BCF_SEP,     "Gap-related information for each InDel allele."),
+
     BcfFormatStruct("bDPa"   ,BCF_NUM_R, BCF_INTEGER, "Number of non-deduplicated fragments supporting each ALT allele which is more precise for InDels."),
     BcfFormatStruct("cDP0a"  ,BCF_NUM_R, BCF_INTEGER, "Number of deduplicated fragments supporting each ALT allele which is more precise for InDels"),
     BcfFormatStruct("gapSa"  ,BCF_NUM_R, BCF_STRING,  "InDel string of each allele"),

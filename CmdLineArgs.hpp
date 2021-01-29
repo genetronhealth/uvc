@@ -349,6 +349,7 @@ struct CommandLineArgs {
     uvc1_readpos_t      microadjust_alignment_tracklen_min = 25;
     
     uvc1_qual_t         microadjust_germline_mix_with_del_snv_penalty = 9;
+    uvc1_flag_t         microadjust_padded_deletion_flag = 0x2;
     
     uvc1_readpos_t      lib_wgs_min_avg_fraglen = 300;
     double              lib_nonwgs_ad_pseudocount = 0.1;
