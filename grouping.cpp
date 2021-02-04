@@ -654,7 +654,7 @@ bamfname_to_strand_to_familyuid_to_reads(
         uvc1_flag_t dedup_idflag = 0x0;
         if (paramset.dedup_flag != 0) {
             dedup_idflag = paramset.dedup_flag;
-        } else if ((SEQUENCING_PLATFORM_IONTORRENT == paramset.sequencing_platform)) { // is_proton
+        } else if ((SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform)) { // is_proton
             if (is_umi_found) { dedup_idflag = 0x9; }
             else { dedup_idflag = 0x4; }
         } else {
