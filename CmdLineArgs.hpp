@@ -91,7 +91,10 @@ struct CommandLineArgs {
     
     uvc1_qual_t      penal4lowdep = 37;
     uvc1_qual_t      assay_sequencing_BQ_max = 37;
-
+    
+    uvc1_readpos_t   phasing_haplotype_noise_fold_perc_max = 400;
+    uvc1_readpos_t   phasing_haplotype_noise_fold_perc_max_iontorrent_add = 100;
+    
 // *** 04. parameters for dedupping reads
     
     // PCR stutter noise at (di,tri,tetra,...)-nucleotide generates +-(2,3,4...) shift in read end position, 

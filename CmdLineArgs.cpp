@@ -316,7 +316,14 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
         "Maximum penalty in variant quality for low read support. ");
     ADD_OPTDEF2(app, assay_sequencing_BQ_max,
         "Maximum basecall quality (BQ) determined by empirical error rate. ");
-       
+    
+    ADD_OPTDEF2(app, phasing_haplotype_noise_fold_perc_max,
+        "The maximum percentage ratio of "
+        "the number of reads supporting a variant "
+        "to the number of reads supporting, without any sequencing error, the haplotype of the variant. ");
+    ADD_OPTDEF2(app, phasing_haplotype_noise_fold_perc_max_iontorrent_add,
+        "The corresponding parameter for the IonTorrent/LifeTech/ThermoFishser sequencing platform is automatically incremented by this much. ");
+
 // *** 04. parameters for dedupping reads
     
     ADD_OPTDEF2(app, dedup_center_mult, 
