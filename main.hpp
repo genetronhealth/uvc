@@ -4925,6 +4925,8 @@ append_vcf_record(
             non_neg_minus(collectget(nfm.cVQ1, 1), phred_het3al_chance_inc),
             0));
     
+    const uvc1_qual_t converted_nfm_cVQ2 = collectget(nfm.cVQ1, 1) - (3 * (nfm.BDPf[0] + nfm.BDPr[0] + 1) / (nfm.CDP1f[0] + nfm.CDP1r[0] + 1));
+    const uvc1_qual_t norm_norm_vq = non_neg_minus(collectget(nfm.cVQ2, 1), MAX(phred_het3al_chance_inc, 3) - 3);
     const auto c_binom_powlaw_syserr_normv_q4 = (paramset.tn_syserr_norm_devqual >= 0 
         ?  calc_binom_powlaw_syserr_normv_quals(
             (tki.cDP2x + 0.5) / 100.0 + 0.0, 
@@ -4933,10 +4935,10 @@ append_vcf_record(
             (tki.cPCQ2),
             (nfm_cDP2x + 0.0) / 100.0 + 0.5 + nfm_cDP2x_1add,
             (nfm_CDP2x + 0.0) / 100.0 + 1.0 + nfm_cDP2x_1add,
-            non_neg_minus(collectget(nfm.cVQ2, 1), MAX(phred_het3al_chance_inc, 3) - 3),
+            norm_norm_vq,
             paramset.tn_syserr_norm_devqual,
             prior_phred,
-            MAX(tn_dec_by_xm, MIN(collectget(nfm.cVQ2, 1), 8 + 4)),
+            MAX(tn_dec_by_xm, MIN(MAX(collectget(nfm.cVQ2, 1), converted_nfm_cVQ2), 8 + 4)),
             paramset.powlaw_exponent,
             0)
         : calc_binom_powlaw_syserr_normv_quals2(
@@ -4946,7 +4948,7 @@ append_vcf_record(
             (tki.cPCQ2),
             (nfm_cDP2x + 0.0) / 100.0 + 0.5 + nfm_cDP2x_1add,
             (nfm_CDP2x + 0.0) / 100.0 + 1.0 + nfm_cDP2x_1add,
-            non_neg_minus(collectget(nfm.cVQ2, 1), MAX(phred_het3al_chance_inc, 3) - 3),
+            norm_norm_vq,
             0));
 
     const auto c_normv_added = BETWEEN(
