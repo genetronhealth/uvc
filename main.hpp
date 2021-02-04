@@ -4027,6 +4027,9 @@ BcfFormat_symbol_calc_qual(
     const bool is_aln_extra_accurate = (paramset.inferred_maxMQ > 60);
     const uvc1_qual_t _systematicMQVQadd = (uvc1_qual_t)((symbol == refsymbol) 
             ? 0 : (MIN(paramset.germ_phred_homalt_snp, ADP * 3)));
+    const uvc1_qual_t _systematicMQVQadd_somatic = (uvc1_qual_t)((symbol != refsymbol)
+            ? 0 : (MIN(paramset.germ_phred_homalt_snp, ADP * 3)));
+    
     const bool is_MQ_unadjusted = (is_aln_extra_accurate || (!isSymbolSubstitution(symbol)) || (aDP > ADP * 3/4));
     const uvc1_qual_t _systematicMQVQminus =  
              (is_MQ_unadjusted ? 0 : (non_neg_minus((60- 30), aavgMQ) * 2 / 5))
@@ -4116,7 +4119,7 @@ BcfFormat_symbol_calc_qual(
                     indel_penal4multialleles_g)),
     a);
     const uvc1_qual_t systematicVQsomatic_minus = (is_rescued ? 0 : (15 - MIN3(ADP * 15 / 100, aDP, 15)));
-    const uvc1_qual_t systematicVQsomatic = non_neg_minus(MIN(systematicBQVQ, systematicMQVQ), systematicVQsomatic_minus);
+    const uvc1_qual_t systematicVQsomatic = non_neg_minus(MIN(systematicBQVQ, systematicMQVQ + _systematicMQVQadd_somatic), systematicVQsomatic_minus);
     const auto bcVQ1 = MIN3(
                 systematicVQsomatic,
                 LAST(fmt.bIAQ) - (is_rescued ? 0 : penal4BQerr), 
