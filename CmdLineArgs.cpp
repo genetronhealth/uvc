@@ -323,7 +323,9 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
         "to the number of reads supporting, without any sequencing error, the haplotype of the variant. ");
     ADD_OPTDEF2(app, phasing_haplotype_noise_fold_perc_max_iontorrent_add,
         "The corresponding parameter for the IonTorrent/LifeTech/ThermoFishser sequencing platform is automatically incremented by this much. ");
-
+    ADD_OPTDEF2(app, phasing_haplotype_min_ad,
+        "The minimum haplotype allele depth for the haplotype (bHap and cHap) to be present in the output VCF. ");
+    
 // *** 04. parameters for dedupping reads
     
     ADD_OPTDEF2(app, dedup_center_mult, 
@@ -561,9 +563,9 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
     ADD_OPTDEF2(app, fam_phred_indel_inc_before_barcode_labeling,
         "PHRED-scaled fraction of InDel errors that occurred before the attachment of UMI single-strand barcodes (PMC3111315). ");
     ADD_OPTDEF2(app, fam_phred_sscs_transition_CG_TA, 
-        "Maximum Phred score for single-strand consensus sequences (SSCSs) for C > T transition which is mainly caused by cytosine deanimation (PMC3437896). ");
+        "Maximum Phred score for single-strand consensus sequences (SSCSs) for the C > T transition which is mainly caused by cytosine deanimation (PMC3437896). ");
     ADD_OPTDEF2(app, fam_phred_sscs_transition_AT_GC, 
-        "Maximum Phred score for single-strand consensus sequences (SSCSs) for A:T > G:C transition (PMC3437896). ");
+        "Maximum Phred score for single-strand consensus sequences (SSCSs) for the A:T > G:C transition (PMC3437896). ");
     ADD_OPTDEF2(app, fam_phred_sscs_transversion_CG_AT, 
         "Maximum Phred score for single-strand consensus sequences (SSCSs) for the G > T transversion which is mainly caused by 8-oxo-guanine (PMC3437896). ");
 
@@ -668,6 +670,13 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
     
     ADD_OPTDEF2(app, tn_q_inc_max,
         "Maximum Phred-scale increase in variant quality by comparing the tumor with its matched normal. Theoretically, it should be Phred-scaled 2 to the power of --powlaw-exponent. ");
+    ADD_OPTDEF2(app, tn_q_inc_max_sscs_CG_AT,
+        "Maximum Phred-scale increase in variant quality by comparing the tumor with its matched normal "
+        "for UMI families of single strand consensus sequences (SSCSs) for the G > T transversion. ");
+    ADD_OPTDEF2(app, tn_q_inc_max_sscs_other,
+        "Maximum Phred-scale increase in variant quality by comparing the tumor with its matched normal "
+        "for UMI families of single strand consensus sequences (SSCSs) for other types of mutations. ");
+    
     ADD_OPTDEF2(app, tn_syserr_norm_devqual,
         "Phred-scale decrease in the variant quality subtracted from the tumor if the tumor FA (allele fraction) deviates by +100\%/-50\% from its matched normal FA. ");
     ADD_OPTDEF2(app, tn_is_paired,

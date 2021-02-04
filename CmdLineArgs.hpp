@@ -93,8 +93,9 @@ struct CommandLineArgs {
     uvc1_qual_t      assay_sequencing_BQ_max = 37;
     
     uvc1_readpos_t   phasing_haplotype_noise_fold_perc_max = 400;
-    uvc1_readpos_t   phasing_haplotype_noise_fold_perc_max_iontorrent_add = 100;
-    
+    uvc1_readpos_t   phasing_haplotype_noise_fold_perc_max_iontorrent_add = 200;
+    uvc1_readnum_t   phasing_haplotype_min_ad = 3;
+
 // *** 04. parameters for dedupping reads
     
     // PCR stutter noise at (di,tri,tetra,...)-nucleotide generates +-(2,3,4...) shift in read end position, 
@@ -277,6 +278,9 @@ struct CommandLineArgs {
 // *** 10. parameters related to tumor-normal-pairs.
     
     uvc1_qual_t tn_q_inc_max = 9;
+    uvc1_qual_t tn_q_inc_max_sscs_CG_AT = 0;
+    uvc1_qual_t tn_q_inc_max_sscs_other = 5;
+    
     // PHRED-scaled likelihood that the observed allele fraction additively deviates from the expected allele fraction by a multiplicative factor of 2
     double      tn_syserr_norm_devqual = 15.0; // can be (double)(12.5);
     uvc1_flag_t tn_is_paired = false;

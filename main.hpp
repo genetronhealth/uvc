@@ -2773,9 +2773,10 @@ struct Symbol2CountCoverageSet {
     updateHapMap(std::map<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>> & mutform2count4map, 
             const T1 & tsum_depth,
             const T2 read_count_field_id,
-            uvc1_readnum_t haplo_noise_fold_perc_max) {
+            uvc1_readnum_t haplo_noise_fold_perc_max,
+            uvc1_readnum_t phasing_haplotype_min_ad) {
         for (auto it = mutform2count4map.begin(); it != mutform2count4map.end();) {
-            std::basic_string<std::pair<uvc1_readnum_t, AlignmentSymbol>> mutform = it->first;
+            std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>> mutform = it->first;
             auto counts = it->second;
             std::vector<uvc1_readnum_t> dsADs;
             dsADs.reserve(mutform.size() + 1);
@@ -2786,7 +2787,8 @@ struct Symbol2CountCoverageSet {
                 dsADs.push_back(ad0 + ad1);
             }
             const auto med = MEDIAN(dsADs);
-            if (INT64MUL((counts[0] +counts[1]), haplo_noise_fold_perc_max) <= INT64MUL(med, 100)) {
+            const auto haploDP = counts[0] + counts[1];
+            if (INT64MUL(haploDP, haplo_noise_fold_perc_max) <= INT64MUL(med, 100) || haploDP < phasing_haplotype_min_ad) {
                 it = mutform2count4map.erase(it);
             } else {
                 it++;
@@ -2827,7 +2829,7 @@ struct Symbol2CountCoverageSet {
                 
                 paramset,
                 0);
-        updateHapMap(mutform2count4map_bq, this->symbol_to_frag_format_depth_sets, FRAG_bDP, haplo_noise_fold_perc_max);
+        updateHapMap(mutform2count4map_bq, this->symbol_to_frag_format_depth_sets, FRAG_bDP, haplo_noise_fold_perc_max, paramset.phasing_haplotype_min_ad);
         updateByAlns3UsingFQ(
                 mutform2count4map_fq, 
                 alns3,
@@ -2839,7 +2841,7 @@ struct Symbol2CountCoverageSet {
                 
                 paramset,
                 0);
-        updateHapMap(mutform2count4map_fq, this->symbol_to_fam_format_depth_sets_2strand, FAM_cDP1, haplo_noise_fold_perc_max);
+        updateHapMap(mutform2count4map_fq, this->symbol_to_fam_format_depth_sets_2strand, FAM_cDP1, haplo_noise_fold_perc_max, paramset.phasing_haplotype_min_ad);
         return 0;
     };
 };
@@ -3822,12 +3824,14 @@ BcfFormat_symbol_calc_qual(
                 paramset.fam_phred_sscs_transversion_other
               ) - (paramset.fam_phred_pow_sscs_snv_origin))
             : powlaw_sscs_inc1);
-    // Here, we assume that T-N paired sequencing with UMI involves heavy oxidation
+    // Here, we assume that T-N paired sequencing with UMI involves some oxidation of the tumor
     // https://en.wikipedia.org/wiki/8-Hydroxyguanosine
     // https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3437896/
     const bool is_substitution_oxidation = ((BASE_C == refsymbol && BASE_A == symbol) || (BASE_G == refsymbol && BASE_T == symbol));
-    if (!is_substitution_oxidation) {
-        powlaw_sscs_inc4tn += 5;
+    if (is_substitution_oxidation) {
+        powlaw_sscs_inc4tn += paramset.tn_q_inc_max_sscs_CG_AT;
+    } else {
+        powlaw_sscs_inc4tn += paramset.tn_q_inc_max_sscs_other;
     }
     
     const double t2n_contam_frac = (tpfa > 0 ? tpfa : 0) * paramset.contam_t2n_mul_frac;
