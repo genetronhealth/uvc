@@ -2694,7 +2694,7 @@ struct Symbol2CountCoverageSet {
                         if (areSymbolsMutated(ref_symbol, con_symbol) && (LINK_SYMBOL == symboltype || confam_qual >= paramset.bias_thres_highBQ)) {
                             pos_symbol_string.push_back(std::make_pair(epos, con_symbol));
                         }
-                        uvc1_qual_t max_qual = sscs_mut_table.toPhredErrRate(ref_symbol, con_symbol);
+                        uvc1_qual_t max_qual = sscs_mut_table.toPhredErrRate(ref_symbol, con_symbol) + (NOT_PROVIDED == paramset.vcf_tumor_fname ? 0 : 4);
                         uvc1_qual_t confam_qual2 = MIN(confam_qual, max_qual);
                         if (tot_nfrags >= paramset.fam_thres_dup1add) {
                             int pbucket = (max_qual - confam_qual2 + 2) / 4;
@@ -2736,7 +2736,7 @@ struct Symbol2CountCoverageSet {
                     AlignmentSymbol ref_symbol = region_symbolvec[epos - this->getUnifiedIncluBegPosition()];
                     const uvc1_readnum_t totDP = formatSumBySymbolType(this->symbol_to_fam_format_depth_sets_2strand[strand].getRefByPos(epos), symboltype, FAM_cDP1);
                     for (AlignmentSymbol symbol : SYMBOL_TYPE_TO_SYMBOLS[symboltype]) {
-                        const uvc1_qual_t max_qual = sscs_mut_table.toPhredErrRate(ref_symbol, symbol);
+                        const uvc1_qual_t max_qual = sscs_mut_table.toPhredErrRate(ref_symbol, symbol) + (NOT_PROVIDED == paramset.vcf_tumor_fname ? 0 : 4);
                         uvc1_qual_t maxvqual = 0;
                         uvc1_readnum_t argmaxAD = 0;
                         uvc1_qual_t argmaxBQ = 0;
@@ -2773,7 +2773,7 @@ struct Symbol2CountCoverageSet {
     updateHapMap(std::map<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>> & mutform2count4map, 
             const T1 & tsum_depth,
             const T2 read_count_field_id,
-            int max_ploidy = 2+1) {
+            uvc1_readnum_t haplo_noise_fold_perc_max) {
         for (auto it = mutform2count4map.begin(); it != mutform2count4map.end();) {
             std::basic_string<std::pair<uvc1_readnum_t, AlignmentSymbol>> mutform = it->first;
             auto counts = it->second;
@@ -2786,8 +2786,8 @@ struct Symbol2CountCoverageSet {
                 dsADs.push_back(ad0 + ad1);
             }
             const auto med = MEDIAN(dsADs);
-            if ((counts[0] +counts[1]) * (max_ploidy) <= med) {
-                mutform2count4map.erase(it++);
+            if (INT64MUL((counts[0] +counts[1]), haplo_noise_fold_perc_max) <= INT64MUL(med, 100)) {
+                it = mutform2count4map.erase(it);
             } else {
                 it++;
             }
@@ -2811,6 +2811,11 @@ struct Symbol2CountCoverageSet {
         
         std::basic_string<AlignmentSymbol> ref_symbol_string = string2symbolseq(refstring);
         
+        const auto haplo_noise_fold_perc_max = paramset.phasing_haplotype_noise_fold_perc_max
+                + (SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform 
+                   ? paramset.phasing_haplotype_noise_fold_perc_max_iontorrent_add 
+                   : 0);
+        
         updateByAlns3UsingBQ(
                 mutform2count4map_bq, 
                 alns3, 
@@ -2822,7 +2827,7 @@ struct Symbol2CountCoverageSet {
                 
                 paramset,
                 0);
-        updateHapMap(mutform2count4map_bq, this->symbol_to_frag_format_depth_sets, FRAG_bDP);
+        updateHapMap(mutform2count4map_bq, this->symbol_to_frag_format_depth_sets, FRAG_bDP, haplo_noise_fold_perc_max);
         updateByAlns3UsingFQ(
                 mutform2count4map_fq, 
                 alns3,
@@ -2834,7 +2839,7 @@ struct Symbol2CountCoverageSet {
                 
                 paramset,
                 0);
-        updateHapMap(mutform2count4map_fq, this->symbol_to_fam_format_depth_sets_2strand, FAM_cDP1);
+        updateHapMap(mutform2count4map_fq, this->symbol_to_fam_format_depth_sets_2strand, FAM_cDP1, haplo_noise_fold_perc_max);
         return 0;
     };
 };
@@ -3599,10 +3604,10 @@ BcfFormat_symbol_calc_DPv(
             MAX(aDPFA * 0.01, aSIFA),
             }};
     
-    double cFA2 = (fmt.cDP2f[a] + fmt.cDP2r[a] + pfa) / (fmt.CDP2f[0] + fmt.CDP2r[0] + 1.0);
+    double cFA2 = (fmt.cDP2f[a] + fmt.cDP2r[a] + 0.5) / (fmt.CDP2f[0] + fmt.CDP2r[0] + 1.0);
     // The following code without + 1 pseudocount in both nominator and denominator can result in false negative calls at low allele fraction (it is rare but can happen).
-    // double cFA3 = (fmt.cDP3f[a] + fmt.cDP3r[a] + pfa + 1) / (fmt.CDP3f[0] + fmt.CDP3r[0] + 1.0 + 1);
-    double cFA3 = (fmt.cDP3f[a] + fmt.cDP3r[a] + pfa) / (fmt.CDP3f[0] + fmt.CDP3r[0] + 1.0);
+    // double cFA3 = (fmt.cDP3f[a] + fmt.cDP3r[a] + pfa + 1) / (fmt.CDP3f[0] + fmt.CDP3r[0] + 1.0);
+    double cFA3 = (fmt.cDP3f[a] + fmt.cDP3r[a] + 0.5) / (fmt.CDP3f[0] + fmt.CDP3r[0] + 1.0);
     
     assert( cFA2 > 0 );
     assert( cFA2 < 1 );
@@ -3804,11 +3809,26 @@ BcfFormat_symbol_calc_qual(
             paramset.fam_phred_sscs_indel_open,
             paramset.fam_phred_sscs_indel_ext);
     
-    const uvc1_qual_t powlaw_sscs_phrederr = sscs_mut_table.toPhredErrRate(refsymbol, symbol);
+    const uvc1_qual_t powlaw_sscs_phrederr = sscs_mut_table.toPhredErrRate(refsymbol, symbol) + (NOT_PROVIDED == paramset.vcf_tumor_fname ? 0 : 4);
     const uvc1_qual_t powlaw_sscs_inc1 = (powlaw_sscs_phrederr  - (isSymbolSubstitution(symbol) 
             ? (((BASE_A == refsymbol && BASE_T == symbol) || (BASE_T == refsymbol && BASE_A == symbol))
                 ? paramset.fam_phred_pow_sscs_transversion_AT_TA_origin : paramset.fam_phred_pow_sscs_snv_origin)
             : paramset.fam_phred_pow_sscs_indel_origin));
+    uvc1_qual_t powlaw_sscs_inc4tn = ((isSymbolSubstitution(symbol)) 
+            ? (MAX4(
+                paramset.fam_phred_sscs_transition_CG_TA, 
+                paramset.fam_phred_sscs_transition_AT_GC, 
+                paramset.fam_phred_sscs_transversion_CG_AT, 
+                paramset.fam_phred_sscs_transversion_other
+              ) - (paramset.fam_phred_pow_sscs_snv_origin))
+            : powlaw_sscs_inc1);
+    // Here, we assume that T-N paired sequencing with UMI involves heavy oxidation
+    // https://en.wikipedia.org/wiki/8-Hydroxyguanosine
+    // https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3437896/
+    const bool is_substitution_oxidation = ((BASE_C == refsymbol && BASE_A == symbol) || (BASE_G == refsymbol && BASE_T == symbol));
+    if (!is_substitution_oxidation) {
+        powlaw_sscs_inc4tn += 5;
+    }
     
     const double t2n_contam_frac = (tpfa > 0 ? tpfa : 0) * paramset.contam_t2n_mul_frac;
     
@@ -3899,9 +3919,10 @@ BcfFormat_symbol_calc_qual(
     double umi_cFA =  (((double)(fmt.cDP2v[a]) + 0.5) / ((double)(fmt.CDP2f[0] * 100 + fmt.CDP2r[0] * 100) + 1.0));
     
     uvc1_qual_t sscs_base_2 = pl_withUMI_phred_inc + powlaw_sscs_inc1 + powlaw_sscs_inc2 - sscs_dec1 - sscs_dec2;
+    uvc1_qual_t sscs_base_2tn = pl_withUMI_phred_inc + powlaw_sscs_inc4tn + powlaw_sscs_inc2 - sscs_dec1 - sscs_dec2;
     uvc1_qual_t sscs_powlaw_qual_v = round((paramset.powlaw_exponent * numstates2phred(umi_cFA)    + sscs_base_2));
-    uvc1_qual_t sscs_powlaw_qual_w = round((paramset.powlaw_exponent * numstates2phred(min_bcFA_w) + sscs_base_2)
-            + tn_q_inc_max);
+    uvc1_qual_t sscs_powlaw_qual_w = round((paramset.powlaw_exponent * numstates2phred(min_bcFA_w) + sscs_base_2tn)); //
+            // + tn_q_inc_max);
         
     double dFA = (double)(fmt.dDP2[a] + 0.5) / (double)(fmt.DDP1[0] + 1.0);
     double dSNR = (double)(fmt.dDP2[a] + 0.5) / (double)(fmt.dDP1[0] + 1.0);
@@ -3989,6 +4010,10 @@ BcfFormat_symbol_calc_qual(
         sscs_binom_qual += round(indel_pq) + extra_reward;
         indel_UMI_penal = non_neg_minus((fmt.BDPf[0] + fmt.BDPr[0] + 1.0) / (double)(fmt.CDP1f[0] + fmt.CDP1r[0] + 1.0) * paramset.fam_indel_nonUMI_phred_dec_per_fold_overseq,
                 (paramset.fam_thres_emperr_all_flat_indel + 1) * paramset.fam_indel_nonUMI_phred_dec_per_fold_overseq);
+    }
+    
+    if (is_substitution_oxidation && (NOT_PROVIDED != paramset.vcf_tumor_fname)) {
+        sscs_binom_qual = MAX(sscs_binom_qual, MIN(aDP, 3));
     }
     
     clear_push(fmt.aAaMQ, diffAaMQs);
@@ -4904,10 +4929,10 @@ append_vcf_record(
             (tki.cPCQ2),
             (nfm_cDP2x + 0.0) / 100.0 + 0.5 + nfm_cDP2x_1add,
             (nfm_CDP2x + 0.0) / 100.0 + 1.0 + nfm_cDP2x_1add,
-            non_neg_minus(collectget(nfm.cVQ2, 1), phred_het3al_chance_inc),
+            non_neg_minus(collectget(nfm.cVQ2, 1), MAX(phred_het3al_chance_inc, 3) - 3),
             paramset.tn_syserr_norm_devqual,
             prior_phred,
-            tn_dec_by_xm,
+            MAX(tn_dec_by_xm, MIN(collectget(nfm.cVQ2, 1), 8 + 4)),
             paramset.powlaw_exponent,
             0)
         : calc_binom_powlaw_syserr_normv_quals2(
@@ -4917,11 +4942,16 @@ append_vcf_record(
             (tki.cPCQ2),
             (nfm_cDP2x + 0.0) / 100.0 + 0.5 + nfm_cDP2x_1add,
             (nfm_CDP2x + 0.0) / 100.0 + 1.0 + nfm_cDP2x_1add,
-            non_neg_minus(collectget(nfm.cVQ2, 1), phred_het3al_chance_inc),
+            non_neg_minus(collectget(nfm.cVQ2, 1), MAX(phred_het3al_chance_inc, 3) - 3),
             0));
+
+    const auto c_normv_added = BETWEEN(
+          (BETWEEN(c_binom_powlaw_syserr_normv_q4[0], 0, c_binom_powlaw_syserr_normv_q4[1]) 
+         - MAX(BETWEEN(b_binom_powlaw_syserr_normv_q4filter[0], 0, b_binom_powlaw_syserr_normv_q4filter[1]), 9)),
+         0, 16); // UMI-consensus in tumor but not in normal implies that tumor variant is true positive
     
-    uvc1_qual_t tlodq1 = MAX(b_binom_powlaw_syserr_normv_q4filter[3], c_binom_powlaw_syserr_normv_q4[3]);
-    float lowestVAQ = MIN(tlodq1, 4) + 0.5 + (prob2realphred(1 / (double)(tki.bDP + 1)) * (tki.bDP) / (double)(tki.BDP + + tki.bDP + 1));
+    uvc1_qual_t tlodq1 = MAX(b_binom_powlaw_syserr_normv_q4filter[3], (c_binom_powlaw_syserr_normv_q4[3] + c_normv_added));
+    float lowestVAQ = MIN(tlodq1, 4) + 0.5 + (prob2realphred(1 / (double)(tki.bDP + 1)) * (tki.bDP) / (double)(tki.BDP + tki.bDP + 1));
     
     const auto tlodq = tlodq1 - tn_dec_both_tlodq_nlodq;
     const auto nlodq = nlodq1 - tn_dec_both_tlodq_nlodq;
