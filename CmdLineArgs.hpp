@@ -92,9 +92,8 @@ struct CommandLineArgs {
     uvc1_qual_t      penal4lowdep = 37;
     uvc1_qual_t      assay_sequencing_BQ_max = 37;
     
-    uvc1_readpos_t   phasing_haplotype_noise_fold_perc_max = 400;
-    uvc1_readpos_t   phasing_haplotype_noise_fold_perc_max_iontorrent_add = 200;
-    uvc1_readnum_t   phasing_haplotype_min_ad = 3;
+    uvc1_readnum_t   phasing_haplotype_max_count = 8;
+    uvc1_readnum_t   phasing_haplotype_min_ad = 1;
 
 // *** 04. parameters for dedupping reads
     

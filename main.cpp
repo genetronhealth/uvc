@@ -507,13 +507,13 @@ process_batch(BatchArg & arg, const T & tid_pos_symb_to_tkis) {
     assert(((baq_offsetarr.getExcluEndPosition() - baq_offsetarr.getIncluBegPosition()) == UNSIGN2SIGN(region_repeatvec.size())) 
             || !fprintf(stderr, "%d - %d == %lu failed (baq == repeat in size)!\n", baq_offsetarr.getExcluEndPosition(), baq_offsetarr.getIncluBegPosition(), region_repeatvec.size()));
     
-    std::map<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>> mutform2count4map_bq;
-    std::map<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>> mutform2count4map_fq;
+    std::vector<std::pair<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>>> mutform2count4vec_bq;
+    std::vector<std::pair<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>>> mutform2count4vec_fq;
     
     symbolToCountCoverageSet12.updateByRegion3Aln(
-            mutform2count4map_bq, 
-            mutform2count4map_fq,
-            umi_strand_readset, 
+            mutform2count4vec_bq,
+            mutform2count4vec_fq,
+            umi_strand_readset,
             
             refstring,
             region_repeatvec,
@@ -523,9 +523,7 @@ process_batch(BatchArg & arg, const T & tid_pos_symb_to_tkis) {
             paramset,
             0);
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts analyzing phasing info"; }
-    auto mutform2count4vec_bq = map2vector(mutform2count4map_bq);
     auto simplemut2indices_bq = mutform2count4vec_to_simplemut2indices(mutform2count4vec_bq);
-    auto mutform2count4vec_fq = map2vector(mutform2count4map_fq);
     auto simplemut2indices_fq = mutform2count4vec_to_simplemut2indices(mutform2count4vec_fq);
     
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id  << " starts generating block gzipped vcf"; }

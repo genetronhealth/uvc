@@ -91,6 +91,7 @@ CommandLineArgs::selfUpdateByPlatform() {
         UPDATE_NON_NEG_MINUS(fam_thres_highBQ_indel, 30);
         UPDATE_NON_NEG_MINUS(bias_thres_PFBQ1, 30);
         UPDATE_NON_NEG_MINUS(bias_thres_PFBQ2, 30);
+        UPDATE_NON_NEG_MINUS(bias_thres_highBQ, 13);
     }
     if (SEQUENCING_PLATFORM_ILLUMINA == inferred_sequencing_platform && SEQUENCING_PLATFORM_OTHER != this->sequencing_platform) {
         bq_phred_added_indel += 0;
@@ -317,14 +318,12 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
     ADD_OPTDEF2(app, assay_sequencing_BQ_max,
         "Maximum basecall quality (BQ) determined by empirical error rate. ");
     
-    ADD_OPTDEF2(app, phasing_haplotype_noise_fold_perc_max,
-        "The maximum percentage ratio of "
-        "the number of reads supporting a variant "
-        "to the number of reads supporting, without any sequencing error, the haplotype of the variant. ");
-    ADD_OPTDEF2(app, phasing_haplotype_noise_fold_perc_max_iontorrent_add,
-        "The corresponding parameter for the IonTorrent/LifeTech/ThermoFishser sequencing platform is automatically incremented by this much. ");
+    ADD_OPTDEF2(app, phasing_haplotype_max_count,
+        "The maximum number of haplotypes covering each genomic position used to generate the bHap and cHap format fields in the output VCF. ");
     ADD_OPTDEF2(app, phasing_haplotype_min_ad,
-        "The minimum haplotype allele depth for the haplotype (bHap and cHap) to be present in the output VCF. ");
+        "This value plus the number of variants in a haplotype is the minimum haplotype allele depth for the haplotype (bHap and cHap) to be present in the output VCF. "
+        "For example, if a haplotype links variants A and B, then this haplotype requires the linkage between A and B to have a depth of at least (<this-value> + 2), "
+        "and this depth becomes (<this-value> + 3) if this haplotype links three variants instead of two, etc. ");
     
 // *** 04. parameters for dedupping reads
     
@@ -348,7 +347,8 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
 // *** 05. parameters related to bias thresholds
     
     ADD_OPTDEF2(app, bias_thres_highBQ, 
-        "Threshold of base quality (BQ) above which the base is considered to be of good BQ. ");
+        "Threshold of base quality (BQ) above which the base is considered to be of good BQ. "
+        "Please note that this value is automatically decreased by 13 for IonTorrent/LifeTech/ThermoFisher sequencing data. ");
     ADD_OPTDEF2(app, bias_thres_highBAQ, 
         "Threshold of base alignment quality (BAQ) above which the base is considered to be of good BAQ. ");
     

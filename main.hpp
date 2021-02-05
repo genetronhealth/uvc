@@ -2768,39 +2768,43 @@ struct Symbol2CountCoverageSet {
         return 0;
     };
     
-    template <class T1, class T2>
-    int 
-    updateHapMap(std::map<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>> & mutform2count4map, 
+    template <class T1>
+    std::vector<std::pair<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>>>
+    updateHapMap(const std::map<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>> & mutform2count4map, 
             const T1 & tsum_depth,
-            const T2 read_count_field_id,
-            uvc1_readnum_t haplo_noise_fold_perc_max,
+            uvc1_readnum_t phasing_haplotype_max_count,
             uvc1_readnum_t phasing_haplotype_min_ad) {
-        for (auto it = mutform2count4map.begin(); it != mutform2count4map.end();) {
-            std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>> mutform = it->first;
-            auto counts = it->second;
-            std::vector<uvc1_readnum_t> dsADs;
-            dsADs.reserve(mutform.size() + 1);
-            dsADs.push_back(0);
-            for (std::pair<uvc1_refgpos_t, AlignmentSymbol> simplemut : mutform) {
-                uvc1_readnum_t ad0 = tsum_depth.at(0).getByPos(simplemut.first)[simplemut.second][read_count_field_id];
-                uvc1_readnum_t ad1 = tsum_depth.at(1).getByPos(simplemut.first)[simplemut.second][read_count_field_id];
-                dsADs.push_back(ad0 + ad1);
-            }
-            const auto med = MEDIAN(dsADs);
-            const auto haploDP = counts[0] + counts[1];
-            if (INT64MUL(haploDP, haplo_noise_fold_perc_max) <= INT64MUL(med, 100) || haploDP < phasing_haplotype_min_ad) {
-                it = mutform2count4map.erase(it);
-            } else {
-                it++;
-            }
+        
+        std::vector<std::pair<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>>> ret;
+        
+        std::vector<std::tuple<uvc1_readnum_t, std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>>> count_mutform_vec;
+        for (const auto & it : mutform2count4map) {
+            const auto totcnt = it.second[0] + it.second[1];
+            count_mutform_vec.push_back(std::make_tuple(totcnt, it.first, it.second));
         }
-        return 0;
+        std::sort(count_mutform_vec.rbegin(), count_mutform_vec.rend());
+        
+        auto tsum_depth_2 = CoveredRegion<uvc1_readnum_t>(-1, tsum_depth.at(0).getIncluBegPosition(), tsum_depth.at(0).getExcluEndPosition());
+        for (const auto & count_mutform_count : count_mutform_vec) {
+            const std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>> & mutform = std::get<1>(count_mutform_count);
+            const auto & counts = std::get<2>(count_mutform_count);
+            if ((counts[0] + counts[1]) < (phasing_haplotype_min_ad + UNSIGN2SIGN(mutform.size()))) { continue; }
+            
+            uvc1_readnum_t haplo_totDP = 0;
+            for (std::pair<uvc1_refgpos_t, AlignmentSymbol> simplemut : mutform) {
+                tsum_depth_2.getRefByPos(simplemut.first) += 1;
+                haplo_totDP += tsum_depth_2.getByPos(simplemut.first);
+            }
+            if (haplo_totDP > INT64MUL(phasing_haplotype_max_count, UNSIGN2SIGN(mutform.size()))) { continue; }
+            ret.push_back(std::make_pair(std::get<1>(count_mutform_count), std::get<2>(count_mutform_count)));
+        }
+        return ret;
     };
     
     int 
     updateByRegion3Aln(
-            std::map<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>> & mutform2count4map_bq,
-            std::map<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>> & mutform2count4map_fq,
+            std::vector<std::pair<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>>> & mutform2count4vec_bq,
+            std::vector<std::pair<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>>> & mutform2count4vec_fq,
             const std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, uvc1_flag_t>> & alns3, 
             
             const std::string & refstring,
@@ -2811,12 +2815,10 @@ struct Symbol2CountCoverageSet {
             const CommandLineArgs & paramset,
             const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
         
+        std::map<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>> mutform2count4map_bq;
+        std::map<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>> mutform2count4map_fq;
+
         std::basic_string<AlignmentSymbol> ref_symbol_string = string2symbolseq(refstring);
-        
-        const auto haplo_noise_fold_perc_max = paramset.phasing_haplotype_noise_fold_perc_max
-                + (SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform 
-                   ? paramset.phasing_haplotype_noise_fold_perc_max_iontorrent_add 
-                   : 0);
         
         updateByAlns3UsingBQ(
                 mutform2count4map_bq, 
@@ -2829,7 +2831,12 @@ struct Symbol2CountCoverageSet {
                 
                 paramset,
                 0);
-        updateHapMap(mutform2count4map_bq, this->symbol_to_frag_format_depth_sets, FRAG_bDP, haplo_noise_fold_perc_max, paramset.phasing_haplotype_min_ad);
+        mutform2count4vec_bq = updateHapMap(
+                mutform2count4map_bq, 
+                this->symbol_to_frag_format_depth_sets, 
+                paramset.phasing_haplotype_max_count,
+                paramset.phasing_haplotype_min_ad);
+        
         updateByAlns3UsingFQ(
                 mutform2count4map_fq, 
                 alns3,
@@ -2841,7 +2848,12 @@ struct Symbol2CountCoverageSet {
                 
                 paramset,
                 0);
-        updateHapMap(mutform2count4map_fq, this->symbol_to_fam_format_depth_sets_2strand, FAM_cDP1, haplo_noise_fold_perc_max, paramset.phasing_haplotype_min_ad);
+        mutform2count4vec_fq = updateHapMap(
+                mutform2count4map_fq, 
+                this->symbol_to_fam_format_depth_sets_2strand, 
+                paramset.phasing_haplotype_max_count,
+                paramset.phasing_haplotype_min_ad);
+        
         return 0;
     };
 };
