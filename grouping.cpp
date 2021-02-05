@@ -638,8 +638,8 @@ bamfname_to_strand_to_familyuid_to_reads(
         pcrpassed += is_assay_amplicon;
         
         // beg end qname UMI = 1 2 4 8
-        // IonTorrent amplicon without UMI: beg + qname
-        // IonTorrent capture  without UMI: beg + qname
+        // IonTorrent amplicon without UMI: beg + end + qname
+        // IonTorrent capture  without UMI: beg + end
         // IonTorrent amplicon with    UMI: beg + UMI
         // IonTorrent capture  with    UMI: beg + UMI
         // Illumina   amplicon without UMI: beg + end + qname
@@ -656,7 +656,11 @@ bamfname_to_strand_to_familyuid_to_reads(
             dedup_idflag = paramset.dedup_flag;
         } else if ((SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform)) { // is_proton
             if (is_umi_found) { dedup_idflag = 0x9; }
-            else { dedup_idflag = 0x4; }
+            else if ((is_beg_amplicon && is_end_amplicon) || is_beg_strong_amplicon) {
+                dedup_idflag = 0x7;
+            } else {
+                dedup_idflag = 0x3;
+            }
         } else {
             if (is_umi_found) {
                 if (is_beg_strong_amplicon && is_end_amplicon 
