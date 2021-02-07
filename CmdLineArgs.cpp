@@ -812,6 +812,21 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
         "Bitwise flag indicating treatment of padded deletion. "
         "Bits 0x1 and 0x2: padded deletion is ignored in the nucleotide-base consensus for the Illumina/BGI and ThermoFisher/LifeTech/IonTorrent sequencing platforms, respectively. ");
     
+    ADD_OPTDEF2(app, microadjust_strand_orientation_absence_DP_fold,
+        "The total-sequencing-depth ratio of one strand/read-orientation with high read support to the other strand/read-orientation with low read support, "
+        "above which the strand/read-orientation with low read support is considered to be absent for adjusting the single-sample power-law. ");
+    ADD_OPTDEF2(app, microadjust_orientation_absence_snv_penalty,
+        "Phred penalty applied to the single-sample power-law quality if read orientations are only in one direction for all SNV alleles including the REF. "
+        "This case usually occurs in amplicon-sequencing data. "
+        "Please note that this case indicates a lack of information to detect read-orientation bias instead of the result of having the bias being detected. ");
+    ADD_OPTDEF2(app, microadjust_strand_absence_snv_penalty,
+        "Phred penalty applied to the single-sample power-law quality if sequenced strands are only in one direction for all SNV alleles including the REF. "
+        "This case usually occurs in amplicon-sequencing data. "
+        "Please note that this case indicates a lack of information to detect sequenced-strand bias instead of the result of having the bias being detected. ");
+    ADD_OPTDEF2(app, microadjust_dedup_absence_indel_penalty,
+        "Phred penalty applied to the single-sample power-law quality if no dedupping is performed for all InDel alleles including the REF. "
+        "This case usually occurs in amplicon-sequencing data. ");
+    
     ADD_OPTDEF2(app, lib_wgs_min_avg_fraglen,
         "Minimum average fragment length, below which assay type is inferred to be non-WGS (whole-genome sequencing). ");
     ADD_OPTDEF2(app, lib_nonwgs_ad_pseudocount,

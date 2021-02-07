@@ -4097,9 +4097,21 @@ BcfFormat_symbol_calc_qual(
         }
     }
     // end ad-hoc
-
+    
     const auto systematicMQVQ = MAX(0, systematicMQVQ1);
     const auto indel_penal_base2 = indel_penal_base + indel_penal_base_add;
+    
+    const auto fmtADPfx = fmt.ADPff[0] + fmt.ADPfr[0];
+    const auto fmtADPrx = fmt.ADPrf[0] + fmt.ADPrr[0];
+    const auto fmtADPxf = fmt.ADPff[0] + fmt.ADPrf[0];
+    const auto fmtADPxr = fmt.ADPfr[0] + fmt.ADPrr[0];
+    const bool is_fmtADPfrx_imba = (MAX(fmtADPfx, fmtADPrx) > paramset.microadjust_strand_orientation_absence_DP_fold * (MIN(fmtADPfx, fmtADPrx) + 1));
+    const bool is_fmtADPxfr_imba = (MAX(fmtADPxf, fmtADPxr) > paramset.microadjust_strand_orientation_absence_DP_fold * (MIN(fmtADPxf, fmtADPxr) + 1));
+    
+    const auto dedup_frag_powlaw_qual_v_minus = (isSymbolSubstitution(symbol) 
+            ? ((is_fmtADPfrx_imba ? paramset.microadjust_orientation_absence_snv_penalty : 0) 
+             + (is_fmtADPxfr_imba ? 3 : paramset.microadjust_strand_absence_snv_penalty))
+            : (is_tmore_amplicon ? paramset.microadjust_dedup_absence_indel_penalty : 0));
     
     const auto tn_syserr_q = systematicMQVQ + paramset.tn_q_inc_max;
     clear_push(fmt.bMQQ, systematicMQVQ);
@@ -4108,7 +4120,7 @@ BcfFormat_symbol_calc_qual(
     clear_push(fmt.cIAQ, sscs_binom_qual - indel_penal_base, a);
     
     clear_push(fmt.cPCQ1, MIN(dedup_frag_powlaw_qual_w - indel_penal_base2, tn_syserr_q), a);
-    clear_push(fmt.cPLQ1, dedup_frag_powlaw_qual_v - indel_penal_base2, a);
+    clear_push(fmt.cPLQ1, dedup_frag_powlaw_qual_v - indel_penal_base2 - dedup_frag_powlaw_qual_v_minus, a);
     
     clear_push(fmt.cPCQ2, MIN(sscs_powlaw_qual_w - indel_penal_base, tn_syserr_q), a);
     clear_push(fmt.cPLQ2, sscs_powlaw_qual_v - indel_penal_base, a);
