@@ -187,6 +187,9 @@ enum FilterReason {
     NOT_PRIMARY_ALN,
     LOW_MAPQ,
     LOW_ALN_LEN,
+    LOW_ISIZE,
+    HIGH_ISIZE,
+    ZERO_ISIZE,
     OUT_OF_RANGE,
     NOT_END_TO_END,
     NUM_FILTER_REASONS
@@ -196,7 +199,12 @@ template <class T>
 enum FilterReason
 fill_isrc_isr2_beg_end_with_aln(bool & isrc, bool & isr2, uvc1_refgpos_t & tBeg, uvc1_refgpos_t & tEnd, T &num_seqs,
         const bam1_t *aln, const uvc1_refgpos_t fetch_tbeg, const uvc1_refgpos_t fetch_tend,
-        const uvc1_qual_t min_mapqual, const uvc1_readpos_t min_aln_len, const bool end2end, const bool is_pair_end_merge_enabled) {
+        const uvc1_qual_t min_mapqual, 
+        const uvc1_readpos_t min_aln_len, 
+        const uvc1_readpos_t min_isize, 
+        const uvc1_readpos_t max_isize, 
+        const bool is_zero_isize_discarded,
+        const bool end2end, const bool is_pair_end_merge_enabled) {
     num_seqs = 0;
     if (aln->core.flag & 0x4) {
         return NOT_MAPPED;
@@ -211,7 +219,19 @@ fill_isrc_isr2_beg_end_with_aln(bool & isrc, bool & isr2, uvc1_refgpos_t & tBeg,
     if (SIGN2UNSIGN(bam_endpos(aln) - aln->core.pos) < min_aln_len) {
         return LOW_ALN_LEN;
     }
-
+    if (0 == (aln->core.isize)) {
+        if (is_zero_isize_discarded) {
+            return ZERO_ISIZE;
+        }
+    } else {
+        if (abs(aln->core.isize) < min_isize) {
+            return LOW_ISIZE;
+        }
+        if (abs(aln->core.isize) > max_isize) {
+            return HIGH_ISIZE;
+        }
+    }
+    
     isrc = ((aln->core.flag & 0x10) == 0x10);
     isr2 = ((aln->core.flag & 0x80) == 0x80 && (aln->core.flag & 0x1) == 0x1);
     if (!is_pair_end_merge_enabled) { isr2 = false; }
@@ -527,7 +547,13 @@ bamfname_to_strand_to_familyuid_to_reads(
         uvc1_refgpos_t tEnd = 0;
         uvc1_unsigned_int_t num_seqs = 0;
         FilterReason filterReason = fill_isrc_isr2_beg_end_with_aln(isrc, isr2, tBeg, tEnd, num_seqs, 
-                aln, fetch_tbeg, fetch_tend, paramset.min_aln_len, paramset.min_mapqual, end2end, is_pair_end_merge_enabled);
+                aln, fetch_tbeg, fetch_tend, 
+                paramset.kept_aln_min_aln_len, 
+                paramset.kept_aln_min_mapqual,
+                paramset.kept_aln_min_isize,
+                paramset.kept_aln_max_isize,
+                paramset.kept_aln_is_zero_isize_discarded,
+                end2end, is_pair_end_merge_enabled);
         if (!is_pair_end_merge_enabled) { assert(!isr2); }
         if (NOT_FILTERED == filterReason) {
             isrc_isr2_to_beg_count[isrc * 2 + isr2][tBeg + ARRPOS_MARGIN - fetch_tbeg] += 1;
@@ -568,7 +594,13 @@ bamfname_to_strand_to_familyuid_to_reads(
         uvc1_refgpos_t tEnd = 0;
         uvc1_unsigned_int_t num_seqs = 0;
         FilterReason filterReason = fill_isrc_isr2_beg_end_with_aln(isrc, isr2, tBeg, tEnd, num_seqs, 
-                aln, fetch_tbeg, fetch_tend, paramset.min_aln_len, paramset.min_mapqual, end2end, is_pair_end_merge_enabled);
+                aln, fetch_tbeg, fetch_tend, 
+                paramset.kept_aln_min_aln_len, 
+                paramset.kept_aln_min_mapqual,
+                paramset.kept_aln_min_isize,
+                paramset.kept_aln_max_isize,
+                paramset.kept_aln_is_zero_isize_discarded,
+                end2end, is_pair_end_merge_enabled);
         if (!is_pair_end_merge_enabled) { assert(!isr2); }
         if (NOT_FILTERED != filterReason) {
             continue;

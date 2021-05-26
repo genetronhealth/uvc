@@ -49,9 +49,12 @@ struct CommandLineArgs {
     
     // https://www.biostars.org/p/110670/
     
-    uvc1_readpos_t    min_aln_len = 0;
-    uvc1_qual_t       min_mapqual = 0; // 40; // from GATK
-
+    uvc1_readpos_t    kept_aln_min_aln_len = 0;
+    uvc1_qual_t       kept_aln_min_mapqual = 0; // 40; // from GATK
+    uvc1_readpos_t    kept_aln_min_isize = 0;
+    uvc1_readpos_t    kept_aln_max_isize = INT32_MAX;
+    bool              kept_aln_is_zero_isize_discarded = false;
+    
     uvc1_readnum_t    min_altdp_thres = 2;
     
     uvc1_readnum_t     vdp1 = 1000;

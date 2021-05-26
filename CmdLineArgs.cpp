@@ -233,10 +233,16 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
         "Boolean (0: false, 1: true) indicating if the format from the tumor VCF should be retrieved in the tumor-normal comparison. "
         "This boolean has no effect if <--tumor-vcf> is not provided. ");
     
-    ADD_OPTDEF2(app, min_aln_len,
+    ADD_OPTDEF2(app, kept_aln_min_aln_len,
         "Minimum alignment length below which the alignment is filtered out. ");
-    ADD_OPTDEF2(app, min_mapqual,
+    ADD_OPTDEF2(app, kept_aln_min_mapqual,
         "Minimum mapping quality below which the alignment is filtered out. ");
+    ADD_OPTDEF2(app, kept_aln_min_isize,
+        "Minimum insert size below which the alignment is filtered out (not applicable to zero insert size). ");
+    ADD_OPTDEF2(app, kept_aln_max_isize,
+        "Maximum insert size above which the alignment is filtered out (not applicable to zero insert size). ");
+    ADD_OPTDEF2(app, kept_aln_is_zero_isize_discarded,
+        "The number 0 (false) or 1 (true) indicating if an alignment with zero insert size should be filtered out. ");
     
     ADD_OPTDEF2(app, min_altdp_thres, 
         "Minimum allele depth of fragments below which allele record is not in the <--output> VCF. "

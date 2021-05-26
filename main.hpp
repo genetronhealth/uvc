@@ -4583,8 +4583,8 @@ output_germline(
             std::string("0,0"), 
             "PASS",
             other_join(std::array<uvc1_readnum_t, 2> {{
-                (symbol_format_vec[0].second->CDP12f[0] + symbol_format_vec[0].second->CDP12r[0]), 
-                (symbol_format_vec[0].second->CDP12f[1] + symbol_format_vec[0].second->CDP12r[1]) }},
+                (symbol_format_vec[0].second->CDP1f[0] + symbol_format_vec[0].second->CDP1r[0]), 
+                (symbol_format_vec[0].second->CDP1f[1] + symbol_format_vec[0].second->CDP1r[1]) }},
                 ","
             ),
             other_join(germ_ADR, std::string(",")), 
