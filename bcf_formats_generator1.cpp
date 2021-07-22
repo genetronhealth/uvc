@@ -563,16 +563,19 @@ main(int argc, char **argv) {
     std::cout << "static int streamAppendBcfFormat(std::string & outstring, const BcfFormat & fmt) {\n";
     itnum = 0;
     for (auto fmt : FORMAT_VEC) {
-        if (itnum) { 
+        if (itnum) {
             std::cout << "    outstring += \":\";" << ";\n";
-        }
+        } 
         if (BCF_SEP == fmt.type) {
             std::cout << "    outstring += std::string(FORMAT_IDS[" << itnum << "]) + \"\";\n";
         } else if (0 == fmt.number || 1 == fmt.number) {
-            std::cout << "    outstring += " << (fmt.type == BCF_STRING ? "" : "std::to_string") << "(fmt." << fmt.id << ");\n";
+            if (BCF_STRING == fmt.type && 1 == fmt.number) {
+                std::cout << "    if (fmt." << fmt.id << ".size() == 0) { outstring += \".\"; }\n";
+            }
+            std::cout << "    outstring += " << ((BCF_STRING == fmt.type) ? "" : "std::to_string") << "(fmt." << fmt.id << ");\n";
         } else {
             std::cout << "    for (unsigned int i = 0; i < fmt." << fmt.id << ".size(); i++) {\n";
-            std::cout << "        if (0 != i) { outstring += \",\"; }; outstring += " << (fmt.type == BCF_STRING ? "" : "std::to_string") 
+            std::cout << "        if (0 != i) { outstring += \",\"; }; outstring += " << ((BCF_STRING == fmt.type) ? "" : "std::to_string") 
                     << "(" << "fmt." << fmt.id << "[i]" << ");\n";
             std::cout << "    };\n";
         }
