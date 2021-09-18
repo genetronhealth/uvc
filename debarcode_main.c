@@ -118,7 +118,7 @@ int process(const CmdLineArgs args, const unsigned int r1r2num) {
             for (unsigned int r1r2idx2 = 0; r1r2idx2 < r1r2num; r1r2idx2++) {
                 if (umis[r1r2idx2][0] != '\0') {
                     if (umi_num > 0) { 
-                        gzwrite(out[r1r2idx2], (args.isduplex ? "+" : "-"), 1);
+                        gzwrite(out[r1r2idx], (args.isduplex ? "+" : "-"), 1);
                     }
                     gzwrite(out[r1r2idx], umis[r1r2idx2], strlen(umis[r1r2idx2]));
                     umi_num++;
