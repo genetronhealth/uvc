@@ -317,9 +317,9 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("cDPmr" , BCF_NUM_R, BCF_INTEGER, "Minor duped fragment depth on the reverse read orientation."),
     
     BcfFormatStruct("__Dd"  , 1,         BCF_SEP,     "Duplex depths of the original double-strand molecular fragments."),
-    BcfFormatStruct("DDP1"  , 2,         BCF_INTEGER, "Duplex depth with allele diaagreement on the two strands for (all alleles) and (the padded deletion allele)."),
+    BcfFormatStruct("DDP1"  , 2,         BCF_INTEGER, "Duplex depth regardless of allele agreement on the two strands for (all alleles) and (the padded deletion allele)."),
     BcfFormatStruct("DDP2"  , 2,         BCF_INTEGER, "Duplex depth with allele agreement on the two strands for (all alleles) and (the padded deletion allele)."),
-    BcfFormatStruct("dDP1"  , BCF_NUM_R, BCF_INTEGER, "Duplex depth with allele disagreement on the two strands for the REF allele and each ALT allele."),
+    BcfFormatStruct("dDP1"  , BCF_NUM_R, BCF_INTEGER, "Duplex depth regardless of allele agreement on the two strands for the REF allele and each ALT allele."),
     BcfFormatStruct("dDP2"  , BCF_NUM_R, BCF_INTEGER, "Duplex depth with allele agreement on the two strands for the REF allele and each ALT allele."),
     
     BcfFormatStruct("__e1"  , 1,         BCF_SEP,     "Error variables inferred from systematically low basecall qualities (BQs)."),
