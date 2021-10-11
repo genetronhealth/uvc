@@ -574,6 +574,7 @@ main(int argc, char **argv) {
             }
             std::cout << "    outstring += " << ((BCF_STRING == fmt.type) ? "" : "std::to_string") << "(fmt." << fmt.id << ");\n";
         } else {
+            std::cout << "    if (fmt." << fmt.id << ".size() == 0) { outstring += \".\"; }\n";
             std::cout << "    for (unsigned int i = 0; i < fmt." << fmt.id << ".size(); i++) {\n";
             std::cout << "        if (0 != i) { outstring += \",\"; }; outstring += " << ((BCF_STRING == fmt.type) ? "" : "std::to_string") 
                     << "(" << "fmt." << fmt.id << "[i]" << ");\n";
