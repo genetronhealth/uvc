@@ -585,6 +585,9 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
             "(excluding the extension of one base) per base. ");
     ADD_OPTDEF2(app, fam_phred_dscs_all, 
         "Maximum Phred score for double-strand consensus sequences (DSCSs) for all types of mutations (PMC3437896). ");
+    ADD_OPTDEF2(app, fam_phred_dscs_inc_max, 
+        "Maximum increase in variant quality by merging SSCSs into DSCSs. "
+        "This value defaults to the power-law exponent times the increase in variant quality per DSCS). ");
     
     ADD_OPTDEF2(app, fam_phred_pow_sscs_transversion_AT_TA_origin, 
         "The phred-score that is subtracted from phred-sscs to get the power-law quality adjustment for the A:T > T:A type of SNV (PMC3973132). "
