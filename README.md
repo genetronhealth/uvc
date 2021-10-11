@@ -1,5 +1,5 @@
 UVC is a very accurate and reasonably fast somatic variant caller.
-The executable uvc1 in the bin direcotry takes one BAM file as input and generates one block-gzipped VCF file as output.
+The executable uvc1 in the bin directory takes one BAM file as input and generates one block-gzipped VCF file as output.
 The script uvcTN.sh in the bin directory takes two BAM files corresponding to tumor and normal as input and generate two block-gzipped VCF files (tumor-variant VCF and normal-filtered VCF) as output.
 
 # How to install
