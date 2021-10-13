@@ -4162,7 +4162,7 @@ BcfFormat_symbol_calc_qual(
         UPDATE_MAX(mincVQ2, sscs_floor_qual_v);
     }
     
-    const uvc1_qual_big_t dVQinc = MAX(MIN(dFA_vq_binom, dFA_vq_powlaw) - MAX(0, MIN(LAST(fmt.cIAQ), LAST(fmt.cPLQ2))), paramset.fam_phred_dscs_inc_max);
+    const uvc1_qual_big_t dVQinc = MIN(MIN(dFA_vq_binom, dFA_vq_powlaw) - MAX(0, MIN(LAST(fmt.cIAQ), LAST(fmt.cPLQ2))), paramset.fam_phred_dscs_inc_max);
     clear_push(fmt.dVQinc, dVQinc, a);
     
     const uvc1_qual_t cVQ2 = MIN3(systematicVQsomatic,
