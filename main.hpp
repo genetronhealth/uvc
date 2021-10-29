@@ -2399,9 +2399,12 @@ struct Symbol2CountCoverageSet {
                                 posToIndelToCount_updateByConsensus(this->symbol_to_frag_format_depth_sets[strand].getRefPosToDlenToData(con_symbol),
                                         read_ampBQerr_fragWithR1R2.getPosToDlenToData(con_symbol), epos, 1);
                             }
-                            AlignmentSymbol refsymbol = region_symbolvec[epos-this->getUnifiedIncluBegPosition()]; 
+                            AlignmentSymbol refsymbol = region_symbolvec[epos-this->getUnifiedIncluBegPosition()];
                             cov_mut_vec[epos - read_ampBQerr_fragWithR1R2.getIncluBegPosition()] |= 0x1;
-                            if (areSymbolsMutated(refsymbol, con_symbol) && (LINK_SYMBOL == symboltype || phredlike >= paramset.bias_thres_highBQ)) {
+                            const bool is_var_of_highBQ = ((SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform)
+                                ? (BASE_SYMBOL == symboltype || phredlike + 3 >= paramset.bias_thres_highBQ)
+                                : (LINK_SYMBOL == symboltype || phredlike >= paramset.bias_thres_highBQ));
+                            if (areSymbolsMutated(refsymbol, con_symbol) && is_var_of_highBQ) {
                                 pos_symbol_string.push_back(std::make_pair(epos, con_symbol));
                                 cov_mut_vec[epos - read_ampBQerr_fragWithR1R2.getIncluBegPosition()] |= 0x2;
                             }
@@ -2691,7 +2694,10 @@ struct Symbol2CountCoverageSet {
                         }
                         
                         AlignmentSymbol ref_symbol = region_symbolvec[epos - this->getUnifiedIncluBegPosition()]; 
-                        if (areSymbolsMutated(ref_symbol, con_symbol) && (LINK_SYMBOL == symboltype || confam_qual >= paramset.bias_thres_highBQ)) {
+                        const bool is_var_of_highBQ = ((SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform)
+                                ? (BASE_SYMBOL == symboltype || confam_qual + 3 >= paramset.bias_thres_highBQ)
+                                : (LINK_SYMBOL == symboltype || confam_qual >= paramset.bias_thres_highBQ));
+                        if (areSymbolsMutated(ref_symbol, con_symbol) && is_var_of_highBQ) {
                             pos_symbol_string.push_back(std::make_pair(epos, con_symbol));
                         }
                         uvc1_qual_t max_qual = sscs_mut_table.toPhredErrRate(ref_symbol, con_symbol) + (NOT_PROVIDED == paramset.vcf_tumor_fname ? 0 : 4);
