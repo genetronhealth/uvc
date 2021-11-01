@@ -78,12 +78,15 @@ map2vector(const std::map<TKey, TVal> & key2val4map) {
 };
 
 std::map<std::pair<uvc1_refgpos_t, AlignmentSymbol>, std::set<size_t>>
-mutform2count4vec_to_simplemut2indices(std::vector<std::pair<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>>> mutform2count4vec) {
+mutform2count4vec_to_simplemut2indices(
+        //std::vector<std::pair<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>>> mutform2count4vec
+        std::vector<HapLink> mutform2count4vec) {
+    
     std::map<std::pair<uvc1_refgpos_t, AlignmentSymbol>, std::set<size_t>> simplemut2indices;
     for (size_t i = 0; i < mutform2count4vec.size(); i++) {
-        auto counts = mutform2count4vec[i].second; 
+        auto counts = mutform2count4vec[i].fr_cnts; 
         if (counts[0] + counts[1] < 2) { continue; }
-        std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>> mutset = mutform2count4vec[i].first;
+        std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>> mutset = mutform2count4vec[i].pos_symb_string;
         for (auto simplemut : mutset) {
             simplemut2indices.insert(std::make_pair(simplemut, std::set<size_t>()));
             simplemut2indices[simplemut].insert(i);
@@ -507,8 +510,10 @@ process_batch(BatchArg & arg, const T & tid_pos_symb_to_tkis) {
     assert(((baq_offsetarr.getExcluEndPosition() - baq_offsetarr.getIncluBegPosition()) == UNSIGN2SIGN(region_repeatvec.size())) 
             || !fprintf(stderr, "%d - %d == %lu failed (baq == repeat in size)!\n", baq_offsetarr.getExcluEndPosition(), baq_offsetarr.getIncluBegPosition(), region_repeatvec.size()));
     
-    std::vector<std::pair<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>>> mutform2count4vec_bq;
-    std::vector<std::pair<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>>> mutform2count4vec_fq;
+    // std::vector<std::pair<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>>> mutform2count4vec_bq;
+    // std::vector<std::pair<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>>> mutform2count4vec_fq;
+    std::vector<HapLink> mutform2count4vec_bq;
+    std::vector<HapLink> mutform2count4vec_fq;
     
     symbolToCountCoverageSet12.updateByRegion3Aln(
             mutform2count4vec_bq,

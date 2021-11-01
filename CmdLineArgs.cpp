@@ -330,6 +330,8 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
         "This value plus the number of variants in a haplotype is the minimum haplotype allele depth for the haplotype (bHap and cHap) to be present in the output VCF. "
         "For example, if a haplotype links variants A and B, then this haplotype requires the linkage between A and B to have a depth of at least (<this-value> + 2), "
         "and this depth becomes (<this-value> + 3) if this haplotype links three variants instead of two, etc. ");
+    ADD_OPTDEF2(app, phasing_haplotype_max_detail_cnt,
+        "The maximum number of haplotypes that have detailed read counts. ");
     
 // *** 04. parameters for dedupping reads
     

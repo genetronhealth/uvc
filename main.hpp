@@ -27,6 +27,21 @@
 #include <stdlib.h>
 #include <string.h>
 
+class HapLink {
+public:
+    std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>> pos_symb_string;
+    std::array<uvc1_readnum_t, 2> fr_cnts;
+    std::array<uvc1_readnum_t, 2> other_hap_cnts;
+    HapLink(
+        std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>> pos_symb_string_1,
+        std::array<uvc1_readnum_t, 2> fr_cnts_1,
+        std::array<uvc1_readnum_t, 2> other_hap_cnt_1) {
+            pos_symb_string = pos_symb_string_1;
+            fr_cnts = fr_cnts_1;
+            other_hap_cnts = other_hap_cnt_1;
+    };
+};
+
 // T=uvc1_readnum_t for deletion and T=string for insertion
 
 template <class T>
@@ -2775,13 +2790,16 @@ struct Symbol2CountCoverageSet {
     };
     
     template <class T1>
-    std::vector<std::pair<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>>>
+    // std::vector<std::pair<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>>>
+    std::vector<HapLink>
     updateHapMap(const std::map<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>> & mutform2count4map, 
             const T1 & tsum_depth,
             uvc1_readnum_t phasing_haplotype_max_count,
-            uvc1_readnum_t phasing_haplotype_min_ad) {
+            uvc1_readnum_t phasing_haplotype_min_ad,
+            uvc1_readnum_t phasing_haplotype_max_detail_cnt) {
         
-        std::vector<std::pair<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>>> ret;
+        // std::vector<std::pair<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>>> ret;
+        std::vector<HapLink> ret;
         
         std::vector<std::tuple<uvc1_readnum_t, std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>>> count_mutform_vec;
         for (const auto & it : mutform2count4map) {
@@ -2790,8 +2808,38 @@ struct Symbol2CountCoverageSet {
         }
         std::sort(count_mutform_vec.rbegin(), count_mutform_vec.rend());
         
+        size_t num_dst_mutforms = MIN((size_t)phasing_haplotype_max_detail_cnt, count_mutform_vec.size());
+        
+        std::vector<uvc1_readnum_t> mutform_inc_fw;
+        std::vector<uvc1_readnum_t> mutform_inc_rv;
+        for (size_t i = 0; i < num_dst_mutforms; i++) {
+            mutform_inc_fw.push_back(0);
+            mutform_inc_rv.push_back(0);
+        }
+        for (size_t i = 0; i < num_dst_mutforms; i++) {
+            std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>> dst_mutform = std::get<1>(count_mutform_vec[i]);
+            uvc1_readnum_t inc_cnt_fw = 0;
+            uvc1_readnum_t inc_cnt_rv = 0;
+            for (size_t j = i + 1; j < count_mutform_vec.size(); j++) {
+                std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>> src_mutform = std::get<1>(count_mutform_vec[j]);
+                bool is_allele_skipped = false;
+                for (auto dst_allele : dst_mutform) {
+                    if (src_mutform.find(dst_allele) == std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>::npos) {
+                        is_allele_skipped = true;
+                        break;
+                    }
+                }
+                if (!is_allele_skipped) {
+                    inc_cnt_fw += std::get<2>(count_mutform_vec[j])[0];
+                    inc_cnt_rv += std::get<2>(count_mutform_vec[j])[1];
+                }
+            }
+            mutform_inc_fw[i] += inc_cnt_fw;
+            mutform_inc_rv[i] += inc_cnt_rv;
+        }
         auto tsum_depth_2 = CoveredRegion<uvc1_readnum_t>(-1, tsum_depth.at(0).getIncluBegPosition(), tsum_depth.at(0).getExcluEndPosition());
-        for (const auto & count_mutform_count : count_mutform_vec) {
+        for (size_t i = 0; i < count_mutform_vec.size(); i++) {
+            const auto & count_mutform_count = count_mutform_vec[i];
             const std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>> & mutform = std::get<1>(count_mutform_count);
             const auto & counts = std::get<2>(count_mutform_count);
             if ((counts[0] + counts[1]) < (phasing_haplotype_min_ad + UNSIGN2SIGN(mutform.size()))) { continue; }
@@ -2802,15 +2850,24 @@ struct Symbol2CountCoverageSet {
                 haplo_totDP += tsum_depth_2.getByPos(simplemut.first);
             }
             if (haplo_totDP > INT64MUL(phasing_haplotype_max_count, UNSIGN2SIGN(mutform.size()))) { continue; }
-            ret.push_back(std::make_pair(std::get<1>(count_mutform_count), std::get<2>(count_mutform_count)));
+            // ret.push_back(std::make_pair(std::get<1>(count_mutform_count), std::get<2>(count_mutform_count)));
+            const auto count = std::get<2>(count_mutform_count);
+            const auto haplink = HapLink(mutform, count, 
+                    ((i >= num_dst_mutforms) 
+                    ? (std::array<uvc1_refgpos_t, 2>({-1, -1})) 
+                    : (std::array<uvc1_refgpos_t, 2>({mutform_inc_fw[i], mutform_inc_rv[i] }))));
+            ret.push_back(haplink);
         }
         return ret;
     };
     
     int 
     updateByRegion3Aln(
-            std::vector<std::pair<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>>> & mutform2count4vec_bq,
-            std::vector<std::pair<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>>> & mutform2count4vec_fq,
+            //std::vector<std::pair<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>>> & mutform2count4vec_bq,
+            //std::vector<std::pair<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>>> & mutform2count4vec_fq,
+            std::vector<HapLink> & mutform2count4vec_bq,
+            std::vector<HapLink> & mutform2count4vec_fq,
+
             const std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, uvc1_flag_t>> & alns3, 
             
             const std::string & refstring,
@@ -2841,7 +2898,8 @@ struct Symbol2CountCoverageSet {
                 mutform2count4map_bq, 
                 this->symbol_to_frag_format_depth_sets, 
                 paramset.phasing_haplotype_max_count,
-                paramset.phasing_haplotype_min_ad);
+                paramset.phasing_haplotype_min_ad,
+                paramset.phasing_haplotype_max_detail_cnt);
         
         updateByAlns3UsingFQ(
                 mutform2count4map_fq, 
@@ -2858,7 +2916,8 @@ struct Symbol2CountCoverageSet {
                 mutform2count4map_fq, 
                 this->symbol_to_fam_format_depth_sets_2strand, 
                 paramset.phasing_haplotype_max_count,
-                paramset.phasing_haplotype_min_ad);
+                paramset.phasing_haplotype_min_ad,
+                paramset.phasing_haplotype_max_detail_cnt);
         
         return 0;
     };
@@ -4223,19 +4282,25 @@ fill_by_indel_info(
 
 template <class T1, class T2>
 std::string 
-mutform2count4map_to_phase(const T1 & mutform2count4vec, const T2 & indices, uvc1_readnum_t pseudocount = 1) {
+mutform2count4map_to_phase(
+        const T1 & mutform2count4vec, 
+        const T2 & indices, 
+        uvc1_readnum_t pseudocount = 1) {
     std::string phase_string;
     for (auto idx : indices) {
         auto mutform2count4pair = mutform2count4vec.at(idx);
-        auto counts = mutform2count4pair.second;
+        auto counts = mutform2count4pair.fr_cnts;
         if ((counts[0] + counts[1]) > pseudocount) {
             phase_string +="(";
-            for (auto pos2symbol4pair : mutform2count4pair.first) {
+            for (auto pos2symbol4pair : mutform2count4pair.pos_symb_string) {
                 AlignmentSymbol symbol = pos2symbol4pair.second;
                 uvc1_refgpos_t mutpos = pos2symbol4pair.first + (isSymbolSubstitution(symbol) ? 1 : 0);
                 phase_string += std::string("(") + std::to_string(mutpos) + "&" + SYMBOL_TO_DESC_ARR[symbol] + ")";
             }
-            phase_string += std::string("&") + std::to_string(counts[0]) + "&" + std::to_string(counts[1]) + ")";
+            std::string phase_add = ((-1 < mutform2count4pair.other_hap_cnts[0]) 
+                    ? ("&&" + std::to_string(mutform2count4pair.other_hap_cnts[0] + counts[0]) + "&" + std::to_string(mutform2count4pair.other_hap_cnts[1] + counts[1])) 
+                    : "");
+            phase_string += std::string("&") + std::to_string(counts[0]) + "&" + std::to_string(counts[1]) + phase_add + ")";
         }
     }
     return phase_string;

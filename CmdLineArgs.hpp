@@ -97,7 +97,8 @@ struct CommandLineArgs {
     
     uvc1_readnum_t   phasing_haplotype_max_count = 8;
     uvc1_readnum_t   phasing_haplotype_min_ad = 1;
-
+    uvc1_readnum_t   phasing_haplotype_max_detail_cnt = 3;
+    
 // *** 04. parameters for dedupping reads
     
     // PCR stutter noise at (di,tri,tetra,...)-nucleotide generates +-(2,3,4...) shift in read end position, 
