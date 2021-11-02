@@ -3358,7 +3358,7 @@ BcfFormat_symbol_init(
     
     fmt.bHap = mutform2count4map_to_phase(mutform2count4vec_bq, indices_bq);
     fmt.cHap = mutform2count4map_to_phase(mutform2count4vec_fq, indices_fq);
-    fmt.c2Hap = mutform2count4map_to_phase(mutform2count4vec_f2q, indices_fq);
+    fmt.c2Hap = mutform2count4map_to_phase(mutform2count4vec_f2q, indices_f2q);
     clear_push(fmt.bDPa, bDPa, a);
     clear_push(fmt.cDP0a, cDP0a, a);
     clear_push(fmt.gapSa, gapSa, a);
