@@ -514,10 +514,12 @@ process_batch(BatchArg & arg, const T & tid_pos_symb_to_tkis) {
     // std::vector<std::pair<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>>> mutform2count4vec_fq;
     std::vector<HapLink> mutform2count4vec_bq;
     std::vector<HapLink> mutform2count4vec_fq;
+    std::vector<HapLink> mutform2count4vec_f2q;
     
     symbolToCountCoverageSet12.updateByRegion3Aln(
             mutform2count4vec_bq,
             mutform2count4vec_fq,
+            mutform2count4vec_f2q,
             umi_strand_readset,
             
             refstring,
@@ -530,7 +532,8 @@ process_batch(BatchArg & arg, const T & tid_pos_symb_to_tkis) {
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts analyzing phasing info"; }
     auto simplemut2indices_bq = mutform2count4vec_to_simplemut2indices(mutform2count4vec_bq);
     auto simplemut2indices_fq = mutform2count4vec_to_simplemut2indices(mutform2count4vec_fq);
-    
+    auto simplemut2indices_f2q = mutform2count4vec_to_simplemut2indices(mutform2count4vec_f2q);
+
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id  << " starts generating block gzipped vcf"; }
     
     std::string buf_out_string_pass;
@@ -775,6 +778,7 @@ process_batch(BatchArg & arg, const T & tid_pos_symb_to_tkis) {
                 const auto simplemut = std::make_pair(refpos, symbol);
                 const auto indices_bq = (simplemut2indices_bq.find(simplemut) != simplemut2indices_bq.end() ? simplemut2indices_bq[simplemut] : empty_size_t_set); 
                 const auto indices_fq = (simplemut2indices_fq.find(simplemut) != simplemut2indices_fq.end() ? simplemut2indices_fq[simplemut] : empty_size_t_set);
+                const auto indices_f2q = (simplemut2indices_f2q.find(simplemut) != simplemut2indices_f2q.end() ? simplemut2indices_f2q[simplemut] : empty_size_t_set);
                 std::vector<TumorKeyInfo> tkis;
                 if (is_var_rescued) {
                     tkis = tid_pos_symb_to_tkis.find(std::make_tuple(tid, refpos, symbol))->second;
@@ -849,6 +853,9 @@ process_batch(BatchArg & arg, const T & tid_pos_symb_to_tkis) {
                             indices_bq,
                             mutform2count4vec_fq, 
                             indices_fq,
+                            mutform2count4vec_f2q, 
+                            indices_f2q,
+
                             std::get<0>(bcad0a_indelstring_tki),
                             std::get<1>(bcad0a_indelstring_tki),
                             indelstring,

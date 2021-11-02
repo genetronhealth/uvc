@@ -2502,6 +2502,8 @@ struct Symbol2CountCoverageSet {
     int
     updateByAlns3UsingFQ(
             std::map<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>> & mutform2count4map,
+            std::map<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>> & mutform2count4map_confam,
+            
             const T1 & alns3, 
             
             const std::basic_string<AlignmentSymbol> & region_symbolvec,
@@ -2675,6 +2677,7 @@ struct Symbol2CountCoverageSet {
                     read_duplex_amplicon.template updateByConsensus<false>(read_family_con_ampl);
                 }
                 std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>> pos_symbol_string;
+                std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>> pos_symbol_string_confam;
                 for (auto epos = read_family_mmm_ampl.getIncluBegPosition(); 
                         epos < read_family_mmm_ampl.getExcluEndPosition(); 
                         epos++) {
@@ -2714,6 +2717,13 @@ struct Symbol2CountCoverageSet {
                                 : (LINK_SYMBOL == symboltype || confam_qual >= paramset.bias_thres_highBQ));
                         if (areSymbolsMutated(ref_symbol, con_symbol) && is_var_of_highBQ) {
                             pos_symbol_string.push_back(std::make_pair(epos, con_symbol));
+                            AlignmentSymbol con_symbol;
+                            uvc1_qual_t con_count, tot_count;
+                            const auto & con_ampl_symbol2count = read_family_con_ampl.getByPos(epos);
+                            con_ampl_symbol2count.fillConsensusCounts(con_symbol, con_count, tot_count, symboltype);
+                            if (paramset.fam_thres_dup2add <= tot_count && (con_count * 100 >= tot_count * paramset.fam_thres_dup2perc)) {
+                                pos_symbol_string_confam.push_back(std::make_pair(epos, con_symbol));
+                            }
                         }
                         uvc1_qual_t max_qual = sscs_mut_table.toPhredErrRate(ref_symbol, con_symbol) + (NOT_PROVIDED == paramset.vcf_tumor_fname ? 0 : 4);
                         uvc1_qual_t confam_qual2 = MIN(confam_qual, max_qual);
@@ -2723,10 +2733,13 @@ struct Symbol2CountCoverageSet {
                         }
                     }
                 }
-                
                 if (pos_symbol_string.size() > 1) {
                     mutform2count4map.insert(std::make_pair(pos_symbol_string, std::array<uvc1_readnum_t, 2>({0, 0})));
                     mutform2count4map[pos_symbol_string][strand]++;
+                }
+                if (pos_symbol_string_confam.size() > 1) {
+                    mutform2count4map_confam.insert(std::make_pair(pos_symbol_string_confam, std::array<uvc1_readnum_t, 2>({0, 0})));
+                    mutform2count4map_confam[pos_symbol_string_confam][strand]++;
                 }
             }
             if ((0x2 == (alns2pair2dflag.second & 0x2)) && alns2pair[0].size() > 0 && alns2pair[1].size() > 0) { // is duplex
@@ -2867,7 +2880,8 @@ struct Symbol2CountCoverageSet {
             //std::vector<std::pair<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>>> & mutform2count4vec_fq,
             std::vector<HapLink> & mutform2count4vec_bq,
             std::vector<HapLink> & mutform2count4vec_fq,
-
+            std::vector<HapLink> & mutform2count4vec_f2q,
+            
             const std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, uvc1_flag_t>> & alns3, 
             
             const std::string & refstring,
@@ -2880,6 +2894,7 @@ struct Symbol2CountCoverageSet {
         
         std::map<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>> mutform2count4map_bq;
         std::map<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>> mutform2count4map_fq;
+        std::map<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>> mutform2count4map_f2q;
 
         std::basic_string<AlignmentSymbol> ref_symbol_string = string2symbolseq(refstring);
         
@@ -2902,7 +2917,8 @@ struct Symbol2CountCoverageSet {
                 paramset.phasing_haplotype_max_detail_cnt);
         
         updateByAlns3UsingFQ(
-                mutform2count4map_fq, 
+                mutform2count4map_fq,
+                mutform2count4map_f2q,
                 alns3,
                 
                 ref_symbol_string, 
@@ -2915,6 +2931,13 @@ struct Symbol2CountCoverageSet {
         mutform2count4vec_fq = updateHapMap(
                 mutform2count4map_fq, 
                 this->symbol_to_fam_format_depth_sets_2strand, 
+                paramset.phasing_haplotype_max_count,
+                paramset.phasing_haplotype_min_ad,
+                paramset.phasing_haplotype_max_detail_cnt);
+        
+        mutform2count4vec_f2q = updateHapMap(
+                mutform2count4map_f2q, 
+                this->symbol_to_fam_format_depth_sets_2strand,
                 paramset.phasing_haplotype_max_count,
                 paramset.phasing_haplotype_min_ad,
                 paramset.phasing_haplotype_max_detail_cnt);
@@ -3208,7 +3231,7 @@ vectorsum(const T1 v1, const T2 v2) {
     return ret;
 }
 
-template <class T1, class T2, class T3, class T4>
+template <class T1, class T2, class T3, class T4, class T5, class T6>
 std::array<uvc1_readnum_t, 2>
 BcfFormat_symbol_init(
         bcfrec::BcfFormat & fmt,
@@ -3219,6 +3242,9 @@ BcfFormat_symbol_init(
         const T2 & indices_bq,
         const T3 & mutform2count4vec_fq,
         const T4 & indices_fq,
+        const T5 & mutform2count4vec_f2q,
+        const T6 & indices_f2q,
+
         const uvc1_readnum_t bDPa,
         const uvc1_readnum_t cDP0a,
         const std::string & gapSa,
@@ -3332,6 +3358,7 @@ BcfFormat_symbol_init(
     
     fmt.bHap = mutform2count4map_to_phase(mutform2count4vec_bq, indices_bq);
     fmt.cHap = mutform2count4map_to_phase(mutform2count4vec_fq, indices_fq);
+    fmt.c2Hap = mutform2count4map_to_phase(mutform2count4vec_f2q, indices_fq);
     clear_push(fmt.bDPa, bDPa, a);
     clear_push(fmt.cDP0a, cDP0a, a);
     clear_push(fmt.gapSa, gapSa, a);
