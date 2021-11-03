@@ -2717,11 +2717,12 @@ struct Symbol2CountCoverageSet {
                                 : (LINK_SYMBOL == symboltype || confam_qual >= paramset.bias_thres_highBQ));
                         if (areSymbolsMutated(ref_symbol, con_symbol) && is_var_of_highBQ) {
                             pos_symbol_string.push_back(std::make_pair(epos, con_symbol));
-                            AlignmentSymbol con_symbol;
-                            uvc1_qual_t con_count, tot_count;
+                            AlignmentSymbol con_symbol1;
+                            uvc1_qual_t con_count1, tot_count1;
                             const auto & con_ampl_symbol2count = read_family_con_ampl.getByPos(epos);
-                            con_ampl_symbol2count.fillConsensusCounts(con_symbol, con_count, tot_count, symboltype);
-                            if (paramset.fam_thres_dup2add <= tot_count && (con_count * 100 >= tot_count * paramset.fam_thres_dup2perc)) {
+                            con_ampl_symbol2count.fillConsensusCounts(con_symbol1, con_count1, tot_count1, symboltype);
+                            if (con_symbol == con_symbol1 
+                                    && paramset.fam_thres_dup1add <= tot_count1 && (con_count1 * 100 >= tot_count1 * paramset.fam_thres_dup1perc)) {
                                 pos_symbol_string_confam.push_back(std::make_pair(epos, con_symbol));
                             }
                         }
