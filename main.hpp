@@ -902,6 +902,8 @@ refstring2repeatvec(
 template <class T1, class T2>
 uvc1_qual_t
 ref_to_phredvalue(uvc1_refgpos_t & n_units, 
+        uvc1_refgpos_t & max_repeatnum,
+        uvc1_refgpos_t & repeatsize_at_max_repeatnum,
         const T1 & refstring, 
         const uvc1_refgpos_t refpos, 
         const uvc1_qual_t max_phred, 
@@ -912,8 +914,8 @@ ref_to_phredvalue(uvc1_refgpos_t & n_units,
         const double indel_del_to_ins_err_ratio,
         const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
 
-    uvc1_refgpos_t max_repeatnum = 0;
-    uvc1_refgpos_t repeatsize_at_max_repeatnum = 0;
+    max_repeatnum = 0;
+    repeatsize_at_max_repeatnum = 0;
     for (uvc1_refgpos_t repeatsize = 1; repeatsize <= indel_str_repeatsize_max; repeatsize++) {
         uvc1_refgpos_t qidx = refpos;
         while (qidx + repeatsize < UNSIGN2SIGN(refstring.size()) && refstring[qidx] == refstring[qidx+repeatsize]) {
@@ -1943,8 +1945,11 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
                             BAM_PHREDI(aln, qpos + SIGN2UNSIGN(cigar_oplen)) : 1)) 
                             + (symboltype2addPhred[LINK_SYMBOL]);
                 } else {
+                    uvc1_refgpos_t max_repeatnum, repeatsize_at_max_repeatnum;
                     uvc1_qual_t phredvalue = ref_to_phredvalue(
-                            inslen, 
+                            inslen,
+                            max_repeatnum,
+                            repeatsize_at_max_repeatnum,
                             region_symbolvec, 
                             rpos - region_offset,
                             paramset.indel_BQ_max,
@@ -1974,8 +1979,16 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
                     if (qpos + UNSIGN2SIGN(cigar_oplen) + 1 < aln->core.l_qseq) { 
                         ancbase_minphred = MIN(ancbase_minphred, BAM_PHREDI(aln, qpos + cigar_oplen + 1)); 
                     }
+                    uvc1_qual_t minq = 80;
+                    if (TIsProton && (1 == cigar_oplen) && (1 == repeatsize_at_max_repeatnum) && (1 < max_repeatnum)) {
+                        for (uvc1_refgpos_t qinc = 0; (qinc < max_repeatnum + 2) && (qpos + qinc) < aln->core.l_qseq; qinc++) {
+                            if (bam_seqi(bseq, qpos + qinc) == bam_seqi(bseq, qpos)) {
+                                UPDATE_MIN(minq, BAM_PHREDI(aln, qpos + qinc));
+                            }
+                        }
+                    }
                     // IonTorrent may generate erroneous indels along with true indels, so be more lenient for IonTorrent sequencers.
-                    uvc1_refgpos_t qfromBQ1 = (TIsProton ? ancbase_minphred : MIN(ancbase_minphred, insbase_minphred)); 
+                    uvc1_refgpos_t qfromBQ1 = (TIsProton ? MIN(ancbase_minphred, minq) : MIN(ancbase_minphred, insbase_minphred));
                     uvc1_refgpos_t qfromBQ2 = ((thisdp * qfromBQ2_ratiothres <= neardp || (1 == cigar_oplen && 
                                 (xm1500 >= paramset.microadjust_xm || 
                                     ((lclip_len + paramset.microadjust_cliplen >= rpos - aln->core.pos) && isrc) 
@@ -2036,8 +2049,11 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
                             BAM_PHREDI(aln, qpos) : 1))
                             + (symboltype2addPhred[LINK_SYMBOL]);
                 } else {
+                    uvc1_refgpos_t max_repeatnum, repeatsize_at_max_repeatnum;
                     uvc1_qual_t phredvalue = ref_to_phredvalue(
-                            dellen, 
+                            dellen,
+                            max_repeatnum,
+                            repeatsize_at_max_repeatnum,
                             region_symbolvec, 
                             rpos - region_offset, 
                             paramset.indel_BQ_max,
@@ -2053,7 +2069,15 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
                     if (1 == dellen) { phredvalue += BETWEEN(phredinc - 3, 0, 4); }
                     uvc1_readnum_t thisdp = (seg_format_prep_sets.getByPos(rpos).segprep_a_at_del_dp);
                     uvc1_readnum_t neardp = (MAX(seg_format_prep_sets.getByPos(rpos).segprep_a_near_del_dp, seg_format_prep_sets.getByPos(rpos).segprep_a_near_RTR_del_dp));
-                    uvc1_qual_t qfromBQ1 = MIN(BAM_PHREDI(aln, qpos), BAM_PHREDI(aln, qpos-1));
+                    uvc1_qual_t minq = 80;
+                    if (TIsProton && (1 == cigar_oplen) && (1 == repeatsize_at_max_repeatnum) && (1 < max_repeatnum)) {
+                        for (uvc1_refgpos_t qinc = 0; qinc < (max_repeatnum + 2) && (qpos + qinc) < aln->core.l_qseq; qinc++) {
+                            if (bam_seqi(bseq, qpos + qinc) == bam_seqi(bseq, qpos)) {
+                                UPDATE_MIN(minq, BAM_PHREDI(aln, qpos + qinc));
+                            }
+                        }
+                    }
+                    uvc1_qual_t qfromBQ1 = MIN3(BAM_PHREDI(aln, qpos), BAM_PHREDI(aln, qpos-1), minq);
                     const uvc1_readnum_t qfromBQ2_ratiothres = (NOT_PROVIDED == paramset.vcf_tumor_fname ? 2 : 4);
                     uvc1_qual_t qfromBQ2 = ((thisdp * qfromBQ2_ratiothres <= neardp) ? non_neg_minus(qfromBQ1, 1) : (TIsProton ? MIN(qfromBQ1 + proton_cigarlen2phred(cigar_oplen), MAX(3, qfromBQ1) * UNSIGN2SIGN(cigar_oplen)) : 80));
                     double delFA = ((double)(thisdp + 0.5) / (double)(seg_format_prep_sets.getByPos(rpos).segprep_a_dp + 1));
