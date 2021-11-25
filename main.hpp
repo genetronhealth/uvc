@@ -2552,6 +2552,7 @@ struct Symbol2CountCoverageSet {
             niters++;
             assert (alns2pair[0].size() != 0 || alns2pair[1].size() != 0);
             for (int strand = 0; strand < 2; strand++) {
+                // consensus-to-FQ: generate read name
                 const auto & alns2 = alns2pair[strand];
                 if (alns2.size() == 0) { continue; }
                 uvc1_refgpos_t tid2, beg2, end2;
@@ -2598,9 +2599,14 @@ struct Symbol2CountCoverageSet {
                         if (paramset.fam_thres_dup1add <= tot_count && (con_count * 100 >= tot_count * paramset.fam_thres_dup1perc)) {
                             this->symbol_to_fam_format_depth_sets_2strand[strand].getRefByPos(epos)[con_symbol][FAM_cDP2] += 1;
                             if (isSymbolIns(con_symbol)) {
+                                // The logic for inferring baseBQ_pairs is in the commented code below. TODO? think about its validity?
+                                // const std::string fq_iseq = 
                                 posToIndelToCount_updateByConsensus(
                                         this->pos2iseq2data_cDP2[strand][insSymbolToInsIdx(con_symbol)],
                                         read_family_con_ampl.getPosToIseqToData(con_symbol), epos, 1);
+                                // for (const auto fq_base : fq_iseq) {
+                                //    fq_baseBQ_pairs.push_back(std::make_pair(fq_base, con_count * 50 / tot_count));
+                                //}
                             }
                             if (isSymbolDel(con_symbol)) {
                                 posToIndelToCount_updateByConsensus(
