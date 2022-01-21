@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-DEFAULT_NORM_FLAG="both"
+DEFAULT_NORM_FLAG="-m+both"
 DEFAULT_NUM_THREADS=4
 DEFAULT_MIN_SNV_QUAL=58.5
 DEFAULT_MIN_NON_SNV_QUAL=49.5
@@ -70,7 +70,7 @@ bcftools view --threads $numthreads -i \
 && ((TYPE == 'snps' && QUAL >= ${minSNVqual}) || (TYPE != 'snps' && QUAL >= ${minNonSNVqual}) 
     || ((cVQ1M[${si}:0] - cVQ2M[${si}:0] >= 0) && (cVQ1M[${si}:0] - cVQ1[${si}:1] == 0)) 
     || ((cVQ1M[${si}:0] - cVQ2M[${si}:0] <  0) && (cVQ2M[${si}:0] - cVQ2[${si}:1] == 0)))" "${1}" \
-| bcftools norm -m+${normflag} -Oz -o "${2}"
+| bcftools norm ${normflag} -Oz -o "${2}"
 bcftools index --threads $numthreads -ft "${2}"
 
 exit 0
