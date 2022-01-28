@@ -4745,16 +4745,6 @@ generate_vcf_header(
     std::string ret = "";
     ret += std::string("") + "##fileformat=VCFv4.2" + "\n" ;
     ret += std::string("") + "##fileDate=" + timestring + "\n" ;
-    ret += std::string("") + "##variantCallerVersion=" + VERSION_DETAIL + "\n";
-    ret += std::string("") + "##variantCallerCommand=";
-    for (int i = 0; i < argc; i++) {
-        ret += std::string("") + std::string(argv[i]) + "  ";
-    }
-    ret += "\n";
-    ret += std::string("") + "##variantCallerInferredParameters=<" 
-            + "inferred_sequencing_platform=" +  SEQUENCING_PLATFORM_TO_NAME.at(paramset.inferred_sequencing_platform)
-            + ",central_readlen=" + std::to_string(paramset.central_readlen) 
-            + ">\n";
     ret += std::string("") + "##reference=" + paramset.fasta_ref_fname + "\n";
     for (int i = 0; i < n_targets; i++) {
         ret += std::string("") + "##contig=<ID=" + target_name[i] + ",length=" + std::to_string(target_len[i]) + ">\n";
@@ -4828,6 +4818,16 @@ generate_vcf_header(
             "(for the " + SYMBOL_TO_DESC_ARR[ADDITIONAL_INDEL_CANDIDATE_SYMBOL] + " symbolic ALT allele indicating that this position has a lot of long (soft/hard) clips nearby) or that this position is at the beginning of a long STR track\">\n";
 
     ret += std::string("") + "##phasing=partial\n";
+    ret += std::string("") + "##variantCallerVersion=" + VERSION_DETAIL + "\n";
+    ret += std::string("") + "##variantCallerCommand=";
+    for (int i = 0; i < argc; i++) {
+        ret += std::string("") + std::string(argv[i]) + "  ";
+    }
+    ret += "\n";
+    ret += std::string("") + "##variantCallerInferredParameters=<" 
+            + "inferred_sequencing_platform=" +  SEQUENCING_PLATFORM_TO_NAME.at(paramset.inferred_sequencing_platform)
+            + ",central_readlen=" + std::to_string(paramset.central_readlen) 
+            + ">\n";
     ret += std::string("") + "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t" 
             + paramset.sample_name + ((tumor_sampleName != NULL && paramset.is_tumor_format_retrieved) ? (std::string("\t") + tumor_sampleName) : std::string("")) + "\n";
     return ret;
