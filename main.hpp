@@ -4824,10 +4824,10 @@ generate_vcf_header(
         ret += std::string("") + std::string(argv[i]) + "  ";
     }
     ret += "\n";
-    ret += std::string("") + "##variantCallerInferredParameters=<" 
+    ret += std::string("") + "##variantCallerInferredParameters=(" 
             + "inferred_sequencing_platform=" +  SEQUENCING_PLATFORM_TO_NAME.at(paramset.inferred_sequencing_platform)
             + ",central_readlen=" + std::to_string(paramset.central_readlen) 
-            + ">\n";
+            + ")\n";
     ret += std::string("") + "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t" 
             + paramset.sample_name + ((tumor_sampleName != NULL && paramset.is_tumor_format_retrieved) ? (std::string("\t") + tumor_sampleName) : std::string("")) + "\n";
     return ret;
