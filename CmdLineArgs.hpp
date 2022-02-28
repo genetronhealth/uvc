@@ -228,7 +228,8 @@ struct CommandLineArgs {
     uvc1_qual_t         fam_phred_sscs_indel_open = 58;
     uvc1_qual_t         fam_phred_sscs_indel_ext  = 0;
     uvc1_qual_t         fam_phred_dscs_all = 58;
-    uvc1_qual_t         fam_phred_dscs_inc_max = 3*(58-48);
+    uvc1_qual_t         fam_phred_dscs_max = 68; // theoretical max
+    uvc1_qual_t         fam_phred_dscs_inc_max = (68-48);
     
     uvc1_qual_t         fam_phred_pow_sscs_transversion_AT_TA_origin = 44-41+4; // A:T > T:A somatic mutations are uncommon
     double              fam_phred_pow_sscs_snv_origin = 44 - 41; // 10*log((2.7e-3-3.5e-5)/(1.5e-4-3.5e-5))/log(10)*3 is 41 from https://doi.org/10.1073/pnas.1208715109 PMC3437896

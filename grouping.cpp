@@ -58,10 +58,14 @@ bed_fname_to_contigs(
         linestream >> tname;
         linestream >> tbeg;
         linestream >> tend;
-        assert (tbeg < tend || std::cerr 
-                << "The bedfile " << bed_fname << " does not have its end after its start at: " << tname << "\t" << tbeg << "\t" << tend);
-        assert (tname_to_tid.find(tname) != tname_to_tid.end() || std::cerr 
-                << "The reference template name " << tname << " from the bedfile " << bed_fname << " is not in the input sam file");
+        if (!(tbeg < tend)) {
+            std::cerr << "The bedfile " << bed_fname << " does not have its end after its start at: " << tname << "\t" << tbeg << "\t" << tend;
+            exit (16);
+        }
+        if (tname_to_tid.find(tname) == tname_to_tid.end()) {
+            std::cerr << "The reference template name " << tname << " from the bedfile " << bed_fname << " is not in the input sam file";
+            exit (17);
+        }
         bool end2end = false;
         std::string token;
         uvc1_readnum_t nreads = 2 * (tend - tbeg);

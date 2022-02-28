@@ -4066,9 +4066,10 @@ BcfFormat_symbol_calc_qual(
     double dFA = (double)(fmt.dDP2[a] + 0.5) / (double)(fmt.DDP1[0] + 1.0);
     double dSNR = (double)(fmt.dDP2[a] + 0.5) / (double)(fmt.dDP1[0] + 1.0);
     double dnormFA = dFA * pow(dSNR, 1.0 / paramset.powlaw_exponent);
-    uvc1_qual_big_t dFA_vq_binom = ((uvc1_qual_big_t)paramset.fam_phred_dscs_all - (uvc1_qual_big_t)round(numstates2phred(1.0 / (dnormFA))))
+    const uvc1_qual_big_t fam_phred_dscs_estimated = (uvc1_qual_big_t)round((paramset.fam_phred_dscs_max + powlaw_sscs_phrederr) / 2.0);
+    uvc1_qual_big_t dFA_vq_binom = (fam_phred_dscs_estimated - (uvc1_qual_big_t)round(numstates2phred(1.0 / (dnormFA))))
             * (uvc1_qual_big_t)fmt.dDP2[a] * (uvc1_qual_big_t)cIADmincnt / (uvc1_qual_big_t)cIADnormcnt;
-    uvc1_qual_t dFA_vq_powlaw = paramset.powlaw_anyvar_base + (paramset.fam_phred_dscs_all - paramset.fam_phred_pow_dscs_all_origin) 
+    uvc1_qual_t dFA_vq_powlaw = paramset.powlaw_anyvar_base + (fam_phred_dscs_estimated - paramset.fam_phred_pow_dscs_all_origin)
             + (uvc1_qual_t)round(numstates2phred((dnormFA) * MIN(1.0, (double)((fmt.cDP1v[a]) + 0.5) / (double)(fmt.CDP1f[0] * 100 + fmt.CDP1r[0] * 100 + 1.0))));
     
 // This code is supposed to work given highly accurate estimation of InDel error.
@@ -4117,7 +4118,7 @@ BcfFormat_symbol_calc_qual(
         const uvc1_readnum_t nearInDelDP = (isSymbolIns(symbol) ? fmt.APDP[1] : fmt.APDP[2]);
         
         assert (nearInDelDP >= aDP || !fprintf(stderr, "nearInDelDP >= aDP failed (%d >= %d failed) at tid %d pos %d!\n", nearInDelDP, aDP, tid, refpos));
-                
+        
         const auto indel_penal4multialleles1 = (uvc1_qual_t)round(paramset.indel_multiallele_samepos_penal / log(2.0) 
                 * log((double)(indelcdepth + eps) / (double)(fmt.cDP0a[a] + eps)));
         const auto indel_penal4multialleles2 = (uvc1_qual_t)round(paramset.indel_multiallele_diffpos_penal / log(2.0) 
@@ -4750,16 +4751,6 @@ generate_vcf_header(
     std::string ret = "";
     ret += std::string("") + "##fileformat=VCFv4.2" + "\n" ;
     ret += std::string("") + "##fileDate=" + timestring + "\n" ;
-    ret += std::string("") + "##variantCallerVersion=" + VERSION_DETAIL + "\n";
-    ret += std::string("") + "##variantCallerCommand=";
-    for (int i = 0; i < argc; i++) {
-        ret += std::string("") + std::string(argv[i]) + "  ";
-    }
-    ret += "\n";
-    ret += std::string("") + "##variantCallerInferredParameters=<" 
-            + "inferred_sequencing_platform=" +  SEQUENCING_PLATFORM_TO_NAME.at(paramset.inferred_sequencing_platform)
-            + ",central_readlen=" + std::to_string(paramset.central_readlen) 
-            + ">\n";
     ret += std::string("") + "##reference=" + paramset.fasta_ref_fname + "\n";
     for (int i = 0; i < n_targets; i++) {
         ret += std::string("") + "##contig=<ID=" + target_name[i] + ",length=" + std::to_string(target_len[i]) + ">\n";
@@ -4833,6 +4824,16 @@ generate_vcf_header(
             "(for the " + SYMBOL_TO_DESC_ARR[ADDITIONAL_INDEL_CANDIDATE_SYMBOL] + " symbolic ALT allele indicating that this position has a lot of long (soft/hard) clips nearby) or that this position is at the beginning of a long STR track\">\n";
 
     ret += std::string("") + "##phasing=partial\n";
+    ret += std::string("") + "##variantCallerVersion=" + VERSION_DETAIL + "\n";
+    ret += std::string("") + "##variantCallerCommand=";
+    for (int i = 0; i < argc; i++) {
+        ret += std::string("") + std::string(argv[i]) + "  ";
+    }
+    ret += "\n";
+    ret += std::string("") + "##variantCallerInferredParameters=(" 
+            + "inferred_sequencing_platform=" +  SEQUENCING_PLATFORM_TO_NAME.at(paramset.inferred_sequencing_platform)
+            + ",central_readlen=" + std::to_string(paramset.central_readlen) 
+            + ")\n";
     ret += std::string("") + "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t" 
             + paramset.sample_name + ((tumor_sampleName != NULL && paramset.is_tumor_format_retrieved) ? (std::string("\t") + tumor_sampleName) : std::string("")) + "\n";
     return ret;
