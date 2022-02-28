@@ -4,7 +4,7 @@ The script uvcTN.sh in the bin directory takes two BAM files corresponding to tu
 
 # How to install
 
-UVC requires BASH 4.0+ (4.0 is the minimum version required) and a compiler that supports the C++14 standard.
+UVC requires BASH 4.0+ (4.0 is the minimum version required) and a compiler that supports the C++14 standard (g++ 6.3.0 is the minimum version recommended).
 The Makefile in this directory compiles with g++, but the Makefile can be easily modified to use another compiler instead of g++ (for example, clang).
 To install from scratch, please run: (./install-dependencies.sh && make clean && make all -j4 && make deploy). 
 Please note that ./install-dependencies.sh requires bzip2 to decompress the downloaded files with the (.tar.bz2) extension.
