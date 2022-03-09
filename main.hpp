@@ -4027,9 +4027,16 @@ BcfFormat_symbol_calc_qual(
     // how to reduce qual by bias: div first, then minus
     const uvc1_qual_big_t sscs_dec2 = non_neg_minus(fam_thres_highBQ, cMmQ);
     const uvc1_qual_big_t cIADnormcnt = int64mul(fmt.cIADf[a] + fmt.cIADr[a], 100) + 1;
+    // The following code appplies deduplication bias twice (with the (* 100UL) BUG), which may or may not be intended:
+    /*
     const uvc1_qual_big_t cIADmincnt = MIN(cIADnormcnt, 
             int64mul((fmt.CDP2f[0] + fmt.CDP2r[0]) * 100UL + 1, fmt.cDP1v[a] + 1) 
             / (fmt.CDP1f[0] + fmt.CDP1r[0] + 1) + 1);
+    */
+    // The following code appplies deduplication bias once:
+    const uvc1_qual_big_t cIADmincnt = MIN(cIADnormcnt, 
+            int64mul((fmt.cDP2f[a] + fmt.cDP2r[a]) + 1, fmt.cDP1v[a] + 1)
+            / (fmt.cDP1f[a] + fmt.cDP1r[a] + 1) + 1); // cDP1v was already normalized by 100UL
     
     const uvc1_qual_big_t sscs_binom_qual_fw = fmt.cIAQf[a] + int64mul(fmt.cIAQr[a], MIN(paramset.fam_phred_dscs_all - fmt.cIDQf[a], fmt.cIDQr[a])) / MAX(fmt.cIDQr[a], 1);
     const uvc1_qual_big_t sscs_binom_qual_rv = fmt.cIAQr[a] + int64mul(fmt.cIAQf[a], MIN(paramset.fam_phred_dscs_all - fmt.cIDQr[a], fmt.cIDQf[a])) / MAX(fmt.cIDQf[a], 1);
