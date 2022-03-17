@@ -1122,7 +1122,8 @@ process_batch(BatchArg & arg, const T & tid_pos_symb_to_tkis) {
         outstring_pass += buf_out_string_pass;
     }
     if (paramset.fam_consensus_out_fastq.size() > 0) {
-        outstring_fastq += fqdata;
+        // bgzip-equivalent of: outstring_fastq += fqdata;
+        bgzip_string(outstring_fastq, fqdata);
     }
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id  << " is done with current task"; }
     return 0;

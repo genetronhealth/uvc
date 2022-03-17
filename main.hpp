@@ -274,20 +274,26 @@ does_fmt_imply_short_frag(const T1 & fmt, const T2 wgs_min_avg_fragsize) {
 
 std::pair<uvc1_readnum_t, std::string>
 read_family_con_ampl_getMajority_ins(const auto &read_family_con_ampl, const uvc1_refgpos_t epos) {
-    std::map<std::string, uvc1_readnum_t> indel2readnum;
+    std::map<std::string, uvc1_readnum_t> indel2readnum = { {"", 0} };
     for (const AlignmentSymbol s : INS_SYMBOLS) {
-        std::map<std::string, uvc1_readnum_t> indel2data = read_family_con_ampl.getPosToIseqToData(s).find(epos)->second;
-        indel2readnum.insert(indel2data.begin(), indel2data.end());
+        auto p2e2d = read_family_con_ampl.getPosToIseqToData(s);
+        if (p2e2d.find(epos) != p2e2d.end()) {
+            std::map<std::string, uvc1_readnum_t> indel2data = p2e2d.find(epos)->second;
+            indel2readnum.insert(indel2data.begin(), indel2data.end());
+        }
     }
     return indelToData_getMajority(indel2readnum);
 }
 
 std::pair<uvc1_readnum_t, uvc1_refgpos_t>
 read_family_con_ampl_getMajority_del(const auto &read_family_con_ampl, const uvc1_refgpos_t epos) {
-    std::map<uvc1_refgpos_t, uvc1_readnum_t> indel2readnum;
+    std::map<uvc1_refgpos_t, uvc1_readnum_t> indel2readnum = { {0, 0} };
     for (const AlignmentSymbol s : DEL_SYMBOLS) {
-        std::map<uvc1_refgpos_t, uvc1_readnum_t> indel2data = read_family_con_ampl.getPosToDlenToData(s).find(epos)->second;
-        indel2readnum.insert(indel2data.begin(), indel2data.end());
+        auto p2e2d = read_family_con_ampl.getPosToDlenToData(s);
+        if (p2e2d.find(epos) != p2e2d.end()) {
+            std::map<uvc1_refgpos_t, uvc1_readnum_t> indel2data = p2e2d.find(epos)->second; 
+            indel2readnum.insert(indel2data.begin(), indel2data.end());
+        }
     }
     return indelToData_getMajority(indel2readnum);
 }
@@ -2649,7 +2655,8 @@ struct Symbol2CountCoverageSet {
                                         read_family_con_ampl.getPosToDlenToData(con_symbol), epos, 1);
                             }
                         }
-                        // put INDELs into FASTQ files
+                        // put SNVs and INDELs into FASTQ files
+if (paramset.fam_consensus_out_fastq.size() > 0) {
                         if ((BASE_SYMBOL == symboltype) && con_symbol != BASE_NN) { // ignore padded deletion bases
                             if (is_fam_good) {
                                 const uvc1_qual_t conBQ = 59 - MIN(tot_count - con_count, 9);
@@ -2660,10 +2667,10 @@ struct Symbol2CountCoverageSet {
                                 fq_baseBQ_pairs.push_back(std::make_pair('n', 49 - (is_fam_big ? 1 : 0))); // 0/1 means the family is probably singleton/with-weak-consensus-base
                             }
                         }
-                        if ((LINK_SYMBOL == symboltype) && paramset.fam_thres_dup1add <= tot_count) {
-                            const auto nogap_count = con_ampl_symbol2count.getSymbolCount(LINK_M);
-                            const bool is_nogapfam_con = (nogap_count * 100 >= tot_count * paramset.fam_thres_dup1perc);
+                        if ((LINK_SYMBOL == symboltype)) {
                             if (is_fam_big) {
+                                const auto nogap_count = con_ampl_symbol2count.getSymbolCount(LINK_M);
+                                const bool is_nogapfam_con = (nogap_count * 100 >= tot_count * paramset.fam_thres_dup1perc);
                                 if (!is_nogapfam_con) {
                                     const std::pair<uvc1_readnum_t, std::string> cnt_iseq_pair = read_family_con_ampl_getMajority_ins(read_family_con_ampl, epos);
                                     const std::pair<uvc1_readnum_t, uvc1_refgpos_t> cnt_dlen_pair = read_family_con_ampl_getMajority_del(read_family_con_ampl, epos);
@@ -2688,7 +2695,7 @@ struct Symbol2CountCoverageSet {
                                 } else { }  // the family is sufficiently large and has strong consensus, so do not add any InDel.
                             } else {} // the family is too small to infer anything.
                         }
-                        
+}                    
                         if (paramset.fam_thres_dup2add <= tot_count && (con_count * 100 >= tot_count * paramset.fam_thres_dup2perc)) {
                             this->symbol_to_fam_format_depth_sets_2strand[strand].getRefByPos(epos)[con_symbol][FAM_cDP3] += 1;
                             if (isSymbolIns(con_symbol)) {
@@ -2731,9 +2738,10 @@ struct Symbol2CountCoverageSet {
                         }
                     }
                 }
+if (paramset.fam_consensus_out_fastq.size() > 0) {
                 // generate consensus FQ files
                 // FQ line 1: read name
-                std::string fqname = std::to_string(tid2)
+                std::string fqname = std::string("@") + std::to_string(tid2)
                         + ":" + std::to_string(beg2) 
                         + ":" + (strand ? "+-" : "-+") + std::to_string(end2 - beg2)
                         + ":" + alns2pair2umibarcode.second.umistring + "#" + std::to_string(alns2.size());
@@ -2742,8 +2750,9 @@ struct Symbol2CountCoverageSet {
                 for (const auto & baseBQ : fq_baseBQ_pairs) {
                     fqdata.push_back(baseBQ.first);
                 }
+                fqdata += "\n";
                 // FQ line 3: comment, here we put all read names of the original BAM that did not go through any consensus.
-                fqdata += "\n+";
+                fqdata += "+";
                 for (const auto bams : alns2) {
                     assert(bams.size() <= 2);
                     assert(bams.size() >= 1);
@@ -2756,9 +2765,14 @@ struct Symbol2CountCoverageSet {
                         fqdata += bam_get_qname(bams[0]);
                     }
                 }
+                fqdata += "\n"; 
+                // FQ line 4: base-call qualities
                 for (const auto & baseBQ : fq_baseBQ_pairs) {
-                    fqdata.push_back((char)(baseBQ.second - 33)); // the exclamation mark '!' with ascii value 33 denotes the Phred score of zero. 
+                    fqdata.push_back((char)(baseBQ.second + 33)); // the exclamation mark '!' with ascii value 33 denotes the Phred score of zero. 
                 }
+                fqdata += "\n"; 
+
+}
             }
         }
         niters = 0;
