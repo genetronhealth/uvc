@@ -139,5 +139,10 @@ struct RegionalTandemRepeat {
     uvc1_readpos_t anyTR_unitlen = 0;
 };
 
+struct MolecularBarcode {
+    std::string umistring = "";
+    uvc1_flag_t duplexflag = 0x0;
+};
+
 #endif
 

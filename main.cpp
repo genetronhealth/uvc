@@ -129,6 +129,7 @@ bgzip_string(std::string & compressed_outstring, const std::string & uncompresse
 }
 
 struct BatchArg {
+    std::string outstring_fastq;
     std::string outstring_allp;
     std::string outstring_pass;
     int thread_id;
@@ -409,6 +410,7 @@ template <class T>
 int 
 process_batch(BatchArg & arg, const T & tid_pos_symb_to_tkis) {
     
+    std::string & outstring_fastq = arg.outstring_fastq;
     std::string & outstring_pass = arg.outstring_pass;
     const hts_idx_t *const hts_idx = arg.hts_idx;
     const faidx_t *const ref_faidx = arg.ref_faidx;
@@ -432,9 +434,9 @@ process_batch(BatchArg & arg, const T & tid_pos_symb_to_tkis) {
     auto excluEndPosition = std::get<2>(tid_beg_end_e2e_tuple);
     auto end2end = std::get<3>(tid_beg_end_e2e_tuple);
     
-    std::map<uint64_t, std::pair<std::array<std::map<uint64_t, std::vector<bam1_t *>>, 2>, uint32_t>> umi_to_strand_to_reads;
+    std::map<uint64_t, std::pair<std::array<std::map<uint64_t, std::vector<bam1_t *>>, 2>, MolecularBarcode>> umi_to_strand_to_reads;
     uvc1_refgpos_t bam_inclu_beg_pos, bam_exclu_end_pos; 
-    std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, uint32_t>> umi_strand_readset;
+    std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, MolecularBarcode>> umi_strand_readset;
 
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts bamfname_to_strand_to_familyuid_to_reads with pair_end_merge = " << paramset.pair_end_merge; }
     std::array<uvc1_readnum_t, 3> passed_pcrpassed_umipassed = bamfname_to_strand_to_familyuid_to_reads(
@@ -515,8 +517,9 @@ process_batch(BatchArg & arg, const T & tid_pos_symb_to_tkis) {
     std::vector<HapLink> mutform2count4vec_bq;
     std::vector<HapLink> mutform2count4vec_fq;
     std::vector<HapLink> mutform2count4vec_f2q;
-    
+    std::string fqdata;
     symbolToCountCoverageSet12.updateByRegion3Aln(
+            fqdata,
             mutform2count4vec_bq,
             mutform2count4vec_fq,
             mutform2count4vec_f2q,
@@ -1118,9 +1121,34 @@ process_batch(BatchArg & arg, const T & tid_pos_symb_to_tkis) {
     } else {
         outstring_pass += buf_out_string_pass;
     }
+    if (paramset.fam_consensus_out_fastq.size() > 0) {
+        outstring_fastq += fqdata;
+    }
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id  << " is done with current task"; }
     return 0;
 };
+
+
+BGZF *bgzip_open_wrap1(const std::string &filename) {
+    BGZF *fp = bgzf_open(filename.c_str(), "w");
+    if (NULL == fp) {
+        LOG(logERROR) << "Unable to open the bgzip file " << filename << " for writinng!";
+        exit(-9);
+    }
+    return fp;
+}
+
+int gzip_close_wrap1(BGZF *fp, const std::string &filename) {
+    if (NULL != fp) {
+        int closeresult = bgzf_close(fp);
+        if (closeresult != 0) {
+            LOG(logERROR) << "Unable to close the bgzip file " << filename << " for writing!";
+        }
+        return closeresult;
+    } else {
+        return 0;
+    }
+}
 
 int 
 main(int argc, char **argv) {
@@ -1158,14 +1186,9 @@ main(int argc, char **argv) {
     const int nthreads = paramset.max_cpu_num;
     bool is_vcf_out_pass_empty_string = (std::string("") == paramset.vcf_out_pass_fname);
     bool is_vcf_out_pass_to_stdout = (std::string("-") == paramset.vcf_out_pass_fname);
-    BGZF *fp_pass = NULL;
-    if (!is_vcf_out_pass_empty_string && !is_vcf_out_pass_to_stdout) {  
-        fp_pass = bgzf_open(paramset.vcf_out_pass_fname.c_str(), "w");
-        if (NULL == fp_pass) {
-            LOG(logERROR) << "Unable to open the bgzip file " << paramset.vcf_out_pass_fname;
-            exit(-9);
-        }
-    }
+    BGZF *fp_pass = ((!is_vcf_out_pass_empty_string && !is_vcf_out_pass_to_stdout) ? bgzip_open_wrap1(paramset.vcf_out_pass_fname) : NULL);
+    BGZF *fp_fastq = ((paramset.fam_consensus_out_fastq.size() > 0) ? bgzip_open_wrap1(paramset.fam_consensus_out_fastq) :  NULL);
+    
     // Commented out for now due to lack of good documentation for these bgzf APIs. Can investigate later.
     /*
     if (paramset.vcf_output_fname.size() != 0 && paramset.vcf_output_fname != "-") {
@@ -1316,6 +1339,7 @@ main(int argc, char **argv) {
         batchargs.reserve(beg_end_pair_vec.size());
         for (size_t beg_end_pair_idx = 0; beg_end_pair_idx < beg_end_pair_vec.size(); beg_end_pair_idx++) {
             struct BatchArg a = {
+                    outstring_fastq : "",
                     outstring_allp : "",
                     outstring_pass : "",
                     thread_id : 0,
@@ -1388,6 +1412,7 @@ main(int argc, char **argv) {
         for (size_t beg_end_pair_idx = 0; beg_end_pair_idx < beg_end_pair_vec.size(); beg_end_pair_idx++) {
             if (batchargs[beg_end_pair_idx].outstring_pass.size() > 0) {
                 clearstring<true>(fp_pass, batchargs[beg_end_pair_idx].outstring_pass); // empty string means end of file
+                clearstring<true>(fp_fastq, batchargs[beg_end_pair_idx].outstring_fastq); // empty string means end of file
             }
         }
         read_bam_thread.join(); // end this iter
@@ -1403,6 +1428,8 @@ main(int argc, char **argv) {
     }
     
     clearstring<true>(fp_pass, std::string(""), is_vcf_out_pass_to_stdout); // write end of file
+    clearstring<true>(fp_fastq, std::string("")); // empty string means end of file
+
     bam_hdr_destroy(samheader);
     if (NULL != g_bcf_hdr) {
         bcf_hdr_destroy(g_bcf_hdr);
@@ -1422,12 +1449,9 @@ main(int argc, char **argv) {
         }
     }
     // bgzf_flush is internally called by bgzf_close
-    if (fp_pass) {
-        int closeresult = bgzf_close(fp_pass);
-        if (closeresult != 0) {
-            LOG(logERROR) << "Unable to close the bgzip file " << paramset.vcf_out_pass_fname;
-        }
-    }
+    gzip_close_wrap1(fp_pass, paramset.vcf_out_pass_fname);
+    gzip_close_wrap1(fp_fastq, paramset.fam_consensus_out_fastq);
+    
     std::clock_t c_end = std::clock();
     auto t_end = std::chrono::high_resolution_clock::now();
  

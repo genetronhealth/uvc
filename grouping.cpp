@@ -431,8 +431,8 @@ apply_bq_err_correction3(bam1_t *aln, const uvc1_qual_t assay_sequencing_BQ_max)
 
 int 
 fill_strand_umi_readset_with_strand_to_umi_to_reads(
-        std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, uvc1_flag_t>> &umi_strand_readset,
-        std::map<uvc1_hash_t, std::pair<std::array<std::map<uvc1_hash_t, std::vector<bam1_t *>>, 2>, uvc1_flag_t>> &umi_to_strand_to_reads,
+        std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, MolecularBarcode>> &umi_strand_readset,
+        std::map<uvc1_hash_t, std::pair<std::array<std::map<uvc1_hash_t, std::vector<bam1_t *>>, 2>, MolecularBarcode>> &umi_to_strand_to_reads,
         const CommandLineArgs & paramset,
         const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
     for (auto & umi_to_strand_to_reads_element : umi_to_strand_to_reads) {
@@ -494,7 +494,7 @@ bam2umihash(int & is_umi_found, const bam1_t *aln, const std::vector<uint8_t> & 
 
 std::array<uvc1_readnum_t, 3>
 bamfname_to_strand_to_familyuid_to_reads(
-        std::map<uvc1_hash_t, std::pair<std::array<std::map<uvc1_hash_t, std::vector<bam1_t *>>, 2>, uvc1_flag_t>> &umi_to_strand_to_reads,
+        std::map<uvc1_hash_t, std::pair<std::array<std::map<uvc1_hash_t, std::vector<bam1_t *>>, 2>, MolecularBarcode>> &umi_to_strand_to_reads,
         uvc1_refgpos_t & extended_inclu_beg_pos, 
         uvc1_refgpos_t & extended_exclu_end_pos,
         uvc1_refgpos_t tid, 
@@ -733,8 +733,11 @@ bamfname_to_strand_to_familyuid_to_reads(
         }
         
         int strand = (isrc ^ isr2);
-        uvc1_flag_t dflag = (is_umi_found ? 0x1 : 0) + (is_duplex_found ? 0x2 : 0) + (is_assay_amplicon ? 0x4 : 0);
-        umi_to_strand_to_reads.insert(std::make_pair(molecule_hash, std::make_pair(std::array<std::map<uvc1_hash_t, std::vector<bam1_t *>>, 2>(), dflag)));
+        MolecularBarcode mb;
+        mb.umistring = (is_umi_found ? std::string(umi_beg, umi_len) : "");
+        mb.duplexflag = (is_umi_found ? 0x1 : 0) + (is_duplex_found ? 0x2 : 0) + (is_assay_amplicon ? 0x4 : 0);
+        
+        umi_to_strand_to_reads.insert(std::make_pair(molecule_hash, std::make_pair(std::array<std::map<uvc1_hash_t, std::vector<bam1_t *>>, 2>(), mb)));
         umi_to_strand_to_reads[molecule_hash].first[strand].insert(std::make_pair(qname_hash, std::vector<bam1_t *>()));
         umi_to_strand_to_reads[molecule_hash].first[strand][qname_hash].push_back(bam_dup1(aln));
         
@@ -760,7 +763,7 @@ bamfname_to_strand_to_familyuid_to_reads(
                     << "barcode_umihash = " << (is_umi_found ? umihash : 0) << " ; "
                     << "molecule_hash = " << molecule_hash << " ; "
                     << "qname_hash = " << qname_hash << " ; "
-                    << "dflag = " << dflag << " ; "
+                    << "dflag = " << mb.duplexflag << " ; "
                     << "UMIstring = " << umi_beg << " ; "
                     << "UMIsize = " << umi_len << " ; "
                     << "num_qname_from_molecule_so_far = " << umi_to_strand_to_reads[molecule_hash].first[strand].size() << " ; ";

@@ -110,14 +110,14 @@ clean_fill_strand_umi_readset(
 
 int 
 fill_strand_umi_readset_with_strand_to_umi_to_reads(
-        std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, uvc1_flag_t>> &umi_strand_readset,
-        std::map<uvc1_hash_t, std::pair<std::array<std::map<uvc1_hash_t, std::vector<bam1_t *>>, 2>, uvc1_flag_t>> &umi_to_strand_to_reads,
+        std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, MolecularBarcode>> &umi_strand_readset,
+        std::map<uvc1_hash_t, std::pair<std::array<std::map<uvc1_hash_t, std::vector<bam1_t *>>, 2>, MolecularBarcode>> &umi_to_strand_to_reads,
         const CommandLineArgs & paramset,
         uvc1_flag_t specialflag);
 
 std::array<uvc1_readnum_t, 3>
 bamfname_to_strand_to_familyuid_to_reads(
-        std::map<uvc1_hash_t, std::pair<std::array<std::map<uvc1_hash_t, std::vector<bam1_t *>>, 2>, uvc1_flag_t>> &umi_to_strand_to_reads,
+        std::map<uvc1_hash_t, std::pair<std::array<std::map<uvc1_hash_t, std::vector<bam1_t *>>, 2>, MolecularBarcode>> &umi_to_strand_to_reads,
         uvc1_refgpos_t & extended_inclu_beg_pos,
         uvc1_refgpos_t & extended_exclu_end_pos,
         uvc1_refgpos_t tid, 

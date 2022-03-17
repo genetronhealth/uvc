@@ -45,6 +45,21 @@ public:
 // T=uvc1_readnum_t for deletion and T=string for insertion
 
 template <class T>
+std::pair<uvc1_readnum_t, T>
+indelToData_getMajority(const std::map<T, uvc1_readnum_t> & indel2cnt) {
+    uvc1_readnum_t maxcnt = 0;
+    T argmaxcnt = T();
+    for (const auto ic : indel2cnt) {
+        if (ic.second > maxcnt || 
+                ((ic.second == maxcnt) && (ic.first > argmaxcnt))) {
+            maxcnt = ic.second;
+            argmaxcnt = ic.first;
+        }
+    }
+    return std::make_pair(maxcnt, argmaxcnt);
+}
+
+template <class T>
 uvc1_readnum_t
 posToIndelToData_get(const std::map<uvc1_readnum_t, std::map<T, uvc1_readnum_t>> & pos2indel2data, const uvc1_readnum_t refpos, const T & indel, uvc1_readnum_t default1 = 0, uvc1_readnum_t default2 = 0) {
     if (pos2indel2data.find(refpos) == pos2indel2data.end()) { return default1; }
@@ -54,7 +69,7 @@ posToIndelToData_get(const std::map<uvc1_readnum_t, std::map<T, uvc1_readnum_t>>
 
 template <class T>
 void
-posToIndelToCount_inc(std::map<uvc1_readnum_t, std::map<T, uvc1_readnum_t>> & pos2indel2count, uvc1_readpos_t pos, const T indel, uvc1_readnum_t incvalue = 1) {
+posToIndelToCount_inc(std::map<uvc1_refgpos_t, std::map<T, uvc1_readnum_t>> & pos2indel2count, uvc1_readpos_t pos, const T indel, uvc1_readnum_t incvalue = 1) {
     assert(incvalue > 0);
     auto pos2indel2count4it = pos2indel2count.insert(std::make_pair(pos, std::map<T, uvc1_readnum_t>()));
     auto indel2count4it = pos2indel2count4it.first->second.insert(std::make_pair(indel, 0));
@@ -64,11 +79,13 @@ posToIndelToCount_inc(std::map<uvc1_readnum_t, std::map<T, uvc1_readnum_t>> & po
 
 template <class T>
 T
-posToIndelToCount_updateByConsensus(std::map<uvc1_readnum_t, std::map<T, uvc1_readnum_t>> & dst, const std::map<uvc1_readpos_t, std::map<T, uvc1_readnum_t>> & src, uvc1_readnum_t epos, uvc1_readnum_t incvalue = 1) {
+posToIndelToCount_updateByConsensus(std::map<uvc1_refgpos_t, std::map<T, uvc1_readnum_t>> & dst, const std::map<uvc1_refgpos_t, std::map<T, uvc1_readnum_t>> & src, uvc1_readnum_t epos, uvc1_readnum_t incvalue = 1) {
     const auto pos2indel2count4it = src.find(epos);
     assert(pos2indel2count4it != src.end());
     auto indel2count = pos2indel2count4it->second;
-    const T & src_indel = (indel2count.size() > 1 ? T() : indel2count.begin()->first);
+    const T & src_indel = (indel2count.size() > 1 ? (indelToData_getMajority(indel2count).second) : indel2count.begin()->first); 
+    // The following code generates null-valued InDels if more than one InDel is found, which is not intended. 
+    // const T & src_indel = (indel2count.size() > 1 ? T() : indel2count.begin()->first); 
     assert (indel2count.begin()->second > 0);
     posToIndelToCount_inc<T>(dst, epos, src_indel, incvalue);
     return src_indel;
@@ -253,6 +270,26 @@ template <class T1, class T2>
 bool
 does_fmt_imply_short_frag(const T1 & fmt, const T2 wgs_min_avg_fragsize) {
     return (fmt.APLRI[0] + fmt.APLRI[2]) < int64mul(fmt.APLRI[1] + fmt.APLRI[3], wgs_min_avg_fragsize);
+}
+
+std::pair<uvc1_readnum_t, std::string>
+read_family_con_ampl_getMajority_ins(const auto &read_family_con_ampl, const uvc1_refgpos_t epos) {
+    std::map<std::string, uvc1_readnum_t> indel2readnum;
+    for (const AlignmentSymbol s : INS_SYMBOLS) {
+        std::map<std::string, uvc1_readnum_t> indel2data = read_family_con_ampl.getPosToIseqToData(s).find(epos)->second;
+        indel2readnum.insert(indel2data.begin(), indel2data.end());
+    }
+    return indelToData_getMajority(indel2readnum);
+}
+
+std::pair<uvc1_readnum_t, uvc1_refgpos_t>
+read_family_con_ampl_getMajority_del(const auto &read_family_con_ampl, const uvc1_refgpos_t epos) {
+    std::map<uvc1_refgpos_t, uvc1_readnum_t> indel2readnum;
+    for (const AlignmentSymbol s : DEL_SYMBOLS) {
+        std::map<uvc1_refgpos_t, uvc1_readnum_t> indel2data = read_family_con_ampl.getPosToDlenToData(s).find(epos)->second;
+        indel2readnum.insert(indel2data.begin(), indel2data.end());
+    }
+    return indelToData_getMajority(indel2readnum);
 }
 
 struct PhredMutationTable {
@@ -2298,7 +2335,7 @@ struct Symbol2CountCoverageSet {
     int 
     updateByAlns3UsingBQ(
             std::map<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>> & mutform2count4map,
-            const std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, uvc1_flag_t>> & alns3, 
+            const std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, MolecularBarcode>> & alns3, 
             
             const std::basic_string<AlignmentSymbol> & region_symbolvec,
             T1 & region_repeatvec,
@@ -2309,9 +2346,9 @@ struct Symbol2CountCoverageSet {
             const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
         
         Symbol2CountCoverage bg_seg_bqsum_conslogo(tid, this->getUnifiedIncluBegPosition(), this->getUnifiedExcluEndPosition());
-        for (const auto & alns2pair2dflag : alns3) {
+        for (const auto & alns2pair2umibarcode : alns3) {
             for (int strand = 0; strand < 2; strand++) {
-                const auto & alns2 = alns2pair2dflag.first[strand];
+                const auto & alns2 = alns2pair2umibarcode.first[strand];
                 for (const auto & alns1 : alns2) {
                     for (const bam1_t *aln : alns1) {
                         update_seg_format_prep_sets_by_aln(
@@ -2320,7 +2357,7 @@ struct Symbol2CountCoverageSet {
                                 region_repeatvec,
                                 baq_offsetarr,
                                 this->getUnifiedIncluBegPosition(),
-                                alns2pair2dflag.second,
+                                alns2pair2umibarcode.second.duplexflag,
                                 region_symbolvec,
                                 
                                 paramset,
@@ -2337,9 +2374,9 @@ struct Symbol2CountCoverageSet {
                 paramset,
                 0);
         int n_updates = 0;
-        for (const auto & alns2pair2dflag : alns3) {
+        for (const auto & alns2pair2umibarcode : alns3) {
             for (int strand = 0; strand < 2; strand++) {
-                const auto & alns2 = alns2pair2dflag.first[strand];
+                const auto & alns2 = alns2pair2umibarcode.first[strand];
                 for (const auto & alns1 : alns2) {
                     n_updates += alns1.size();
                     bg_seg_bqsum_conslogo.updateByRead1Aln<SYMBOL_COUNT_SUM, true>(
@@ -2355,15 +2392,15 @@ struct Symbol2CountCoverageSet {
                             this->symbol_to_VQ_format_tag_sets,
                             this->seg_format_prep_sets,
                             this->seg_format_thres_sets,
-                            alns2pair2dflag.second,
+                            alns2pair2umibarcode.second.duplexflag,
                             
                             paramset,
                             0);
                 }
             }
         }
-        for (const auto & alns2pair2dflag : alns3) {
-            const auto & alns2pair = alns2pair2dflag.first;
+        for (const auto & alns2pair2umibarcode : alns3) {
+            const auto & alns2pair = alns2pair2umibarcode.first;
             for (int strand = 0; strand < 2; strand++) {
                 const auto & alns2 = alns2pair[strand];
                 for (const auto & alns1 : alns2) {
@@ -2384,7 +2421,7 @@ struct Symbol2CountCoverageSet {
                             this->seg_format_prep_sets,
                             this->seg_format_thres_sets,
                             
-                            alns2pair2dflag.second,
+                            alns2pair2umibarcode.second.duplexflag,
                             paramset,
                             0);
                     uvc1_qual_t normMQ = 0;
@@ -2525,9 +2562,9 @@ struct Symbol2CountCoverageSet {
     template <class T1, class T2, class T3, class T4>
     int
     updateByAlns3UsingFQ(
+            std::string & fqdata,
             std::map<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>> & mutform2count4map,
             std::map<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>> & mutform2count4map_confam,
-            
             const T1 & alns3, 
             
             const std::basic_string<AlignmentSymbol> & region_symbolvec,
@@ -2547,12 +2584,12 @@ struct Symbol2CountCoverageSet {
                 paramset.fam_phred_sscs_indel_ext);
         
         size_t niters = 0;
-        for (const auto & alns2pair2dflag : alns3) {
-            const auto & alns2pair = alns2pair2dflag.first;
+        for (const auto & alns2pair2umibarcode : alns3) {
+            const auto & alns2pair = alns2pair2umibarcode.first;
             niters++;
             assert (alns2pair[0].size() != 0 || alns2pair[1].size() != 0);
             for (int strand = 0; strand < 2; strand++) {
-                // consensus-to-FQ: generate read name
+                std::vector<std::pair<char, int8_t>> fq_baseBQ_pairs;
                 const auto & alns2 = alns2pair[strand];
                 if (alns2.size() == 0) { continue; }
                 uvc1_refgpos_t tid2, beg2, end2;
@@ -2575,7 +2612,7 @@ struct Symbol2CountCoverageSet {
                             this->symbol_to_VQ_format_tag_sets,
                             this->seg_format_prep_sets,
                             this->seg_format_thres_sets,
-                            alns2pair2dflag.second,
+                            alns2pair2umibarcode.second.duplexflag,
 
                             paramset,
                             0);
@@ -2596,17 +2633,15 @@ struct Symbol2CountCoverageSet {
                         if (1 == tot_count) {
                             this->symbol_to_fam_format_depth_sets_2strand[strand].getRefByPos(epos)[con_symbol][FAM_c1DP] += 1;
                         }
-                        if (paramset.fam_thres_dup1add <= tot_count && (con_count * 100 >= tot_count * paramset.fam_thres_dup1perc)) {
+                        const bool is_fam_big = (paramset.fam_thres_dup1add <= tot_count);
+                        const bool is_fam_con = (con_count * 100 >= tot_count * paramset.fam_thres_dup1perc);
+                        const bool is_fam_good = (is_fam_big && is_fam_con);
+                        if (is_fam_good) {
                             this->symbol_to_fam_format_depth_sets_2strand[strand].getRefByPos(epos)[con_symbol][FAM_cDP2] += 1;
                             if (isSymbolIns(con_symbol)) {
-                                // The logic for inferring baseBQ_pairs is in the commented code below. TODO? think about its validity?
-                                // const std::string fq_iseq = 
                                 posToIndelToCount_updateByConsensus(
                                         this->pos2iseq2data_cDP2[strand][insSymbolToInsIdx(con_symbol)],
                                         read_family_con_ampl.getPosToIseqToData(con_symbol), epos, 1);
-                                // for (const auto fq_base : fq_iseq) {
-                                //    fq_baseBQ_pairs.push_back(std::make_pair(fq_base, con_count * 50 / tot_count));
-                                //}
                             }
                             if (isSymbolDel(con_symbol)) {
                                 posToIndelToCount_updateByConsensus(
@@ -2614,6 +2649,46 @@ struct Symbol2CountCoverageSet {
                                         read_family_con_ampl.getPosToDlenToData(con_symbol), epos, 1);
                             }
                         }
+                        // put INDELs into FASTQ files
+                        if ((BASE_SYMBOL == symboltype) && con_symbol != BASE_NN) { // ignore padded deletion bases
+                            if (is_fam_good) {
+                                const uvc1_qual_t conBQ = 59 - MIN(tot_count - con_count, 9);
+                                const char *desc = SYMBOL_TO_DESC_ARR[con_symbol];
+                                assert(strlen(desc) == 1);
+                                fq_baseBQ_pairs.push_back(std::make_pair(desc[0], conBQ));
+                            } else {
+                                fq_baseBQ_pairs.push_back(std::make_pair('n', 49 - (is_fam_big ? 1 : 0))); // 0/1 means the family is probably singleton/with-weak-consensus-base
+                            }
+                        }
+                        if ((LINK_SYMBOL == symboltype) && paramset.fam_thres_dup1add <= tot_count) {
+                            const auto nogap_count = con_ampl_symbol2count.getSymbolCount(LINK_M);
+                            const bool is_nogapfam_con = (nogap_count * 100 >= tot_count * paramset.fam_thres_dup1perc);
+                            if (is_fam_big) {
+                                if (!is_nogapfam_con) {
+                                    const std::pair<uvc1_readnum_t, std::string> cnt_iseq_pair = read_family_con_ampl_getMajority_ins(read_family_con_ampl, epos);
+                                    const std::pair<uvc1_readnum_t, uvc1_refgpos_t> cnt_dlen_pair = read_family_con_ampl_getMajority_del(read_family_con_ampl, epos);
+                                    if (cnt_dlen_pair.first * 100 >= tot_count * paramset.fam_thres_dup1perc) {
+                                        // here we actually do nothing to simply skip the deleted bases
+                                    } else if (cnt_iseq_pair.first * 100 >= tot_count * paramset.fam_thres_dup1perc) {
+                                        const uvc1_qual_t conBQ = 39 - MIN(tot_count - cnt_iseq_pair.first, 9);
+                                        for (const char ibase : cnt_iseq_pair.second) {
+                                            fq_baseBQ_pairs.push_back(std::make_pair(tolower(ibase), conBQ));
+                                        }
+                                    } else if (cnt_dlen_pair.first > cnt_iseq_pair.first) {
+                                        const uvc1_qual_t conBQ = 29 - MIN(tot_count - cnt_dlen_pair.first, 9);
+                                        for (uvc1_readnum_t rn = 0; rn < cnt_dlen_pair.second; rn++) {
+                                            fq_baseBQ_pairs.push_back(std::make_pair('n', conBQ));
+                                        }
+                                    } else {
+                                        const uvc1_qual_t conBQ = 19 - MIN(tot_count - cnt_iseq_pair.first, 9);
+                                        for (size_t rn = 0; rn < cnt_iseq_pair.second.size(); rn++) {
+                                            fq_baseBQ_pairs.push_back(std::make_pair('n', conBQ));
+                                        }
+                                    }
+                                } else { }  // the family is sufficiently large and has strong consensus, so do not add any InDel.
+                            } else {} // the family is too small to infer anything.
+                        }
+                        
                         if (paramset.fam_thres_dup2add <= tot_count && (con_count * 100 >= tot_count * paramset.fam_thres_dup2perc)) {
                             this->symbol_to_fam_format_depth_sets_2strand[strand].getRefByPos(epos)[con_symbol][FAM_cDP3] += 1;
                             if (isSymbolIns(con_symbol)) {
@@ -2656,11 +2731,39 @@ struct Symbol2CountCoverageSet {
                         }
                     }
                 }
+                // generate consensus FQ files
+                // FQ line 1: read name
+                std::string fqname = std::to_string(tid2)
+                        + ":" + std::to_string(beg2) 
+                        + ":" + (strand ? "+-" : "-+") + std::to_string(end2 - beg2)
+                        + ":" + alns2pair2umibarcode.second.umistring + "#" + std::to_string(alns2.size());
+                fqdata += fqname + "\n";
+                // FQ line 2: sequence
+                for (const auto & baseBQ : fq_baseBQ_pairs) {
+                    fqdata.push_back(baseBQ.first);
+                }
+                // FQ line 3: comment, here we put all read names of the original BAM that did not go through any consensus.
+                fqdata += "\n+";
+                for (const auto bams : alns2) {
+                    assert(bams.size() <= 2);
+                    assert(bams.size() >= 1);
+                    if (bams.size() == 2) {
+                        assert(!strcmp(bam_get_qname(bams[0]),bam_get_qname(bams[1])));
+                        fqdata += "@@"; // pair-end
+                        fqdata += bam_get_qname(bams[0]);
+                    } else if (bams.size() == 1) {
+                        fqdata += "@"; // single-end
+                        fqdata += bam_get_qname(bams[0]);
+                    }
+                }
+                for (const auto & baseBQ : fq_baseBQ_pairs) {
+                    fqdata.push_back((char)(baseBQ.second - 33)); // the exclamation mark '!' with ascii value 33 denotes the Phred score of zero. 
+                }
             }
         }
         niters = 0;
-        for (const auto & alns2pair2dflag : alns3) {
-            const auto & alns2pair = alns2pair2dflag.first;
+        for (const auto & alns2pair2umibarcode : alns3) {
+            const auto & alns2pair = alns2pair2umibarcode.first;
             niters++;
             uvc1_refgpos_t tid2, beg2, end2;
             tid2 = 0; beg2 = INT32_MAX; end2 = 0; bool initialized = false;
@@ -2692,7 +2795,7 @@ struct Symbol2CountCoverageSet {
                             this->symbol_to_VQ_format_tag_sets,
                             this->seg_format_prep_sets,
                             this->seg_format_thres_sets,
-                            alns2pair2dflag.second,
+                            alns2pair2umibarcode.second.duplexflag,
 
                             paramset,
                             0);
@@ -2703,7 +2806,7 @@ struct Symbol2CountCoverageSet {
                         (paramset.microadjust_padded_deletion_flag & ((SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform) ? 0x2 : 0x1)));
                     read_family_mmm_ampl.updateByMajorMinusMinor(read_ampBQerr_fragWithR1R2, false);
                 }
-                if ((0x2 == (alns2pair2dflag.second & 0x2)) && alns2pair[0].size() > 0 && alns2pair[1].size() > 0) { // is duplex
+                if ((0x2 == (alns2pair2umibarcode.second.duplexflag & 0x2)) && alns2pair[0].size() > 0 && alns2pair[1].size() > 0) { // is duplex
                     read_duplex_amplicon.template updateByConsensus<false>(read_family_con_ampl);
                 }
                 std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>> pos_symbol_string;
@@ -2773,7 +2876,7 @@ struct Symbol2CountCoverageSet {
                     mutform2count4map_confam[pos_symbol_string_confam][strand]++;
                 }
             }
-            if ((0x2 == (alns2pair2dflag.second & 0x2)) && alns2pair[0].size() > 0 && alns2pair[1].size() > 0) { // is duplex
+            if ((0x2 == (alns2pair2umibarcode.second.duplexflag & 0x2)) && alns2pair[0].size() > 0 && alns2pair[1].size() > 0) { // is duplex
                 for (auto epos = read_duplex_amplicon.getIncluBegPosition(); epos < read_duplex_amplicon.getExcluEndPosition(); epos++) {
                     for (SymbolType symboltype : SYMBOL_TYPE_ARR) {
                         AlignmentSymbol con_symbol;
@@ -2909,11 +3012,12 @@ struct Symbol2CountCoverageSet {
     updateByRegion3Aln(
             //std::vector<std::pair<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>>> & mutform2count4vec_bq,
             //std::vector<std::pair<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>>> & mutform2count4vec_fq,
+            std::string & fqdata,
             std::vector<HapLink> & mutform2count4vec_bq,
             std::vector<HapLink> & mutform2count4vec_fq,
             std::vector<HapLink> & mutform2count4vec_f2q,
             
-            const std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, uvc1_flag_t>> & alns3, 
+            const std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, MolecularBarcode>> & alns3, 
             
             const std::string & refstring,
             std::vector<RegionalTandemRepeat> & region_repeatvec,
@@ -2948,6 +3052,7 @@ struct Symbol2CountCoverageSet {
                 paramset.phasing_haplotype_max_detail_cnt);
         
         updateByAlns3UsingFQ(
+                fqdata,
                 mutform2count4map_fq,
                 mutform2count4map_f2q,
                 alns3,
