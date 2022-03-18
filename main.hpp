@@ -2743,7 +2743,7 @@ if (paramset.fam_consensus_out_fastq.size() > 0) {
                 // FQ line 1: read name
                 std::string fqname = std::string("@") + std::to_string(tid2)
                         + ":" + std::to_string(beg2) 
-                        + ":" + (strand ? "+-" : "-+") + std::to_string(end2 - beg2)
+                        + ":" + (strand ? "+-" : "-+") + std::to_string(end2 - beg2 - 1) // the extra -1 is due to possible insertion at the front/back of the fragment
                         + ":" + alns2pair2umibarcode.second.umistring + "#" + std::to_string(alns2.size());
                 fqdata += fqname + "\n";
                 // FQ line 2: sequence
