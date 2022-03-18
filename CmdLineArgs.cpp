@@ -328,6 +328,8 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
         "Maximum penalty in variant quality for low read support. ");
     ADD_OPTDEF2(app, assay_sequencing_BQ_max,
         "Maximum basecall quality (BQ) determined by empirical error rate. ");
+    ADD_OPTDEF2(app, assay_sequencing_BQ_inc,
+        "Each base-call quality (BQ) in the input BAM file is added by this parameter. If this parameter is set to a negative integer, then reduce BQ. ");
     
     ADD_OPTDEF2(app, phasing_haplotype_max_count,
         "The maximum number of haplotypes covering each genomic position used to generate the bHap and cHap format fields in the output VCF. ");

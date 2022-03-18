@@ -345,11 +345,12 @@ clean_fill_strand_umi_readset(
 }
 
 int 
-apply_bq_err_correction3(bam1_t *aln, const uvc1_qual_t assay_sequencing_BQ_max) {
+apply_bq_err_correction3(bam1_t *aln, const uvc1_qual_t assay_sequencing_BQ_max, const uvc1_qual_t assay_sequencing_BQ_inc) {
     if ((0 == aln->core.l_qseq) || (aln->core.flag & 0x4)) { return -1; }
     
     for (uvc1_readpos_t i = 0; i < aln->core.l_qseq; i++) {
-        bam_get_qual(aln)[i] = MIN(bam_get_qual(aln)[i], assay_sequencing_BQ_max);
+        uvc1_qual_t bq = bam_get_qual(aln)[i];
+        bam_get_qual(aln)[i] = MIN(bq + assay_sequencing_BQ_inc, assay_sequencing_BQ_max);
     }
     
     const auto cigar = bam_get_cigar(aln);
@@ -444,7 +445,7 @@ fill_strand_umi_readset_with_strand_to_umi_to_reads(
                 const std::vector<bam1_t *> alns = read.second;
                 umi_strand_readset.back().first[strand].push_back(std::vector<bam1_t *>());
                 for (auto aln : alns) {
-                    apply_bq_err_correction3(aln, paramset.assay_sequencing_BQ_max);
+                    apply_bq_err_correction3(aln, paramset.assay_sequencing_BQ_max, paramset.assay_sequencing_BQ_inc);
                     umi_strand_readset.back().first[strand].back().push_back(aln);
                 }
             }
