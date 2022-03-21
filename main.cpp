@@ -129,7 +129,7 @@ bgzip_string(std::string & compressed_outstring, const std::string & uncompresse
 }
 
 struct BatchArg {
-    std::string outstring_fastq;
+    std::array<std::string, 3> outstring3fastq; // outstring_fastq;
     std::string outstring_allp;
     std::string outstring_pass;
     int thread_id;
@@ -410,7 +410,7 @@ template <class T>
 int 
 process_batch(BatchArg & arg, const T & tid_pos_symb_to_tkis) {
     
-    std::string & outstring_fastq = arg.outstring_fastq;
+    std::array<std::string, 3> &outstring3fastq = arg.outstring3fastq;
     std::string & outstring_pass = arg.outstring_pass;
     const hts_idx_t *const hts_idx = arg.hts_idx;
     const faidx_t *const ref_faidx = arg.ref_faidx;
@@ -517,9 +517,9 @@ process_batch(BatchArg & arg, const T & tid_pos_symb_to_tkis) {
     std::vector<HapLink> mutform2count4vec_bq;
     std::vector<HapLink> mutform2count4vec_fq;
     std::vector<HapLink> mutform2count4vec_f2q;
-    std::string fqdata;
+    std::array<std::string, 3> fqdata3;
     symbolToCountCoverageSet12.updateByRegion3Aln(
-            fqdata,
+            fqdata3,
             mutform2count4vec_bq,
             mutform2count4vec_fq,
             mutform2count4vec_f2q,
@@ -1123,7 +1123,7 @@ process_batch(BatchArg & arg, const T & tid_pos_symb_to_tkis) {
     }
     if (paramset.fam_consensus_out_fastq.size() > 0) {
         // bgzip-equivalent of: outstring_fastq += fqdata;
-        bgzip_string(outstring_fastq, fqdata);
+        for (size_t i = 0; i < 3; i++) { bgzip_string(outstring3fastq[i], fqdata3[i]); }
     }
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id  << " is done with current task"; }
     return 0;
@@ -1188,8 +1188,13 @@ main(int argc, char **argv) {
     bool is_vcf_out_pass_empty_string = (std::string("") == paramset.vcf_out_pass_fname);
     bool is_vcf_out_pass_to_stdout = (std::string("-") == paramset.vcf_out_pass_fname);
     BGZF *fp_pass = ((!is_vcf_out_pass_empty_string && !is_vcf_out_pass_to_stdout) ? bgzip_open_wrap1(paramset.vcf_out_pass_fname) : NULL);
-    BGZF *fp_fastq = ((paramset.fam_consensus_out_fastq.size() > 0) ? bgzip_open_wrap1(paramset.fam_consensus_out_fastq) :  NULL);
-    
+    std::array<BGZF*, 3> fastq_fps;
+    std::array<std::string, 3> seqends = { "SE", "R1", "R2" };
+    std::array<std::string, 3> fastq_filenames = { "", "", "" };
+    for (size_t i = 0; i < 3; i++) {
+        fastq_filenames[i] = paramset.fam_consensus_out_fastq + "." + seqends[i] + ".fastq.gz";
+        fastq_fps[i] = ((paramset.fam_consensus_out_fastq.size() > 0) ? (bgzip_open_wrap1(fastq_filenames[i])) :  NULL);
+    }
     // Commented out for now due to lack of good documentation for these bgzf APIs. Can investigate later.
     /*
     if (paramset.vcf_output_fname.size() != 0 && paramset.vcf_output_fname != "-") {
@@ -1340,7 +1345,7 @@ main(int argc, char **argv) {
         batchargs.reserve(beg_end_pair_vec.size());
         for (size_t beg_end_pair_idx = 0; beg_end_pair_idx < beg_end_pair_vec.size(); beg_end_pair_idx++) {
             struct BatchArg a = {
-                    outstring_fastq : "",
+                    outstring3fastq : (std::array<std::string, 3> {{std::string(""), std::string(""), std::string("")}}),
                     outstring_allp : "",
                     outstring_pass : "",
                     thread_id : 0,
@@ -1413,7 +1418,7 @@ main(int argc, char **argv) {
         for (size_t beg_end_pair_idx = 0; beg_end_pair_idx < beg_end_pair_vec.size(); beg_end_pair_idx++) {
             if (batchargs[beg_end_pair_idx].outstring_pass.size() > 0) {
                 clearstring<true>(fp_pass, batchargs[beg_end_pair_idx].outstring_pass); // empty string means end of file
-                clearstring<true>(fp_fastq, batchargs[beg_end_pair_idx].outstring_fastq); // empty string means end of file
+                for (size_t i = 0; i < fastq_fps.size(); i++) { clearstring<true>(fastq_fps[i], batchargs[beg_end_pair_idx].outstring3fastq[i]); } // empty string means end of file
             }
         }
         read_bam_thread.join(); // end this iter
@@ -1429,7 +1434,7 @@ main(int argc, char **argv) {
     }
     
     clearstring<true>(fp_pass, std::string(""), is_vcf_out_pass_to_stdout); // write end of file
-    clearstring<true>(fp_fastq, std::string("")); // empty string means end of file
+    for (auto fastq_fp : fastq_fps) { clearstring<true>(fastq_fp, std::string("")); } // empty string means end of file
 
     bam_hdr_destroy(samheader);
     if (NULL != g_bcf_hdr) {
@@ -1451,7 +1456,7 @@ main(int argc, char **argv) {
     }
     // bgzf_flush is internally called by bgzf_close
     gzip_close_wrap1(fp_pass, paramset.vcf_out_pass_fname);
-    gzip_close_wrap1(fp_fastq, paramset.fam_consensus_out_fastq);
+    for (size_t i = 0; i < fastq_fps.size(); i++) { gzip_close_wrap1(fastq_fps[i], fastq_filenames[i]); }
     
     std::clock_t c_end = std::clock();
     auto t_end = std::chrono::high_resolution_clock::now();

@@ -546,7 +546,7 @@ enum FragFormatDepthSet {
 };
 #define NUM_FRAG_FORMAT_DEPTH_SETS ((size_t)FRAG_FORMAT_DEPTH_SET_END)
 
-enum FamFormatInfoSet {
+struct FamFormatInfoSet {
     uvc1_readnum_t faminfo_c2LP1; // left tier-2-consensus family pos
     uvc1_readnum_t faminfo_c2LP2;
     uvc1_readpos_t faminfo_c2LPL;
@@ -560,6 +560,8 @@ enum FamFormatInfoSet {
     uvc1_readnum_t faminfo_c2RB1; // right tier-2-consensus family pos
     uvc1_readnum_t faminfo_c2RB2;
     uvc1_readpos_big_t faminfo_c2RBL;
+
+    uvc1_readnum_t faminfo_c2BQ2;
 };
 
 enum FamFormatDepthSet {

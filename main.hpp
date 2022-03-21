@@ -698,7 +698,8 @@ typedef GenericSymbol2Bucket2CountCoverage<Symbol2Bucket2Count> Symbol2Bucket2Co
 
 typedef CoveredRegion<SegFormatPrepSet> SegFormatPrepSets;
 typedef CoveredRegion<SegFormatThresSet> SegFormatThresSets;
-typedef CoveredRegion<std::array<SegFormatInfoSet, NUM_ALIGNMENT_SYMBOLS>> Symbol2SegFormatDepthSets;
+typedef CoveredRegion<std::array<SegFormatInfoSet, NUM_ALIGNMENT_SYMBOLS>> Symbol2SegFormatInfoSets;
+typedef CoveredRegion<std::array<FamFormatInfoSet, NUM_ALIGNMENT_SYMBOLS>> Symbol2FamFormatInfoSets;
 typedef CoveredRegion<std::array<std::array<molcount_t, NUM_FRAG_FORMAT_DEPTH_SETS>, NUM_ALIGNMENT_SYMBOLS>> Symbol2FragFormatDepthSets;
 typedef CoveredRegion<std::array<std::array<molcount_t, NUM_FAM_FORMAT_DEPTH_SETS>, NUM_ALIGNMENT_SYMBOLS>> Symbol2FamFormatDepthSets;
 typedef CoveredRegion<std::array<std::array<molcount_t, NUM_DUPLEX_FORMAT_DEPTH_SETS>, NUM_ALIGNMENT_SYMBOLS>> Symbol2DuplexFormatDepthSets;
@@ -1359,6 +1360,65 @@ update_seg_format_thres_from_prep_sets(
     return 0;
 }
 
+struct BidirectionalBiasThreshold {
+    uvc1_refgpos_t L1;
+    uvc1_refgpos_t L2;
+    uvc1_refgpos_t R1;
+    uvc1_refgpos_t R2;
+    BidirectionalBiasThreshold(
+            uvc1_refgpos_t L1a,
+            uvc1_refgpos_t L2a,
+            uvc1_refgpos_t R1a,
+            uvc1_refgpos_t R2a) {
+        L1 = L1a;
+        L2 = L2a;
+        R1 = R1a;
+        R2 = R2a;
+    }
+};
+
+int
+update_bidirectional_bias(
+        // e.g. symbol_to_seg_format_depth_set
+        uvc1_readnum_t & info_aLP1,
+        uvc1_readnum_t & info_aLP2,
+        uvc1_readnum_t & info_aRP1,
+        uvc1_readnum_t & info_aRP2,
+        auto & info_aLPL,
+        auto & info_aRPL,
+        const BidirectionalBiasThreshold & bb_thres,
+        const auto nl,
+        const auto nr,
+        const bool is_BQ_high_enough_for_tier2,
+        const uvc1_refgpos_t n_indel) {
+
+    const bool is_l1_unbiased = (nl + n_indel >= bb_thres.L1);
+    const bool is_l2_unbiased = (nl + n_indel >= bb_thres.L2);
+    const bool is_r1_unbiased = (nr >= bb_thres.R1);
+    const bool is_r2_unbiased = (nr >= bb_thres.R2);
+    
+    int ret = 0;
+    if (is_l1_unbiased) {
+        info_aLP1 += 1;
+        ret += 1;
+    }
+    if (is_l2_unbiased && is_BQ_high_enough_for_tier2) {
+        info_aLP2 += 1;
+        ret += 2;
+    }
+    if (is_r1_unbiased) {
+        info_aRP1 += 1;
+        ret += 4;
+    }
+    if (is_r2_unbiased && is_BQ_high_enough_for_tier2) {
+        info_aRP2 += 1;
+        ret += 8;
+    }
+    info_aLPL += nl;
+    info_aRPL += nr;
+    return ret;
+}
+
 template <bool isGap, class T1, class T11, class T12, class T2, class T3, class T4, class T5, class T6, class T7>
 inline
 int
@@ -1389,7 +1449,7 @@ dealwith_segbias(
     const bool is_assay_UMI = (dflag & 0x1);
     
     const auto indel_len = UNSIGN2SIGN(indel_len_arg);
-    const uvc1_refgpos_t bias_thres_veryhighBQ = paramset.bias_thres_highBQ; // veryhigh overriden by high. TODO: check if it makes sense?
+    const uvc1_qual_t bias_thres_veryhighBQ = paramset.bias_thres_highBQ; // veryhigh overriden by high. TODO: check if it makes sense?
     
     const auto rend = bam_endpos(aln);
     
@@ -1521,13 +1581,55 @@ dealwith_segbias(
         symbol_to_seg_format_depth_set.seginfo_a2XM2 += (xm1500 > 20 ? (100 * mathsquare(20) / mathsquare(xm1500)) : 100);
         symbol_to_seg_format_depth_set.seginfo_a2BM2 += (bm1500 > 20 ? (100 * mathsquare(20) / mathsquare(bm1500)) : 100);
     }
-    
-    if (((!isGap) && bq >= paramset.bias_thres_highBQ) || (isGap && dist_to_interfering_indel >= paramset.bias_thres_interfering_indel)) {
-        const bool is_l1_unbiased = (seg_l_nbases + indel_len >= seg_format_thres_set.segthres_aLP1t);
-        const bool is_l2_unbiased = (seg_l_nbases + indel_len >= seg_format_thres_set.segthres_aLP2t);
-        const bool is_r1_unbiased = (seg_r_nbases >= seg_format_thres_set.segthres_aRP1t);
-        const bool is_r2_unbiased = (seg_r_nbases >= seg_format_thres_set.segthres_aRP2t);
+    if (((!isGap) && bq >= paramset.bias_thres_highBQ) || (isGap && dist_to_interfering_indel >= paramset.bias_thres_interfering_indel)) { 
+        const bool is_BQ_high_enough_for_tier2 = (isGap || bq >= bias_thres_veryhighBQ);
         if (is_far_from_edge) {
+            const auto bb_thres = BidirectionalBiasThreshold(
+                    seg_format_thres_set.segthres_aLP1t,
+                    seg_format_thres_set.segthres_aLP2t,
+                    seg_format_thres_set.segthres_aRP1t,
+                    seg_format_thres_set.segthres_aRP2t);
+            update_bidirectional_bias(
+                    symbol_to_seg_format_depth_set.seginfo_aLP1,
+                    symbol_to_seg_format_depth_set.seginfo_aLP2,
+                    symbol_to_seg_format_depth_set.seginfo_aRP1,
+                    symbol_to_seg_format_depth_set.seginfo_aRP2,
+                    symbol_to_seg_format_depth_set.seginfo_aLPL,
+                    symbol_to_seg_format_depth_set.seginfo_aRPL,
+                    bb_thres,
+                    seg_l_nbases,
+                    seg_r_nbases,
+                    is_BQ_high_enough_for_tier2,
+                    indel_len);
+        }
+        if (is_unaffected_by_edge) {
+            const auto bb_thres = BidirectionalBiasThreshold(
+                    paramset.bias_thres_BAQ1,
+                    paramset.bias_thres_BAQ2,
+                    paramset.bias_thres_BAQ1,
+                    paramset.bias_thres_BAQ2);
+            update_bidirectional_bias(
+                    symbol_to_seg_format_depth_set.seginfo_aLB1,
+                    symbol_to_seg_format_depth_set.seginfo_aLB2,
+                    symbol_to_seg_format_depth_set.seginfo_aRB1,
+                    symbol_to_seg_format_depth_set.seginfo_aRB2,
+                    symbol_to_seg_format_depth_set.seginfo_aLBL,
+                    symbol_to_seg_format_depth_set.seginfo_aRBL,
+                    bb_thres,
+                    seg_l_baq,
+                    seg_r_baq,
+                    is_BQ_high_enough_for_tier2,
+                    0);
+        }
+        symbol_to_seg_format_depth_set.seginfo_aBQ2 += 1;
+    }
+    /*
+    if (((!isGap) && bq >= paramset.bias_thres_highBQ) || (isGap && dist_to_interfering_indel >= paramset.bias_thres_interfering_indel)) {
+        if (is_far_from_edge) {
+            const bool is_l1_unbiased = (seg_l_nbases + indel_len >= seg_format_thres_set.segthres_aLP1t);
+            const bool is_l2_unbiased = (seg_l_nbases + indel_len >= seg_format_thres_set.segthres_aLP2t);
+            const bool is_r1_unbiased = (seg_r_nbases >= seg_format_thres_set.segthres_aRP1t);
+            const bool is_r2_unbiased = (seg_r_nbases >= seg_format_thres_set.segthres_aRP2t);
             if (is_l1_unbiased) {
                 symbol_to_seg_format_depth_set.seginfo_aLP1 += 1;
             }
@@ -1561,7 +1663,7 @@ dealwith_segbias(
         }
         symbol_to_seg_format_depth_set.seginfo_aBQ2 += 1;
     }
-    
+    */
     const bool is_l_nonbiased = (((0 == (aln->core.flag & 0x8)) || (0 == (aln->core.flag & 0x1))) && seg_l_nbases > seg_r_nbases);
     const bool is_r_nonbiased = (((0 == (aln->core.flag & 0x8)) || (0 == (aln->core.flag & 0x1))) && seg_l_nbases < seg_r_nbases);
     // rc : test if the left-side of the insert is biased, and vice versa.
@@ -2236,7 +2338,7 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
             const T3 & baq_offsetarr,
             const T4 & baq_offsetarr2,
             
-            T5 & symbol_to_seg_format_depth_sets,
+            T5 & symbol_to_seg_format_info_sets,
             T6 & symbol_to_VQ_format_tag_sets,
             const T7 & seg_format_prep_sets,
             const T8 & seg_format_thres_sets,
@@ -2254,7 +2356,7 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
                         baq_offsetarr,
                         baq_offsetarr2,
                         
-                        symbol_to_seg_format_depth_sets,
+                        symbol_to_seg_format_info_sets,
                         symbol_to_VQ_format_tag_sets,
                         seg_format_prep_sets,
                         seg_format_thres_sets,
@@ -2271,7 +2373,7 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
                         baq_offsetarr,
                         baq_offsetarr2,
                         
-                        symbol_to_seg_format_depth_sets,
+                        symbol_to_seg_format_info_sets,
                         symbol_to_VQ_format_tag_sets,
                         seg_format_prep_sets,
                         seg_format_thres_sets,
@@ -2296,7 +2398,8 @@ struct Symbol2CountCoverageSet {
     
     SegFormatPrepSets seg_format_prep_sets;
     SegFormatThresSets seg_format_thres_sets;
-    Symbol2SegFormatDepthSets symbol_to_seg_format_depth_sets;
+    Symbol2SegFormatInfoSets symbol_to_seg_format_info_sets;
+    Symbol2FamFormatInfoSets symbol_to_fam_format_info_sets;
     std::array<Symbol2FragFormatDepthSets, 2> symbol_to_frag_format_depth_sets; 
     std::array<Symbol2FamFormatDepthSets, 2> symbol_to_fam_format_depth_sets_2strand;
     Symbol2DuplexFormatDepthSets symbol_to_duplex_format_depth_sets;
@@ -2316,7 +2419,8 @@ struct Symbol2CountCoverageSet {
         excluEndPosition(end),
         seg_format_prep_sets(SegFormatPrepSets(t, beg, end)),
         seg_format_thres_sets(SegFormatThresSets(t, beg, end)),
-        symbol_to_seg_format_depth_sets(Symbol2SegFormatDepthSets(t, beg, end)),
+        symbol_to_seg_format_info_sets(Symbol2SegFormatInfoSets(t, beg, end)),
+        symbol_to_fam_format_info_sets(Symbol2FamFormatInfoSets(t, beg, end)),
         symbol_to_frag_format_depth_sets({{Symbol2FragFormatDepthSets(t, beg, end), Symbol2FragFormatDepthSets(t, beg, end)}}),
         symbol_to_fam_format_depth_sets_2strand({{Symbol2FamFormatDepthSets(t, beg, end), Symbol2FamFormatDepthSets(t, beg, end)}}),
         symbol_to_duplex_format_depth_sets(Symbol2DuplexFormatDepthSets(t, beg, end)),
@@ -2394,7 +2498,7 @@ struct Symbol2CountCoverageSet {
                             baq_offsetarr,
                             baq_offsetarr2,
 
-                            this->symbol_to_seg_format_depth_sets,
+                            this->symbol_to_seg_format_info_sets,
                             this->symbol_to_VQ_format_tag_sets,
                             this->seg_format_prep_sets,
                             this->seg_format_thres_sets,
@@ -2422,7 +2526,7 @@ struct Symbol2CountCoverageSet {
                             baq_offsetarr,
                             baq_offsetarr2,
 
-                            this->symbol_to_seg_format_depth_sets,
+                            this->symbol_to_seg_format_info_sets,
                             this->symbol_to_VQ_format_tag_sets,
                             this->seg_format_prep_sets,
                             this->seg_format_thres_sets,
@@ -2454,7 +2558,7 @@ struct Symbol2CountCoverageSet {
                             assert (con_count * 2 >= tot_count);
                             if (0 == tot_count) { continue; }
                             
-                            uvc1_qual_t max_qual = 8 + get_avgBQ(bg_seg_bqsum_conslogo, symbol_to_seg_format_depth_sets, epos, con_symbol);
+                            uvc1_qual_t max_qual = 8 + get_avgBQ(bg_seg_bqsum_conslogo, symbol_to_seg_format_info_sets, epos, con_symbol);
                             uvc1_qual_t phredlike = MIN(con_count * 2 - tot_count, max_qual);
                             
                             int pbucket = max_qual - phredlike;
@@ -2532,8 +2636,8 @@ struct Symbol2CountCoverageSet {
                 }
             }
         }
-        assert(this->symbol_to_seg_format_depth_sets.getIncluBegPosition() == this->dedup_ampDistr[0].getIncluBegPosition());
-        assert(this->symbol_to_seg_format_depth_sets.getExcluEndPosition() == this->dedup_ampDistr[0].getExcluEndPosition());
+        assert(this->symbol_to_seg_format_info_sets.getIncluBegPosition() == this->dedup_ampDistr[0].getIncluBegPosition());
+        assert(this->symbol_to_seg_format_info_sets.getExcluEndPosition() == this->dedup_ampDistr[0].getExcluEndPosition());
         for (auto epos = this->getUnifiedIncluBegPosition(); epos < this->getUnifiedExcluEndPosition(); epos++) {
             for (SymbolType symboltype : SYMBOL_TYPE_ARR) {
                 for (AlignmentSymbol symbol : SYMBOL_TYPE_TO_SYMBOLS[symboltype]) {
@@ -2542,7 +2646,7 @@ struct Symbol2CountCoverageSet {
                             symboltype, FRAG_bDP) + 
                             formatSumBySymbolType(this->symbol_to_frag_format_depth_sets[1].getByPos(epos), 
                             symboltype, FRAG_bDP); 
-                    uvc1_qual_t max_qual = 8 + get_avgBQ(bg_seg_bqsum_conslogo, symbol_to_seg_format_depth_sets, epos, symbol);
+                    uvc1_qual_t max_qual = 8 + get_avgBQ(bg_seg_bqsum_conslogo, symbol_to_seg_format_info_sets, epos, symbol);
                     uvc1_qual_t maxvqual = 0;
                     uvc1_readnum_t argmaxAD = 0;
                     uvc1_qual_t argmaxBQ = 0;
@@ -2568,7 +2672,7 @@ struct Symbol2CountCoverageSet {
     template <class T1, class T2, class T3, class T4>
     int
     updateByAlns3UsingFQ(
-            std::string & fqdata,
+            std::array<std::string, 3> &fastq_outstrings,
             std::map<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>> & mutform2count4map,
             std::map<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>> & mutform2count4map_confam,
             const T1 & alns3, 
@@ -2595,7 +2699,7 @@ struct Symbol2CountCoverageSet {
             niters++;
             assert (alns2pair[0].size() != 0 || alns2pair[1].size() != 0);
             for (int strand = 0; strand < 2; strand++) {
-                std::vector<std::pair<char, int8_t>> fq_baseBQ_pairs;
+                std::basic_string<std::pair<char, int8_t>> fq_baseBQ_pairs;
                 const auto & alns2 = alns2pair[strand];
                 if (alns2.size() == 0) { continue; }
                 uvc1_refgpos_t tid2, beg2, end2;
@@ -2614,7 +2718,7 @@ struct Symbol2CountCoverageSet {
                             baq_offsetarr,
                             baq_offsetarr2,
                             
-                            this->symbol_to_seg_format_depth_sets,
+                            this->symbol_to_seg_format_info_sets,
                             this->symbol_to_VQ_format_tag_sets,
                             this->seg_format_prep_sets,
                             this->seg_format_thres_sets,
@@ -2628,6 +2732,24 @@ struct Symbol2CountCoverageSet {
                         std::array<uvc1_qual_t, NUM_SYMBOL_TYPES> {{ paramset.fam_thres_highBQ_snv, 0 }},
                         (paramset.microadjust_padded_deletion_flag & ((SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform) ? 0x2 : 0x1)));
                 }
+                
+                std::vector<uvc1_refgpos_t> l2r_end_poss, r2l_end_poss; // cannot peform sum or average due to the possibility of overflow
+                l2r_end_poss.reserve(alns2.size());
+                r2l_end_poss.reserve(alns2.size());
+                for (const auto & alns1 : alns2) {
+                    for (const bam1_t *aln : alns1) {
+                        const bool isrc = ((aln->core.flag & 0x10) == 0x10);
+                        if (isrc) {
+                            r2l_end_poss.push_back(aln->core.pos);
+                        } else {
+                            l2r_end_poss.push_back(bam_endpos(aln));
+                        }
+                    }
+                }
+                const uvc1_refgpos_t l2r_end_median_pos = ((l2r_end_poss.size() > 0) ? (MEDIAN(l2r_end_poss)) : read_family_con_ampl.getExcluEndPosition());
+                const uvc1_refgpos_t r2l_end_median_pos = ((r2l_end_poss.size() > 0) ? (MEDIAN(r2l_end_poss)) : read_family_con_ampl.getIncluBegPosition());
+                // without indel_adj_tracklen_dist it is exact non-overlap with <=
+                const bool fam_has_nonconf_middle = ((l2r_end_median_pos) <= (r2l_end_median_pos + paramset.indel_adj_tracklen_dist)); 
                 for (auto epos = read_family_con_ampl.getIncluBegPosition(); epos < read_family_con_ampl.getExcluEndPosition(); epos++) {
                     const auto & con_ampl_symbol2count = read_family_con_ampl.getByPos(epos);
                     for (SymbolType symboltype : SYMBOL_TYPE_ARR) {
@@ -2654,10 +2776,96 @@ struct Symbol2CountCoverageSet {
                                         this->pos2dlen2data_cDP2[strand][delSymbolToDelIdx(con_symbol)],
                                         read_family_con_ampl.getPosToDlenToData(con_symbol), epos, 1);
                             }
-                        }
+
+// start UPDATING-FAM2-BIAS // update_bidirectional_bias
+/* Please note that there is an edge case of having a position-biased family support for an ALT at the very small overlap between R1 and R2,
+ * so r2l_end_median_pos and l2r_end_median_pos are needed */
+const auto rpos = epos;
+auto rbeg = read_family_con_ampl.getIncluBegPosition();
+auto rend = read_family_con_ampl.getExcluEndPosition();
+if (fam_has_nonconf_middle && epos < r2l_end_median_pos) {
+    rend = MAX(MIN(l2r_end_median_pos, r2l_end_median_pos), epos);
+}
+if (fam_has_nonconf_middle && l2r_end_median_pos < epos) {
+    rbeg = MIN(MAX(l2r_end_median_pos, r2l_end_median_pos), epos);
+}
+
+const auto & seg_format_thres_set = this->seg_format_thres_sets.getRefByPos(rpos);
+auto & fam_info_set = this->symbol_to_fam_format_info_sets.getRefByPos(rpos)[con_symbol];
+
+const bool isGap = (LINK_SYMBOL == symboltype);
+const uvc1_qual_t bq = 90; // very big
+const uvc1_refgpos_t dist_to_interfering_indel = 1024*1024; // very big
+if (((!isGap) && bq >= paramset.bias_thres_highBQ) || (isGap && dist_to_interfering_indel >= paramset.bias_thres_highBQ)) { 
+        const auto  bias_thres_veryhighBQ = paramset.bias_thres_highBQ;
+        const bool is_BQ_high_enough_for_tier2 = (isGap || bq >= bias_thres_veryhighBQ);
+        
+        uvc1_refgpos_t fam2_l_nbases = epos - rbeg + 1;
+        uvc1_refgpos_t fam2_r_nbases = rend - epos;
+
+        auto _const_LPxT = seg_format_thres_set.segthres_aLPxT; 
+        const auto const_RPxT = seg_format_thres_set.segthres_aRPxT; 
+        const auto const_LPxT = (isGap ? _const_LPxT : MIN(_const_LPxT, const_RPxT));
+        uvc1_refgpos_t indel_len = 0;
+        if (isSymbolIns(con_symbol)) {
+            std::pair<uvc1_readnum_t, std::string> ins_maj= read_family_con_ampl_getMajority_ins(read_family_con_ampl, epos);
+            indel_len = ins_maj.first;
+        } else if (isSymbolDel(con_symbol)) {
+            std::pair<uvc1_readnum_t, uvc1_refgpos_t> del_maj = read_family_con_ampl_getMajority_del(read_family_con_ampl, epos); 
+            indel_len = del_maj.first;
+        }
+        const bool is_far_from_edge = (fam2_l_nbases + ((isSymbolIns(con_symbol)) ? non_neg_minus(indel_len, paramset.microadjust_nobias_pos_indel_maxlen) : 0) >= const_LPxT) 
+                && (fam2_r_nbases >= const_RPxT);
+        if (is_far_from_edge) {
+            const auto bb_thres = BidirectionalBiasThreshold(
+                        seg_format_thres_set.segthres_aLP1t,
+                        seg_format_thres_set.segthres_aLP2t,
+                        seg_format_thres_set.segthres_aRP1t,
+                        seg_format_thres_set.segthres_aRP2t);
+            update_bidirectional_bias(
+                    fam_info_set.faminfo_c2LP1,
+                    fam_info_set.faminfo_c2LP2,
+                    fam_info_set.faminfo_c2RP1,
+                    fam_info_set.faminfo_c2RP2,
+                    fam_info_set.faminfo_c2LPL,
+                    fam_info_set.faminfo_c2RPL,
+                    bb_thres,
+                    fam2_l_nbases,
+                    fam2_r_nbases,
+                    true,
+                    0);
+        }
+        
+        const uvc1_qual_t seg_l_baq = baq_offsetarr.getByPos(rpos) - baq_offsetarr.getByPos(rbeg) + 1;
+        const uvc1_qual_t _seg_r_baq = baq_offsetarr.getByPos(rend-1) - baq_offsetarr.getByPos(rpos) + 1;
+        const uvc1_qual_t seg_r_baq = (isGap ? MIN(_seg_r_baq, baq_offsetarr2.getByPos(rend-1) - baq_offsetarr2.getByPos(rpos) + 7) : _seg_r_baq);
+        const auto bias_thres_highBAQ = paramset.bias_thres_highBAQ + (isGap ? 0 : 3);
+        const bool is_unaffected_by_edge = (seg_l_baq >= bias_thres_highBAQ && seg_r_baq >= bias_thres_highBAQ);
+        if (is_unaffected_by_edge) {
+            const auto bb_thres = BidirectionalBiasThreshold(
+                    paramset.bias_thres_BAQ1,
+                    paramset.bias_thres_BAQ2,
+                    paramset.bias_thres_BAQ1,
+                    paramset.bias_thres_BAQ2);
+            update_bidirectional_bias(
+                    fam_info_set.faminfo_c2LB1,
+                    fam_info_set.faminfo_c2LB2,
+                    fam_info_set.faminfo_c2RB1,
+                    fam_info_set.faminfo_c2RB2,
+                    fam_info_set.faminfo_c2LBL,
+                    fam_info_set.faminfo_c2RBL,
+                    bb_thres,
+                    seg_l_baq,
+                    seg_r_baq,
+                    is_BQ_high_enough_for_tier2,
+                    0);
+        }
+        fam_info_set.faminfo_c2BQ2 += 1;
+}
+// end UPDATING-FAM2-BIAS
                         // put SNVs and INDELs into FASTQ files
 if (paramset.fam_consensus_out_fastq.size() > 0) {
-                        if ((BASE_SYMBOL == symboltype) && con_symbol != BASE_NN) { // ignore padded deletion bases
+                        if ((BASE_SYMBOL == symboltype)) { // consider NA (not-available) bases, and split into multiple fastq lines later
                             if (is_fam_good) {
                                 const uvc1_qual_t conBQ = 59 - MIN(tot_count - con_count, 9);
                                 const char *desc = SYMBOL_TO_DESC_ARR[con_symbol];
@@ -2695,7 +2903,8 @@ if (paramset.fam_consensus_out_fastq.size() > 0) {
                                 } else { }  // the family is sufficiently large and has strong consensus, so do not add any InDel.
                             } else {} // the family is too small to infer anything.
                         }
-}                    
+}
+                        }
                         if (paramset.fam_thres_dup2add <= tot_count && (con_count * 100 >= tot_count * paramset.fam_thres_dup2perc)) {
                             this->symbol_to_fam_format_depth_sets_2strand[strand].getRefByPos(epos)[con_symbol][FAM_cDP3] += 1;
                             if (isSymbolIns(con_symbol)) {
@@ -2740,38 +2949,78 @@ if (paramset.fam_consensus_out_fastq.size() > 0) {
                 }
 if (paramset.fam_consensus_out_fastq.size() > 0) {
                 // generate consensus FQ files
-                // FQ line 1: read name
-                std::string fqname = std::string("@") + std::to_string(tid2)
-                        + ":" + std::to_string(beg2) 
-                        + ":" + (strand ? "+-" : "-+") + std::to_string(end2 - beg2 - 1) // the extra -1 is due to possible insertion at the front/back of the fragment
-                        + ":" + alns2pair2umibarcode.second.umistring + "#" + std::to_string(alns2.size());
-                fqdata += fqname + "\n";
-                // FQ line 2: sequence
-                for (const auto & baseBQ : fq_baseBQ_pairs) {
-                    fqdata.push_back(baseBQ.first);
-                }
-                fqdata += "\n";
-                // FQ line 3: comment, here we put all read names of the original BAM that did not go through any consensus.
-                fqdata += "+";
-                for (const auto bams : alns2) {
-                    assert(bams.size() <= 2);
-                    assert(bams.size() >= 1);
-                    if (bams.size() == 2) {
-                        assert(!strcmp(bam_get_qname(bams[0]),bam_get_qname(bams[1])));
-                        fqdata += "@@"; // pair-end
-                        fqdata += bam_get_qname(bams[0]);
-                    } else if (bams.size() == 1) {
-                        fqdata += "@"; // single-end
-                        fqdata += bam_get_qname(bams[0]);
+                const char *base_NN_desc = SYMBOL_TO_DESC_ARR[BASE_NN];
+                size_t beg = 0;
+                size_t end = fq_baseBQ_pairs.size();
+                
+                while (beg < end && (base_NN_desc[0] == fq_baseBQ_pairs[beg].first)) { beg++; }
+                while (beg < end && (base_NN_desc[0] == fq_baseBQ_pairs[end-1].first)) { end--; }
+                
+                const auto stringof_baseBQ_pairs = fq_baseBQ_pairs.substr(beg, end - beg);
+                std::vector<size_t> begposs, endposs;
+                begposs.push_back(0);
+                bool is_in_NA = false;
+                for (size_t idx = 0; idx < stringof_baseBQ_pairs.size(); idx++) {
+                    const auto & baseBQ_pair = stringof_baseBQ_pairs[idx];
+                    if (base_NN_desc[0] == baseBQ_pair.first) {
+                        if (!is_in_NA) {
+                            endposs.push_back(idx);
+                        }
+                        is_in_NA = true;
+                    } else {
+                        if (is_in_NA) {
+                            begposs.push_back(idx);
+                        }
+                        is_in_NA = false;
                     }
                 }
-                fqdata += "\n"; 
-                // FQ line 4: base-call qualities
-                for (const auto & baseBQ : fq_baseBQ_pairs) {
-                    fqdata.push_back((char)(baseBQ.second + 33)); // the exclamation mark '!' with ascii value 33 denotes the Phred score of zero. 
+                endposs.push_back(stringof_baseBQ_pairs.size());
+                assert(1 <= begposs.size() && begposs.size() <= 2);
+                assert(1 <= endposs.size() && endposs.size() <= 2);
+                assert(begposs.size() == endposs.size());
+                std::vector<std::basic_string<std::pair<char, int8_t>>> stringof_baseBQ_pairs_vec;
+                for (size_t idx = 0; idx < MIN(begposs.size(), endposs.size()); idx++) {
+                    stringof_baseBQ_pairs_vec.push_back(stringof_baseBQ_pairs.substr(begposs[idx], endposs[idx]));
                 }
-                fqdata += "\n"; 
-
+                for (size_t idx = 0; idx < stringof_baseBQ_pairs_vec.size(); idx++) {
+                    auto &stringof_baseBQ_pairs = stringof_baseBQ_pairs_vec[idx];
+                    // FQ line 1: read name
+                    const size_t r1r2 = ((stringof_baseBQ_pairs_vec.size() == 1) ? (0) : (idx + 1));
+                    if (2 == r1r2) {
+                        std::reverse(stringof_baseBQ_pairs.begin(), stringof_baseBQ_pairs.end()); 
+                    }
+                    std::string fqname = std::string("@") + std::to_string(tid2)
+                            + ":" + std::to_string(beg2) 
+                            + ":" + (strand ? "+-" : "-+") + std::to_string(end2 - beg2 - 1) // the extra -1 is due to possible insertion at the front/back of the fragment
+                            + ":" + alns2pair2umibarcode.second.umistring + "#" + std::to_string(alns2.size());
+                    auto &fqdata = fastq_outstrings[r1r2];
+                    fqdata += fqname + "\n";
+                    // FQ line 2: sequence
+                    for (const auto & baseBQ : stringof_baseBQ_pairs) {
+                        fqdata.push_back(baseBQ.first);
+                    }
+                    fqdata += "\n";
+                    // FQ line 3: comment, here we put all read names of the original BAM that did not go through any consensus.
+                    fqdata += "+";
+                    for (const auto bams : alns2) {
+                        assert(bams.size() <= 2);
+                        assert(bams.size() >= 1);
+                        if (bams.size() == 2) {
+                            assert(!strcmp(bam_get_qname(bams[0]),bam_get_qname(bams[1])));
+                            fqdata += "@@"; // pair-end
+                            fqdata += bam_get_qname(bams[0]);
+                        } else if (bams.size() == 1) {
+                            fqdata += "@"; // single-end
+                            fqdata += bam_get_qname(bams[0]);
+                        }
+                    }
+                    fqdata += "\n"; 
+                    // FQ line 4: base-call qualities
+                    for (const auto & baseBQ : stringof_baseBQ_pairs) {
+                        fqdata.push_back((char)(baseBQ.second + 33)); // the exclamation mark '!' with ascii value 33 denotes the Phred score of zero. 
+                    }
+                    fqdata += "\n"; 
+                }
 }
             }
         }
@@ -2805,7 +3054,7 @@ if (paramset.fam_consensus_out_fastq.size() > 0) {
                             baq_offsetarr,      
                             baq_offsetarr2,
 
-                            this->symbol_to_seg_format_depth_sets,
+                            this->symbol_to_seg_format_info_sets,
                             this->symbol_to_VQ_format_tag_sets,
                             this->seg_format_prep_sets,
                             this->seg_format_thres_sets,
@@ -3026,7 +3275,7 @@ if (paramset.fam_consensus_out_fastq.size() > 0) {
     updateByRegion3Aln(
             //std::vector<std::pair<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>>> & mutform2count4vec_bq,
             //std::vector<std::pair<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>>> & mutform2count4vec_fq,
-            std::string & fqdata,
+            std::array<std::string, 3> & fastq_outstrings,
             std::vector<HapLink> & mutform2count4vec_bq,
             std::vector<HapLink> & mutform2count4vec_fq,
             std::vector<HapLink> & mutform2count4vec_f2q,
@@ -3066,7 +3315,7 @@ if (paramset.fam_consensus_out_fastq.size() > 0) {
                 paramset.phasing_haplotype_max_detail_cnt);
         
         updateByAlns3UsingFQ(
-                fqdata,
+                fastq_outstrings,
                 mutform2count4map_fq,
                 mutform2count4map_f2q,
                 alns3,
@@ -3290,49 +3539,49 @@ BcfFormat_symboltype_init(bcfrec::BcfFormat & fmt,
     fmt.ALRBt = {{ t.segthres_aLB1t, t.segthres_aLB2t, t.segthres_aRB1t, t.segthres_aRB2t }};
     
     const auto & symbol_to_VQ_format_tag_sets = symbol2CountCoverageSet12.symbol_to_VQ_format_tag_sets;
-    const auto & symbol_to_seg_format_depth_sets = symbol2CountCoverageSet12.symbol_to_seg_format_depth_sets;
+    const auto & symbol_to_seg_format_info_sets = symbol2CountCoverageSet12.symbol_to_seg_format_info_sets;
     
     fill_symboltype_fmt(fmt.A1BQf, symbol_to_VQ_format_tag_sets,    VQ_a1BQf,  refpos, symboltype, refsymbol);
     fill_symboltype_fmt(fmt.A1BQr, symbol_to_VQ_format_tag_sets,    VQ_a1BQr,  refpos, symboltype, refsymbol);
     // this MQ can be used for addition and substraction.
-    filla_symboltype_fmt(fmt.AMQs,  symbol_to_seg_format_depth_sets, seginfo_aMQs,  refpos, symboltype, refsymbol); 
+    filla_symboltype_fmt(fmt.AMQs,  symbol_to_seg_format_info_sets, seginfo_aMQs,  refpos, symboltype, refsymbol); 
     
-    filla_symboltype_fmt(fmt.AP1,   symbol_to_seg_format_depth_sets, seginfo_aP1,   refpos, symboltype, refsymbol);
-    filla_symboltype_fmt(fmt.AP2,   symbol_to_seg_format_depth_sets, seginfo_aP2,   refpos, symboltype, refsymbol);
+    filla_symboltype_fmt(fmt.AP1,   symbol_to_seg_format_info_sets, seginfo_aP1,   refpos, symboltype, refsymbol);
+    filla_symboltype_fmt(fmt.AP2,   symbol_to_seg_format_info_sets, seginfo_aP2,   refpos, symboltype, refsymbol);
 
-    filla_symboltype_fmt(fmt.ADPff, symbol_to_seg_format_depth_sets, seginfo_aDPff, refpos, symboltype, refsymbol);
-    filla_symboltype_fmt(fmt.ADPfr, symbol_to_seg_format_depth_sets, seginfo_aDPfr, refpos, symboltype, refsymbol);
-    filla_symboltype_fmt(fmt.ADPrf, symbol_to_seg_format_depth_sets, seginfo_aDPrf, refpos, symboltype, refsymbol);
-    filla_symboltype_fmt(fmt.ADPrr, symbol_to_seg_format_depth_sets, seginfo_aDPrr, refpos, symboltype, refsymbol);
+    filla_symboltype_fmt(fmt.ADPff, symbol_to_seg_format_info_sets, seginfo_aDPff, refpos, symboltype, refsymbol);
+    filla_symboltype_fmt(fmt.ADPfr, symbol_to_seg_format_info_sets, seginfo_aDPfr, refpos, symboltype, refsymbol);
+    filla_symboltype_fmt(fmt.ADPrf, symbol_to_seg_format_info_sets, seginfo_aDPrf, refpos, symboltype, refsymbol);
+    filla_symboltype_fmt(fmt.ADPrr, symbol_to_seg_format_info_sets, seginfo_aDPrr, refpos, symboltype, refsymbol);
     
-    filla_symboltype_fmt(fmt.ALP1,  symbol_to_seg_format_depth_sets, seginfo_aLP1, refpos, symboltype, refsymbol);
-    filla_symboltype_fmt(fmt.ALP2,  symbol_to_seg_format_depth_sets, seginfo_aLP2, refpos, symboltype, refsymbol);
-    filla_symboltype_fmt(fmt.ALPL,  symbol_to_seg_format_depth_sets, seginfo_aLPL, refpos, symboltype, refsymbol);
+    filla_symboltype_fmt(fmt.ALP1,  symbol_to_seg_format_info_sets, seginfo_aLP1, refpos, symboltype, refsymbol);
+    filla_symboltype_fmt(fmt.ALP2,  symbol_to_seg_format_info_sets, seginfo_aLP2, refpos, symboltype, refsymbol);
+    filla_symboltype_fmt(fmt.ALPL,  symbol_to_seg_format_info_sets, seginfo_aLPL, refpos, symboltype, refsymbol);
     
-    filla_symboltype_fmt(fmt.ARP1,  symbol_to_seg_format_depth_sets, seginfo_aRP1, refpos, symboltype, refsymbol);
-    filla_symboltype_fmt(fmt.ARP2,  symbol_to_seg_format_depth_sets, seginfo_aRP2, refpos, symboltype, refsymbol);
-    filla_symboltype_fmt(fmt.ARPL,  symbol_to_seg_format_depth_sets, seginfo_aRPL, refpos, symboltype, refsymbol);
+    filla_symboltype_fmt(fmt.ARP1,  symbol_to_seg_format_info_sets, seginfo_aRP1, refpos, symboltype, refsymbol);
+    filla_symboltype_fmt(fmt.ARP2,  symbol_to_seg_format_info_sets, seginfo_aRP2, refpos, symboltype, refsymbol);
+    filla_symboltype_fmt(fmt.ARPL,  symbol_to_seg_format_info_sets, seginfo_aRPL, refpos, symboltype, refsymbol);
     
-    filla_symboltype_fmt(fmt.ALB1,  symbol_to_seg_format_depth_sets, seginfo_aLB1, refpos, symboltype, refsymbol);
-    filla_symboltype_fmt(fmt.ALB2,  symbol_to_seg_format_depth_sets, seginfo_aLB2, refpos, symboltype, refsymbol);
-    filla_symboltype_fmt(fmt.ALBL,  symbol_to_seg_format_depth_sets, seginfo_aLBL, refpos, symboltype, refsymbol);
+    filla_symboltype_fmt(fmt.ALB1,  symbol_to_seg_format_info_sets, seginfo_aLB1, refpos, symboltype, refsymbol);
+    filla_symboltype_fmt(fmt.ALB2,  symbol_to_seg_format_info_sets, seginfo_aLB2, refpos, symboltype, refsymbol);
+    filla_symboltype_fmt(fmt.ALBL,  symbol_to_seg_format_info_sets, seginfo_aLBL, refpos, symboltype, refsymbol);
     
-    filla_symboltype_fmt(fmt.ARB1,  symbol_to_seg_format_depth_sets, seginfo_aRB1, refpos, symboltype, refsymbol);
-    filla_symboltype_fmt(fmt.ARB2,  symbol_to_seg_format_depth_sets, seginfo_aRB2, refpos, symboltype, refsymbol);
-    filla_symboltype_fmt(fmt.ARBL,  symbol_to_seg_format_depth_sets, seginfo_aRBL, refpos, symboltype, refsymbol);
+    filla_symboltype_fmt(fmt.ARB1,  symbol_to_seg_format_info_sets, seginfo_aRB1, refpos, symboltype, refsymbol);
+    filla_symboltype_fmt(fmt.ARB2,  symbol_to_seg_format_info_sets, seginfo_aRB2, refpos, symboltype, refsymbol);
+    filla_symboltype_fmt(fmt.ARBL,  symbol_to_seg_format_info_sets, seginfo_aRBL, refpos, symboltype, refsymbol);
     
-    filla_symboltype_fmt(fmt.ABQ2,  symbol_to_seg_format_depth_sets, seginfo_aBQ2, refpos, symboltype, refsymbol);
+    filla_symboltype_fmt(fmt.ABQ2,  symbol_to_seg_format_info_sets, seginfo_aBQ2, refpos, symboltype, refsymbol);
     
-    filla_symboltype_fmt(fmt.APF1,  symbol_to_seg_format_depth_sets, seginfo_aPF1, refpos, symboltype, refsymbol);
-    filla_symboltype_fmt(fmt.APF2,  symbol_to_seg_format_depth_sets, seginfo_aPF2, refpos, symboltype, refsymbol);
+    filla_symboltype_fmt(fmt.APF1,  symbol_to_seg_format_info_sets, seginfo_aPF1, refpos, symboltype, refsymbol);
+    filla_symboltype_fmt(fmt.APF2,  symbol_to_seg_format_info_sets, seginfo_aPF2, refpos, symboltype, refsymbol);
     
-    filla_symboltype_fmt(fmt.ALI1,  symbol_to_seg_format_depth_sets, seginfo_aLI1, refpos, symboltype, refsymbol);
-    filla_symboltype_fmt(fmt.ALI2,  symbol_to_seg_format_depth_sets, seginfo_aLI2, refpos, symboltype, refsymbol);
-    filla_symboltype_fmt(fmt.ARIf,  symbol_to_seg_format_depth_sets, seginfo_aRIf, refpos, symboltype, refsymbol);
+    filla_symboltype_fmt(fmt.ALI1,  symbol_to_seg_format_info_sets, seginfo_aLI1, refpos, symboltype, refsymbol);
+    filla_symboltype_fmt(fmt.ALI2,  symbol_to_seg_format_info_sets, seginfo_aLI2, refpos, symboltype, refsymbol);
+    filla_symboltype_fmt(fmt.ARIf,  symbol_to_seg_format_info_sets, seginfo_aRIf, refpos, symboltype, refsymbol);
 
-    filla_symboltype_fmt(fmt.ARI1,  symbol_to_seg_format_depth_sets, seginfo_aRI1, refpos, symboltype, refsymbol);
-    filla_symboltype_fmt(fmt.ARI2,  symbol_to_seg_format_depth_sets, seginfo_aRI2, refpos, symboltype, refsymbol);
-    filla_symboltype_fmt(fmt.ALIr,  symbol_to_seg_format_depth_sets, seginfo_aLIr, refpos, symboltype, refsymbol);
+    filla_symboltype_fmt(fmt.ARI1,  symbol_to_seg_format_info_sets, seginfo_aRI1, refpos, symboltype, refsymbol);
+    filla_symboltype_fmt(fmt.ARI2,  symbol_to_seg_format_info_sets, seginfo_aRI2, refpos, symboltype, refsymbol);
+    filla_symboltype_fmt(fmt.ALIr,  symbol_to_seg_format_info_sets, seginfo_aLIr, refpos, symboltype, refsymbol);
     
     const auto & symbol_to_frag_format_depth_sets = symbol2CountCoverageSet12.symbol_to_frag_format_depth_sets;
     
@@ -3404,52 +3653,52 @@ BcfFormat_symbol_init(
     const int a = 0;
     
     const auto & symbol_to_VQ_format_tag_sets = symbol2CountCoverageSet12.symbol_to_VQ_format_tag_sets;
-    const auto & symbol_to_seg_format_depth_sets = symbol2CountCoverageSet12.symbol_to_seg_format_depth_sets;
+    const auto & symbol_to_seg_format_info_sets = symbol2CountCoverageSet12.symbol_to_seg_format_info_sets;
     
     fill_symbol_fmt(fmt.a1BQf, symbol_to_VQ_format_tag_sets,    VQ_a1BQf, refpos, symbol, a);
     fill_symbol_fmt(fmt.a1BQr, symbol_to_VQ_format_tag_sets,    VQ_a1BQr, refpos, symbol, a);
-    filla_symbol_fmt(fmt.aMQs,  symbol_to_seg_format_depth_sets, seginfo_aMQs,  refpos, symbol, a);
+    filla_symbol_fmt(fmt.aMQs,  symbol_to_seg_format_info_sets, seginfo_aMQs,  refpos, symbol, a);
     
-    filla_symbol_fmt(fmt.aP1,  symbol_to_seg_format_depth_sets, seginfo_aP1,  refpos, symbol, a);
-    filla_symbol_fmt(fmt.aP2,  symbol_to_seg_format_depth_sets, seginfo_aP2,  refpos, symbol, a);
+    filla_symbol_fmt(fmt.aP1,  symbol_to_seg_format_info_sets, seginfo_aP1,  refpos, symbol, a);
+    filla_symbol_fmt(fmt.aP2,  symbol_to_seg_format_info_sets, seginfo_aP2,  refpos, symbol, a);
     
-    filla_symbol_fmt(fmt.aDPff, symbol_to_seg_format_depth_sets, seginfo_aDPff, refpos, symbol, a);
-    filla_symbol_fmt(fmt.aDPfr, symbol_to_seg_format_depth_sets, seginfo_aDPfr, refpos, symbol, a);
-    filla_symbol_fmt(fmt.aDPrf, symbol_to_seg_format_depth_sets, seginfo_aDPrf, refpos, symbol, a);
-    filla_symbol_fmt(fmt.aDPrr, symbol_to_seg_format_depth_sets, seginfo_aDPrr, refpos, symbol, a);
+    filla_symbol_fmt(fmt.aDPff, symbol_to_seg_format_info_sets, seginfo_aDPff, refpos, symbol, a);
+    filla_symbol_fmt(fmt.aDPfr, symbol_to_seg_format_info_sets, seginfo_aDPfr, refpos, symbol, a);
+    filla_symbol_fmt(fmt.aDPrf, symbol_to_seg_format_info_sets, seginfo_aDPrf, refpos, symbol, a);
+    filla_symbol_fmt(fmt.aDPrr, symbol_to_seg_format_info_sets, seginfo_aDPrr, refpos, symbol, a);
     
-    filla_symbol_fmt(fmt.aLP1, symbol_to_seg_format_depth_sets, seginfo_aLP1, refpos, symbol, a);
-    filla_symbol_fmt(fmt.aLP2, symbol_to_seg_format_depth_sets, seginfo_aLP2, refpos, symbol, a);
-    filla_symbol_fmt(fmt.aLPL, symbol_to_seg_format_depth_sets, seginfo_aLPL, refpos, symbol, a);
+    filla_symbol_fmt(fmt.aLP1, symbol_to_seg_format_info_sets, seginfo_aLP1, refpos, symbol, a);
+    filla_symbol_fmt(fmt.aLP2, symbol_to_seg_format_info_sets, seginfo_aLP2, refpos, symbol, a);
+    filla_symbol_fmt(fmt.aLPL, symbol_to_seg_format_info_sets, seginfo_aLPL, refpos, symbol, a);
     
-    filla_symbol_fmt(fmt.aRP1, symbol_to_seg_format_depth_sets, seginfo_aRP1, refpos, symbol, a);
-    filla_symbol_fmt(fmt.aRP2, symbol_to_seg_format_depth_sets, seginfo_aRP2, refpos, symbol, a);
-    filla_symbol_fmt(fmt.aRPL, symbol_to_seg_format_depth_sets, seginfo_aRPL, refpos, symbol, a);
+    filla_symbol_fmt(fmt.aRP1, symbol_to_seg_format_info_sets, seginfo_aRP1, refpos, symbol, a);
+    filla_symbol_fmt(fmt.aRP2, symbol_to_seg_format_info_sets, seginfo_aRP2, refpos, symbol, a);
+    filla_symbol_fmt(fmt.aRPL, symbol_to_seg_format_info_sets, seginfo_aRPL, refpos, symbol, a);
     
-    filla_symbol_fmt(fmt.aLB1, symbol_to_seg_format_depth_sets, seginfo_aLB1, refpos, symbol, a);
-    filla_symbol_fmt(fmt.aLB2, symbol_to_seg_format_depth_sets, seginfo_aLB2, refpos, symbol, a);
-    filla_symbol_fmt(fmt.aLBL, symbol_to_seg_format_depth_sets, seginfo_aLBL, refpos, symbol, a);
+    filla_symbol_fmt(fmt.aLB1, symbol_to_seg_format_info_sets, seginfo_aLB1, refpos, symbol, a);
+    filla_symbol_fmt(fmt.aLB2, symbol_to_seg_format_info_sets, seginfo_aLB2, refpos, symbol, a);
+    filla_symbol_fmt(fmt.aLBL, symbol_to_seg_format_info_sets, seginfo_aLBL, refpos, symbol, a);
     
-    filla_symbol_fmt(fmt.aRB1, symbol_to_seg_format_depth_sets, seginfo_aRB1, refpos, symbol, a);
-    filla_symbol_fmt(fmt.aRB2, symbol_to_seg_format_depth_sets, seginfo_aRB2, refpos, symbol, a);
-    filla_symbol_fmt(fmt.aRBL, symbol_to_seg_format_depth_sets, seginfo_aRBL, refpos, symbol, a);
+    filla_symbol_fmt(fmt.aRB1, symbol_to_seg_format_info_sets, seginfo_aRB1, refpos, symbol, a);
+    filla_symbol_fmt(fmt.aRB2, symbol_to_seg_format_info_sets, seginfo_aRB2, refpos, symbol, a);
+    filla_symbol_fmt(fmt.aRBL, symbol_to_seg_format_info_sets, seginfo_aRBL, refpos, symbol, a);
     
     // extra
-    filla_symbol_fmt(fmt.a2XM2,symbol_to_seg_format_depth_sets, seginfo_a2XM2,refpos, symbol, a);
-    filla_symbol_fmt(fmt.a2BM2,symbol_to_seg_format_depth_sets, seginfo_a2BM2,refpos, symbol, a);
+    filla_symbol_fmt(fmt.a2XM2,symbol_to_seg_format_info_sets, seginfo_a2XM2,refpos, symbol, a);
+    filla_symbol_fmt(fmt.a2BM2,symbol_to_seg_format_info_sets, seginfo_a2BM2,refpos, symbol, a);
     
-    filla_symbol_fmt(fmt.aBQ2, symbol_to_seg_format_depth_sets, seginfo_aBQ2, refpos, symbol, a);
+    filla_symbol_fmt(fmt.aBQ2, symbol_to_seg_format_info_sets, seginfo_aBQ2, refpos, symbol, a);
 
-    filla_symbol_fmt(fmt.aPF1, symbol_to_seg_format_depth_sets, seginfo_aPF1, refpos, symbol, a);
-    filla_symbol_fmt(fmt.aPF2, symbol_to_seg_format_depth_sets, seginfo_aPF2, refpos, symbol, a);
+    filla_symbol_fmt(fmt.aPF1, symbol_to_seg_format_info_sets, seginfo_aPF1, refpos, symbol, a);
+    filla_symbol_fmt(fmt.aPF2, symbol_to_seg_format_info_sets, seginfo_aPF2, refpos, symbol, a);
 
-    filla_symbol_fmt(fmt.aLI1, symbol_to_seg_format_depth_sets, seginfo_aLI1, refpos, symbol, a);
-    filla_symbol_fmt(fmt.aLI2, symbol_to_seg_format_depth_sets, seginfo_aLI2, refpos, symbol, a);
-    filla_symbol_fmt(fmt.aLIr, symbol_to_seg_format_depth_sets, seginfo_aLIr, refpos, symbol, a);
+    filla_symbol_fmt(fmt.aLI1, symbol_to_seg_format_info_sets, seginfo_aLI1, refpos, symbol, a);
+    filla_symbol_fmt(fmt.aLI2, symbol_to_seg_format_info_sets, seginfo_aLI2, refpos, symbol, a);
+    filla_symbol_fmt(fmt.aLIr, symbol_to_seg_format_info_sets, seginfo_aLIr, refpos, symbol, a);
     
-    filla_symbol_fmt(fmt.aRI1, symbol_to_seg_format_depth_sets, seginfo_aRI1, refpos, symbol, a);
-    filla_symbol_fmt(fmt.aRI2, symbol_to_seg_format_depth_sets, seginfo_aRI2, refpos, symbol, a);
-    filla_symbol_fmt(fmt.aRIf, symbol_to_seg_format_depth_sets, seginfo_aRIf, refpos, symbol, a);
+    filla_symbol_fmt(fmt.aRI1, symbol_to_seg_format_info_sets, seginfo_aRI1, refpos, symbol, a);
+    filla_symbol_fmt(fmt.aRI2, symbol_to_seg_format_info_sets, seginfo_aRI2, refpos, symbol, a);
+    filla_symbol_fmt(fmt.aRIf, symbol_to_seg_format_info_sets, seginfo_aRIf, refpos, symbol, a);
     
     const auto & symbol_to_frag_format_depth_sets = symbol2CountCoverageSet12.symbol_to_frag_format_depth_sets;
     
@@ -3483,12 +3732,12 @@ BcfFormat_symbol_init(
     fill_symbol_fmt(fmt.dDP2,  symbol_to_duplex_format_depth_sets, DUPLEX_dDP2, refpos, symbol, a);
     
     // extra
-    filla_symbol_fmt(fmt.aLPT, symbol_to_seg_format_depth_sets, seginfo_aLPT, refpos, symbol, a);
-    filla_symbol_fmt(fmt.aRPT, symbol_to_seg_format_depth_sets, seginfo_aRPT, refpos, symbol, a);
-    filla_symbol_fmt(fmt.aLIT, symbol_to_seg_format_depth_sets, seginfo_aLIT, refpos, symbol, a);
-    filla_symbol_fmt(fmt.aRIT, symbol_to_seg_format_depth_sets, seginfo_aRIT, refpos, symbol, a);
-    filla_symbol_fmt(fmt.aP3,  symbol_to_seg_format_depth_sets, seginfo_aP3,  refpos, symbol, a);
-    filla_symbol_fmt(fmt.aNC,  symbol_to_seg_format_depth_sets, seginfo_aNC,  refpos, symbol, a);
+    filla_symbol_fmt(fmt.aLPT, symbol_to_seg_format_info_sets, seginfo_aLPT, refpos, symbol, a);
+    filla_symbol_fmt(fmt.aRPT, symbol_to_seg_format_info_sets, seginfo_aRPT, refpos, symbol, a);
+    filla_symbol_fmt(fmt.aLIT, symbol_to_seg_format_info_sets, seginfo_aLIT, refpos, symbol, a);
+    filla_symbol_fmt(fmt.aRIT, symbol_to_seg_format_info_sets, seginfo_aRIT, refpos, symbol, a);
+    filla_symbol_fmt(fmt.aP3,  symbol_to_seg_format_info_sets, seginfo_aP3,  refpos, symbol, a);
+    filla_symbol_fmt(fmt.aNC,  symbol_to_seg_format_info_sets, seginfo_aNC,  refpos, symbol, a);
     
     fmt.DP = fmt.CDP1f[0] + fmt.CDP1r[0];
     fmt.AD = vectorsum(fmt.cDP1f, fmt.cDP1r);
