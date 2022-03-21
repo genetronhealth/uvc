@@ -305,7 +305,7 @@ enum AlignmentSymbol {
     BASE_G,  //   = 2,
     BASE_T,  //   = 3,
     BASE_N,  //   = 4, // ambigous in the original sequencing data
-    BASE_NN, //   = 5, // padded match-mismatch symbol in deleted sequence
+    BASE_NN, //   = 5, // NA not available
     LINK_M,  //   = 6, // absence of any gap
     LINK_D3P,// = 7, // deletion of length 3 or plus
     LINK_D2, //  = 8,  // deletion of length 2
@@ -546,6 +546,22 @@ enum FragFormatDepthSet {
 };
 #define NUM_FRAG_FORMAT_DEPTH_SETS ((size_t)FRAG_FORMAT_DEPTH_SET_END)
 
+enum FamFormatInfoSet {
+    uvc1_readnum_t faminfo_c2LP1; // left tier-2-consensus family pos
+    uvc1_readnum_t faminfo_c2LP2;
+    uvc1_readpos_t faminfo_c2LPL;
+    uvc1_readnum_t faminfo_c2RP1; // right tier-2-consensus family pos
+    uvc1_readnum_t faminfo_c2RP2;
+    uvc1_readpos_t faminfo_c2RPL;
+    
+    uvc1_readnum_t faminfo_c2LB1; // left tier-2-consensus family pos
+    uvc1_readnum_t faminfo_c2LB2;
+    uvc1_readpos_big_t faminfo_c2LBL;
+    uvc1_readnum_t faminfo_c2RB1; // right tier-2-consensus family pos
+    uvc1_readnum_t faminfo_c2RB2;
+    uvc1_readpos_big_t faminfo_c2RBL;
+};
+
 enum FamFormatDepthSet {
     FAM_cDP1, // raw
     FAM_cDP12,// filtered
@@ -555,6 +571,14 @@ enum FamFormatDepthSet {
     FAM_cDPm, // duped mismatch
     FAM_c1DP, //  singleton
     
+    // Insert bias is prevalent in ctDNA sequencing
+    /*
+    FAM_c2LI1; // left insert
+    FAM_c2LI2; 
+    FAM_c2RI1; // left insert
+    FAM_c2RI2; 
+    */
+
     FAM_FORMAT_DEPTH_SET_END
 };
 #define NUM_FAM_FORMAT_DEPTH_SETS ((size_t)FAM_FORMAT_DEPTH_SET_END)
