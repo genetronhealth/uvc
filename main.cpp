@@ -464,9 +464,10 @@ process_batch(BatchArg & arg, const T & tid_pos_symb_to_tkis) {
     const uvc1_qual_t minABQ_indel = ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? paramset.syserr_minABQ_pcr_indel : paramset.syserr_minABQ_cap_indel);
     
     const uvc1_refgpos_t rpos_inclu_beg = MAX(incluBegPosition, bam_inclu_beg_pos);
-    const uvc1_refgpos_t rpos_exclu_end = MIN(excluEndPosition, bam_exclu_end_pos); 
-    const uvc1_refgpos_t extended_inclu_beg_pos = MAX(0, MIN(incluBegPosition - 100, bam_inclu_beg_pos));
-    const uvc1_refgpos_t extended_exclu_end_pos = MIN(std::get<1>(tname_tseqlen_tuple), MAX(excluEndPosition + 100, bam_exclu_end_pos));
+    const uvc1_refgpos_t rpos_exclu_end = MIN(excluEndPosition, bam_exclu_end_pos);
+    const uvc1_refgpos_t MAX_STR_N_BASES = 100; // doi: 10.1016/S1672-0229(07)60009-6
+    const uvc1_refgpos_t extended_inclu_beg_pos = MAX(0, MIN(incluBegPosition - (MEAN_CFDNA_INS_SIZE + MAX_STR_N_BASES + 1), bam_inclu_beg_pos));
+    const uvc1_refgpos_t extended_exclu_end_pos = MIN(std::get<1>(tname_tseqlen_tuple), MAX(excluEndPosition + (MEAN_CFDNA_INS_SIZE + MAX_STR_N_BASES + 1), bam_exclu_end_pos));
     
     const auto tkis_beg = tid_pos_symb_to_tkis.lower_bound(std::make_tuple(tid, extended_inclu_beg_pos    , AlignmentSymbol(0)));
     const auto tkis_end = tid_pos_symb_to_tkis.upper_bound(std::make_tuple(tid, extended_exclu_end_pos + 1, AlignmentSymbol(0)));
