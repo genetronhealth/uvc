@@ -74,7 +74,7 @@ const std::vector<std::pair<std::string, std::string>> FILTER_VEC = {
     std::make_pair("Q50",           "Quality below 50 and no other filters"),
     std::make_pair("Q60",           "Quality below 60 and no other filters"),
     
-    std::make_pair("aSinsert",      "For FORMAT/FTS: Stranded insert bias, meaning the most-supported strand has abnormal insert size. "),
+    std::make_pair("aInsertSize",   "For FORMAT/FTS: Stranded insert bias, meaning the most-supported strand has abnormal insert size at either the left or right end. "),
     // std::make_pair("AXMB",          "For FORMAT/FTS: Absolute mismatch bias, meaning the variant is supported by reads with a high number of mismatches. "),
     // std::make_pair("ABQB",          "For FORMAT/FTS: Absolute base-quality (BQ) bias, meaning the variant is supported by reads with low base qualities at the variant site. "),
 
