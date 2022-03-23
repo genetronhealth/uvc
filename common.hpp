@@ -46,7 +46,8 @@
 #define PLAT_ILLUMINA_LIKE "Illumina/BGI"
 #define PLAT_ION_LIKE "IonTorrent/LifeTechnologies/ThermoFisher"
 
-#define MAX_INSERT_SIZE 2000 // (1024*2) // https://doi.org/10.2147/AGG.S162531
+#define MAX_INSERT_SIZE 2000 // https://doi.org/10.2147/AGG.S162531
+#define MEAN_CFDNA_INS_SIZE 120 // https://doi.org/10.1038/s41598-020-69432-x
 #define DBLFLT_EPS ((double)FLT_EPSILON)
 
 // substitutions
