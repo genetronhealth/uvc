@@ -212,6 +212,7 @@ struct CommandLineArgs {
     
     uvc1_readnum_t      fam_min_n_copies = 300 * 3; // 300 DNA copies per nanogram of DNA
     uvc1_readnum100x_t  fam_min_overseq_perc = 250; // percent fold of over-sequencing
+    uvc1_readnum100x_t  fam_bias_overseq_perc = 150; // percent fold of over-sequencing
     
     uvc1_readnum100x_t  fam_indel_nonUMI_phred_dec_per_fold_overseq = 9;
 

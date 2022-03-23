@@ -571,6 +571,8 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
         "Mininum number of DNA copies (1 ng contains approximately 300 copies of human genome) to have zero penalty for UMI-labeled barcode-family (PMC6197739 and PMC5856404). ");
     ADD_OPTDEF2(app, fam_min_overseq_perc,
         "Mininum percentage of over-sequencing (one plus average family size) to have zero penalty for UMI-labeled barcode-family. ");
+    ADD_OPTDEF2(app, fam_bias_overseq_perc,
+        "Mininum percentage of over-sequencing (one plus average family size) to trigger the computation of biases for tier-2 single-strand consensus-sequence (SSCS) families. ");
     
     ADD_OPTDEF2(app, fam_indel_nonUMI_phred_dec_per_fold_overseq,
         std::string("Phred decrease in non-UMI variant quality for InDels per fold over-sequencing above (")
