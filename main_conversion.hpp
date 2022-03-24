@@ -340,6 +340,7 @@ const _CharToSymbol CHAR_TO_SYMBOL;
 struct TumorKeyInfo {
     std::string ref_alt;
     int32_t VTI = -1;
+    bool enable_tier2_consensus_format_tags = false;
     uvc1_refgpos_t pos = 0;
     
     uvc1_readnum_t BDP = 0;

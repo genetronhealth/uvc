@@ -351,6 +351,11 @@ if (MGVCF_SYMBOL != symbol && ADDITIONAL_INDEL_CANDIDATE_SYMBOL != symbol) {
         if (is_tumor_format_retrieved) {
             tki.bcf1_record = bcf_dup(line);
         }
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_char(bcf_hdr, line, "_C2XP", &bcfstring, &ndst_val);
+        tki.enable_tier2_consensus_format_tags = (valsize > 0);
+        
         const auto retkey = std::make_tuple(line->rid, symbolpos, symbol);
         ret.insert(std::make_pair(retkey, std::vector<TumorKeyInfo>()));
         ret[retkey].push_back(tki);
@@ -873,6 +878,7 @@ process_batch(BatchArg & arg, const T & tid_pos_symb_to_tkis) {
                             region_repeatvec[MAX(refpos - extended_inclu_beg_pos, 3) - 3],
                             region_repeatvec[MIN(refpos - extended_inclu_beg_pos + 3, UNSIGN2SIGN(region_repeatvec.size()) - 1)],
                             ((is_var_rescued && (tki.VTI == LAST(fmt.VTI))) ? ((double)(tki.cDP1x + 1) / (double)(tki.CDP1x + 2)) : -1.0), /* tpfa */
+                            tki,
                             refsymbol,
                             paramset,
                             0);

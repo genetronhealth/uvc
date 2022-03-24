@@ -3825,6 +3825,7 @@ BcfFormat_symbol_calc_DPv(
         const RegionalTandemRepeat & rtr1,
         const RegionalTandemRepeat & rtr2,
         const double tpfa,
+        const TumorKeyInfo & tki,
         const AlignmentSymbol refsymbol,
         const CommandLineArgs & paramset,
         const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
@@ -3998,7 +3999,9 @@ BcfFormat_symbol_calc_DPv(
     double c2RPFA = 1.0;
     double c2LBFA = 1.0;
     double c2RBFA = 1.0;
-    if (((f.cDP2f[a] + f.cDP2r[a]) >= 2) && (normBDP * paramset.fam_bias_overseq_perc >= normCDP1 * 100) ) {
+    const bool try_enable_tier2_consensus_format_tags = (((f.cDP2f[a] + f.cDP2r[a]) >= 2) && (normBDP * paramset.fam_bias_overseq_perc >= normCDP1 * 100)); 
+    fmt.enable_tier2_consensus_format_tags = (is_rescued ? (tki.enable_tier2_consensus_format_tags) : (try_enable_tier2_consensus_format_tags));
+    if (fmt.enable_tier2_consensus_format_tags) {
         // Over-sequencing results in less possibility for remaining SSCS support, thus decreasing the prior of having no bias
         const auto c2DP = (f.cDP2f[a] + f.cDP2r[a]);
         const auto C2DP = (f.CDP2f[0] + f.CDP2r[0]);
