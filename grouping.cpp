@@ -576,10 +576,11 @@ bamfname_to_strand_to_familyuid_to_reads(
     for (size_t isrc_isr2 = 0; isrc_isr2 < 4; isrc_isr2++) {
         uvc1_readnum_big_t beg_prefixsum = 0;
         uvc1_readnum_big_t end_prefixsum = 0;
-        for (size_t i = 0; i < isrc_isr2_to_border_count_prefixsum.size(); i++) {
-            isrc_isr2_to_border_count_prefixsum[isrc_isr2][i] = (beg_prefixsum + end_prefixsum);
+        isrc_isr2_to_border_count_prefixsum[isrc_isr2][0] = (beg_prefixsum + end_prefixsum);
+        for (size_t i = 0; i < isrc_isr2_to_border_count_prefixsum[isrc_isr2].size() - 1; i++) {
             beg_prefixsum += isrc_isr2_to_beg_count[isrc_isr2][i];
             end_prefixsum += isrc_isr2_to_end_count[isrc_isr2][i];
+            isrc_isr2_to_border_count_prefixsum[isrc_isr2][i+1] = (beg_prefixsum + end_prefixsum);
         }
     }
     std::array<std::vector<uvc1_refgpos_t>, 4> isrc_isr2_to_beg2bcenter = {{ inicount, inicount, inicount, inicount }};
