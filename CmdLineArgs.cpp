@@ -345,11 +345,19 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
     
     ADD_OPTDEF2(app, dedup_center_mult, 
         "Exponential decay per additional base of distance. ");
+    /*
     ADD_OPTDEF2(app, dedup_amplicon_count_to_surrcount_ratio, 
         "centroidCount/surroundingCount of reads ending at a position above which the assay is inferred to be amplicon. "
         "Assay type can be override on command-line. ");
     ADD_OPTDEF2(app, dedup_amplicon_count_to_surrcount_ratio_twosided, 
         "centroidCount/surroundingCount of reads ending at a position above which the assay is inferred to be amplicon. "
+        "Assay type can be override on command-line. ");
+    */
+    ADD_OPTDEF2(app, dedup_amplicon_border_to_insert_cov_weak_avgDP_ratio,
+        "centroidInsertBorderSequencingDepth/meanInsertSequencingDepth above which the assay is inferred to be amplicon (require both left and right borders). "
+        "Assay type can be override on command-line. ");
+    ADD_OPTDEF2(app, dedup_amplicon_border_to_insert_cov_strong_avgDP_ratio,
+        "centroidInsertBorderSequencingDepth/meanInsertSequencingDepth above which the assay is inferred to be amplicon (require either left or right border). "
         "Assay type can be override on command-line. ");
     
     ADD_OPTDEF2(app, dedup_amplicon_end2end_ratio,

@@ -537,6 +537,8 @@ bamfname_to_strand_to_familyuid_to_reads(
     std::vector<uvc1_readnum_t> inicount(fetch_size, 0);
     std::array<std::vector<uvc1_readnum_t>, 4> isrc_isr2_to_beg_count = {{ inicount, inicount, inicount, inicount }};
     std::array<std::vector<uvc1_readnum_t>, 4> isrc_isr2_to_end_count = {{ inicount, inicount, inicount, inicount }};
+    std::vector<uvc1_readnum_big_t> inicount64(fetch_size + 1, 0);
+    std::array<std::vector<uvc1_readnum_big_t>, 4> isrc_isr2_to_border_count_prefixsum = {{ inicount64, inicount64, inicount64, inicount64 }};;
     
     hts_itr_t * hts_itr;
     bam1_t *aln = bam_init1();
@@ -571,7 +573,15 @@ bamfname_to_strand_to_familyuid_to_reads(
         num_iter_alns += 1;
     }
     sam_itr_destroy(hts_itr);
-    
+    for (size_t isrc_isr2 = 0; isrc_isr2 < 4; isrc_isr2++) {
+        uvc1_readnum_big_t beg_prefixsum = 0;
+        uvc1_readnum_big_t end_prefixsum = 0;
+        for (size_t i = 0; i < isrc_isr2_to_border_count_prefixsum.size(); i++) {
+            isrc_isr2_to_border_count_prefixsum[isrc_isr2][i] = (beg_prefixsum + end_prefixsum);
+            beg_prefixsum += isrc_isr2_to_beg_count[isrc_isr2][i];
+            end_prefixsum += isrc_isr2_to_end_count[isrc_isr2][i];
+        }
+    }
     std::array<std::vector<uvc1_refgpos_t>, 4> isrc_isr2_to_beg2bcenter = {{ inicount, inicount, inicount, inicount }};
     for (size_t isrc_isr2 = 0; isrc_isr2 < 4; isrc_isr2++) {
         auto beg_to_count = isrc_isr2_to_beg_count[isrc_isr2];
@@ -645,7 +655,11 @@ bamfname_to_strand_to_familyuid_to_reads(
         uvc1_refgpos_t end2 = isrc_isr2_to_end2ecenter[isrc_isr2][end1];
         uvc1_readnum_t beg2count = isrc_isr2_to_beg_count[isrc_isr2][beg2];
         uvc1_readnum_t end2count = isrc_isr2_to_end_count[isrc_isr2][end2];
+        const auto insert2posL = MIN(beg2, end2);
+        const auto insert2posR = MAX(beg2, end2);
+        const auto insert_cov_totDP = isrc_isr2_to_border_count_prefixsum[isrc_isr2][insert2posR] - isrc_isr2_to_border_count_prefixsum[isrc_isr2][insert2posL];
         
+        /*
         uvc1_readnum_t beg2surrcount = 0;
         for (auto i = -ARRPOS_OUTER_RANGE; i < ARRPOS_OUTER_RANGE + 1; i++) {
             if (i > ARRPOS_INNER_RANGE || i < -ARRPOS_INNER_RANGE) {
@@ -662,14 +676,30 @@ bamfname_to_strand_to_familyuid_to_reads(
                 end2surrcount = MAX(end2surrcount, end_count);
             }
         }
+        */
+        const uvc1_readnum_big_t tot_ins_cov_border_DP = 
+                isrc_isr2_to_border_count_prefixsum[isrc_isr2][insert2posR] 
+              - isrc_isr2_to_border_count_prefixsum[isrc_isr2][insert2posL];
+        // in the denominator we have a) -2 to take out two positions at beg2 and end2 and b) +2 to add pseudocount, and these two +-2 cancel out each other.
+        double begratio = (double)(beg2count * (insert2posR - insert2posL) + 1) / (double)((tot_ins_cov_border_DP - beg2count) + (insert2posR - insert2posL));
+        double endratio = (double)(end2count * (insert2posR - insert2posL) + 1) / (double)((tot_ins_cov_border_DP - end2count) + (insert2posR - insert2posL));
+        const bool is_beg_amplicon = (begratio > paramset.dedup_amplicon_border_to_insert_cov_weak_avgDP_ratio);
+        const bool is_end_amplicon = (endratio > paramset.dedup_amplicon_border_to_insert_cov_weak_avgDP_ratio);
+        const bool is_beg_strong_amplicon = (begratio > paramset.dedup_amplicon_border_to_insert_cov_strong_avgDP_ratio);
+        const bool is_end_strong_amplicon = (endratio > paramset.dedup_amplicon_border_to_insert_cov_strong_avgDP_ratio);
+
+    /*
         double begfrac = (double)(beg2count + 1) / (double)(beg2surrcount + 2);
         double endfrac = (double)(end2count + 1) / (double)(end2surrcount + 2);
-        
         const bool is_beg_amplicon = (begfrac > paramset.dedup_amplicon_count_to_surrcount_ratio_twosided);
         const bool is_end_amplicon = (endfrac > paramset.dedup_amplicon_count_to_surrcount_ratio_twosided);
         const bool is_beg_strong_amplicon = (begfrac > paramset.dedup_amplicon_count_to_surrcount_ratio);
         const bool is_end_strong_amplicon = (endfrac > paramset.dedup_amplicon_count_to_surrcount_ratio);
         
+                double is_insert_amplicon_1 = (MIN(begratio, endratio) > paramset.dedup_amplicon_border_to_insert_cov_avgDP_ratio_of_min);
+        double is_insert_amplicon_2 = (MAX(begratio, endratio) > paramset.dedup_amplicon_border_to_insert_cov_avgDP_ratio_of_max);
+
+        */
         const bool is_assay_amplicon = (is_beg_strong_amplicon || is_end_strong_amplicon
                 || (is_beg_amplicon && is_end_amplicon));
         pcrpassed += is_assay_amplicon;
@@ -760,7 +790,8 @@ bamfname_to_strand_to_familyuid_to_reads(
                     << "original_range = " << beg1 << "," << end1 << " ; "
                     << "adjusted_rdiff = " << (beg2 - beg1) << "," << (end2 - end1) << " ; "
                     << "adjusted_count = " << beg2count << "," << end2count << " ; " 
-                    << "adjusted_surrounding_counts = " << beg2surrcount << "," << end2surrcount << " ; " 
+                    //<< "adjusted_surrounding_counts = " << beg2surrcount << "," << end2surrcount << " ; " 
+                    << "insert_cov_totDP =  " << insert_cov_totDP << " from-" << beg2 << "-to-" << end2 << " ; " 
                     << "barcode_umihash = " << (is_umi_found ? umihash : 0) << " ; "
                     << "molecule_hash = " << molecule_hash << " ; "
                     << "qname_hash = " << qname_hash << " ; "
