@@ -2838,7 +2838,7 @@ if (((!isGap) && bq >= paramset.bias_thres_highBQ) || (isGap && dist_to_interfer
         
         const uvc1_qual_t seg_l_baq = baq_offsetarr.getByPos(rpos) - baq_offsetarr.getByPos(MAX(rbeg, non_neg_minus(rpos, MEAN_CFDNA_INS_SIZE))) + 1;
         const uvc1_qual_t _seg_r_baq = baq_offsetarr.getByPos(MIN(rend-1, rpos + (MEAN_CFDNA_INS_SIZE))) - baq_offsetarr.getByPos(rpos) + 1;
-        const uvc1_qual_t seg_r_baq = (isGap ? MIN(_seg_r_baq, baq_offsetarr2.getByPos(rend-1) - baq_offsetarr2.getByPos(rpos) + 7) : _seg_r_baq);
+        const uvc1_qual_t seg_r_baq = (isGap ? MIN(_seg_r_baq, baq_offsetarr2.getByPos(MIN(rend-1, rpos + MEAN_CFDNA_INS_SIZE)) - baq_offsetarr2.getByPos(rpos) + 7) : _seg_r_baq);
         const auto bias_thres_highBAQ = paramset.bias_thres_highBAQ + (isGap ? 0 : 3);
         const bool is_unaffected_by_edge = (seg_l_baq >= bias_thres_highBAQ && seg_r_baq >= bias_thres_highBAQ);
         if (is_unaffected_by_edge) {
