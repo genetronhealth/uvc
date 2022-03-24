@@ -79,7 +79,6 @@ map2vector(const std::map<TKey, TVal> & key2val4map) {
 
 std::map<std::pair<uvc1_refgpos_t, AlignmentSymbol>, std::set<size_t>>
 mutform2count4vec_to_simplemut2indices(
-        //std::vector<std::pair<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>>> mutform2count4vec
         std::vector<HapLink> mutform2count4vec) {
     
     std::map<std::pair<uvc1_refgpos_t, AlignmentSymbol>, std::set<size_t>> simplemut2indices;
@@ -518,8 +517,6 @@ process_batch(BatchArg & arg, const T & tid_pos_symb_to_tkis) {
     assert(((baq_offsetarr.getExcluEndPosition() - baq_offsetarr.getIncluBegPosition()) == UNSIGN2SIGN(region_repeatvec.size())) 
             || !fprintf(stderr, "%d - %d == %lu failed (baq == repeat in size)!\n", baq_offsetarr.getExcluEndPosition(), baq_offsetarr.getIncluBegPosition(), region_repeatvec.size()));
     
-    // std::vector<std::pair<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>>> mutform2count4vec_bq;
-    // std::vector<std::pair<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>>> mutform2count4vec_fq;
     std::vector<HapLink> mutform2count4vec_bq;
     std::vector<HapLink> mutform2count4vec_fq;
     std::vector<HapLink> mutform2count4vec_f2q;

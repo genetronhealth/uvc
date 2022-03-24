@@ -1487,8 +1487,6 @@ dealwith_segbias(
         symbol_to_seg_format_depth_set.seginfo_aNC += 1;
     }
     
-    //symbol_to_seg_format_depth_set.seginfo_aLPT += seg_l_nbases;
-    //symbol_to_seg_format_depth_set.seginfo_aRPT += seg_r_nbases;
     if (isrc) {
         symbol_to_seg_format_depth_set.seginfo_aLIT += ((aln->core.isize != 0) ? frag_l_nbases2 : 0);
     } else {
@@ -1623,47 +1621,6 @@ dealwith_segbias(
         }
         symbol_to_seg_format_depth_set.seginfo_aBQ2 += 1;
     }
-    /*
-    if (((!isGap) && bq >= paramset.bias_thres_highBQ) || (isGap && dist_to_interfering_indel >= paramset.bias_thres_interfering_indel)) {
-        if (is_far_from_edge) {
-            const bool is_l1_unbiased = (seg_l_nbases + indel_len >= seg_format_thres_set.segthres_aLP1t);
-            const bool is_l2_unbiased = (seg_l_nbases + indel_len >= seg_format_thres_set.segthres_aLP2t);
-            const bool is_r1_unbiased = (seg_r_nbases >= seg_format_thres_set.segthres_aRP1t);
-            const bool is_r2_unbiased = (seg_r_nbases >= seg_format_thres_set.segthres_aRP2t);
-            if (is_l1_unbiased) {
-                symbol_to_seg_format_depth_set.seginfo_aLP1 += 1;
-            }
-            if (is_l2_unbiased && (isGap || bq >= bias_thres_veryhighBQ)) {
-                symbol_to_seg_format_depth_set.seginfo_aLP2 += 1;
-            }
-            if (is_r1_unbiased) {
-                symbol_to_seg_format_depth_set.seginfo_aRP1 += 1;
-            }
-            if (is_r2_unbiased && (isGap || bq >= bias_thres_veryhighBQ)) {
-                symbol_to_seg_format_depth_set.seginfo_aRP2 += 1;
-            }
-            symbol_to_seg_format_depth_set.seginfo_aLPL += seg_l_nbases;
-            symbol_to_seg_format_depth_set.seginfo_aRPL += seg_r_nbases;
-        }
-        if (is_unaffected_by_edge) {
-            if (seg_l_baq >= paramset.bias_thres_BAQ1) {
-                symbol_to_seg_format_depth_set.seginfo_aLB1 += 1;
-            }
-            if (seg_l_baq >= paramset.bias_thres_BAQ2 && (isGap || bq >= bias_thres_veryhighBQ)) {
-                symbol_to_seg_format_depth_set.seginfo_aLB2 += 1;
-            }
-            if (seg_r_baq >= paramset.bias_thres_BAQ1) {
-                symbol_to_seg_format_depth_set.seginfo_aRB1 += 1;
-            }
-            if (seg_r_baq >= paramset.bias_thres_BAQ2 && (isGap || bq >= bias_thres_veryhighBQ)) {
-                symbol_to_seg_format_depth_set.seginfo_aRB2 += 1;
-            }
-            symbol_to_seg_format_depth_set.seginfo_aLBL += seg_l_baq;
-            symbol_to_seg_format_depth_set.seginfo_aRBL += seg_r_baq;
-        }
-        symbol_to_seg_format_depth_set.seginfo_aBQ2 += 1;
-    }
-    */
     const bool is_l_nonbiased = (((0 == (aln->core.flag & 0x8)) || (0 == (aln->core.flag & 0x1))) && seg_l_nbases > seg_r_nbases);
     const bool is_r_nonbiased = (((0 == (aln->core.flag & 0x8)) || (0 == (aln->core.flag & 0x1))) && seg_l_nbases < seg_r_nbases);
     // rc : test if the left-side of the insert is biased, and vice versa.
@@ -2795,7 +2752,7 @@ auto & fam_info_set = this->symbol_to_fam_format_info_sets.getRefByPos(rpos)[con
 
 const bool isGap = (LINK_SYMBOL == symboltype);
 const uvc1_qual_t bq = 90; // very big
-const uvc1_refgpos_t dist_to_interfering_indel = 1024*1024; // very big
+const uvc1_refgpos_t dist_to_interfering_indel = 1024*1024; // very big, TODO: check validity?
 if (((!isGap) && bq >= paramset.bias_thres_highBQ) || (isGap && dist_to_interfering_indel >= paramset.bias_thres_highBQ)) { 
         const auto  bias_thres_veryhighBQ = paramset.bias_thres_highBQ;
         const bool is_BQ_high_enough_for_tier2 = (isGap || bq >= bias_thres_veryhighBQ);
@@ -3200,7 +3157,6 @@ if (paramset.fam_consensus_out_fastq.size() > 0) {
     };
     
     template <class T1>
-    // std::vector<std::pair<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>>>
     std::vector<HapLink>
     updateHapMap(const std::map<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>> & mutform2count4map, 
             const T1 & tsum_depth,
@@ -3208,7 +3164,6 @@ if (paramset.fam_consensus_out_fastq.size() > 0) {
             uvc1_readnum_t phasing_haplotype_min_ad,
             uvc1_readnum_t phasing_haplotype_max_detail_cnt) {
         
-        // std::vector<std::pair<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>>> ret;
         std::vector<HapLink> ret;
         
         std::vector<std::tuple<uvc1_readnum_t, std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>>> count_mutform_vec;
@@ -3260,7 +3215,6 @@ if (paramset.fam_consensus_out_fastq.size() > 0) {
                 haplo_totDP += tsum_depth_2.getByPos(simplemut.first);
             }
             if (haplo_totDP > INT64MUL(phasing_haplotype_max_count, UNSIGN2SIGN(mutform.size()))) { continue; }
-            // ret.push_back(std::make_pair(std::get<1>(count_mutform_count), std::get<2>(count_mutform_count)));
             const auto count = std::get<2>(count_mutform_count);
             const auto haplink = HapLink(mutform, count, 
                     ((i >= num_dst_mutforms) 
@@ -3273,8 +3227,6 @@ if (paramset.fam_consensus_out_fastq.size() > 0) {
     
     int 
     updateByRegion3Aln(
-            //std::vector<std::pair<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>>> & mutform2count4vec_bq,
-            //std::vector<std::pair<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>>> & mutform2count4vec_fq,
             std::array<std::string, 3> & fastq_outstrings,
             std::vector<HapLink> & mutform2count4vec_bq,
             std::vector<HapLink> & mutform2count4vec_fq,
@@ -4268,16 +4220,19 @@ BcfFormat_symbol_calc_DPv(
             aPFFA * paramset.lib_nonwgs_normal_min_self_rescue_fa_ratio, 
             aPFFA));
     const double counterbias_FA = MAX3(counterbias_P_FA, counterbias_BQ_FA, counterbias_normalgerm_FA);
+    // These two variables were applied to sequencing segments and PCR fragments, respectively. 
+    // However, it makes more senses to classify according to their resemblance with tier-2-UMI-related bias-reduce allele fractions.
+    // Hence, these two variables are no longer used. 
     // double min_aFA = MAX(MIN(MIN(tier1_selfplus_aFA_min, tier1_selfonly_aFA_min), aNCFA), counterbias_FA);
-    
+    // double min_bcFA = MAX(MIN3(bFA, cFA0, cROFA1), counterbias_FA);
+
     double dedup_FA = ((NOT_PROVIDED == paramset.vcf_tumor_fname) ? MIN(bFA, cFA0) : (MAX(bFA, cFA0)));
-    double min_bcFA = MAX(MIN3(bFA, cFA0, cROFA1), counterbias_FA);
-    
-    // TODO: find the theory for the following three lines of code.
-    double frac_umi2seg1 = MIN(1.0, c23FA / aDPFA);
-    double frac_umi2seg2 = MIN(1.0, cFA0 / c23FA);
-    double frac_umi2seg = (frac_umi2seg1 * frac_umi2seg2);
-    
+        
+    double frac_umi2seg = MIN3(1.0, 
+            c23FA / aDPFA, // assuming sequencing-segment bias is proportionally reduced into UMI-consensus families.
+            aDPFA / c23FA  // assuming original copies are under-amplified so that sequencing-segment bias is amplified to compensate
+    );
+
     double refbias = 0;
     if ((isSymbolIns(symbol) || isSymbolDel(symbol)) && is_rescued) {
         const uvc1_readpos_t indel_noinfo_nbases = (UNSIGN2SIGN(indelstring.size()) * (isSymbolIns(symbol) ? 2 : 1) 

@@ -533,8 +533,6 @@ struct SegFormatInfoSet {
     uvc1_readnum_t seginfo_aRIf;
     uvc1_readnum_t seginfo_aLIr;
 
-    //uvc1_readpos_t seginfo_aLPT;
-    //uvc1_readpos_t seginfo_aRPT;
     uvc1_readpos_big_t seginfo_aLIT;
     uvc1_readpos_big_t seginfo_aRIT;
 };
@@ -574,14 +572,6 @@ enum FamFormatDepthSet {
     FAM_cDPm, // duped mismatch
     FAM_cDP21, // singleton
     
-    // Insert bias is prevalent in ctDNA sequencing
-    /*
-    FAM_c2LI1; // left insert
-    FAM_c2LI2; 
-    FAM_c2RI1; // left insert
-    FAM_c2RI2; 
-    */
-
     FAM_FORMAT_DEPTH_SET_END
 };
 #define NUM_FAM_FORMAT_DEPTH_SETS ((size_t)FAM_FORMAT_DEPTH_SET_END)
