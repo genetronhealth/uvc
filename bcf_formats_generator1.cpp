@@ -311,7 +311,8 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("c2BQ2" , BCF_NUM_R, BCF_INTEGER, "SSCS depth unaffected by tier-2 base quality bias. ").sscs(),
     BcfFormatStruct("C2BQ2" , 2,1,       BCF_INTEGER, "SSCS depth unaffected by tier-2 base quality bias. ").sscs(),
     
-    BcfFormatStruct("_C2XP" , 1,         BCF_SEP,     "Raw sequencing segment statistics related to position bias on the left side. ").sscs(),
+    BcfFormatStruct("_C2XP" , 1,         BCF_SEP,     "SSCS statistics related to position bias. "
+                                         "If this tag is present and absent, then all SSCS-related tags are all present and absent, respectively. ").sscs(),
     BcfFormatStruct("c2LP1" , BCF_NUM_R, BCF_INTEGER, "SSCS depth unaffected by tier-1 left-side position bias. ").sscs(),
     BcfFormatStruct("c2LP2" , BCF_NUM_R, BCF_INTEGER, "SSCS depth unaffected by tier-2 left-side position bias. ").sscs(),
     BcfFormatStruct("C2LP2" , 2,1,       BCF_INTEGER, "SSCS depth unaffected by tier-2 left-side position bias. ").sscs().not_put_in_vcf(),    
@@ -323,7 +324,7 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("c2RPL" , BCF_NUM_R, BCF_S64_INT, "Raw summed distance (number of bases) to the right-side tier-2 SSCS end. ").sscs(),
     BcfFormatStruct("C2RPL" , 2,1,       BCF_S64_INT, "Raw summed distance (number of bases) to the right-side tier-2 SSCS end. ").sscs().not_put_in_vcf(),
     
-    BcfFormatStruct("_C2XB" , 1,         BCF_SEP,     "Raw sequencing segment statistics related to base-alignment-quality (BAQ) bias on the left side. ").sscs(),
+    BcfFormatStruct("_C2XB" , 1,         BCF_SEP,     "SSCS statistics related to alignment quality bias. ").sscs(),
     BcfFormatStruct("c2LB1" , BCF_NUM_R, BCF_INTEGER, "SSCS depth unaffected by tier-1 left-side base-alignment bias. ").sscs(),
     BcfFormatStruct("c2LB2" , BCF_NUM_R, BCF_INTEGER, "SSCS depth unaffected by tier-2 left-side base-alignment bias. ").sscs(),
     BcfFormatStruct("C2LB2" , 2,1,       BCF_INTEGER, "SSCS depth unaffected by tier-2 left-side position bias. ").sscs().not_put_in_vcf(),
