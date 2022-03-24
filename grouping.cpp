@@ -1,6 +1,9 @@
 #include "grouping.hpp"
 #include "logging.hpp"
 
+#define MAX_NUM_REF_BASES (1000*1000)
+#define MAX_NUM_READS (2000*1000)
+
 #define UPDATE_MIN(a, b) ((a) = MIN((a), (b)));
 // position of 5' is the starting position, but position of 3' is unreliable without mate info.
 const uvc1_readpos_t ARRPOS_MARGIN = MAX_INSERT_SIZE;
@@ -98,7 +101,7 @@ SamIter::iternext(std::vector<bedline_t> & tid_beg_end_e2e_vec) {
             tid_beg_end_e2e_vec.push_back(bedreg);
             nreads_tot += std::get<4>(bedreg);
             region_tot += std::get<2>(bedreg) - std::get<1>(bedreg);
-            if (nreads_tot > UNSIGN2SIGN(2000*1000 * nthreads) || region_tot > UNSIGN2SIGN(1000*1000 * nthreads)) {
+            if (nreads_tot > UNSIGN2SIGN(MAX_NUM_READS * nthreads) || region_tot > UNSIGN2SIGN(MAX_NUM_REF_BASES * nthreads)) {
                 this->_bedregion_idx++;
                 return ret;
             }
@@ -154,7 +157,7 @@ SamIter::iternext(std::vector<bedline_t> & tid_beg_end_e2e_vec) {
             }
             nreads = prev_nreads;
             nreads += 1;
-            if (nreads_tot > UNSIGN2SIGN(2000*1000 * nthreads) || region_tot > UNSIGN2SIGN(1000*1000 * nthreads)) {
+            if (nreads_tot > UNSIGN2SIGN(MAX_NUM_READS * nthreads) || region_tot > UNSIGN2SIGN(MAX_NUM_REF_BASES * nthreads)) {
                 return ret;
             }
         } else {
