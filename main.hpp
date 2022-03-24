@@ -3805,8 +3805,12 @@ calc_normFA_from_rawFA_refbias(double FA, double refbias) {
 
 template <class T1, class T2, class T3>
 int
-fmt_bias_push(T1 & vecFA, const T2 refFA, const T3 biasFA, const double thresFAratio, std::string & fts, const std::string & ft) {
+fmt_bias_push(T1 & vecFA, const T2 refFA, const T3 biasFA, const double thresFAratio, std::vector<std::string> & ftss, const std::string & ft) {
     vecFA.push_back(-numstates2deciphred(biasFA));
+    if (ftss.size() == 0) {
+        ftss.push_back("");
+    }
+    std::string & fts = ftss[ftss.size()-1];
     if (biasFA * thresFAratio < refFA) {
         if (fts.size() > 0) { fts += std::string("&"); }
         fts += ft;
@@ -4178,20 +4182,27 @@ BcfFormat_symbol_calc_DPv(
     clear_push(fmt.bNMQ, bNMQ);
     
     // end of computation of systematic error
-    
-    auto min_aFA_vec = std::vector<double>{{
+    const auto tier1_selfonly_aFA_vec = std::vector<double>{{
             aDPFA * BETWEEN(1.0 + aDPFA - alt_frac_mut_affected_tpos, 0.1, 1.0),
             aLPFA2,
             aRPFA2,
             aLBFA2,
             aRBFA2,
+            bFA, 
+            cFA0, 
+            cROFA1
+            }};
+    const auto tier1_selfonly_aFA_min = MINVEC(tier1_selfonly_aFA_vec);
+    
+    const auto tier1_selfplus_aFA_vec = std::vector<double>{{
             aLIFA2,
             aRIFA2,
             aSSFA2,
             aPFFA * aSSFA2 / MAX(aSSFA2, aSSFAx2[1]),
-            MAX(aDPFA * 0.01, aSIFA),
+            MAX(aDPFA * 0.01, aSIFA)
             }};
-    
+    const auto tier1_selfplus_aFA_min = MINVEC(tier1_selfplus_aFA_vec);
+
     fmt.nNFA.push_back(-numstates2deciphred(counterbias_P_FA));
     fmt.nNFA.push_back(-numstates2deciphred(counterbias_BQ_FA));
     
@@ -4201,38 +4212,42 @@ BcfFormat_symbol_calc_DPv(
     fmt.nNFA.push_back(-numstates2deciphred(cFA2));
     //fmt.nNFA.push_back(-numstates2deciphred(cFA3));
 
-    fmt_bias_push(fmt.nAFA,  aDPFA,  aSSFA2, paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::aSB]);
+    fmt_bias_push(fmt.nAFA,  aDPFA,  aSSFA2, paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::aStrand]);
     fmt_bias_push(fmt.nAFA,  aDPFA,  aPFFA,  paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::aBQXM]);
-    fmt_bias_push(fmt.nAFA,  aDPFA,  aSIFA,  paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::aSinsert]);
+    fmt_bias_push(fmt.nAFA,  aDPFA,  aSIFA,  paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::aInsertSize]);
+    
+    fmt_bias_push(fmt.nAFA,  aDPFA,  aLBFA2, paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::aAlignL]);
+    fmt_bias_push(fmt.nAFA,  aDPFA,  aRBFA2, paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::aAlignR]);
+    fmt_bias_push(fmt.nAFA,  aDPFA,  aLPFA2, paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::aPositionL]);
+    fmt_bias_push(fmt.nAFA,  aDPFA,  aRPFA2, paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::aPositionR]);
 
-    fmt_bias_push(fmt.nAFA,  aDPFA,  aLBFA2, paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::aBAQ_L]);
-    fmt_bias_push(fmt.nAFA,  aDPFA,  aRBFA2, paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::aBAQ_R]);
-    fmt_bias_push(fmt.nAFA,  aDPFA,  aLPFA2, paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::aPos_L]);
-    fmt_bias_push(fmt.nAFA,  aDPFA,  aRPFA2, paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::aPos_R]);
-
-    fmt_bias_push(fmt.nAFA,  aDPFA,  aLIFA2, paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::abPos_L]);
-    fmt_bias_push(fmt.nAFA,  aDPFA,  aRIFA2, paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::abPos_R]);
+    fmt_bias_push(fmt.nAFA,  aDPFA,  aLIFA2, paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::abPositionL]);
+    fmt_bias_push(fmt.nAFA,  aDPFA,  aRIFA2, paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::abPositionR]);
     
     fmt_bias_push(fmt.nBCFA, bFA,    cFA0,   paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::bcDup]);
     fmt_bias_push(fmt.nBCFA, cFA0,   bFA,    paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::cbDup]);
-    fmt_bias_push(fmt.nBCFA, cFA0,  cROFA1,  paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::c0Rorient]);
-    fmt_bias_push(fmt.nBCFA, cFA2,  cROFA2,  paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::c2Rorient]);
+    fmt_bias_push(fmt.nBCFA, cFA0,  cROFA1,  paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::c0Orientation]);
+    fmt_bias_push(fmt.nBCFA, cFA2,  cROFA2,  paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::c2Orientation]);
     
-    fmt_bias_push(fmt.nBCFA, cFA2,  c2LPFA2, paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::c2BAQ_L]);
-    fmt_bias_push(fmt.nBCFA, cFA2,  c2RPFA2, paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::c2BAQ_R]);
-    fmt_bias_push(fmt.nBCFA, cFA2,  c2LBFA2, paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::c2Pos_L]);
-    fmt_bias_push(fmt.nBCFA, cFA2,  c2RBFA2, paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::c2Pos_R]);
+    fmt_bias_push(fmt.nBCFA, cFA2,  c2LPFA2, paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::c2AlignL]);
+    fmt_bias_push(fmt.nBCFA, cFA2,  c2RPFA2, paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::c2AlignR]);
+    fmt_bias_push(fmt.nBCFA, cFA2,  c2LBFA2, paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::c2PositionL]);
+    fmt_bias_push(fmt.nBCFA, cFA2,  c2RBFA2, paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::c2PositionR]);
     
-    auto min_c2FA_vec = std::vector<double>{{
+    auto min_cFA23_vec = std::vector<double> {{ cFA2, cFA3 }};
+    double c23FA = MINVEC(min_cFA23_vec);
+
+    auto tier2_selfonly_c2FA_vec = std::vector<double>{{
+            c23FA,
             cROFA2,
             c2LPFA2,
             c2RPFA2,
             c2LBFA2,
             c2RBFA2}};
-    double c2biasFA = MINVEC(min_c2FA_vec);
+    double tier2_selfonly_c2FA_min = MINVEC(tier2_selfonly_c2FA_vec);
     
     if (fmt.FTS.size() == 0) {
-        fmt.FTS = "PASS";
+        fmt.FTS = std::vector<std::string> {{ "PASS" }};
     }
     
     // non-WGS clipping penalty for InDels
@@ -4250,18 +4265,14 @@ BcfFormat_symbol_calc_DPv(
             aPFFA * paramset.lib_nonwgs_normal_min_self_rescue_fa_ratio, 
             aPFFA));
     const double counterbias_FA = MAX3(counterbias_P_FA, counterbias_BQ_FA, counterbias_normalgerm_FA);
-    double min_aFA = MAX(MIN(MINVEC(min_aFA_vec), aNCFA), counterbias_FA);
+    // double min_aFA = MAX(MIN(MIN(tier1_selfplus_aFA_min, tier1_selfonly_aFA_min), aNCFA), counterbias_FA);
     
     double dedup_FA = ((NOT_PROVIDED == paramset.vcf_tumor_fname) ? MIN(bFA, cFA0) : (MAX(bFA, cFA0)));
     double min_bcFA = MAX(MIN3(bFA, cFA0, cROFA1), counterbias_FA);
     
-    auto min_cFA23_vec = std::vector<double> {{ cFA2, cFA3 }};
-    
-    double umi_cFA = MINVEC(min_cFA23_vec);
-    
     // TODO: find the theory for the following three lines of code.
-    double frac_umi2seg1 = MIN(1.0, umi_cFA / aDPFA);
-    double frac_umi2seg2 = MIN(1.0, cFA0 / umi_cFA);
+    double frac_umi2seg1 = MIN(1.0, c23FA / aDPFA);
+    double frac_umi2seg2 = MIN(1.0, cFA0 / c23FA);
     double frac_umi2seg = (frac_umi2seg1 * frac_umi2seg2);
     
     double refbias = 0;
@@ -4272,12 +4283,13 @@ BcfFormat_symbol_calc_DPv(
         refbias = MIN(refbias, paramset.microadjust_refbias_indel_max);
     }
     // non-UMI push
-    double min_abcFA_v = MAX(MIN(min_aFA, min_bcFA), counterbias_FA);
+    double min_abcFA_v = MAX(MIN(MIN(tier1_selfplus_aFA_min, tier1_selfonly_aFA_min), aNCFA), counterbias_FA);
     clear_push(fmt.cDP1v, (uvc1_readnum100x_t)(calc_normFA_from_rawFA_refbias(min_abcFA_v, refbias) * (fmt.CDP1f[0] +fmt.CDP1r[0]) * 100), a);
     double min_abcFA_w = MAX(MINVEC(std::vector<double>{{
             aLPFA2, aRPFA2,
             aLBFA2, aRBFA2,
-            bFA, aNCFA}}), counterbias_FA);
+            bFA, 
+            aNCFA}}), counterbias_FA);
     clear_push(fmt.cDP1w, (uvc1_readnum100x_t)(calc_normFA_from_rawFA_refbias(min_abcFA_w, refbias) * (fmt.CDP1f[0] +fmt.CDP1r[0]) * 100), a);
     double min_abcFA_x = MINVEC(std::vector<double>{{ aPFFA, dedup_FA }});
     if (NOT_PROVIDED != paramset.vcf_tumor_fname) {
@@ -4286,23 +4298,16 @@ BcfFormat_symbol_calc_DPv(
     clear_push(fmt.cDP1x, 1+(uvc1_readnum100x_t)                                       (min_abcFA_x * (fmt.CDP1f[0] +fmt.CDP1r[0]) * 100), a);
     
     // UMI push
-    clear_push(fmt.cDP2v, (uvc1_readnum100x_t)(calc_normFA_from_rawFA_refbias(MIN(min_aFA * frac_umi2seg, c2biasFA), refbias) 
-            * (fmt.CDP2f[0] + fmt.CDP2r[0]) * 100), a);
-    double umi_cFA_w = MINVEC(std::vector<double>{{
-            aLPFA2 * frac_umi2seg, aRPFA2 * frac_umi2seg,
-            aLBFA2 * frac_umi2seg, aRBFA2 * frac_umi2seg,
-            aDPFA * frac_umi2seg,
-            c2biasFA
-            }});
-    clear_push(fmt.cDP2w, (uvc1_readnum100x_t)(calc_normFA_from_rawFA_refbias(umi_cFA_w, refbias) 
-            * (fmt.CDP2f[0] + fmt.CDP2r[0]) * 100), a);
-    double umi_cFA_x = MINVEC(std::vector<double>{{ 
-            aPFFA * frac_umi2seg,
-            aDPFA * frac_umi2seg,
-            c2biasFA
-            }});
-    clear_push(fmt.cDP2x, 1+(uvc1_readnum100x_t)(MIN(umi_cFA_x 
-            * (fmt.CDP2f[0] + fmt.CDP2r[0]), fmt.cDP2f[a] +fmt.cDP2r[a]) * 100), a);
+    double min_c23FA_v = MAX(MIN(MIN(tier1_selfplus_aFA_min * frac_umi2seg, tier2_selfonly_c2FA_min), aNCFA * frac_umi2seg), counterbias_FA * frac_umi2seg);
+    clear_push(fmt.cDP2v, (uvc1_readnum100x_t)(calc_normFA_from_rawFA_refbias((min_c23FA_v), refbias) * (fmt.CDP2f[0] + fmt.CDP2r[0]) * 100), a);
+    double min_c23FA_w = MAX(MINVEC(std::vector<double>{{
+            c2LPFA2, c2RPFA2,
+            c2LBFA2, c2RBFA2,
+            cFA2,
+            aNCFA * frac_umi2seg}}), counterbias_FA * frac_umi2seg);
+    clear_push(fmt.cDP2w, (uvc1_readnum100x_t)(calc_normFA_from_rawFA_refbias(min_c23FA_w, refbias) * (fmt.CDP2f[0] + fmt.CDP2r[0]) * 100), a);
+    double min_c23FA_x = MINVEC(std::vector<double>{{ aPFFA * frac_umi2seg, c23FA }});
+    clear_push(fmt.cDP2x, 1+(uvc1_readnum100x_t)                                      ((min_c23FA_x * (fmt.CDP2f[0] + fmt.CDP2r[0])) * 100), a);
     
     return 0;
 };

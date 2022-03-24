@@ -84,25 +84,24 @@ const std::vector<std::pair<std::string, std::string>> FILTER_VEC = {
                                     "meaning the variant is under-amplified by PCR relative to all alleles. "),
     std::make_pair("cbDup",         "For FORMAT/FTS: Duplication bias for more-than-expected amplification of variant reads, "
                                     "meaning the variant is over-amplified by PCR relative to all alleles. "),
-    std::make_pair("aBaqL",         "For FORMAT/FTS: Alignment bias on the left mapping coordinate of the sequenced segment relative to all alleles. "),
-    std::make_pair("aBaqR",         "For FORMAT/FTS: Alignment bias on the right mapping coordinate of the sequenced segment relative to all alleles. "),
-    std::make_pair("aPosL",         "For FORMAT/FTS: Position bias on the left mapping coordinate of the sequenced segment relative to all alleles. "),
-    std::make_pair("aPosR",         "For FORMAT/FTS: Position bias on the right mapping coordinate of the sequenced segment relative to all alleles. "),
+    std::make_pair("aAlignL",       "For FORMAT/FTS: Alignment bias on the left mapping coordinate of the sequenced segment relative to all alleles. "),
+    std::make_pair("aAlignR",       "For FORMAT/FTS: Alignment bias on the right mapping coordinate of the sequenced segment relative to all alleles. "),
+    std::make_pair("aPositionL",    "For FORMAT/FTS: Position bias on the left mapping coordinate of the sequenced segment relative to all alleles. "),
+    std::make_pair("aPositionR",    "For FORMAT/FTS: Position bias on the right mapping coordinate of the sequenced segment relative to all alleles. "),
     
-    std::make_pair("abPosL",        "For FORMAT/FTS: Position bias on the left mapping coordinate of the insert relative to all alleles. "),
-    std::make_pair("abPosR",        "For FORMAT/FTS: Position bias on the right mapping coordinate of the insert relative to all alleles. "),
+    std::make_pair("abPositionL",   "For FORMAT/FTS: Position bias on the left mapping coordinate of the insert relative to all alleles. "),
+    std::make_pair("abPositionR",   "For FORMAT/FTS: Position bias on the right mapping coordinate of the insert relative to all alleles. "),
     
-    std::make_pair("aSB",           "For FORMAT/FTS: Strand bias relative to all alleles. "),
+    std::make_pair("aStrand",       "For FORMAT/FTS: Strand bias relative to all alleles. "),
     
+    std::make_pair("c0Orientation", "For FORMAT/FTS: Read-orientation bias using de-duplicated reads families "
+                                     "passing the base-quality threshold for generating UMI-barcode families relative to all alleles. "),
+    std::make_pair("c2Orientation", "For FORMAT/FTS: Read-orientation bias using tier-2 UMI-barcode families relative to all alleles. "),
     
-    std::make_pair("c0ReadOrient",  "For FORMAT/FTS: Read-orientation bias using de-duplicated reads families "
-                                    "passing the base-quality threshold for generating UMI-barcode families relative to all alleles. "),
-    std::make_pair("c2ReadOrient",  "For FORMAT/FTS: Read-orientation bias using tier-2 UMI-barcode families relative to all alleles. "),
-    
-    std::make_pair("c2BAQ_L",       "For FORMAT/FTS: Alignment bias on the left mapping coordinate of the tier-2 single-strand consensus sequence (SSCS) relative to all alleles. "),
-    std::make_pair("c2BAQ_R",       "For FORMAT/FTS: Alignment bias on the right mapping coordinate of the tier-2 single-strand consensus sequence (SSCS) relative to all alleles. "),
-    std::make_pair("c2Pos_L",       "For FORMAT/FTS: Position bias on the left mapping coordinate of the tier-2 single-strand consensus sequence (SSCS) relative to all alleles. "),
-    std::make_pair("c2Pos_R",       "For FORMAT/FTS: Position bias on the right mapping coordinate of the tier-2 single-strand consensus sequence (SSCS) relative to all alleles. "),
+    std::make_pair("c2AlignL",      "For FORMAT/FTS: Alignment bias on the left mapping coordinate of the tier-2 single-strand consensus sequence (SSCS) relative to all alleles. "),
+    std::make_pair("c2AlignR",      "For FORMAT/FTS: Alignment bias on the right mapping coordinate of the tier-2 single-strand consensus sequence (SSCS) relative to all alleles. "),
+    std::make_pair("c2PositionL",   "For FORMAT/FTS: Position bias on the left mapping coordinate of the tier-2 single-strand consensus sequence (SSCS) relative to all alleles. "),
+    std::make_pair("c2PositionR",   "For FORMAT/FTS: Position bias on the right mapping coordinate of the tier-2 single-strand consensus sequence (SSCS) relative to all alleles. "),
 };
 
 struct BcfFormatStruct {
