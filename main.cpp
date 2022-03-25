@@ -1276,7 +1276,7 @@ main(int argc, char **argv) {
     std::vector<std::tuple<uvc1_refgpos_t, uvc1_refgpos_t, uvc1_refgpos_t, bool, uvc1_readnum_t>> tid_beg_end_e2e_tuple_vec2;
     std::map<std::tuple<uvc1_refgpos_t, uvc1_refgpos_t, AlignmentSymbol>, std::vector<TumorKeyInfo>> tid_pos_symb_to_tkis1; 
     std::map<std::tuple<uvc1_refgpos_t, uvc1_refgpos_t, AlignmentSymbol>, std::vector<TumorKeyInfo>> tid_pos_symb_to_tkis2; 
-    SamIter samIter(paramset.bam_input_fname, paramset.tier1_target_region, paramset.bed_region_fname, nthreads); 
+    SamIter samIter(paramset);
     int64_t n_sam_iters = 0;
     int64_t iter_nreads = samIter.iternext(tid_beg_end_e2e_tuple_vec1);
     LOG(logINFO) << "PreProcessed " << iter_nreads << " reads in super-contig no " << (n_sam_iters);

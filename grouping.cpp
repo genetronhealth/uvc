@@ -5,11 +5,13 @@
 //#define MAX_NUM_READS (2000*1000)
 
 // at 150*16 average sequencing depth, the two below amount of bytes are approx equal to each other.
-#define NUM_BYTES_PER_GENOMIC_POS ((uint64_t)(1024*8)) // estimated
-#define NUM_BYTES_PER_READ ((uint64_t)(512)) // estimated
-#define MAX_BYTES_PER_THREAD ((uint64_t)(768*1000*1000)) // from samtools sort 1.11
+#define NUM_BYTES_PER_GENOMIC_POS ((int64_t)(1024*8)) // estimated
+#define NUM_BYTES_PER_READ ((int64_t)(512)) // estimated
 
 #define UPDATE_MIN(a, b) ((a) = MIN((a), (b)));
+// x1 and y1 are inclusive whereas x2 and y2 are exclusive
+#define ARE_INTERVALS_OVERLAPPING(x1, x2, y1, y2) (!(((x2) <= (y1)) || (((y2) <= (x1)))))
+
 // position of 5' is the starting position, but position of 3' is unreliable without mate info.
 const uvc1_readpos_t ARRPOS_MARGIN = MAX_INSERT_SIZE;
 const uvc1_readpos_t ARRPOS_OUTER_RANGE = 10;
@@ -91,32 +93,49 @@ bed_fname_to_contigs(
     return 0;
 }
 
-int 
+int64_t
 SamIter::iternext(std::vector<bedline_t> & tid_beg_end_e2e_vec) {
-    int ret = 0;
     uvc1_readnum_t nreads_tot = 0;
     uvc1_readnum_t region_tot = 0;
     uvc1_readnum_t nreads_max = 0;
     uvc1_readnum_t region_max = 0;
-    
+    int64_t sizeofRAM = 0;
     if (NOT_PROVIDED != region_bed_fname) {
         for (; this->_bedregion_idx < this->_tid_beg_end_e2e_vec.size(); this->_bedregion_idx++) {
-            ret++;
+            //ret++;
             const auto & bedreg = (this->_tid_beg_end_e2e_vec[this->_bedregion_idx]);
             tid_beg_end_e2e_vec.push_back(bedreg);
+            const auto bed_tid = std::get<0>(bedreg);
+            const auto bed_beg = std::get<1>(bedreg);
+            const auto bed_end = std::get<2>(bedreg);
+            int64_t nreads = 1; // read potentially left from the previous iteration
+            if (bed_in_avg_sequencing_DP != -1) {
+                nreads = bed_in_avg_sequencing_DP; 
+            } else {
+                while (    (NULL == sam_idx && (sam_read1(this->sam_infile, this->samheader, alnrecord) >= 0))
+                        || (NULL != sam_idx && (sam_itr_next(this->sam_infile, this->sam_itr, alnrecord) >= 0))) {
+                    if ((bed_tid == alnrecord->core.tid) && 
+                            ARE_INTERVALS_OVERLAPPING(bed_beg, bed_end, alnrecord->core.pos, bam_endpos(alnrecord))) {
+                        nreads++;
+                    } else if ((bed_tid < alnrecord->core.tid) || ((bed_tid == alnrecord->core.tid) && (bed_end <= alnrecord->core.pos))) {
+                        break;
+                    }
+                }
+            }
+            sizeofRAM += INT64MUL(NUM_BYTES_PER_GENOMIC_POS, std::get<2>(bedreg) - std::get<1>(bedreg)) + INT64MUL(NUM_BYTES_PER_READ, std::get<4>(bedreg));
             nreads_tot += std::get<4>(bedreg);
             region_tot += std::get<2>(bedreg) - std::get<1>(bedreg);
-            if (((NUM_BYTES_PER_GENOMIC_POS * region_tot) + (NUM_BYTES_PER_READ * nreads_tot)) > (MAX_BYTES_PER_THREAD * nthreads)) {
+            if (sizeofRAM > INT64MUL(this->mem_per_thread, (1024*1024) * nthreads)) {
                 this->_bedregion_idx++;
-                return ret;
+                return sizeofRAM;
             }
         }
-        return ret;
+        return sizeofRAM;
     }
     while (    (NULL == sam_idx && (sam_read1(this->sam_infile, this->samheader, alnrecord) >= 0))
             || (NULL != sam_idx && (sam_itr_next(this->sam_infile, this->sam_itr, alnrecord) >= 0))) {
         NORM_INSERT_SIZE(alnrecord);
-        ret++;
+        //ret++;
         if (BAM_FUNMAP & alnrecord->core.flag) {
             continue;
         }
@@ -143,6 +162,7 @@ SamIter::iternext(std::vector<bedline_t> & tid_beg_end_e2e_vec) {
                 auto this_beg = MAX(MAX(prev_tbeg, prev_tend), tbeg / MGVCF_REGION_MAX_SIZE * MGVCF_REGION_MAX_SIZE);
                 auto this_end = MAX(MAX(prev_tbeg, prev_tend), tend);
                 tid_beg_end_e2e_vec.push_back(std::make_tuple(tid, this_beg, this_end, false, nreads));
+                sizeofRAM += INT64MUL(NUM_BYTES_PER_GENOMIC_POS, this_end - this_beg) + INT64MUL(NUM_BYTES_PER_READ, nreads);
                 prev_tbeg = this_beg;
                 prev_tend = this_end;
                 endingpos = INT32_MAX;
@@ -163,8 +183,8 @@ SamIter::iternext(std::vector<bedline_t> & tid_beg_end_e2e_vec) {
             nreads = prev_nreads;
             nreads += 1;
             // if (nreads_tot > UNSIGN2SIGN(MAX_NUM_READS * nthreads) || region_tot > UNSIGN2SIGN(MAX_NUM_REF_BASES * nthreads)) {
-            if (((NUM_BYTES_PER_GENOMIC_POS * region_tot) + (NUM_BYTES_PER_READ * nreads_tot)) > (MAX_BYTES_PER_THREAD * nthreads)) {
-                return ret;
+            if (sizeofRAM > INT64MUL(this->mem_per_thread, (1024*1024) * nthreads)) {
+                return sizeofRAM;
             }
         } else {
             tend = MAX(tend, SIGN2UNSIGN(bam_endpos(alnrecord)));
@@ -173,8 +193,9 @@ SamIter::iternext(std::vector<bedline_t> & tid_beg_end_e2e_vec) {
     }
     if (tid != -1) {
         tid_beg_end_e2e_vec.push_back(std::make_tuple(tid, tbeg, tend, false, nreads));
+        sizeofRAM += INT64MUL(NUM_BYTES_PER_GENOMIC_POS, tend - tbeg) + INT64MUL(NUM_BYTES_PER_READ, nreads);
     }
-    return ret;
+    return sizeofRAM;
 }
 
 int

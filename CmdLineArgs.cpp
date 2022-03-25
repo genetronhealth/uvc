@@ -177,7 +177,7 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
            max_cpu_num, 
         "Number of cpu cores or equivalently threads to use. ");
     ADD_OPTDEF2(app, mem_per_thread,
-        "Approximate amount of RAM, in terms of bytes, used per thread. Please note that this is not the exact amount consumed at runtime. ");
+        "Approximate amount of RAM, in terms of mega-bytes, used per thread. Please note that this is not the exact amount consumed at runtime. ");
     
     ADD_OPTDEF(app, 
         "--outvar-flag", 

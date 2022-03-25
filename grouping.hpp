@@ -33,7 +33,9 @@ struct SamIter {
     const std::string input_bam_fname;
     const std::string & tier1_target_region; 
     const std::string region_bed_fname;
-    const size_t nthreads;
+    const int64_t bed_in_avg_sequencing_DP;
+    const size_t nthreads; 
+    const int64_t mem_per_thread;
     samFile *sam_infile = NULL;
     bam_hdr_t *samheader = NULL;
     hts_idx_t *sam_idx = NULL; 
@@ -52,14 +54,13 @@ struct SamIter {
     std::vector<bedline_t> _tid_beg_end_e2e_vec;
     size_t _bedregion_idx = 0;
     
-    SamIter(const std::string & in_bam_fname, 
-            const std::string & tier1_target_reg, 
-            const std::string & reg_bed_fname, 
-            const uvc1_unsigned_int_t nt): 
-            input_bam_fname(in_bam_fname), 
-            tier1_target_region(tier1_target_reg), 
-            region_bed_fname(reg_bed_fname), 
-            nthreads(nt) {
+    SamIter(const CommandLineArgs &paramset):
+            input_bam_fname(paramset.bam_input_fname), 
+            tier1_target_region(paramset.tier1_target_region), 
+            region_bed_fname(paramset.bed_region_fname),
+            bed_in_avg_sequencing_DP(paramset.bed_in_avg_sequencing_DP),
+            nthreads(paramset.max_cpu_num),
+            mem_per_thread(paramset.mem_per_thread) {
         this->sam_infile = sam_open(input_bam_fname.c_str(), "r");
         if (NULL == this->sam_infile) {
             fprintf(stderr, "Failed to open the file %s!", input_bam_fname.c_str());
@@ -95,7 +96,7 @@ struct SamIter {
         sam_close(sam_infile);
     }
     
-    int 
+    int64_t
     iternext(std::vector<bedline_t> & tid_beg_end_e2e_vec);
 };
 
