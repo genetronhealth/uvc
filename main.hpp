@@ -4215,10 +4215,10 @@ BcfFormat_symbol_calc_DPv(
     fmt_bias_push(fmt.nBCFA, cFA0,  cROFA1,  paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::c0Orientation]);
     fmt_bias_push(fmt.nBCFA, cFA2,  cROFA2,  paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::c2Orientation]);
     
-    fmt_bias_push(fmt.nBCFA, cFA2,  c2LPFA2, paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::c2AlignL]);
-    fmt_bias_push(fmt.nBCFA, cFA2,  c2RPFA2, paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::c2AlignR]);
-    fmt_bias_push(fmt.nBCFA, cFA2,  c2LBFA2, paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::c2PositionL]);
-    fmt_bias_push(fmt.nBCFA, cFA2,  c2RBFA2, paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::c2PositionR]);
+    fmt_bias_push(fmt.nBCFA, cFA2,  c2LPFA2, paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::c2PositionL]);
+    fmt_bias_push(fmt.nBCFA, cFA2,  c2RPFA2, paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::c2PositionR]);
+    fmt_bias_push(fmt.nBCFA, cFA2,  c2LBFA2, paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::c2AlignL]);
+    fmt_bias_push(fmt.nBCFA, cFA2,  c2RBFA2, paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::c2AlignR]);
     
     auto min_cFA23_vec = std::vector<double> {{ cFA2, cFA3 }};
     double c23FA = MINVEC(min_cFA23_vec);
@@ -4287,9 +4287,10 @@ BcfFormat_symbol_calc_DPv(
     clear_push(fmt.cDP1x, 1+(uvc1_readnum100x_t)                                       (min_abcFA_x * (fmt.CDP1f[0] +fmt.CDP1r[0]) * 100), a);
     
     // UMI push
-    double min_c23FA_v = MAX(MIN(MIN(tier1_selfplus_aFA_min * frac_umi2seg, tier2_selfonly_c2FA_min), aNCFA * frac_umi2seg), counterbias_FA * frac_umi2seg);
-    clear_push(fmt.cDP2v, (uvc1_readnum100x_t)(calc_normFA_from_rawFA_refbias((min_c23FA_v), refbias) * (fmt.CDP2f[0] + fmt.CDP2r[0]) * 100), a);
     const auto c2XPFA2 = MAX((c2LPFA2 * c2RPFA2 / mathsquare(cFA2)), MIN(c2LPFA2, c2RPFA2) * 0.5); // if both left and right border are biased, then make position bias stronger
+    
+    double min_c23FA_v = MAX(MIN(MIN3(tier1_selfplus_aFA_min * frac_umi2seg, tier2_selfonly_c2FA_min, c2XPFA2), aNCFA * frac_umi2seg), counterbias_FA * frac_umi2seg);
+    clear_push(fmt.cDP2v, (uvc1_readnum100x_t)(calc_normFA_from_rawFA_refbias((min_c23FA_v), refbias) * (fmt.CDP2f[0] + fmt.CDP2r[0]) * 100), a);
     double min_c23FA_w = MAX(MINVEC(std::vector<double>{{
             c2LPFA2, c2RPFA2, c2XPFA2,
             c2LBFA2, c2RBFA2,
