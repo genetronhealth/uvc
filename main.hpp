@@ -4289,8 +4289,9 @@ BcfFormat_symbol_calc_DPv(
     // UMI push
     double min_c23FA_v = MAX(MIN(MIN(tier1_selfplus_aFA_min * frac_umi2seg, tier2_selfonly_c2FA_min), aNCFA * frac_umi2seg), counterbias_FA * frac_umi2seg);
     clear_push(fmt.cDP2v, (uvc1_readnum100x_t)(calc_normFA_from_rawFA_refbias((min_c23FA_v), refbias) * (fmt.CDP2f[0] + fmt.CDP2r[0]) * 100), a);
+    const auto c2XPFA2 = MAX((c2LPFA2 * c2RPFA2 / mathsquare(cFA2)), MIN(c2LPFA2, c2RPFA2) * 0.5); // if both left and right border are biased, then make position bias stronger
     double min_c23FA_w = MAX(MINVEC(std::vector<double>{{
-            c2LPFA2, c2RPFA2,
+            c2LPFA2, c2RPFA2, c2XPFA2,
             c2LBFA2, c2RBFA2,
             cFA2,
             aNCFA * frac_umi2seg}}), counterbias_FA * frac_umi2seg);
