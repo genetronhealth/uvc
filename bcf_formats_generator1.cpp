@@ -141,10 +141,10 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
                                               "(String, no white-space or semi-colons permitted)"),
     BcfFormatStruct("FTS", BCF_NUM_A, BCF_STRING, "Sample variant filter indicating if this variant was 'called' (similar in concept to the FILTER field). "
                                               "Again, use PASS to indicate that all filters have been passed, "
-                                              "an ampersand-separated list of codes for filters that fail, "
+                                              "a vertical bar (|)-separated list of codes for filters that fail, "
                                               "or '.' to indicate that filters have not been applied. "
                                               "These values should be described in the meta-information in the same way as FILTERs. "
-                                              "No white-space, semi-colons, or ampersand permitted. "),
+                                              "No white-space, semi-colons, or vertical bar (|) permitted. "),
     
     BcfFormatStruct("_A_"   , 1,         BCF_SEP,     "Summary statistics. "),
     BcfFormatStruct("DP"    , 1,         BCF_INTEGER, "Fragment depth of coverage with duplicates removed. "),
