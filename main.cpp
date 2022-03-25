@@ -877,6 +877,8 @@ process_batch(BatchArg & arg, const T & tid_pos_symb_to_tkis) {
                             ((is_var_rescued && (tki.VTI == LAST(fmt.VTI))) ? ((double)(tki.cDP1x + 1) / (double)(tki.CDP1x + 2)) : -1.0), /* tpfa */
                             tki,
                             refsymbol,
+                            symbolToCountCoverageSet12,
+                            refpos,
                             paramset,
                             0);
                     st_to_fmt_tki_tup_vec[symboltype].push_back(std::make_tuple(fmt, std::get<3>(bcad0a_indelstring_tki)));
@@ -924,6 +926,7 @@ process_batch(BatchArg & arg, const T & tid_pos_symb_to_tkis) {
                             refsymbol,
                             ((NOT_PROVIDED != paramset.vcf_tumor_fname && (tki.VTI == LAST(fmt.VTI))) ? 
                                 ((double)(tki.bDP + 0.5) / (double)(tki.BDP + 1.0)) : -1.0),
+                            symbolToCountCoverageSet12,
                             paramset,
                             0);
                     if (refsymbol != symbol) {
@@ -1177,8 +1180,12 @@ main(int argc, char **argv) {
         std::cout << header_outstring << std::endl;
         return 0;
     }
+    if (paramset.bam_input_fname.compare(OPT_ONLY_PRINT_DEBUG_DETAIL) == 0) {
+        LOG(logINFO) << "Use about " << SIZE_PER_GENOMIC_POS << " bytes per genomic position";
+        return 0;
+    }
     if (parsing_result_ret || parsing_result_flag) {
-        return parsing_result_ret; 
+        return parsing_result_ret;
     }
     LOG(logINFO) << "Program " << argv[0] << " version " << VERSION_DETAIL;
     LOG(logINFO) << "<GIT_DIFF_FULL_DISPLAY_MSG>"; 
