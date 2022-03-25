@@ -7,7 +7,7 @@
 // at 150*16 average sequencing depth, the two below amount of bytes are approx equal to each other.
 #define NUM_BYTES_PER_GENOMIC_POS ((uint64_t)(1024*8)) // estimated
 #define NUM_BYTES_PER_READ ((uint64_t)(512)) // estimated
-#define MAX_BYTES_PER_THREAD ((uint64_t)(2*1000*1000))
+#define MAX_BYTES_PER_THREAD ((uint64_t)(768*1000*1000)) // from samtools sort 1.11
 
 #define UPDATE_MIN(a, b) ((a) = MIN((a), (b)));
 // position of 5' is the starting position, but position of 3' is unreliable without mate info.
