@@ -43,6 +43,7 @@
 
 #define NOT_PROVIDED ("")
 #define OPT_ONLY_PRINT_VCF_HEADER "/only-print-vcf-header/"
+#define OPT_ONLY_PRINT_DEBUG_DETAIL "/only-print-debug-detail/"
 #define PLAT_ILLUMINA_LIKE "Illumina/BGI"
 #define PLAT_ION_LIKE "IonTorrent/LifeTechnologies/ThermoFisher"
 

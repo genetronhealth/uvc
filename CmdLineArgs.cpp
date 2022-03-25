@@ -621,7 +621,11 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
         "Hence, STR calls with low UMI allele-fractions that are not in germline high-confidence regions are not necessarily false positive. ");
     ADD_OPTDEF2(app, fam_phred_pow_dscs_all_origin,
         "The phred-score that is subtracted from phred-dscs to get the power-law quality adjustment (PMC3437896). ");
-    
+    ADD_OPTDEF2(app, fam_flag,
+        "Additional flag. "
+        "0x1 sets maximum values to base-call quality (BQ) with the --fam-phred-sscs-* parameters. "
+        "0x2 disables the requirement of having UMI labels to consensus duplicated reads into SSCS families. ");
+
 // *** 08. parameters related to systematic errors
     
     ADD_OPTDEF2(app, syserr_BQ_prior, 
@@ -888,7 +892,9 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
         if (bam_input_fname.compare(OPT_ONLY_PRINT_VCF_HEADER) == 0) {
             return;
         }
-        
+        if (bam_input_fname.compare(OPT_ONLY_PRINT_DEBUG_DETAIL) == 0) {
+            return;
+        }
         check_file_exist(bam_input_fname, "BAM");
         check_file_exist(bam_input_fname + ".bai", "BAM index");
         if (fasta_ref_fname.compare(std::string("NA")) != 0) {
