@@ -1,8 +1,13 @@
 #include "grouping.hpp"
 #include "logging.hpp"
 
-#define MAX_NUM_REF_BASES (1000*1000)
-#define MAX_NUM_READS (2000*1000)
+//#define MAX_NUM_REF_BASES (1000*1000)
+//#define MAX_NUM_READS (2000*1000)
+
+// at 150*16 average sequencing depth, the two below amount of bytes are approx equal to each other.
+#define NUM_BYTES_PER_GENOMIC_POS ((uint64_t)(1024*8)) // estimated
+#define NUM_BYTES_PER_READ ((uint64_t)(512)) // estimated
+#define MAX_BYTES_PER_THREAD ((uint64_t)(2*1000*1000))
 
 #define UPDATE_MIN(a, b) ((a) = MIN((a), (b)));
 // position of 5' is the starting position, but position of 3' is unreliable without mate info.
@@ -101,7 +106,7 @@ SamIter::iternext(std::vector<bedline_t> & tid_beg_end_e2e_vec) {
             tid_beg_end_e2e_vec.push_back(bedreg);
             nreads_tot += std::get<4>(bedreg);
             region_tot += std::get<2>(bedreg) - std::get<1>(bedreg);
-            if (nreads_tot > UNSIGN2SIGN(MAX_NUM_READS * nthreads) || region_tot > UNSIGN2SIGN(MAX_NUM_REF_BASES * nthreads)) {
+            if (((NUM_BYTES_PER_GENOMIC_POS * region_tot) + (NUM_BYTES_PER_READ * nreads_tot)) > (MAX_BYTES_PER_THREAD * nthreads)) {
                 this->_bedregion_idx++;
                 return ret;
             }
@@ -157,7 +162,8 @@ SamIter::iternext(std::vector<bedline_t> & tid_beg_end_e2e_vec) {
             }
             nreads = prev_nreads;
             nreads += 1;
-            if (nreads_tot > UNSIGN2SIGN(MAX_NUM_READS * nthreads) || region_tot > UNSIGN2SIGN(MAX_NUM_REF_BASES * nthreads)) {
+            // if (nreads_tot > UNSIGN2SIGN(MAX_NUM_READS * nthreads) || region_tot > UNSIGN2SIGN(MAX_NUM_REF_BASES * nthreads)) {
+            if (((NUM_BYTES_PER_GENOMIC_POS * region_tot) + (NUM_BYTES_PER_READ * nreads_tot)) > (MAX_BYTES_PER_THREAD * nthreads)) {
                 return ret;
             }
         } else {
