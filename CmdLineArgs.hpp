@@ -22,6 +22,7 @@ struct CommandLineArgs {
     std::string sample_name = "-";
     
     size_t      max_cpu_num = 8;
+    size_t      mem_per_thread = 8;
     
     uvc1_flag_t outvar_flag = OUTVAR_SOMATIC + OUTVAR_ANY + OUTVAR_MGVCF + OUTVAR_BASE_NN + OUTVAR_ADDITIONAL_INDEL_CANDIDATE;
     bool        should_output_all = false;
@@ -43,6 +44,7 @@ struct CommandLineArgs {
     std::string vcf_tumor_fname = NOT_PROVIDED;
     std::string bed_out_fname = NOT_PROVIDED;
     std::string bed_in_fname = NOT_PROVIDED;
+    const uvc1_readnum_t bed_in_avg_sequencing_DP = -1; // infer from input BAM data
     
 // *** 02. parameters that control input, output, and logs (driven by computational requirements and resources)
     
@@ -67,11 +69,10 @@ struct CommandLineArgs {
     
     uvc1_readnum_t     min_r_ad = 0;
     uvc1_readnum_t     min_a_ad = 0;
-
+    
     bool        should_add_note = false;
     bool        always_log = false;
-       
-// *** 03. parameters that are driven by the properties of the assay
+   // *** 03. parameters that are driven by the properties of the assay
     
     MoleculeTag molecule_tag = MOLECULE_TAG_AUTO;
     SequencingPlatform sequencing_platform = SEQUENCING_PLATFORM_AUTO;
