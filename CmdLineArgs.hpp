@@ -44,7 +44,7 @@ struct CommandLineArgs {
     std::string vcf_tumor_fname = NOT_PROVIDED;
     std::string bed_out_fname = NOT_PROVIDED;
     std::string bed_in_fname = NOT_PROVIDED;
-    const uvc1_readnum_t bed_in_avg_sequencing_DP = -1; // infer from input BAM data
+    uvc1_readnum_t bed_in_avg_sequencing_DP = -1; // infer from input BAM data
     
 // *** 02. parameters that control input, output, and logs (driven by computational requirements and resources)
     
