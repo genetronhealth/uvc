@@ -136,7 +136,6 @@ SamIter::iternext(std::vector<bedline_t> &tid_beg_end_e2e_vec, const CommandLine
         uvc1_refgpos_t block_beg = this->last_it_beg;
         uvc1_refgpos_t prev_end = this->last_it_end;
 
-        uvc1_readnum_t prev_flush_total_n_reads = 0;
         uvc1_readnum_big_t region_n_reads = 0;
         std::set<std::string> visited_qnames;
         
@@ -153,7 +152,7 @@ SamIter::iternext(std::vector<bedline_t> &tid_beg_end_e2e_vec, const CommandLine
             const auto curr_tid = alnrecord->core.tid;
             const auto curr_beg = alnrecord->core.pos;
             const auto curr_end = bam_endpos(alnrecord);
-            const size_t n_bytes_used_by_reads = INT64MUL(total_n_reads - prev_flush_total_n_reads, NUM_BYTES_PER_READ);
+            const size_t n_bytes_used_by_reads = INT64MUL(total_n_reads, NUM_BYTES_PER_READ);
             const size_t n_bytes_used_by_poss = INT64MUL(prev_end - block_beg, NUM_BYTES_PER_GENOMIC_POS);
             const bool is_template_changed = (curr_tid != block_tid); 
             const bool is_far_jumped = ((curr_tid == block_tid) && (prev_end + MAX_INSERT_SIZE * 2 < curr_beg));
@@ -168,13 +167,13 @@ SamIter::iternext(std::vector<bedline_t> &tid_beg_end_e2e_vec, const CommandLine
                     
                     bool is_min_DP_failed = (UNSIGN2SIGN(visited_qnames.size()) < paramset.min_altdp_thres);
                     if  (block_beg < block_norm_end && !((NOT_PROVIDED == paramset.vcf_tumor_fname) && (is_min_DP_failed) && (!paramset.should_output_all))) {
-                        const auto bed_region = std::make_tuple(block_tid, block_beg, block_norm_end, false, total_n_reads - prev_flush_total_n_reads);
+                        const auto bed_region = std::make_tuple(block_tid, block_beg, block_norm_end, false, region_n_reads);
                         tid_beg_end_e2e_vec.push_back(bed_region);
-                        total_n_ref_positions += (prev_end - block_beg);
+                        total_n_ref_positions += (block_norm_end - block_beg);
                         total_n_reads += region_n_reads;
+                        region_n_reads = 0;
+                        visited_qnames.clear();
                     }
-                    region_n_reads = 0;
-                    visited_qnames.clear();
                 }
                 block_tid = curr_tid;
                 const auto new_block_norm_beg = (curr_beg / div) * div;
