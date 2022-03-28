@@ -134,7 +134,7 @@ SamIter::iternext(std::vector<bedline_t> &tid_beg_end_e2e_vec, const CommandLine
         
         uvc1_refgpos_t block_tid = this->last_it_tid;
         uvc1_refgpos_t block_beg = this->last_it_beg;
-        uvc1_refgpos_t block_runnning_end = this->last_it_end;
+        uvc1_refgpos_t block_running_end = this->last_it_end;
 
         uvc1_readnum_big_t region_n_reads = 0;
         std::set<std::string> visited_qnames;
@@ -153,32 +153,43 @@ SamIter::iternext(std::vector<bedline_t> &tid_beg_end_e2e_vec, const CommandLine
             const auto curr_beg = alnrecord->core.pos;
             const auto curr_end = bam_endpos(alnrecord);
             const size_t n_bytes_used_by_reads = INT64MUL(total_n_reads, NUM_BYTES_PER_READ);
-            const size_t n_bytes_used_by_poss = INT64MUL(block_runnning_end - block_beg, NUM_BYTES_PER_GENOMIC_POS);
+            const size_t n_bytes_used_by_poss = INT64MUL(block_running_end - block_beg, NUM_BYTES_PER_GENOMIC_POS);
             const bool is_template_changed = (curr_tid != block_tid); 
-            const bool is_far_jumped = ((curr_tid == block_tid) && (block_runnning_end + MAX_INSERT_SIZE * 2 < curr_beg));
-            
+            const bool is_far_jumped = ((curr_tid == block_tid) && (block_running_end + MAX_INSERT_SIZE < curr_beg));
             const bool has_too_much_mem = ((n_bytes_used_by_reads + n_bytes_used_by_poss) > (((uint64_t)1024*1024) / NUM_WORKING_UNITS_PER_THREAD) * this->mem_per_thread);
+            
+            if (0 == (total_n_reads % (1024*1024))) {
+                LOG(logDEBUG4) << "ReadName=" << bam_get_qname(alnrecord) 
+                        << " TID=" << (alnrecord->core.tid)
+                        << " POS=" << (alnrecord->core.pos)
+                        << " is_template_changed=" << is_template_changed 
+                        << " is_far_jumped=" << is_far_jumped 
+                        << " has_too_much_mem=" 
+                        << has_too_much_mem 
+                        << " sam_read_ret=" << sam_read_ret
+                        << " total_n_reads=" << total_n_reads
+                        << " approx total_n_ref_bases=" << (block_running_end - block_beg);
+            }
+
             if (is_template_changed || is_far_jumped || has_too_much_mem || (sam_read_ret < 0)) {
                 // flush to output due to ref-genome segmentation
                 const int64_t div = 1; // Please note that MGVCF_REGION_MAX_SIZE will be used later so that div is set to one here.
-                int64_t block_norm_end = 0;
-                if (-1 != block_tid) {
-                    block_norm_end = MIN((((block_runnning_end + div - 1) / div) * div), (uvc1_refgpos_t)(this->samheader->target_len[block_tid]));
-                    
-                    bool is_min_DP_failed = (UNSIGN2SIGN(visited_qnames.size()) < paramset.min_altdp_thres);
-                    if  (block_beg < block_norm_end && !((NOT_PROVIDED == paramset.vcf_tumor_fname) && (is_min_DP_failed) && (!paramset.should_output_all))) {
-                        const auto bed_region = std::make_tuple(block_tid, block_beg, block_norm_end, false, region_n_reads);
-                        tid_beg_end_e2e_vec.push_back(bed_region);
-                        total_n_ref_positions += (block_norm_end - block_beg);
-                        total_n_reads += region_n_reads;
-                        region_n_reads = 0;
-                        visited_qnames.clear();
-                    }
+                int64_t block_norm_end = MIN((((block_running_end + div - 1) / div) * div), (uvc1_refgpos_t)(this->samheader->target_len[block_tid]));
+                const bool is_1st_read = (-1 == block_tid);                    
+                const bool is_min_DP_failed_1_ = ((UNSIGN2SIGN(visited_qnames.size()) < paramset.min_altdp_thres) && is_far_jumped);
+                const bool is_min_DP_failed = ((NOT_PROVIDED == paramset.vcf_tumor_fname) && is_min_DP_failed_1_ && (!paramset.should_output_all));
+                const bool is_block_zero_sized =  (block_beg >= block_norm_end); 
+                if (!is_1st_read && !is_min_DP_failed && !is_block_zero_sized) {
+                    const auto bed_region = std::make_tuple(block_tid, block_beg, block_norm_end, false, region_n_reads);
+                    tid_beg_end_e2e_vec.push_back(bed_region);
+                    total_n_ref_positions += (block_norm_end - block_beg);
+                    total_n_reads += region_n_reads;
+                    region_n_reads = 0;
+                    visited_qnames.clear();
                 }
                 block_tid = curr_tid;
                 const auto new_block_beg = MAX(block_beg, (curr_beg / div) * div); // skip over non-covered bases
-                block_beg = (is_template_changed ? new_block_beg : MAX(new_block_beg, block_norm_end));
-                
+                block_beg = (is_template_changed ? curr_beg : MAX(new_block_beg, block_norm_end));
                 const size_t tot_n_bytes_used_by_reads = INT64MUL(total_n_reads, NUM_BYTES_PER_READ);
                 const size_t tot_n_bytes_used_by_rposs = INT64MUL(total_n_ref_positions, 256*4); // estimated from the htslib specs of VCF
                 const bool tot_has_too_much_mem = ((tot_n_bytes_used_by_reads + tot_n_bytes_used_by_rposs) 
@@ -194,7 +205,7 @@ SamIter::iternext(std::vector<bedline_t> &tid_beg_end_e2e_vec, const CommandLine
             if (UNSIGN2SIGN(visited_qnames.size()) <= paramset.min_altdp_thres) {
                 visited_qnames.insert(bam_get_qname(alnrecord));
             }
-            block_runnning_end = (is_template_changed ? curr_end : MAX(block_runnning_end, curr_end));
+            block_running_end = (is_template_changed ? curr_end : MAX(block_running_end, curr_end));
             region_n_reads++;
             
         } while (sam_read_ret >= 0);    
