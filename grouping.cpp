@@ -134,7 +134,7 @@ SamIter::iternext(std::vector<bedline_t> &tid_beg_end_e2e_vec, const CommandLine
         
         uvc1_refgpos_t block_tid = this->last_it_tid;
         uvc1_refgpos_t block_beg = this->last_it_beg;
-        uvc1_refgpos_t prev_end = this->last_it_end;
+        uvc1_refgpos_t block_runnning_end = this->last_it_end;
 
         uvc1_readnum_big_t region_n_reads = 0;
         std::set<std::string> visited_qnames;
@@ -153,9 +153,9 @@ SamIter::iternext(std::vector<bedline_t> &tid_beg_end_e2e_vec, const CommandLine
             const auto curr_beg = alnrecord->core.pos;
             const auto curr_end = bam_endpos(alnrecord);
             const size_t n_bytes_used_by_reads = INT64MUL(total_n_reads, NUM_BYTES_PER_READ);
-            const size_t n_bytes_used_by_poss = INT64MUL(prev_end - block_beg, NUM_BYTES_PER_GENOMIC_POS);
+            const size_t n_bytes_used_by_poss = INT64MUL(block_runnning_end - block_beg, NUM_BYTES_PER_GENOMIC_POS);
             const bool is_template_changed = (curr_tid != block_tid); 
-            const bool is_far_jumped = ((curr_tid == block_tid) && (prev_end + MAX_INSERT_SIZE * 2 < curr_beg));
+            const bool is_far_jumped = ((curr_tid == block_tid) && (block_runnning_end + MAX_INSERT_SIZE * 2 < curr_beg));
             
             const bool has_too_much_mem = ((n_bytes_used_by_reads + n_bytes_used_by_poss) > (((uint64_t)1024*1024) / NUM_WORKING_UNITS_PER_THREAD) * this->mem_per_thread);
             if (is_template_changed || is_far_jumped || has_too_much_mem || (sam_read_ret < 0)) {
@@ -163,7 +163,7 @@ SamIter::iternext(std::vector<bedline_t> &tid_beg_end_e2e_vec, const CommandLine
                 const int64_t div = 1; // Please note that MGVCF_REGION_MAX_SIZE will be used later so that div is set to one here.
                 int64_t block_norm_end = 0;
                 if (-1 != block_tid) {
-                    block_norm_end = MIN((((prev_end + div - 1) / div) * div), (uvc1_refgpos_t)(this->samheader->target_len[block_tid]));
+                    block_norm_end = MIN((((block_runnning_end + div - 1) / div) * div), (uvc1_refgpos_t)(this->samheader->target_len[block_tid]));
                     
                     bool is_min_DP_failed = (UNSIGN2SIGN(visited_qnames.size()) < paramset.min_altdp_thres);
                     if  (block_beg < block_norm_end && !((NOT_PROVIDED == paramset.vcf_tumor_fname) && (is_min_DP_failed) && (!paramset.should_output_all))) {
@@ -194,9 +194,9 @@ SamIter::iternext(std::vector<bedline_t> &tid_beg_end_e2e_vec, const CommandLine
             if (UNSIGN2SIGN(visited_qnames.size()) <= paramset.min_altdp_thres) {
                 visited_qnames.insert(bam_get_qname(alnrecord));
             }
-            prev_end = curr_end;
+            block_runnning_end = (is_template_changed ? curr_end : MAX(block_runnning_end, curr_end));
             region_n_reads++;
-
+            
         } while (sam_read_ret >= 0);    
     }
     return total_n_reads;
