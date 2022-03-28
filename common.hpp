@@ -32,6 +32,7 @@
 // constants
 
 #define MGVCF_REGION_MAX_SIZE 1000
+#define NUM_WORKING_UNITS_PER_THREAD 8
 
 #define OUTVAR_GERMLINE 0x1
 #define OUTVAR_SOMATIC 0x2
