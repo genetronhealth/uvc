@@ -94,12 +94,10 @@ bed_fname_to_contigs(
 }
 
 int64_t
-SamIter::iternext(std::vector<bedline_t> & tid_beg_end_e2e_vec) {
-    uvc1_readnum_t nreads_tot = 0;
-    uvc1_readnum_t region_tot = 0;
-    uvc1_readnum_t nreads_max = 0;
-    uvc1_readnum_t region_max = 0;
-    int64_t sizeofRAM = 0;
+SamIter::iternext(std::vector<bedline_t> &tid_beg_end_e2e_vec, const CommandLineArgs &paramset) {
+    uvc1_readnum_big_t total_n_reads = 0;
+    uvc1_refgpos_t total_n_ref_positions = 0;
+    
     if (NOT_PROVIDED != region_bed_fname) {
         for (; this->_bedregion_idx < this->_tid_beg_end_e2e_vec.size(); this->_bedregion_idx++) {
             //ret++;
@@ -108,94 +106,101 @@ SamIter::iternext(std::vector<bedline_t> & tid_beg_end_e2e_vec) {
             const auto bed_tid = std::get<0>(bedreg);
             const auto bed_beg = std::get<1>(bedreg);
             const auto bed_end = std::get<2>(bedreg);
-            int64_t nreads = 1; // read potentially left from the previous iteration
-            if (bed_in_avg_sequencing_DP != -1) {
-                nreads = bed_in_avg_sequencing_DP; 
-            } else {
+            int64_t region_n_reads = bed_in_avg_sequencing_DP; // Please note that left-over reads from the previoous iteration are ignored
+            if (-1 == bed_in_avg_sequencing_DP) {
+                region_n_reads = 0;
                 while (    (NULL == sam_idx && (sam_read1(this->sam_infile, this->samheader, alnrecord) >= 0))
                         || (NULL != sam_idx && (sam_itr_next(this->sam_infile, this->sam_itr, alnrecord) >= 0))) {
                     if ((bed_tid == alnrecord->core.tid) && 
                             ARE_INTERVALS_OVERLAPPING(bed_beg, bed_end, alnrecord->core.pos, bam_endpos(alnrecord))) {
-                        nreads++;
+                        region_n_reads++;
                     } else if ((bed_tid < alnrecord->core.tid) || ((bed_tid == alnrecord->core.tid) && (bed_end <= alnrecord->core.pos))) {
                         break;
                     }
                 }
             }
-            sizeofRAM += INT64MUL(NUM_BYTES_PER_GENOMIC_POS, std::get<2>(bedreg) - std::get<1>(bedreg)) + INT64MUL(NUM_BYTES_PER_READ, std::get<4>(bedreg));
-            nreads_tot += std::get<4>(bedreg);
-            region_tot += std::get<2>(bedreg) - std::get<1>(bedreg);
-            if (sizeofRAM > INT64MUL(this->mem_per_thread, (1024*1024) * nthreads)) {
+            total_n_reads += region_n_reads;
+            total_n_ref_positions += bed_end - bed_beg;
+            const size_t tot_n_bytes_used_by_reads = INT64MUL(total_n_reads, NUM_BYTES_PER_READ);
+            const size_t tot_n_bytes_used_by_rposs = INT64MUL(total_n_ref_positions, 256*4); // estimated from the htslib specs of VCF
+            const bool tot_has_too_much_mem = ((tot_n_bytes_used_by_reads + tot_n_bytes_used_by_rposs) 
+                        > (((uint64_t) 1024*1024) * this->mem_per_thread * this->nthreads));
+            if (tot_has_too_much_mem) {
                 this->_bedregion_idx++;
-                return sizeofRAM;
+                return total_n_reads;
             }
         }
-        return sizeofRAM;
+    } else {
+        
+        uvc1_refgpos_t block_tid = this->last_it_tid;
+        uvc1_refgpos_t block_beg = this->last_it_beg;
+        uvc1_refgpos_t prev_end = this->last_it_end;
+
+        uvc1_readnum_t prev_flush_total_n_reads = 0;
+        uvc1_readnum_big_t region_n_reads = 0;
+        std::set<std::string> visited_qnames;
+        
+        int sam_read_ret = -1;
+        do {
+            sam_read_ret = ((NULL != sam_idx) ? (sam_itr_next(this->sam_infile, this->sam_itr, alnrecord))
+                : (sam_read1(this->sam_infile, this->samheader, alnrecord)));
+            if ((-1 == this->last_it_tid) && (sam_read_ret < 0)) {
+                LOG(logWARNING) << "Encountered error while iterating over the first BAM record in the file " << this->input_bam_fname;
+                break;
+            }
+            if (BAM_FUNMAP & alnrecord->core.flag) { continue; }
+            NORM_INSERT_SIZE(alnrecord);
+            const auto curr_tid = alnrecord->core.tid;
+            const auto curr_beg = alnrecord->core.pos;
+            const auto curr_end = bam_endpos(alnrecord);
+            const size_t n_bytes_used_by_reads = INT64MUL(total_n_reads - prev_flush_total_n_reads, NUM_BYTES_PER_READ);
+            const size_t n_bytes_used_by_poss = INT64MUL(prev_end - block_beg, NUM_BYTES_PER_GENOMIC_POS);
+            const bool is_template_changed = (curr_tid != block_tid); 
+            const bool is_far_jumped = ((curr_tid == block_tid) && (prev_end + MAX_INSERT_SIZE * 2 < curr_beg));
+            
+            const bool has_too_much_mem = ((n_bytes_used_by_reads + n_bytes_used_by_poss) > (((uint64_t)1024*1024) / NUM_WORKING_UNITS_PER_THREAD) * this->mem_per_thread);
+            if (is_template_changed || is_far_jumped || has_too_much_mem || (sam_read_ret < 0)) {
+                // flush to output due to ref-genome segmentation
+                const int64_t div = 1; // Please note that MGVCF_REGION_MAX_SIZE will be used later so that div is set to one here.
+                int64_t block_norm_end = 0;
+                if (-1 != block_tid) {
+                    block_norm_end = MIN((((prev_end + div - 1) / div) * div), (uvc1_refgpos_t)(this->samheader->target_len[block_tid]));
+                    
+                    bool is_min_DP_failed = (UNSIGN2SIGN(visited_qnames.size()) < paramset.min_altdp_thres);
+                    if  (block_beg < block_norm_end && !((NOT_PROVIDED == paramset.vcf_tumor_fname) && (is_min_DP_failed) && (!paramset.should_output_all))) {
+                        const auto bed_region = std::make_tuple(block_tid, block_beg, block_norm_end, false, total_n_reads - prev_flush_total_n_reads);
+                        tid_beg_end_e2e_vec.push_back(bed_region);
+                        total_n_ref_positions += (prev_end - block_beg);
+                        total_n_reads += region_n_reads;
+                    }
+                    region_n_reads = 0;
+                    visited_qnames.clear();
+                }
+                block_tid = curr_tid;
+                const auto new_block_norm_beg = (curr_beg / div) * div;
+                block_beg = (is_template_changed ? new_block_norm_beg : MAX(new_block_norm_beg, block_norm_end));
+                
+                const size_t tot_n_bytes_used_by_reads = INT64MUL(total_n_reads, NUM_BYTES_PER_READ);
+                const size_t tot_n_bytes_used_by_rposs = INT64MUL(total_n_ref_positions, 256*4); // estimated from the htslib specs of VCF
+                const bool tot_has_too_much_mem = ((tot_n_bytes_used_by_reads + tot_n_bytes_used_by_rposs) 
+                        > (((uint64_t) 1024*1024) * this->mem_per_thread * this->nthreads));
+                if (tot_has_too_much_mem) {
+                    this->last_it_tid = curr_tid;
+                    this->last_it_beg = block_beg;
+                    this->last_it_end = MAX(block_beg, block_norm_end);
+                    return (total_n_reads);
+                }
+            }
+            // can check for stronger condition
+            if (UNSIGN2SIGN(visited_qnames.size()) <= paramset.min_altdp_thres) {
+                visited_qnames.insert(bam_get_qname(alnrecord));
+            }
+            prev_end = curr_end;
+            region_n_reads++;
+
+        } while (sam_read_ret >= 0);    
     }
-    while (    (NULL == sam_idx && (sam_read1(this->sam_infile, this->samheader, alnrecord) >= 0))
-            || (NULL != sam_idx && (sam_itr_next(this->sam_infile, this->sam_itr, alnrecord) >= 0))) {
-        NORM_INSERT_SIZE(alnrecord);
-        //ret++;
-        if (BAM_FUNMAP & alnrecord->core.flag) {
-            continue;
-        }
-        const bool is_uncov = (SIGN2UNSIGN(alnrecord->core.tid) != tid || SIGN2UNSIGN(alnrecord->core.pos) > tend);
-        if (INT32_MAX == endingpos) {
-            uvc1_refgpos_t n_overlap_positions = MIN(SIGN2UNSIGN(48), (SIGN2UNSIGN(16) + tend - MIN(tend, SIGN2UNSIGN(alnrecord->core.pos))));
-            uvc1_refgpos_t npositions = (tend - MIN(tbeg, tend));
-            bool has_many_positions = (npositions > INT64MUL(n_overlap_positions, (1024)));
-            bool has_many_reads = (nreads > INT64MUL(n_overlap_positions, (1024 * 5)));
-            if (has_many_positions || has_many_reads) {
-                endingpos = SIGN2UNSIGN(MAX(bam_endpos(alnrecord), 
-                        MIN(alnrecord->core.pos, alnrecord->core.mpos) + MIN(abs(alnrecord->core.isize), ARRPOS_MARGIN)) 
-                        + (ARRPOS_OUTER_RANGE * 2));
-            }
-        }
-        next_nreads += (SIGN2UNSIGN(bam_endpos(alnrecord)) > endingpos ? 1 : 0);
-        if (is_uncov || endingpos < SIGN2UNSIGN(alnrecord->core.pos)) {
-            region_max = MAX(region_max, tend - tbeg);
-            nreads_max = MAX(nreads_max, nreads);
-            region_tot += tend - tbeg;
-            nreads_tot += nreads;
-            auto prev_nreads = next_nreads;
-            if (tid != -1) {
-                auto this_beg = MAX(MAX(prev_tbeg, prev_tend), tbeg / MGVCF_REGION_MAX_SIZE * MGVCF_REGION_MAX_SIZE);
-                auto this_end = MAX(MAX(prev_tbeg, prev_tend), tend);
-                tid_beg_end_e2e_vec.push_back(std::make_tuple(tid, this_beg, this_end, false, nreads));
-                sizeofRAM += INT64MUL(NUM_BYTES_PER_GENOMIC_POS, this_end - this_beg) + INT64MUL(NUM_BYTES_PER_READ, nreads);
-                prev_tbeg = this_beg;
-                prev_tend = this_end;
-                endingpos = INT32_MAX;
-                next_nreads = 0;
-            }
-            if (tid != alnrecord->core.tid) {
-                prev_tbeg = 0;
-                prev_tend = 0;
-                tid = alnrecord->core.tid;
-            }
-            if (is_uncov) {
-                tbeg = (alnrecord->core.pos);
-                tend = (bam_endpos(alnrecord));
-            } else {
-                tbeg = tend;
-                tend = MAX(tbeg, (bam_endpos(alnrecord))) + 1;
-            }
-            nreads = prev_nreads;
-            nreads += 1;
-            // if (nreads_tot > UNSIGN2SIGN(MAX_NUM_READS * nthreads) || region_tot > UNSIGN2SIGN(MAX_NUM_REF_BASES * nthreads)) {
-            if (sizeofRAM > INT64MUL(this->mem_per_thread, (1024*1024) * nthreads)) {
-                return sizeofRAM;
-            }
-        } else {
-            tend = MAX(tend, SIGN2UNSIGN(bam_endpos(alnrecord)));
-            nreads += 1;
-        }
-    }
-    if (tid != -1) {
-        tid_beg_end_e2e_vec.push_back(std::make_tuple(tid, tbeg, tend, false, nreads));
-        sizeofRAM += INT64MUL(NUM_BYTES_PER_GENOMIC_POS, tend - tbeg) + INT64MUL(NUM_BYTES_PER_READ, nreads);
-    }
-    return sizeofRAM;
+    return total_n_reads;
 }
 
 int

@@ -36,20 +36,16 @@ struct SamIter {
     const int64_t bed_in_avg_sequencing_DP;
     const size_t nthreads; 
     const int64_t mem_per_thread;
+
     samFile *sam_infile = NULL;
     bam_hdr_t *samheader = NULL;
     hts_idx_t *sam_idx = NULL; 
     hts_itr_t *sam_itr = NULL;
     
-    uvc1_refgpos_t endingpos = INT32_MAX;
-    uvc1_refgpos_t tid = -1;
-    uvc1_refgpos_t tbeg = INT32_MAX;
-    uvc1_refgpos_t tend = INT32_MAX;
-    uvc1_refgpos_t prev_tbeg = 0;
-    uvc1_refgpos_t prev_tend = 0;
-    uvc1_readnum_big_t nreads = 0;
-    uvc1_readnum_big_t next_nreads = 0;
     bam1_t *alnrecord = bam_init1();
+    uvc1_refgpos_t last_it_tid = -1;
+    uvc1_refgpos_t last_it_beg = -1;
+    uvc1_refgpos_t last_it_end = -1;
     
     std::vector<bedline_t> _tid_beg_end_e2e_vec;
     size_t _bedregion_idx = 0;
@@ -97,7 +93,7 @@ struct SamIter {
     }
     
     int64_t
-    iternext(std::vector<bedline_t> & tid_beg_end_e2e_vec);
+    iternext(std::vector<bedline_t> & tid_beg_end_e2e_vec, const CommandLineArgs &paramset);
 };
 
 int

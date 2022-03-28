@@ -1278,7 +1278,7 @@ main(int argc, char **argv) {
     std::map<std::tuple<uvc1_refgpos_t, uvc1_refgpos_t, AlignmentSymbol>, std::vector<TumorKeyInfo>> tid_pos_symb_to_tkis2; 
     SamIter samIter(paramset);
     int64_t n_sam_iters = 0;
-    int64_t iter_nreads = samIter.iternext(tid_beg_end_e2e_tuple_vec1);
+    int64_t iter_nreads = samIter.iternext(tid_beg_end_e2e_tuple_vec1, paramset);
     LOG(logINFO) << "PreProcessed " << iter_nreads << " reads in super-contig no " << (n_sam_iters);
     // rescue_variants_from_vcf
     tid_pos_symb_to_tkis1 = rescue_variants_from_vcf(tid_beg_end_e2e_tuple_vec1, tid_to_tname_tseqlen_tuple_vec, paramset.vcf_tumor_fname, g_bcf_hdr, paramset.is_tumor_format_retrieved);
@@ -1287,32 +1287,35 @@ main(int argc, char **argv) {
         n_sam_iters++;
         std::thread read_bam_thread([&tid_beg_end_e2e_tuple_vec2, &tid_pos_symb_to_tkis2, &samIter, &iter_nreads, &n_sam_iters, &paramset, &tid_to_tname_tseqlen_tuple_vec, g_bcf_hdr]() {
             tid_beg_end_e2e_tuple_vec2.clear();
-            iter_nreads = samIter.iternext(tid_beg_end_e2e_tuple_vec2);
+            iter_nreads = samIter.iternext(tid_beg_end_e2e_tuple_vec2, paramset);
             LOG(logINFO) << "PreProcessed " << iter_nreads << " reads in super-contig no " << (n_sam_iters);
             
             tid_pos_symb_to_tkis2 = rescue_variants_from_vcf(tid_beg_end_e2e_tuple_vec2, tid_to_tname_tseqlen_tuple_vec, paramset.vcf_tumor_fname, g_bcf_hdr, paramset.is_tumor_format_retrieved);
             LOG(logINFO) << "Rescued/retrieved " << tid_pos_symb_to_tkis2.size() << " variants in super-contig no " << (n_sam_iters);
         });
         const auto & tid_beg_end_e2e_tuple_vec = tid_beg_end_e2e_tuple_vec1; 
-        const std::string bedstring_header = std::string("The BED-genomic-region is as follows (") + std::to_string(tid_beg_end_e2e_tuple_vec.size()) 
-                + " chunks) for super-contig no " + std::to_string(n_sam_iters-1) + "\n";
-        std::string bedstring = "";
-        for (const auto & tid_beg_end_e2e_tuple : tid_beg_end_e2e_tuple_vec) {
-            bedstring += (std::get<0>(tid_to_tname_tseqlen_tuple_vec[std::get<0>(tid_beg_end_e2e_tuple)]) + "\t"
-                  + std::to_string(std::get<1>(tid_beg_end_e2e_tuple)) + "\t"
-                  + std::to_string(std::get<2>(tid_beg_end_e2e_tuple)) + "\t"
-                  + std::to_string(std::get<3>(tid_beg_end_e2e_tuple)) + "\t"
-                  + "NumberOfReadsInThisInterval\t"
-                  + std::to_string(std::get<4>(tid_beg_end_e2e_tuple)) + "\t" 
-                  + "\n");
+        //const std::string bedstring_header = std::string("The BED-genomic-region is as follows (") + std::to_string(tid_beg_end_e2e_tuple_vec.size()) 
+        //        + " chunks) for super-contig no " + std::to_string(n_sam_iters-1) + "\n";
+        
+        //LOG(logINFO) << bedstring_header << bedstring;
+        if (bed_out.is_open()) { 
+            std::string bedstring = "";
+            for (const auto & tid_beg_end_e2e_tuple : tid_beg_end_e2e_tuple_vec) {
+                bedstring += (std::get<0>(tid_to_tname_tseqlen_tuple_vec[std::get<0>(tid_beg_end_e2e_tuple)]) + "\t"
+                      + std::to_string(std::get<1>(tid_beg_end_e2e_tuple)) + "\t"
+                      + std::to_string(std::get<2>(tid_beg_end_e2e_tuple)) + "\t"
+                      + std::to_string(std::get<3>(tid_beg_end_e2e_tuple)) + "\t"
+                      + "NumberOfReadsInThisInterval\t"
+                      + std::to_string(std::get<4>(tid_beg_end_e2e_tuple)) + "\t" 
+                      + "\n");
+            }
+            bed_out << bedstring; 
         }
-        LOG(logINFO) << bedstring_header << bedstring;
-        if (bed_out.is_open()) { bed_out << bedstring; }
         const size_t allridx = 0;  
         const size_t incvalue = tid_beg_end_e2e_tuple_vec.size();
         
-        uvc1_unsigned_int_t nreads = 0;
-        uvc1_unsigned_int_t npositions = 0;
+        size_t nreads = 0;
+        size_t npositions = 0;
         for (size_t j = 0; j < incvalue; j++) {
             auto region_idx = allridx + j;
             nreads += std::get<4>(tid_beg_end_e2e_tuple_vec[region_idx]);
@@ -1323,15 +1326,16 @@ main(int argc, char **argv) {
         
         // distribute inputs as evenly as possible
 #if defined(USE_STDLIB_THREAD)
-        const uvc1_unsigned_int_t UNDERLOAD_RATIO = 1;
+        const size_t UNDERLOAD_RATIO = 1;
 #else
-        const uvc1_unsigned_int_t UNDERLOAD_RATIO = 4;
+        const size_t UNDERLOAD_RATIO = NUM_WORKING_UNITS_PER_THREAD;
 #endif
-        uvc1_unsigned_int_t curr_nreads = 0;
-        uvc1_unsigned_int_t curr_npositions = 0;
-        uvc1_unsigned_int_t curr_zerobased_region_idx = 0;
+        uint64_t curr_nreads = 0;
+        uint64_t curr_npositions = 0;
+        size_t curr_zerobased_region_idx = 0;
         std::vector<std::pair<size_t, size_t>> beg_end_pair_vec;
         for (size_t j = 0; j < incvalue; j++) {
+            // possible optimization: remove regions containing only one read-fragment
             auto region_idx = allridx + j;
             curr_nreads += std::get<4>(tid_beg_end_e2e_tuple_vec[region_idx]);
             curr_npositions += std::get<2>(tid_beg_end_e2e_tuple_vec[region_idx]) - std::get<1>(tid_beg_end_e2e_tuple_vec[region_idx]); 
@@ -1343,7 +1347,29 @@ main(int argc, char **argv) {
             }
         }
         
-        LOG(logINFO) << "Will process the chunks from " << allridx << " to " << allridx + incvalue
+        LOG(logINFO) << "Start-bam-iteration-" << (n_sam_iters-1) << ": will-process-the-following-super-region: ";
+        for (size_t i = 0; i < beg_end_pair_vec.size(); i++) {
+            LOG(logINFO) << "\tStart-of-super-region-no-" << i << " (is-listed-below):";
+            size_t beg = beg_end_pair_vec[i].first;
+            size_t end = beg_end_pair_vec[i].second;
+            uvc1_readnum_big_t tot_n_reads = 0;
+            uvc1_readnum_big_t tot_n_bases = 0;
+            for (size_t j = beg; j < end; j++) {
+                const auto tid_beg_end_e2e = tid_beg_end_e2e_tuple_vec[j];
+                const auto tid = std::get<0>(tid_beg_end_e2e);
+                const auto beg = std::get<1>(tid_beg_end_e2e);
+                const auto end = std::get<2>(tid_beg_end_e2e);
+                const auto e2e = std::get<3>(tid_beg_end_e2e);
+                const auto n_reads = std::get<4>(tid_beg_end_e2e);
+                const auto n_bases = end - beg;
+                LOG(logINFO) << "\t\t" << tid << "\t" << "\t" << beg << "\t" << end << "\t" << e2e << "\t" << "NumberOfReadsInThisInterval" << "\t" << n_reads 
+                        << "\t" << "NumberOfBasesInThisInterval" << "\t" << n_bases << "\tbam-iteration\t" << (n_sam_iters-1);
+                tot_n_reads += n_reads;
+                tot_n_bases += n_bases;
+            }
+            LOG(logINFO) << "\tEnd-of-super-region-no-" << i << " tot_n_reads=" << tot_n_reads << " tot_n_ref_bases=" << tot_n_bases;
+        }
+        LOG(logINFO) << "Start processing the chunks from " << allridx << " to " << allridx + incvalue
                 << " which contains approximately " << nreads << " reads and " << npositions << " positions divided into " 
                 << beg_end_pair_vec.size() << " sub-chunks";
         
