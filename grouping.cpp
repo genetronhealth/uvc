@@ -176,8 +176,8 @@ SamIter::iternext(std::vector<bedline_t> &tid_beg_end_e2e_vec, const CommandLine
                     }
                 }
                 block_tid = curr_tid;
-                const auto new_block_norm_beg = (curr_beg / div) * div;
-                block_beg = (is_template_changed ? new_block_norm_beg : MAX(new_block_norm_beg, block_norm_end));
+                const auto new_block_beg = MAX(block_beg, (curr_beg / div) * div); // skip over non-covered bases
+                block_beg = (is_template_changed ? new_block_beg : MAX(new_block_beg, block_norm_end));
                 
                 const size_t tot_n_bytes_used_by_reads = INT64MUL(total_n_reads, NUM_BYTES_PER_READ);
                 const size_t tot_n_bytes_used_by_rposs = INT64MUL(total_n_ref_positions, 256*4); // estimated from the htslib specs of VCF
