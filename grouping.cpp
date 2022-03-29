@@ -195,7 +195,7 @@ SamIter::iternext(std::vector<bedline_t> &tid_beg_end_e2e_vec, const CommandLine
                 const bool tot_has_too_much_mem = ((tot_n_bytes_used_by_reads + tot_n_bytes_used_by_rposs) 
                         > (((uint64_t) 1024*1024) * this->mem_per_thread * this->nthreads));
                 if (tot_has_too_much_mem) {
-                    this->last_it_tid = curr_tid;
+                    this->last_it_tid = block_tid;
                     this->last_it_beg = block_beg;
                     this->last_it_end = MAX(block_beg, block_norm_end);
                     return (total_n_reads);
