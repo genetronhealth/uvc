@@ -7,8 +7,8 @@ debug-st : uvc.st.out
 debug-no : uvc.no.out
 all : release release-cppt debug-mt debug-st debug-no
 
-HDR=CmdLineArgs.hpp common.hpp grouping.hpp logging.hpp main.hpp main_conversion.hpp version.h CLI11-1.7.1/CLI11.hpp
-SRC=CmdLineArgs.cpp common.cpp grouping.cpp logging.cpp main.cpp                     version.cpp 
+HDR=CmdLineArgs.hpp common.hpp grouping.hpp logging.hpp main.hpp iohts.hpp main_conversion.hpp version.h CLI11-1.7.1/CLI11.hpp
+SRC=CmdLineArgs.cpp common.cpp grouping.cpp logging.cpp main.cpp iohts.cpp                     version.cpp 
 DEP=bcf_formats.step1.hpp instcode.hpp Makefile
 
 HTSPATH=ext/htslib-1.11-lowdep/libhts.a

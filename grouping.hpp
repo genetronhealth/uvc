@@ -124,8 +124,9 @@ bamfname_to_strand_to_familyuid_to_reads(
         size_t regionbatch_ordinal, 
         size_t regionbatch_tot_num,
         const std::string UMI_STRUCT_STRING, 
-        const hts_idx_t * hts_idx,
+        // const hts_idx_t * hts_idx,
         size_t thread_id,
+        const std::vector<const bam1_t*> & bam_list,
         const CommandLineArgs & paramset,
         uvc1_flag_t specialflag);
 #endif

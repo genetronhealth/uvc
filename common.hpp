@@ -48,6 +48,7 @@
 #define PLAT_ILLUMINA_LIKE "Illumina/BGI"
 #define PLAT_ION_LIKE "IonTorrent/LifeTechnologies/ThermoFisher"
 
+#define MAX_STR_N_BASES 100 // doi: 10.1016/S1672-0229(07)60009-6
 #define MAX_INSERT_SIZE 2000 // https://doi.org/10.2147/AGG.S162531
 #define MEAN_CFDNA_INS_SIZE 120 // https://doi.org/10.1038/s41598-020-69432-x
 #define DBLFLT_EPS ((double)FLT_EPSILON)
@@ -74,6 +75,8 @@
 #define numstates2phred(x) ((10.0/log(10.0)) * log(x))
 #define phred2numstates(x) (pow(10.0, (x)/10.0))
 #define numstates2deciphred(x) ((uvc1_qual_t)round((100.0/log(10.0)) * log(x)))
+
+#define ARE_INTERVALS_OVERLAPPING(x1, x2, y1, y2) (!(((x2) <= (y1)) || (((y2) <= (x1)))))
 
 typedef uint64_t uvc1_unsigned_int_t; // It seems that a bug in g++ causes compiling error if this type is defined as (unsigned int)
 

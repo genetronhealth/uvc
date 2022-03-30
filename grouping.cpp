@@ -550,8 +550,9 @@ bamfname_to_strand_to_familyuid_to_reads(
         size_t regionbatch_ordinal, 
         size_t regionbatch_tot_num,
         const std::string UMI_STRUCT_STRING, 
-        const hts_idx_t * hts_idx,
+        // const hts_idx_t * hts_idx,
         size_t thread_id,
+        const std::vector<const bam1_t*> & bam_list,
         const CommandLineArgs & paramset,
         const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
     assert (fetch_tend > fetch_tbeg);
@@ -572,7 +573,7 @@ bamfname_to_strand_to_familyuid_to_reads(
     uvc1_readnum_t pcrpassed, umi_pcrpassed;
     pcrpassed = umi_pcrpassed = 0;
    
-    samFile *sam_infile = sam_open(paramset.bam_input_fname.c_str(), "r");
+    //samFile *sam_infile = sam_open(paramset.bam_input_fname.c_str(), "r");
     if (should_log) {
         LOG(logINFO) << "Thread " << thread_id << " started dedupping the chunk tid" << tid << ":" << fetch_tbeg << "-" << fetch_tend 
                 << " (region no " << regionbatch_ordinal << "/" << regionbatch_tot_num << " in this batch)";
@@ -585,14 +586,15 @@ bamfname_to_strand_to_familyuid_to_reads(
     std::vector<uvc1_readnum_big_t> inicount64(fetch_size + 1, 0);
     std::array<std::vector<uvc1_readnum_big_t>, 4> isrc_isr2_to_border_count_prefixsum = {{ inicount64, inicount64, inicount64, inicount64 }};;
     
-    hts_itr_t * hts_itr;
-    bam1_t *aln = bam_init1();
+    //hts_itr_t * hts_itr;
+    // bam1_t *aln = bam_init1();
     
     std::array<uvc1_readnum_t, NUM_FILTER_REASONS> fillcode_to_num_alns;
     uvc1_readnum_t num_pass_alns = 0;
     uvc1_readnum_t num_iter_alns = 0;
-    hts_itr = sam_itr_queryi(hts_idx, tid, fetch_tbeg, fetch_tend);
-    while (sam_itr_next(sam_infile, hts_itr, aln) >= 0) {
+    // hts_itr = sam_itr_queryi(hts_idx, tid, fetch_tbeg, fetch_tend);
+    // while (sam_itr_next(sam_infile, hts_itr, aln) >= 0) 
+    for (const bam1_t *aln : bam_list){
         bool isrc = false;
         bool isr2 = false;
         uvc1_refgpos_t tBeg = 0;
@@ -617,7 +619,7 @@ bamfname_to_strand_to_familyuid_to_reads(
         fillcode_to_num_alns[filterReason]++;
         num_iter_alns += 1;
     }
-    sam_itr_destroy(hts_itr);
+    // sam_itr_destroy(hts_itr);
     for (size_t isrc_isr2 = 0; isrc_isr2 < 4; isrc_isr2++) {
         uvc1_readnum_big_t beg_prefixsum = 0;
         uvc1_readnum_big_t end_prefixsum = 0;
@@ -647,8 +649,9 @@ bamfname_to_strand_to_familyuid_to_reads(
     }
     
     size_t alnidx = 0;
-    hts_itr = sam_itr_queryi(hts_idx, tid, fetch_tbeg, fetch_tend);
-    while (sam_itr_next(sam_infile, hts_itr, aln) >= 0) {
+    // hts_itr = sam_itr_queryi(hts_idx, tid, fetch_tbeg, fetch_tend);
+    // while (sam_itr_next(sam_infile, hts_itr, aln) >= 0) 
+    for (const bam1_t * aln : bam_list) {
         bool isrc = false;
         bool isr2 = false;
         uvc1_refgpos_t tBeg = 0;
@@ -848,10 +851,10 @@ bamfname_to_strand_to_familyuid_to_reads(
         }
         alnidx += 1;
     }
-    sam_itr_destroy(hts_itr);
+    //sam_itr_destroy(hts_itr);
     
-    bam_destroy1(aln);
-    sam_close(sam_infile);
+    //bam_destroy1(aln);
+    //sam_close(sam_infile);
     if (should_log) { LOG(logINFO) << "Thread " << thread_id << " finished dedupping."; }
     return std::array<uvc1_readnum_t, 3>({num_pass_alns, pcrpassed, umi_pcrpassed});
 }

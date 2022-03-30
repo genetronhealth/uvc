@@ -4,6 +4,7 @@
 #include "CmdLineArgs.hpp"
 #include "common.hpp"
 #include "grouping.hpp"
+#include "iohts.hpp"
 #include "version.h"
 
 #include "htslib/bgzf.h"
@@ -412,11 +413,16 @@ are_depths_diff(uvc1_readnum_t currDP, uvc1_readnum_t prevDP, uvc1_readnum_t mul
 
 template <class T>
 int 
-process_batch(BatchArg & arg, const T & tid_pos_symb_to_tkis) {
+process_batch(BatchArg & arg, 
+        const T & tid_pos_symb_to_tkis, 
+        const std::string & superbatch_ref_seq,
+        const std::vector<const bam1_t*> & superbatch_bam_records,
+        const uvc1_refgpos_t lim_beg, 
+        const uvc1_refgpos_t lim_end) {
     
     std::array<std::string, 3> &outstring3fastq = arg.outstring3fastq;
     std::string & outstring_pass = arg.outstring_pass;
-    const hts_idx_t *const hts_idx = arg.hts_idx;
+    // const hts_idx_t *const hts_idx = arg.hts_idx;
     const faidx_t *const ref_faidx = arg.ref_faidx;
     
     const bcf_hdr_t *const bcf_hdr = arg.bcf_hdr;
@@ -454,8 +460,9 @@ process_batch(BatchArg & arg, const T & tid_pos_symb_to_tkis) {
             regionbatch_ordinal,
             regionbatch_tot_num,
             UMI_STRUCT_STRING,
-            hts_idx,
+            // hts_idx,
             thread_id,
+            superbatch_bam_records,
             paramset,
             0);
     const auto num_passed_reads = passed_pcrpassed_umipassed[0];
@@ -469,7 +476,6 @@ process_batch(BatchArg & arg, const T & tid_pos_symb_to_tkis) {
     
     const uvc1_refgpos_t rpos_inclu_beg = MAX(incluBegPosition, bam_inclu_beg_pos);
     const uvc1_refgpos_t rpos_exclu_end = MIN(excluEndPosition, bam_exclu_end_pos);
-    const uvc1_refgpos_t MAX_STR_N_BASES = 100; // doi: 10.1016/S1672-0229(07)60009-6
     const uvc1_refgpos_t extended_inclu_beg_pos = MAX(0, MIN(incluBegPosition - (MEAN_CFDNA_INS_SIZE + MAX_STR_N_BASES + 1), bam_inclu_beg_pos));
     const uvc1_refgpos_t extended_exclu_end_pos = MIN(std::get<1>(tname_tseqlen_tuple), MAX(excluEndPosition + (MEAN_CFDNA_INS_SIZE + MAX_STR_N_BASES + 1), bam_exclu_end_pos));
     
@@ -488,7 +494,7 @@ process_batch(BatchArg & arg, const T & tid_pos_symb_to_tkis) {
             // TODO: modifications to the VCF specs or somatic-variant definitions.
             LOG(logDEBUG4) << "Thread " << thread_id << " iterated over symbolpos " << symbolpos << " and symbol " << std::get<2>(tkis_it->first) << " as a rescued var";
         }
-    }
+    } // bigger region
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " deals with " << num_rescued << " tumor-sample variants in region " << extended_inclu_beg_pos << " to " << extended_exclu_end_pos + 1 ;}
     
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts converting umi_to_strand_to_reads with is_by_capture = " << is_by_capture << "  " ;}
@@ -496,13 +502,14 @@ process_batch(BatchArg & arg, const T & tid_pos_symb_to_tkis) {
             umi_strand_readset, 
             umi_to_strand_to_reads, 
             paramset,
-            0);
+            0); // bigger region
     
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts constructing symbolToCountCoverageSet12 with " << extended_inclu_beg_pos << (" , ") << extended_exclu_end_pos; }
     // + 1 accounts for insertion at the end of the region, this should happen rarely for only re-aligned reads at around once per one billion base pairs
-    Symbol2CountCoverageSet symbolToCountCoverageSet12(tid, extended_inclu_beg_pos, extended_exclu_end_pos + 1); 
     if (is_loginfo_enabled) { LOG(logINFO)<< "Thread " << thread_id << " starts updateByRegion3Aln with " << umi_strand_readset.size() << " families"; }
-    std::string refstring = load_refstring(ref_faidx, tid, extended_inclu_beg_pos, extended_exclu_end_pos);
+    const std::string refstring = (((superbatch_ref_seq.size() > 0) && (lim_beg <= extended_inclu_beg_pos) && (extended_exclu_end_pos <= lim_end))
+        ? superbatch_ref_seq.substr(extended_inclu_beg_pos - lim_beg, extended_exclu_end_pos - extended_inclu_beg_pos)
+        : load_refstring(ref_faidx, tid, extended_inclu_beg_pos, extended_exclu_end_pos)); // bigger region
     std::vector<RegionalTandemRepeat> region_repeatvec = refstring2repeatvec(
             refstring, 
             paramset.indel_str_repeatsize_max,
@@ -516,6 +523,9 @@ process_batch(BatchArg & arg, const T & tid_pos_symb_to_tkis) {
 
     assert(((baq_offsetarr.getExcluEndPosition() - baq_offsetarr.getIncluBegPosition()) == UNSIGN2SIGN(region_repeatvec.size())) 
             || !fprintf(stderr, "%d - %d == %lu failed (baq == repeat in size)!\n", baq_offsetarr.getExcluEndPosition(), baq_offsetarr.getIncluBegPosition(), region_repeatvec.size()));
+
+    // begin of smaller regions
+    Symbol2CountCoverageSet symbolToCountCoverageSet12(tid, extended_inclu_beg_pos, extended_exclu_end_pos + 1); 
     
     std::vector<HapLink> mutform2count4vec_bq;
     std::vector<HapLink> mutform2count4vec_fq;
@@ -1330,20 +1340,27 @@ main(int argc, char **argv) {
 #else
         const size_t UNDERLOAD_RATIO = NUM_WORKING_UNITS_PER_THREAD;
 #endif
-        uint64_t curr_nreads = 0;
-        uint64_t curr_npositions = 0;
+        uvc1_refgpos_t last_tid = -1;
+        uvc1_readnum_big_t curr_nreads = 0;
+        uvc1_refgpos_t curr_npositions = 0;
         size_t curr_zerobased_region_idx = 0;
         std::vector<std::pair<size_t, size_t>> beg_end_pair_vec;
         for (size_t j = 0; j < incvalue; j++) {
             // possible optimization: remove regions containing only one read-fragment
             auto region_idx = allridx + j;
+            const auto curr_tid = std::get<0>(tid_beg_end_e2e_tuple_vec[region_idx]);
             curr_nreads += std::get<4>(tid_beg_end_e2e_tuple_vec[region_idx]);
             curr_npositions += std::get<2>(tid_beg_end_e2e_tuple_vec[region_idx]) - std::get<1>(tid_beg_end_e2e_tuple_vec[region_idx]); 
-            if (curr_nreads * nthreads * UNDERLOAD_RATIO > nreads || curr_npositions * nthreads * UNDERLOAD_RATIO > npositions || (j == incvalue - 1)) {
-                beg_end_pair_vec.push_back(std::make_pair(curr_zerobased_region_idx, j+1));
+            if ((last_tid != curr_tid)
+                    || (curr_nreads * nthreads * UNDERLOAD_RATIO > nreads)
+                    || (curr_npositions * nthreads * UNDERLOAD_RATIO > npositions || (j == incvalue - 1))) {
+                if (curr_zerobased_region_idx < j) {
+                    beg_end_pair_vec.push_back(std::make_pair(curr_zerobased_region_idx, j));
+                }
+                last_tid = curr_tid;
                 curr_nreads = 0;
                 curr_npositions = 0;
-                curr_zerobased_region_idx = j+1;
+                curr_zerobased_region_idx = j;
             }
         }
         
@@ -1430,7 +1447,33 @@ main(int argc, char **argv) {
 #endif
                     LOG(logINFO) << "Thread " << batcharg.thread_id << " will process the sub-chunk " << beg_end_pair_idx << " which ranges from " 
                             << beg_end_pair.first << " to " << beg_end_pair.second;
-                    
+                    assert (beg_end_pair.first < beg_end_pair.second);
+                    uvc1_refgpos_t minpos = 0;
+                    uvc1_refgpos_t maxpos = 0;
+                    uvc1_refgpos_t superbatch_tid = -1;
+                    for (size_t j = beg_end_pair.first; j < beg_end_pair.second; j++) {
+                        const auto tid_beg_end_e2e_tuple = tid_beg_end_e2e_tuple_vec.at(allridx + j);
+                        const auto tid = std::get<0>(tid_beg_end_e2e_tuple);
+                        const auto beg = std::get<1>(tid_beg_end_e2e_tuple);
+                        const auto end = std::get<2>(tid_beg_end_e2e_tuple);
+                        // const auto e2e = std::get<3>(tid_beg_end_e2e_tuple);
+                        if (superbatch_tid != -1 && superbatch_tid != tid) { 
+                            perror("Runtime error due to template-ID mis-assignment!\n"); 
+                            abort();
+                        }
+                        superbatch_tid = tid;
+                        UPDATE_MIN(minpos, beg);
+                        UPDATE_MAX(maxpos, end);
+                    }
+                    const uvc1_refgpos_t lim_beg = non_neg_minus(minpos, MAX_INSERT_SIZE + MAX_STR_N_BASES);
+                    const uvc1_refgpos_t lim_end = MIN(maxpos + MAX_INSERT_SIZE + MAX_STR_N_BASES, std::get<1>(tid_to_tname_tseqlen_tuple_vec[superbatch_tid]));
+                    // load FASTA reference region
+                    std::string superbatch_ref_seq = load_refstring(batcharg.ref_faidx, superbatch_tid, lim_beg, lim_end);
+                    // load BAM reads
+                    std::vector<bam1_t*> superbatch_bam_records = load_bam_records(batcharg.paramset.bam_input_fname.c_str(), batcharg.hts_idx, superbatch_tid, lim_beg, lim_end);
+                    // load the VCF file
+                    size_t superbatch_bam_idx = 0;
+
                     for (size_t j = beg_end_pair.first; j < beg_end_pair.second; j++) {
                         batcharg.regionbatch_ordinal = j;
                         batcharg.regionbatch_tot_num = beg_end_pair.second;
@@ -1439,8 +1482,38 @@ main(int argc, char **argv) {
                         batcharg.tid_beg_end_e2e_tuple = tid_beg_end_e2e_tuple_vec.at(allridx + j);
                         assert (((size_t)std::get<0>(batcharg.tid_beg_end_e2e_tuple)) < tid_to_tname_tseqlen_tuple_vec.size() 
                                 || !fprintf(stderr, "%lu < %lu failed!\n", (size_t)std::get<0>(batcharg.tid_beg_end_e2e_tuple), tid_to_tname_tseqlen_tuple_vec.size()));
-                        batcharg.tname_tseqlen_tuple = tid_to_tname_tseqlen_tuple_vec.at(std::get<0>(batcharg.tid_beg_end_e2e_tuple));
-                        process_batch(batcharg, tid_pos_symb_to_tkis1);
+                        batcharg.tname_tseqlen_tuple = tid_to_tname_tseqlen_tuple_vec.at(std::get<0>(batcharg.tid_beg_end_e2e_tuple));                        
+                        // subset the super-batch of bam records to get sub-batches of bam records
+                        std::vector<const bam1_t*> sub_batch_bam_records;
+                        const auto bed_beg = std::get<1>(batcharg.tid_beg_end_e2e_tuple);
+                        const auto bed_end = std::get<2>(batcharg.tid_beg_end_e2e_tuple);
+                        for (; superbatch_bam_idx < superbatch_bam_records.size() 
+                                    && bam_endpos(superbatch_bam_records[superbatch_bam_idx]) + MAX_INSERT_SIZE < bed_beg; 
+                                superbatch_bam_idx++) {
+                            const bam1_t *bam = superbatch_bam_records[superbatch_bam_idx];
+                            if (ARE_INTERVALS_OVERLAPPING(bam->core.pos, bam_endpos(bam), bed_beg, bed_end)) {
+                                sub_batch_bam_records.push_back(bam);
+                            }
+                        }
+                        for (size_t after_bam_idx = superbatch_bam_idx; 
+                                after_bam_idx < superbatch_bam_records.size() 
+                                    && superbatch_bam_records[after_bam_idx]->core.pos < bed_end; 
+                                after_bam_idx++) {
+                            const bam1_t *bam = superbatch_bam_records[after_bam_idx];
+                            if (ARE_INTERVALS_OVERLAPPING(bam->core.pos, bam_endpos(bam), bed_beg, bed_end)) {
+                                sub_batch_bam_records.push_back(bam);
+                            }
+                        }
+                        // subset the super-batch of ref bases 
+                        process_batch(batcharg, 
+                                tid_pos_symb_to_tkis1, 
+                                superbatch_ref_seq, 
+                                sub_batch_bam_records,
+                                bed_beg,
+                                bed_end);
+                    }
+                    for (bam1_t *bam : superbatch_bam_records) {
+                        bam_destroy1(bam);
                     }
 #if defined(USE_STDLIB_THREAD)
             });
