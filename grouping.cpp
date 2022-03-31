@@ -5,7 +5,7 @@
 //#define MAX_NUM_READS (2000*1000)
 
 // at 150*16 average sequencing depth, the two below amount of bytes are approx equal to each other.
-#define NUM_BYTES_PER_GENOMIC_POS ((size_t)(1024*8)) // estimated
+#define NUM_BYTES_PER_REF_POS ((size_t)(1024*8)) // estimated
 #define NUM_BYTES_PER_READ ((size_t)(512)) // estimated
 
 #define UPDATE_MIN(a, b) ((a) = MIN((a), (b)));
@@ -92,18 +92,39 @@ bed_fname_to_contigs(
     return 0;
 }
 
+double
+check_if_is_over_mem_lim(
+        const uvc1_readnum_big_t total_n_reads, 
+        const uvc1_refgpos_big_t total_n_ref_positions, 
+        const size_t nthreads, 
+        const size_t mem_per_thread,
+        const size_t total_n_ref_pos_x_pos // used to compute the countra-harmonic mean
+        ) {
+
+    const size_t tot_n_bytes_used_by_reads = INT64MUL(total_n_reads, NUM_BYTES_PER_READ);
+    // The below is estimated from the htslib specs of VCF
+    const size_t num_bytes_per_vcf_ref_pos = 256*4;
+    const size_t tot_n_bytes_used_by_rposs = INT64MUL(total_n_ref_positions + (2 * MAX_STR_N_BASES * nthreads), num_bytes_per_vcf_ref_pos); 
+    const size_t tmp_n_bytes_used_by_rposs = INT64MUL((total_n_ref_pos_x_pos + mathsquare(MAX_STR_N_BASES)) / (total_n_ref_positions + 1) + (2 * MAX_STR_N_BASES * nthreads), 
+            NUM_BYTES_PER_REF_POS); 
+    const size_t tot_n_bytes_used = tot_n_bytes_used_by_reads + tot_n_bytes_used_by_rposs + tmp_n_bytes_used_by_rposs;
+    return (double)(tot_n_bytes_used) / (double)(1024*1024 * mem_per_thread * nthreads);
+}
+
 int64_t
 SamIter::iternext(
         std::vector<BedLine> & bedlines,
         const CommandLineArgs &paramset) {
     uvc1_readnum_big_t total_n_reads = 0;
-    uvc1_refgpos_t total_n_ref_positions = 0;
-    
+    uvc1_refgpos_big_t total_n_ref_positions = 0;
+    uvc1_refgpos_big_t total_n_ref_pos_x_pos = 0;
+    size_t n_bed_intervals = 0;
     if (NOT_PROVIDED != region_bed_fname) {
         for (; this->_bedregion_idx < this->_bedlines.size(); this->_bedregion_idx++) {
             //ret++;
             const auto & bedline = (this->_bedlines[this->_bedregion_idx]);
             bedlines.push_back(bedline);
+            n_bed_intervals++;
             const auto bed_tid = bedline.tid; // std::get<0>(bedreg);
             const auto bed_beg = bedline.beg_pos;
             const auto bed_end = bedline.end_pos;
@@ -121,12 +142,11 @@ SamIter::iternext(
                 }
             }
             total_n_reads += region_n_reads;
-            total_n_ref_positions += bed_end - bed_beg;
-            const size_t tot_n_bytes_used_by_reads = INT64MUL(total_n_reads, NUM_BYTES_PER_READ);
-            const size_t tot_n_bytes_used_by_rposs = INT64MUL(total_n_ref_positions, 256*4); // estimated from the htslib specs of VCF
-            const bool tot_has_too_much_mem = ((tot_n_bytes_used_by_reads + tot_n_bytes_used_by_rposs) 
-                        > (((uint64_t) 1024*1024) * this->mem_per_thread * this->nthreads));
-            if (tot_has_too_much_mem) {
+            uvc1_refgpos_big_t region_n_ref_positions = bed_end - bed_beg;
+            total_n_ref_positions += region_n_ref_positions;
+            total_n_ref_pos_x_pos += mathsquare(region_n_ref_positions);
+            const bool is_over_mem_lim = check_if_is_over_mem_lim(total_n_reads, total_n_ref_positions, this->nthreads, this->mem_per_thread, total_n_ref_pos_x_pos);
+            if (is_over_mem_lim) {
                 this->_bedregion_idx++;
                 return total_n_reads;
             }
@@ -156,7 +176,7 @@ SamIter::iternext(
             const auto curr_end = bam_endpos(alnrecord);
             
             const size_t n_bytes_used_by_reads = INT64MUL(region_n_reads, NUM_BYTES_PER_READ);
-            const size_t n_bytes_used_by_poss = INT64MUL(region_n_ref_positions, NUM_BYTES_PER_GENOMIC_POS);
+            const size_t n_bytes_used_by_poss = INT64MUL(region_n_ref_positions, NUM_BYTES_PER_REF_POS);
             const bool is_template_changed = (curr_tid != block_tid); 
             // is_very_far_jumped results in a lot of wasted mem-alloc and computation, so it is not used
             //const bool is_very_far_jumped = ((curr_tid == block_tid) && (block_running_end + MAX_INSERT_SIZE < curr_beg));
@@ -176,7 +196,8 @@ SamIter::iternext(
                         << " approx total_n_ref_bases=" << (block_running_end - block_beg);
             }
 
-            if (is_template_changed || is_far_jumped || has_too_much_mem || (sam_read_ret < 0)) {
+            uvc1_flag_t region_flag = (!!is_template_changed) * 16 + (!!is_far_jumped) * 8 + (!!has_too_much_mem) * 4 + (!!(sam_read_ret < 0)) * 2;
+            if (region_flag) {
                 // flush to output due to ref-genome segmentation
                 const int64_t div = 1; // Please note that MGVCF_REGION_MAX_SIZE will be used later so that div is set to one here.
                 int64_t block_norm_end = MIN((((block_running_end + div - 1) / div) * div), (uvc1_refgpos_t)(this->samheader->target_len[block_tid]));
@@ -185,23 +206,21 @@ SamIter::iternext(
                 const bool is_min_DP_failed = ((NOT_PROVIDED == paramset.vcf_tumor_fname) && is_min_DP_failed_1_ && (!paramset.should_output_all));
                 const bool is_block_zero_sized =  (block_beg >= block_norm_end); 
                 if (!is_1st_read && !is_min_DP_failed && !is_block_zero_sized) {
-                    bedlines.push_back(BedLine(block_tid, block_beg, block_norm_end, false, region_n_reads));
+                    
+                    bedlines.push_back(BedLine(block_tid, block_beg, block_norm_end, region_flag, region_n_reads));
                     total_n_ref_positions += region_n_ref_positions;
+                    total_n_ref_pos_x_pos += mathsquare(region_n_ref_positions);
                     region_n_ref_positions = 0; // (block_norm_end - block_beg);
                     total_n_reads += region_n_reads;
                     region_n_reads = 0;
                     visited_qnames.clear();
+                    n_bed_intervals++;
                 }
                 block_tid = curr_tid;
                 const auto new_block_beg = MAX(block_beg, (curr_beg / div) * div); // skip over non-covered bases
                 block_beg = (is_template_changed ? curr_beg : MAX(new_block_beg, block_norm_end));
-                const size_t tot_n_bytes_used_by_reads = INT64MUL(total_n_reads, NUM_BYTES_PER_READ);
-                const size_t num_bytes_per_ref_pos = 256*4 * (NUM_WORKING_UNITS_PER_THREAD + 1) / NUM_WORKING_UNITS_PER_THREAD;
-                const size_t tot_n_bytes_used_by_rposs = INT64MUL(total_n_ref_positions + (2 * MAX_STR_N_BASES * this->nthreads), num_bytes_per_ref_pos); 
-                // the above is estimated from the htslib specs of VCF
-                const bool tot_has_too_much_mem = ((tot_n_bytes_used_by_reads + tot_n_bytes_used_by_rposs) 
-                        > (((uint64_t) 1024*1024) * this->mem_per_thread * this->nthreads));
-                if (tot_has_too_much_mem) {
+                const bool is_over_mem_lim = check_if_is_over_mem_lim(total_n_reads, total_n_ref_positions, this->nthreads, this->mem_per_thread, total_n_ref_pos_x_pos);
+                if (is_over_mem_lim) {
                     this->last_it_tid = block_tid;
                     this->last_it_beg = block_beg;
                     this->last_it_end = MAX(block_beg, block_norm_end);

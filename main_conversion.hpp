@@ -178,12 +178,6 @@ calc_score_with_penal_at_low_val(const T v, T penal_mult, T thres = 60.0) {
 
 template <class T>
 auto
-mathsquare(T x) {
-    return x * x; 
-}
-
-template <class T>
-auto
 mathcube(T x) {
     return x * x * x;
 }

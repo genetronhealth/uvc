@@ -36,7 +36,8 @@ struct BedLine {
 
 std::vector<bam1_t *>
 load_bam_records(
-        const char * bam_fname,
+        int & sam_itr_queryi_ret,
+        samFile *samfile,
         const hts_idx_t * hts_idx,
         const uvc1_refgpos_t query_tid,
         const uvc1_refgpos_t query_beg, 

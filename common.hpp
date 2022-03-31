@@ -150,5 +150,13 @@ struct MolecularBarcode {
     uvc1_flag_t duplexflag = 0x0;
 };
 
+
+template <class T>
+inline 
+T 
+mathsquare(T x) {
+    return x * x; 
+}
+
 #endif
 

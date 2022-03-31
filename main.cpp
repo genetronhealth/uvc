@@ -1490,7 +1490,7 @@ main(int argc, char **argv) {
                             lim_end);
                     if (sam_itr_queryi_ret != -1) {
                         LOG(logERROR) << "The sam iterator returned error code " << sam_itr_queryi_ret 
-                                << " in the region tid-" << superbatch_tid << ":" << lim_beg << "-" << lim_end << " in thread-" << thread_id;
+                                << " in the region tid-" << superbatch_tid << ":" << lim_beg << "-" << lim_end << " in thread-" << batcharg.thread_id;
                     }
                     // load the VCF file
                     size_t superbatch_bam_idx = 0;
