@@ -92,7 +92,7 @@ bed_fname_to_contigs(
     return 0;
 }
 
-double
+bool
 check_if_is_over_mem_lim(
         const uvc1_readnum_big_t total_n_reads, 
         const uvc1_refgpos_big_t total_n_ref_positions, 
@@ -108,7 +108,7 @@ check_if_is_over_mem_lim(
     const size_t tmp_n_bytes_used_by_rposs = INT64MUL((total_n_ref_pos_x_pos + mathsquare(MAX_STR_N_BASES)) / (total_n_ref_positions + 1) + (2 * MAX_STR_N_BASES * nthreads), 
             NUM_BYTES_PER_REF_POS); 
     const size_t tot_n_bytes_used = tot_n_bytes_used_by_reads + tot_n_bytes_used_by_rposs + tmp_n_bytes_used_by_rposs;
-    return (double)(tot_n_bytes_used) / (double)(1024*1024 * mem_per_thread * nthreads);
+    return (tot_n_bytes_used > (1024*1024 * mem_per_thread * nthreads));
 }
 
 int64_t
@@ -146,7 +146,8 @@ SamIter::iternext(
             total_n_ref_positions += region_n_ref_positions;
             total_n_ref_pos_x_pos += mathsquare(region_n_ref_positions);
             const bool is_over_mem_lim = check_if_is_over_mem_lim(total_n_reads, total_n_ref_positions, this->nthreads, this->mem_per_thread, total_n_ref_pos_x_pos);
-            if (is_over_mem_lim) {
+            const bool is_template_changed = ((this->_bedregion_idx > 0) && (this->_bedlines[this->_bedregion_idx-1].tid != bed_tid));
+            if (is_over_mem_lim || is_template_changed) {
                 this->_bedregion_idx++;
                 return total_n_reads;
             }
@@ -220,7 +221,7 @@ SamIter::iternext(
                 const auto new_block_beg = MAX(block_beg, (curr_beg / div) * div); // skip over non-covered bases
                 block_beg = (is_template_changed ? curr_beg : MAX(new_block_beg, block_norm_end));
                 const bool is_over_mem_lim = check_if_is_over_mem_lim(total_n_reads, total_n_ref_positions, this->nthreads, this->mem_per_thread, total_n_ref_pos_x_pos);
-                if (is_over_mem_lim) {
+                if (is_over_mem_lim || is_template_changed) {
                     this->last_it_tid = block_tid;
                     this->last_it_beg = block_beg;
                     this->last_it_end = MAX(block_beg, block_norm_end);
