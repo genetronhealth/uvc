@@ -5,7 +5,7 @@
 #include "htslib/sam.h"
 #include "htslib/vcf.h"
 
-#include "<vector>"
+#include <vector>
 
 bool BedLine::is_valid() {
     return ((tid >= 0) || (tname.size() > 0)) && (beg_pos < end_pos);
