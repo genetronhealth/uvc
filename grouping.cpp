@@ -196,7 +196,9 @@ SamIter::iternext(
                 const auto new_block_beg = MAX(block_beg, (curr_beg / div) * div); // skip over non-covered bases
                 block_beg = (is_template_changed ? curr_beg : MAX(new_block_beg, block_norm_end));
                 const size_t tot_n_bytes_used_by_reads = INT64MUL(total_n_reads, NUM_BYTES_PER_READ);
-                const size_t tot_n_bytes_used_by_rposs = INT64MUL(total_n_ref_positions, 256*4); // estimated from the htslib specs of VCF
+                const size_t num_bytes_per_ref_pos = 256*4 * (NUM_WORKING_UNITS_PER_THREAD + 1) / NUM_WORKING_UNITS_PER_THREAD;
+                const size_t tot_n_bytes_used_by_rposs = INT64MUL(total_n_ref_positions + (2 * MAX_STR_N_BASES * this->nthreads), num_bytes_per_ref_pos); 
+                // the above is estimated from the htslib specs of VCF
                 const bool tot_has_too_much_mem = ((tot_n_bytes_used_by_reads + tot_n_bytes_used_by_rposs) 
                         > (((uint64_t) 1024*1024) * this->mem_per_thread * this->nthreads));
                 if (tot_has_too_much_mem) {

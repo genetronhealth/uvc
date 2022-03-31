@@ -22,7 +22,7 @@ struct CommandLineArgs {
     std::string sample_name = "-";
     
     size_t      max_cpu_num = 8;
-    size_t      mem_per_thread = 1024+512; // MegaBytes, for samtools sort 1.11 the value is 768. Variant calling is more complex and mem-consuming than sorting.
+    size_t      mem_per_thread = 1024+256; // MegaBytes, for samtools sort 1.11 the value is 768. Variant calling is more complex and mem-consuming than sorting.
     
     uvc1_flag_t outvar_flag = OUTVAR_SOMATIC + OUTVAR_ANY + OUTVAR_MGVCF + OUTVAR_BASE_NN + OUTVAR_ADDITIONAL_INDEL_CANDIDATE;
     bool        should_output_all = false;

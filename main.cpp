@@ -1366,7 +1366,7 @@ main(int argc, char **argv) {
             uvc1_readnum_big_t t2_tot_n_bases = 0;
             for (size_t t3_idx = beg; t3_idx < end; t3_idx++) {
                 const auto & bedline = bedlines[t3_idx];
-                const auto n_bases = end - beg;
+                const auto n_bases = bedline.end_pos - bedline.beg_pos;
                 bedstring += (std::get<0>(tid_to_tname_tseqlen_tuple_vec[bedline.tid ])
                           + "\t" + std::to_string(bedline.beg_pos)
                           + "\t" + std::to_string(bedline.end_pos)
