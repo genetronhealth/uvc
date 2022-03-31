@@ -103,7 +103,7 @@ check_if_is_over_mem_lim(
 
     const size_t tot_n_bytes_used_by_reads = INT64MUL(total_n_reads, NUM_BYTES_PER_READ);
     // The below is estimated from the htslib specs of VCF
-    const size_t num_bytes_per_vcf_ref_pos = 256*4;
+    const size_t num_bytes_per_vcf_ref_pos = 256*4 + NUM_BYTES_PER_REF_POS / NUM_WORKING_UNITS_PER_THREAD;
     const size_t tot_n_bytes_used_by_rposs = INT64MUL(total_n_ref_positions + (2 * MAX_STR_N_BASES * nthreads), num_bytes_per_vcf_ref_pos); 
     const size_t tmp_n_bytes_used_by_rposs = INT64MUL((total_n_ref_pos_x_pos + mathsquare(MAX_STR_N_BASES)) / (total_n_ref_positions + 1) + (2 * MAX_STR_N_BASES * nthreads), 
             NUM_BYTES_PER_REF_POS); 
