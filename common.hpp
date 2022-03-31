@@ -32,7 +32,7 @@
 // constants
 
 #define MGVCF_REGION_MAX_SIZE 1000
-#define NUM_WORKING_UNITS_PER_THREAD 8
+#define NUM_WORKING_UNITS_PER_THREAD 4
 
 #define OUTVAR_GERMLINE 0x1
 #define OUTVAR_SOMATIC 0x2
@@ -50,7 +50,6 @@
 
 #define MAX_STR_N_BASES 100 // doi: 10.1016/S1672-0229(07)60009-6
 #define MAX_INSERT_SIZE 2000 // https://doi.org/10.2147/AGG.S162531
-#define MEAN_CFDNA_INS_SIZE 120 // https://doi.org/10.1038/s41598-020-69432-x
 #define DBLFLT_EPS ((double)FLT_EPSILON)
 
 // substitutions
