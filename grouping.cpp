@@ -81,10 +81,9 @@ bed_fname_to_contigs(
         uvc1_readnum_t nreads = 2 * (tend - tbeg);
         while (linestream.good()) {
             linestream >> token;
-            if (token.find("BedLineFlag") != std::string::npos) {
+            if (token == ("BedLineFlag")) {
                 linestream >> bedline_flag;
-            }
-            if (token.find("NumberOfReadsInThisInterval") != std::string::npos) {
+            } else if (token == "NumberOfReadsInThisInterval") {
                 linestream >> nreads;
             }
         }

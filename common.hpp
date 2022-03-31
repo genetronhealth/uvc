@@ -93,6 +93,7 @@ typedef int32_t uvc1_base1500x_t;
 
 typedef int64_t uvc1_readnum_big_t;
 typedef int64_t uvc1_readpos_big_t;
+typedef int64_t uvc1_refgpos_big_t;
 typedef int64_t uvc1_qual_big_t; // big qual
 
 typedef uint32_t uvc1_flag_t;

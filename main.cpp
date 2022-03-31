@@ -1296,25 +1296,22 @@ main(int argc, char **argv) {
     SamIter samIter(paramset);
     int64_t n_sam_iters = 0;
     int64_t iter_nreads = samIter.iternext(bedlines1, paramset);
-    LOG(logINFO) << "PreProcessed " << iter_nreads << " reads in super-contig no " << (n_sam_iters);
+    LOG(logINFO) << "PreProcessed " << iter_nreads << " reads in tier-1-region no " << (n_sam_iters);
     // rescue_variants_from_vcf
     tid_pos_symb_to_tkis1 = rescue_variants_from_vcf(bedlines1, tid_to_tname_tseqlen_tuple_vec, paramset.vcf_tumor_fname, g_bcf_hdr, paramset.is_tumor_format_retrieved);
-    LOG(logINFO) << "Rescued/retrieved " << tid_pos_symb_to_tkis1.size() << " variants in super-contig no " << (n_sam_iters);
+    LOG(logINFO) << "Rescued/retrieved " << tid_pos_symb_to_tkis1.size() << " variants in tier-1-region no " << (n_sam_iters);
     while (iter_nreads > 0) {
         n_sam_iters++;
         std::thread read_bam_thread([&bedlines2, &tid_pos_symb_to_tkis2, &samIter, &iter_nreads, &n_sam_iters, &paramset, &tid_to_tname_tseqlen_tuple_vec, g_bcf_hdr]() {
             bedlines2.clear();
             iter_nreads = samIter.iternext(bedlines2, paramset);
-            LOG(logINFO) << "PreProcessed " << iter_nreads << " reads in super-contig no " << (n_sam_iters);
+            LOG(logINFO) << "PreProcessed " << iter_nreads << " reads in tier-1-region no " << (n_sam_iters);
             
             tid_pos_symb_to_tkis2 = rescue_variants_from_vcf(bedlines2, tid_to_tname_tseqlen_tuple_vec, paramset.vcf_tumor_fname, g_bcf_hdr, paramset.is_tumor_format_retrieved);
-            LOG(logINFO) << "Rescued/retrieved " << tid_pos_symb_to_tkis2.size() << " variants in super-contig no " << (n_sam_iters);
+            LOG(logINFO) << "Rescued/retrieved " << tid_pos_symb_to_tkis2.size() << " variants in tier-1-region no " << (n_sam_iters);
         });
         const auto & bedlines = bedlines1;
-        //const std::string bedstring_header = std::string("The BED-genomic-region is as follows (") + std::to_string(tid_beg_end_e2e_tuple_vec.size()) 
-        //        + " chunks) for super-contig no " + std::to_string(n_sam_iters-1) + "\n";
         
-        //LOG(logINFO) << bedstring_header << bedstring;
         const size_t allridx = 0;
         const size_t incvalue = bedlines.size();
         
@@ -1340,7 +1337,6 @@ main(int argc, char **argv) {
         size_t curr_zerobased_region_idx = 0;
         std::vector<std::pair<size_t, size_t>> beg_end_pair_vec;
         for (size_t j = 0; j < incvalue; j++) {
-            // possible optimization: remove regions containing only one read-fragment
             auto region_idx = allridx + j;
             const auto curr_tid = bedlines[region_idx].tid;
             curr_nreads += bedlines[region_idx].n_reads;
@@ -1357,41 +1353,46 @@ main(int argc, char **argv) {
                 curr_zerobased_region_idx = j;
             }
         }
-        if (bed_out.is_open()) { 
-            std::string bedstring = "";
-            for (const auto & bedline : bedlines) {
+
+        uvc1_readnum_big_t t1_tot_n_reads = 0;
+        uvc1_refgpos_big_t t1_tot_n_bases = 0;
+
+        std::string bedstring = "";
+        LOG(logINFO) << "Start-bam-iteration-" << (n_sam_iters-1) << ": will-process-the-following-tier1-regions (all indices are zero-based): ";
+        for (size_t t2_idx = 0; t2_idx < beg_end_pair_vec.size(); t2_idx++) {
+            size_t beg = beg_end_pair_vec[t2_idx].first;
+            size_t end = beg_end_pair_vec[t2_idx].second;
+            uvc1_readnum_big_t t2_tot_n_reads = 0;
+            uvc1_readnum_big_t t2_tot_n_bases = 0;
+            for (size_t t3_idx = beg; t3_idx < end; t3_idx++) {
+                const auto & bedline = bedlines[t3_idx];
+                const auto n_bases = end - beg;
                 bedstring += (std::get<0>(tid_to_tname_tseqlen_tuple_vec[bedline.tid ])
-                      + "\t" + std::to_string(bedline.beg_pos)
-                      + "\t" + std::to_string(bedline.end_pos)
-                      + "\tBedLineFlag\t" + std::to_string(bedline.region_flag)
-                      + "\tNumberOfReadsInThisInterval\t" + std::to_string(bedline.n_reads)
-                      + "\n");
+                          + "\t" + std::to_string(bedline.beg_pos)
+                          + "\t" + std::to_string(bedline.end_pos)
+                          + "\tBedLineFlag\t" + std::to_string(bedline.region_flag)
+                          + "\tNumberOfReadsInThisInterval\t" + std::to_string(bedline.n_reads)
+                          + "\tNumberOfRefBasesInThisInterval\t" + std::to_string(n_bases)
+                          + "\tTier1regionIndex\t" + std::to_string(n_sam_iters - 1)
+                          + "\tTier2regionIndex\t" + std::to_string(t2_idx)
+                          + "\tTier3regionIndex\t" + std::to_string(t3_idx)
+                          + "\n");
+                t2_tot_n_reads += bedline.n_reads;
+                t2_tot_n_bases += n_bases;
             }
+            LOG(logINFO) << "End-of-tier-2-region-no-" << t2_idx << " tot_n_reads=" << t2_tot_n_reads << " tot_n_ref_bases=" << t2_tot_n_bases;
+            t1_tot_n_reads += t2_tot_n_reads;
+            t1_tot_n_bases += t2_tot_n_bases;
+        }
+        assert((size_t)t1_tot_n_bases == npositions);
+        LOG(logINFO) << "End-of-tier-1-region-no-" << (n_sam_iters-1) << " tot_n_reads=" << t1_tot_n_reads << " tot_n_ref_bases=" << t1_tot_n_bases;
+        if (bed_out.is_open()) { 
             bed_out << bedstring; 
         }
-        LOG(logINFO) << "Start-bam-iteration-" << (n_sam_iters-1) << ": will-process-the-following-super-region: ";
-        for (size_t i = 0; i < beg_end_pair_vec.size(); i++) {
-            LOG(logINFO) << "\tStart-of-super-region-no-" << i << " (is-listed-below):";
-            size_t beg = beg_end_pair_vec[i].first;
-            size_t end = beg_end_pair_vec[i].second;
-            uvc1_readnum_big_t tot_n_reads = 0;
-            uvc1_readnum_big_t tot_n_bases = 0;
-            for (size_t j = beg; j < end; j++) {
-                const auto & bedline = bedlines[j];
-                const auto tid = bedline.tid;
-                const auto beg = bedline.beg_pos;
-                const auto end = bedline.end_pos;
-                const auto e2e = (bedline.region_flag & BED_END_TO_END_BIT);
-                const auto n_reads = bedline.n_reads;
-                const auto n_bases = end - beg;
-                
-                LOG(logINFO) << "\t\t" << tid << "\t" << "\t" << beg << "\t" << end << "\t" << e2e << "\t" << "NumberOfReadsInThisInterval" << "\t" << n_reads 
-                        << "\t" << "NumberOfBasesInThisInterval" << "\t" << n_bases << "\tbam-iteration\t" << (n_sam_iters-1);
-                tot_n_reads += n_reads;
-                tot_n_bases += n_bases;
-            }
-            LOG(logINFO) << "\tEnd-of-super-region-no-" << i << " tot_n_reads=" << tot_n_reads << " tot_n_ref_bases=" << tot_n_bases;
-        }
+        LOG(logINFO) << "The " << (n_sam_iters-1) << "-th tier-1 BED region is as follows " 
+                << "(each tier-1 region is parsed as one unit, each tier-2 region is processed by one thread, and each tier-3 region is one unit of to call variants within):";
+        LOG(logINFO) << bedstring;
+        
         LOG(logINFO) << "Start processing the chunks from " << allridx << " to " << allridx + incvalue
                 << " which contains approximately " << nreads << " reads and " << npositions << " positions divided into " 
                 << beg_end_pair_vec.size() << " sub-chunks";
@@ -1414,7 +1415,6 @@ main(int argc, char **argv) {
                     bcf_hdr : g_bcf_hdr,
                     sr : NULL,
                     
-                    // tid_beg_end_e2e_tuple : tid_beg_end_e2e_tuple_vec.at(0),
                     bedline: BedLine(-1, 0, 0, 0, 0), // bedlines.at(0),
                     tname_tseqlen_tuple : tid_to_tname_tseqlen_tuple_vec.at(0),
                     regionbatch_ordinal : 0,
@@ -1464,7 +1464,6 @@ main(int argc, char **argv) {
                         const auto tid = bedline.tid;
                         const auto beg = bedline.beg_pos;
                         const auto end = bedline.end_pos;
-                        // const auto e2e = std::get<3>(tid_beg_end_e2e_tuple);
                         if (superbatch_tid != -1 && superbatch_tid != tid) { 
                             perror("Runtime error due to template-ID mis-assignment!\n"); 
                             abort();
