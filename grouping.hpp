@@ -2,6 +2,7 @@
 #define grouping_hpp_INCLUDED
 
 #include "CmdLineArgs.hpp"
+#include "iohts.hpp"
 #include "common.hpp"
 
 #include "htslib/sam.h"
@@ -20,13 +21,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define logDEBUGx1 logDEBUG // logINFO
-
-typedef std::tuple<uvc1_refgpos_t, uvc1_refgpos_t, uvc1_refgpos_t, bool, uvc1_readnum_t> bedline_t;
+#define logDEBUGx1 logDEBUG // set to logINFO to enable it
 
 int 
 bed_fname_to_contigs(
-        std::vector<bedline_t> & tid_beg_end_e2e_vec,
+        std::vector<BedLine> & bedlines,
         const std::string & bed_fname, const bam_hdr_t *bam_hdr);
 
 struct SamIter {
@@ -47,7 +46,7 @@ struct SamIter {
     uvc1_refgpos_t last_it_beg = -1;
     uvc1_refgpos_t last_it_end = -1;
     
-    std::vector<bedline_t> _tid_beg_end_e2e_vec;
+    std::vector<BedLine> _bedlines;
     size_t _bedregion_idx = 0;
     
     SamIter(const CommandLineArgs &paramset):
@@ -81,7 +80,7 @@ struct SamIter {
         }
         
         if (NOT_PROVIDED != this->region_bed_fname) {
-            bed_fname_to_contigs(this->_tid_beg_end_e2e_vec, this->region_bed_fname, this->samheader); 
+            bed_fname_to_contigs(this->_bedlines, this->region_bed_fname, this->samheader); 
         }
     }
     ~SamIter() {
@@ -93,7 +92,7 @@ struct SamIter {
     }
     
     int64_t
-    iternext(std::vector<bedline_t> & tid_beg_end_e2e_vec, const CommandLineArgs &paramset);
+    iternext(std::vector<BedLine> & bedlines, const CommandLineArgs &paramset);
 };
 
 int
@@ -126,7 +125,7 @@ bamfname_to_strand_to_familyuid_to_reads(
         const std::string UMI_STRUCT_STRING, 
         // const hts_idx_t * hts_idx,
         size_t thread_id,
-        const std::vector<const bam1_t*> & bam_list,
+        const std::vector<bam1_t*> & bam_list,
         const CommandLineArgs & paramset,
         uvc1_flag_t specialflag);
 #endif

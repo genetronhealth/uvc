@@ -5,8 +5,8 @@
 //#define MAX_NUM_READS (2000*1000)
 
 // at 150*16 average sequencing depth, the two below amount of bytes are approx equal to each other.
-#define NUM_BYTES_PER_GENOMIC_POS ((int64_t)(1024*8)) // estimated
-#define NUM_BYTES_PER_READ ((int64_t)(512)) // estimated
+#define NUM_BYTES_PER_GENOMIC_POS ((size_t)(1024*8)) // estimated
+#define NUM_BYTES_PER_READ ((size_t)(512)) // estimated
 
 #define UPDATE_MIN(a, b) ((a) = MIN((a), (b)));
 // x1 and y1 are inclusive whereas x2 and y2 are exclusive
@@ -46,7 +46,7 @@ const _RevComplement THE_REV_COMPLEMENT;
 
 int 
 bed_fname_to_contigs(
-        std::vector<bedline_t> & tid_beg_end_e2e_vec,
+        std::vector<BedLine> & bedlines,
         const std::string & bed_fname, 
         const bam_hdr_t *bam_hdr) {
     
@@ -76,36 +76,38 @@ bed_fname_to_contigs(
             std::cerr << "The reference template name " << tname << " from the bedfile " << bed_fname << " is not in the input sam file";
             exit (17);
         }
-        bool end2end = false;
+        uvc1_flag_t bedline_flag = 0x0;
         std::string token;
         uvc1_readnum_t nreads = 2 * (tend - tbeg);
         while (linestream.good()) {
             linestream >> token;
-            if (token.find("end-to-end") != std::string::npos) {
-                end2end = true;
+            if (token.find("BedLineFlag") != std::string::npos) {
+                linestream >> bedline_flag;
             }
             if (token.find("NumberOfReadsInThisInterval") != std::string::npos) {
                 linestream >> nreads;
             }
         }
-        tid_beg_end_e2e_vec.push_back(std::make_tuple(tname_to_tid[tname], tbeg, tend, end2end, nreads)); // assume 100*1000 reads fall into this region
+        bedlines.push_back(BedLine(tname_to_tid[tname], tbeg, tend, bedline_flag, nreads));
     }
     return 0;
 }
 
 int64_t
-SamIter::iternext(std::vector<bedline_t> &tid_beg_end_e2e_vec, const CommandLineArgs &paramset) {
+SamIter::iternext(
+        std::vector<BedLine> & bedlines,
+        const CommandLineArgs &paramset) {
     uvc1_readnum_big_t total_n_reads = 0;
     uvc1_refgpos_t total_n_ref_positions = 0;
     
     if (NOT_PROVIDED != region_bed_fname) {
-        for (; this->_bedregion_idx < this->_tid_beg_end_e2e_vec.size(); this->_bedregion_idx++) {
+        for (; this->_bedregion_idx < this->_bedlines.size(); this->_bedregion_idx++) {
             //ret++;
-            const auto & bedreg = (this->_tid_beg_end_e2e_vec[this->_bedregion_idx]);
-            tid_beg_end_e2e_vec.push_back(bedreg);
-            const auto bed_tid = std::get<0>(bedreg);
-            const auto bed_beg = std::get<1>(bedreg);
-            const auto bed_end = std::get<2>(bedreg);
+            const auto & bedline = (this->_bedlines[this->_bedregion_idx]);
+            bedlines.push_back(bedline);
+            const auto bed_tid = bedline.tid; // std::get<0>(bedreg);
+            const auto bed_beg = bedline.beg_pos;
+            const auto bed_end = bedline.end_pos;
             int64_t region_n_reads = bed_in_avg_sequencing_DP; // Please note that left-over reads from the previoous iteration are ignored
             if (-1 == bed_in_avg_sequencing_DP) {
                 region_n_reads = 0;
@@ -137,6 +139,7 @@ SamIter::iternext(std::vector<bedline_t> &tid_beg_end_e2e_vec, const CommandLine
         uvc1_refgpos_t block_running_end = this->last_it_end;
 
         uvc1_readnum_big_t region_n_reads = 0;
+        uvc1_refgpos_t region_n_ref_positions = 0;
         std::set<std::string> visited_qnames;
         
         int sam_read_ret = -1;
@@ -152,10 +155,13 @@ SamIter::iternext(std::vector<bedline_t> &tid_beg_end_e2e_vec, const CommandLine
             const auto curr_tid = alnrecord->core.tid;
             const auto curr_beg = alnrecord->core.pos;
             const auto curr_end = bam_endpos(alnrecord);
-            const size_t n_bytes_used_by_reads = INT64MUL(total_n_reads, NUM_BYTES_PER_READ);
-            const size_t n_bytes_used_by_poss = INT64MUL(block_running_end - block_beg, NUM_BYTES_PER_GENOMIC_POS);
+            
+            const size_t n_bytes_used_by_reads = INT64MUL(region_n_reads, NUM_BYTES_PER_READ);
+            const size_t n_bytes_used_by_poss = INT64MUL(region_n_ref_positions, NUM_BYTES_PER_GENOMIC_POS);
             const bool is_template_changed = (curr_tid != block_tid); 
-            const bool is_far_jumped = ((curr_tid == block_tid) && (block_running_end + MAX_INSERT_SIZE < curr_beg));
+            // is_very_far_jumped results in a lot of wasted mem-alloc and computation, so it is not used
+            //const bool is_very_far_jumped = ((curr_tid == block_tid) && (block_running_end + MAX_INSERT_SIZE < curr_beg));
+            const bool is_far_jumped = ((curr_tid == block_tid) && (block_running_end < curr_beg));
             const bool has_too_much_mem = ((n_bytes_used_by_reads + n_bytes_used_by_poss) > (((uint64_t)1024*1024) / NUM_WORKING_UNITS_PER_THREAD) * this->mem_per_thread);
             
             if (0 == (total_n_reads % (1024*1024))) {
@@ -180,9 +186,9 @@ SamIter::iternext(std::vector<bedline_t> &tid_beg_end_e2e_vec, const CommandLine
                 const bool is_min_DP_failed = ((NOT_PROVIDED == paramset.vcf_tumor_fname) && is_min_DP_failed_1_ && (!paramset.should_output_all));
                 const bool is_block_zero_sized =  (block_beg >= block_norm_end); 
                 if (!is_1st_read && !is_min_DP_failed && !is_block_zero_sized) {
-                    const auto bed_region = std::make_tuple(block_tid, block_beg, block_norm_end, false, region_n_reads);
-                    tid_beg_end_e2e_vec.push_back(bed_region);
-                    total_n_ref_positions += (block_norm_end - block_beg);
+                    bedlines.push_back(BedLine(block_tid, block_beg, block_norm_end, false, region_n_reads));
+                    total_n_ref_positions += region_n_ref_positions;
+                    region_n_ref_positions = 0; // (block_norm_end - block_beg);
                     total_n_reads += region_n_reads;
                     region_n_reads = 0;
                     visited_qnames.clear();
@@ -207,8 +213,8 @@ SamIter::iternext(std::vector<bedline_t> &tid_beg_end_e2e_vec, const CommandLine
             }
             block_running_end = (is_template_changed ? curr_end : MAX(block_running_end, curr_end));
             region_n_reads++;
-            
-        } while (sam_read_ret >= 0);    
+            region_n_ref_positions = block_running_end - block_beg;
+        } while (sam_read_ret >= 0);
     }
     return total_n_reads;
 }
@@ -253,7 +259,7 @@ fill_isrc_isr2_beg_end_with_aln(bool & isrc, bool & isr2, uvc1_refgpos_t & tBeg,
         const uvc1_readpos_t min_isize, 
         const uvc1_readpos_t max_isize, 
         const bool is_zero_isize_discarded,
-        const bool end2end, const bool is_pair_end_merge_enabled) {
+        const uvc1_flag_t region_flag, const bool is_pair_end_merge_enabled) {
     num_seqs = 0;
     if (aln->core.flag & 0x4) {
         return NOT_MAPPED;
@@ -308,7 +314,7 @@ fill_isrc_isr2_beg_end_with_aln(bool & isrc, bool & isr2, uvc1_refgpos_t & tBeg,
     if (tOrdBeg + (ARRPOS_MARGIN - ARRPOS_OUTER_RANGE) <= fetch_tbeg || fetch_tend - 1 + (ARRPOS_MARGIN - ARRPOS_OUTER_RANGE) <= tOrdEnd) {
         return OUT_OF_RANGE;
     }
-    if (end2end && !(tOrdBeg <= fetch_tbeg && tOrdEnd >= fetch_tend)) {
+    if ((region_flag & BED_END_TO_END_BIT) && !(tOrdBeg <= fetch_tbeg && tOrdEnd >= fetch_tend)) {
         return NOT_END_TO_END;
     }
     return NOT_FILTERED;
@@ -552,7 +558,7 @@ bamfname_to_strand_to_familyuid_to_reads(
         const std::string UMI_STRUCT_STRING, 
         // const hts_idx_t * hts_idx,
         size_t thread_id,
-        const std::vector<const bam1_t*> & bam_list,
+        const std::vector<bam1_t*> & bam_list,
         const CommandLineArgs & paramset,
         const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
     assert (fetch_tend > fetch_tbeg);
@@ -651,7 +657,8 @@ bamfname_to_strand_to_familyuid_to_reads(
     size_t alnidx = 0;
     // hts_itr = sam_itr_queryi(hts_idx, tid, fetch_tbeg, fetch_tend);
     // while (sam_itr_next(sam_infile, hts_itr, aln) >= 0) 
-    for (const bam1_t * aln : bam_list) {
+    for (bam1_t * mut_aln : bam_list) {
+        const bam1_t * aln = mut_aln;
         bool isrc = false;
         bool isr2 = false;
         uvc1_refgpos_t tBeg = 0;
@@ -819,7 +826,9 @@ bamfname_to_strand_to_familyuid_to_reads(
         
         umi_to_strand_to_reads.insert(std::make_pair(molecule_hash, std::make_pair(std::array<std::map<uvc1_hash_t, std::vector<bam1_t *>>, 2>(), mb)));
         umi_to_strand_to_reads[molecule_hash].first[strand].insert(std::make_pair(qname_hash, std::vector<bam1_t *>()));
-        umi_to_strand_to_reads[molecule_hash].first[strand][qname_hash].push_back(bam_dup1(aln));
+        
+        // umi_to_strand_to_reads[molecule_hash].first[strand][qname_hash].push_back(bam_dup1(aln));
+        umi_to_strand_to_reads[molecule_hash].first[strand][qname_hash].push_back((mut_aln));
         
         const bool should_log_read = (ispowerof2(alnidx + 1) || ispowerof2(num_pass_alns - alnidx));
         if (!is_pair_end_merge_enabled) { assert(!isr2); }

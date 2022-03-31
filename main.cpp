@@ -138,7 +138,7 @@ struct BatchArg {
     bcf_hdr_t *bcf_hdr;
     bcf_srs_t *sr;
     
-    std::tuple<uvc1_refgpos_t, uvc1_refgpos_t, uvc1_refgpos_t, bool, uvc1_readnum_t> tid_beg_end_e2e_tuple;
+    BedLine bedline;
     std::tuple<std::string, uint32_t> tname_tseqlen_tuple;
     size_t regionbatch_ordinal;
     size_t regionbatch_tot_num;
@@ -172,7 +172,7 @@ als_to_string(const char *const* const allele, uint32_t n_allele) {
 template <class T1, class T2, class T3>
 const std::map<std::tuple<uvc1_refgpos_t, uvc1_refgpos_t, AlignmentSymbol>, std::vector<TumorKeyInfo>>
 rescue_variants_from_vcf(
-        const T1 & tid_beg_end_e2e_vec,
+        const T1 & bedlines,
         const T2 & tid_to_tname_tlen_tuple_vec,
         const std::string & vcf_tumor_fname, 
         const T3 *bcf_hdr,
@@ -182,10 +182,10 @@ rescue_variants_from_vcf(
         return ret;
     }
     std::string regionstring;
-    for (const auto & tid_beg_end_e2e : tid_beg_end_e2e_vec) {
-        const uvc1_refgpos_t tid = std::get<0>(tid_beg_end_e2e);
-        const uvc1_refgpos_t rpos_inclu_beg = std::get<1>(tid_beg_end_e2e);
-        const uvc1_refgpos_t rpos_exclu_end = std::get<2>(tid_beg_end_e2e);
+    for (const auto & bedline : bedlines) {
+        const uvc1_refgpos_t tid = bedline.tid; // std::get<0>(tid_beg_end_e2e);
+        const uvc1_refgpos_t rpos_inclu_beg = bedline.beg_pos; // std::get<1>(tid_beg_end_e2e);
+        const uvc1_refgpos_t rpos_exclu_end = bedline.end_pos; // std::get<2>(tid_beg_end_e2e);
         
         const auto & tname_tseqlen_tuple = tid_to_tname_tlen_tuple_vec[tid];
         if (0 < regionstring.size()) { regionstring += std::string(","); }
@@ -416,7 +416,7 @@ int
 process_batch(BatchArg & arg, 
         const T & tid_pos_symb_to_tkis, 
         const std::string & superbatch_ref_seq,
-        const std::vector<const bam1_t*> & superbatch_bam_records,
+        const std::vector<bam1_t*> & superbatch_bam_records,
         const uvc1_refgpos_t lim_beg, 
         const uvc1_refgpos_t lim_end) {
     
@@ -428,7 +428,7 @@ process_batch(BatchArg & arg,
     const bcf_hdr_t *const bcf_hdr = arg.bcf_hdr;
     const CommandLineArgs & paramset = arg.paramset;
     const std::string UMI_STRUCT_STRING = arg.UMI_STRUCT_STRING;
-    const std::tuple<uvc1_refgpos_t, uvc1_refgpos_t, uvc1_refgpos_t, bool, uvc1_readnum_t> tid_beg_end_e2e_tuple = arg.tid_beg_end_e2e_tuple;
+    const BedLine bedline = arg.bedline;
     const std::tuple<std::string, uvc1_refgpos_t> tname_tseqlen_tuple = arg.tname_tseqlen_tuple;
     const auto regionbatch_ordinal = arg.regionbatch_ordinal;
     const auto regionbatch_tot_num = arg.regionbatch_tot_num;
@@ -439,10 +439,11 @@ process_batch(BatchArg & arg,
     std::string raw_out_string;
     std::string raw_out_string_pass;
     
-    auto tid = std::get<0>(tid_beg_end_e2e_tuple);
-    auto incluBegPosition = std::get<1>(tid_beg_end_e2e_tuple);
-    auto excluEndPosition = std::get<2>(tid_beg_end_e2e_tuple);
-    auto end2end = std::get<3>(tid_beg_end_e2e_tuple);
+    auto tid = bedline.tid;
+    
+    auto incluBegPosition = bedline.beg_pos;
+    auto excluEndPosition = bedline.end_pos;
+    bool end2end = (bedline.region_flag & BED_END_TO_END_BIT); 
     
     std::map<uint64_t, std::pair<std::array<std::map<uint64_t, std::vector<bam1_t *>>, 2>, MolecularBarcode>> umi_to_strand_to_reads;
     uvc1_refgpos_t bam_inclu_beg_pos, bam_exclu_end_pos; 
@@ -476,8 +477,8 @@ process_batch(BatchArg & arg,
     
     const uvc1_refgpos_t rpos_inclu_beg = MAX(incluBegPosition, bam_inclu_beg_pos);
     const uvc1_refgpos_t rpos_exclu_end = MIN(excluEndPosition, bam_exclu_end_pos);
-    const uvc1_refgpos_t extended_inclu_beg_pos = MAX(0, MIN(incluBegPosition - (MEAN_CFDNA_INS_SIZE + MAX_STR_N_BASES + 1), bam_inclu_beg_pos));
-    const uvc1_refgpos_t extended_exclu_end_pos = MIN(std::get<1>(tname_tseqlen_tuple), MAX(excluEndPosition + (MEAN_CFDNA_INS_SIZE + MAX_STR_N_BASES + 1), bam_exclu_end_pos));
+    const uvc1_refgpos_t extended_inclu_beg_pos = MAX(0, MIN(incluBegPosition - (MAX_STR_N_BASES + 1), bam_inclu_beg_pos));
+    const uvc1_refgpos_t extended_exclu_end_pos = MIN(std::get<1>(tname_tseqlen_tuple), MAX(excluEndPosition + (MAX_STR_N_BASES + 1), bam_exclu_end_pos));
     
     const auto tkis_beg = tid_pos_symb_to_tkis.lower_bound(std::make_tuple(tid, extended_inclu_beg_pos    , AlignmentSymbol(0)));
     const auto tkis_end = tid_pos_symb_to_tkis.upper_bound(std::make_tuple(tid, extended_exclu_end_pos + 1, AlignmentSymbol(0)));
@@ -1123,16 +1124,19 @@ process_batch(BatchArg & arg,
     } // zerobased_pos
     
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id  << " starts destroying bam records"; }
+    // already destroyed and not from bam_dup, should not be needed here
+    /*
     for (auto strand_readset : umi_strand_readset) {
         for (int strand = 0; strand < 2; strand++) {
             auto readset = strand_readset.first[strand]; 
             for (auto read : readset) {
                 for (bam1_t *b : read) {
-                    bam_destroy1(b);
+                    // bam_destroy1(b);
                 } 
             }
         }
     }
+    */
     if (!is_vcf_out_pass_to_stdout) {
         bgzip_string(outstring_pass, buf_out_string_pass);
     } else {
@@ -1168,6 +1172,8 @@ int gzip_close_wrap1(BGZF *fp, const std::string &filename) {
     }
 }
 
+static_assert((sizeof(size_t) > 4), "Error: 32-bit architectures are not supported!");
+static_assert((sizeof(void*) > 4), "Error: 32-bit memory systems are not supported!");
 int 
 main(int argc, char **argv) {
     std::clock_t c_start = std::clock();
@@ -1282,54 +1288,42 @@ main(int argc, char **argv) {
             paramset);
     clearstring<false>(fp_pass, header_outstring, is_vcf_out_pass_to_stdout);
 
-    std::vector<std::tuple<uvc1_refgpos_t, uvc1_refgpos_t, uvc1_refgpos_t, bool, uvc1_readnum_t>> tid_beg_end_e2e_tuple_vec1;
-    std::vector<std::tuple<uvc1_refgpos_t, uvc1_refgpos_t, uvc1_refgpos_t, bool, uvc1_readnum_t>> tid_beg_end_e2e_tuple_vec2;
+    std::vector<BedLine> bedlines1;
+    std::vector<BedLine> bedlines2;
+    
     std::map<std::tuple<uvc1_refgpos_t, uvc1_refgpos_t, AlignmentSymbol>, std::vector<TumorKeyInfo>> tid_pos_symb_to_tkis1; 
     std::map<std::tuple<uvc1_refgpos_t, uvc1_refgpos_t, AlignmentSymbol>, std::vector<TumorKeyInfo>> tid_pos_symb_to_tkis2; 
     SamIter samIter(paramset);
     int64_t n_sam_iters = 0;
-    int64_t iter_nreads = samIter.iternext(tid_beg_end_e2e_tuple_vec1, paramset);
+    int64_t iter_nreads = samIter.iternext(bedlines1, paramset);
     LOG(logINFO) << "PreProcessed " << iter_nreads << " reads in super-contig no " << (n_sam_iters);
     // rescue_variants_from_vcf
-    tid_pos_symb_to_tkis1 = rescue_variants_from_vcf(tid_beg_end_e2e_tuple_vec1, tid_to_tname_tseqlen_tuple_vec, paramset.vcf_tumor_fname, g_bcf_hdr, paramset.is_tumor_format_retrieved);
+    tid_pos_symb_to_tkis1 = rescue_variants_from_vcf(bedlines1, tid_to_tname_tseqlen_tuple_vec, paramset.vcf_tumor_fname, g_bcf_hdr, paramset.is_tumor_format_retrieved);
     LOG(logINFO) << "Rescued/retrieved " << tid_pos_symb_to_tkis1.size() << " variants in super-contig no " << (n_sam_iters);
     while (iter_nreads > 0) {
         n_sam_iters++;
-        std::thread read_bam_thread([&tid_beg_end_e2e_tuple_vec2, &tid_pos_symb_to_tkis2, &samIter, &iter_nreads, &n_sam_iters, &paramset, &tid_to_tname_tseqlen_tuple_vec, g_bcf_hdr]() {
-            tid_beg_end_e2e_tuple_vec2.clear();
-            iter_nreads = samIter.iternext(tid_beg_end_e2e_tuple_vec2, paramset);
+        std::thread read_bam_thread([&bedlines2, &tid_pos_symb_to_tkis2, &samIter, &iter_nreads, &n_sam_iters, &paramset, &tid_to_tname_tseqlen_tuple_vec, g_bcf_hdr]() {
+            bedlines2.clear();
+            iter_nreads = samIter.iternext(bedlines2, paramset);
             LOG(logINFO) << "PreProcessed " << iter_nreads << " reads in super-contig no " << (n_sam_iters);
             
-            tid_pos_symb_to_tkis2 = rescue_variants_from_vcf(tid_beg_end_e2e_tuple_vec2, tid_to_tname_tseqlen_tuple_vec, paramset.vcf_tumor_fname, g_bcf_hdr, paramset.is_tumor_format_retrieved);
+            tid_pos_symb_to_tkis2 = rescue_variants_from_vcf(bedlines2, tid_to_tname_tseqlen_tuple_vec, paramset.vcf_tumor_fname, g_bcf_hdr, paramset.is_tumor_format_retrieved);
             LOG(logINFO) << "Rescued/retrieved " << tid_pos_symb_to_tkis2.size() << " variants in super-contig no " << (n_sam_iters);
         });
-        const auto & tid_beg_end_e2e_tuple_vec = tid_beg_end_e2e_tuple_vec1; 
+        const auto & bedlines = bedlines1;
         //const std::string bedstring_header = std::string("The BED-genomic-region is as follows (") + std::to_string(tid_beg_end_e2e_tuple_vec.size()) 
         //        + " chunks) for super-contig no " + std::to_string(n_sam_iters-1) + "\n";
         
         //LOG(logINFO) << bedstring_header << bedstring;
-        if (bed_out.is_open()) { 
-            std::string bedstring = "";
-            for (const auto & tid_beg_end_e2e_tuple : tid_beg_end_e2e_tuple_vec) {
-                bedstring += (std::get<0>(tid_to_tname_tseqlen_tuple_vec[std::get<0>(tid_beg_end_e2e_tuple)]) + "\t"
-                      + std::to_string(std::get<1>(tid_beg_end_e2e_tuple)) + "\t"
-                      + std::to_string(std::get<2>(tid_beg_end_e2e_tuple)) + "\t"
-                      + std::to_string(std::get<3>(tid_beg_end_e2e_tuple)) + "\t"
-                      + "NumberOfReadsInThisInterval\t"
-                      + std::to_string(std::get<4>(tid_beg_end_e2e_tuple)) + "\t" 
-                      + "\n");
-            }
-            bed_out << bedstring; 
-        }
-        const size_t allridx = 0;  
-        const size_t incvalue = tid_beg_end_e2e_tuple_vec.size();
+        const size_t allridx = 0;
+        const size_t incvalue = bedlines.size();
         
         size_t nreads = 0;
         size_t npositions = 0;
         for (size_t j = 0; j < incvalue; j++) {
             auto region_idx = allridx + j;
-            nreads += std::get<4>(tid_beg_end_e2e_tuple_vec[region_idx]);
-            npositions += std::get<2>(tid_beg_end_e2e_tuple_vec[region_idx]) - std::get<1>(tid_beg_end_e2e_tuple_vec[region_idx]); 
+            nreads += bedlines[region_idx].n_reads;
+            npositions += bedlines[region_idx].end_pos - bedlines[region_idx].beg_pos; 
         }
         
         assert(incvalue > 0);
@@ -1348,9 +1342,9 @@ main(int argc, char **argv) {
         for (size_t j = 0; j < incvalue; j++) {
             // possible optimization: remove regions containing only one read-fragment
             auto region_idx = allridx + j;
-            const auto curr_tid = std::get<0>(tid_beg_end_e2e_tuple_vec[region_idx]);
-            curr_nreads += std::get<4>(tid_beg_end_e2e_tuple_vec[region_idx]);
-            curr_npositions += std::get<2>(tid_beg_end_e2e_tuple_vec[region_idx]) - std::get<1>(tid_beg_end_e2e_tuple_vec[region_idx]); 
+            const auto curr_tid = bedlines[region_idx].tid;
+            curr_nreads += bedlines[region_idx].n_reads;
+            curr_npositions +=(bedlines[region_idx].end_pos) - (bedlines[region_idx].beg_pos);
             if ((last_tid != curr_tid)
                     || (curr_nreads * nthreads * UNDERLOAD_RATIO > nreads)
                     || (curr_npositions * nthreads * UNDERLOAD_RATIO > npositions || (j == incvalue - 1))) {
@@ -1363,7 +1357,18 @@ main(int argc, char **argv) {
                 curr_zerobased_region_idx = j;
             }
         }
-        
+        if (bed_out.is_open()) { 
+            std::string bedstring = "";
+            for (const auto & bedline : bedlines) {
+                bedstring += (std::get<0>(tid_to_tname_tseqlen_tuple_vec[bedline.tid ])
+                      + "\t" + std::to_string(bedline.beg_pos)
+                      + "\t" + std::to_string(bedline.end_pos)
+                      + "\tBedLineFlag\t" + std::to_string(bedline.region_flag)
+                      + "\tNumberOfReadsInThisInterval\t" + std::to_string(bedline.n_reads)
+                      + "\n");
+            }
+            bed_out << bedstring; 
+        }
         LOG(logINFO) << "Start-bam-iteration-" << (n_sam_iters-1) << ": will-process-the-following-super-region: ";
         for (size_t i = 0; i < beg_end_pair_vec.size(); i++) {
             LOG(logINFO) << "\tStart-of-super-region-no-" << i << " (is-listed-below):";
@@ -1372,13 +1377,14 @@ main(int argc, char **argv) {
             uvc1_readnum_big_t tot_n_reads = 0;
             uvc1_readnum_big_t tot_n_bases = 0;
             for (size_t j = beg; j < end; j++) {
-                const auto tid_beg_end_e2e = tid_beg_end_e2e_tuple_vec[j];
-                const auto tid = std::get<0>(tid_beg_end_e2e);
-                const auto beg = std::get<1>(tid_beg_end_e2e);
-                const auto end = std::get<2>(tid_beg_end_e2e);
-                const auto e2e = std::get<3>(tid_beg_end_e2e);
-                const auto n_reads = std::get<4>(tid_beg_end_e2e);
+                const auto & bedline = bedlines[j];
+                const auto tid = bedline.tid;
+                const auto beg = bedline.beg_pos;
+                const auto end = bedline.end_pos;
+                const auto e2e = (bedline.region_flag & BED_END_TO_END_BIT);
+                const auto n_reads = bedline.n_reads;
                 const auto n_bases = end - beg;
+                
                 LOG(logINFO) << "\t\t" << tid << "\t" << "\t" << beg << "\t" << end << "\t" << e2e << "\t" << "NumberOfReadsInThisInterval" << "\t" << n_reads 
                         << "\t" << "NumberOfBasesInThisInterval" << "\t" << n_bases << "\tbam-iteration\t" << (n_sam_iters-1);
                 tot_n_reads += n_reads;
@@ -1408,7 +1414,8 @@ main(int argc, char **argv) {
                     bcf_hdr : g_bcf_hdr,
                     sr : NULL,
                     
-                    tid_beg_end_e2e_tuple : tid_beg_end_e2e_tuple_vec.at(0),
+                    // tid_beg_end_e2e_tuple : tid_beg_end_e2e_tuple_vec.at(0),
+                    bedline: BedLine(-1, 0, 0, 0, 0), // bedlines.at(0),
                     tname_tseqlen_tuple : tid_to_tname_tseqlen_tuple_vec.at(0),
                     regionbatch_ordinal : 0,
                     regionbatch_tot_num : 0,
@@ -1442,7 +1449,7 @@ main(int argc, char **argv) {
             std::pair<size_t, size_t> beg_end_pair = beg_end_pair_vec[beg_end_pair_idx];
 #if defined(USE_STDLIB_THREAD)
             std::thread athread([
-                        &batcharg, allridx, beg_end_pair, beg_end_pair_idx, &tid_beg_end_e2e_tuple_vec, &tid_to_tname_tseqlen_tuple_vec, &tid_pos_symb_to_tkis1
+                        &batcharg, allridx, beg_end_pair, beg_end_pair_idx, &bedlines, &tid_to_tname_tseqlen_tuple_vec, &tid_pos_symb_to_tkis1
                         ]() {
 #endif
                     LOG(logINFO) << "Thread " << batcharg.thread_id << " will process the sub-chunk " << beg_end_pair_idx << " which ranges from " 
@@ -1452,10 +1459,11 @@ main(int argc, char **argv) {
                     uvc1_refgpos_t maxpos = 0;
                     uvc1_refgpos_t superbatch_tid = -1;
                     for (size_t j = beg_end_pair.first; j < beg_end_pair.second; j++) {
-                        const auto tid_beg_end_e2e_tuple = tid_beg_end_e2e_tuple_vec.at(allridx + j);
-                        const auto tid = std::get<0>(tid_beg_end_e2e_tuple);
-                        const auto beg = std::get<1>(tid_beg_end_e2e_tuple);
-                        const auto end = std::get<2>(tid_beg_end_e2e_tuple);
+                        
+                        const auto & bedline = bedlines.at(allridx + j);
+                        const auto tid = bedline.tid;
+                        const auto beg = bedline.beg_pos;
+                        const auto end = bedline.end_pos;
                         // const auto e2e = std::get<3>(tid_beg_end_e2e_tuple);
                         if (superbatch_tid != -1 && superbatch_tid != tid) { 
                             perror("Runtime error due to template-ID mis-assignment!\n"); 
@@ -1477,20 +1485,20 @@ main(int argc, char **argv) {
                     for (size_t j = beg_end_pair.first; j < beg_end_pair.second; j++) {
                         batcharg.regionbatch_ordinal = j;
                         batcharg.regionbatch_tot_num = beg_end_pair.second;
-                        assert (((size_t)(allridx + j) < tid_beg_end_e2e_tuple_vec.size())
-                                || !fprintf(stderr, "%lu + %lu < %lu failed!\n", allridx, j, tid_beg_end_e2e_tuple_vec.size()));
-                        batcharg.tid_beg_end_e2e_tuple = tid_beg_end_e2e_tuple_vec.at(allridx + j);
-                        assert (((size_t)std::get<0>(batcharg.tid_beg_end_e2e_tuple)) < tid_to_tname_tseqlen_tuple_vec.size() 
-                                || !fprintf(stderr, "%lu < %lu failed!\n", (size_t)std::get<0>(batcharg.tid_beg_end_e2e_tuple), tid_to_tname_tseqlen_tuple_vec.size()));
-                        batcharg.tname_tseqlen_tuple = tid_to_tname_tseqlen_tuple_vec.at(std::get<0>(batcharg.tid_beg_end_e2e_tuple));                        
+                        assert (((size_t)(allridx + j) < bedlines.size())
+                                || !fprintf(stderr, "%lu + %lu < %lu failed!\n", allridx, j, bedlines.size()));
+                        batcharg.bedline = bedlines.at(allridx + j);
+                        assert (((size_t)(batcharg.bedline.tid)) < tid_to_tname_tseqlen_tuple_vec.size() 
+                                || !fprintf(stderr, "%lu < %lu failed!\n", (size_t)(batcharg.bedline.tid), tid_to_tname_tseqlen_tuple_vec.size()));
+                        batcharg.tname_tseqlen_tuple = tid_to_tname_tseqlen_tuple_vec.at((batcharg.bedline.tid));                        
                         // subset the super-batch of bam records to get sub-batches of bam records
-                        std::vector<const bam1_t*> sub_batch_bam_records;
-                        const auto bed_beg = std::get<1>(batcharg.tid_beg_end_e2e_tuple);
-                        const auto bed_end = std::get<2>(batcharg.tid_beg_end_e2e_tuple);
+                        std::vector<bam1_t*> sub_batch_bam_records;
+                        const auto bed_beg = (batcharg.bedline.beg_pos);
+                        const auto bed_end = (batcharg.bedline.end_pos);
                         for (; superbatch_bam_idx < superbatch_bam_records.size() 
                                     && bam_endpos(superbatch_bam_records[superbatch_bam_idx]) + MAX_INSERT_SIZE < bed_beg; 
                                 superbatch_bam_idx++) {
-                            const bam1_t *bam = superbatch_bam_records[superbatch_bam_idx];
+                            bam1_t *bam = superbatch_bam_records[superbatch_bam_idx];
                             if (ARE_INTERVALS_OVERLAPPING(bam->core.pos, bam_endpos(bam), bed_beg, bed_end)) {
                                 sub_batch_bam_records.push_back(bam);
                             }
@@ -1499,7 +1507,7 @@ main(int argc, char **argv) {
                                 after_bam_idx < superbatch_bam_records.size() 
                                     && superbatch_bam_records[after_bam_idx]->core.pos < bed_end; 
                                 after_bam_idx++) {
-                            const bam1_t *bam = superbatch_bam_records[after_bam_idx];
+                            bam1_t *bam = superbatch_bam_records[after_bam_idx];
                             if (ARE_INTERVALS_OVERLAPPING(bam->core.pos, bam_endpos(bam), bed_beg, bed_end)) {
                                 sub_batch_bam_records.push_back(bam);
                             }
@@ -1539,7 +1547,7 @@ main(int argc, char **argv) {
                 }
             }
         }
-        autoswap(tid_beg_end_e2e_tuple_vec1, tid_beg_end_e2e_tuple_vec2);
+        autoswap(bedlines1, bedlines2);
         autoswap(tid_pos_symb_to_tkis1, tid_pos_symb_to_tkis2);
     }
     
