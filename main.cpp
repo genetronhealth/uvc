@@ -133,6 +133,7 @@ struct BatchArg {
     std::string outstring_allp;
     std::string outstring_pass;
     int thread_id;
+    samFile *samfile;
     hts_idx_t *hts_idx;
     faidx_t *ref_faidx;
     bcf_hdr_t *bcf_hdr;
@@ -1410,6 +1411,7 @@ main(int argc, char **argv) {
                     outstring_allp : "",
                     outstring_pass : "",
                     thread_id : 0,
+                    samfile: NULL,
                     hts_idx : NULL, 
                     ref_faidx : NULL,
                     bcf_hdr : g_bcf_hdr,
@@ -1442,6 +1444,7 @@ main(int argc, char **argv) {
 #endif
             auto & batcharg = batchargs[beg_end_pair_idx];
             batcharg.thread_id = thread_id;
+            batcharg.samfile = samfiles[thread_id];
             batcharg.hts_idx = sam_idxs[thread_id];
             batcharg.ref_faidx = ref_faidxs[thread_id];
             batcharg.sr = srs[thread_id];
@@ -1477,7 +1480,18 @@ main(int argc, char **argv) {
                     // load FASTA reference region
                     std::string superbatch_ref_seq = load_refstring(batcharg.ref_faidx, superbatch_tid, lim_beg, lim_end);
                     // load BAM reads
-                    std::vector<bam1_t*> superbatch_bam_records = load_bam_records(batcharg.paramset.bam_input_fname.c_str(), batcharg.hts_idx, superbatch_tid, lim_beg, lim_end);
+                    int sam_itr_queryi_ret = 0;
+                    std::vector<bam1_t*> superbatch_bam_records = load_bam_records(
+                            sam_itr_queryi_ret,
+                            batcharg.samfile, 
+                            batcharg.hts_idx, 
+                            superbatch_tid, 
+                            lim_beg, 
+                            lim_end);
+                    if (sam_itr_queryi_ret != -1) {
+                        LOG(logERROR) << "The sam iterator returned error code " << sam_itr_queryi_ret 
+                                << " in the region tid-" << superbatch_tid << ":" << lim_beg << "-" << lim_end << " in thread-" << thread_id;
+                    }
                     // load the VCF file
                     size_t superbatch_bam_idx = 0;
 
