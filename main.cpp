@@ -59,7 +59,7 @@ load_refstring(const faidx_t *ref_faidx, uvc1_refgpos_t tid, uvc1_refgpos_t incb
     const char *tname = faidx_iseq(ref_faidx, tid);
     int regionlen;
     char *fetchedseq = faidx_fetch_seq(ref_faidx, tname, incbeg, excend - 1, &regionlen);
-    assert (regionlen == (excend - incbeg) || !fprintf(stderr, "%d == %u - %u failed", regionlen, excend, incbeg));
+    assert (regionlen == (excend - incbeg) || !fprintf(stderr, "%d == %u - %u failed for %s:%d-%d\n", regionlen, excend, incbeg, tname, incbeg, excend));
     std::string ret(fetchedseq);
     for (size_t i = 0; i < ret.size(); i++) {
         ret[i] = toupper(ret[i]);
@@ -1296,16 +1296,17 @@ main(int argc, char **argv) {
     std::map<std::tuple<uvc1_refgpos_t, uvc1_refgpos_t, AlignmentSymbol>, std::vector<TumorKeyInfo>> tid_pos_symb_to_tkis2; 
     SamIter samIter(paramset);
     int64_t n_sam_iters = 0;
-    int64_t iter_nreads = samIter.iternext(bedlines1, paramset);
+    uvc1_flag_t iter_ret_flag;
+    int64_t iter_nreads = samIter.iternext(iter_ret_flag, bedlines1, paramset);
     LOG(logINFO) << "PreProcessed " << iter_nreads << " reads in tier-1-region no " << (n_sam_iters);
     // rescue_variants_from_vcf
     tid_pos_symb_to_tkis1 = rescue_variants_from_vcf(bedlines1, tid_to_tname_tseqlen_tuple_vec, paramset.vcf_tumor_fname, g_bcf_hdr, paramset.is_tumor_format_retrieved);
     LOG(logINFO) << "Rescued/retrieved " << tid_pos_symb_to_tkis1.size() << " variants in tier-1-region no " << (n_sam_iters);
     while (iter_nreads > 0) {
         n_sam_iters++;
-        std::thread read_bam_thread([&bedlines2, &tid_pos_symb_to_tkis2, &samIter, &iter_nreads, &n_sam_iters, &paramset, &tid_to_tname_tseqlen_tuple_vec, g_bcf_hdr]() {
+        std::thread read_bam_thread([&bedlines2, &tid_pos_symb_to_tkis2, &samIter, &iter_nreads, &iter_ret_flag, &n_sam_iters, &paramset, &tid_to_tname_tseqlen_tuple_vec, g_bcf_hdr]() {
             bedlines2.clear();
-            iter_nreads = samIter.iternext(bedlines2, paramset);
+            iter_nreads = samIter.iternext(iter_ret_flag, bedlines2, paramset);
             LOG(logINFO) << "PreProcessed " << iter_nreads << " reads in tier-1-region no " << (n_sam_iters);
             
             tid_pos_symb_to_tkis2 = rescue_variants_from_vcf(bedlines2, tid_to_tname_tseqlen_tuple_vec, paramset.vcf_tumor_fname, g_bcf_hdr, paramset.is_tumor_format_retrieved);
@@ -1332,7 +1333,7 @@ main(int argc, char **argv) {
 #else
         const size_t UNDERLOAD_RATIO = NUM_WORKING_UNITS_PER_THREAD;
 #endif
-        uvc1_refgpos_t last_tid = -1;
+        uvc1_refgpos_t last_tid = ((bedlines.size() > 0) ? (bedlines[0].tid) : -1);
         uvc1_readnum_big_t curr_nreads = 0;
         uvc1_refgpos_t curr_npositions = 0;
         size_t curr_zerobased_region_idx = 0;
@@ -1342,18 +1343,17 @@ main(int argc, char **argv) {
             const auto curr_tid = bedlines[region_idx].tid;
             curr_nreads += bedlines[region_idx].n_reads;
             curr_npositions +=(bedlines[region_idx].end_pos) - (bedlines[region_idx].beg_pos);
-            if ((last_tid != curr_tid)
+            if ((j > 0) && ((last_tid != curr_tid)
                     || (curr_nreads * nthreads * UNDERLOAD_RATIO > nreads)
-                    || (curr_npositions * nthreads * UNDERLOAD_RATIO > npositions || (j == incvalue - 1))) {
-                if (curr_zerobased_region_idx < j) {
-                    beg_end_pair_vec.push_back(std::make_pair(curr_zerobased_region_idx, j));
-                }
+                    || (curr_npositions * nthreads * UNDERLOAD_RATIO > npositions))) {
+                beg_end_pair_vec.push_back(std::make_pair(curr_zerobased_region_idx, j));
+                curr_zerobased_region_idx = j;
                 last_tid = curr_tid;
                 curr_nreads = 0;
                 curr_npositions = 0;
-                curr_zerobased_region_idx = j;
             }
         }
+        beg_end_pair_vec.push_back(std::make_pair(curr_zerobased_region_idx, incvalue));
 
         uvc1_readnum_big_t t1_tot_n_reads = 0;
         uvc1_refgpos_big_t t1_tot_n_bases = 0;
@@ -1385,7 +1385,7 @@ main(int argc, char **argv) {
             t1_tot_n_reads += t2_tot_n_reads;
             t1_tot_n_bases += t2_tot_n_bases;
         }
-        assert((size_t)t1_tot_n_bases == npositions);
+        assert((size_t)t1_tot_n_bases == npositions || !fprintf(stderr, "%d ==%lu failed!", t1_tot_n_bases, npositions));
         LOG(logINFO) << "End-of-tier-1-region-no-" << (n_sam_iters-1) << " tot_n_reads=" << t1_tot_n_reads << " tot_n_ref_bases=" << t1_tot_n_bases;
         if (bed_out.is_open()) { 
             bed_out << bedstring; 
@@ -1468,7 +1468,7 @@ main(int argc, char **argv) {
                         const auto beg = bedline.beg_pos;
                         const auto end = bedline.end_pos;
                         if (superbatch_tid != -1 && superbatch_tid != tid) { 
-                            perror("Runtime error due to template-ID mis-assignment!\n"); 
+                            fprintf(stderr, "Runtime error due to template-ID mis-assignment tids %d != %d!\n", superbatch_tid, tid); 
                             abort();
                         }
                         superbatch_tid = tid;
@@ -1478,7 +1478,7 @@ main(int argc, char **argv) {
                     const uvc1_refgpos_t lim_beg = non_neg_minus(minpos, MAX_INSERT_SIZE + MAX_STR_N_BASES);
                     const uvc1_refgpos_t lim_end = MIN(maxpos + MAX_INSERT_SIZE + MAX_STR_N_BASES, std::get<1>(tid_to_tname_tseqlen_tuple_vec[superbatch_tid]));
                     // load FASTA reference region
-                    std::string superbatch_ref_seq = load_refstring(batcharg.ref_faidx, superbatch_tid, lim_beg, lim_end);
+                    std::string superbatch_ref_seq = ""; load_refstring(batcharg.ref_faidx, superbatch_tid, lim_beg, lim_end);
                     // load BAM reads
                     int sam_itr_queryi_ret = 0;
                     std::vector<bam1_t*> superbatch_bam_records = load_bam_records(

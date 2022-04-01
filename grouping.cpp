@@ -113,8 +113,10 @@ check_if_is_over_mem_lim(
 
 int64_t
 SamIter::iternext(
+        uvc1_flag_t & iter_ret_flag,
         std::vector<BedLine> & bedlines,
         const CommandLineArgs &paramset) {
+    iter_ret_flag = 0;
     uvc1_readnum_big_t total_n_reads = 0;
     uvc1_refgpos_big_t total_n_ref_positions = 0;
     uvc1_refgpos_big_t total_n_ref_pos_x_pos = 0;
@@ -147,7 +149,7 @@ SamIter::iternext(
             total_n_ref_pos_x_pos += mathsquare(region_n_ref_positions);
             const bool is_over_mem_lim = check_if_is_over_mem_lim(total_n_reads, total_n_ref_positions, this->nthreads, this->mem_per_thread, total_n_ref_pos_x_pos);
             const bool is_template_changed = ((this->_bedregion_idx > 0) && (this->_bedlines[this->_bedregion_idx-1].tid != bed_tid));
-            if (is_over_mem_lim || is_template_changed) {
+            if (is_over_mem_lim) {
                 this->_bedregion_idx++;
                 return total_n_reads;
             }
@@ -160,14 +162,15 @@ SamIter::iternext(
 
         uvc1_readnum_big_t region_n_reads = 0;
         uvc1_refgpos_t region_n_ref_positions = 0;
+        uvc1_refgpos_t region_n_ref_positions_add = 0;
         std::set<std::string> visited_qnames;
         
         int sam_read_ret = -1;
         do {
             sam_read_ret = ((NULL != sam_idx) ? (sam_itr_next(this->sam_infile, this->sam_itr, alnrecord))
                 : (sam_read1(this->sam_infile, this->samheader, alnrecord)));
-            if ((-1 == this->last_it_tid) && (sam_read_ret < 0)) {
-                LOG(logWARNING) << "Encountered error while iterating over the first BAM record in the file " << this->input_bam_fname;
+            if ((sam_read_ret < -1)) {
+                LOG(logWARNING) << "Encountered error while iterating over the first BAM record in the file " << this->input_bam_fname << " error code is " << sam_read_ret;
                 break;
             }
             if (BAM_FUNMAP & alnrecord->core.flag) { continue; }
@@ -200,28 +203,38 @@ SamIter::iternext(
             uvc1_flag_t region_flag = (!!is_template_changed) * 16 + (!!is_far_jumped) * 8 + (!!has_too_much_mem) * 4 + (!!(sam_read_ret < 0)) * 2;
             if (region_flag) {
                 // flush to output due to ref-genome segmentation
+                const bool is_1st_read = (-1 == block_tid); 
                 const int64_t div = 1; // Please note that MGVCF_REGION_MAX_SIZE will be used later so that div is set to one here.
-                int64_t block_norm_end = MIN((((block_running_end + div - 1) / div) * div), (uvc1_refgpos_t)(this->samheader->target_len[block_tid]));
-                const bool is_1st_read = (-1 == block_tid);                    
+                int64_t block_norm_end = MIN((((block_running_end + div - 1) / div) * div), (uvc1_refgpos_t)(is_1st_read ? INT_MAX : this->samheader->target_len[block_tid]));
+                                  
                 const bool is_min_DP_failed_1_ = ((UNSIGN2SIGN(visited_qnames.size()) < paramset.min_altdp_thres) && is_far_jumped);
                 const bool is_min_DP_failed = ((NOT_PROVIDED == paramset.vcf_tumor_fname) && is_min_DP_failed_1_ && (!paramset.should_output_all));
                 const bool is_block_zero_sized =  (block_beg >= block_norm_end); 
                 if (!is_1st_read && !is_min_DP_failed && !is_block_zero_sized) {
                     
                     bedlines.push_back(BedLine(block_tid, block_beg, block_norm_end, region_flag, region_n_reads));
-                    total_n_ref_positions += region_n_ref_positions;
-                    total_n_ref_pos_x_pos += mathsquare(region_n_ref_positions);
+                    LOG(logINFO) << "The BED line tid=" << block_tid << ":" << block_beg << "-" << block_norm_end 
+                            << " flag=" << region_flag << " num_reads=" << (int)region_n_reads << " is STORED, reason=" 
+                            << is_1st_read << is_min_DP_failed << is_block_zero_sized;
+                    total_n_ref_positions += region_n_ref_positions + region_n_ref_positions_add;
+                    total_n_ref_pos_x_pos += mathsquare(region_n_ref_positions + region_n_ref_positions_add);
                     region_n_ref_positions = 0; // (block_norm_end - block_beg);
+                    region_n_ref_positions_add = 0; 
                     total_n_reads += region_n_reads;
                     region_n_reads = 0;
                     visited_qnames.clear();
                     n_bed_intervals++;
+                    
+                } else {
+                    LOG(logDEBUG4) << "The BED line tid=" << block_tid << ":" << block_beg << "-" << block_norm_end 
+                            << " flag=" << region_flag << " num_reads=" << (int)region_n_reads << " is NOT-STORED, reason=" 
+                            << is_1st_read << is_min_DP_failed << is_block_zero_sized;
                 }
                 block_tid = curr_tid;
                 const auto new_block_beg = MAX(block_beg, (curr_beg / div) * div); // skip over non-covered bases
                 block_beg = (is_template_changed ? curr_beg : MAX(new_block_beg, block_norm_end));
                 const bool is_over_mem_lim = check_if_is_over_mem_lim(total_n_reads, total_n_ref_positions, this->nthreads, this->mem_per_thread, total_n_ref_pos_x_pos);
-                if (is_over_mem_lim || is_template_changed) {
+                if (is_over_mem_lim) {
                     this->last_it_tid = block_tid;
                     this->last_it_beg = block_beg;
                     this->last_it_end = MAX(block_beg, block_norm_end);
@@ -234,9 +247,11 @@ SamIter::iternext(
             }
             block_running_end = (is_template_changed ? curr_end : MAX(block_running_end, curr_end));
             region_n_reads++;
+            if (is_template_changed) { region_n_ref_positions_add += region_n_ref_positions; }
             region_n_ref_positions = block_running_end - block_beg;
         } while (sam_read_ret >= 0);
     }
+    iter_ret_flag |= 0x1;
     return total_n_reads;
 }
 
