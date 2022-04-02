@@ -51,12 +51,6 @@ uint64mul(const T1 a, const T2 b) {
 }
 
 template <class T1, class T2>
-auto 
-non_neg_minus(T1 a, T2 b) {
-    return (a > b ? (a - b) : 0);
-}
-
-template <class T1, class T2>
 auto
 CENTER(T1 a, T2 b, int center = 0) {
     return ((abs(a - center) < abs(b - center)) ? a : b);

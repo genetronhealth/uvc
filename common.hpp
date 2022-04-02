@@ -158,5 +158,12 @@ mathsquare(T x) {
     return x * x; 
 }
 
+template <class T1, class T2>
+inline 
+auto
+non_neg_minus(T1 a, T2 b) {
+    return (a > b ? (a - b) : 0);
+}
+
 #endif
 

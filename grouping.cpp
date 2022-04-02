@@ -184,7 +184,10 @@ SamIter::iternext(
             // is_very_far_jumped results in a lot of wasted mem-alloc and computation, so it is not used
             //const bool is_very_far_jumped = ((curr_tid == block_tid) && (block_running_end + MAX_INSERT_SIZE < curr_beg));
             const bool is_far_jumped = ((curr_tid == block_tid) && (block_running_end + MAX_STR_N_BASES < curr_beg));
-            const bool has_too_much_mem = ((n_bytes_used_by_reads + n_bytes_used_by_poss) > (((uint64_t)1024*1024) / NUM_WORKING_UNITS_PER_THREAD) * this->mem_per_thread);
+            const size_t memfree = ((1024UL*1024UL) / NUM_WORKING_UNITS_PER_THREAD) * this->mem_per_thread;
+            const size_t mem_by_read_overlap = memfree * MIN(non_neg_minus(block_running_end, curr_beg), 150) / (150 * 2);
+            // more overlap -> more memfree -> less likely to form new BED interval, and vice versa
+            const bool has_too_much_mem = ((n_bytes_used_by_reads + n_bytes_used_by_poss) > memfree + mem_by_read_overlap);
             
             if (0 == (total_n_reads % (1024*1024))) {
                 LOG(logDEBUG4) << "ReadName=" << bam_get_qname(alnrecord) 
@@ -199,7 +202,7 @@ SamIter::iternext(
                         << " approx total_n_ref_bases=" << (block_running_end - block_beg);
             }
 
-            uvc1_flag_t region_flag = (!!is_template_changed) * 16 + (!!is_far_jumped) * 8 + (!!has_too_much_mem) * 4 + (!!(sam_read_ret < 0)) * 2;
+            uvc1_flag_t region_flag = (!!is_template_changed) * 16 + (!!is_far_jumped) * 8 + (!!has_too_much_mem) * 4 + (!!(sam_read_ret < -1)) * 2;
             if (region_flag) {
                 // flush to output due to ref-genome segmentation
                 const bool is_1st_read = (-1 == block_tid); 
