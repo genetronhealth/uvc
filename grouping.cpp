@@ -163,7 +163,6 @@ SamIter::iternext(
         uvc1_readnum_big_t region_n_reads = 0;
         uvc1_refgpos_t region_n_ref_positions = 0;
         uvc1_refgpos_t region_n_ref_positions_add = 0;
-        std::set<std::string> visited_qnames;
         
         int sam_read_ret = -1;
         do {
@@ -184,7 +183,7 @@ SamIter::iternext(
             const bool is_template_changed = (curr_tid != block_tid); 
             // is_very_far_jumped results in a lot of wasted mem-alloc and computation, so it is not used
             //const bool is_very_far_jumped = ((curr_tid == block_tid) && (block_running_end + MAX_INSERT_SIZE < curr_beg));
-            const bool is_far_jumped = ((curr_tid == block_tid) && (block_running_end + 100 < curr_beg));
+            const bool is_far_jumped = ((curr_tid == block_tid) && (block_running_end + MAX_STR_N_BASES < curr_beg));
             const bool has_too_much_mem = ((n_bytes_used_by_reads + n_bytes_used_by_poss) > (((uint64_t)1024*1024) / NUM_WORKING_UNITS_PER_THREAD) * this->mem_per_thread);
             
             if (0 == (total_n_reads % (1024*1024))) {
@@ -207,28 +206,24 @@ SamIter::iternext(
                 const int64_t div = 1; // Please note that MGVCF_REGION_MAX_SIZE will be used later so that div is set to one here.
                 int64_t block_norm_end = MIN((((block_running_end + div - 1) / div) * div), (uvc1_refgpos_t)(is_1st_read ? INT_MAX : this->samheader->target_len[block_tid]));
                                   
-                const bool is_min_DP_failed_1_ = ((UNSIGN2SIGN(visited_qnames.size()) < paramset.min_altdp_thres) && is_far_jumped);
-                const bool is_min_DP_failed = ((NOT_PROVIDED == paramset.vcf_tumor_fname) && is_min_DP_failed_1_ && (!paramset.should_output_all));
                 const bool is_block_zero_sized =  (block_beg >= block_norm_end); 
-                if (!is_1st_read && !is_min_DP_failed && !is_block_zero_sized) {
+                if ((!is_1st_read) && (!is_block_zero_sized)) {
                     
                     bedlines.push_back(BedLine(block_tid, block_beg, block_norm_end, region_flag, region_n_reads));
                     LOG(logINFO) << "The BED line tid=" << block_tid << ":" << block_beg << "-" << block_norm_end 
                             << " flag=" << region_flag << " num_reads=" << (int)region_n_reads << " is STORED, reason=" 
-                            << is_1st_read << is_min_DP_failed << is_block_zero_sized;
+                            << is_1st_read << is_block_zero_sized;
                     total_n_ref_positions += region_n_ref_positions + region_n_ref_positions_add;
                     total_n_ref_pos_x_pos += mathsquare(region_n_ref_positions + region_n_ref_positions_add);
                     region_n_ref_positions = 0; // (block_norm_end - block_beg);
                     region_n_ref_positions_add = 0; 
                     total_n_reads += region_n_reads;
                     region_n_reads = 0;
-                    visited_qnames.clear();
                     n_bed_intervals++;
-                    
                 } else {
                     LOG(logDEBUG4) << "The BED line tid=" << block_tid << ":" << block_beg << "-" << block_norm_end 
                             << " flag=" << region_flag << " num_reads=" << (int)region_n_reads << " is NOT-STORED, reason=" 
-                            << is_1st_read << is_min_DP_failed << is_block_zero_sized;
+                            << is_1st_read << is_block_zero_sized;
                 }
                 block_tid = curr_tid;
                 const auto new_block_beg = MAX(block_beg, (curr_beg / div) * div); // skip over non-covered bases
@@ -240,10 +235,6 @@ SamIter::iternext(
                     this->last_it_end = MAX(block_beg, block_norm_end);
                     return (total_n_reads);
                 }
-            }
-            // can check for stronger condition
-            if (UNSIGN2SIGN(visited_qnames.size()) <= paramset.min_altdp_thres) {
-                visited_qnames.insert(bam_get_qname(alnrecord));
             }
             block_running_end = (is_template_changed ? curr_end : MAX(block_running_end, curr_end));
             region_n_reads++;
@@ -631,6 +622,7 @@ bamfname_to_strand_to_familyuid_to_reads(
     hts_itr_t * hts_itr;
     bam1_t *aln = bam_init1();
     
+    std::set<std::string> visited_qnames;
     std::array<uvc1_readnum_t, NUM_FILTER_REASONS> fillcode_to_num_alns;
     uvc1_readnum_t num_pass_alns = 0;
     uvc1_readnum_t num_iter_alns = 0;
@@ -657,11 +649,27 @@ bamfname_to_strand_to_familyuid_to_reads(
             num_pass_alns += 1;
             extended_inclu_beg_pos = MIN(extended_inclu_beg_pos, SIGN2UNSIGN(aln->core.pos));
             extended_exclu_end_pos = MAX(extended_exclu_end_pos, SIGN2UNSIGN(bam_endpos(aln)));
+            if (UNSIGN2SIGN(visited_qnames.size()) < paramset.min_altdp_thres) {
+                visited_qnames.insert(bam_get_qname(aln));
+            }
         }
         fillcode_to_num_alns[filterReason]++;
         num_iter_alns += 1;
     }
     sam_itr_destroy(hts_itr);
+    
+    const bool is_min_DP_failed = (
+            (NOT_PROVIDED == paramset.vcf_tumor_fname) 
+         && (UNSIGN2SIGN(visited_qnames.size()) < paramset.min_altdp_thres) 
+         && (!paramset.should_output_all));
+
+    if (is_min_DP_failed){
+        bam_destroy1(aln);
+        // sam_close(sam_infile); 
+        if (should_log) { LOG(logINFO) << "Thread " << thread_id << " skipped dedupping."; }
+        return std::array<uvc1_readnum_t, 3>({ -1, -1, -1});
+    }
+    
     for (size_t isrc_isr2 = 0; isrc_isr2 < 4; isrc_isr2++) {
         uvc1_readnum_big_t beg_prefixsum = 0;
         uvc1_readnum_big_t end_prefixsum = 0;
@@ -902,6 +910,6 @@ bamfname_to_strand_to_familyuid_to_reads(
     // sam_close(sam_infile);
     
     if (should_log) { LOG(logINFO) << "Thread " << thread_id << " finished dedupping."; }
-    return std::array<uvc1_readnum_t, 3>({num_pass_alns, pcrpassed, umi_pcrpassed});
+    return std::array<uvc1_readnum_t, 3>({ ((is_min_DP_failed ? -1 : 1) * num_pass_alns), pcrpassed, umi_pcrpassed});
 }
 

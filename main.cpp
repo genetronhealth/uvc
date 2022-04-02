@@ -462,12 +462,12 @@ process_batch(BatchArg & arg,
             thread_id,
             paramset,
             0);
-    const auto num_passed_reads = passed_pcrpassed_umipassed[0];
+    const auto num_passed_reads = passed_pcrpassed_umipassed[0]; // -1 means that min read depth is not satisfied. 
     const auto num_pcrpassed_reads = passed_pcrpassed_umipassed[1];
     const bool is_by_capture = ((num_pcrpassed_reads) * 2 <= num_passed_reads);
     const AssayType inferred_assay_type = ((ASSAY_TYPE_AUTO == paramset.assay_type) ? (is_by_capture ? ASSAY_TYPE_CAPTURE : ASSAY_TYPE_AMPLICON) : (paramset.assay_type));
     
-    if (0 == num_passed_reads) { return -1; };
+    if ((0 == num_passed_reads) || (-1 == num_passed_reads)) { return -1; };
     const uvc1_qual_t minABQ_snv = ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? paramset.syserr_minABQ_pcr_snv : paramset.syserr_minABQ_cap_snv);
     const uvc1_qual_t minABQ_indel = ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? paramset.syserr_minABQ_pcr_indel : paramset.syserr_minABQ_cap_indel);
     
