@@ -184,7 +184,7 @@ SamIter::iternext(
             const bool is_template_changed = (curr_tid != block_tid); 
             // is_very_far_jumped results in a lot of wasted mem-alloc and computation, so it is not used
             //const bool is_very_far_jumped = ((curr_tid == block_tid) && (block_running_end + MAX_INSERT_SIZE < curr_beg));
-            const bool is_far_jumped = ((curr_tid == block_tid) && (block_running_end < curr_beg));
+            const bool is_far_jumped = ((curr_tid == block_tid) && (block_running_end + 100 < curr_beg));
             const bool has_too_much_mem = ((n_bytes_used_by_reads + n_bytes_used_by_poss) > (((uint64_t)1024*1024) / NUM_WORKING_UNITS_PER_THREAD) * this->mem_per_thread);
             
             if (0 == (total_n_reads % (1024*1024))) {

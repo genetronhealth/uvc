@@ -1478,7 +1478,7 @@ main(int argc, char **argv) {
                     const uvc1_refgpos_t lim_beg = non_neg_minus(minpos, MAX_INSERT_SIZE + MAX_STR_N_BASES);
                     const uvc1_refgpos_t lim_end = MIN(maxpos + MAX_INSERT_SIZE + MAX_STR_N_BASES, std::get<1>(tid_to_tname_tseqlen_tuple_vec[superbatch_tid]));
                     // load FASTA reference region
-                    std::string superbatch_ref_seq = ""; load_refstring(batcharg.ref_faidx, superbatch_tid, lim_beg, lim_end);
+                    std::string superbatch_ref_seq; // = ""; load_refstring(batcharg.ref_faidx, superbatch_tid, lim_beg, lim_end);
                     // load BAM reads
                     int sam_itr_queryi_ret = 0;
                     std::vector<bam1_t*> superbatch_bam_records = load_bam_records(
@@ -1509,7 +1509,7 @@ main(int argc, char **argv) {
                         const auto bed_beg = (batcharg.bedline.beg_pos);
                         const auto bed_end = (batcharg.bedline.end_pos);
                         for (; superbatch_bam_idx < superbatch_bam_records.size() 
-                                    && bam_endpos(superbatch_bam_records[superbatch_bam_idx]) + MAX_INSERT_SIZE < bed_beg; 
+                                    && bam_endpos(superbatch_bam_records[superbatch_bam_idx]) + (0 * MAX_INSERT_SIZE) < bed_beg; 
                                 superbatch_bam_idx++) {
                             bam1_t *bam = superbatch_bam_records[superbatch_bam_idx];
                             if (ARE_INTERVALS_OVERLAPPING(bam->core.pos, bam_endpos(bam), bed_beg, bed_end)) {
