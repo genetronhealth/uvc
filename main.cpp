@@ -414,16 +414,11 @@ are_depths_diff(uvc1_readnum_t currDP, uvc1_readnum_t prevDP, uvc1_readnum_t mul
 
 template <class T>
 int 
-process_batch(BatchArg & arg, 
-        const T & tid_pos_symb_to_tkis, 
-        const std::string & superbatch_ref_seq,
-        const std::vector<bam1_t*> & superbatch_bam_records,
-        const uvc1_refgpos_t lim_beg, 
-        const uvc1_refgpos_t lim_end) {
+process_batch(BatchArg & arg,
+        const T & tid_pos_symb_to_tkis) {
     
     std::array<std::string, 3> &outstring3fastq = arg.outstring3fastq;
     std::string & outstring_pass = arg.outstring_pass;
-    // const hts_idx_t *const hts_idx = arg.hts_idx;
     const faidx_t *const ref_faidx = arg.ref_faidx;
     
     const bcf_hdr_t *const bcf_hdr = arg.bcf_hdr;
@@ -462,9 +457,9 @@ process_batch(BatchArg & arg,
             regionbatch_ordinal,
             regionbatch_tot_num,
             UMI_STRUCT_STRING,
-            // hts_idx,
+            arg.samfile,
+            arg.hts_idx,
             thread_id,
-            superbatch_bam_records,
             paramset,
             0);
     const auto num_passed_reads = passed_pcrpassed_umipassed[0];
@@ -509,9 +504,7 @@ process_batch(BatchArg & arg,
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts constructing symbolToCountCoverageSet12 with " << extended_inclu_beg_pos << (" , ") << extended_exclu_end_pos; }
     // + 1 accounts for insertion at the end of the region, this should happen rarely for only re-aligned reads at around once per one billion base pairs
     if (is_loginfo_enabled) { LOG(logINFO)<< "Thread " << thread_id << " starts updateByRegion3Aln with " << umi_strand_readset.size() << " families"; }
-    const std::string refstring = (((superbatch_ref_seq.size() > 0) && (lim_beg <= extended_inclu_beg_pos) && (extended_exclu_end_pos <= lim_end))
-        ? superbatch_ref_seq.substr(extended_inclu_beg_pos - lim_beg, extended_exclu_end_pos - extended_inclu_beg_pos)
-        : load_refstring(ref_faidx, tid, extended_inclu_beg_pos, extended_exclu_end_pos)); // bigger region
+    const std::string refstring = load_refstring(ref_faidx, tid, extended_inclu_beg_pos, extended_exclu_end_pos);
     std::vector<RegionalTandemRepeat> region_repeatvec = refstring2repeatvec(
             refstring, 
             paramset.indel_str_repeatsize_max,
@@ -1125,19 +1118,16 @@ process_batch(BatchArg & arg,
     } // zerobased_pos
     
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id  << " starts destroying bam records"; }
-    // already destroyed and not from bam_dup, should not be needed here
-    /*
     for (auto strand_readset : umi_strand_readset) {
         for (int strand = 0; strand < 2; strand++) {
             auto readset = strand_readset.first[strand]; 
             for (auto read : readset) {
                 for (bam1_t *b : read) {
-                    // bam_destroy1(b);
+                    bam_destroy1(b);
                 } 
             }
         }
     }
-    */
     if (!is_vcf_out_pass_to_stdout) {
         bgzip_string(outstring_pass, buf_out_string_pass);
     } else {
@@ -1385,7 +1375,7 @@ main(int argc, char **argv) {
             t1_tot_n_reads += t2_tot_n_reads;
             t1_tot_n_bases += t2_tot_n_bases;
         }
-        assert((size_t)t1_tot_n_bases == npositions || !fprintf(stderr, "%d ==%lu failed!", t1_tot_n_bases, npositions));
+        assert(((size_t)t1_tot_n_bases) == npositions || !fprintf(stderr, "%lu ==%lu failed!", ((size_t)t1_tot_n_bases), npositions));
         LOG(logINFO) << "End-of-tier-1-region-no-" << (n_sam_iters-1) << " tot_n_reads=" << t1_tot_n_reads << " tot_n_ref_bases=" << t1_tot_n_bases;
         if (bed_out.is_open()) { 
             bed_out << bedstring; 
@@ -1458,43 +1448,7 @@ main(int argc, char **argv) {
                     LOG(logINFO) << "Thread " << batcharg.thread_id << " will process the sub-chunk " << beg_end_pair_idx << " which ranges from " 
                             << beg_end_pair.first << " to " << beg_end_pair.second;
                     assert (beg_end_pair.first < beg_end_pair.second);
-                    uvc1_refgpos_t minpos = 0;
-                    uvc1_refgpos_t maxpos = 0;
-                    uvc1_refgpos_t superbatch_tid = -1;
-                    for (size_t j = beg_end_pair.first; j < beg_end_pair.second; j++) {
-                        
-                        const auto & bedline = bedlines.at(allridx + j);
-                        const auto tid = bedline.tid;
-                        const auto beg = bedline.beg_pos;
-                        const auto end = bedline.end_pos;
-                        if (superbatch_tid != -1 && superbatch_tid != tid) { 
-                            fprintf(stderr, "Runtime error due to template-ID mis-assignment tids %d != %d!\n", superbatch_tid, tid); 
-                            abort();
-                        }
-                        superbatch_tid = tid;
-                        UPDATE_MIN(minpos, beg);
-                        UPDATE_MAX(maxpos, end);
-                    }
-                    const uvc1_refgpos_t lim_beg = non_neg_minus(minpos, MAX_INSERT_SIZE + MAX_STR_N_BASES);
-                    const uvc1_refgpos_t lim_end = MIN(maxpos + MAX_INSERT_SIZE + MAX_STR_N_BASES, std::get<1>(tid_to_tname_tseqlen_tuple_vec[superbatch_tid]));
-                    // load FASTA reference region
-                    std::string superbatch_ref_seq; // = ""; load_refstring(batcharg.ref_faidx, superbatch_tid, lim_beg, lim_end);
-                    // load BAM reads
-                    int sam_itr_queryi_ret = 0;
-                    std::vector<bam1_t*> superbatch_bam_records = load_bam_records(
-                            sam_itr_queryi_ret,
-                            batcharg.samfile, 
-                            batcharg.hts_idx, 
-                            superbatch_tid, 
-                            lim_beg, 
-                            lim_end);
-                    if (sam_itr_queryi_ret != -1) {
-                        LOG(logERROR) << "The sam iterator returned error code " << sam_itr_queryi_ret 
-                                << " in the region tid-" << superbatch_tid << ":" << lim_beg << "-" << lim_end << " in thread-" << batcharg.thread_id;
-                    }
-                    // load the VCF file
-                    size_t superbatch_bam_idx = 0;
-
+                    
                     for (size_t j = beg_end_pair.first; j < beg_end_pair.second; j++) {
                         batcharg.regionbatch_ordinal = j;
                         batcharg.regionbatch_tot_num = beg_end_pair.second;
@@ -1504,37 +1458,7 @@ main(int argc, char **argv) {
                         assert (((size_t)(batcharg.bedline.tid)) < tid_to_tname_tseqlen_tuple_vec.size() 
                                 || !fprintf(stderr, "%lu < %lu failed!\n", (size_t)(batcharg.bedline.tid), tid_to_tname_tseqlen_tuple_vec.size()));
                         batcharg.tname_tseqlen_tuple = tid_to_tname_tseqlen_tuple_vec.at((batcharg.bedline.tid));                        
-                        // subset the super-batch of bam records to get sub-batches of bam records
-                        std::vector<bam1_t*> sub_batch_bam_records;
-                        const auto bed_beg = (batcharg.bedline.beg_pos);
-                        const auto bed_end = (batcharg.bedline.end_pos);
-                        for (; superbatch_bam_idx < superbatch_bam_records.size() 
-                                    && bam_endpos(superbatch_bam_records[superbatch_bam_idx]) + (0 * MAX_INSERT_SIZE) < bed_beg; 
-                                superbatch_bam_idx++) {
-                            bam1_t *bam = superbatch_bam_records[superbatch_bam_idx];
-                            if (ARE_INTERVALS_OVERLAPPING(bam->core.pos, bam_endpos(bam), bed_beg, bed_end)) {
-                                sub_batch_bam_records.push_back(bam);
-                            }
-                        }
-                        for (size_t after_bam_idx = superbatch_bam_idx; 
-                                after_bam_idx < superbatch_bam_records.size() 
-                                    && superbatch_bam_records[after_bam_idx]->core.pos < bed_end; 
-                                after_bam_idx++) {
-                            bam1_t *bam = superbatch_bam_records[after_bam_idx];
-                            if (ARE_INTERVALS_OVERLAPPING(bam->core.pos, bam_endpos(bam), bed_beg, bed_end)) {
-                                sub_batch_bam_records.push_back(bam);
-                            }
-                        }
-                        // subset the super-batch of ref bases 
-                        process_batch(batcharg, 
-                                tid_pos_symb_to_tkis1, 
-                                superbatch_ref_seq, 
-                                sub_batch_bam_records,
-                                bed_beg,
-                                bed_end);
-                    }
-                    for (bam1_t *bam : superbatch_bam_records) {
-                        bam_destroy1(bam);
+                        process_batch(batcharg, tid_pos_symb_to_tkis1);
                     }
 #if defined(USE_STDLIB_THREAD)
             });
