@@ -1287,7 +1287,7 @@ main(int argc, char **argv) {
     SamIter samIter(paramset);
     int64_t n_sam_iters = 0;
     uvc1_flag_t iter_ret_flag;
-    int64_t iter_nreads = samIter.iternext(iter_ret_flag, bedlines1, paramset);
+    int64_t iter_nreads = samIter.iternext(iter_ret_flag, bedlines1, 0);
     LOG(logINFO) << "PreProcessed " << iter_nreads << " reads in tier-1-region no " << (n_sam_iters);
     // rescue_variants_from_vcf
     tid_pos_symb_to_tkis1 = rescue_variants_from_vcf(bedlines1, tid_to_tname_tseqlen_tuple_vec, paramset.vcf_tumor_fname, g_bcf_hdr, paramset.is_tumor_format_retrieved);
@@ -1296,7 +1296,7 @@ main(int argc, char **argv) {
         n_sam_iters++;
         std::thread read_bam_thread([&bedlines2, &tid_pos_symb_to_tkis2, &samIter, &iter_nreads, &iter_ret_flag, &n_sam_iters, &paramset, &tid_to_tname_tseqlen_tuple_vec, g_bcf_hdr]() {
             bedlines2.clear();
-            iter_nreads = samIter.iternext(iter_ret_flag, bedlines2, paramset);
+            iter_nreads = samIter.iternext(iter_ret_flag, bedlines2, 0);
             LOG(logINFO) << "PreProcessed " << iter_nreads << " reads in tier-1-region no " << (n_sam_iters);
             
             tid_pos_symb_to_tkis2 = rescue_variants_from_vcf(bedlines2, tid_to_tname_tseqlen_tuple_vec, paramset.vcf_tumor_fname, g_bcf_hdr, paramset.is_tumor_format_retrieved);

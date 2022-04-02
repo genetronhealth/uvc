@@ -92,7 +92,7 @@ struct SamIter {
     }
     
     int64_t
-    iternext(uvc1_flag_t & iter_ret_flag, std::vector<BedLine> & bedlines, const CommandLineArgs &paramset);
+    iternext(uvc1_flag_t & iter_ret_flag, std::vector<BedLine> & bedlines, const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM);
 };
 
 int

@@ -115,7 +115,7 @@ int64_t
 SamIter::iternext(
         uvc1_flag_t & iter_ret_flag,
         std::vector<BedLine> & bedlines,
-        const CommandLineArgs &paramset) {
+        const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
     iter_ret_flag = 0;
     uvc1_readnum_big_t total_n_reads = 0;
     uvc1_refgpos_big_t total_n_ref_positions = 0;
