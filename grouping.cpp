@@ -95,20 +95,40 @@ bed_fname_to_contigs(
 bool
 check_if_is_over_mem_lim(
         const uvc1_readnum_big_t total_n_reads, 
-        const uvc1_refgpos_big_t total_n_ref_positions, 
+        const uvc1_readnum_big_t total_n_reads_x_reads,
+        const uvc1_refgpos_big_t total_n_rposs, 
+        const uvc1_refgpos_big_t total_n_rposs_x_rposs, 
+        // const uvc1_refgpos_big_t total_n_regions,
         const size_t nthreads, 
-        const size_t mem_per_thread,
-        const size_t total_n_ref_pos_x_pos // used to compute the countra-harmonic mean
-        ) {
+        const size_t mem_per_thread) {
+    
+    const size_t tmp_n_bytes_used_by_reads = INT64MUL(MIN(total_n_reads_x_reads / MAX(1, total_n_reads) * nthreads, (size_t)total_n_reads), NUM_BYTES_PER_READ);
+    const size_t tmp_n_bytes_used_by_rposs = INT64MUL(MIN(total_n_rposs_x_rposs / MAX(1, total_n_rposs) * nthreads, (size_t)total_n_rposs) + (2 * MAX_STR_N_BASES * nthreads), NUM_BYTES_PER_REF_POS);
+    const size_t vcf_n_bytes_used_by_rposs = INT64MUL(total_n_rposs, 1024); // estimate from the htslib specs of VCF
+    
+    const size_t tot_n_bytes_used = tmp_n_bytes_used_by_reads + tmp_n_bytes_used_by_rposs + vcf_n_bytes_used_by_rposs;
+    return (tot_n_bytes_used > ((1024UL*1024UL) * mem_per_thread * nthreads));
+}
 
-    const size_t tot_n_bytes_used_by_reads = INT64MUL(total_n_reads, NUM_BYTES_PER_READ);
-    // The below is estimated from the htslib specs of VCF
-    const size_t num_bytes_per_vcf_ref_pos = 256*4 + NUM_BYTES_PER_REF_POS / NUM_WORKING_UNITS_PER_THREAD;
-    const size_t tot_n_bytes_used_by_rposs = INT64MUL(total_n_ref_positions + (2 * MAX_STR_N_BASES * nthreads), num_bytes_per_vcf_ref_pos); 
-    const size_t tmp_n_bytes_used_by_rposs = INT64MUL((total_n_ref_pos_x_pos + mathsquare(MAX_STR_N_BASES)) / (total_n_ref_positions + 1) + (2 * MAX_STR_N_BASES * nthreads), 
-            NUM_BYTES_PER_REF_POS); 
-    const size_t tot_n_bytes_used = tot_n_bytes_used_by_reads + tot_n_bytes_used_by_rposs + tmp_n_bytes_used_by_rposs;
-    return (tot_n_bytes_used > (1024*1024 * mem_per_thread * nthreads));
+bool
+check_if_sub_is_over_mem_lim(
+        const uvc1_readnum_big_t total_n_reads,
+        const uvc1_readnum_big_t total_n_reads_x_reads,
+        const uvc1_refgpos_big_t total_n_rposs,
+        const uvc1_readnum_big_t total_n_rposs_x_rposs,
+        size_t mem_per_thread,
+        size_t curr_beg,
+        size_t block_running_end) {
+    
+    const size_t tmp_n_bytes_used_by_reads = INT64MUL(total_n_reads_x_reads / MAX(1, total_n_reads), NUM_BYTES_PER_READ);
+    const size_t tmp_n_bytes_used_by_rposs = INT64MUL(total_n_rposs_x_rposs / MAX(1, total_n_rposs), NUM_BYTES_PER_REF_POS + 1024);
+    
+    const size_t memfree = ((1024UL*1024UL) / NUM_WORKING_UNITS_PER_THREAD) * mem_per_thread;
+    // more overlap -> more mem -> less likely to return true
+    const size_t mem_by_read_overlap = memfree * MIN(non_neg_minus(block_running_end, curr_beg), 150) / (150);
+    
+    const size_t tot_n_bytes_used = tmp_n_bytes_used_by_reads + tmp_n_bytes_used_by_rposs;
+    return (tot_n_bytes_used > memfree + mem_by_read_overlap);
 }
 
 int64_t
@@ -117,16 +137,15 @@ SamIter::iternext(
         std::vector<BedLine> & bedlines,
         const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
     iter_ret_flag = 0;
+    // uvc1_readnum_t     total_n_regions = 0; // may be useful for some purposes?
     uvc1_readnum_big_t total_n_reads = 0;
-    uvc1_refgpos_big_t total_n_ref_positions = 0;
-    uvc1_refgpos_big_t total_n_ref_pos_x_pos = 0;
-    size_t n_bed_intervals = 0;
+    uvc1_refgpos_big_t total_n_rposs = 0;
+    uvc1_readnum_big_t total_n_reads_x_reads = 0;
+    uvc1_refgpos_big_t total_n_rposs_x_rposs = 0;
     if (NOT_PROVIDED != region_bed_fname) {
         for (; this->_bedregion_idx < this->_bedlines.size(); this->_bedregion_idx++) {
-            //ret++;
             const auto & bedline = (this->_bedlines[this->_bedregion_idx]);
             bedlines.push_back(bedline);
-            n_bed_intervals++;
             const auto bed_tid = bedline.tid; // std::get<0>(bedreg);
             const auto bed_beg = bedline.beg_pos;
             const auto bed_end = bedline.end_pos;
@@ -143,12 +162,17 @@ SamIter::iternext(
                     }
                 }
             }
+            uvc1_refgpos_big_t region_n_rposs = bed_end - bed_beg; // region-n-ref-positions
+            // total_n_regions++;
             total_n_reads += region_n_reads;
-            uvc1_refgpos_big_t region_n_ref_positions = bed_end - bed_beg;
-            total_n_ref_positions += region_n_ref_positions;
-            total_n_ref_pos_x_pos += mathsquare(region_n_ref_positions);
-            const bool is_over_mem_lim = check_if_is_over_mem_lim(total_n_reads, total_n_ref_positions, this->nthreads, this->mem_per_thread, total_n_ref_pos_x_pos);
-            // const bool is_template_changed = ((this->_bedregion_idx > 0) && (this->_bedlines[this->_bedregion_idx-1].tid != bed_tid));
+            total_n_rposs += region_n_rposs;
+            total_n_reads_x_reads += mathsquare(region_n_reads);
+            total_n_rposs_x_rposs += mathsquare(region_n_rposs);
+            const bool is_over_mem_lim = check_if_is_over_mem_lim(
+                    total_n_reads, total_n_reads_x_reads, 
+                    total_n_rposs, total_n_rposs_x_rposs, 
+                    // total_n_regions, 
+                    this->nthreads, this->mem_per_thread);
             if (is_over_mem_lim) {
                 this->_bedregion_idx++;
                 return total_n_reads;
@@ -159,7 +183,7 @@ SamIter::iternext(
         uvc1_refgpos_t block_tid = this->last_it_tid;
         uvc1_refgpos_t block_beg = this->last_it_beg;
         uvc1_refgpos_t block_running_end = this->last_it_end;
-
+        
         uvc1_readnum_big_t region_n_reads = 0;
         uvc1_refgpos_t region_n_ref_positions = 0;
         uvc1_refgpos_t region_n_ref_positions_add = 0;
@@ -178,16 +202,14 @@ SamIter::iternext(
             const auto curr_beg = alnrecord->core.pos;
             const auto curr_end = bam_endpos(alnrecord);
             
-            const size_t n_bytes_used_by_reads = INT64MUL(region_n_reads, NUM_BYTES_PER_READ);
-            const size_t n_bytes_used_by_poss = INT64MUL(region_n_ref_positions, NUM_BYTES_PER_REF_POS);
-            const bool is_template_changed = (curr_tid != block_tid); 
+            const bool is_sub_mem_over_lim = check_if_sub_is_over_mem_lim(
+                    total_n_reads, total_n_reads_x_reads, 
+                    total_n_rposs, total_n_rposs_x_rposs, 
+                    this->mem_per_thread, curr_beg, block_running_end);
+            const bool is_template_changed = (curr_tid != block_tid);
             // is_very_far_jumped results in a lot of wasted mem-alloc and computation, so it is not used
             //const bool is_very_far_jumped = ((curr_tid == block_tid) && (block_running_end + MAX_INSERT_SIZE < curr_beg));
             const bool is_far_jumped = ((curr_tid == block_tid) && (block_running_end + MAX_STR_N_BASES < curr_beg));
-            const size_t memfree = ((1024UL*1024UL) / NUM_WORKING_UNITS_PER_THREAD) * this->mem_per_thread;
-            const size_t mem_by_read_overlap = memfree * MIN(non_neg_minus(block_running_end, curr_beg), 150) / (150 * 2);
-            // more overlap -> more memfree -> less likely to form new BED interval, and vice versa
-            const bool has_too_much_mem = ((n_bytes_used_by_reads + n_bytes_used_by_poss) > memfree + mem_by_read_overlap);
             
             if (0 == (total_n_reads % (1024*1024))) {
                 LOG(logDEBUG4) << "ReadName=" << bam_get_qname(alnrecord) 
@@ -195,20 +217,18 @@ SamIter::iternext(
                         << " POS=" << (alnrecord->core.pos)
                         << " is_template_changed=" << is_template_changed 
                         << " is_far_jumped=" << is_far_jumped 
-                        << " has_too_much_mem=" 
-                        << has_too_much_mem 
+                        << " is_sub_mem_over_lim=" << is_sub_mem_over_lim
                         << " sam_read_ret=" << sam_read_ret
                         << " total_n_reads=" << total_n_reads
                         << " approx total_n_ref_bases=" << (block_running_end - block_beg);
             }
-
-            uvc1_flag_t region_flag = (!!is_template_changed) * 16 + (!!is_far_jumped) * 8 + (!!has_too_much_mem) * 4 + (!!(sam_read_ret < -1)) * 2;
+            uvc1_flag_t region_flag = (!!is_template_changed) * 16 + (!!is_far_jumped) * 8 + (!!is_sub_mem_over_lim) * 4 + (!!(sam_read_ret < -1)) * 2;
             if (region_flag) {
                 // flush to output due to ref-genome segmentation
                 const bool is_1st_read = (-1 == block_tid); 
-                const int64_t div = 1; // Please note that MGVCF_REGION_MAX_SIZE will be used later so that div is set to one here.
+                const int64_t div = 1; // Please note that MGVCF_REGION_MAX_SIZE will be used later instead of here, so div is set to one here.
                 int64_t block_norm_end = MIN((((block_running_end + div - 1) / div) * div), (uvc1_refgpos_t)(is_1st_read ? INT_MAX : this->samheader->target_len[block_tid]));
-                                  
+                
                 const bool is_block_zero_sized =  (block_beg >= block_norm_end); 
                 if ((!is_1st_read) && (!is_block_zero_sized)) {
                     
@@ -216,13 +236,15 @@ SamIter::iternext(
                     LOG(logINFO) << "The BED line tid=" << block_tid << ":" << block_beg << "-" << block_norm_end 
                             << " flag=" << region_flag << " num_reads=" << (int)region_n_reads << " is STORED, reason=" 
                             << is_1st_read << is_block_zero_sized;
-                    total_n_ref_positions += region_n_ref_positions + region_n_ref_positions_add;
-                    total_n_ref_pos_x_pos += mathsquare(region_n_ref_positions + region_n_ref_positions_add);
-                    region_n_ref_positions = 0; // (block_norm_end - block_beg);
-                    region_n_ref_positions_add = 0; 
+                    uvc1_refgpos_big_t region_s_rposs = region_n_ref_positions + region_n_ref_positions_add;
+                    // total_n_regions++;
                     total_n_reads += region_n_reads;
+                    total_n_rposs += region_s_rposs;
+                    total_n_reads_x_reads += mathsquare(region_n_reads);
+                    total_n_rposs_x_rposs += mathsquare(region_s_rposs);
+                    region_n_ref_positions = 0; 
+                    region_n_ref_positions_add = 0; 
                     region_n_reads = 0;
-                    n_bed_intervals++;
                 } else {
                     LOG(logDEBUG4) << "The BED line tid=" << block_tid << ":" << block_beg << "-" << block_norm_end 
                             << " flag=" << region_flag << " num_reads=" << (int)region_n_reads << " is NOT-STORED, reason=" 
@@ -231,7 +253,11 @@ SamIter::iternext(
                 block_tid = curr_tid;
                 const auto new_block_beg = MAX(block_beg, (curr_beg / div) * div); // skip over non-covered bases
                 block_beg = (is_template_changed ? curr_beg : MAX(new_block_beg, block_norm_end));
-                const bool is_over_mem_lim = check_if_is_over_mem_lim(total_n_reads, total_n_ref_positions, this->nthreads, this->mem_per_thread, total_n_ref_pos_x_pos);
+                const bool is_over_mem_lim = check_if_is_over_mem_lim(
+                        total_n_reads, total_n_reads_x_reads, 
+                        total_n_rposs, total_n_rposs_x_rposs, 
+                        // total_n_regions, 
+                        this->nthreads, this->mem_per_thread);
                 if (is_over_mem_lim) {
                     this->last_it_tid = block_tid;
                     this->last_it_beg = block_beg;
@@ -239,9 +265,14 @@ SamIter::iternext(
                     return (total_n_reads);
                 }
             }
-            block_running_end = (is_template_changed ? curr_end : MAX(block_running_end, curr_end));
+            if (is_template_changed) {
+                block_beg = curr_beg; // only rarely needed in some situations?
+                block_running_end = curr_end;
+                region_n_ref_positions_add += region_n_ref_positions;
+            } else {
+                block_running_end = MAX(block_running_end, curr_end);
+            }
             region_n_reads++;
-            if (is_template_changed) { region_n_ref_positions_add += region_n_ref_positions; }
             region_n_ref_positions = block_running_end - block_beg;
         } while (sam_read_ret >= 0);
     }
