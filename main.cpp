@@ -414,11 +414,13 @@ are_depths_diff(uvc1_readnum_t currDP, uvc1_readnum_t prevDP, uvc1_readnum_t mul
 
 template <class T>
 int 
-process_batch(BatchArg & arg,
+process_batch(
+        std::string & uncompressed_vcf_string,
+        BatchArg & arg,
         const T & tid_pos_symb_to_tkis) {
     
     std::array<std::string, 3> &outstring3fastq = arg.outstring3fastq;
-    std::string & outstring_pass = arg.outstring_pass;
+    // std::string & outstring_pass = arg.outstring_pass;
     const faidx_t *const ref_faidx = arg.ref_faidx;
     
     const bcf_hdr_t *const bcf_hdr = arg.bcf_hdr;
@@ -429,7 +431,7 @@ process_batch(BatchArg & arg,
     const auto regionbatch_ordinal = arg.regionbatch_ordinal;
     const auto regionbatch_tot_num = arg.regionbatch_tot_num;
     const auto thread_id = arg.thread_id;
-    const auto is_vcf_out_pass_to_stdout = arg.is_vcf_out_pass_to_stdout;
+    // const auto is_vcf_out_pass_to_stdout = arg.is_vcf_out_pass_to_stdout;
     
     bool is_loginfo_enabled = (ispowerof2(regionbatch_ordinal + 1) || ispowerof2(regionbatch_tot_num - regionbatch_ordinal));
     std::string raw_out_string;
@@ -1128,11 +1130,14 @@ process_batch(BatchArg & arg,
             }
         }
     }
+    /*
     if (!is_vcf_out_pass_to_stdout) {
         bgzip_string(outstring_pass, buf_out_string_pass);
     } else {
         outstring_pass += buf_out_string_pass;
     }
+    */
+    uncompressed_vcf_string += buf_out_string_pass;
     if (paramset.fam_consensus_out_fastq.size() > 0) {
         // bgzip-equivalent of: outstring_fastq += fqdata;
         for (size_t i = 0; i < 3; i++) { bgzip_string(outstring3fastq[i], fqdata3[i]); }
@@ -1448,7 +1453,7 @@ main(int argc, char **argv) {
                     LOG(logINFO) << "Thread " << batcharg.thread_id << " will process the sub-chunk " << beg_end_pair_idx << " which ranges from " 
                             << beg_end_pair.first << " to " << beg_end_pair.second;
                     assert (beg_end_pair.first < beg_end_pair.second);
-                    
+                    std::string uncompressed_vcf_string;
                     for (size_t j = beg_end_pair.first; j < beg_end_pair.second; j++) {
                         batcharg.regionbatch_ordinal = j;
                         batcharg.regionbatch_tot_num = beg_end_pair.second;
@@ -1458,12 +1463,18 @@ main(int argc, char **argv) {
                         assert (((size_t)(batcharg.bedline.tid)) < tid_to_tname_tseqlen_tuple_vec.size() 
                                 || !fprintf(stderr, "%lu < %lu failed!\n", (size_t)(batcharg.bedline.tid), tid_to_tname_tseqlen_tuple_vec.size()));
                         batcharg.tname_tseqlen_tuple = tid_to_tname_tseqlen_tuple_vec.at((batcharg.bedline.tid));                        
-                        process_batch(batcharg, tid_pos_symb_to_tkis1);
+                        process_batch(uncompressed_vcf_string, batcharg, tid_pos_symb_to_tkis1);
+                    }
+                    if (batcharg.is_vcf_out_pass_to_stdout) {
+                        batcharg.outstring_pass += uncompressed_vcf_string;
+                    } else {
+                        bgzip_string(batcharg.outstring_pass, uncompressed_vcf_string);
                     }
 #if defined(USE_STDLIB_THREAD)
             });
             threads.push_back(std::move(athread));
 #endif
+            
         }
 #if defined(USE_STDLIB_THREAD)
         for (auto & t : threads) {
