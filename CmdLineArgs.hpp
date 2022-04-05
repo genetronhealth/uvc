@@ -110,8 +110,8 @@ struct CommandLineArgs {
     //double           dedup_amplicon_count_to_surrcount_ratio = 16; // can be 20
     //double           dedup_amplicon_count_to_surrcount_ratio_twosided = 4; // can be 5 or 6
     double           dedup_amplicon_end2end_ratio = 1.5;
-    double           dedup_amplicon_border_to_insert_cov_weak_avgDP_ratio = 4*1.5;
-    double           dedup_amplicon_border_to_insert_cov_strong_avgDP_ratio = 16*1.5;
+    double           dedup_amplicon_border_to_insert_cov_weak_avgDP_ratio = 4; // *1.5;
+    double           dedup_amplicon_border_to_insert_cov_strong_avgDP_ratio = 16; // *1.5;
     
     uvc1_flag_t      dedup_flag = 0x0;
     
