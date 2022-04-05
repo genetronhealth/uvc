@@ -4176,15 +4176,15 @@ BcfFormat_symbol_calc_DPv(
             aRBFA2,
             bFA, 
             cFA0, 
-            cROFA1
+            cROFA1,
+            aSSFA2,
+            aPFFA * aSSFA2 / MAX(aSSFA2, aSSFAx2[1])
             }};
     const auto tier1_selfonly_aFA_min = MINVEC(tier1_selfonly_aFA_vec);
     
     const auto tier1_selfplus_aFA_vec = std::vector<double>{{
             aLIFA2,
             aRIFA2,
-            aSSFA2,
-            aPFFA * aSSFA2 / MAX(aSSFA2, aSSFAx2[1]),
             MAX(aDPFA * 0.01, aSIFA)
             }};
     const auto tier1_selfplus_aFA_min = MINVEC(tier1_selfplus_aFA_vec);
@@ -4287,12 +4287,15 @@ BcfFormat_symbol_calc_DPv(
     clear_push(fmt.cDP1x, 1+(uvc1_readnum100x_t)                                       (min_abcFA_x * (fmt.CDP1f[0] +fmt.CDP1r[0]) * 100), a);
     
     // UMI push
-    const auto c2XPFA2 = MAX((c2LPFA2 * c2RPFA2 / mathsquare(cFA2)), MIN(c2LPFA2, c2RPFA2) * 0.5); // if both left and right border are biased, then make position bias stronger
-    
-    double min_c23FA_v = MAX(MIN(MIN3(tier1_selfplus_aFA_min * frac_umi2seg, tier2_selfonly_c2FA_min, c2XPFA2), aNCFA * frac_umi2seg), counterbias_FA * frac_umi2seg);
+    // if both left and right border are biased, then make base-alignment and position biases stronger
+    const auto c2XBFA2 = MAX((c2LBFA2 * c2RBFA2 / mathsquare(cFA2)), MIN(c2LBFA2, c2RBFA2) * 0.25);
+    const auto c2XPFA2 = MAX((c2LPFA2 * c2RPFA2 / mathsquare(cFA2)), MIN(c2LPFA2, c2RPFA2) * 0.25);
+    const auto c2XXFA2 = MIN(c2XBFA2, c2XPFA2);
+
+    double min_c23FA_v = MAX(MIN(MIN3(tier1_selfplus_aFA_min * frac_umi2seg, tier2_selfonly_c2FA_min, c2XXFA2), aNCFA * frac_umi2seg), counterbias_FA * frac_umi2seg);
     clear_push(fmt.cDP2v, (uvc1_readnum100x_t)(calc_normFA_from_rawFA_refbias((min_c23FA_v), refbias) * (fmt.CDP2f[0] + fmt.CDP2r[0]) * 100), a);
     double min_c23FA_w = MAX(MINVEC(std::vector<double>{{
-            c2LPFA2, c2RPFA2, c2XPFA2,
+            c2LPFA2, c2RPFA2, c2XXFA2,
             c2LBFA2, c2RBFA2,
             cFA2,
             aNCFA * frac_umi2seg}}), counterbias_FA * frac_umi2seg);
