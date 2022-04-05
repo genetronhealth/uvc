@@ -475,8 +475,8 @@ process_batch(
     
     const uvc1_refgpos_t rpos_inclu_beg = MAX(incluBegPosition, bam_inclu_beg_pos);
     const uvc1_refgpos_t rpos_exclu_end = MIN(excluEndPosition, bam_exclu_end_pos);
-    const uvc1_refgpos_t extended_inclu_beg_pos = MAX(0, MIN(incluBegPosition - (MAX_STR_N_BASES + 1), bam_inclu_beg_pos));
-    const uvc1_refgpos_t extended_exclu_end_pos = MIN(std::get<1>(tname_tseqlen_tuple), MAX(excluEndPosition + (MAX_STR_N_BASES + 1), bam_exclu_end_pos));
+    const uvc1_refgpos_t extended_inclu_beg_pos = MAX(0, non_neg_minus(MIN(incluBegPosition, bam_inclu_beg_pos), MAX_STR_N_BASES));
+    const uvc1_refgpos_t extended_exclu_end_pos = MIN(std::get<1>(tname_tseqlen_tuple), MAX(excluEndPosition, bam_exclu_end_pos) + MAX_STR_N_BASES);
     
     const auto tkis_beg = tid_pos_symb_to_tkis.lower_bound(std::make_tuple(tid, extended_inclu_beg_pos    , AlignmentSymbol(0)));
     const auto tkis_end = tid_pos_symb_to_tkis.upper_bound(std::make_tuple(tid, extended_exclu_end_pos + 1, AlignmentSymbol(0)));
@@ -1386,8 +1386,8 @@ main(int argc, char **argv) {
             bed_out << bedstring; 
         }
         LOG(logINFO) << "The " << (n_sam_iters-1) << "-th tier-1 BED region is as follows " 
-                << "(each tier-1 region is parsed as one unit, each tier-2 region is processed by one thread, and each tier-3 region is one unit of to call variants within):";
-        LOG(logINFO) << bedstring;
+                << "(each tier-1 region is parsed as one unit, each tier-2 region is processed by one thread, "
+                << "and each tier-3 region is one unit of to call variants within):\n" << bedstring;
         
         LOG(logINFO) << "Start processing the chunks from " << allridx << " to " << allridx + incvalue
                 << " which contains approximately " << nreads << " reads and " << npositions << " positions divided into " 

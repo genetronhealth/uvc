@@ -12,6 +12,13 @@
 // x1 and y1 are inclusive whereas x2 and y2 are exclusive
 #define ARE_INTERVALS_OVERLAPPING(x1, x2, y1, y2) (!(((x2) <= (y1)) || (((y2) <= (x1)))))
 
+template <class T>
+inline 
+size_t 
+mathsquare_big(T x) {
+    return ((size_t)x) * ((size_t)x);
+}
+
 // position of 5' is the starting position, but position of 3' is unreliable without mate info.
 const uvc1_readpos_t ARRPOS_MARGIN = MAX_INSERT_SIZE;
 const uvc1_readpos_t ARRPOS_OUTER_RANGE = 10;
@@ -112,16 +119,16 @@ check_if_is_over_mem_lim(
 
 bool
 check_if_sub_is_over_mem_lim(
-        const uvc1_readnum_big_t total_n_reads,
-        const uvc1_readnum_big_t total_n_reads_x_reads,
-        const uvc1_refgpos_big_t total_n_rposs,
-        const uvc1_readnum_big_t total_n_rposs_x_rposs,
+        const uvc1_readnum_big_t region_n_reads,
+        // const uvc1_readnum_big_t total_n_reads_x_reads,
+        const uvc1_refgpos_big_t region_n_rposs,
+        // const uvc1_readnum_big_t total_n_rposs_x_rposs,
         size_t mem_per_thread,
         size_t curr_beg,
         size_t block_running_end) {
     
-    const size_t tmp_n_bytes_used_by_reads = INT64MUL(total_n_reads_x_reads / MAX(1, total_n_reads), NUM_BYTES_PER_READ);
-    const size_t tmp_n_bytes_used_by_rposs = INT64MUL(total_n_rposs_x_rposs / MAX(1, total_n_rposs), NUM_BYTES_PER_REF_POS + 1024);
+    const size_t tmp_n_bytes_used_by_reads = INT64MUL(region_n_reads, NUM_BYTES_PER_READ);
+    const size_t tmp_n_bytes_used_by_rposs = INT64MUL(region_n_rposs, NUM_BYTES_PER_REF_POS + 1024);
     
     const size_t memfree = ((1024UL*1024UL) / NUM_WORKING_UNITS_PER_THREAD) * mem_per_thread;
     // more overlap -> more mem -> less likely to return true
@@ -166,8 +173,8 @@ SamIter::iternext(
             // total_n_regions++;
             total_n_reads += region_n_reads;
             total_n_rposs += region_n_rposs;
-            total_n_reads_x_reads += mathsquare(region_n_reads);
-            total_n_rposs_x_rposs += mathsquare(region_n_rposs);
+            total_n_reads_x_reads += mathsquare_big(region_n_reads);
+            total_n_rposs_x_rposs += mathsquare_big(region_n_rposs);
             const bool is_over_mem_lim = check_if_is_over_mem_lim(
                     total_n_reads, total_n_reads_x_reads, 
                     total_n_rposs, total_n_rposs_x_rposs, 
@@ -185,8 +192,8 @@ SamIter::iternext(
         uvc1_refgpos_t block_running_end = this->last_it_end;
         
         uvc1_readnum_big_t region_n_reads = 0;
-        uvc1_refgpos_t region_n_ref_positions = 0;
-        uvc1_refgpos_t region_n_ref_positions_add = 0;
+        uvc1_refgpos_big_t region_n_ref_positions = 0;
+        uvc1_refgpos_big_t region_n_ref_positions_add = 0;
         
         int sam_read_ret = -1;
         do {
@@ -203,8 +210,8 @@ SamIter::iternext(
             const auto curr_end = bam_endpos(alnrecord);
             
             const bool is_sub_mem_over_lim = check_if_sub_is_over_mem_lim(
-                    total_n_reads, total_n_reads_x_reads, 
-                    total_n_rposs, total_n_rposs_x_rposs, 
+                    region_n_reads, // region_n_reads_x_reads, 
+                    region_n_ref_positions + region_n_ref_positions_add, // region_n_rposs_x_rposs,
                     this->mem_per_thread, curr_beg, block_running_end);
             const bool is_template_changed = (curr_tid != block_tid);
             // is_very_far_jumped results in a lot of wasted mem-alloc and computation, so it is not used
@@ -233,15 +240,15 @@ SamIter::iternext(
                 if ((!is_1st_read) && (!is_block_zero_sized)) {
                     
                     bedlines.push_back(BedLine(block_tid, block_beg, block_norm_end, region_flag, region_n_reads));
-                    LOG(logINFO) << "The BED line tid=" << block_tid << ":" << block_beg << "-" << block_norm_end 
+                    LOG(logDEBUG4) << "The BED line tid=" << block_tid << ":" << block_beg << "-" << block_norm_end 
                             << " flag=" << region_flag << " num_reads=" << (int)region_n_reads << " is STORED, reason=" 
                             << is_1st_read << is_block_zero_sized;
                     uvc1_refgpos_big_t region_s_rposs = region_n_ref_positions + region_n_ref_positions_add;
                     // total_n_regions++;
                     total_n_reads += region_n_reads;
                     total_n_rposs += region_s_rposs;
-                    total_n_reads_x_reads += mathsquare(region_n_reads);
-                    total_n_rposs_x_rposs += mathsquare(region_s_rposs);
+                    total_n_reads_x_reads += mathsquare_big(region_n_reads);
+                    total_n_rposs_x_rposs += mathsquare_big(region_s_rposs);
                     region_n_ref_positions = 0; 
                     region_n_ref_positions_add = 0; 
                     region_n_reads = 0;
