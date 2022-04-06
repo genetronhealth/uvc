@@ -7,6 +7,7 @@
 #include "htslib/vcf.h"
 
 #include <algorithm>
+#include <array>
 #include <iostream>
 
 #include <assert.h>
@@ -176,11 +177,25 @@ mathcube(T x) {
     return x * x * x;
 }
 
+constexpr
 double
 prob2odds(double p) {
     assert((0.0 < p && p < 1.0) || !fprintf(stderr, "%f is not between 0 and 1!", p));
     return p /  (1.0 - p);
 }
+
+constexpr
+double
+odds2prob(double odds) {
+    assert((0.0 < odds) || !fprintf(stderr, "%f is not greater than zero!", odds));
+    return odds / (odds + 1.0);
+}
+
+static_assert(prob2odds(odds2prob(1)) > 0.99);
+static_assert(prob2odds(odds2prob(1)) < 1.01);
+
+static_assert(odds2prob(prob2odds(0.66)) > 0.65);
+static_assert(odds2prob(prob2odds(0.66)) < 0.67);
 
 double
 logit(double p) {
@@ -382,7 +397,7 @@ struct SegFormatPrepSet {
     uvc1_readnum_t segprep_a_near_RTR_ins_dp;
     uvc1_readnum_t segprep_a_near_RTR_del_dp;
     
-    uvc1_readnum_t segprep_a_pcr_dp;       // depth of PCR amplicons
+    std::array<uvc1_readnum_t, 2> segprep_a_pcr_dps = {{ 0 }}; // depth of PCR amplicons on the R1R2 and R2R1 orientations
     uvc1_readnum_t segprep_a_umi_dp;       // depth of PCR amplicons
     uvc1_readnum_t segprep_a_snv_dp;
     uvc1_readnum_t segprep_a_dnv_dp;

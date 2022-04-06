@@ -794,8 +794,8 @@ bamfname_to_strand_to_familyuid_to_reads(
         uvc1_refgpos_t end1 = tEnd + ARRPOS_MARGIN - fetch_tbeg;
         uvc1_refgpos_t beg2 = isrc_isr2_to_beg2bcenter[isrc_isr2][beg1];
         uvc1_refgpos_t end2 = isrc_isr2_to_end2ecenter[isrc_isr2][end1];
-        uvc1_readnum_t beg2count = isrc_isr2_to_beg_count[isrc_isr2][beg2];
-        uvc1_readnum_t end2count = isrc_isr2_to_end_count[isrc_isr2][end2];
+        uvc1_readnum_big_t beg2count = isrc_isr2_to_beg_count[isrc_isr2][beg2];
+        uvc1_readnum_big_t end2count = isrc_isr2_to_end_count[isrc_isr2][end2];
         const auto insert2posL = MIN(beg2, end2);
         const auto insert2posR = MAX(beg2, end2);
         const auto insert_cov_totDP = isrc_isr2_to_border_count_prefixsum[isrc_isr2][insert2posR] - isrc_isr2_to_border_count_prefixsum[isrc_isr2][insert2posL];
@@ -864,7 +864,7 @@ bamfname_to_strand_to_familyuid_to_reads(
             dedup_idflag = paramset.dedup_flag;
         } else if ((SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform)) { // is_proton
             if (is_umi_found) { dedup_idflag = 0x9; }
-            else if (is_assay_amplicon) {
+            else if (is_beg_strong_amplicon || (is_beg_amplicon && is_end_amplicon)) {
                 dedup_idflag = 0x7;
             } else {
                 dedup_idflag = 0x3;

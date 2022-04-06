@@ -1064,6 +1064,8 @@ update_seg_format_prep_sets_by_aln(
     const uvc1_refgpos_t frag_pos_L = MIN(aln->core.pos, aln->core.mpos); 
     const uvc1_refgpos_t frag_pos_R = (frag_pos_L + abs(aln->core.isize));
     const bool isrc = ((aln->core.flag & 0x10) == 0x10); 
+    const bool isr2 = ((aln->core.flag & 0x80) == 0x80 && (aln->core.flag & 0x1) == 0x1);
+    const bool strand = (isrc ^ isr2);
     
     const auto pcr_dp_inc = ((dflag & 0x4) ? 1 : 0);
     const auto umi_dp_inc = ((dflag & 0x1) ? 1 : 0);
@@ -1076,7 +1078,7 @@ update_seg_format_prep_sets_by_aln(
         const auto cigar_oplen = bam_cigar_oplen(c);
         if (cigar_op == BAM_CMATCH || cigar_op == BAM_CEQUAL || cigar_op == BAM_CDIFF) {
             for (uint32_t j = 0; j < cigar_oplen; j++) {
-                seg_format_prep_sets.getRefByPos(rpos).segprep_a_pcr_dp += pcr_dp_inc;
+                seg_format_prep_sets.getRefByPos(rpos).segprep_a_pcr_dps[strand] += pcr_dp_inc;
                 seg_format_prep_sets.getRefByPos(rpos).segprep_a_umi_dp += umi_dp_inc;
                 seg_format_prep_sets.getRefByPos(rpos).segprep_a_dp += 1;
                 seg_format_prep_sets.getRefByPos(rpos).segprep_a_qlen += (rend - aln->core.pos);
@@ -1196,7 +1198,7 @@ update_seg_format_prep_sets_by_aln(
             }
 #endif
             for (uvc1_refgpos_t rpos2 = rpos; rpos2 < rpos + UNSIGN2SIGN(cigar_oplen); rpos2++) {
-                seg_format_prep_sets.getRefByPos(rpos2).segprep_a_pcr_dp += pcr_dp_inc;
+                seg_format_prep_sets.getRefByPos(rpos2).segprep_a_pcr_dps[strand] += pcr_dp_inc;
                 seg_format_prep_sets.getRefByPos(rpos2).segprep_a_umi_dp += umi_dp_inc;
                 seg_format_prep_sets.getRefByPos(rpos2).segprep_a_dp += 1;
                 seg_format_prep_sets.getRefByPos(rpos2).segprep_a_qlen += (rend - aln->core.pos);
@@ -1453,8 +1455,8 @@ dealwith_segbias(
         const CommandLineArgs & paramset,
         const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
     
-    const bool is_assay_amplicon = (dflag & 0x4);
-    const bool is_normal_used_to_filter_vars_on_primers = (paramset.tn_is_paired && (0x1 & paramset.tn_flag));
+    const bool is_assay_amplicon = ((dflag & 0x4) || ((paramset.primerlen > 0) && !(0x2 & paramset.primer_flag)));
+    const bool is_normal_used_to_filter_vars_on_primers = (paramset.tn_is_paired && (0x1 & paramset.primer_flag));
     const bool is_assay_UMI = (dflag & 0x1);
     
     const auto indel_len = UNSIGN2SIGN(indel_len_arg);
@@ -1825,8 +1827,8 @@ public:
         assert(this->getIncluBegPosition() <= SIGN2UNSIGN(aln->core.pos)   || !fprintf(stderr, "%d <= %ld failed", this->getIncluBegPosition(), aln->core.pos));
         assert(this->getExcluEndPosition() >= SIGN2UNSIGN(bam_endpos(aln)) || !fprintf(stderr, "%d >= %ld failed", this->getExcluEndPosition(), bam_endpos(aln)));
         
-        const bool is_assay_amplicon = (dflag & 0x4);
-
+        const bool is_assay_amplicon = ((dflag & 0x4) || ((paramset.primerlen > 0) && !(0x2 & paramset.primer_flag)));
+        
         const auto n_cigar = aln->core.n_cigar;
         const auto *cigar = bam_get_cigar(aln);
         const auto *bseq = bam_get_seq(aln);
@@ -1905,7 +1907,7 @@ public:
         
         const bool isrc = ((aln->core.flag & 0x10) == 0x10);
         
-        const bool is_normal_used_to_filter_vars_on_primers = (paramset.tn_is_paired && (0x1 & paramset.tn_flag));
+        const bool is_normal_used_to_filter_vars_on_primers = (paramset.tn_is_paired && (0x1 & paramset.primer_flag));
         const uvc1_readpos_t primerlen_lside = paramset.primerlen;
         const uvc1_readpos_t primerlen_rside = paramset.primerlen;
         // NOTE: if insert size is zero, then assume that the whole insert including the two primers are sequenced
@@ -3453,7 +3455,7 @@ BcfFormat_symboltype_init(bcfrec::BcfFormat & fmt,
         p.segprep_a_near_RTR_ins_dp, 
         p.segprep_a_near_RTR_del_dp, 
         
-        p.segprep_a_pcr_dp,
+        p.segprep_a_pcr_dps[0], p.segprep_a_pcr_dps[1],
         p.segprep_a_snv_dp,
         p.segprep_a_dnv_dp,
         p.segprep_a_highBQ_dp,
@@ -3813,8 +3815,8 @@ BcfFormat_symbol_calc_DPv(
     const double unbias_qualadd = ((NOT_PROVIDED == paramset.vcf_tumor_fname) ? 0 : 3);
     const uvc1_qual_t allbias_allprior = ((NOT_PROVIDED == paramset.vcf_tumor_fname) ? 0 : 31);
     
-    const bool is_strong_amplicon = (seg_format_prep_sets.segprep_a_pcr_dp * 100 > seg_format_prep_sets.segprep_a_dp * 60);
-    const bool is_weak_amplicon = (seg_format_prep_sets.segprep_a_pcr_dp * 100 > seg_format_prep_sets.segprep_a_dp * 40);
+    const bool is_strong_amplicon = (SUMVEC(seg_format_prep_sets.segprep_a_pcr_dps) * 100 > seg_format_prep_sets.segprep_a_dp * 50);
+    const bool is_weak_amplicon = (SUMVEC(seg_format_prep_sets.segprep_a_pcr_dps) * 100 > seg_format_prep_sets.segprep_a_dp * 30);
     
     const int a = 0;
     const bool is_rescued = (tpfa >= 0);
@@ -3839,6 +3841,8 @@ BcfFormat_symbol_calc_DPv(
     double _counterbias_BQ_FA = 1e-9;
     double _dir_bias_div = 1.0;
     const bool is_nmore_amplicon = ((NOT_PROVIDED == paramset.vcf_tumor_fname) ? is_strong_amplicon : is_weak_amplicon);
+    // const bool is_nmore_uncertain_amplicon = (SUMVEC(seg_format_prep_sets.segprep_a_pcr_dps) * 100 
+    //        < seg_format_prep_sets.segprep_a_dp * ((NOT_PROVIDED == paramset.vcf_tumor_fname) ? 70 : 80));
     if ((is_nmore_amplicon && (0x2 == (0x2 & paramset.nobias_flag))) || ((!is_nmore_amplicon) && (0x1 == (0x1 & paramset.nobias_flag)))) {
         // counter bias : position 23-10 bp and base quality 13
         // not-pos-bias < pos-bias
@@ -4141,9 +4145,21 @@ BcfFormat_symbol_calc_DPv(
     const double aRIFA2 = MAX(aDPFA * 0.01, aRIFA);
     const double aSSFA2 = MAX(aDPFA * 0.05, aSSFA);
     
+    /*
+    const std::array<uvc1_readnum_t, 2> a_total_dps = {{ (fmt.ADPff[0] + fmt.ADPfr[0]), (fmt.ADPrf[0] + fmt.ADPrr[0]) }};
+    double a_pcr2tot_dp_fw2rv_orient_oddsratio = 
+            ((seg_format_prep_sets.segprep_a_pcr_dps[0] + 0.5) * (a_total_dps[1] + 1.0)) / 
+            ((seg_format_prep_sets.segprep_a_pcr_dps[1] + 0.5) * (a_total_dps[0] + 1.0));
+    double a_pcr2tot_dp_max_orient_oddsratio = (is_nmore_amplicon ? (MAX(a_pcr2tot_dp_fw2rv_orient_oddsratio, 1.0 / a_pcr2tot_dp_fw2rv_orient_oddsratio)) : 1.0);
+    */
     cROFA1 = MAX(aDPFA * 1e-4, cROFA1);
     cROFA2 = MAX(aDPFA * 1e-4, cROFA2);
-    
+    /*
+    if (is_nmore_amplicon && is_nmore_uncertain_amplicon) {
+        cROFA1 += 16;
+        cROFA2 += 16;
+    }
+    */
     // compute systematic error here
     
     const auto fBTA = (double)(fmt.BTAf[0] + fmt.BTAr[0] + 200);
@@ -4287,9 +4303,9 @@ BcfFormat_symbol_calc_DPv(
     clear_push(fmt.cDP1x, 1+(uvc1_readnum100x_t)                                       (min_abcFA_x * (fmt.CDP1f[0] +fmt.CDP1r[0]) * 100), a);
     
     // UMI push
-    // if both left and right border are biased, then make base-alignment and position biases stronger
-    const auto c2XBFA2 = MAX((c2LBFA2 * c2RBFA2 / mathsquare(cFA2)), MIN(c2LBFA2, c2RBFA2) * 0.25);
-    const auto c2XPFA2 = MAX((c2LPFA2 * c2RPFA2 / mathsquare(cFA2)), MIN(c2LPFA2, c2RPFA2) * 0.25);
+    // if both left and right border are biased with strand, then make base-alignment and position biases stronger to eliminate artifacts
+    const auto c2XBFA2 = BETWEEN(3.0 * c2LBFA2 * c2RBFA2 * aSSFA2 / mathcube(cFA2), MIN(c2LBFA2, c2RBFA2) / 8.0, MIN(c2LBFA2, c2RBFA2));
+    const auto c2XPFA2 = BETWEEN(3.0 * c2LPFA2 * c2RPFA2 * aSSFA2 / mathcube(cFA2), MIN(c2LPFA2, c2RPFA2) / 8.0, MIN(c2LPFA2, c2RPFA2));
     const auto c2XXFA2 = MIN(c2XBFA2, c2XPFA2);
 
     double min_c23FA_v = MAX(MIN(MIN3(tier1_selfplus_aFA_min * frac_umi2seg, tier2_selfonly_c2FA_min, c2XXFA2), aNCFA * frac_umi2seg), counterbias_FA * frac_umi2seg);
@@ -4663,8 +4679,8 @@ BcfFormat_symbol_calc_qual(
             ? fmt.aBQQ[a] : (200));
     
     // begin ad-hoc
-    const bool is_strong_amplicon = (seg_format_prep_sets.segprep_a_pcr_dp * 100 > fmt.APDP[0] * 60);
-    const bool is_weak_amplicon = (seg_format_prep_sets.segprep_a_pcr_dp * 100 > fmt.APDP[0] * 40);
+    const bool is_strong_amplicon = (SUMVEC(seg_format_prep_sets.segprep_a_pcr_dps) * 100 > fmt.APDP[0] * 50);
+    const bool is_weak_amplicon = (SUMVEC(seg_format_prep_sets.segprep_a_pcr_dps) * 100 > fmt.APDP[0] * 30);
     const bool is_tmore_amplicon = ((NOT_PROVIDED == paramset.vcf_tumor_fname) ? is_weak_amplicon : is_strong_amplicon);
     
     if (is_tmore_amplicon && (isSymbolIns(symbol) || isSymbolDel(symbol)) && (systematicBQVQ > 70)

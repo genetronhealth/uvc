@@ -85,6 +85,7 @@ struct CommandLineArgs {
     bool              disable_duplex = false;
     uvc1_readpos_t    primerlen = 0; // 23; // https://link.springer.com/chapter/10.1007/978-1-4020-6241-4_5 : 18 - 22 bps
     uvc1_readpos_t    primerlen2 = 23; // https://genome.cshlp.org/content/3/3/S30.full.pdf : 18 - 24 bps
+    uvc1_flag_t       primer_flag = 0x0; 
     uvc1_readpos_t    central_readlen = 0; // estimate from the data
     uvc1_qual_t       bq_phred_added_misma = 0; // estimate from the data
     uvc1_qual_t       bq_phred_added_indel = 0; // estimate from the data
@@ -296,7 +297,7 @@ struct CommandLineArgs {
     // PHRED-scaled likelihood that the observed allele fraction additively deviates from the expected allele fraction by a multiplicative factor of 2
     double      tn_syserr_norm_devqual = 15.0; // can be (double)(12.5);
     uvc1_flag_t tn_is_paired = false;
-    uvc1_flag_t tn_flag = 0x0;
+    //uvc1_flag_t tn_flag = 0x0;
 
 // *** 11. parameters related to InDels.
     

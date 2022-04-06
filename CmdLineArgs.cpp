@@ -312,6 +312,10 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
         "(22 from https://doi.org/10.1007/978-1-4020-6241-4_5 and 24 from https://doi.org/10.1101/gr.3.3.s30). ");
     ADD_OPTDEF2(app, primerlen2,
         "Primer length that is used to cancel out bias. ");
+    ADD_OPTDEF2(app, primer_flag,
+        "Bitwise flag for PCR primers. "
+        "The 0x1 bit means: use the matched normal sample to filter out false positive calls on primers to get more true positive calls. "
+        "The 0x2 bit means: even if the value of the --primerlen parameter is greater than zero, still do not skip variants in the primer read regions, but instead check if the read is part of an amplicon to determine the presence/absence of primers (By default: if --primerlen is set to a strictly positive value, then always trim read support in read bases that are inferred to be of primer origin accordingly). ");
     
     ADD_OPTDEF2(app, central_readlen, 
         "Central (median) value for read lengths, 0 means estimate from the data. ");
@@ -719,9 +723,9 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
     ADD_OPTDEF2(app, tn_is_paired,
         "The boolean with value 0 (false) or 1 (true) indicating if tumor-normal paired sequencing is used. ");
     
-    ADD_OPTDEF2(app, tn_flag,
-        "Bitwise flag for tumor-normal comparison. "
-        "The 0x1 bit means: use the matched normal sample to filter out false positive calls on primers to get more true positive calls. ");
+    //ADD_OPTDEF2(app, tn_flag,
+    //    "Bitwise flag for tumor-normal comparison. "
+    //    "The 0x1 bit means: use the matched normal sample to filter out false positive calls on primers to get more true positive calls. ");
     
 // *** 11. parameters related to InDels.
     // https://www.ncbi.nlm.nih.gov/pmc/articles/PMC149199/
