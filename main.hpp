@@ -4186,19 +4186,22 @@ BcfFormat_symbol_calc_DPv(
     // end of computation of systematic error
     const auto tier1_selfonly_aFA_vec = std::vector<double>{{
             aDPFA * BETWEEN(1.0 + aDPFA - alt_frac_mut_affected_tpos, 0.1, 1.0),
-            aLPFA2,
-            aRPFA2,
-            aLBFA2,
-            aRBFA2,
             bFA, 
             cFA0, 
-            cROFA1,
-            aSSFA2,
+            
             aPFFA * aSSFA2 / MAX(aSSFA2, aSSFAx2[1])
             }};
     const auto tier1_selfonly_aFA_min = MINVEC(tier1_selfonly_aFA_vec);
     
     const auto tier1_selfplus_aFA_vec = std::vector<double>{{
+            aLPFA2,
+            aRPFA2,
+            aLBFA2,
+            aRBFA2,
+            
+            cROFA1,
+            aSSFA2,
+            
             aLIFA2,
             aRIFA2,
             MAX(aDPFA * 0.01, aSIFA)
