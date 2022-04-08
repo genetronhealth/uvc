@@ -4184,9 +4184,11 @@ BcfFormat_symbol_calc_DPv(
     clear_push(fmt.bNMQ, bNMQ);
     
     // end of computation of systematic error
+    
+    double bFAa = (is_tmore_amplicon ? (bFA * (paramset.powlaw_amplicon_allele_fraction_coef)) : bFA);
     const auto tier1_selfonly_aFA_vec = std::vector<double>{{
             aDPFA * BETWEEN(1.0 + aDPFA - alt_frac_mut_affected_tpos, 0.1, 1.0),
-            bFA, 
+            bFAa,
             cFA0, 
             
             aPFFA * aSSFA2 / MAX(aSSFA2, aSSFAx2[1])
@@ -4239,7 +4241,8 @@ BcfFormat_symbol_calc_DPv(
     fmt_bias_push(fmt.nBCFA, cFA2,  c2LBFA2, paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::c2AlignL]);
     fmt_bias_push(fmt.nBCFA, cFA2,  c2RBFA2, paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::c2AlignR]);
     
-    auto min_cFA23_vec = std::vector<double> {{ cFA2, cFA3 }};
+    double cFA2a = (is_tmore_amplicon ? (cFA2 * (paramset.powlaw_amplicon_allele_fraction_coef)) : cFA2);
+    auto min_cFA23_vec = std::vector<double> {{ cFA2a, cFA3 }};
     double c23FA = MINVEC(min_cFA23_vec);
 
     auto tier2_selfonly_c2FA_vec = std::vector<double>{{
@@ -4540,7 +4543,8 @@ BcfFormat_symbol_calc_qual(
     uvc1_qual_t ds_vq_inc_binom = 3 * MIN(fmt.cDP2f[a], fmt.cDP2r[a]);
     
     uvc1_qual_t powlaw_sscs_inc2 = MAX(0, MIN5(sscs_binom_qual_fw, sscs_binom_qual_rv, ds_vq_inc_powlaw, ds_vq_inc_binom, 3));
-    double umi_cFA =  (((double)(fmt.cDP2v[a]) + 0.5) / ((double)(fmt.CDP2f[0] * 100 + fmt.CDP2r[0] * 100) + 1.0));
+    
+    double umi_cFA = (((double)(fmt.cDP2v[a]) + 0.5) / ((double)(fmt.CDP2f[0] * 100 + fmt.CDP2r[0] * 100) + 1.0));
     
     uvc1_qual_t sscs_base_2 = pl_withUMI_phred_inc + powlaw_sscs_inc1 + powlaw_sscs_inc2 - sscs_dec1 - sscs_dec2;
     uvc1_qual_t sscs_base_2tn = pl_withUMI_phred_inc + powlaw_sscs_inc4tn + powlaw_sscs_inc2 - sscs_dec1 - sscs_dec2;

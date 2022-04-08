@@ -94,6 +94,7 @@ struct CommandLineArgs {
     // https://cs.brynmawr.edu/Courses/cs380/spring2013/section02/slides/10_ScaleFreeNetworks.pdf
     double           powlaw_exponent = 3.0; // universality constant
     double           powlaw_anyvar_base = (double)(60+25+5); // universality constant
+    double           powlaw_amplicon_allele_fraction_coef = (5.0/8.0); // universality constant
     
     uvc1_qual_t      penal4lowdep = 37;
     uvc1_qual_t      assay_sequencing_BQ_max = 37;
@@ -351,7 +352,7 @@ struct CommandLineArgs {
     double              microadjust_counterbias_pos_odds_ratio = 3.5;
     double              microadjust_counterbias_pos_fold_ratio = 5.0;
     
-    uvc1_qual_t         microadjust_fam_binom_qual_halving_thres = 22; // =x where x means halved effect of read support at one-FP/(10^(x/10)) base-pairs
+    uvc1_qual_t         microadjust_fam_binom_qual_halving_thres = 70; // 22; // =x where x means halved effect of read support at one-FP/(10^(x/10)) base-pairs
     int32_t             microadjust_fam_lowfreq_invFA = 1000;
     uvc1_qual_t         microadjust_ref_MQ_dec_max = 15;
     
