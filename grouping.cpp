@@ -863,8 +863,10 @@ bamfname_to_strand_to_familyuid_to_reads(
         if (paramset.dedup_flag != 0) {
             dedup_idflag = paramset.dedup_flag;
         } else if ((SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform)) { // is_proton
-            if (is_umi_found) { dedup_idflag = 0x9; }
-            else if (is_beg_strong_amplicon || (is_beg_amplicon && is_end_amplicon)) {
+            if (is_umi_found) { 
+                dedup_idflag = 0x9; 
+            } else if (is_assay_amplicon) { 
+                // we have no way to remove duplicates in PCR amplicons if no UMI is given
                 dedup_idflag = 0x7;
             } else {
                 dedup_idflag = 0x3;
@@ -880,7 +882,7 @@ bamfname_to_strand_to_familyuid_to_reads(
                 } else {
                     dedup_idflag = 0xB;
                 }
-            } else if (is_beg_amplicon && is_end_amplicon) {
+            } else if (is_assay_amplicon) {
                 dedup_idflag = 0x7;
             } else {
                 dedup_idflag = 0x3;

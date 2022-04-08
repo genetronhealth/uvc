@@ -4311,7 +4311,7 @@ BcfFormat_symbol_calc_DPv(
     const auto c2XPFA2 = BETWEEN(3.0 * c2LPFA2 * c2RPFA2 * aSSFA2 / mathcube(cFA2), MIN(c2LPFA2, c2RPFA2) / 8.0, MIN(c2LPFA2, c2RPFA2));
     const auto c2XXFA2 = MIN(c2XBFA2, c2XPFA2);
 
-    double min_c23FA_v = MAX(MIN(MIN3(tier1_selfplus_aFA_min * frac_umi2seg, tier2_selfonly_c2FA_min, c2XXFA2), aNCFA * frac_umi2seg), counterbias_FA * frac_umi2seg);
+    double min_c23FA_v = MAX(MIN(MIN3(tier1_selfplus_aFA_min/* * frac_umi2seg*/, tier2_selfonly_c2FA_min, c2XXFA2), aNCFA * frac_umi2seg), counterbias_FA * frac_umi2seg);
     clear_push(fmt.cDP2v, (uvc1_readnum100x_t)(calc_normFA_from_rawFA_refbias((min_c23FA_v), refbias) * (fmt.CDP2f[0] + fmt.CDP2r[0]) * 100), a);
     double min_c23FA_w = MAX(MINVEC(std::vector<double>{{
             c2LPFA2, c2RPFA2, c2XXFA2,
@@ -4319,7 +4319,7 @@ BcfFormat_symbol_calc_DPv(
             cFA2,
             aNCFA * frac_umi2seg}}), counterbias_FA * frac_umi2seg);
     clear_push(fmt.cDP2w, (uvc1_readnum100x_t)(calc_normFA_from_rawFA_refbias(min_c23FA_w, refbias) * (fmt.CDP2f[0] + fmt.CDP2r[0]) * 100), a);
-    double min_c23FA_x = MINVEC(std::vector<double>{{ aPFFA * frac_umi2seg, c23FA }});
+    double min_c23FA_x = MINVEC(std::vector<double>{{ aPFFA/* * frac_umi2seg*/, c23FA }});
     clear_push(fmt.cDP2x, 1+(uvc1_readnum100x_t)                                      ((min_c23FA_x * (fmt.CDP2f[0] + fmt.CDP2r[0])) * 100), a);
     
     return 0;
