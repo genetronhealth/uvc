@@ -4425,8 +4425,15 @@ BcfFormat_symbol_calc_qual(
             paramset.fam_phred_sscs_transversion_other,
             paramset.fam_phred_sscs_indel_open,
             paramset.fam_phred_sscs_indel_ext);
+
+    const double cFA2 = (fmt.cDP2f[a] + fmt.cDP2r[a] + 0.5) / (fmt.CDP2f[0] + fmt.CDP2r[0] + 1.0);
+    const uvc1_qual_t powlaw_sscs_phrederr = sscs_mut_table.toPhredErrRate(refsymbol, symbol)
+            + (NOT_PROVIDED == paramset.vcf_tumor_fname ? 0 : 4);
+    const double umi_cFA = (((double)(fmt.cDP2v[a]) + 0.5) / ((double)(fmt.CDP2f[0] * 100 + fmt.CDP2r[0] * 100) + 1.0));
     
-    const uvc1_qual_t powlaw_sscs_phrederr = sscs_mut_table.toPhredErrRate(refsymbol, symbol) + (NOT_PROVIDED == paramset.vcf_tumor_fname ? 0 : 4);
+    //double fam_phred_sscs_max_frac = MIN(cFA2 / 5e-3, 1);
+    //const uvc1_qual_t powlaw_sscs_phrederr = round((fam_phred_sscs_max_frac * paramset.fam_phred_sscs_at_high_allelefrac) + ((1.0 - fam_phred_sscs_max_frac) * powlaw_sscs_phrederr2));
+    
     const uvc1_qual_t powlaw_sscs_inc1 = (powlaw_sscs_phrederr  - (isSymbolSubstitution(symbol) 
             ? (((BASE_A == refsymbol && BASE_T == symbol) || (BASE_T == refsymbol && BASE_A == symbol))
                 ? paramset.fam_phred_pow_sscs_transversion_AT_TA_origin : paramset.fam_phred_pow_sscs_snv_origin)
@@ -4544,10 +4551,9 @@ BcfFormat_symbol_calc_qual(
     
     uvc1_qual_t powlaw_sscs_inc2 = MAX(0, MIN5(sscs_binom_qual_fw, sscs_binom_qual_rv, ds_vq_inc_powlaw, ds_vq_inc_binom, 3));
     
-    double umi_cFA = (((double)(fmt.cDP2v[a]) + 0.5) / ((double)(fmt.CDP2f[0] * 100 + fmt.CDP2r[0] * 100) + 1.0));
-    
-    uvc1_qual_t sscs_base_2 = pl_withUMI_phred_inc + powlaw_sscs_inc1 + powlaw_sscs_inc2 - sscs_dec1 - sscs_dec2;
-    uvc1_qual_t sscs_base_2tn = pl_withUMI_phred_inc + powlaw_sscs_inc4tn + powlaw_sscs_inc2 - sscs_dec1 - sscs_dec2;
+    uvc1_qual_t sscs_dec3 = ((cFA2 >= 0.003) ? 0 : 5);
+    uvc1_qual_t sscs_base_2 = pl_withUMI_phred_inc + powlaw_sscs_inc1 + powlaw_sscs_inc2 - sscs_dec1 - sscs_dec2 - sscs_dec3;
+    uvc1_qual_t sscs_base_2tn = pl_withUMI_phred_inc + powlaw_sscs_inc4tn + powlaw_sscs_inc2 - sscs_dec1 - sscs_dec2 - sscs_dec3;
     uvc1_qual_t sscs_powlaw_qual_v = round((paramset.powlaw_exponent * numstates2phred(umi_cFA)    + sscs_base_2));
     uvc1_qual_t sscs_powlaw_qual_w = round((paramset.powlaw_exponent * numstates2phred(min_bcFA_w) + sscs_base_2tn)); //
             // + tn_q_inc_max);
