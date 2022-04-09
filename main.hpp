@@ -4549,7 +4549,7 @@ BcfFormat_symbol_calc_qual(
             + (powlaw_sscs_phrederr);
     uvc1_qual_t ds_vq_inc_binom = 3 * MIN(fmt.cDP2f[a], fmt.cDP2r[a]);
     
-    uvc1_qual_t powlaw_sscs_inc2 = MAX(0, MIN5(sscs_binom_qual_fw, sscs_binom_qual_rv, ds_vq_inc_powlaw, ds_vq_inc_binom, 3));
+    uvc1_qual_t powlaw_sscs_inc2 = MAX(0, MIN5(sscs_binom_qual_fw, sscs_binom_qual_rv, ds_vq_inc_powlaw, ds_vq_inc_binom, 3)) * ((cFA2 > 0.002) ? 1 : 0);
     
     uvc1_qual_t sscs_dec3 = ((cFA2 >= 0.003) ? 0 : 5);
     uvc1_qual_t sscs_base_2 = pl_withUMI_phred_inc + powlaw_sscs_inc1 + powlaw_sscs_inc2 - sscs_dec1 - sscs_dec2 - sscs_dec3;
