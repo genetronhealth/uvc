@@ -215,8 +215,9 @@ struct CommandLineArgs {
     uvc1_readnum_t      fam_thres_emperr_all_flat_indel = 4; // can be 5
     uvc1_readnum100x_t  fam_thres_emperr_con_perc_indel = 67; // can be 75
     
-    uvc1_readnum_t      fam_min_n_copies = 300 * 3; // 300 DNA copies per nanogram of DNA
-    uvc1_readnum100x_t  fam_min_overseq_perc = 250; // percent fold of over-sequencing
+    uvc1_readnum_t      fam_min_n_copies = 800; // 300 * 3; // 300 DNA copies per nanogram of DNA
+    uvc1_readnum_t      fam_min_n_copies_DPxAD = 20 * 1000;
+    uvc1_readnum100x_t  fam_min_overseq_perc = 200; // 250; // percent fold of over-sequencing
     uvc1_readnum100x_t  fam_bias_overseq_perc = 150; // percent fold of over-sequencing
     
     uvc1_readnum100x_t  fam_indel_nonUMI_phred_dec_per_fold_overseq = 9;
@@ -241,7 +242,7 @@ struct CommandLineArgs {
     
     // 10*log((2.7e-3-3.5e-5)/(1.5e-4-3.5e-5))/log(10)*3 is 41 from https://doi.org/10.1073/pnas.1208715109 PMC3437896
     // The -6 is to accommodate for the fact that most BQs are strictly above 30.
-    uvc1_qual_t         fam_phred_pow_sscs_transversion_AT_TA_origin = 44-(41-2-6); // A:T > T:A somatic mutations are uncommon
+    uvc1_qual_t         fam_phred_pow_sscs_transversion_AT_TA_origin = 44 - (41-6-0); // A:T > T:A somatic mutations are uncommon
     double              fam_phred_pow_sscs_snv_origin = 44 - (41-6);
     double              fam_phred_pow_sscs_indel_origin = fam_phred_sscs_indel_open - 9 * 3;
     double              fam_phred_pow_dscs_all_origin = 0;

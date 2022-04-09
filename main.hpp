@@ -2744,7 +2744,8 @@ struct Symbol2CountCoverageSet {
                         }
                         const bool is_fam_big = (paramset.fam_thres_dup1add <= tot_count);
                         const bool is_fam_con = (con_count * 100 >= tot_count * paramset.fam_thres_dup1perc);
-                        const bool is_fam_good = (is_fam_big && is_fam_con);
+                        const bool is_fam_good = (is_fam_big && is_fam_con 
+                                && ((alns2pair2umibarcode.second.duplexflag & 0x1) || (paramset.fam_flag & 0x2)));
                         if (is_fam_good) {
                             this->symbol_to_fam_format_depth_sets_2strand[strand].getRefByPos(epos)[con_symbol][FAM_cDP2] += 1;
                             if (isSymbolIns(con_symbol)) {
@@ -4503,12 +4504,16 @@ BcfFormat_symbol_calc_qual(
         phred_het3al_chance_inc = non_neg_minus(phred_het3al_chance_inc_indel + 1, (uvc1_refgpos_t)indelstring.size());
     }
     const auto contam_syserr_phred_bypassed = phred_het3al_chance_inc;
+    const uvc1_readnum_t normcDP1 = (fmt.cDP12f[a] + fmt.cDP12r[a] + 1);
     const uvc1_readnum_t normCDP1 = (fmt.CDP12f[0] + fmt.CDP12r[0] + 1);
     const uvc1_readnum_t normBDP = (fmt.BDPf[0] + fmt.BDPr[0] + 1);
-    const uvc1_qual_big_t sscs_dec1a = 2 * int64mul(non_neg_minus(paramset.fam_min_n_copies, normCDP1),                             (powlaw_sscs_inc1 + 3))
-            / (paramset.fam_min_n_copies);
-    const uvc1_qual_big_t sscs_dec1b = 2 * int64mul(non_neg_minus(normCDP1 * (paramset.fam_min_overseq_perc + 100) / 100, normBDP), (powlaw_sscs_inc1 + 3))
-            / MAX(1, normCDP1 * (paramset.fam_min_overseq_perc / 2 + 100) / 100);
+    const uvc1_qual_big_t sscs_dec1a = (((paramset.fam_min_n_copies <= normCDP1) || (paramset.fam_min_n_copies_DPxAD <= int64mul(normCDP1, normcDP1)))
+            ? 0 : (powlaw_sscs_inc1 + 3));
+            // 2 * int64mul(non_neg_minus(paramset.fam_min_n_copies, normCDP1),                             (powlaw_sscs_inc1 + 3))
+            // / (paramset.fam_min_n_copies);
+    const uvc1_qual_big_t sscs_dec1b = (int64mul(paramset.fam_min_overseq_perc, normCDP1) <= int64mul(100, normBDP) ? 0 : (powlaw_sscs_inc1 + 3));
+            // 2 * int64mul(non_neg_minus(normCDP1 * (paramset.fam_min_overseq_perc + 100) / 100, normBDP), (powlaw_sscs_inc1 + 3))
+            // / MAX(1, normCDP1 * (paramset.fam_min_overseq_perc / 2 + 100) / 100);
     const uvc1_qual_big_t sscs_dec1 = MAX(sscs_dec1a, sscs_dec1b);
     
     // how to reduce qual by bias: div first, then minus
