@@ -4184,8 +4184,8 @@ BcfFormat_symbol_calc_DPv(
     clear_push(fmt.bNMQ, bNMQ);
     
     // end of computation of systematic error
-    
-    double bFAa = (is_tmore_amplicon ? (bFA * (paramset.powlaw_amplicon_allele_fraction_coef)) : bFA);
+    const bool is_tmore_amplicon_with_primerlen = (is_tmore_amplicon || ((paramset.primerlen > 0) && !(0x4 & paramset.primer_flag)));
+    double bFAa = (is_tmore_amplicon_with_primerlen ? (bFA * (paramset.powlaw_amplicon_allele_fraction_coef)) : bFA);
     const auto tier1_selfonly_aFA_vec = std::vector<double>{{
             aDPFA * BETWEEN(1.0 + aDPFA - alt_frac_mut_affected_tpos, 0.1, 1.0),
             bFAa,
@@ -4241,7 +4241,7 @@ BcfFormat_symbol_calc_DPv(
     fmt_bias_push(fmt.nBCFA, cFA2,  c2LBFA2, paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::c2AlignL]);
     fmt_bias_push(fmt.nBCFA, cFA2,  c2RBFA2, paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::c2AlignR]);
     
-    double cFA2a = (is_tmore_amplicon ? (cFA2 * (paramset.powlaw_amplicon_allele_fraction_coef)) : cFA2);
+    double cFA2a = (is_tmore_amplicon_with_primerlen ? (cFA2 * (paramset.powlaw_amplicon_allele_fraction_coef)) : cFA2);
     auto min_cFA23_vec = std::vector<double> {{ cFA2a, cFA3 }};
     double c23FA = MINVEC(min_cFA23_vec);
 
@@ -4690,7 +4690,7 @@ BcfFormat_symbol_calc_qual(
     const bool is_weak_amplicon = (SUMVEC(seg_format_prep_sets.segprep_a_pcr_dps) * 100 > fmt.APDP[0] * 30);
     const bool is_tmore_amplicon = ((NOT_PROVIDED == paramset.vcf_tumor_fname) ? is_weak_amplicon : is_strong_amplicon);
     
-    if (is_tmore_amplicon && (isSymbolIns(symbol) || isSymbolDel(symbol)) && (systematicBQVQ > 70)
+    if (is_tmore_amplicon && (isSymbolIns(symbol) || isSymbolDel(symbol)) && (systematicMQVQ1 > 70) // (systematicBQVQ > 70)
             && (fmt.APXM[1] / MAX(fmt.APDP[0], 1) > 20)) {
         systematicMQVQ1 = 70 + ((systematicMQVQ1 - 70) * 5 / (fmt.APXM[1] / MAX(fmt.APDP[0], 1) - 15));
     }
@@ -4778,7 +4778,7 @@ BcfFormat_symbol_calc_qual(
     const uvc1_qual_big_t dVQinc = MIN(MIN(dFA_vq_binom, dFA_vq_powlaw) - MAX(0, MIN(LAST(fmt.cIAQ), LAST(fmt.cPLQ2))), paramset.fam_phred_dscs_inc_max);
     clear_push(fmt.dVQinc, dVQinc, a);
     
-    const uvc1_qual_t cVQ2 = MIN3(systematicVQsomatic,
+    const uvc1_qual_t cVQ2 = MIN3(systematicVQsomatic + 3,
             LAST(fmt.cIAQ) + MAX(0, dVQinc),
             LAST(fmt.cPLQ2) + MAX(0, dVQinc)) - indel_penal4multialleles;
     clear_push(fmt.cVQ2, MAX(mincVQ2, MIN(cVQ2, LAST(fmt.cTINQ))), a);
