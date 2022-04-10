@@ -1063,10 +1063,14 @@ update_seg_format_prep_sets_by_aln(
     
     const uvc1_refgpos_t frag_pos_L = MIN(aln->core.pos, aln->core.mpos); 
     const uvc1_refgpos_t frag_pos_R = (frag_pos_L + abs(aln->core.isize));
+    
+    // strand does not seem to be useful here?
+    
     const bool isrc = ((aln->core.flag & 0x10) == 0x10); 
+    /*
     const bool isr2 = ((aln->core.flag & 0x80) == 0x80 && (aln->core.flag & 0x1) == 0x1);
     const bool strand = (isrc ^ isr2);
-    
+    */
     const auto pcr_dp_inc = ((dflag & 0x4) ? 1 : 0);
     const auto umi_dp_inc = ((dflag & 0x1) ? 1 : 0);
     qpos = 0;
@@ -1078,7 +1082,7 @@ update_seg_format_prep_sets_by_aln(
         const auto cigar_oplen = bam_cigar_oplen(c);
         if (cigar_op == BAM_CMATCH || cigar_op == BAM_CEQUAL || cigar_op == BAM_CDIFF) {
             for (uint32_t j = 0; j < cigar_oplen; j++) {
-                seg_format_prep_sets.getRefByPos(rpos).segprep_a_pcr_dps[strand] += pcr_dp_inc;
+                seg_format_prep_sets.getRefByPos(rpos).segprep_a_pcr_dp += pcr_dp_inc;
                 seg_format_prep_sets.getRefByPos(rpos).segprep_a_umi_dp += umi_dp_inc;
                 seg_format_prep_sets.getRefByPos(rpos).segprep_a_dp += 1;
                 seg_format_prep_sets.getRefByPos(rpos).segprep_a_qlen += (rend - aln->core.pos);
@@ -1198,7 +1202,7 @@ update_seg_format_prep_sets_by_aln(
             }
 #endif
             for (uvc1_refgpos_t rpos2 = rpos; rpos2 < rpos + UNSIGN2SIGN(cigar_oplen); rpos2++) {
-                seg_format_prep_sets.getRefByPos(rpos2).segprep_a_pcr_dps[strand] += pcr_dp_inc;
+                seg_format_prep_sets.getRefByPos(rpos2).segprep_a_pcr_dp += pcr_dp_inc;
                 seg_format_prep_sets.getRefByPos(rpos2).segprep_a_umi_dp += umi_dp_inc;
                 seg_format_prep_sets.getRefByPos(rpos2).segprep_a_dp += 1;
                 seg_format_prep_sets.getRefByPos(rpos2).segprep_a_qlen += (rend - aln->core.pos);
@@ -3456,7 +3460,7 @@ BcfFormat_symboltype_init(bcfrec::BcfFormat & fmt,
         p.segprep_a_near_RTR_ins_dp, 
         p.segprep_a_near_RTR_del_dp, 
         
-        p.segprep_a_pcr_dps[0], p.segprep_a_pcr_dps[1],
+        p.segprep_a_pcr_dp,
         p.segprep_a_snv_dp,
         p.segprep_a_dnv_dp,
         p.segprep_a_highBQ_dp,
@@ -3816,8 +3820,8 @@ BcfFormat_symbol_calc_DPv(
     const double unbias_qualadd = ((NOT_PROVIDED == paramset.vcf_tumor_fname) ? 0 : 3);
     const uvc1_qual_t allbias_allprior = ((NOT_PROVIDED == paramset.vcf_tumor_fname) ? 0 : 31);
     
-    const bool is_strong_amplicon = (SUMVEC(seg_format_prep_sets.segprep_a_pcr_dps) * 100 > seg_format_prep_sets.segprep_a_dp * 50);
-    const bool is_weak_amplicon = (SUMVEC(seg_format_prep_sets.segprep_a_pcr_dps) * 100 > seg_format_prep_sets.segprep_a_dp * 30);
+    const bool is_strong_amplicon = ((seg_format_prep_sets.segprep_a_pcr_dp) * 100 > seg_format_prep_sets.segprep_a_dp * 50);
+    const bool is_weak_amplicon = ((seg_format_prep_sets.segprep_a_pcr_dp) * 100 > seg_format_prep_sets.segprep_a_dp * 30);
     
     const int a = 0;
     const bool is_rescued = (tpfa >= 0);
@@ -3842,8 +3846,6 @@ BcfFormat_symbol_calc_DPv(
     double _counterbias_BQ_FA = 1e-9;
     double _dir_bias_div = 1.0;
     const bool is_nmore_amplicon = ((NOT_PROVIDED == paramset.vcf_tumor_fname) ? is_strong_amplicon : is_weak_amplicon);
-    // const bool is_nmore_uncertain_amplicon = (SUMVEC(seg_format_prep_sets.segprep_a_pcr_dps) * 100 
-    //        < seg_format_prep_sets.segprep_a_dp * ((NOT_PROVIDED == paramset.vcf_tumor_fname) ? 70 : 80));
     if ((is_nmore_amplicon && (0x2 == (0x2 & paramset.nobias_flag))) || ((!is_nmore_amplicon) && (0x1 == (0x1 & paramset.nobias_flag)))) {
         // counter bias : position 23-10 bp and base quality 13
         // not-pos-bias < pos-bias
@@ -4146,21 +4148,8 @@ BcfFormat_symbol_calc_DPv(
     const double aRIFA2 = MAX(aDPFA * 0.01, aRIFA);
     const double aSSFA2 = MAX(aDPFA * 0.05, aSSFA);
     
-    /*
-    const std::array<uvc1_readnum_t, 2> a_total_dps = {{ (fmt.ADPff[0] + fmt.ADPfr[0]), (fmt.ADPrf[0] + fmt.ADPrr[0]) }};
-    double a_pcr2tot_dp_fw2rv_orient_oddsratio = 
-            ((seg_format_prep_sets.segprep_a_pcr_dps[0] + 0.5) * (a_total_dps[1] + 1.0)) / 
-            ((seg_format_prep_sets.segprep_a_pcr_dps[1] + 0.5) * (a_total_dps[0] + 1.0));
-    double a_pcr2tot_dp_max_orient_oddsratio = (is_nmore_amplicon ? (MAX(a_pcr2tot_dp_fw2rv_orient_oddsratio, 1.0 / a_pcr2tot_dp_fw2rv_orient_oddsratio)) : 1.0);
-    */
     cROFA1 = MAX(aDPFA * 1e-4, cROFA1);
     cROFA2 = MAX(aDPFA * 1e-4, cROFA2);
-    /*
-    if (is_nmore_amplicon && is_nmore_uncertain_amplicon) {
-        cROFA1 += 16;
-        cROFA2 += 16;
-    }
-    */
     // compute systematic error here
     
     const auto fBTA = (double)(fmt.BTAf[0] + fmt.BTAr[0] + 200);
@@ -4186,7 +4175,7 @@ BcfFormat_symbol_calc_DPv(
     
     // end of computation of systematic error
     const bool is_tmore_amplicon_with_primerlen = (is_tmore_amplicon || ((paramset.primerlen > 0) && !(0x4 & paramset.primer_flag)));
-    double bFAa = (is_tmore_amplicon_with_primerlen ? (bFA * (paramset.powlaw_amplicon_allele_fraction_coef)) : bFA);
+    double bFAa = bFA; // (is_tmore_amplicon_with_primerlen ? (bFA * (paramset.powlaw_amplicon_allele_fraction_coef)) : bFA); // is only enabled at high seq depth (when UMI is present)
     const auto tier1_selfonly_aFA_vec = std::vector<double>{{
             aDPFA * BETWEEN(1.0 + aDPFA - alt_frac_mut_affected_tpos, 0.1, 1.0),
             bFAa,
@@ -4218,8 +4207,7 @@ BcfFormat_symbol_calc_DPv(
     fmt.nNFA.push_back(-numstates2deciphred(bFA));
     fmt.nNFA.push_back(-numstates2deciphred(cFA0));
     fmt.nNFA.push_back(-numstates2deciphred(cFA2));
-    //fmt.nNFA.push_back(-numstates2deciphred(cFA3));
-
+    
     fmt_bias_push(fmt.nAFA,  aDPFA,  aSSFA2, paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::aStrand]);
     fmt_bias_push(fmt.nAFA,  aDPFA,  aPFFA,  paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::aBQXM]);
     fmt_bias_push(fmt.nAFA,  aDPFA,  aSIFA,  paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::aInsertSize]);
@@ -4242,7 +4230,7 @@ BcfFormat_symbol_calc_DPv(
     fmt_bias_push(fmt.nBCFA, cFA2,  c2LBFA2, paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::c2AlignL]);
     fmt_bias_push(fmt.nBCFA, cFA2,  c2RBFA2, paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::c2AlignR]);
     
-    double cFA2a = (is_tmore_amplicon_with_primerlen ? (cFA2 * (paramset.powlaw_amplicon_allele_fraction_coef)) : cFA2);
+    double cFA2a = ((is_tmore_amplicon_with_primerlen && !is_rescued) ? (cFA2 * (paramset.powlaw_amplicon_allele_fraction_coef)) : cFA2);
     auto min_cFA23_vec = std::vector<double> {{ cFA2a, cFA3 }};
     double c23FA = MINVEC(min_cFA23_vec);
 
@@ -4315,13 +4303,13 @@ BcfFormat_symbol_calc_DPv(
     const auto c2XPFA2 = BETWEEN(3.0 * c2LPFA2 * c2RPFA2 * aSSFA2 / mathcube(cFA2), MIN(c2LPFA2, c2RPFA2) / 8.0, MIN(c2LPFA2, c2RPFA2));
     const auto c2XXFA2 = MIN(c2XBFA2, c2XPFA2);
 
-    double min_c23FA_v = MAX(MIN(MIN3(tier1_selfplus_aFA_min/* * frac_umi2seg*/, tier2_selfonly_c2FA_min, c2XXFA2), aNCFA * frac_umi2seg), counterbias_FA * frac_umi2seg);
+    double min_c23FA_v = MAX(MIN(MIN3(tier1_selfplus_aFA_min/* * frac_umi2seg*/, tier2_selfonly_c2FA_min, c2XXFA2), aNCFA /* * frac_umi2seg*/), counterbias_FA * frac_umi2seg);
     clear_push(fmt.cDP2v, (uvc1_readnum100x_t)(calc_normFA_from_rawFA_refbias((min_c23FA_v), refbias) * (fmt.CDP2f[0] + fmt.CDP2r[0]) * 100), a);
     double min_c23FA_w = MAX(MINVEC(std::vector<double>{{
             c2LPFA2, c2RPFA2, c2XXFA2,
             c2LBFA2, c2RBFA2,
             cFA2,
-            aNCFA * frac_umi2seg}}), counterbias_FA * frac_umi2seg);
+            aNCFA /* * frac_umi2seg*/}}), counterbias_FA * frac_umi2seg);
     clear_push(fmt.cDP2w, (uvc1_readnum100x_t)(calc_normFA_from_rawFA_refbias(min_c23FA_w, refbias) * (fmt.CDP2f[0] + fmt.CDP2r[0]) * 100), a);
     double min_c23FA_x = MINVEC(std::vector<double>{{ aPFFA/* * frac_umi2seg*/, c23FA }});
     clear_push(fmt.cDP2x, 1+(uvc1_readnum100x_t)                                      ((min_c23FA_x * (fmt.CDP2f[0] + fmt.CDP2r[0])) * 100), a);
@@ -4432,9 +4420,6 @@ BcfFormat_symbol_calc_qual(
             + (NOT_PROVIDED == paramset.vcf_tumor_fname ? 0 : 4);
     const double umi_cFA = (((double)(fmt.cDP2v[a]) + 0.5) / ((double)(fmt.CDP2f[0] * 100 + fmt.CDP2r[0] * 100) + 1.0));
     
-    //double fam_phred_sscs_max_frac = MIN(cFA2 / 5e-3, 1);
-    //const uvc1_qual_t powlaw_sscs_phrederr = round((fam_phred_sscs_max_frac * paramset.fam_phred_sscs_at_high_allelefrac) + ((1.0 - fam_phred_sscs_max_frac) * powlaw_sscs_phrederr2));
-    
     const uvc1_qual_t powlaw_sscs_inc1 = (powlaw_sscs_phrederr  - (isSymbolSubstitution(symbol) 
             ? (((BASE_A == refsymbol && BASE_T == symbol) || (BASE_T == refsymbol && BASE_A == symbol))
                 ? paramset.fam_phred_pow_sscs_transversion_AT_TA_origin : paramset.fam_phred_pow_sscs_snv_origin)
@@ -4510,16 +4495,14 @@ BcfFormat_symbol_calc_qual(
     const uvc1_readnum_t sscs_dec1_div = (is_rescued ? 2 : 1);
     const uvc1_qual_big_t sscs_dec1a = (((paramset.fam_min_n_copies / sscs_dec1_div <= normCDP1) || (paramset.fam_min_n_copies_DPxAD / sscs_dec1_div <= int64mul(normCDP1, normcDP1)))
             ? 0 : (powlaw_sscs_inc1 + 3));
-            // 2 * int64mul(non_neg_minus(paramset.fam_min_n_copies, normCDP1),                             (powlaw_sscs_inc1 + 3))
-            // / (paramset.fam_min_n_copies);
     const uvc1_qual_big_t sscs_dec1b = (int64mul((paramset.fam_min_overseq_perc - 100) / sscs_dec1_div + 100, normCDP1) <= int64mul(100, normBDP) ? 0 : (powlaw_sscs_inc1 + 3));
-            // 2 * int64mul(non_neg_minus(normCDP1 * (paramset.fam_min_overseq_perc + 100) / 100, normBDP), (powlaw_sscs_inc1 + 3))
-            // / MAX(1, normCDP1 * (paramset.fam_min_overseq_perc / 2 + 100) / 100);
     const uvc1_qual_big_t sscs_dec1 = MAX(sscs_dec1a, sscs_dec1b);
     
     // how to reduce qual by bias: div first, then minus
     const uvc1_qual_big_t sscs_dec2 = non_neg_minus(fam_thres_highBQ, cMmQ);
     const uvc1_qual_big_t cIADnormcnt = int64mul(fmt.cIADf[a] + fmt.cIADr[a], 100) + 1;
+
+    // Please note that deduplication bias was already applied at tier-2 consensus, so it is not applied here.
     // The following code appplies deduplication bias twice (with the (* 100UL) BUG), which may or may not be intended:
     /*
     const uvc1_qual_big_t cIADmincnt = MIN(cIADnormcnt, 
@@ -4530,6 +4513,7 @@ BcfFormat_symbol_calc_qual(
     //const uvc1_qual_big_t cIADmincnt = MIN(cIADnormcnt, 
     //        int64mul((fmt.cDP2f[a] + fmt.cDP2r[a]) + 1, fmt.cDP1v[a] + 1)
     //        / (fmt.cDP1f[a] + fmt.cDP1r[a] + 1) + 1); // cDP1v was already normalized by 100UL
+    
     const uvc1_qual_big_t cIADmincnt = (fmt.cDP2v[a] + 1);
 
     const uvc1_qual_big_t sscs_binom_qual_fw = fmt.cIAQf[a] + int64mul(fmt.cIAQr[a], MIN(paramset.fam_phred_dscs_all - fmt.cIDQf[a], fmt.cIDQr[a])) / MAX(fmt.cIDQr[a], 1);
@@ -4562,8 +4546,7 @@ BcfFormat_symbol_calc_qual(
     uvc1_qual_t sscs_base_2 = pl_withUMI_phred_inc + powlaw_sscs_inc1 + powlaw_sscs_inc2 - sscs_dec1 - sscs_dec2 - sscs_dec3;
     uvc1_qual_t sscs_base_2tn = pl_withUMI_phred_inc + powlaw_sscs_inc4tn + powlaw_sscs_inc2 - sscs_dec1 - sscs_dec2 - sscs_dec3;
     uvc1_qual_t sscs_powlaw_qual_v = round((paramset.powlaw_exponent * numstates2phred(umi_cFA)    + sscs_base_2));
-    uvc1_qual_t sscs_powlaw_qual_w = round((paramset.powlaw_exponent * numstates2phred(min_bcFA_w) + sscs_base_2tn)); //
-            // + tn_q_inc_max);
+    uvc1_qual_t sscs_powlaw_qual_w = round((paramset.powlaw_exponent * numstates2phred(min_bcFA_w) + sscs_base_2tn));
         
     double dFA = (double)(fmt.dDP2[a] + 0.5) / (double)(fmt.DDP1[0] + 1.0);
     double dSNR = (double)(fmt.dDP2[a] + 0.5) / (double)(fmt.dDP1[0] + 1.0);
@@ -4699,8 +4682,8 @@ BcfFormat_symbol_calc_qual(
             ? fmt.aBQQ[a] : (200));
     
     // begin ad-hoc
-    const bool is_strong_amplicon = (SUMVEC(seg_format_prep_sets.segprep_a_pcr_dps) * 100 > fmt.APDP[0] * 50);
-    const bool is_weak_amplicon = (SUMVEC(seg_format_prep_sets.segprep_a_pcr_dps) * 100 > fmt.APDP[0] * 30);
+    const bool is_strong_amplicon = ((seg_format_prep_sets.segprep_a_pcr_dp * 100) > fmt.APDP[0] * 50);
+    const bool is_weak_amplicon = ((seg_format_prep_sets.segprep_a_pcr_dp * 100) > fmt.APDP[0] * 30);
     const bool is_tmore_amplicon = ((NOT_PROVIDED == paramset.vcf_tumor_fname) ? is_weak_amplicon : is_strong_amplicon);
     
     if (is_tmore_amplicon && (isSymbolIns(symbol) || isSymbolDel(symbol)) && (systematicMQVQ1 > 70) // (systematicBQVQ > 70)
@@ -5403,7 +5386,7 @@ fill_conditional_tki(TumorKeyInfo & tki, const bcfrec::BcfFormat & fmt) {
         
         tki.nDP = 0;
         tki.nADR = {{ 0 }};
-        //tki.nDPC = 0;
+        //tki.nDPC = 0; // this tag does not seem to be useful in most situations
         tki.nADCR = {{ 0 }};
     } else {
         tki.nDP = (fmt.CDP1f[0] + fmt.CDP1r[0]);

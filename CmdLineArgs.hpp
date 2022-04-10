@@ -242,8 +242,8 @@ struct CommandLineArgs {
     
     // 10*log((2.7e-3-3.5e-5)/(1.5e-4-3.5e-5))/log(10)*3 is 41 from https://doi.org/10.1073/pnas.1208715109 PMC3437896
     // The -6 is to accommodate for the fact that most BQs are strictly above 30.
-    uvc1_qual_t         fam_phred_pow_sscs_transversion_AT_TA_origin = 44 - (41-6*0) + 4; // A:T > T:A somatic mutations are uncommon
-    double              fam_phred_pow_sscs_snv_origin = 44 - (41-6*0);
+    uvc1_qual_t         fam_phred_pow_sscs_transversion_AT_TA_origin = 44 - (41-6) + 4; // A:T > T:A somatic mutations are uncommon
+    double              fam_phred_pow_sscs_snv_origin = 44 - (41-6);
     double              fam_phred_pow_sscs_indel_origin = fam_phred_sscs_indel_open - 9 * 3;
     double              fam_phred_pow_dscs_all_origin = 0;
     uvc1_flag_t         fam_flag = 0x0; // 0x1: set cap to BQ. 0x2: disable requirement of having UMI to consensus.

@@ -155,13 +155,13 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("c2AD"  , BCF_NUM_R, BCF_INTEGER, "Consensus UMI_barcode family depth of coverage supporting the ALT allele using tier-2 thresholds for grouping fragments into families. "),
     
     BcfFormatStruct("_Aa"  , 1,          BCF_SEP,     "Preparation statistics for segment biases at this position. "),
-    BcfFormatStruct("APDP"  , 1+4+5+2+1, BCF_INTEGER, "Read segment sequencing depths with the following characteristics: total (1), "
+    BcfFormatStruct("APDP"  , 1+4+4+2+1, BCF_INTEGER, "Read segment sequencing depths with the following characteristics: total (1), "
                               "within the InDel length of insertion (2) and deletion (3), "
                               "within the tandem-repeat track length of insertion (4) and deletion (5), "
-                              "originated from PCR amplicons on the forward (6) and reverse (7) read orientations, of SNV (8), of DNV (9), "
-                              "of high quality (10), "
-                              "near-clip (11), supported by confident alignments which have no long InDels and no long clips (12), "
-                              "and UMI (unique molecular identifier, a.k.a. molecular barcode)-labeled (13). "),
+                              "originated from PCR amplicons (6), of SNV (7), of DNV (8), "
+                              "of high quality (9), "
+                              "near-clip (10), supported by confident alignments which have no long InDels and no long clips (11), "
+                              "and UMI (unique molecular identifier, a.k.a. molecular barcode)-labeled (12). "),
     BcfFormatStruct("APXM"  , 4+3+1,     BCF_S64_INT, "Expected number of mismatches (1) and gap openings (2) in a 1500-bp window. "
                               "Total sum of query length (3). Total sum of average InDel length of each sequenced segment (4). "
                               "The (sum of squares (5,6)) and (sum of 100 divided by (7,8)) of insertion (5,7) and deletion (6,8) lengths. "),

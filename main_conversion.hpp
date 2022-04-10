@@ -398,8 +398,9 @@ struct SegFormatPrepSet {
     uvc1_readnum_t segprep_a_near_RTR_ins_dp;
     uvc1_readnum_t segprep_a_near_RTR_del_dp;
     
-    std::array<uvc1_readnum_t, 2> segprep_a_pcr_dps = {{ 0 }}; // depth of PCR amplicons on the R1R2 and R2R1 orientations
-    uvc1_readnum_t segprep_a_umi_dp;       // depth of PCR amplicons
+    // std::array<uvc1_readnum_t, 2> segprep_a_pcr_dps = {{ 0 }}; // depth of PCR amplicons on the R1R2 and R2R1 orientations
+    uvc1_readnum_t segprep_a_pcr_dp;       // depth of PCR-amplicon sequencing segments
+    uvc1_readnum_t segprep_a_umi_dp;       // depth of UMI-enabled sequencing segments
     uvc1_readnum_t segprep_a_snv_dp;
     uvc1_readnum_t segprep_a_dnv_dp;
     uvc1_readnum_t segprep_a_highBQ_dp;    // depth of high-BQ bases
