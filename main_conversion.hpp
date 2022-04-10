@@ -369,6 +369,7 @@ struct TumorKeyInfo {
     std::array<uvc1_readnum_t, 2> nADR = {{ 0 }};
     uvc1_readnum_t tDPC = 0;
     std::array<uvc1_readnum_t, 2> tADCR = {{ 0 }};
+    std::array<uvc1_readnum_t, 2> nADCR = {{ 0 }}; 
     
     /*
     ~TumorKeyInfo() {

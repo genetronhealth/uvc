@@ -4507,11 +4507,12 @@ BcfFormat_symbol_calc_qual(
     const uvc1_readnum_t normcDP1 = (fmt.cDP12f[a] + fmt.cDP12r[a] + 1);
     const uvc1_readnum_t normCDP1 = (fmt.CDP12f[0] + fmt.CDP12r[0] + 1);
     const uvc1_readnum_t normBDP = (fmt.BDPf[0] + fmt.BDPr[0] + 1);
-    const uvc1_qual_big_t sscs_dec1a = (((paramset.fam_min_n_copies <= normCDP1) || (paramset.fam_min_n_copies_DPxAD <= int64mul(normCDP1, normcDP1)))
+    const uvc1_readnum_t sscs_dec1_div = (is_rescued ? 2 : 1);
+    const uvc1_qual_big_t sscs_dec1a = (((paramset.fam_min_n_copies / sscs_dec1_div <= normCDP1) || (paramset.fam_min_n_copies_DPxAD / sscs_dec1_div <= int64mul(normCDP1, normcDP1)))
             ? 0 : (powlaw_sscs_inc1 + 3));
             // 2 * int64mul(non_neg_minus(paramset.fam_min_n_copies, normCDP1),                             (powlaw_sscs_inc1 + 3))
             // / (paramset.fam_min_n_copies);
-    const uvc1_qual_big_t sscs_dec1b = (int64mul(paramset.fam_min_overseq_perc, normCDP1) <= int64mul(100, normBDP) ? 0 : (powlaw_sscs_inc1 + 3));
+    const uvc1_qual_big_t sscs_dec1b = (int64mul((paramset.fam_min_overseq_perc - 100) / sscs_dec1_div + 100, normCDP1) <= int64mul(100, normBDP) ? 0 : (powlaw_sscs_inc1 + 3));
             // 2 * int64mul(non_neg_minus(normCDP1 * (paramset.fam_min_overseq_perc + 100) / 100, normBDP), (powlaw_sscs_inc1 + 3))
             // / MAX(1, normCDP1 * (paramset.fam_min_overseq_perc / 2 + 100) / 100);
     const uvc1_qual_big_t sscs_dec1 = MAX(sscs_dec1a, sscs_dec1b);
@@ -4556,7 +4557,8 @@ BcfFormat_symbol_calc_qual(
     
     uvc1_qual_t powlaw_sscs_inc2 = MAX(0, MIN5(sscs_binom_qual_fw, sscs_binom_qual_rv, ds_vq_inc_powlaw, ds_vq_inc_binom, 3)) * ((cFA2 > 0.002) ? 1 : 0);
     
-    uvc1_qual_t sscs_dec3 = ((cFA2 >= 0.003) ? 0 : 5);
+    uvc1_qual_t sscs_dec3 = (is_rescued ? (-3) : ((cFA2 >= 0.003) ? 0 : 5));
+    
     uvc1_qual_t sscs_base_2 = pl_withUMI_phred_inc + powlaw_sscs_inc1 + powlaw_sscs_inc2 - sscs_dec1 - sscs_dec2 - sscs_dec3;
     uvc1_qual_t sscs_base_2tn = pl_withUMI_phred_inc + powlaw_sscs_inc4tn + powlaw_sscs_inc2 - sscs_dec1 - sscs_dec2 - sscs_dec3;
     uvc1_qual_t sscs_powlaw_qual_v = round((paramset.powlaw_exponent * numstates2phred(umi_cFA)    + sscs_base_2));
@@ -5280,14 +5282,17 @@ generate_vcf_header(
 
     ret += "##INFO=<ID=TNBQF,Number=4,Type=Float,Description=\"Binomial reward, power-law reward, systematic-error penalty, and normal-adjusted tumor variant quality computed using deduplicated read fragments. \">\n";
     ret += "##INFO=<ID=TNCQF,Number=4,Type=Float,Description=\"Binomial reward, power-law reward, systematic-error penalty, and normal-adjusted tumor variant quality computed using consensus families of read fragments. \">\n";
-    
-    ret += "##INFO=<ID=tDP,Number=1,Type=Integer,Description=\"Tumor total deduped depth (deprecated, please see CDP1f and CDP1r). \">\n";
-    ret += "##INFO=<ID=tADR,Number=R,Type=Integer,Description=\"Tumor deduped depth of each allele (deprecated, please see cDP1f and cDP1r). \">\n";
-    ret += "##INFO=<ID=nDP,Number=1,Type=Integer,Description=\"Normal total deduped depth (deprecated, please see CDP1f and CDP1r). \">\n";
-    ret += "##INFO=<ID=nADR,Number=R,Type=Integer,Description=\"Normal deduped depth of each allele (deprecated, please see cDP1f and cDP1r). \">\n";
-    ret += "##INFO=<ID=tDPC,Number=1,Type=Integer,Description=\"Tumor total UMI-barcoded-family depth (deprecated, please see CDP2f and CDP2r). \">\n";
-    ret += "##INFO=<ID=tADCR,Number=R,Type=Integer,Description=\"Tumor UMI-barcoded-family depth of each allele (deprecated, please see cDP2f and cDP2r). \">\n";
+
     ret += "##INFO=<ID=tbDP,Number=1,Type=Integer,Description=\"Tumor total non-deduped depth (deprecated, please see BDPf and BDPr). \">\n";
+
+    ret += "##INFO=<ID=tDP,Number=1,Type=Integer,Description=\"Tumor total deduped depth (deprecated, please see CDP1f and CDP1r). \">\n";
+    ret += "##INFO=<ID=tAD,Number=R,Type=Integer,Description=\"Tumor deduped depth of each allele (deprecated, please see cDP1f and cDP1r). \">\n";
+    ret += "##INFO=<ID=t2DP,Number=1,Type=Integer,Description=\"Tumor total UMI-barcoded-family depth (deprecated, please see CDP2f and CDP2r). \">\n";
+    ret += "##INFO=<ID=t2AD,Number=R,Type=Integer,Description=\"Tumor UMI-barcoded-family depth of each allele (deprecated, please see cDP2f and cDP2r). \">\n";
+    
+    ret += "##INFO=<ID=nDP,Number=1,Type=Integer,Description=\"Normal total deduped depth (deprecated, please see CDP1f and CDP1r). \">\n";
+    ret += "##INFO=<ID=nAD,Number=R,Type=Integer,Description=\"Normal deduped depth of each allele (deprecated, please see cDP1f and cDP1r). \">\n";
+    ret += "##INFO=<ID=n2AD,Number=R,Type=Integer,Description=\"Normal UMI-barcoded-family depth of each allele (deprecated, please see cDP2f and cDP2r). \">\n";
     
     ret += "##INFO=<ID=RU,Number=1,Type=String,Description=\"The shortest repeating unit in the reference\">\n";
     ret += "##INFO=<ID=RC,Number=1,Type=Integer,Description=\"The number of non-interrupted RUs in the reference\">\n";
@@ -5393,13 +5398,18 @@ fill_conditional_tki(TumorKeyInfo & tki, const bcfrec::BcfFormat & fmt) {
     if (TIsFmtTumor) {
         tki.tDP = (fmt.CDP1f[0] + fmt.CDP1r[0]);
         tki.tADR = {{ fmt.cDP1f[0] + fmt.cDP1r[0], LAST(fmt.cDP1f) + LAST(fmt.cDP1r) }};
-        tki.nDP = 0;
-        tki.nADR = {{ 0 }};
         tki.tDPC = (fmt.CDP2f[0] + fmt.CDP2r[0]);
         tki.tADCR = {{ fmt.cDP2f[0] + fmt.cDP2r[0], LAST(fmt.cDP2f) + LAST(fmt.cDP2r) }};
+        
+        tki.nDP = 0;
+        tki.nADR = {{ 0 }};
+        //tki.nDPC = 0;
+        tki.nADCR = {{ 0 }};
     } else {
         tki.nDP = (fmt.CDP1f[0] + fmt.CDP1r[0]);
         tki.nADR = {{ fmt.cDP1f[0] + fmt.cDP1r[0], LAST(fmt.cDP1f) + LAST(fmt.cDP1r) }};
+        //tki.nDPC = (fmt.CDP2f[0] + fmt.CDP2r[0]);
+        tki.nADCR = {{ fmt.cDP2f[0] + fmt.cDP2r[0], LAST(fmt.cDP2f) + LAST(fmt.cDP2r) }};
     }
     return TIsFmtTumor;
 }
@@ -5477,13 +5487,14 @@ append_vcf_record(
         const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
     
     const std::string & indelstring = LAST(fmt.gapSa);
-    
-    const bcfrec::BcfFormat & nfm = (tki.ref_alt.size() > 0 ? fmt : FORMAT_UNCOV);
-    if (tki.ref_alt.size() == 0) {
+    const bool is_processing_normal = (tki.ref_alt.size() > 0);
+
+    const bcfrec::BcfFormat & nfm = (is_processing_normal ? fmt : FORMAT_UNCOV);
+    if (is_processing_normal) {
+        fill_conditional_tki<false>(tki, fmt);
+    } else {
         fill_tki(tki, fmt);
         fill_conditional_tki<true>(tki, fmt);
-    } else {
-        fill_conditional_tki<false>(tki, fmt);
     }
     const auto regionpos = refpos - region_offset;
     uvc1_refgpos_t vcfpos;
@@ -5546,14 +5557,14 @@ append_vcf_record(
     
     double nfm_cDP1x_1add = 0;
     double nfm_cDP2x_1add = 0;
-    if (tki.ref_alt.size() > 0 && does_fmt_imply_short_frag(fmt, paramset.lib_wgs_min_avg_fraglen)) {
+    if (is_processing_normal > 0 && does_fmt_imply_short_frag(fmt, paramset.lib_wgs_min_avg_fraglen)) {
         // heuristics: if the assay is not WGS, then hybrid-capture or PCR-amplicon is used, so there is greater variation in ALT read counts
         nfm_cDP1x_1add = paramset.lib_nonwgs_normal_add_mul_ad * nfm_cDP1x / 100.0;
         nfm_cDP2x_1add = paramset.lib_nonwgs_normal_add_mul_ad * nfm_cDP2x / 100.0;
     }
     
     auto tn_dec_both_tlodq_nlodq = 0;
-    if (tki.ref_alt.size() > 0 && tki.tDP > 500 && tki.nDP > 500 && (isSymbolDel(symbol)) && nfm.APDP[2] * 3 > nfm.APDP[0]) {
+    if (is_processing_normal && tki.tDP > 500 && tki.nDP > 500 && (isSymbolDel(symbol)) && nfm.APDP[2] * 3 > nfm.APDP[0]) {
         tn_dec_both_tlodq_nlodq = MIN(non_neg_minus(collectget(nfm.cVQ1, 1), 31), 9);
     }
     const uvc1_qual_t prior_phred = ((SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform) 
@@ -5619,23 +5630,27 @@ append_vcf_record(
     const auto tlodq = tlodq1 - tn_dec_both_tlodq_nlodq;
     const auto nlodq = nlodq1 - tn_dec_both_tlodq_nlodq;
     uvc1_qual_t somaticq = MIN(tlodq, nlodq);
-    float vcfqual = calc_non_negative((tki.ref_alt.size() > 0) ? ((float)somaticq) : MAX((float)tlodq, lowestVAQ));
-    std::string infostring = std::string(tki.ref_alt.size() > 0 ? "SOMATIC" : "ANY_VAR");
+    float vcfqual = calc_non_negative(is_processing_normal ? ((float)somaticq) : MAX((float)tlodq, lowestVAQ));
+    std::string infostring = std::string(is_processing_normal ? "SOMATIC" : "ANY_VAR");
     infostring += std::string(";SomaticQ=") + std::to_string(somaticq);
     infostring += std::string(";TLODQ=") + std::to_string(tlodq);
     infostring += std::string(";NLODQ=") + std::to_string(nlodq);
     infostring += std::string(";NLODV=") + SYMBOL_TO_DESC_ARR[argmin_nlodq_symbol];
     infostring += std::string(";TNBQF=") + other_join(b_binom_powlaw_syserr_normv_q4filter);
     infostring += std::string(";TNCQF=") + other_join(c_binom_powlaw_syserr_normv_q4);
-    
-    infostring += std::string(";tDP=") + std::to_string(tki.tDP);
-    infostring += std::string(";tADR=") + other_join(tki.tADR, ",");
-    infostring += std::string(";nDP=") + std::to_string(tki.nDP);
-    infostring += std::string(";nADR=") + other_join(tki.nADR, ",");
-    infostring += std::string(";tDPC=") + std::to_string(tki.tDPC);
-    infostring += std::string(";tADCR=") + other_join(tki.tADCR, ",");
+
     infostring += std::string(";tbDP=") + std::to_string(tki.BDP);
+    infostring += std::string(";tDP=") + std::to_string(tki.tDP);
+    infostring += std::string(";tAD=") + other_join(tki.tADR, ",");
+    infostring += std::string(";t2DP=") + std::to_string(tki.tDPC);
+    infostring += std::string(";t2AD=") + other_join(tki.tADCR, ",");
     
+    if (is_processing_normal) {
+        infostring += std::string(";nDP=") + std::to_string(tki.nDP);
+        infostring += std::string(";nAD=") + other_join(tki.nADR, ",");
+        infostring += std::string(";n2AD=") + other_join(tki.nADCR, ",");
+    }
+
     infostring += std::string(";RU=") + repeatunit + ";RC=" + std::to_string(repeatnum);
     // This can be useful for debugging only.
     if ((paramset.debug_note_flag & DEBUG_NOTE_FLAG_BITMASK_BAQ_OFFSETARR)) { 
@@ -5678,7 +5693,7 @@ append_vcf_record(
                 std::string(tname), std::to_string(vcfpos), ".", vcfref, vcfalt, std::to_string(vcfqual), vcffilter, 
                 infostring, format_name_string }}, "\t") + "\t";
         bcfrec::streamAppendBcfFormat(out_string, fmt);
-        out_string += ((tki.ref_alt.size() > 0 && paramset.is_tumor_format_retrieved) ? bcf1_to_string(g_bcf_hdr, tki.bcf1_record) : std::string("")) + "\n";
+        out_string += ((is_processing_normal && paramset.is_tumor_format_retrieved) ? bcf1_to_string(g_bcf_hdr, tki.bcf1_record) : std::string("")) + "\n";
     }
     return 0;
 };
