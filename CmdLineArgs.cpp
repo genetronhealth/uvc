@@ -333,7 +333,10 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
     ADD_OPTDEF2(app, powlaw_anyvar_base,
         "Phred-scale error probability at the maximum possible allele-fraction of 1 or 100%. "
         "It is strongly recommended to use the default value. "); // novel
-    
+    ADD_OPTDEF2(app, powlaw_amplicon_allele_fraction_coef,
+        "Multiplicative coefficient for the effective allele fraction in PCR-amplicon sequencing compared with hybrid-capture sequencing, WES, or WGS. "
+        "It is strongly recommended to use the default value. ");
+
     ADD_OPTDEF2(app, penal4lowdep,
         "Maximum penalty in variant quality for low read support. ");
     ADD_OPTDEF2(app, assay_sequencing_BQ_max,
