@@ -305,23 +305,25 @@ struct PhredMutationTable {
     const uvc1_qual_t transversion_other;
     const uvc1_qual_t indel_open;
     const uvc1_qual_t indel_ext;
+    uvc1_qual_t all_mutation_inc;
     PhredMutationTable(
             const uvc1_qual_t transition_CG_TA,
             const uvc1_qual_t transition_AT_CG,
             const uvc1_qual_t transversion_CG_AT,
             const uvc1_qual_t transversion_other,
             const uvc1_qual_t indel_open,
-            const uvc1_qual_t indel_ext)
+            const uvc1_qual_t indel_ext,
+            const bool is_rescued)
             : 
             transition_CG_TA(transition_CG_TA),
             transition_AT_CG(transition_AT_CG),
             transversion_CG_AT(transversion_CG_AT),
             transversion_other(transversion_other),
             indel_open(indel_open),
-            indel_ext(indel_ext)
-            {
-    }
-    uvc1_qual_t toPhredErrRate(const AlignmentSymbol con_symbol, const AlignmentSymbol alt_symbol) const {
+            indel_ext(indel_ext),
+            all_mutation_inc(is_rescued ? 3 : 0) 
+    { }
+    uvc1_qual_t toPhredErrRateRaw(const AlignmentSymbol con_symbol, const AlignmentSymbol alt_symbol) const {
         if (isSymbolIns(con_symbol) || isSymbolDel(con_symbol)) {
             return indel_open;
         } else if (con_symbol == LINK_M) {
@@ -341,6 +343,9 @@ struct PhredMutationTable {
         } else {
             return transversion_other;
         }
+    }
+    uvc1_qual_t toPhredErrRate(const AlignmentSymbol con_symbol, const AlignmentSymbol alt_symbol) const {
+        return toPhredErrRateRaw(con_symbol, alt_symbol) + all_mutation_inc;
     }
 };
 
@@ -2433,7 +2438,8 @@ struct Symbol2CountCoverageSet {
                 paramset.fam_phred_sscs_transversion_CG_AT,
                 paramset.fam_phred_sscs_transversion_other,
                 paramset.fam_phred_sscs_indel_open,
-                paramset.fam_phred_sscs_indel_ext);
+                paramset.fam_phred_sscs_indel_ext,
+                (paramset.vcf_tumor_fname.size() > 0));
         
         Symbol2CountCoverage bg_seg_bqsum_conslogo(tid, this->getUnifiedIncluBegPosition(), this->getUnifiedExcluEndPosition());
         for (const auto & alns2pair2umibarcode : alns3) {
@@ -2676,7 +2682,8 @@ struct Symbol2CountCoverageSet {
                 paramset.fam_phred_sscs_transversion_CG_AT,
                 paramset.fam_phred_sscs_transversion_other,
                 paramset.fam_phred_sscs_indel_open,
-                paramset.fam_phred_sscs_indel_ext);
+                paramset.fam_phred_sscs_indel_ext,
+                (paramset.vcf_tumor_fname.size() > 0));
         
         size_t niters = 0;
         for (const auto & alns2pair2umibarcode : alns3) {
@@ -4413,7 +4420,8 @@ BcfFormat_symbol_calc_qual(
             paramset.fam_phred_sscs_transversion_CG_AT,
             paramset.fam_phred_sscs_transversion_other,
             paramset.fam_phred_sscs_indel_open,
-            paramset.fam_phred_sscs_indel_ext);
+            paramset.fam_phred_sscs_indel_ext,
+            (paramset.vcf_tumor_fname.size() > 0));
 
     const double cFA2 = (fmt.cDP2f[a] + fmt.cDP2r[a] + 0.5) / (fmt.CDP2f[0] + fmt.CDP2r[0] + 1.0);
     const uvc1_qual_t powlaw_sscs_phrederr = sscs_mut_table.toPhredErrRate(refsymbol, symbol)
@@ -4521,7 +4529,7 @@ BcfFormat_symbol_calc_qual(
     
     const uvc1_qual_big_t contam_sscs_withmin_qual = (uvc1_qual_big_t)round(calc_binom_10log10_likeratio(t2n_contam_frac, cDP2, CDP2 - cDP2)) + 9 - 3;
     
-    uvc1_qual_big_t sscs_binom_qual = int64mul(MAX(sscs_binom_qual_fw, sscs_binom_qual_rv), cIADmincnt) / (cIADnormcnt) - (non_duplex_binom_dec_x10) * cIADmincnt;
+    uvc1_qual_big_t sscs_binom_qual = int64mul(MAX(sscs_binom_qual_fw, sscs_binom_qual_rv), cIADmincnt) / (cIADnormcnt) - ((non_duplex_binom_dec_x10) * MIN(cIADmincnt, 200) / (10*100));
     if (MAX(sscs_binom_qual_fw, sscs_binom_qual_rv) > paramset.microadjust_fam_binom_qual_halving_thres && isSymbolSubstitution(symbol)) {
         sscs_binom_qual = MIN(sscs_binom_qual, 
                 paramset.microadjust_fam_binom_qual_halving_thres 
@@ -5581,11 +5589,11 @@ append_vcf_record(
     const auto c_binom_powlaw_syserr_normv_q4 = (paramset.tn_syserr_norm_devqual >= 0 
         ?  calc_binom_powlaw_syserr_normv_quals(
             (tki.cDP2x + 0.5) / 100.0 + 0.0, 
-            (tki.CDP2x + 1.0) / 100.0 + 0.0, 
+            (tki.CDP2x + 1.0) / 100.0 + 0.0,
             (tki.cVQ2),
             (tki.cPCQ2),
-            (nfm_cDP2x + 0.0) / 100.0 + 0.5 + nfm_cDP2x_1add,
-            (nfm_CDP2x + 0.0) / 100.0 + 1.0 + nfm_cDP2x_1add,
+            (nfm_cDP2x + 0.5) / 100.0 + 0.0 + nfm_cDP2x_1add,
+            (nfm_CDP2x + 1.0) / 100.0 + 0.0 + nfm_cDP2x_1add,
             norm_norm_vq,
             paramset.tn_syserr_norm_devqual,
             prior_phred,
@@ -5601,12 +5609,14 @@ append_vcf_record(
             (nfm_CDP2x + 0.0) / 100.0 + 1.0 + nfm_cDP2x_1add,
             norm_norm_vq,
             0));
-
+    const uvc1_qual_t c_normv_added = 0;
+    /*
     const auto c_normv_added = BETWEEN(
           (BETWEEN(c_binom_powlaw_syserr_normv_q4[0], 0, c_binom_powlaw_syserr_normv_q4[1]) 
          - MAX(BETWEEN(b_binom_powlaw_syserr_normv_q4filter[0], 0, b_binom_powlaw_syserr_normv_q4filter[1]), 9)),
          0, 16); // UMI-consensus in tumor but not in normal implies that tumor variant is true positive
-    
+    */
+
     uvc1_qual_t tlodq1 = MAX(b_binom_powlaw_syserr_normv_q4filter[3], (c_binom_powlaw_syserr_normv_q4[3] + c_normv_added));
     float lowestVAQ = MIN(tlodq1, 4) + 0.5 + (prob2realphred(1 / (double)(tki.bDP + 1)) * (tki.bDP) / (double)(tki.BDP + tki.bDP + 1));
     
