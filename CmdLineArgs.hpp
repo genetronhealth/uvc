@@ -112,9 +112,15 @@ struct CommandLineArgs {
     //double           dedup_amplicon_count_to_surrcount_ratio = 16; // can be 20
     //double           dedup_amplicon_count_to_surrcount_ratio_twosided = 4; // can be 5 or 6
     double           dedup_amplicon_end2end_ratio = 1.5;
-    double           dedup_amplicon_border_to_insert_cov_weak_avgDP_ratio = 4; // *1.5;
-    double           dedup_amplicon_border_to_insert_cov_strong_avgDP_ratio = 16; // *1.5;
+    double           dedup_amplicon_border_to_insert_cov_weak_avgDP_ratio = 5; // *1.5;
+    double           dedup_amplicon_border_to_insert_cov_strong_avgDP_ratio = 20; // *1.5;
     
+    double           dedup_amplicon_border_to_insert_cov_weak_totDP_ratio = 0.05;
+    double           dedup_amplicon_border_to_insert_cov_strong_totDP_ratio = 0.20;
+    
+    double           dedup_amplicon_border_weak_minDP = 100;
+    double           dedup_amplicon_border_strong_minDP = 400;
+
     uvc1_flag_t      dedup_flag = 0x0;
     
 // *** 05. parameters related to bias thresholds

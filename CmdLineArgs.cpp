@@ -367,10 +367,22 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
     */
     ADD_OPTDEF2(app, dedup_amplicon_border_to_insert_cov_weak_avgDP_ratio,
         "centroidInsertBorderSequencingDepth/meanInsertSequencingDepth above which the assay is inferred to be amplicon (require both left and right borders). "
-        "Assay type can be override on command-line. ");
+        "Assay type can be override on command-line. This condition is necessary but not sufficient. ");
     ADD_OPTDEF2(app, dedup_amplicon_border_to_insert_cov_strong_avgDP_ratio,
         "centroidInsertBorderSequencingDepth/meanInsertSequencingDepth above which the assay is inferred to be amplicon (require either left or right border). "
-        "Assay type can be override on command-line. ");
+        "Assay type can be override on command-line. This condition is necessary but not sufficient. ");
+    ADD_OPTDEF2(app, dedup_amplicon_border_to_insert_cov_weak_totDP_ratio,
+        "centroidInsertBorderSequencingDepth/totalInsertSequencingDepth above which the assay is inferred to be amplicon (require both left and right borders). "
+        "Assay type can be override on command-line. This condition is necessary but not sufficient. ");
+    ADD_OPTDEF2(app, dedup_amplicon_border_to_insert_cov_strong_totDP_ratio,
+        "centroidInsertBorderSequencingDepth/totalInsertSequencingDepth above which the assay is inferred to be amplicon (require either left or right border). "
+        "Assay type can be override on command-line. This condition is necessary but not sufficient. ");
+    ADD_OPTDEF2(app, dedup_amplicon_border_weak_minDP,
+        "centroidInsertBorderSequencingDepth above which the assay is inferred to be amplicon (require both left and right borders). "
+        "Assay type can be override on command-line. This condition is necessary but not sufficient. ");
+    ADD_OPTDEF2(app, dedup_amplicon_border_strong_minDP,
+        "centroidInsertBorderSequencingDepth above which the assay is inferred to be amplicon (require either left or right border). "
+        "Assay type can be override on command-line. This condition is necessary but not sufficient. ");
     
     ADD_OPTDEF2(app, dedup_amplicon_end2end_ratio,
         "oneEndSegmentCount/otherEndSegmentCount above which the amplicon assay is inferred to be using anchored-PCR (a.k.a. one-sided PCR). ");
