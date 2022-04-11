@@ -35,7 +35,7 @@ struct SamIter {
     const int64_t bed_in_avg_sequencing_DP;
     const size_t nthreads; 
     const int64_t mem_per_thread;
-
+    const bool is_fastq_gen;
     samFile *sam_infile = NULL;
     bam_hdr_t *samheader = NULL;
     hts_idx_t *sam_idx = NULL; 
@@ -55,7 +55,8 @@ struct SamIter {
             region_bed_fname(paramset.bed_region_fname),
             bed_in_avg_sequencing_DP(paramset.bed_in_avg_sequencing_DP),
             nthreads(paramset.max_cpu_num),
-            mem_per_thread(paramset.mem_per_thread) {
+            mem_per_thread(paramset.mem_per_thread),
+            is_fastq_gen(paramset.fam_consensus_out_fastq.size() > 0) {
         this->sam_infile = sam_open(input_bam_fname.c_str(), "r");
         if (NULL == this->sam_infile) {
             fprintf(stderr, "Failed to open the file %s!", input_bam_fname.c_str());

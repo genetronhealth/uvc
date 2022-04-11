@@ -107,13 +107,15 @@ check_if_is_over_mem_lim(
         const uvc1_refgpos_big_t total_n_rposs_x_rposs, 
         // const uvc1_refgpos_big_t total_n_regions,
         const size_t nthreads, 
-        const size_t mem_per_thread) {
+        const size_t mem_per_thread,
+        const bool is_fastq_gen) {
     
     const size_t tmp_n_bytes_used_by_reads = INT64MUL(MIN(total_n_reads_x_reads / MAX(1, total_n_reads) * nthreads, (size_t)total_n_reads), NUM_BYTES_PER_READ);
     const size_t tmp_n_bytes_used_by_rposs = INT64MUL(MIN(total_n_rposs_x_rposs / MAX(1, total_n_rposs) * nthreads, (size_t)total_n_rposs) + (2 * MAX_STR_N_BASES * nthreads), NUM_BYTES_PER_REF_POS);
     const size_t vcf_n_bytes_used_by_rposs = INT64MUL(total_n_rposs, 1024); // estimate from the htslib specs of VCF
+    const size_t fqs_n_bytes_used_by_reads = (is_fastq_gen ? (INT64MUL(total_n_reads, NUM_BYTES_PER_READ) / 4) : 0); // consensus and compression
     
-    const size_t tot_n_bytes_used = tmp_n_bytes_used_by_reads + tmp_n_bytes_used_by_rposs + vcf_n_bytes_used_by_rposs;
+    const size_t tot_n_bytes_used = tmp_n_bytes_used_by_reads + tmp_n_bytes_used_by_rposs + vcf_n_bytes_used_by_rposs + fqs_n_bytes_used_by_reads;
     return (tot_n_bytes_used > ((1024UL*1024UL) * mem_per_thread * nthreads));
 }
 
@@ -179,7 +181,8 @@ SamIter::iternext(
                     total_n_reads, total_n_reads_x_reads, 
                     total_n_rposs, total_n_rposs_x_rposs, 
                     // total_n_regions, 
-                    this->nthreads, this->mem_per_thread);
+                    this->nthreads, this->mem_per_thread,
+                    this->is_fastq_gen);
             if (is_over_mem_lim) {
                 this->_bedregion_idx++;
                 return total_n_reads;
@@ -264,7 +267,8 @@ SamIter::iternext(
                         total_n_reads, total_n_reads_x_reads, 
                         total_n_rposs, total_n_rposs_x_rposs, 
                         // total_n_regions, 
-                        this->nthreads, this->mem_per_thread);
+                        this->nthreads, this->mem_per_thread,
+                        this->is_fastq_gen);
                 if (is_over_mem_lim) {
                     this->last_it_tid = block_tid;
                     this->last_it_beg = block_beg;
