@@ -4281,7 +4281,8 @@ BcfFormat_symbol_calc_DPv(
             c23FA / aDPFA, // assuming sequencing-segment bias is proportionally reduced into UMI-consensus families.
             aDPFA / c23FA  // assuming original copies are under-amplified so that sequencing-segment bias is amplified to compensate
     );
-
+    // double frac_umi2seg_bias = MAX(0.5, frac_umi2seg);
+    
     double refbias = 0;
     if ((isSymbolIns(symbol) || isSymbolDel(symbol)) && is_rescued) {
         const uvc1_readpos_t indel_noinfo_nbases = (UNSIGN2SIGN(indelstring.size()) * (isSymbolIns(symbol) ? 2 : 1) 
@@ -4310,7 +4311,7 @@ BcfFormat_symbol_calc_DPv(
     const auto c2XPFA2 = BETWEEN(3.0 * c2LPFA2 * c2RPFA2 * aSSFA2 / mathcube(cFA2), MIN(c2LPFA2, c2RPFA2) / 8.0, MIN(c2LPFA2, c2RPFA2));
     const auto c2XXFA2 = MIN(c2XBFA2, c2XPFA2);
 
-    double min_c23FA_v = MAX(MIN(MIN3(tier1_selfplus_aFA_min/* * frac_umi2seg*/, tier2_selfonly_c2FA_min, c2XXFA2), aNCFA /* * frac_umi2seg*/), counterbias_FA * frac_umi2seg);
+    double min_c23FA_v = MAX(MIN(MIN3(tier1_selfplus_aFA_min /* * frac_umi2seg_bias */, tier2_selfonly_c2FA_min, c2XXFA2), aNCFA /* * frac_umi2seg*/), counterbias_FA * frac_umi2seg);
     clear_push(fmt.cDP2v, (uvc1_readnum100x_t)(calc_normFA_from_rawFA_refbias((min_c23FA_v), refbias) * (fmt.CDP2f[0] + fmt.CDP2r[0]) * 100), a);
     double min_c23FA_w = MAX(MINVEC(std::vector<double>{{
             c2LPFA2, c2RPFA2, c2XXFA2,
@@ -4318,7 +4319,7 @@ BcfFormat_symbol_calc_DPv(
             cFA2,
             aNCFA /* * frac_umi2seg*/}}), counterbias_FA * frac_umi2seg);
     clear_push(fmt.cDP2w, (uvc1_readnum100x_t)(calc_normFA_from_rawFA_refbias(min_c23FA_w, refbias) * (fmt.CDP2f[0] + fmt.CDP2r[0]) * 100), a);
-    double min_c23FA_x = MINVEC(std::vector<double>{{ aPFFA/* * frac_umi2seg*/, c23FA }});
+    double min_c23FA_x = MINVEC(std::vector<double>{{ aPFFA /* * frac_umi2seg_bias */, c23FA }});
     clear_push(fmt.cDP2x, 1+(uvc1_readnum100x_t)                                      ((min_c23FA_x * (fmt.CDP2f[0] + fmt.CDP2r[0])) * 100), a);
     
     return 0;
@@ -4472,11 +4473,11 @@ BcfFormat_symbol_calc_qual(
     const auto pl_withUMI_phred_inc = paramset.powlaw_anyvar_base 
             + (isSymbolSubstitution(symbol) ? withUMI_bias_inc : paramset.bias_FA_powerlaw_withUMI_phred_inc_indel);
     
-    const bool is_cytosine_deanim_CT = ((BASE_C == refsymbol && BASE_T == symbol) || (BASE_G == refsymbol && BASE_A == symbol));
-    const bool is_cytosine_deanim_FA = (int64mul(cDP2, paramset.microadjust_fam_lowfreq_invFA) < (int64_t)CDP2);
-    const bool is_cysotine_deanimation = (is_cytosine_deanim_CT && is_cytosine_deanim_FA);
-    uvc1_qual_big_t non_duplex_binom_dec_x10 = ((is_cysotine_deanimation)
-            ? (10L * non_neg_minus(paramset.fam_phred_sscs_transition_CG_TA, paramset.fam_phred_dscs_all / 2L) * ((uvc1_qual_big_t)CDP2 - int64mul(cDP2, paramset.microadjust_fam_lowfreq_invFA)) / CDP2) : 0);
+    // const bool is_cytosine_deanim_CT = ((BASE_C == refsymbol && BASE_T == symbol) || (BASE_G == refsymbol && BASE_A == symbol));
+    // const bool is_cytosine_deanim_FA = (int64mul(cDP2, paramset.microadjust_fam_lowfreq_invFA) < (int64_t)CDP2);
+    // const bool is_cysotine_deanimation = (is_cytosine_deanim_CT && is_cytosine_deanim_FA);
+    //uvc1_qual_big_t non_duplex_binom_dec_x10 = ((is_cysotine_deanimation)
+    //        ? (10L * non_neg_minus(paramset.fam_phred_sscs_transition_CG_TA, paramset.fam_phred_dscs_all / 2L) * ((uvc1_qual_big_t)CDP2 - int64mul(cDP2, paramset.microadjust_fam_lowfreq_invFA)) / CDP2) : 0);
     double prior_weight = 1.0 / (fmt.cDPmf[a] + fmt.cDPmr[a] + 1.0);
     const uvc1_qual_t fam_thres_highBQ = (isSymbolSubstitution(symbol) ? paramset.fam_thres_highBQ_snv : paramset.fam_thres_highBQ_indel); 
     const uvc1_qual_t cMmQ = (uvc1_qual_t)round(numstates2phred((fmt.cDPMf[a] + fmt.cDPmf[a] + fmt.cDPMr[a] + fmt.cDPmr[a] + pow(10, fam_thres_highBQ / 10.0) * prior_weight) 
@@ -4529,7 +4530,7 @@ BcfFormat_symbol_calc_qual(
     
     const uvc1_qual_big_t contam_sscs_withmin_qual = (uvc1_qual_big_t)round(calc_binom_10log10_likeratio(t2n_contam_frac, cDP2, CDP2 - cDP2)) + 9 - 3;
     
-    uvc1_qual_big_t sscs_binom_qual = int64mul(MAX(sscs_binom_qual_fw, sscs_binom_qual_rv), cIADmincnt) / (cIADnormcnt) - ((non_duplex_binom_dec_x10) * MIN(cIADmincnt, 200) / (10*100));
+    uvc1_qual_big_t sscs_binom_qual = int64mul(MAX(sscs_binom_qual_fw, sscs_binom_qual_rv), cIADmincnt) / (cIADnormcnt); // - ((non_duplex_binom_dec_x10) * MIN(cIADmincnt, 200) / (10*100));
     if (MAX(sscs_binom_qual_fw, sscs_binom_qual_rv) > paramset.microadjust_fam_binom_qual_halving_thres && isSymbolSubstitution(symbol)) {
         sscs_binom_qual = MIN(sscs_binom_qual, 
                 paramset.microadjust_fam_binom_qual_halving_thres 
@@ -4768,11 +4769,12 @@ BcfFormat_symbol_calc_qual(
     clear_push(fmt.cVQ1, MAX(0, MIN(bcVQ1, LAST(fmt.bTINQ)) - indel_UMI_penal), a);
     
     // This adjustment makes sure that variant with UMI support is ranked before variant without UMI suppport.
-    const std::array<uvc1_qual_t, 10> cysotine_deanim_to_score = {{0,1,1, 1,1,2, 2,2,2, 3}};
-    const std::array<uvc1_qual_t, 5> other_to_score = {{0,2,3, 3,4}};
-    uvc1_qual_t mincVQ2 = (is_cytosine_deanim_CT 
-        ? cysotine_deanim_to_score[MIN(cDP2, UNSIGN2SIGN(cysotine_deanim_to_score.size()) - 1)] 
-        : other_to_score[MIN(cDP2, UNSIGN2SIGN(other_to_score.size()) - 1)]); 
+    //const std::array<uvc1_qual_t, 10> cysotine_deanim_to_score = {{0,1,1, 1,1,2, 2,2,2, 3}};
+    //const std::array<uvc1_qual_t, 5> other_to_score = {{0,2,3, 3,4}};
+    uvc1_qual_t mincVQ2 = 0;
+    // (is_cytosine_deanim_CT
+    //    ? cysotine_deanim_to_score[MIN(cDP2, UNSIGN2SIGN(cysotine_deanim_to_score.size()) - 1)] 
+    //    : other_to_score[MIN(cDP2, UNSIGN2SIGN(other_to_score.size()) - 1)]); 
     
     if (isSymbolIns(symbol) || isSymbolDel(symbol)) {
         const uvc1_qual_t sscs_floor_qual_v = MIN(paramset.germ_phred_homalt_indel + numstates2phred(umi_cFA), fmt.cDP2v[a] * 3 / 100) + ((isSymbolIns(symbol) ? INS_N_ANCHOR_BASES : 0) - INS_N_ANCHOR_BASES) * 3;
@@ -5618,9 +5620,15 @@ append_vcf_record(
     */
 
     uvc1_qual_t tlodq1 = MAX(b_binom_powlaw_syserr_normv_q4filter[3], (c_binom_powlaw_syserr_normv_q4[3] + c_normv_added));
-    float lowestVAQ = MIN(tlodq1, 4) + 0.5 + (prob2realphred(1 / (double)(tki.bDP + 1)) * (tki.bDP) / (double)(tki.BDP + tki.bDP + 1));
+    //const double bfrac = (prob2realphred(1 / (double)(tki.bDP + 1)) * (tki.bDP) / (double)(tki.BDP + tki.bDP + 1));
+    const bool is_cytosine_deanim_CT = ((BASE_C == refsymbol && BASE_T == symbol) || (BASE_G == refsymbol && BASE_A == symbol));
+    const double b_min_tlodq   = 2+3 - prob2realphred((tki.bDP          + 1e-3) / (tki.BDP          + 1)) / 10.0;
+    const double c2v_min_tlodq = 2+5 - prob2realphred((tki.cDP2x * 0.01 + 1e-5) / (tki.CDP2x * 0.01 + 1) / (is_cytosine_deanim_CT ? 5 : 1)) / 10.0;
+    // float lowestVAQ = MIN(tlodq1, 4) + 0.5 + ;
     
-    const auto tlodq = tlodq1 - tn_dec_both_tlodq_nlodq;
+    float lowestVAQ = MAX(b_min_tlodq, c2v_min_tlodq);
+    
+    const auto tlodq = ((tlodq1 >= 10) ? tlodq1 : (tlodq1 * 3 - 20)) - tn_dec_both_tlodq_nlodq;
     const auto nlodq = nlodq1 - tn_dec_both_tlodq_nlodq;
     uvc1_qual_t somaticq = MIN(tlodq, nlodq);
     float vcfqual = calc_non_negative(is_processing_normal ? ((float)somaticq) : MAX((float)tlodq, lowestVAQ));
