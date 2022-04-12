@@ -2494,14 +2494,13 @@ struct Symbol2CountCoverageSet {
         assert (l2l_end_poss.size() == l2r_end_poss.size());
         assert (r2r_end_poss.size() == r2l_end_poss.size());
         if ((l2r_end_poss.size() > 0)) {
-            size_t begpos = 0;
-            size_t endpos = MIN((size_t)(MEDIAN(l2r_end_poss) - MEDIAN(l2l_end_poss)), stringof_baseBQ_pairs_vec.size());
-            stringof_baseBQ_pairs_vec.push_back(stringof_baseBQ_pairs.substr(begpos, endpos));
+            size_t endpos = MIN((size_t)(MEDIAN(l2r_end_poss) - MEDIAN(l2l_end_poss)), stringof_baseBQ_pairs.size());
+            stringof_baseBQ_pairs_vec.push_back(stringof_baseBQ_pairs.substr(0, endpos));
         }
         if ((r2l_end_poss.size() > 0)) {
-            size_t begpos = stringof_baseBQ_pairs_vec.size() - MIN((size_t)(MEDIAN(r2r_end_poss) - MEDIAN(r2l_end_poss)), stringof_baseBQ_pairs_vec.size());
-            size_t endpos = stringof_baseBQ_pairs_vec.size();
-            stringof_baseBQ_pairs_vec.push_back(stringof_baseBQ_pairs.substr(begpos, endpos));
+            size_t begpos = stringof_baseBQ_pairs.size() - MIN((size_t)(MEDIAN(r2r_end_poss) - MEDIAN(r2l_end_poss)), stringof_baseBQ_pairs.size());
+            size_t endpos = stringof_baseBQ_pairs.size();
+            stringof_baseBQ_pairs_vec.push_back(stringof_baseBQ_pairs.substr(begpos, endpos - begpos));
         }
         for (size_t idx = 0; idx < stringof_baseBQ_pairs_vec.size(); idx++) {
             auto &stringof_baseBQ_pairs = stringof_baseBQ_pairs_vec[idx];
@@ -2523,7 +2522,7 @@ struct Symbol2CountCoverageSet {
             }
             fqdata += "\n";
             // FQ line 3: comment, here we put all read names of the original BAM that did not go through any consensus.
-            fqdata += "+";
+            fqdata += "+" + std::to_string(fq_baseBQ_pairs.size()) + " ";
             for (const auto bams : alns2) {
                 assert(bams.size() <= 2);
                 assert(bams.size() >= 1);
