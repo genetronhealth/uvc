@@ -150,6 +150,30 @@ struct MolecularBarcode {
     uvc1_flag_t duplexflag = 0x0;
 };
 
+struct RevComplement {
+    char data[128];
+    char table16[16];
+    RevComplement() {
+        for (int i = 0; i < 128; i++) {
+            data[i] = (char)i;
+        }
+        data['A'] = 'T';
+        data['T'] = 'A';
+        data['C'] = 'G';
+        data['G'] = 'C';
+        data['a'] = 't';
+        data['t'] = 'a';
+        data['c'] = 'g';
+        data['g'] = 'c';
+        for (int i = 0; i < 16; i++) {
+            table16[i] = (char)i;
+        }
+        table16[1] = 8/1;
+        table16[2] = 8/2;
+        table16[4] = 8/4;
+        table16[8] = 8/8;
+    }
+};
 
 template <class T>
 inline 

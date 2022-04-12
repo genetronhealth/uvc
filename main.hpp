@@ -152,6 +152,7 @@ posToIndelToCount_DlenToDseq(std::map<uvc1_readnum_t, std::map<std::string, uvc1
 #define BAM_PHREDI(b, i) (bam_get_qual((b))[(i)])
 
 const bcfrec::BcfFormat FORMAT_UNCOV = bcfrec::BcfFormat();
+const RevComplement THE_REV_COMPLEMENT;
 
 enum ValueType {
     SYMBOL_COUNT_SUM,
@@ -2507,7 +2508,7 @@ struct Symbol2CountCoverageSet {
             // FQ line 1: read name
             const size_t r1r2 = ((stringof_baseBQ_pairs_vec.size() == 1) ? (0) : (idx + 1));
             if (2 == r1r2) {
-                std::reverse(stringof_baseBQ_pairs.begin(), stringof_baseBQ_pairs.end()); 
+                std::reverse(stringof_baseBQ_pairs.begin(), stringof_baseBQ_pairs.end());
             }
             std::string fqname = std::string("@") + std::to_string(tid2)
                     + ":" + std::to_string(beg2) 

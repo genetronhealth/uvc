@@ -24,32 +24,7 @@ const uvc1_readpos_t ARRPOS_MARGIN = MAX_INSERT_SIZE;
 const uvc1_readpos_t ARRPOS_OUTER_RANGE = 10;
 const uvc1_readpos_t ARRPOS_INNER_RANGE = 3;
 
-struct _RevComplement {
-    char data[128];
-    char table16[16];
-    _RevComplement() {
-        for (int i = 0; i < 128; i++) {
-            data[i] = (char)i;
-        }
-        data['A'] = 'T';
-        data['T'] = 'A';
-        data['C'] = 'G';
-        data['G'] = 'C';
-        data['a'] = 't';
-        data['t'] = 'a';
-        data['c'] = 'g';
-        data['g'] = 'c';
-        for (int i = 0; i < 16; i++) {
-            table16[i] = (char)i;
-        }
-        table16[1] = 8/1;
-        table16[2] = 8/2;
-        table16[4] = 8/4;
-        table16[8] = 8/8;
-    }
-};
-
-const _RevComplement THE_REV_COMPLEMENT;
+const RevComplement THE_REV_COMPLEMENT;
 
 int 
 bed_fname_to_contigs(
