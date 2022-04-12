@@ -2418,6 +2418,134 @@ struct Symbol2CountCoverageSet {
         return excluEndPosition;
     };
     
+    size_t
+    generate_consensus_fastq_data(
+            auto & fastq_outstrings,
+            const auto & fq_baseBQ_pairs, 
+            const auto & l2l_end_poss, 
+            const auto & l2r_end_poss,
+            const auto & r2l_end_poss,
+            const auto & r2r_end_poss,
+            const auto tid2,
+            const auto beg2,
+            const auto end2,
+            const auto strand,
+            const auto & umistring,
+            const auto & alns2) {
+       
+        size_t ret = 0;
+        const char *base_NN_desc = SYMBOL_TO_DESC_ARR[BASE_NN];
+        size_t beg = 0;
+        size_t end = fq_baseBQ_pairs.size();
+        
+        while (beg < end && (base_NN_desc[0] == fq_baseBQ_pairs[beg].first)) { beg++; }
+        while (beg < end && (base_NN_desc[0] == fq_baseBQ_pairs[end-1].first)) { end--; }
+        
+        const auto stringof_baseBQ_pairs = fq_baseBQ_pairs.substr(beg, end - beg);
+        /*
+        std::vector<size_t> begposs1, endposs1;
+        begposs1.push_back(0);
+        bool is_in_NA = false;
+        for (size_t idx = 0; idx < stringof_baseBQ_pairs.size(); idx++) {
+            const auto & baseBQ_pair = stringof_baseBQ_pairs[idx];
+            if (base_NN_desc[0] == baseBQ_pair.first) {
+                if (!is_in_NA) {
+                    endposs1.push_back(idx);
+                }
+                is_in_NA = true;
+            } else {
+                if (is_in_NA) {
+                    begposs1.push_back(idx);
+                }
+                is_in_NA = false;
+            }
+        }
+        endposs1.push_back(stringof_baseBQ_pairs.size());
+        assert(begposs1.size() == endposs1.size());
+        std::vector<size_t> begposs, endposs;
+        for (size_t i = 0; i < begposs1.size(); i++) {
+            if (endposs1[i] - begposs1[i] >= 20) {
+                begposs.push_back(begposs1[i]);
+                endposs.push_back(endposs1[i]);
+            }
+        }
+        if (!(1 <= begposs.size() && begposs.size() <= 2)) {
+            fprintf(stderr, "Error in consensus: number-of-R1-R2 is not equal to 1 or 2!\n");
+            for (const auto bams : alns2) {
+                for (const bam1_t *bam : bams) {
+                    fprintf(stderr, "%s at tid %d pos %ld\n", bam_get_qname(bam), bam->core.tid, bam->core.pos);
+                }
+            }
+            for (size_t i = 0; i < begposs.size(); i++) {
+                fprintf(stderr, "BegPos = %lu, EndPos = %lu\n", begposs[i], endposs[i]);
+            }
+            abort();
+        }
+        assert(begposs.size() == endposs.size());
+        */
+        /*
+        for (size_t idx = 0; idx < MIN(begposs.size(), endposs.size()); idx++) {
+            stringof_baseBQ_pairs_vec.push_back(stringof_baseBQ_pairs.substr(begposs[idx], endposs[idx]));
+        }
+        */
+        std::vector<size_t> begposs, endposs;
+        std::vector<std::basic_string<std::pair<char, int8_t>>> stringof_baseBQ_pairs_vec;
+        assert (l2l_end_poss.size() == l2r_end_poss.size());
+        assert (r2r_end_poss.size() == r2l_end_poss.size());
+        if ((l2r_end_poss.size() > 0)) {
+            size_t begpos = 0;
+            size_t endpos = MIN((size_t)(MEDIAN(l2r_end_poss) - MEDIAN(l2l_end_poss)), stringof_baseBQ_pairs_vec.size());
+            stringof_baseBQ_pairs_vec.push_back(stringof_baseBQ_pairs.substr(begpos, endpos));
+        }
+        if ((r2l_end_poss.size() > 0)) {
+            size_t begpos = stringof_baseBQ_pairs_vec.size() - MIN((size_t)(MEDIAN(r2r_end_poss) - MEDIAN(r2l_end_poss)), stringof_baseBQ_pairs_vec.size());
+            size_t endpos = stringof_baseBQ_pairs_vec.size();
+            stringof_baseBQ_pairs_vec.push_back(stringof_baseBQ_pairs.substr(begpos, endpos));
+        }
+        for (size_t idx = 0; idx < stringof_baseBQ_pairs_vec.size(); idx++) {
+            auto &stringof_baseBQ_pairs = stringof_baseBQ_pairs_vec[idx];
+            // FQ line 1: read name
+            const size_t r1r2 = ((stringof_baseBQ_pairs_vec.size() == 1) ? (0) : (idx + 1));
+            if (2 == r1r2) {
+                std::reverse(stringof_baseBQ_pairs.begin(), stringof_baseBQ_pairs.end()); 
+            }
+            std::string fqname = std::string("@") + std::to_string(tid2)
+                    + ":" + std::to_string(beg2) 
+                    + ":" + (strand ? "+-" : "-+") + std::to_string(end2 - beg2 - 1) // the extra -1 is due to possible insertion at the front/back of the fragment
+                    + ":" + umistring + "#" + std::to_string(alns2.size());
+            auto &fqdata = fastq_outstrings[r1r2];
+            const size_t ini_fqdata_size = fqdata.size();
+            fqdata += fqname + "\n";
+            // FQ line 2: sequence
+            for (const auto & baseBQ : stringof_baseBQ_pairs) {
+                fqdata.push_back(baseBQ.first);
+            }
+            fqdata += "\n";
+            // FQ line 3: comment, here we put all read names of the original BAM that did not go through any consensus.
+            fqdata += "+";
+            for (const auto bams : alns2) {
+                assert(bams.size() <= 2);
+                assert(bams.size() >= 1);
+                if (bams.size() == 2) {
+                    assert(!strcmp(bam_get_qname(bams[0]),bam_get_qname(bams[1])));
+                    fqdata += "@@"; // pair-end
+                    fqdata += bam_get_qname(bams[0]);
+                } else if (bams.size() == 1) {
+                    fqdata += "@"; // single-end
+                    fqdata += bam_get_qname(bams[0]);
+                }
+            }
+            fqdata += "\n"; 
+            // FQ line 4: base-call qualities
+            for (const auto & baseBQ : stringof_baseBQ_pairs) {
+                fqdata.push_back((char)(baseBQ.second + 33)); // the exclamation mark '!' with ascii value 33 denotes the Phred score of zero. 
+            }
+            fqdata += "\n"; 
+            ret += fqdata.size() - ini_fqdata_size;
+        }
+        return ret;
+    }
+
     template <class T1, class T2, class T3>
     int 
     updateByAlns3UsingBQ(
@@ -2725,16 +2853,20 @@ struct Symbol2CountCoverageSet {
                         (paramset.microadjust_padded_deletion_flag & ((SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform) ? 0x2 : 0x1)));
                 }
                 
-                std::vector<uvc1_refgpos_t> l2r_end_poss, r2l_end_poss; // cannot peform sum or average due to the possibility of overflow
+                std::vector<uvc1_refgpos_t> l2r_end_poss, r2l_end_poss, l2l_end_poss, r2r_end_poss; // cannot peform sum or average due to the possibility of overflow
                 l2r_end_poss.reserve(alns2.size());
                 r2l_end_poss.reserve(alns2.size());
+                l2l_end_poss.reserve(alns2.size());
+                r2r_end_poss.reserve(alns2.size());
                 for (const auto & alns1 : alns2) {
                     for (const bam1_t *aln : alns1) {
                         const bool isrc = ((aln->core.flag & 0x10) == 0x10);
                         if (isrc) {
                             r2l_end_poss.push_back(aln->core.pos);
+                            r2r_end_poss.push_back(bam_endpos(aln));
                         } else {
                             l2r_end_poss.push_back(bam_endpos(aln));
+                            l2l_end_poss.push_back(aln->core.pos);
                         }
                     }
                 }
@@ -2856,20 +2988,26 @@ if (((!isGap) && bq >= paramset.bias_thres_highBQ) || (isGap && dist_to_interfer
         fam_info_set.faminfo_c2BQ2 += 1;
 }
 // end UPDATING-FAM2-BIAS
-                        // put SNVs and INDELs into FASTQ files
-if (paramset.fam_consensus_out_fastq.size() > 0) {
-                        if ((BASE_SYMBOL == symboltype)) { // consider NA (not-available) bases, and split into multiple fastq lines later
-                            if (is_fam_good) {
-                                const uvc1_qual_t conBQ = 59 - MIN(tot_count - con_count, 9);
-                                const char *desc = SYMBOL_TO_DESC_ARR[con_symbol];
-                                assert(strlen(desc) == 1);
-                                fq_baseBQ_pairs.push_back(std::make_pair(desc[0], conBQ));
-                            } else {
-                                fq_baseBQ_pairs.push_back(std::make_pair('n', 49 - (is_fam_big ? 1 : 0))); // 0/1 means the family is probably singleton/with-weak-consensus-base
-                            }
+
                         }
-                        if ((LINK_SYMBOL == symboltype)) {
-                            if (is_fam_big) {
+                        // put SNVs and INDELs into FASTQ files
+                        if ((paramset.fam_consensus_out_fastq.size() > 0) && ((size_t)paramset.fam_thres_dup1add <= alns2.size())) {
+                          if (BASE_SYMBOL == symboltype) { // consider NA (not-available) bases, and split into multiple fastq lines later
+                                if (BASE_NN == con_symbol) {
+                                    // we do nothing for both padded deletion and uncovered position
+                                    // const char *desc = SYMBOL_TO_DESC_ARR[BASE_NN];
+                                    // assert(strlen(desc) == 1);
+                                    // fq_baseBQ_pairs.push_back((std::make_pair(desc[0], 0)));
+                                } else if (is_fam_good) {
+                                    const uvc1_qual_t conBQ = 59 - MIN(tot_count - con_count, 9);
+                                    const char *desc = SYMBOL_TO_DESC_ARR[con_symbol];
+                                    assert(strlen(desc) == 1);
+                                    fq_baseBQ_pairs.push_back(std::make_pair(desc[0], conBQ));
+                                } else {
+                                    fq_baseBQ_pairs.push_back(std::make_pair('n', 49 - (is_fam_big ? 1 : 0))); // 0/1 means the family is probably singleton/with-weak-consensus-base
+                                }
+                            }
+                            if ((LINK_SYMBOL == symboltype)) {
                                 const auto nogap_count = con_ampl_symbol2count.getSymbolCount(LINK_M);
                                 const bool is_nogapfam_con = (nogap_count * 100 >= tot_count * paramset.fam_thres_dup1perc);
                                 if (!is_nogapfam_con) {
@@ -2893,11 +3031,10 @@ if (paramset.fam_consensus_out_fastq.size() > 0) {
                                             fq_baseBQ_pairs.push_back(std::make_pair('n', conBQ));
                                         }
                                     }
-                                } else { }  // the family is sufficiently large and has strong consensus, so do not add any InDel.
-                            } else {} // the family is too small to infer anything.
+                                } else { } // the family is sufficiently large and has strong consensus, so do not add any InDel.
+                            }
                         }
-}
-                        }
+                        
                         if (paramset.fam_thres_dup2add <= tot_count && (con_count * 100 >= tot_count * paramset.fam_thres_dup2perc)) {
                             this->symbol_to_fam_format_depth_sets_2strand[strand].getRefByPos(epos)[con_symbol][FAM_cDP3] += 1;
                             if (isSymbolIns(con_symbol)) {
@@ -2940,81 +3077,21 @@ if (paramset.fam_consensus_out_fastq.size() > 0) {
                         }
                     }
                 }
-if (paramset.fam_consensus_out_fastq.size() > 0) {
-                // generate consensus FQ files
-                const char *base_NN_desc = SYMBOL_TO_DESC_ARR[BASE_NN];
-                size_t beg = 0;
-                size_t end = fq_baseBQ_pairs.size();
-                
-                while (beg < end && (base_NN_desc[0] == fq_baseBQ_pairs[beg].first)) { beg++; }
-                while (beg < end && (base_NN_desc[0] == fq_baseBQ_pairs[end-1].first)) { end--; }
-                
-                const auto stringof_baseBQ_pairs = fq_baseBQ_pairs.substr(beg, end - beg);
-                std::vector<size_t> begposs, endposs;
-                begposs.push_back(0);
-                bool is_in_NA = false;
-                for (size_t idx = 0; idx < stringof_baseBQ_pairs.size(); idx++) {
-                    const auto & baseBQ_pair = stringof_baseBQ_pairs[idx];
-                    if (base_NN_desc[0] == baseBQ_pair.first) {
-                        if (!is_in_NA) {
-                            endposs.push_back(idx);
-                        }
-                        is_in_NA = true;
-                    } else {
-                        if (is_in_NA) {
-                            begposs.push_back(idx);
-                        }
-                        is_in_NA = false;
-                    }
+                if (paramset.fam_consensus_out_fastq.size() > 0 && fq_baseBQ_pairs.size() >= 20) {
+                    generate_consensus_fastq_data(
+                            fastq_outstrings, 
+                            fq_baseBQ_pairs, 
+                            l2l_end_poss, 
+                            l2r_end_poss, 
+                            r2l_end_poss, 
+                            r2r_end_poss,
+                            tid2, 
+                            beg2, 
+                            end2, 
+                            strand, 
+                            alns2pair2umibarcode.second.umistring,
+                            alns2);
                 }
-                endposs.push_back(stringof_baseBQ_pairs.size());
-                assert(1 <= begposs.size() && begposs.size() <= 2);
-                assert(1 <= endposs.size() && endposs.size() <= 2);
-                assert(begposs.size() == endposs.size());
-                std::vector<std::basic_string<std::pair<char, int8_t>>> stringof_baseBQ_pairs_vec;
-                for (size_t idx = 0; idx < MIN(begposs.size(), endposs.size()); idx++) {
-                    stringof_baseBQ_pairs_vec.push_back(stringof_baseBQ_pairs.substr(begposs[idx], endposs[idx]));
-                }
-                for (size_t idx = 0; idx < stringof_baseBQ_pairs_vec.size(); idx++) {
-                    auto &stringof_baseBQ_pairs = stringof_baseBQ_pairs_vec[idx];
-                    // FQ line 1: read name
-                    const size_t r1r2 = ((stringof_baseBQ_pairs_vec.size() == 1) ? (0) : (idx + 1));
-                    if (2 == r1r2) {
-                        std::reverse(stringof_baseBQ_pairs.begin(), stringof_baseBQ_pairs.end()); 
-                    }
-                    std::string fqname = std::string("@") + std::to_string(tid2)
-                            + ":" + std::to_string(beg2) 
-                            + ":" + (strand ? "+-" : "-+") + std::to_string(end2 - beg2 - 1) // the extra -1 is due to possible insertion at the front/back of the fragment
-                            + ":" + alns2pair2umibarcode.second.umistring + "#" + std::to_string(alns2.size());
-                    auto &fqdata = fastq_outstrings[r1r2];
-                    fqdata += fqname + "\n";
-                    // FQ line 2: sequence
-                    for (const auto & baseBQ : stringof_baseBQ_pairs) {
-                        fqdata.push_back(baseBQ.first);
-                    }
-                    fqdata += "\n";
-                    // FQ line 3: comment, here we put all read names of the original BAM that did not go through any consensus.
-                    fqdata += "+";
-                    for (const auto bams : alns2) {
-                        assert(bams.size() <= 2);
-                        assert(bams.size() >= 1);
-                        if (bams.size() == 2) {
-                            assert(!strcmp(bam_get_qname(bams[0]),bam_get_qname(bams[1])));
-                            fqdata += "@@"; // pair-end
-                            fqdata += bam_get_qname(bams[0]);
-                        } else if (bams.size() == 1) {
-                            fqdata += "@"; // single-end
-                            fqdata += bam_get_qname(bams[0]);
-                        }
-                    }
-                    fqdata += "\n"; 
-                    // FQ line 4: base-call qualities
-                    for (const auto & baseBQ : stringof_baseBQ_pairs) {
-                        fqdata.push_back((char)(baseBQ.second + 33)); // the exclamation mark '!' with ascii value 33 denotes the Phred score of zero. 
-                    }
-                    fqdata += "\n"; 
-                }
-}
             }
         }
         niters = 0;
