@@ -163,6 +163,11 @@ enum ValueType {
 #define NUM_ALIGNMENT_SYMBOLS 14
 STATIC_ASSERT_WITH_DEFAULT_MSG(NUM_ALIGNMENT_SYMBOLS == END_ALIGNMENT_SYMBOLS);
 
+// Please note that there are left-to-right clips and right-to-left clips, but I cannot know in advance if the direction matters in consensus. 
+// My intuition tells me that it matters but only for some extremely rare situations, so I did not divide soft-clips according to their strands. 
+// #define NUM_CLIP_SYMBOLS 2
+// const std::array<ClipSymbol, NUM_CLIP_SYMBOLS> CLIP_SYMBOLS = {{CLIP_LEFT_TO_RIGHT, CLIP_RIGHT_TO_LEFT}};
+
 #define NUM_INS_SYMBOLS 3
 const std::array<AlignmentSymbol, NUM_INS_SYMBOLS> INS_SYMBOLS = {{LINK_I1, LINK_I2, LINK_I3P}};
 
@@ -271,6 +276,17 @@ template <class T1, class T2>
 bool
 does_fmt_imply_short_frag(const T1 & fmt, const T2 wgs_min_avg_fragsize) {
     return (fmt.APLRI[0] + fmt.APLRI[2]) < int64mul(fmt.APLRI[1] + fmt.APLRI[3], wgs_min_avg_fragsize);
+}
+
+std::pair<uvc1_readnum_t, std::string>
+read_family_con_ampl_getMajority_clip(const auto &read_family_con_ampl, const uvc1_refgpos_t epos) {
+    std::map<std::string, uvc1_readnum_t> indel2readnum = { {"", 0} };
+    auto p2e2d = read_family_con_ampl.getPosToCseqToData();
+    if (p2e2d.find(epos) != p2e2d.end()) {
+        std::map<std::string, uvc1_readnum_t> indel2data = p2e2d.find(epos)->second;
+        indel2readnum.insert(indel2data.begin(), indel2data.end());
+    }
+    return indelToData_getMajority(indel2readnum);
 }
 
 std::pair<uvc1_readnum_t, std::string>
@@ -626,6 +642,7 @@ protected:
     std::vector<T> idx2symbol2data;
     std::array<std::map<uvc1_refgpos_t, std::map<uvc1_readpos_t     , uvc1_readnum_t>>, NUM_INS_SYMBOLS> pos2dlen2data;
     std::array<std::map<uvc1_refgpos_t, std::map<std::string, uvc1_readnum_t>>, NUM_DEL_SYMBOLS> pos2iseq2data;
+    std::map<uvc1_refgpos_t, std::map<std::string, uvc1_readnum_t>> pos2cseq2data;
 public:
     
     const uvc1_refgpos_t tid;
@@ -672,7 +689,11 @@ public:
         int idx = (LINK_I1 == s ? 0 : ((LINK_I2 == s) ? 1: 2));
         return pos2iseq2data[idx];
     };
-    
+    const std::map<uvc1_refgpos_t, std::map<std::string, uvc1_readnum_t>> & 
+    getPosToCseqToData() const {
+        return pos2cseq2data;
+    };
+
     std::map<uvc1_refgpos_t, std::map<uvc1_readpos_t   , uvc1_readnum_t>> & 
     getRefPosToDlenToData(const AlignmentSymbol s) {
         int idx = (LINK_D1 == s ? 0 : ((LINK_D2 == s) ? 1: 2));
@@ -682,6 +703,11 @@ public:
     getRefPosToIseqToData(const AlignmentSymbol s) {
         int idx = (LINK_I1 == s ? 0 : ((LINK_I2 == s) ? 1: 2));
         return pos2iseq2data[idx];
+    };
+    std::map<uvc1_refgpos_t, std::map<std::string, uvc1_refgpos_t>> & 
+    getRefPosToCseqToData() {
+        // int idx = (CLIP_LE == s ? 0 : ((LINK_I2 == s) ? 1: 2));
+        return pos2cseq2data;
     };
 };
 
@@ -1797,6 +1823,14 @@ public:
     };
 
     void // GenericSymbol2CountCoverage<TSymbol2Count>::
+    incClip(const uvc1_refgpos_t epos, const std::string & cseq, const uvc1_readnum_t incvalue = 1) {
+        assert (incvalue > 0); 
+        assert (cseq.size() > 0);
+        size_t cpos = epos;
+        posToIndelToCount_inc(this->getRefPosToCseqToData(), cpos, cseq, incvalue);
+    };
+
+    void // GenericSymbol2CountCoverage<TSymbol2Count>::
     incIns(const uvc1_refgpos_t epos, const std::string & iseq, const AlignmentSymbol symbol, const uvc1_readnum_t incvalue = 1) {
         assert (incvalue > 0); 
         assert (iseq.size() > 0);
@@ -2152,8 +2186,7 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
                         const auto base4bit = bam_seqi(bseq, qpos+i2);
                         const auto base8bit = seq_nt16_str[base4bit];
                         iseq.push_back(base8bit);
-                        incvalue2 = MIN(incvalue2, SIGN2UNSIGN(bam_seqi(bseq, qpos+i2)))
-                                + (symboltype2addPhred[LINK_SYMBOL]);
+                        incvalue2 = MIN(incvalue2, SIGN2UNSIGN(BAM_PHREDI(aln, qpos+i2)) + (symboltype2addPhred[LINK_SYMBOL]));
                     }
                     this->incIns(rpos, iseq, insLenToSymbol(inslen, aln), MAX(SIGN2UNSIGN(1), incvalue2));
                 }
@@ -2297,6 +2330,19 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
 #endif
 }
                 rpos += cigar_oplen;
+            } else if (BAM_CSOFT_CLIP == cigar_op) {
+                std::string iseq;
+                iseq.reserve(cigar_oplen);
+                int8_t incvalue2 = 80;
+                for (uint32_t i2 = 0; i2 < cigar_oplen; i2++) {
+                    const auto base4bit = bam_seqi(bseq, qpos+i2);
+                    const auto base8bit = seq_nt16_str[base4bit];
+                    const int8_t basequal = BAM_PHREDI(aln, qpos+i2);
+                    const auto base8bit2 = ((basequal < 20) ? tolower(base8bit) : base8bit);
+                    iseq.push_back(base8bit2);
+                    incvalue2 = MIN(incvalue2, basequal);
+                }
+                this->incClip(rpos, iseq, MAX(SIGN2UNSIGN(1), incvalue2)); // similar to incIns
             } else {
                 process_cigar(qpos, rpos, cigar_op, cigar_oplen);
             } 
@@ -2874,6 +2920,7 @@ struct Symbol2CountCoverageSet {
                 const uvc1_refgpos_t r2l_end_median_pos = ((r2l_end_poss.size() > 0) ? (MEDIAN(r2l_end_poss)) : read_family_con_ampl.getIncluBegPosition());
                 // without indel_adj_tracklen_dist it is exact non-overlap with <=
                 const bool fam_has_nonconf_middle = ((l2r_end_median_pos) <= (r2l_end_median_pos + paramset.indel_adj_tracklen_dist)); 
+                auto itPosToCseqToData = read_family_con_ampl.getPosToCseqToData().begin(); 
                 for (auto epos = read_family_con_ampl.getIncluBegPosition(); epos < read_family_con_ampl.getExcluEndPosition(); epos++) {
                     const auto & con_ampl_symbol2count = read_family_con_ampl.getByPos(epos);
                     for (SymbolType symboltype : SYMBOL_TYPE_ARR) {
@@ -2889,124 +2936,23 @@ struct Symbol2CountCoverageSet {
                         const bool is_fam_con = (con_count * 100 >= tot_count * paramset.fam_thres_dup1perc);
                         const bool is_fam_good = (is_fam_big && is_fam_con 
                                 && ((alns2pair2umibarcode.second.duplexflag & 0x1) || (paramset.fam_flag & 0x2)));
-                        if (is_fam_good) {
-                            this->symbol_to_fam_format_depth_sets_2strand[strand].getRefByPos(epos)[con_symbol][FAM_cDP2] += 1;
-                            if (isSymbolIns(con_symbol)) {
-                                posToIndelToCount_updateByConsensus(
-                                        this->pos2iseq2data_cDP2[strand][insSymbolToInsIdx(con_symbol)],
-                                        read_family_con_ampl.getPosToIseqToData(con_symbol), epos, 1);
-                            }
-                            if (isSymbolDel(con_symbol)) {
-                                posToIndelToCount_updateByConsensus(
-                                        this->pos2dlen2data_cDP2[strand][delSymbolToDelIdx(con_symbol)],
-                                        read_family_con_ampl.getPosToDlenToData(con_symbol), epos, 1);
-                            }
-
-// start UPDATING-FAM2-BIAS // update_bidirectional_bias
-/* Please note that there is an edge case of having a position-biased family support for an ALT at the very small overlap between R1 and R2,
- * so r2l_end_median_pos and l2r_end_median_pos are needed */
-const auto rpos = epos;
-auto rbeg = read_family_con_ampl.getIncluBegPosition();
-auto rend = read_family_con_ampl.getExcluEndPosition();
-if (fam_has_nonconf_middle && epos < r2l_end_median_pos) {
-    rend = MAX(MIN(l2r_end_median_pos, r2l_end_median_pos), epos);
-}
-if (fam_has_nonconf_middle && l2r_end_median_pos < epos) {
-    rbeg = MIN(MAX(l2r_end_median_pos, r2l_end_median_pos), epos);
-}
-
-const auto & seg_format_thres_set = this->seg_format_thres_sets.getRefByPos(rpos);
-auto & fam_info_set = this->symbol_to_fam_format_info_sets.getRefByPos(rpos)[con_symbol];
-
-const bool isGap = (LINK_SYMBOL == symboltype);
-const uvc1_qual_t bq = 90; // very big
-const uvc1_refgpos_t dist_to_interfering_indel = 1024*1024; // very big, TODO: check validity?
-if (((!isGap) && bq >= paramset.bias_thres_highBQ) || (isGap && dist_to_interfering_indel >= paramset.bias_thres_highBQ)) { 
-        const auto  bias_thres_veryhighBQ = paramset.bias_thres_highBQ;
-        const bool is_BQ_high_enough_for_tier2 = (isGap || bq >= bias_thres_veryhighBQ);
-        
-        uvc1_refgpos_t fam2_l_nbases = epos - rbeg + 1;
-        uvc1_refgpos_t fam2_r_nbases = rend - epos;
-
-        auto _const_LPxT = seg_format_thres_set.segthres_aLPxT; 
-        const auto const_RPxT = seg_format_thres_set.segthres_aRPxT; 
-        const auto const_LPxT = (isGap ? _const_LPxT : MIN(_const_LPxT, const_RPxT));
-        uvc1_refgpos_t indel_len = 0;
-        if (isSymbolIns(con_symbol)) {
-            std::pair<uvc1_readnum_t, std::string> ins_maj= read_family_con_ampl_getMajority_ins(read_family_con_ampl, epos);
-            indel_len = ins_maj.first;
-        } else if (isSymbolDel(con_symbol)) {
-            std::pair<uvc1_readnum_t, uvc1_refgpos_t> del_maj = read_family_con_ampl_getMajority_del(read_family_con_ampl, epos); 
-            indel_len = del_maj.first;
-        }
-        const bool is_far_from_edge = (fam2_l_nbases + ((isSymbolIns(con_symbol)) ? non_neg_minus(indel_len, paramset.microadjust_nobias_pos_indel_maxlen) : 0) >= const_LPxT) 
-                && (fam2_r_nbases >= const_RPxT);
-        if (is_far_from_edge) {
-            const auto bb_thres = BidirectionalBiasThreshold(
-                        seg_format_thres_set.segthres_aLP1t,
-                        seg_format_thres_set.segthres_aLP2t,
-                        seg_format_thres_set.segthres_aRP1t,
-                        seg_format_thres_set.segthres_aRP2t);
-            update_bidirectional_bias(
-                    fam_info_set.faminfo_c2LP1,
-                    fam_info_set.faminfo_c2LP2,
-                    fam_info_set.faminfo_c2RP1,
-                    fam_info_set.faminfo_c2RP2,
-                    fam_info_set.faminfo_c2LPL,
-                    fam_info_set.faminfo_c2RPL,
-                    bb_thres,
-                    fam2_l_nbases,
-                    fam2_r_nbases,
-                    true,
-                    0);
-        }
-        
-        const uvc1_qual_t seg_l_baq = baq_offsetarr.getByPos(rpos) - baq_offsetarr.getByPos(MAX(rbeg, non_neg_minus(rpos, MAX_STR_N_BASES))) + 1;
-        const uvc1_qual_t _seg_r_baq = baq_offsetarr.getByPos(MIN(rend-1, rpos + (MAX_STR_N_BASES))) - baq_offsetarr.getByPos(rpos) + 1;
-        const uvc1_qual_t seg_r_baq = (isGap ? MIN(_seg_r_baq, baq_offsetarr2.getByPos(MIN(rend-1, rpos + MAX_STR_N_BASES)) - baq_offsetarr2.getByPos(rpos) + 7) : _seg_r_baq);
-        const auto bias_thres_highBAQ = paramset.bias_thres_highBAQ + (isGap ? 0 : 3);
-        const bool is_unaffected_by_edge = (seg_l_baq >= bias_thres_highBAQ && seg_r_baq >= bias_thres_highBAQ);
-        if (is_unaffected_by_edge) {
-            const auto bb_thres = BidirectionalBiasThreshold(
-                    paramset.bias_thres_BAQ1,
-                    paramset.bias_thres_BAQ2,
-                    paramset.bias_thres_BAQ1,
-                    paramset.bias_thres_BAQ2);
-            update_bidirectional_bias(
-                    fam_info_set.faminfo_c2LB1,
-                    fam_info_set.faminfo_c2LB2,
-                    fam_info_set.faminfo_c2RB1,
-                    fam_info_set.faminfo_c2RB2,
-                    fam_info_set.faminfo_c2LBL,
-                    fam_info_set.faminfo_c2RBL,
-                    bb_thres,
-                    seg_l_baq,
-                    seg_r_baq,
-                    is_BQ_high_enough_for_tier2,
-                    0);
-        }
-        fam_info_set.faminfo_c2BQ2 += 1;
-}
-// end UPDATING-FAM2-BIAS
-
-                        }
-                        // put SNVs and INDELs into FASTQ files
+                        
                         if ((paramset.fam_consensus_out_fastq.size() > 0) && ((size_t)paramset.fam_thres_dup1add <= alns2.size())) {
-                          if (BASE_SYMBOL == symboltype) { // consider NA (not-available) bases, and split into multiple fastq lines later
-                                if (BASE_NN == con_symbol) {
-                                    // we do nothing for both padded deletion and uncovered position
-                                    // const char *desc = SYMBOL_TO_DESC_ARR[BASE_NN];
-                                    // assert(strlen(desc) == 1);
-                                    // fq_baseBQ_pairs.push_back((std::make_pair(desc[0], 0)));
-                                } else if (is_fam_good) {
-                                    const uvc1_qual_t conBQ = 59 - MIN(tot_count - con_count, 9);
-                                    const char *desc = SYMBOL_TO_DESC_ARR[con_symbol];
-                                    assert(strlen(desc) == 1);
-                                    fq_baseBQ_pairs.push_back(std::make_pair(desc[0], conBQ));
-                                } else {
-                                    fq_baseBQ_pairs.push_back(std::make_pair('n', 49 - (is_fam_big ? 1 : 0))); // 0/1 means the family is probably singleton/with-weak-consensus-base
+                            // Put soft-clips into the FASTQ files
+                            for (; itPosToCseqToData != read_family_con_ampl.getPosToCseqToData().end() && itPosToCseqToData->first < epos; itPosToCseqToData++) {
+                                if (itPosToCseqToData->first == epos) {
+                                    const std::pair<uvc1_readnum_t, std::string> cnt_cseq_pair = read_family_con_ampl_getMajority_clip(read_family_con_ampl, epos);
+                                    const bool is_clipfam_big = (paramset.fam_thres_dup1add <= UNSIGN2SIGN(alns2.size()));
+                                    const bool is_clipfam_con = (cnt_cseq_pair.first * 100 >= UNSIGN2SIGN(alns2.size()) * ((cnt_cseq_pair.second.size() < 20) ? 70 : 60));
+                                    const bool is_clipfam_good = (is_clipfam_big && is_clipfam_con && ((alns2pair2umibarcode.second.duplexflag & 0x1) || (paramset.fam_flag & 0x2)));
+                                    if (is_clipfam_good) {
+                                        for (char clipped_base : cnt_cseq_pair.second) {
+                                            fq_baseBQ_pairs.push_back(std::make_pair((clipped_base), 49 - MIN(UNSIGN2SIGN(alns2.size()) - cnt_cseq_pair.first, 9)));
+                                        }
+                                    }
                                 }
                             }
+                            // Put InDels into the FASTQ files
                             if ((LINK_SYMBOL == symboltype)) {
                                 const auto nogap_count = con_ampl_symbol2count.getSymbolCount(LINK_M);
                                 const bool is_nogapfam_con = (nogap_count * 100 >= tot_count * paramset.fam_thres_dup1perc);
@@ -3033,7 +2979,125 @@ if (((!isGap) && bq >= paramset.bias_thres_highBQ) || (isGap && dist_to_interfer
                                     }
                                 } else { } // the family is sufficiently large and has strong consensus, so do not add any InDel.
                             }
+                            // Put SNVs into the FASTQ files
+                            if (BASE_SYMBOL == symboltype) { // consider NA (not-available) bases, and split into multiple fastq lines later
+                                if (BASE_NN == con_symbol) {
+                                    // we do nothing for both padded deletion and uncovered position
+                                    // const char *desc = SYMBOL_TO_DESC_ARR[BASE_NN];
+                                    // assert(strlen(desc) == 1);
+                                    // fq_baseBQ_pairs.push_back((std::make_pair(desc[0], 0)));
+                                } else if (is_fam_good) {
+                                    const uvc1_qual_t conBQ = 59 - MIN(tot_count - con_count, 9);
+                                    const char *desc = SYMBOL_TO_DESC_ARR[con_symbol];
+                                    assert(strlen(desc) == 1);
+                                    fq_baseBQ_pairs.push_back(std::make_pair(desc[0], conBQ));
+                                } else {
+                                    fq_baseBQ_pairs.push_back(std::make_pair('n', 10 - (is_fam_big ? 1 : 0))); // 0/1 means the family is probably singleton/with-weak-consensus-base
+                                }
+                            }
                         }
+
+                        if (is_fam_good) {
+                            this->symbol_to_fam_format_depth_sets_2strand[strand].getRefByPos(epos)[con_symbol][FAM_cDP2] += 1;
+                            if (isSymbolIns(con_symbol)) {
+                                posToIndelToCount_updateByConsensus(
+                                        this->pos2iseq2data_cDP2[strand][insSymbolToInsIdx(con_symbol)],
+                                        read_family_con_ampl.getPosToIseqToData(con_symbol), epos, 1);
+                            }
+                            if (isSymbolDel(con_symbol)) {
+                                posToIndelToCount_updateByConsensus(
+                                        this->pos2dlen2data_cDP2[strand][delSymbolToDelIdx(con_symbol)],
+                                        read_family_con_ampl.getPosToDlenToData(con_symbol), epos, 1);
+                            }
+
+                            // start UPDATING-FAM2-BIAS // update_bidirectional_bias
+                            /* Please note that there is an edge case of having a position-biased family support for an ALT at the very small overlap between R1 and R2,
+                             * so r2l_end_median_pos and l2r_end_median_pos are needed */
+                            const auto rpos = epos;
+                            auto rbeg = read_family_con_ampl.getIncluBegPosition();
+                            auto rend = read_family_con_ampl.getExcluEndPosition();
+                            if (fam_has_nonconf_middle && epos < r2l_end_median_pos) {
+                                rend = MAX(MIN(l2r_end_median_pos, r2l_end_median_pos), epos);
+                            }
+                            if (fam_has_nonconf_middle && l2r_end_median_pos < epos) {
+                                rbeg = MIN(MAX(l2r_end_median_pos, r2l_end_median_pos), epos);
+                            }
+
+                            const auto & seg_format_thres_set = this->seg_format_thres_sets.getRefByPos(rpos);
+                            auto & fam_info_set = this->symbol_to_fam_format_info_sets.getRefByPos(rpos)[con_symbol];
+
+                            const bool isGap = (LINK_SYMBOL == symboltype);
+                            const uvc1_qual_t bq = 90; // very big
+                            const uvc1_refgpos_t dist_to_interfering_indel = 1024*1024; // very big, TODO: check validity?
+                            if (((!isGap) && bq >= paramset.bias_thres_highBQ) || (isGap && dist_to_interfering_indel >= paramset.bias_thres_highBQ)) { 
+                                    const auto  bias_thres_veryhighBQ = paramset.bias_thres_highBQ;
+                                    const bool is_BQ_high_enough_for_tier2 = (isGap || bq >= bias_thres_veryhighBQ);
+                                    
+                                    uvc1_refgpos_t fam2_l_nbases = epos - rbeg + 1;
+                                    uvc1_refgpos_t fam2_r_nbases = rend - epos;
+
+                                    auto _const_LPxT = seg_format_thres_set.segthres_aLPxT; 
+                                    const auto const_RPxT = seg_format_thres_set.segthres_aRPxT; 
+                                    const auto const_LPxT = (isGap ? _const_LPxT : MIN(_const_LPxT, const_RPxT));
+                                    uvc1_refgpos_t indel_len = 0;
+                                    if (isSymbolIns(con_symbol)) {
+                                        std::pair<uvc1_readnum_t, std::string> ins_maj= read_family_con_ampl_getMajority_ins(read_family_con_ampl, epos);
+                                        indel_len = ins_maj.first;
+                                    } else if (isSymbolDel(con_symbol)) {
+                                        std::pair<uvc1_readnum_t, uvc1_refgpos_t> del_maj = read_family_con_ampl_getMajority_del(read_family_con_ampl, epos); 
+                                        indel_len = del_maj.first;
+                                    }
+                                    const bool is_far_from_edge = (fam2_l_nbases + ((isSymbolIns(con_symbol)) ? non_neg_minus(indel_len, paramset.microadjust_nobias_pos_indel_maxlen) : 0) >= const_LPxT) 
+                                            && (fam2_r_nbases >= const_RPxT);
+                                    if (is_far_from_edge) {
+                                        const auto bb_thres = BidirectionalBiasThreshold(
+                                                    seg_format_thres_set.segthres_aLP1t,
+                                                    seg_format_thres_set.segthres_aLP2t,
+                                                    seg_format_thres_set.segthres_aRP1t,
+                                                    seg_format_thres_set.segthres_aRP2t);
+                                        update_bidirectional_bias(
+                                                fam_info_set.faminfo_c2LP1,
+                                                fam_info_set.faminfo_c2LP2,
+                                                fam_info_set.faminfo_c2RP1,
+                                                fam_info_set.faminfo_c2RP2,
+                                                fam_info_set.faminfo_c2LPL,
+                                                fam_info_set.faminfo_c2RPL,
+                                                bb_thres,
+                                                fam2_l_nbases,
+                                                fam2_r_nbases,
+                                                true,
+                                                0);
+                                    }
+                                    
+                                    const uvc1_qual_t seg_l_baq = baq_offsetarr.getByPos(rpos) - baq_offsetarr.getByPos(MAX(rbeg, non_neg_minus(rpos, MAX_STR_N_BASES))) + 1;
+                                    const uvc1_qual_t _seg_r_baq = baq_offsetarr.getByPos(MIN(rend-1, rpos + (MAX_STR_N_BASES))) - baq_offsetarr.getByPos(rpos) + 1;
+                                    const uvc1_qual_t seg_r_baq = (isGap ? MIN(_seg_r_baq, baq_offsetarr2.getByPos(MIN(rend-1, rpos + MAX_STR_N_BASES)) - baq_offsetarr2.getByPos(rpos) + 7) : _seg_r_baq);
+                                    const auto bias_thres_highBAQ = paramset.bias_thres_highBAQ + (isGap ? 0 : 3);
+                                    const bool is_unaffected_by_edge = (seg_l_baq >= bias_thres_highBAQ && seg_r_baq >= bias_thres_highBAQ);
+                                    if (is_unaffected_by_edge) {
+                                        const auto bb_thres = BidirectionalBiasThreshold(
+                                                paramset.bias_thres_BAQ1,
+                                                paramset.bias_thres_BAQ2,
+                                                paramset.bias_thres_BAQ1,
+                                                paramset.bias_thres_BAQ2);
+                                        update_bidirectional_bias(
+                                                fam_info_set.faminfo_c2LB1,
+                                                fam_info_set.faminfo_c2LB2,
+                                                fam_info_set.faminfo_c2RB1,
+                                                fam_info_set.faminfo_c2RB2,
+                                                fam_info_set.faminfo_c2LBL,
+                                                fam_info_set.faminfo_c2RBL,
+                                                bb_thres,
+                                                seg_l_baq,
+                                                seg_r_baq,
+                                                is_BQ_high_enough_for_tier2,
+                                                0);
+                                    }
+                                    fam_info_set.faminfo_c2BQ2 += 1;
+                            }
+                            // end UPDATING-FAM2-BIAS
+                        }
+                        
                         
                         if (paramset.fam_thres_dup2add <= tot_count && (con_count * 100 >= tot_count * paramset.fam_thres_dup2perc)) {
                             this->symbol_to_fam_format_depth_sets_2strand[strand].getRefByPos(epos)[con_symbol][FAM_cDP3] += 1;
