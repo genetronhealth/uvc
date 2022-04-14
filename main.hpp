@@ -2338,8 +2338,7 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
                     const auto base4bit = bam_seqi(bseq, qpos+i2);
                     const auto base8bit = seq_nt16_str[base4bit];
                     const int8_t basequal = BAM_PHREDI(aln, qpos+i2);
-                    const auto base8bit2 = ((basequal < 20) ? tolower(base8bit) : base8bit);
-                    iseq.push_back(base8bit2);
+                    iseq.push_back(base8bit);
                     incvalue2 = MIN(incvalue2, basequal);
                 }
                 this->incClip(rpos, iseq, MAX(SIGN2UNSIGN(1), incvalue2)); // similar to incIns
