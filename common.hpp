@@ -76,6 +76,8 @@
 #define phred2numstates(x) (pow(10.0, (x)/10.0))
 #define numstates2deciphred(x) ((uvc1_qual_t)round((100.0/log(10.0)) * log(x)))
 
+#define bam_get_strand(aln) ((((aln)->core.flag & 0x81) == 0x81) ? ((aln)->core.flag & 0x20) : ((aln)->core.flag & 0x10))
+
 #define ARE_INTERVALS_OVERLAPPING(x1, x2, y1, y2) (!(((x2) <= (y1)) || (((y2) <= (x1)))))
 
 typedef uint64_t uvc1_unsigned_int_t; // It seems that a bug in g++ causes compiling error if this type is defined as (unsigned int)

@@ -351,7 +351,7 @@ fill_isrc_isr2_beg_end_with_aln(bool & isrc, bool & isr2, uvc1_refgpos_t & tBeg,
     } else {
         auto tBegP1 = MIN(begpos, SIGN2UNSIGN(aln->core.mpos));
         auto tEndP1 = tBegP1 + abs(aln->core.isize) - 1;
-        bool strand = (isrc ^ isr2);
+        bool strand = bam_get_strand(aln); // (isrc ^ isr2);
         tBeg = (strand ? tEndP1 : tBegP1); 
         tEnd = (strand ? tBegP1 : tEndP1);
         num_seqs = 2;
@@ -452,14 +452,14 @@ apply_bq_err_correction3(bam1_t *aln, const uvc1_qual_t assay_sequencing_BQ_max,
     }
     
     const auto cigar = bam_get_cigar(aln);
-    const int strand = ((aln->core.flag & 0x10) ? 1 : 0);
+    const int isrc = ((aln->core.flag & 0x10) ? 1 : 0);
     uvc1_readpos_t inclu_beg_poss[2] = {0, aln->core.l_qseq - 1};
     uvc1_readpos_t exclu_end_poss[2] = {aln->core.l_qseq, 0 - 1};
     uvc1_readpos_t end_clip_len = 0;
     if (aln->core.n_cigar > 0) {
         auto cigar_1elem = cigar[0];
         if (bam_cigar_op(cigar_1elem) == BAM_CSOFT_CLIP) {
-            if (0 == strand) {
+            if (0 == isrc) {
                 inclu_beg_poss[0] += bam_cigar_oplen(cigar_1elem);
             } else {
                 exclu_end_poss[1] += bam_cigar_oplen(cigar_1elem);
@@ -468,7 +468,7 @@ apply_bq_err_correction3(bam1_t *aln, const uvc1_qual_t assay_sequencing_BQ_max,
         }
         cigar_1elem = cigar[aln->core.n_cigar-1];
         if (bam_cigar_op(cigar_1elem) == BAM_CSOFT_CLIP) {
-            if (1 == strand) {
+            if (1 == isrc) {
                 inclu_beg_poss[1] -= bam_cigar_oplen(cigar_1elem);
             } else {
                 exclu_end_poss[0] -= bam_cigar_oplen(cigar_1elem);
@@ -481,8 +481,8 @@ apply_bq_err_correction3(bam1_t *aln, const uvc1_qual_t assay_sequencing_BQ_max,
     {
         uint8_t prev_b = 0;
         uvc1_unsigned_int_t distinct_cnt = 0;
-        int termpos = exclu_end_poss[strand] - pos_incs[strand];
-        for (; termpos != inclu_beg_poss[strand] - pos_incs[strand]; termpos -= pos_incs[strand]) {
+        int termpos = exclu_end_poss[isrc] - pos_incs[isrc];
+        for (; termpos != inclu_beg_poss[isrc] - pos_incs[isrc]; termpos -= pos_incs[isrc]) {
             uint8_t b = bam_seqi(bam_get_seq(aln), termpos);
             auto q = bam_get_qual(aln)[termpos];
             if (b != prev_b && q >= 20) {
@@ -491,7 +491,7 @@ apply_bq_err_correction3(bam1_t *aln, const uvc1_qual_t assay_sequencing_BQ_max,
                 if (2 == distinct_cnt) { break; }
             }
         }
-        uvc1_readpos_t homopol_tracklen = abs(termpos - (exclu_end_poss[strand] - pos_incs[strand]));
+        uvc1_readpos_t homopol_tracklen = abs(termpos - (exclu_end_poss[isrc] - pos_incs[isrc]));
         uvc1_qual_t tail_penal = (end_clip_len >= 20 ? 1 : 0)
                 + (homopol_tracklen >= 15 ? 2 : (homopol_tracklen >= 10 ? 1 : 0));
         if (tail_penal > 0) {
@@ -499,7 +499,7 @@ apply_bq_err_correction3(bam1_t *aln, const uvc1_qual_t assay_sequencing_BQ_max,
             if (is_in_log_reg) {
                 LOG(logINFO) << "tail_penal = " << tail_penal << " for read " << bam_get_qname(aln);
             }
-            for (uvc1_refgpos_t pos = exclu_end_poss[strand] - pos_incs[strand]; pos != (inclu_beg_poss[strand] - pos_incs[strand]) && pos != termpos; pos -= pos_incs[strand]) {
+            for (uvc1_refgpos_t pos = exclu_end_poss[isrc] - pos_incs[isrc]; pos != (inclu_beg_poss[isrc] - pos_incs[isrc]) && pos != termpos; pos -= pos_incs[isrc]) {
                 const uvc1_qual_t q = bam_get_qual(aln)[pos];
                 bam_get_qual(aln)[pos] = MAX(bam_get_qual(aln)[pos], tail_penal + 1) - tail_penal;
                 if (is_in_log_reg) {
@@ -512,7 +512,7 @@ apply_bq_err_correction3(bam1_t *aln, const uvc1_qual_t assay_sequencing_BQ_max,
         uvc1_refgpos_t homopol_len = 0;
         uint8_t prev_b = 0;
         // https://bmcbioinformatics.biomedcentral.com/articles/10.1186/1471-2105-12-451
-        for (uvc1_refgpos_t pos = inclu_beg_poss[strand]; pos != exclu_end_poss[strand]; pos += pos_incs[strand]) {
+        for (uvc1_refgpos_t pos = inclu_beg_poss[isrc]; pos != exclu_end_poss[isrc]; pos += pos_incs[isrc]) {
             const uint8_t b = bam_seqi(bam_get_seq(aln), pos);
             if (b == prev_b) {
                 homopol_len++;
@@ -889,7 +889,7 @@ bamfname_to_strand_to_familyuid_to_reads(
             molecule_hash = hash2hash(molecule_hash, umihash); 
         }
         
-        int strand = (isrc ^ isr2);
+        int strand = bam_get_strand(aln); // (isrc ^ isr2);
         MolecularBarcode mb;
         mb.umistring = (is_umi_found ? std::string(umi_beg, umi_len) : "");
         mb.duplexflag = (is_umi_found ? 0x1 : 0) + (is_duplex_found ? 0x2 : 0) + (is_assay_amplicon ? 0x4 : 0);

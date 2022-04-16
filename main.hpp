@@ -983,7 +983,7 @@ update_seg_format_prep_sets_by_aln(
     const bool isrc = ((aln->core.flag & 0x10) == 0x10); 
     /*
     const bool isr2 = ((aln->core.flag & 0x80) == 0x80 && (aln->core.flag & 0x1) == 0x1);
-    const bool strand = (isrc ^ isr2);
+    const bool strand = bam_get_strand(aln); //(isrc ^ isr2);
     */
     const auto pcr_dp_inc = ((dflag & 0x4) ? 1 : 0);
     const auto umi_dp_inc = ((dflag & 0x1) ? 1 : 0);
@@ -1396,7 +1396,7 @@ dealwith_segbias(
     const bool is_normal = ((aln->core.isize != 0) || (0 == (aln->core.flag & 0x1)));
     const bool isrc = ((aln->core.flag & 0x10) == 0x10);
     const bool isr2 = ((aln->core.flag & 0x80) == 0x80 && (aln->core.flag & 0x1) == 0x1);
-    const bool strand = (isrc ^ isr2);
+    const bool strand = bam_get_strand(aln); // (isrc ^ isr2);
     
     const auto a1BQ = (isrc ? VQ_a1BQr : VQ_a1BQf);
     const auto a2BQ = (isrc ? VQ_a2BQr : VQ_a2BQf);
