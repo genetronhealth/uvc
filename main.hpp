@@ -6,6 +6,7 @@
 #include "CmdLineArgs.hpp"
 #include "common.hpp"
 #include "logging.hpp"
+#include "main_consensus.hpp"
 #include "main_conversion.hpp"
 
 #include "htslib/faidx.h"
@@ -91,6 +92,7 @@ posToIndelToCount_updateByConsensus(std::map<uvc1_refgpos_t, std::map<T, uvc1_re
     return src_indel;
 }
 
+/*
 template <bool TIsIncVariable, class T>
 uvc1_readnum_t
 posToIndelToCount_updateByRepresentative(std::map<uvc1_readnum_t, std::map<T, uvc1_readnum_t>> & dst, const std::map<uvc1_readnum_t, std::map<T, uvc1_readnum_t>> & src, uvc1_readnum_t epos, uvc1_readnum_t incvalue = 1) {
@@ -117,6 +119,7 @@ posToIndelToCount_updateByRepresentative(std::map<uvc1_readnum_t, std::map<T, uv
     }
     return max_count;
 }
+*/
 
 template <class T>
 void
@@ -160,120 +163,9 @@ enum ValueType {
     VALUE_TYPE_END,
 };
 
-#define NUM_ALIGNMENT_SYMBOLS 14
-STATIC_ASSERT_WITH_DEFAULT_MSG(NUM_ALIGNMENT_SYMBOLS == END_ALIGNMENT_SYMBOLS);
-
-// Please note that there are left-to-right clips and right-to-left clips, but I cannot know in advance if the direction matters in consensus. 
-// My intuition tells me that it matters but only for some extremely rare situations, so I did not divide soft-clips according to their strands. 
-// #define NUM_CLIP_SYMBOLS 2
-// const std::array<ClipSymbol, NUM_CLIP_SYMBOLS> CLIP_SYMBOLS = {{CLIP_LEFT_TO_RIGHT, CLIP_RIGHT_TO_LEFT}};
-
-#define NUM_INS_SYMBOLS 3
-const std::array<AlignmentSymbol, NUM_INS_SYMBOLS> INS_SYMBOLS = {{LINK_I1, LINK_I2, LINK_I3P}};
-
-#define NUM_DEL_SYMBOLS 3
-const std::array<AlignmentSymbol, NUM_DEL_SYMBOLS> DEL_SYMBOLS = {{LINK_D1, LINK_D2, LINK_D3P}};
-
-const std::array<AlignmentSymbol, (NUM_INS_SYMBOLS+NUM_DEL_SYMBOLS)> INDEL_SYMBOLS = {{LINK_I1, LINK_I2, LINK_I3P, LINK_D1, LINK_D2, LINK_D3P}};
-
-constexpr bool 
-areSymbolsMutated(AlignmentSymbol ref, AlignmentSymbol alt) {
-    if (alt <= BASE_NN) {
-        return ref != alt && ref < BASE_N && alt < BASE_N;
-    } else {
-        return alt != LINK_M && alt != LINK_NN;
-    }
-};
-
-constexpr bool 
-isSymbolIns(const AlignmentSymbol symbol) {
-    if (LINK_I3P == symbol || LINK_I2 == symbol || LINK_I1 == symbol) {
-        return true;
-    } else {
-        return false;
-    }
-}
-
-constexpr bool 
-isSymbolDel(const AlignmentSymbol symbol) {
-     if (LINK_D3P == symbol || LINK_D2 == symbol || LINK_D1 == symbol) {
-        return true;
-    } else {
-        return false;
-    }  
-}
-
-constexpr AlignmentSymbol 
-insLenToSymbol(uvc1_readpos_t len, const bam1_t *b) {
-    assert(len >= 0 || !fprintf(stderr, "Error: the bam record with qname %s at tid %d pos %ld has insertion of length %d !\n", 
-            bam_get_qname(b), b->core.tid, b->core.pos, len));
-    return (1 == len ? LINK_I1 : ((2 == len) ? LINK_I2 : LINK_I3P));
-}
-
-constexpr AlignmentSymbol 
-delLenToSymbol(uvc1_readpos_t len, const bam1_t *b) {
-    assert(len >= 0 || !fprintf(stderr, "Error: the bam record with qname %s at tid %d pos %ld has deletion of length %d !\n", 
-            bam_get_qname(b), b->core.tid, b->core.pos, len));
-    return (1 == len ? LINK_D1 : ((2 == len) ? LINK_D2 : LINK_D3P));
-}
-
-int
-insSymbolToInsIdx(AlignmentSymbol s) {
-    return (LINK_I1 == s ? 0 : ((LINK_I2 == s) ? 1: 2));
-}
-
-int
-delSymbolToDelIdx(AlignmentSymbol s) {
-    return (LINK_D1 == s ? 0 : ((LINK_D2 == s) ? 1: 2));
-}
-
-enum SymbolType {
-    BASE_SYMBOL,
-    LINK_SYMBOL,
-    NUM_SYMBOL_TYPES,
-};
-
-enum LinkType {
-    MAT_LINK,
-    INS_LINK,
-    DEL_LINK,
-    NUM_LINK_TYPES,
-};
-
-const AlignmentSymbol SYMBOL_TYPE_TO_INCLU_BEG[NUM_SYMBOL_TYPES] = {
-    [BASE_SYMBOL] = BASE_A,
-    [LINK_SYMBOL] = LINK_M,
-};
-
-const std::array<SymbolType, 2> SYMBOL_TYPE_ARR = {
-    BASE_SYMBOL, LINK_SYMBOL
-};
-
-const std::array<std::vector<AlignmentSymbol>, NUM_SYMBOL_TYPES> SYMBOL_TYPE_TO_SYMBOLS= {{
-    [BASE_SYMBOL] = std::vector<AlignmentSymbol>{{BASE_A,   BASE_C,   BASE_G,  BASE_T,   BASE_N,   BASE_NN}},
-    [LINK_SYMBOL] = std::vector<AlignmentSymbol>{{LINK_M,   LINK_I1,  LINK_I2, LINK_I3P, LINK_D1,  LINK_D2,  LINK_D3P, LINK_NN}}
-}};
-
-const AlignmentSymbol SYMBOL_TYPE_TO_INCLU_END[NUM_SYMBOL_TYPES] = {
-    [BASE_SYMBOL] = BASE_NN,
-    [LINK_SYMBOL] = LINK_NN,
-};
-
-const AlignmentSymbol SYMBOL_TYPE_TO_AMBIG[NUM_SYMBOL_TYPES] = {
-    [BASE_SYMBOL] = BASE_NN,
-    [LINK_SYMBOL] = LINK_NN,
-};
-
-const std::array<SymbolType, 2> SYMBOL_TYPES_IN_VCF_ORDER = {{LINK_SYMBOL, BASE_SYMBOL}};
-
-bool 
-isSymbolSubstitution(AlignmentSymbol symbol) {
-    return (SYMBOL_TYPE_TO_INCLU_BEG[BASE_SYMBOL] <= symbol && symbol <= SYMBOL_TYPE_TO_INCLU_END[BASE_SYMBOL]);
-}
-
 // is not WGS (i.e., is hybrid-capture-WES or amplicon-PCR)
 template <class T1, class T2>
-bool
+inline bool
 does_fmt_imply_short_frag(const T1 & fmt, const T2 wgs_min_avg_fragsize) {
     return (fmt.APLRI[0] + fmt.APLRI[2]) < int64mul(fmt.APLRI[1] + fmt.APLRI[3], wgs_min_avg_fragsize);
 }
@@ -381,18 +273,6 @@ const uvc1_refgpos_t SYMBOL_TO_INDEL_N_UNITS[] = {
     [LINK_I3P] = 3, [LINK_I2] = 2, [LINK_I1] = 1,
     [LINK_NN] = 0,
     [END_ALIGNMENT_SYMBOLS] = 0,
-};
-
-const char* SYMBOL_TO_DESC_ARR[] = {
-    [BASE_A] = "A", [BASE_C] = "C", [BASE_G] = "G", [BASE_T] = "T", [BASE_N] = "N",
-    [BASE_NN] = "*", 
-    [LINK_M] = "<LR>", 
-    [LINK_D3P] = "<LD3P>", [LINK_D2] = "<LD2>", [LINK_D1] = "<LD1>",
-    [LINK_I3P] = "<LI3P>", [LINK_I2] = "<LI2>", [LINK_I1] = "<LI1>",
-    [LINK_NN] = "*",
-    [END_ALIGNMENT_SYMBOLS] = "<NONE>",
-    [MGVCF_SYMBOL] = "<NON_REF>",
-    [ADDITIONAL_INDEL_CANDIDATE_SYMBOL] = "<ADDITIONAL_INDEL_CANDIDATE>",
 };
 
 template <class T>
@@ -563,6 +443,7 @@ public:
         return {baseSymb, linkSymb};
     };
     
+    /*
     template <bool TIsIncVariable = true>
     AlignmentSymbol
     updateByRepresentative(const GenericSymbol2Count<TInteger> & other, uvc1_qual_t incvalue = 1) {
@@ -576,7 +457,7 @@ public:
         }
         return consalpha;
     };
-    
+    */
     
     int
     updateByFiltering(
@@ -642,7 +523,8 @@ protected:
     std::vector<T> idx2symbol2data;
     std::array<std::map<uvc1_refgpos_t, std::map<uvc1_readpos_t     , uvc1_readnum_t>>, NUM_INS_SYMBOLS> pos2dlen2data;
     std::array<std::map<uvc1_refgpos_t, std::map<std::string, uvc1_readnum_t>>, NUM_DEL_SYMBOLS> pos2iseq2data;
-    std::map<uvc1_refgpos_t, std::map<std::string, uvc1_readnum_t>> pos2cseq2data;
+    std::array<ConsensusBlockSet, NUM_CONSENSUS_BLOCK_CIGAR_TYPES> conblocksets;
+    
 public:
     
     const uvc1_refgpos_t tid;
@@ -689,10 +571,6 @@ public:
         int idx = (LINK_I1 == s ? 0 : ((LINK_I2 == s) ? 1: 2));
         return pos2iseq2data[idx];
     };
-    const std::map<uvc1_refgpos_t, std::map<std::string, uvc1_readnum_t>> & 
-    getPosToCseqToData() const {
-        return pos2cseq2data;
-    };
 
     std::map<uvc1_refgpos_t, std::map<uvc1_readpos_t   , uvc1_readnum_t>> & 
     getRefPosToDlenToData(const AlignmentSymbol s) {
@@ -704,10 +582,14 @@ public:
         int idx = (LINK_I1 == s ? 0 : ((LINK_I2 == s) ? 1: 2));
         return pos2iseq2data[idx];
     };
-    std::map<uvc1_refgpos_t, std::map<std::string, uvc1_refgpos_t>> & 
-    getRefPosToCseqToData() {
-        // int idx = (CLIP_LE == s ? 0 : ((LINK_I2 == s) ? 1: 2));
-        return pos2cseq2data;
+    
+    const ConsensusBlockSet & 
+    getConsensusBlockSet(const ConsensusBlockCigarType cigar_type) const {
+        return conblocksets[cigar_type];
+    };
+    ConsensusBlockSet & 
+    getRefConsensusBlockSet(const ConsensusBlockCigarType cigar_type) {
+        return conblocksets[cigar_type];
     };
 };
 
@@ -1713,6 +1595,7 @@ public:
         assert(this->getExcluEndPosition() >= other.getExcluEndPosition() || !fprintf(stderr, "%d >= %d failed!", this->getExcluEndPosition(), other.getExcluEndPosition())); 
     }
     // mainly for grouping reads sharing the same UMI into one family
+    /*
     template <bool TIsIncVariable = true>
     void
     updateByRepresentative(const GenericSymbol2CountCoverage<TSymbol2Count> & other, uvc1_readnum_t incvalue = 1,
@@ -1730,9 +1613,12 @@ public:
                     }
                 }
             }
+            for (auto cigartype: ALL_CONSENSUS_BLOCK_CIGAR_TYPES) {
+                this->getRefConsensusBlockSet().incByConsensus(other);
+            }
         }
     }
-
+    */
     // mainly for merging R1 and R2 into one read
     template<bool TIndelIsMajor = false> 
     void
@@ -1750,6 +1636,9 @@ public:
                         posToIndelToCount_updateByConsensus(this->getRefPosToDlenToData(consymbols[1]), other.getPosToDlenToData(consymbols[1]), epos, incvalue);
                     }
                 }
+            }
+            for (auto cigartype: ALL_CONSENSUS_BLOCK_CIGAR_TYPES) {
+                if (update_pos2indel2count) this->getRefConsensusBlockSet(cigartype).incByConsensus(other.getConsensusBlockSet(cigartype));
             }
         }
     }
@@ -1784,6 +1673,9 @@ public:
             }
             if (updateresult) { num_updated_pos++; }
         }
+        for (auto cigartype: ALL_CONSENSUS_BLOCK_CIGAR_TYPES) {
+            if (update_pos2indel2count) this->getRefConsensusBlockSet(cigartype).incByConsensus(other.getConsensusBlockSet(cigartype));
+        }
         return num_updated_pos;
     };
     
@@ -1812,9 +1704,12 @@ public:
             }
             if (updateresult) { num_updated_pos++; }
         }
+        for (auto cigartype: ALL_CONSENSUS_BLOCK_CIGAR_TYPES) {
+            if (update_pos2indel2count) this->getRefConsensusBlockSet(cigartype).incByConsensus(other.getConsensusBlockSet(cigartype));
+        };
         return num_updated_pos;
     };
-
+    
     template <ValueType TUpdateType2>
     void // GenericSymbol2CountCoverage<TSymbol2Count>::
     inc(const uvc1_refgpos_t epos, const AlignmentSymbol symbol, const uvc1_readnum_t incvalue = 1, const bam1_t *bam = NULL) {
@@ -1822,13 +1717,14 @@ public:
         r.template incSymbolCount<(TUpdateType2)>(symbol, incvalue);
     };
 
+    /*
     void // GenericSymbol2CountCoverage<TSymbol2Count>::
     incClip(const uvc1_refgpos_t epos, const std::string & cseq, const uvc1_readnum_t incvalue = 1) {
         assert (incvalue > 0); 
         assert (cseq.size() > 0);
         size_t cpos = epos;
         posToIndelToCount_inc(this->getRefPosToCseqToData(), cpos, cseq, incvalue);
-    };
+    };*/
 
     void // GenericSymbol2CountCoverage<TSymbol2Count>::
     incIns(const uvc1_refgpos_t epos, const std::string & iseq, const AlignmentSymbol symbol, const uvc1_readnum_t incvalue = 1) {
@@ -2180,15 +2076,19 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
                                 0);
                     }
                     std::string iseq;
+                    std::vector<int8_t> iqual;
                     iseq.reserve(cigar_oplen);
                     uvc1_qual_t incvalue2 = incvalue;
                     for (uint32_t i2 = 0; i2 < cigar_oplen; i2++) {
                         const auto base4bit = bam_seqi(bseq, qpos+i2);
                         const auto base8bit = seq_nt16_str[base4bit];
+                        const auto qualphred = (BAM_PHREDI(aln, qpos+i2)); 
                         iseq.push_back(base8bit);
-                        incvalue2 = MIN(incvalue2, SIGN2UNSIGN(BAM_PHREDI(aln, qpos+i2)) + (symboltype2addPhred[LINK_SYMBOL]));
+                        iqual.push_back(qualphred);
+                        incvalue2 = MIN(incvalue2, SIGN2UNSIGN(qualphred) + (symboltype2addPhred[LINK_SYMBOL]));
                     }
                     this->incIns(rpos, iseq, insLenToSymbol(inslen, aln), MAX(SIGN2UNSIGN(1), incvalue2));
+                    this->conblocksets[CONSENSUS_BLOCK_CINS].incByPosSeqQual(rpos, iseq, iqual);
                 }
 }
                 qpos += cigar_oplen;
@@ -2332,16 +2232,20 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
                 rpos += cigar_oplen;
             } else if (BAM_CSOFT_CLIP == cigar_op) {
                 std::string iseq;
+                std::vector<int8_t> iqual;
                 iseq.reserve(cigar_oplen);
-                int8_t incvalue2 = 80;
+                iqual.reserve(cigar_oplen);
+                //int8_t incvalue2 = 80;
                 for (uint32_t i2 = 0; i2 < cigar_oplen; i2++) {
                     const auto base4bit = bam_seqi(bseq, qpos+i2);
                     const auto base8bit = seq_nt16_str[base4bit];
                     const int8_t basequal = BAM_PHREDI(aln, qpos+i2);
                     iseq.push_back(base8bit);
-                    incvalue2 = MIN(incvalue2, basequal);
+                    iqual.push_back(basequal);
+                    // incvalue2 = MIN(incvalue2, basequal);
                 }
-                this->incClip(rpos, iseq, MAX(SIGN2UNSIGN(1), incvalue2)); // similar to incIns
+                //this->incClip(rpos, iseq, MAX(SIGN2UNSIGN(1), incvalue2)); // similar to incIns
+                this->conblocksets[CONSENSUS_BLOCK_CSOFT_CLIP].incByPosSeqQual(rpos, iseq, iqual);
             } else {
                 process_cigar(qpos, rpos, cigar_op, cigar_oplen);
             } 
@@ -2468,10 +2372,8 @@ struct Symbol2CountCoverageSet {
     generate_consensus_fastq_data(
             auto & fastq_outstrings,
             const auto & fq_baseBQ_pairs, 
-            const auto & l2l_end_poss, 
-            const auto & l2r_end_poss,
-            const auto & r2l_end_poss,
-            const auto & r2r_end_poss,
+            const auto & l2r_qseqlens,
+            const auto & r2l_qseqlens,
             const auto tid2,
             const auto beg2,
             const auto end2,
@@ -2487,78 +2389,34 @@ struct Symbol2CountCoverageSet {
         while (beg < end && (base_NN_desc[0] == fq_baseBQ_pairs[beg].first)) { beg++; }
         while (beg < end && (base_NN_desc[0] == fq_baseBQ_pairs[end-1].first)) { end--; }
         
-        const auto stringof_baseBQ_pairs = fq_baseBQ_pairs.substr(beg, end - beg);
-        /*
-        std::vector<size_t> begposs1, endposs1;
-        begposs1.push_back(0);
-        bool is_in_NA = false;
-        for (size_t idx = 0; idx < stringof_baseBQ_pairs.size(); idx++) {
-            const auto & baseBQ_pair = stringof_baseBQ_pairs[idx];
-            if (base_NN_desc[0] == baseBQ_pair.first) {
-                if (!is_in_NA) {
-                    endposs1.push_back(idx);
-                }
-                is_in_NA = true;
-            } else {
-                if (is_in_NA) {
-                    begposs1.push_back(idx);
-                }
-                is_in_NA = false;
-            }
-        }
-        endposs1.push_back(stringof_baseBQ_pairs.size());
-        assert(begposs1.size() == endposs1.size());
+        const FastqRecord stringof_baseBQ_pairs = fq_baseBQ_pairs.substr(beg, end - beg);
         std::vector<size_t> begposs, endposs;
-        for (size_t i = 0; i < begposs1.size(); i++) {
-            if (endposs1[i] - begposs1[i] >= 20) {
-                begposs.push_back(begposs1[i]);
-                endposs.push_back(endposs1[i]);
-            }
+        std::array<std::basic_string<std::pair<char, int8_t>>, 2> stringof_baseBQ_pairs_vec;
+        // assert (l2r_qseqlens.size() == r2l_qseqlens.size());
+        if ((l2r_qseqlens.size() > 0)) {
+            size_t endpos = MIN((size_t)MEDIAN(l2r_qseqlens), stringof_baseBQ_pairs.size());
+            stringof_baseBQ_pairs_vec[0] = (stringof_baseBQ_pairs.substr(0, endpos));
+        } else {
+            stringof_baseBQ_pairs_vec[0] = (FastqRecord());
         }
-        if (!(1 <= begposs.size() && begposs.size() <= 2)) {
-            fprintf(stderr, "Error in consensus: number-of-R1-R2 is not equal to 1 or 2!\n");
-            for (const auto bams : alns2) {
-                for (const bam1_t *bam : bams) {
-                    fprintf(stderr, "%s at tid %d pos %ld\n", bam_get_qname(bam), bam->core.tid, bam->core.pos);
-                }
-            }
-            for (size_t i = 0; i < begposs.size(); i++) {
-                fprintf(stderr, "BegPos = %lu, EndPos = %lu\n", begposs[i], endposs[i]);
-            }
-            abort();
-        }
-        assert(begposs.size() == endposs.size());
-        */
-        /*
-        for (size_t idx = 0; idx < MIN(begposs.size(), endposs.size()); idx++) {
-            stringof_baseBQ_pairs_vec.push_back(stringof_baseBQ_pairs.substr(begposs[idx], endposs[idx]));
-        }
-        */
-        std::vector<size_t> begposs, endposs;
-        std::vector<std::basic_string<std::pair<char, int8_t>>> stringof_baseBQ_pairs_vec;
-        assert (l2l_end_poss.size() == l2r_end_poss.size());
-        assert (r2r_end_poss.size() == r2l_end_poss.size());
-        if ((l2r_end_poss.size() > 0)) {
-            size_t endpos = MIN((size_t)(MEDIAN(l2r_end_poss) - MEDIAN(l2l_end_poss)), stringof_baseBQ_pairs.size());
-            stringof_baseBQ_pairs_vec.push_back(stringof_baseBQ_pairs.substr(0, endpos));
-        }
-        if ((r2l_end_poss.size() > 0)) {
-            size_t begpos = stringof_baseBQ_pairs.size() - MIN((size_t)(MEDIAN(r2r_end_poss) - MEDIAN(r2l_end_poss)), stringof_baseBQ_pairs.size());
+        if ((r2l_qseqlens.size() > 0)) {
+            size_t begpos = stringof_baseBQ_pairs.size() - MIN((size_t)MEDIAN(r2l_qseqlens), stringof_baseBQ_pairs.size());
             size_t endpos = stringof_baseBQ_pairs.size();
-            stringof_baseBQ_pairs_vec.push_back(stringof_baseBQ_pairs.substr(begpos, endpos - begpos));
+            stringof_baseBQ_pairs_vec[1] = (stringof_baseBQ_pairs.substr(begpos, endpos - begpos));
+        } else {
+            stringof_baseBQ_pairs_vec[1] = (FastqRecord());
         }
-        for (size_t idx = 0; idx < stringof_baseBQ_pairs_vec.size(); idx++) {
-            auto &stringof_baseBQ_pairs = stringof_baseBQ_pairs_vec[idx];
+        for (size_t idx = 0; idx < 2; idx++) {
+            auto &  stringof_baseBQ_pairs = stringof_baseBQ_pairs_vec[idx];
             // FQ line 1: read name
-            const size_t r1r2 = ((stringof_baseBQ_pairs_vec.size() == 1) ? (0) : (idx + 1));
-            if (2 == r1r2) {
-                std::reverse(stringof_baseBQ_pairs.begin(), stringof_baseBQ_pairs.end());
+            if (idx) { // is insert ending at the right border
+                reverseAndComplement(stringof_baseBQ_pairs); // RevComplement
             }
             std::string fqname = std::string("@") + std::to_string(tid2)
                     + ":" + std::to_string(beg2) 
                     + ":" + (strand ? "+-" : "-+") + std::to_string(end2 - beg2 - 1) // the extra -1 is due to possible insertion at the front/back of the fragment
                     + ":" + umistring + "#" + std::to_string(alns2.size());
-            auto &fqdata = fastq_outstrings[r1r2];
+            auto &fqdata = fastq_outstrings[idx^strand];
             const size_t ini_fqdata_size = fqdata.size();
             fqdata += fqname + "\n";
             // FQ line 2: sequence
@@ -2864,7 +2722,8 @@ struct Symbol2CountCoverageSet {
             niters++;
             assert (alns2pair[0].size() != 0 || alns2pair[1].size() != 0);
             for (int strand = 0; strand < 2; strand++) {
-                std::basic_string<std::pair<char, int8_t>> fq_baseBQ_pairs;
+                // std::vector<std::pair<char, int8_t>>
+                FastqRecord fq_baseBQ_pairs; //
                 const auto & alns2 = alns2pair[strand];
                 if (alns2.size() == 0) { continue; }
                 uvc1_refgpos_t tid2, beg2, end2;
@@ -2897,21 +2756,25 @@ struct Symbol2CountCoverageSet {
                         std::array<uvc1_qual_t, NUM_SYMBOL_TYPES> {{ paramset.fam_thres_highBQ_snv, 0 }},
                         (paramset.microadjust_padded_deletion_flag & ((SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform) ? 0x2 : 0x1)));
                 }
+
+// 1. BEGIN of bias+consensus at family level
                 
-                std::vector<uvc1_refgpos_t> l2r_end_poss, r2l_end_poss, l2l_end_poss, r2r_end_poss; // cannot peform sum or average due to the possibility of overflow
+                std::vector<uvc1_refgpos_t> l2r_end_poss, r2l_end_poss; // cannot peform sum or average due to the possibility of overflow
                 l2r_end_poss.reserve(alns2.size());
                 r2l_end_poss.reserve(alns2.size());
-                l2l_end_poss.reserve(alns2.size());
-                r2r_end_poss.reserve(alns2.size());
+                
+                std::vector<uvc1_refgpos_t> l2r_qseqlens, r2l_qseqlens; 
+                l2r_qseqlens.reserve(alns2.size());
+                r2l_qseqlens.reserve(alns2.size());
                 for (const auto & alns1 : alns2) {
                     for (const bam1_t *aln : alns1) {
                         const bool isrc = ((aln->core.flag & 0x10) == 0x10);
                         if (isrc) {
                             r2l_end_poss.push_back(aln->core.pos);
-                            r2r_end_poss.push_back(bam_endpos(aln));
+                            r2l_qseqlens.push_back(aln->core.l_qseq);
                         } else {
                             l2r_end_poss.push_back(bam_endpos(aln));
-                            l2l_end_poss.push_back(aln->core.pos);
+                            l2r_qseqlens.push_back(aln->core.l_qseq);
                         }
                     }
                 }
@@ -2919,7 +2782,18 @@ struct Symbol2CountCoverageSet {
                 const uvc1_refgpos_t r2l_end_median_pos = ((r2l_end_poss.size() > 0) ? (MEDIAN(r2l_end_poss)) : read_family_con_ampl.getIncluBegPosition());
                 // without indel_adj_tracklen_dist it is exact non-overlap with <=
                 const bool fam_has_nonconf_middle = ((l2r_end_median_pos) <= (r2l_end_median_pos + paramset.indel_adj_tracklen_dist)); 
-                auto itPosToCseqToData = read_family_con_ampl.getPosToCseqToData().begin(); 
+
+                                
+                // Start init consensus-block
+                std::map<uvc1_refgpos_t, ConsensusBlock>::iterator consensusBlockSetsIts[NUM_CONSENSUS_BLOCK_CIGAR_TYPES];
+                std::map<uvc1_refgpos_t, ConsensusBlock>::const_iterator consensusBlockSetsEnds[NUM_CONSENSUS_BLOCK_CIGAR_TYPES];
+                for (auto cigartype: ALL_CONSENSUS_BLOCK_CIGAR_TYPES) {
+                    consensusBlockSetsIts[cigartype] = read_family_con_ampl.getRefConsensusBlockSet(cigartype).pos2conblock.begin();
+                    consensusBlockSetsEnds[cigartype] = read_family_con_ampl.getConsensusBlockSet(cigartype).pos2conblock.end();
+                };  
+                // End init consensus-block
+                
+// 1. END of bias+consensus at family level
                 for (auto epos = read_family_con_ampl.getIncluBegPosition(); epos < read_family_con_ampl.getExcluEndPosition(); epos++) {
                     const auto & con_ampl_symbol2count = read_family_con_ampl.getByPos(epos);
                     for (SymbolType symboltype : SYMBOL_TYPE_ARR) {
@@ -2936,43 +2810,43 @@ struct Symbol2CountCoverageSet {
                         const bool is_fam_good = (is_fam_big && is_fam_con 
                                 && ((alns2pair2umibarcode.second.duplexflag & 0x1) || (paramset.fam_flag & 0x2)));
                         
+                        // 1. Start of bias+consensus at family level
                         if ((paramset.fam_consensus_out_fastq.size() > 0) && ((size_t)paramset.fam_thres_dup1add <= alns2.size())) {
-                            // Put soft-clips into the FASTQ files
-                            for (; itPosToCseqToData != read_family_con_ampl.getPosToCseqToData().end() && itPosToCseqToData->first < epos; itPosToCseqToData++) {
-                                if (itPosToCseqToData->first == epos) {
-                                    const std::pair<uvc1_readnum_t, std::string> cnt_cseq_pair = read_family_con_ampl_getMajority_clip(read_family_con_ampl, epos);
-                                    const bool is_clipfam_big = (paramset.fam_thres_dup1add <= UNSIGN2SIGN(alns2.size()));
-                                    const bool is_clipfam_con = (cnt_cseq_pair.first * 100 >= UNSIGN2SIGN(alns2.size()) * ((cnt_cseq_pair.second.size() < 20) ? 70 : 60));
-                                    const bool is_clipfam_good = (is_clipfam_big && is_clipfam_con && ((alns2pair2umibarcode.second.duplexflag & 0x1) || (paramset.fam_flag & 0x2)));
-                                    if (is_clipfam_good) {
-                                        for (char clipped_base : cnt_cseq_pair.second) {
-                                            fq_baseBQ_pairs.push_back(std::make_pair((clipped_base), 49 - MIN(UNSIGN2SIGN(alns2.size()) - cnt_cseq_pair.first, 9)));
-                                        }
-                                    }
-                                }
-                            }
+                            
                             // Put InDels into the FASTQ files
                             if ((LINK_SYMBOL == symboltype)) {
                                 const auto nogap_count = con_ampl_symbol2count.getSymbolCount(LINK_M);
                                 const bool is_nogapfam_con = (nogap_count * 100 >= tot_count * paramset.fam_thres_dup1perc);
                                 if (!is_nogapfam_con) {
+                                    // Put insertions and soft-clips into the FASTQ files
+                                    for (auto cigartype: ALL_CONSENSUS_BLOCK_CIGAR_TYPES) {
+                                        while (consensusBlockSetsIts[cigartype] != consensusBlockSetsEnds[cigartype] && consensusBlockSetsIts[cigartype]->first < epos) {
+                                            consensusBlockSetsIts[cigartype]++; 
+                                        }
+                                        const uvc1_refgpos_t conpos = consensusBlockSetsIts[cigartype]->first;
+                                        if (conpos == epos) {
+                                            const FastqRecord sqvec = consensusBlockToSeqQual(consensusBlockSetsIts[cigartype]->second);
+                                            for (const auto & sq : sqvec) {
+                                                fq_baseBQ_pairs.push_back(sq);
+                                            }
+                                        }
+                                    };
+                                
                                     const std::pair<uvc1_readnum_t, std::string> cnt_iseq_pair = read_family_con_ampl_getMajority_ins(read_family_con_ampl, epos);
                                     const std::pair<uvc1_readnum_t, uvc1_refgpos_t> cnt_dlen_pair = read_family_con_ampl_getMajority_del(read_family_con_ampl, epos);
+                                    /*
                                     if (cnt_dlen_pair.first * 100 >= tot_count * paramset.fam_thres_dup1perc) {
                                         // here we actually do nothing to simply skip the deleted bases
                                     } else if (cnt_iseq_pair.first * 100 >= tot_count * paramset.fam_thres_dup1perc) {
-                                        const uvc1_qual_t conBQ = 39 - MIN(tot_count - cnt_iseq_pair.first, 9);
-                                        for (const char ibase : cnt_iseq_pair.second) {
-                                            fq_baseBQ_pairs.push_back(std::make_pair(tolower(ibase), conBQ));
-                                        }
-                                    } else if (cnt_dlen_pair.first > cnt_iseq_pair.first) {
+                                        // here we also do nothing since bases were already inserted
+                                        // const uvc1_qual_t conBQ = 39 - MIN(tot_count - cnt_iseq_pair.first, 9);
+                                        // for (const char ibase : cnt_iseq_pair.second) {
+                                        //    fq_baseBQ_pairs.push_back(std::make_pair(tolower(ibase), conBQ));
+                                        // }
+                                    } else */
+                                    if (cnt_dlen_pair.first > cnt_iseq_pair.first) {
                                         const uvc1_qual_t conBQ = 29 - MIN(tot_count - cnt_dlen_pair.first, 9);
                                         for (uvc1_readnum_t rn = 0; rn < cnt_dlen_pair.second; rn++) {
-                                            fq_baseBQ_pairs.push_back(std::make_pair('n', conBQ));
-                                        }
-                                    } else {
-                                        const uvc1_qual_t conBQ = 19 - MIN(tot_count - cnt_iseq_pair.first, 9);
-                                        for (size_t rn = 0; rn < cnt_iseq_pair.second.size(); rn++) {
                                             fq_baseBQ_pairs.push_back(std::make_pair('n', conBQ));
                                         }
                                     }
@@ -2991,7 +2865,7 @@ struct Symbol2CountCoverageSet {
                                     assert(strlen(desc) == 1);
                                     fq_baseBQ_pairs.push_back(std::make_pair(desc[0], conBQ));
                                 } else {
-                                    fq_baseBQ_pairs.push_back(std::make_pair('n', 10 - (is_fam_big ? 1 : 0))); // 0/1 means the family is probably singleton/with-weak-consensus-base
+                                    fq_baseBQ_pairs.push_back(std::make_pair('n', 1 - (is_fam_big ? 1 : 0))); // 0/1 means the family is probably singleton/with-weak-consensus-base
                                 }
                             }
                         }
@@ -3097,7 +2971,6 @@ struct Symbol2CountCoverageSet {
                             // end UPDATING-FAM2-BIAS
                         }
                         
-                        
                         if (paramset.fam_thres_dup2add <= tot_count && (con_count * 100 >= tot_count * paramset.fam_thres_dup2perc)) {
                             this->symbol_to_fam_format_depth_sets_2strand[strand].getRefByPos(epos)[con_symbol][FAM_cDP3] += 1;
                             if (isSymbolIns(con_symbol)) {
@@ -3143,11 +3016,9 @@ struct Symbol2CountCoverageSet {
                 if (paramset.fam_consensus_out_fastq.size() > 0 && fq_baseBQ_pairs.size() >= 20) {
                     generate_consensus_fastq_data(
                             fastq_outstrings, 
-                            fq_baseBQ_pairs, 
-                            l2l_end_poss, 
-                            l2r_end_poss, 
-                            r2l_end_poss, 
-                            r2r_end_poss,
+                            fq_baseBQ_pairs,
+                            l2r_qseqlens,
+                            r2l_qseqlens,
                             tid2, 
                             beg2, 
                             end2, 
@@ -3207,6 +3078,16 @@ struct Symbol2CountCoverageSet {
                 }
                 std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>> pos_symbol_string;
                 std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>> pos_symbol_string_confam;
+                
+                // Start init consensus-block
+                /* std::map<uvc1_refgpos_t, ConsensusBlock>::iterator consensusBlockSetsIts[NUM_CONSENSUS_BLOCK_CIGAR_TYPES];
+                std::map<uvc1_refgpos_t, ConsensusBlock>::const_iterator consensusBlockSetsEnds[NUM_CONSENSUS_BLOCK_CIGAR_TYPES];
+                for (auto cigartype: ALL_CONSENSUS_BLOCK_CIGAR_TYPES) {
+                    consensusBlockSetsIts[cigartype] = read_family_con_ampl.getRefConsensusBlockSet(cigartype).pos2conblock.begin();
+                    consensusBlockSetsEnds[cigartype] = read_family_con_ampl.getConsensusBlockSet(cigartype).pos2conblock.end();
+                };*/
+                // End init consensus-block
+                
                 for (auto epos = read_family_mmm_ampl.getIncluBegPosition(); 
                         epos < read_family_mmm_ampl.getExcluEndPosition(); 
                         epos++) {

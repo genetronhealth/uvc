@@ -322,7 +322,143 @@ enum AlignmentSymbol {
     ADDITIONAL_INDEL_CANDIDATE_SYMBOL,
 };
 
+const char* SYMBOL_TO_DESC_ARR[] = {
+    [BASE_A] = "A", [BASE_C] = "C", [BASE_G] = "G", [BASE_T] = "T", [BASE_N] = "N",
+    [BASE_NN] = "*",
+    [LINK_M] = "<LR>",
+    [LINK_D3P] = "<LD3P>", [LINK_D2] = "<LD2>", [LINK_D1] = "<LD1>",
+    [LINK_I3P] = "<LI3P>", [LINK_I2] = "<LI2>", [LINK_I1] = "<LI1>",
+    [LINK_NN] = "*",
+    [END_ALIGNMENT_SYMBOLS] = "<NONE>",
+    [MGVCF_SYMBOL] = "<NON_REF>",
+    [ADDITIONAL_INDEL_CANDIDATE_SYMBOL] = "<ADDITIONAL_INDEL_CANDIDATE>",
+};
+
 #define NUM_ALIGNMENT_SYMBOLS 14
+STATIC_ASSERT_WITH_DEFAULT_MSG(NUM_ALIGNMENT_SYMBOLS == END_ALIGNMENT_SYMBOLS);
+
+// Please note that there are left-to-right clips and right-to-left clips, but I cannot know in advance if the direction matters in consensus. 
+// My intuition tells me that it matters but only for some extremely rare situations, so I did not divide soft-clips according to their strands. 
+// #define NUM_CLIP_SYMBOLS 2
+// const std::array<ClipSymbol, NUM_CLIP_SYMBOLS> CLIP_SYMBOLS = {{CLIP_LEFT_TO_RIGHT, CLIP_RIGHT_TO_LEFT}};
+
+#define NUM_INS_SYMBOLS 3
+const std::array<AlignmentSymbol, NUM_INS_SYMBOLS> INS_SYMBOLS = {{LINK_I1, LINK_I2, LINK_I3P}};
+
+#define NUM_DEL_SYMBOLS 3
+const std::array<AlignmentSymbol, NUM_DEL_SYMBOLS> DEL_SYMBOLS = {{LINK_D1, LINK_D2, LINK_D3P}};
+
+const std::array<AlignmentSymbol, (NUM_INS_SYMBOLS+NUM_DEL_SYMBOLS)> INDEL_SYMBOLS = {{LINK_I1, LINK_I2, LINK_I3P, LINK_D1, LINK_D2, LINK_D3P}};
+
+constexpr bool
+areSymbolsMutated(AlignmentSymbol ref, AlignmentSymbol alt) {
+    if (alt <= BASE_NN) {
+        return ref != alt && ref < BASE_N && alt < BASE_N;
+    } else {
+        return alt != LINK_M && alt != LINK_NN;
+    }
+};
+
+
+
+enum SymbolType {
+    BASE_SYMBOL,
+    LINK_SYMBOL,
+    NUM_SYMBOL_TYPES,
+};
+
+enum LinkType {
+    MAT_LINK,
+    INS_LINK,
+    DEL_LINK,
+    NUM_LINK_TYPES,
+};
+
+const AlignmentSymbol SYMBOL_TYPE_TO_INCLU_BEG[NUM_SYMBOL_TYPES] = {
+    [BASE_SYMBOL] = BASE_A,
+    [LINK_SYMBOL] = LINK_M,
+};
+
+const std::array<SymbolType, 2> SYMBOL_TYPE_ARR = {
+    BASE_SYMBOL, LINK_SYMBOL
+};
+
+const std::array<std::vector<AlignmentSymbol>, NUM_SYMBOL_TYPES> SYMBOL_TYPE_TO_SYMBOLS = {{
+    [BASE_SYMBOL] = std::vector<AlignmentSymbol>{{BASE_A,   BASE_C,   BASE_G,  BASE_T,   BASE_N,   BASE_NN}},
+    [LINK_SYMBOL] = std::vector<AlignmentSymbol>{{LINK_M,   LINK_I1,  LINK_I2, LINK_I3P, LINK_D1,  LINK_D2,  LINK_D3P, LINK_NN}}
+}};
+
+const std::array<std::vector<AlignmentSymbol>, NUM_SYMBOL_TYPES> SYMBOL_TYPE_TO_NON_NN_SYMBOLS = {{
+    [BASE_SYMBOL] = std::vector<AlignmentSymbol>{{ BASE_A, BASE_C, BASE_G,  BASE_T,   BASE_N }},
+    [LINK_SYMBOL] = std::vector<AlignmentSymbol>{{ LINK_M, LINK_I1,LINK_I2, LINK_I3P, LINK_D1, LINK_D2, LINK_D3P }}
+}};
+
+const AlignmentSymbol SYMBOL_TYPE_TO_INCLU_END[NUM_SYMBOL_TYPES] = {
+    [BASE_SYMBOL] = BASE_NN,
+    [LINK_SYMBOL] = LINK_NN,
+};
+
+const AlignmentSymbol SYMBOL_TYPE_TO_AMBIG[NUM_SYMBOL_TYPES] = {
+    [BASE_SYMBOL] = BASE_NN,
+    [LINK_SYMBOL] = LINK_NN,
+};
+
+constexpr bool
+isSymbolIns(const AlignmentSymbol symbol) {
+    if (LINK_I3P == symbol || LINK_I2 == symbol || LINK_I1 == symbol) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+constexpr bool
+isSymbolDel(const AlignmentSymbol symbol) {
+     if (LINK_D3P == symbol || LINK_D2 == symbol || LINK_D1 == symbol) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+constexpr AlignmentSymbol
+insLenToSymbol(uvc1_readpos_t len, const bam1_t *b) {
+    assert(len >= 0 || !fprintf(stderr, "Error: the bam record with qname %s at tid %d pos %ld has insertion of length %d !\n",
+            bam_get_qname(b), b->core.tid, b->core.pos, len));
+    return (1 == len ? LINK_I1 : ((2 == len) ? LINK_I2 : LINK_I3P));
+}
+
+constexpr AlignmentSymbol
+delLenToSymbol(uvc1_readpos_t len, const bam1_t *b) {
+    assert(len >= 0 || !fprintf(stderr, "Error: the bam record with qname %s at tid %d pos %ld has deletion of length %d !\n",
+            bam_get_qname(b), b->core.tid, b->core.pos, len));
+    return (1 == len ? LINK_D1 : ((2 == len) ? LINK_D2 : LINK_D3P));
+}
+
+
+
+int
+insSymbolToInsIdx(AlignmentSymbol s) {
+    return (LINK_I1 == s ? 0 : ((LINK_I2 == s) ? 1: 2));
+}
+
+int
+delSymbolToDelIdx(AlignmentSymbol s) {
+    return (LINK_D1 == s ? 0 : ((LINK_D2 == s) ? 1: 2));
+}
+
+const std::array<SymbolType, 2> SYMBOL_TYPES_IN_VCF_ORDER = {{LINK_SYMBOL, BASE_SYMBOL}};
+
+bool
+isSymbolSubstitution(AlignmentSymbol symbol) {
+    return (SYMBOL_TYPE_TO_INCLU_BEG[BASE_SYMBOL] <= symbol && symbol <= SYMBOL_TYPE_TO_INCLU_END[BASE_SYMBOL]);
+}
+
+
+
+
+
+
 struct _CharToSymbol {
     std::array<AlignmentSymbol, 128> data;
     _CharToSymbol() {

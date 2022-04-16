@@ -6,6 +6,7 @@
 
 // #include "precompiled/precompiled_main.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cassert>
 #include <string>
@@ -174,6 +175,7 @@ struct RevComplement {
         table16[8] = 8/8;
     }
 };
+const static RevComplement STATIC_REV_COMPLEMENT;
 
 template <class T>
 inline 
