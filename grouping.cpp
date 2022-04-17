@@ -398,28 +398,28 @@ poscounter_to_pos2pcenter(
 // https://en.wikipedia.org/wiki/Universal_hashing#Hashing_strings
 template <class T> 
 auto
-strnhash(const T *str, size_t n) {
+strnhash(const T *str, size_t n, const uvc1_hash_t base = 31UL) {
     uvc1_hash_t  ret = 0;
     for (size_t i = 0; i < n && str[i]; i++) {
-        ret = ret * 31UL + ((uvc1_hash_t)str[i]);
+        ret = ret * base + ((uvc1_hash_t)str[i]);
     }
     return ret;
 }
 
 template <class T> 
 auto
-strnhash_rc(const T *str, size_t n) {
+strnhash_rc(const T *str, size_t n, const uvc1_hash_t base = 31UL) {
     uvc1_hash_t ret = 0;
     for (size_t i = 0; i < n && str[i]; i++) {
-        ret = ret * 31UL + THE_REV_COMPLEMENT.data[((uvc1_hash_t)str[n-i-(size_t)1])];
+        ret = ret * base + THE_REV_COMPLEMENT.data[((uvc1_hash_t)str[n-i-(size_t)1])];
     }
     return ret;
 }
 
 template<class T> 
 uvc1_hash_t 
-strhash(const T *str) {
-    return strnhash(str, SIZE_MAX);
+strhash(const T *str, const uvc1_hash_t base = 31UL) {
+    return strnhash(str, SIZE_MAX, base);
 }
 
 uvc1_hash_t 
@@ -741,7 +741,8 @@ bamfname_to_strand_to_familyuid_to_reads(
             continue;
         }
         const char *qname = bam_get_qname(aln);
-        const uvc1_hash_t qname_hash = strhash(qname);
+        const uvc1_hash_t qname_hash = strhash(qname, 31UL);
+        const uvc1_hash_t qname_hash2 = strhash(qname, 17UL);
         const size_t qname_len = strlen(qname);
         const char *umi_beg1 = strchr(qname,   '#');
         const char *umi_beg = ((NULL != umi_beg1) ? (umi_beg1 + 1) : (qname + qname_len));
@@ -771,8 +772,8 @@ bamfname_to_strand_to_familyuid_to_reads(
         size_t isrc_isr2 = isrc * 2 + isr2;
         uvc1_refgpos_t beg1 = tBeg + ARRPOS_MARGIN - fetch_tbeg;
         uvc1_refgpos_t end1 = tEnd + ARRPOS_MARGIN - fetch_tbeg;
-        uvc1_refgpos_t beg2 = isrc_isr2_to_beg2bcenter[isrc_isr2][beg1];
-        uvc1_refgpos_t end2 = isrc_isr2_to_end2ecenter[isrc_isr2][end1];
+        uvc1_refgpos_t beg2 = (isrc_isr2_to_beg2bcenter[isrc_isr2][beg1]);
+        uvc1_refgpos_t end2 = (isrc_isr2_to_end2ecenter[isrc_isr2][end1]);
         uvc1_readnum_big_t beg2count = isrc_isr2_to_beg_count[isrc_isr2][beg2];
         uvc1_readnum_big_t end2count = isrc_isr2_to_end_count[isrc_isr2][end2];
         const auto insert2posL = MIN(beg2 + 6, end2);
@@ -871,16 +872,25 @@ bamfname_to_strand_to_familyuid_to_reads(
                 dedup_idflag = 0x3;
             }
         }
+        const auto alnflag = (aln->core.flag); 
+        const bool are_borders_preserved = ((alnflag & 0x1) && (!(alnflag & 0x4)) && (!(alnflag & 0x8)) 
+                && (abs(aln->core.isize) >= (MAX_INSERT_SIZE * 3 / 4) || aln->core.isize == 0));
+        uvc1_refgpos_t begtid = (((aln->core.flag & 0x1) && aln->core.flag & 0x4) ? aln->core.tid  : (INT32_MAX-1));
+        uvc1_refgpos_t endtid = (((aln->core.flag & 0x1) && aln->core.flag & 0x8) ? aln->core.mtid : (INT32_MAX-1));
+        uvc1_refgpos_t beg3 = (are_borders_preserved ? (aln->core.pos)  : beg2);
+        uvc1_refgpos_t end3 = (are_borders_preserved ? (aln->core.mpos) : end2);
+        std::pair<uvc1_refgpos_t, uvc1_refgpos_t> begpair = std::make_pair(begtid, beg3);
+        std::pair<uvc1_refgpos_t, uvc1_refgpos_t> endpair = std::make_pair(endtid, end3);
         
-        uvc1_hash_t molecule_hash = 0;
+        uvc1_hash_t molecule_hash = (are_borders_preserved ? 1 : 0);
         if (0x3 == (0x3 & dedup_idflag)) {
-            auto min2 = MIN(beg2, end2);
-            auto max2 = MAX(beg2, end2);
-            molecule_hash = hash2hash(molecule_hash, hash2hash(min2, max2)); 
+            auto min2 = MIN(begpair, endpair);
+            auto max2 = MAX(begpair, endpair);
+            molecule_hash = hash2hash(molecule_hash + 6, hash2hash(hash2hash(min2.first, min2.second), hash2hash(max2.first, max2.second))); 
         } else if (0x1 & dedup_idflag) {
-            molecule_hash = hash2hash(molecule_hash, beg2+1); 
+            molecule_hash = hash2hash(molecule_hash + 2, hash2hash(begpair.first, begpair.second)); 
         } else if (0x2 & dedup_idflag) {
-            molecule_hash = hash2hash(molecule_hash, end2+1); 
+            molecule_hash = hash2hash(molecule_hash + 4, hash2hash(endpair.first, endpair.second));
         }
         if (0x4 & dedup_idflag) {
             molecule_hash = hash2hash(molecule_hash, qname_hash);
@@ -893,12 +903,14 @@ bamfname_to_strand_to_familyuid_to_reads(
         MolecularBarcode mb;
         mb.umistring = (is_umi_found ? std::string(umi_beg, umi_len) : "");
         mb.duplexflag = (is_umi_found ? 0x1 : 0) + (is_duplex_found ? 0x2 : 0) + (is_assay_amplicon ? 0x4 : 0);
-        
+        mb.beg_tidpos_pair = begpair;
+        mb.end_tidpos_pair = endpair;
+        mb.hashvalue = molecule_hash;
         umi_to_strand_to_reads.insert(std::make_pair(molecule_hash, std::make_pair(std::array<std::map<uvc1_hash_t, std::vector<bam1_t *>>, 2>(), mb)));
-        umi_to_strand_to_reads[molecule_hash].first[strand].insert(std::make_pair(qname_hash, std::vector<bam1_t *>()));
+        umi_to_strand_to_reads[molecule_hash].first[strand].insert(std::make_pair(qname_hash2, std::vector<bam1_t *>()));
         
-        umi_to_strand_to_reads[molecule_hash].first[strand][qname_hash].push_back(bam_dup1(aln));
-        // umi_to_strand_to_reads[molecule_hash].first[strand][qname_hash].push_back((mut_aln));
+        umi_to_strand_to_reads[molecule_hash].first[strand][qname_hash2].push_back(bam_dup1(aln));
+        // umi_to_strand_to_reads[molecule_hash].first[strand][qname_hash2].push_back((mut_aln));
         
         const bool should_log_read = (ispowerof2(alnidx + 1) || ispowerof2(num_pass_alns - alnidx));
         if (!is_pair_end_merge_enabled) { assert(!isr2); }
@@ -920,9 +932,12 @@ bamfname_to_strand_to_familyuid_to_reads(
                     << "adjusted_count = " << beg2count << "," << end2count << " ; " 
                     //<< "adjusted_surrounding_counts = " << beg2surrcount << "," << end2surrcount << " ; " 
                     << "insert_cov_totDP =  " << insert_cov_totDP << " from-" << beg2 << "-to-" << end2 << " ; " 
+                    << "beg_tid_pos = " << begpair.first << "," << begpair.second << " ; "
+                    << "end_tid_pos = " << endpair.first << "," << endpair.second << " ; "
                     << "barcode_umihash = " << (is_umi_found ? umihash : 0) << " ; "
-                    << "molecule_hash = " << molecule_hash << " ; "
-                    << "qname_hash = " << qname_hash << " ; "
+                    << "molecule_hash = " << anyuint2hexstring(molecule_hash) << " ; "
+                    << "qname_hash = " << anyuint2hexstring(qname_hash) << " ; "
+                    << "qname_hash2 = " << anyuint2hexstring(qname_hash2) << " ; "
                     << "dflag = " << mb.duplexflag << " ; "
                     << "UMIstring = " << umi_beg << " ; "
                     << "UMIsize = " << umi_len << " ; "

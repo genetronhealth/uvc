@@ -1395,7 +1395,7 @@ dealwith_segbias(
     
     const bool is_normal = ((aln->core.isize != 0) || (0 == (aln->core.flag & 0x1)));
     const bool isrc = ((aln->core.flag & 0x10) == 0x10);
-    const bool isr2 = ((aln->core.flag & 0x80) == 0x80 && (aln->core.flag & 0x1) == 0x1);
+    // const bool isr2 = ((aln->core.flag & 0x80) == 0x80 && (aln->core.flag & 0x1) == 0x1);
     const bool strand = bam_get_strand(aln); // (isrc ^ isr2);
     
     const auto a1BQ = (isrc ? VQ_a1BQr : VQ_a1BQf);
@@ -2374,11 +2374,8 @@ struct Symbol2CountCoverageSet {
             const auto & fq_baseBQ_pairs, 
             const auto & l2r_qseqlens,
             const auto & r2l_qseqlens,
-            const auto tid2,
-            const auto beg2,
-            const auto end2,
             const auto strand,
-            const auto & umistring,
+            const MolecularBarcode & mb,
             const auto & alns2) {
        
         size_t ret = 0;
@@ -2412,10 +2409,19 @@ struct Symbol2CountCoverageSet {
             if (idx) { // is insert ending at the right border
                 reverseAndComplement(stringof_baseBQ_pairs); // RevComplement
             }
-            std::string fqname = std::string("@") + std::to_string(tid2)
-                    + ":" + std::to_string(beg2) 
-                    + ":" + (strand ? "+-" : "-+") + std::to_string(end2 - beg2 - 1) // the extra -1 is due to possible insertion at the front/back of the fragment
-                    + ":" + umistring + "#" + std::to_string(alns2.size());
+            const auto min2 = MIN(mb.beg_tidpos_pair, mb.end_tidpos_pair);
+            const auto max2 = MIN(mb.beg_tidpos_pair, mb.end_tidpos_pair);
+            std::string fqname = std::string("@")
+                    +        std::to_string(min2.first)
+                     + ":" + std::to_string(min2.second)
+                    +  "|" + std::to_string(max2.first)
+                     + ":" + std::to_string(max2.second)
+                    //+ ":" + std::to_string(beg2) 
+                    + "|" + (strand ? "+-" : "-+")  + std::to_string((min2.first == max2.first) ? (max2.second - min2.second - 1) : 0) 
+                        // the extra -1 is due to possible insertion at the front/back of the fragment
+                    + "|" + mb.umistring
+                    + "#-1-"
+                    + anyuint2hexstring(mb.hashvalue); // + "#" + std::to_string(alns2.size());
             auto &fqdata = fastq_outstrings[idx^strand];
             const size_t ini_fqdata_size = fqdata.size();
             fqdata += fqname + "\n";
@@ -3019,11 +3025,8 @@ struct Symbol2CountCoverageSet {
                             fq_baseBQ_pairs,
                             l2r_qseqlens,
                             r2l_qseqlens,
-                            tid2, 
-                            beg2, 
-                            end2, 
                             strand, 
-                            alns2pair2umibarcode.second.umistring,
+                            alns2pair2umibarcode.second,
                             alns2);
                 }
             }
@@ -4423,7 +4426,7 @@ BcfFormat_symbol_calc_qual(
         const bool is_rescued,
         const RegionalTandemRepeat & rtr1,
         const RegionalTandemRepeat & rtr2,
-        uvc1_refgpos_t tid,
+        uvc1_refgpos_t tid IGNORE_UNUSED_PARAM,
         uvc1_refgpos_t refpos,
         AlignmentSymbol refsymbol,
         double tpfa,
@@ -4632,12 +4635,13 @@ BcfFormat_symbol_calc_qual(
         }
         const uvc1_readnum_t nearInDelDP = (isSymbolIns(symbol) ? fmt.APDP[1] : fmt.APDP[2]);
         
-        assert (nearInDelDP >= aDP || !fprintf(stderr, "nearInDelDP >= aDP failed (%d >= %d failed) at tid %d pos %d!\n", nearInDelDP, aDP, tid, refpos));
+        // This assertion may fail if InDels were re-aligned to the begin and/or end of the reads
+        // assert (nearInDelDP >= aDP || !fprintf(stderr, "nearInDelDP >= aDP failed (%d >= %d failed) at tid %d pos %d!\n", nearInDelDP, aDP, tid, refpos));
         
         const auto indel_penal4multialleles1 = (uvc1_qual_t)round(paramset.indel_multiallele_samepos_penal / log(2.0) 
                 * log((double)(indelcdepth + eps) / (double)(fmt.cDP0a[a] + eps)));
         const auto indel_penal4multialleles2 = (uvc1_qual_t)round(paramset.indel_multiallele_diffpos_penal / log(2.0) 
-                * log((double)(nearInDelDP + eps) / (double)(aDP + eps)));
+                * log((double)(nearInDelDP + eps) / (double)(MAX(aDP, nearInDelDP) + eps)));
         indel_penal4multialleles_g = (uvc1_qual_t)round(paramset.indel_tetraallele_germline_penal_value /log(2.0) * log((double)(ins_cdepth + del_cdepth + eps) / (double)(fmt.cDP0a[a] + eps))) - paramset.indel_tetraallele_germline_penal_thres;
         
         if (isSymbolIns(symbol)) {

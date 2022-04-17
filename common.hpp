@@ -10,6 +10,7 @@
 #include <array>
 #include <cassert>
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include <float.h>
@@ -76,7 +77,7 @@
 #define phred2numstates(x) (pow(10.0, (x)/10.0))
 #define numstates2deciphred(x) ((uvc1_qual_t)round((100.0/log(10.0)) * log(x)))
 
-#define bam_get_strand(aln) ((((aln)->core.flag & 0x81) == 0x81) ? ((aln)->core.flag & 0x20) : ((aln)->core.flag & 0x10))
+#define bam_get_strand(aln) ((((aln)->core.flag & 0x81) == 0x81) ? (!!((aln)->core.flag & 0x20)) : (!!((aln)->core.flag & 0x10)))
 
 #define ARE_INTERVALS_OVERLAPPING(x1, x2, y1, y2) (!(((x2) <= (y1)) || (((y2) <= (x1)))))
 
@@ -150,6 +151,9 @@ struct RegionalTandemRepeat {
 
 struct MolecularBarcode {
     std::string umistring = "";
+    std::pair<uvc1_refgpos_t, uvc1_refgpos_t> beg_tidpos_pair;
+    std::pair<uvc1_refgpos_t, uvc1_refgpos_t> end_tidpos_pair;
+    uvc1_hash_t hashvalue;
     uvc1_flag_t duplexflag = 0x0;
 };
 
@@ -191,6 +195,23 @@ inline
 auto
 non_neg_minus(T1 a, T2 b) {
     return (a > b ? (a - b) : 0);
+}
+
+template <class T>
+inline
+std::string
+anyuint2hexstring(T n) {
+    static const char *hexnum2char = "0123456789ABCDEF";
+    T n1 = n;
+    std::string ret;
+    ret.reserve(sizeof(T) * 2);
+    while (n1) {
+        T n2 = (n1 & 0xF);
+        ret.push_back(hexnum2char[n2]);
+        n1 >>= 4UL;
+    }
+    std::reverse(ret.begin(), ret.end());
+    return ret;
 }
 
 #endif
