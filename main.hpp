@@ -2425,27 +2425,29 @@ struct Symbol2CountCoverageSet {
                     + anyuint2hexstring(mb.hashvalue); // + "#" + std::to_string(alns2.size());
             auto &fqdata = fastq_outstrings[idx^strand];
             const size_t ini_fqdata_size = fqdata.size();
-            fqdata += fqname + "\n";
-            // FQ line 2: sequence
-            for (const auto & baseBQ : stringof_baseBQ_pairs) {
-                fqdata.push_back(baseBQ.first);
-            }
-            fqdata += "\n";
-            // FQ line 3: comment, here we put all read names of the original BAM that did not go through any consensus.
-            fqdata += "+" + std::to_string(fq_baseBQ_pairs.size()) + " ";
+            //  here we put all read names of the original BAM that did not go through any consensus.
+            std::string fqcomment = std::to_string(alns2.size()) + "x" + std::to_string(fq_baseBQ_pairs.size());
             for (const auto bams : alns2) {
                 assert(bams.size() <= 2);
                 assert(bams.size() >= 1);
                 if (bams.size() == 2) {
                     assert(!strcmp(bam_get_qname(bams[0]),bam_get_qname(bams[1])));
-                    fqdata += "@@"; // pair-end
-                    fqdata += bam_get_qname(bams[0]);
+                    fqcomment += " @@"; // pair-end
+                    fqcomment += bam_get_qname(bams[0]);
                 } else if (bams.size() == 1) {
-                    fqdata += "@"; // single-end
-                    fqdata += bam_get_qname(bams[0]);
+                    fqcomment += " @"; // single-end
+                    fqcomment += bam_get_qname(bams[0]);
                 }
             }
-            fqdata += "\n"; 
+            fqdata += fqname + " " +  fqcomment + "\n";
+            // FQ line 2: sequence
+            for (const auto & baseBQ : stringof_baseBQ_pairs) {
+                fqdata.push_back(baseBQ.first);
+            }
+            fqdata += "\n";
+            // FQ line 3: optional
+            fqdata += "+\n";
+            
             // FQ line 4: base-call qualities
             for (const auto & baseBQ : stringof_baseBQ_pairs) {
                 fqdata.push_back((char)(baseBQ.second + 33)); // the exclamation mark '!' with ascii value 33 denotes the Phred score of zero. 
