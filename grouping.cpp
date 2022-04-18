@@ -80,17 +80,19 @@ SamIter::target_region_to_contigs(
     std::istringstream regionstream(tier1_target_region);
     while (getline(regionstream, region, ',')) {
         char *tname = (char*)malloc(region.size() + 1);
-        uvc1_refgpos_t tbeg, tend;
-        int n_tokens = sscanf(region.c_str(), "%s:%d-%d", tname, &tbeg, &tend);
+        uint64_t tbeg1, tend1;
+        int n_tokens = sscanf(region.c_str(), "%s:%LU-%LU", tname, &tbeg1, &tend1);
         if (n_tokens < 3) {
-            n_tokens = sscanf(region.c_str(), "%s:%d", tname, &tbeg);
-            tend = tbeg + 1;
+            n_tokens = sscanf(region.c_str(), "%s:%LU", tname, &tbeg1);
+            tend1 = tbeg1 + 1;
         }
         if (n_tokens < 2) {
             LOG(logERROR) << "The region " << region << " is neither in the format TEMPLATE:START-END nor in the format TEMPLATE:POS "
                     << "(template usually denotes chromosome). ";
             exit(16);
         } else {
+            uvc1_refgpos_t tbeg = (uvc1_refgpos_t)tbeg1;
+            uvc1_refgpos_t tend = (uvc1_refgpos_t)tend1;
             uvc1_flag_t bedline_flag = 0x0;
             uvc1_readnum_big_t nreads = bed_in_avg_sequencing_DP * (tend - tbeg);
             if (tname_to_tid.find(tname) == tname_to_tid.end()) {
