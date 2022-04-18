@@ -2732,8 +2732,11 @@ struct Symbol2CountCoverageSet {
                 FastqRecord fq_baseBQ_pairs; //
                 const auto & alns2 = alns2pair[strand];
                 if (alns2.size() == 0) { continue; }
+                const bool is_consensus_to_fastq = ((paramset.fam_consensus_out_fastq.size() > 0) && ((size_t)paramset.fam_thres_dup1add <= alns2.size()));
+                
                 uvc1_refgpos_t tid2, beg2, end2;
                 fillTidBegEndFromAlns2(tid2, beg2, end2, alns2);
+                Symbol2CountCoverage read_family_mmm_ampl(tid2, beg2, end2);
                 Symbol2CountCoverage read_family_con_ampl(tid2, beg2, end2); 
                 for (const auto & alns1 : alns2) {
                     uvc1_refgpos_t tid1, beg1, end1;
@@ -2761,10 +2764,12 @@ struct Symbol2CountCoverageSet {
                         read_ampBQerr_fragWithR1R2, 
                         std::array<uvc1_qual_t, NUM_SYMBOL_TYPES> {{ paramset.fam_thres_highBQ_snv, 0 }},
                         (paramset.microadjust_padded_deletion_flag & ((SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform) ? 0x2 : 0x1)));
+                    if (is_consensus_to_fastq) { 
+                        read_family_mmm_ampl.updateByMajorMinusMinor(read_ampBQerr_fragWithR1R2, false);
+                    }
                 }
 
-// 1. BEGIN of bias+consensus at family level
-                
+                // BEGIN of bias+consensus prep at family level
                 std::vector<uvc1_refgpos_t> l2r_end_poss, r2l_end_poss; // cannot peform sum or average due to the possibility of overflow
                 l2r_end_poss.reserve(alns2.size());
                 r2l_end_poss.reserve(alns2.size());
@@ -2789,17 +2794,18 @@ struct Symbol2CountCoverageSet {
                 // without indel_adj_tracklen_dist it is exact non-overlap with <=
                 const bool fam_has_nonconf_middle = ((l2r_end_median_pos) <= (r2l_end_median_pos + paramset.indel_adj_tracklen_dist)); 
 
-                                
-                // Start init consensus-block
+                // BEGIN of the init of consensus-block
                 std::map<uvc1_refgpos_t, ConsensusBlock>::iterator consensusBlockSetsIts[NUM_CONSENSUS_BLOCK_CIGAR_TYPES];
                 std::map<uvc1_refgpos_t, ConsensusBlock>::const_iterator consensusBlockSetsEnds[NUM_CONSENSUS_BLOCK_CIGAR_TYPES];
-                for (auto cigartype: ALL_CONSENSUS_BLOCK_CIGAR_TYPES) {
-                    consensusBlockSetsIts[cigartype] = read_family_con_ampl.getRefConsensusBlockSet(cigartype).pos2conblock.begin();
-                    consensusBlockSetsEnds[cigartype] = read_family_con_ampl.getConsensusBlockSet(cigartype).pos2conblock.end();
-                };  
-                // End init consensus-block
+                if (is_consensus_to_fastq) {
+                    for (auto cigartype: ALL_CONSENSUS_BLOCK_CIGAR_TYPES) {
+                        consensusBlockSetsIts[cigartype] = read_family_mmm_ampl.getRefConsensusBlockSet(cigartype).pos2conblock.begin();
+                        consensusBlockSetsEnds[cigartype] = read_family_mmm_ampl.getConsensusBlockSet(cigartype).pos2conblock.end();
+                    };
+                }
+                // END of the init of consensus-block
+                // END of bias+consensus prep at family level
                 
-// 1. END of bias+consensus at family level
                 for (auto epos = read_family_con_ampl.getIncluBegPosition(); epos < read_family_con_ampl.getExcluEndPosition(); epos++) {
                     const auto & con_ampl_symbol2count = read_family_con_ampl.getByPos(epos);
                     for (SymbolType symboltype : SYMBOL_TYPE_ARR) {
@@ -2811,19 +2817,32 @@ struct Symbol2CountCoverageSet {
                         if (1 == tot_count) {
                             this->symbol_to_fam_format_depth_sets_2strand[strand].getRefByPos(epos)[con_symbol][FAM_cDP21] += 1;
                         }
-                        const bool is_fam_big = (paramset.fam_thres_dup1add <= tot_count);
-                        const bool is_fam_con = (con_count * 100 >= tot_count * paramset.fam_thres_dup1perc);
+                        const auto effective_tot_count = tot_count; // (uvc1_readnum_t)alns2.size() does not consider filtered out fragment support.
+                        const bool is_fam_big = (paramset.fam_thres_dup1add <= effective_tot_count);
+                        const bool is_fam_con = (con_count * 100 >= effective_tot_count * paramset.fam_thres_dup1perc);
                         const bool is_fam_good = (is_fam_big && is_fam_con 
                                 && ((alns2pair2umibarcode.second.duplexflag & 0x1) || (paramset.fam_flag & 0x2)));
                         
-                        // 1. Start of bias+consensus at family level
-                        if ((paramset.fam_consensus_out_fastq.size() > 0) && ((size_t)paramset.fam_thres_dup1add <= alns2.size())) {
+                        // BEGIN of consensus at family level
+                        if (is_consensus_to_fastq) {
+                            AlignmentSymbol con_mmm_symbol; // assign with the value AlignmentSymbol(NUM_ALIGNMENT_SYMBOLS) to flag for error
+                            uvc1_qual_t con_sumBQs, tot_sumBQs;
+                            read_family_mmm_ampl.getRefByPos(epos).fillConsensusCounts(con_mmm_symbol, con_sumBQs, tot_sumBQs, symboltype);
+                            uvc1_qual_t conBQ = non_neg_minus(con_sumBQs * 2, tot_sumBQs) / alns2.size() + 10;
+                            assert(conBQ < 127 - 33);
                             
-                            // Put InDels into the FASTQ files
+                            //if (0 == tot_sumBQs) { continue; }
+                            //uvc1_readnum_t con_nfrags = read_family_con_ampl.getByPos(epos).getSymbolCount(con_symbol);
+                            //uvc1_readnum_t tot_nfrags = read_family_con_ampl.getByPos(epos).sumBySymbolType(symboltype);
                             if ((LINK_SYMBOL == symboltype)) {
-                                const auto nogap_count = con_ampl_symbol2count.getSymbolCount(LINK_M);
-                                const bool is_nogapfam_con = (nogap_count * 100 >= tot_count * paramset.fam_thres_dup1perc);
-                                if (!is_nogapfam_con) {
+                                const auto effective_tot_count = (uvc1_readnum_t)alns2.size();
+                                const auto cigarMD_count = con_ampl_symbol2count.getSymbolCount(LINK_M) 
+                                        + con_ampl_symbol2count.getSymbolCount(LINK_D1)
+                                        + con_ampl_symbol2count.getSymbolCount(LINK_D2)
+                                        + con_ampl_symbol2count.getSymbolCount(LINK_D3P);
+                                const bool is_nonMD_con = (((tot_count - cigarMD_count) * 100 >= effective_tot_count * paramset.fam_thres_dup1perc) 
+                                        && (effective_tot_count > paramset.fam_thres_dup1add));
+                                if (is_nonMD_con) {
                                     // Put insertions and soft-clips into the FASTQ files
                                     for (auto cigartype: ALL_CONSENSUS_BLOCK_CIGAR_TYPES) {
                                         while (consensusBlockSetsIts[cigartype] != consensusBlockSetsEnds[cigartype] && consensusBlockSetsIts[cigartype]->first < epos) {
@@ -2831,15 +2850,17 @@ struct Symbol2CountCoverageSet {
                                         }
                                         const uvc1_refgpos_t conpos = consensusBlockSetsIts[cigartype]->first;
                                         if (conpos == epos) {
-                                            const FastqRecord sqvec = consensusBlockToSeqQual(consensusBlockSetsIts[cigartype]->second);
+                                            const ConsensusBlock & conblock = consensusBlockSetsIts[cigartype]->second;
+                                            const FastqRecord sqvec = consensusBlockToSeqQual(conblock);
                                             for (const auto & sq : sqvec) {
-                                                fq_baseBQ_pairs.push_back(sq);
+                                                const auto sq2 = std::make_pair(tolower(sq.first), sq.second / alns2.size());
+                                                fq_baseBQ_pairs.push_back(sq2);
                                             }
                                         }
                                     };
                                 
-                                    const std::pair<uvc1_readnum_t, std::string> cnt_iseq_pair = read_family_con_ampl_getMajority_ins(read_family_con_ampl, epos);
-                                    const std::pair<uvc1_readnum_t, uvc1_refgpos_t> cnt_dlen_pair = read_family_con_ampl_getMajority_del(read_family_con_ampl, epos);
+                                    // const std::pair<uvc1_readnum_t, std::string> cnt_iseq_pair = read_family_con_ampl_getMajority_ins(read_family_con_ampl, epos);
+                                    // const std::pair<uvc1_readnum_t, uvc1_refgpos_t> cnt_dlen_pair = read_family_con_ampl_getMajority_del(read_family_con_ampl, epos);
                                     /*
                                     if (cnt_dlen_pair.first * 100 >= tot_count * paramset.fam_thres_dup1perc) {
                                         // here we actually do nothing to simply skip the deleted bases
@@ -2849,32 +2870,33 @@ struct Symbol2CountCoverageSet {
                                         // for (const char ibase : cnt_iseq_pair.second) {
                                         //    fq_baseBQ_pairs.push_back(std::make_pair(tolower(ibase), conBQ));
                                         // }
-                                    } else */
-                                    if (cnt_dlen_pair.first > cnt_iseq_pair.first) {
-                                        const uvc1_qual_t conBQ = 29 - MIN(tot_count - cnt_dlen_pair.first, 9);
+                                    } else { }
+                                    if (cnt_dlen_pair.first > cnt_iseq_pair.first 
+                                            && con_symbol == LINK_M
+                                            && cnt_dlen_pair.first * 100 < tot_count * paramset.fam_thres_dup1perc ) {
                                         for (uvc1_readnum_t rn = 0; rn < cnt_dlen_pair.second; rn++) {
-                                            fq_baseBQ_pairs.push_back(std::make_pair('n', conBQ));
+                                            fq_baseBQ_pairs.push_back(std::make_pair('n', 0));
                                         }
-                                    }
+                                    }*/
                                 } else { } // the family is sufficiently large and has strong consensus, so do not add any InDel.
-                            }
-                            // Put SNVs into the FASTQ files
-                            if (BASE_SYMBOL == symboltype) { // consider NA (not-available) bases, and split into multiple fastq lines later
+                            } else if (BASE_SYMBOL == symboltype) { // consider NA (not-available) bases, and split into multiple fastq lines later
                                 if (BASE_NN == con_symbol) {
                                     // we do nothing for both padded deletion and uncovered position
                                     // const char *desc = SYMBOL_TO_DESC_ARR[BASE_NN];
                                     // assert(strlen(desc) == 1);
                                     // fq_baseBQ_pairs.push_back((std::make_pair(desc[0], 0)));
                                 } else if (is_fam_good) {
-                                    const uvc1_qual_t conBQ = 59 - MIN(tot_count - con_count, 9);
+                                    //const uvc1_qual_t conBQ = 59 - MIN(tot_count - con_count, 9);
                                     const char *desc = SYMBOL_TO_DESC_ARR[con_symbol];
                                     assert(strlen(desc) == 1);
                                     fq_baseBQ_pairs.push_back(std::make_pair(desc[0], conBQ));
                                 } else {
-                                    fq_baseBQ_pairs.push_back(std::make_pair('n', 1 - (is_fam_big ? 1 : 0))); // 0/1 means the family is probably singleton/with-weak-consensus-base
+                                    // 0/1 means the position-associated family is probably singleton/with-weak-consensus-base
+                                    fq_baseBQ_pairs.push_back(std::make_pair('N', 2 - (is_fam_big ? 1 : 0)));
                                 }
                             }
                         }
+                        // END of consensus at family level
 
                         if (is_fam_good) {
                             this->symbol_to_fam_format_depth_sets_2strand[strand].getRefByPos(epos)[con_symbol][FAM_cDP2] += 1;
@@ -2889,7 +2911,7 @@ struct Symbol2CountCoverageSet {
                                         read_family_con_ampl.getPosToDlenToData(con_symbol), epos, 1);
                             }
 
-                            // start UPDATING-FAM2-BIAS // update_bidirectional_bias
+                            // BEGIN UPDATING-FAM2-BIAS // update_bidirectional_bias
                             /* Please note that there is an edge case of having a position-biased family support for an ALT at the very small overlap between R1 and R2,
                              * so r2l_end_median_pos and l2r_end_median_pos are needed */
                             const auto rpos = epos;
@@ -2974,7 +2996,7 @@ struct Symbol2CountCoverageSet {
                                     }
                                     fam_info_set.faminfo_c2BQ2 += 1;
                             }
-                            // end UPDATING-FAM2-BIAS
+                            // END UPDATING-FAM2-BIAS
                         }
                         
                         if (paramset.fam_thres_dup2add <= tot_count && (con_count * 100 >= tot_count * paramset.fam_thres_dup2perc)) {
