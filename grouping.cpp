@@ -716,11 +716,15 @@ bamfname_to_strand_to_familyuid_to_reads(
     }
     sam_itr_destroy(hts_itr);
     
-    const bool is_min_DP_failed = (
+    const bool is_min_DP_failed_1 = (
             (NOT_PROVIDED == paramset.vcf_tumor_fname) 
          && (UNSIGN2SIGN(visited_qnames.size()) < paramset.min_altdp_thres) 
          && (!paramset.should_output_all));
-
+    // IMPORTANT_NOTE: if singleton should be generated too, then the following variable should always be set to true
+    const bool is_min_DP_failed_2 = ((parmaset.fam_consensus_out_fastq.size() > 0) && (UNSIGN2SIGN(visited_qnames.size()) < paramset.fam_thres_dup2add));
+    
+    const bool is_min_DP_failed = (is_min_DP_failed_1 && is_min_DP_failed_2);
+    
     if (is_min_DP_failed){
         bam_destroy1(aln);
         // sam_close(sam_infile); 
