@@ -23,11 +23,6 @@
 
 #define logDEBUGx1 logDEBUG // set to logINFO to enable it
 
-int 
-bed_fname_to_contigs(
-        std::vector<BedLine> & bedlines,
-        const std::string & bed_fname, const bam_hdr_t *bam_hdr);
-
 struct SamIter {
     const std::string input_bam_fname;
     const std::string & tier1_target_region; 
@@ -78,9 +73,8 @@ struct SamIter {
                 fprintf(stderr, "Failed to load the region %s in the indexed file %s!", tier1_target_region.c_str(), input_bam_fname.c_str());
                 abort();
             }
-        }
-        
-        if (NOT_PROVIDED != this->region_bed_fname) {
+            target_region_to_contigs(this->_bedlines, this->tier1_target_region, this->samheader);
+        } else if (NOT_PROVIDED != this->region_bed_fname) {
             bed_fname_to_contigs(this->_bedlines, this->region_bed_fname, this->samheader); 
         }
     }
@@ -92,8 +86,23 @@ struct SamIter {
         sam_close(sam_infile);
     }
     
+    int 
+    bed_fname_to_contigs(
+            std::vector<BedLine> & bedlines,
+            const std::string & bed_fname, 
+            const bam_hdr_t *bam_hdr);
+
+    int
+    target_region_to_contigs(
+            std::vector<BedLine> & bedlines,
+            const std::string & tier1_target_region,
+            const bam_hdr_t *bam_hdr);
+    
     int64_t
-    iternext(uvc1_flag_t & iter_ret_flag, std::vector<BedLine> & bedlines, const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM);
+    iternext(
+            uvc1_flag_t & iter_ret_flag, 
+            std::vector<BedLine> & bedlines, 
+            const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM);
 };
 
 int

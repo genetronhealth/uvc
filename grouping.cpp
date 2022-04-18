@@ -26,54 +26,6 @@ const uvc1_readpos_t ARRPOS_INNER_RANGE = 3;
 
 const RevComplement THE_REV_COMPLEMENT;
 
-int 
-bed_fname_to_contigs(
-        std::vector<BedLine> & bedlines,
-        const std::string & bed_fname, 
-        const bam_hdr_t *bam_hdr) {
-    
-    std::map<std::string, uvc1_refgpos_t> tname_to_tid;
-    for (uvc1_refgpos_t i = 0; i < bam_hdr->n_targets; i++) {
-        tname_to_tid[bam_hdr->target_name[i]] = i;
-    }
-    std::ifstream bedfile(bed_fname);
-    while (bedfile.good()) {
-        std::string line;
-        getline(bedfile, line);
-        if (line.empty() || line[0] == '#') {
-            continue;
-        }
-        std::istringstream linestream(line);
-        std::string tname;
-        uvc1_refgpos_t tbeg;
-        uvc1_refgpos_t tend;
-        linestream >> tname;
-        linestream >> tbeg;
-        linestream >> tend;
-        if (!(tbeg < tend)) {
-            std::cerr << "The bedfile " << bed_fname << " does not have its end after its start at: " << tname << "\t" << tbeg << "\t" << tend;
-            exit (16);
-        }
-        if (tname_to_tid.find(tname) == tname_to_tid.end()) {
-            std::cerr << "The reference template name " << tname << " from the bedfile " << bed_fname << " is not in the input sam file";
-            exit (17);
-        }
-        uvc1_flag_t bedline_flag = 0x0;
-        std::string token;
-        uvc1_readnum_t nreads = 2 * (tend - tbeg);
-        while (linestream.good()) {
-            linestream >> token;
-            if (token == ("BedLineFlag")) {
-                linestream >> bedline_flag;
-            } else if (token == "NumberOfReadsInThisInterval") {
-                linestream >> nreads;
-            }
-        }
-        bedlines.push_back(BedLine(tname_to_tid[tname], tbeg, tend, bedline_flag, nreads));
-    }
-    return 0;
-}
-
 bool
 check_if_is_over_mem_lim(
         const uvc1_readnum_big_t total_n_reads, 
@@ -115,6 +67,92 @@ check_if_sub_is_over_mem_lim(
     return (tot_n_bytes_used > memfree + mem_by_read_overlap);
 }
 
+int 
+SamIter::target_region_to_contigs(
+        std::vector<BedLine> & bedlines,
+        const std::string & tier1_target_region, 
+        const bam_hdr_t *bam_hdr) {
+    std::map<std::string, uvc1_refgpos_t> tname_to_tid;
+    for (uvc1_refgpos_t i = 0; i < bam_hdr->n_targets; i++) {
+        tname_to_tid[bam_hdr->target_name[i]] = i;
+    }
+    std::string region;
+    std::istringstream regionstream(tier1_target_region);
+    while (getline(regionstream, region, ',')) {
+        char *tname = (char*)malloc(region.size() + 1);
+        uvc1_refgpos_t tbeg, tend;
+        int n_tokens = sscanf(region.c_str(), "%s:%d-%d", tname, &tbeg, &tend);
+        if (n_tokens < 3) {
+            n_tokens = sscanf(region.c_str(), "%s:%d", tname, &tbeg);
+            tend = tbeg + 1;
+        }
+        if (n_tokens < 2) {
+            LOG(logERROR) << "The region " << region << " is neither in the format TEMPLATE:START-END nor in the format TEMPLATE:POS "
+                    << "(template usually denotes chromosome). ";
+            exit(16);
+        } else {
+            uvc1_flag_t bedline_flag = 0x0;
+            uvc1_readnum_big_t nreads = bed_in_avg_sequencing_DP * (tend - tbeg);
+            if (tname_to_tid.find(tname) == tname_to_tid.end()) {
+                LOG(logERROR) << "The template name " << region << " is not found in the input BAM header (template usually denotes chromosome). ";
+                exit(17);
+            } else {
+                bedlines.push_back(BedLine(tname_to_tid[tname], tbeg, tend, bedline_flag, nreads));
+            }
+        }
+        free(tname);
+    }
+    return 0;
+}
+
+int 
+SamIter::bed_fname_to_contigs(
+        std::vector<BedLine> & bedlines,
+        const std::string & bed_fname, 
+        const bam_hdr_t *bam_hdr) {
+    
+    std::map<std::string, uvc1_refgpos_t> tname_to_tid;
+    for (uvc1_refgpos_t i = 0; i < bam_hdr->n_targets; i++) {
+        tname_to_tid[bam_hdr->target_name[i]] = i;
+    }
+    std::ifstream bedfile(bed_fname);
+    while (bedfile.good()) {
+        std::string line;
+        getline(bedfile, line);
+        if (line.empty() || line[0] == '#') {
+            continue;
+        }
+        std::istringstream linestream(line);
+        std::string tname;
+        uvc1_refgpos_t tbeg;
+        uvc1_refgpos_t tend;
+        linestream >> tname;
+        linestream >> tbeg;
+        linestream >> tend;
+        if (!(tbeg < tend)) {
+            std::cerr << "The bedfile " << bed_fname << " does not have its end after its start at: " << tname << "\t" << tbeg << "\t" << tend;
+            exit (16);
+        }
+        if (tname_to_tid.find(tname) == tname_to_tid.end()) {
+            std::cerr << "The reference template name " << tname << " from the bedfile " << bed_fname << " is not in the input sam file";
+            exit (17);
+        }
+        uvc1_flag_t bedline_flag = 0x0;
+        std::string token;
+        uvc1_readnum_t nreads = bed_in_avg_sequencing_DP * (tend - tbeg);
+        while (linestream.good()) {
+            linestream >> token;
+            if (token == ("BedLineFlag")) {
+                linestream >> bedline_flag;
+            } else if (token == "NumberOfReadsInThisInterval") {
+                linestream >> nreads;
+            }
+        }
+        bedlines.push_back(BedLine(tname_to_tid[tname], tbeg, tend, bedline_flag, nreads));
+    }
+    return 0;
+}
+
 int64_t
 SamIter::iternext(
         uvc1_flag_t & iter_ret_flag,
@@ -126,14 +164,14 @@ SamIter::iternext(
     uvc1_refgpos_big_t total_n_rposs = 0;
     uvc1_readnum_big_t total_n_reads_x_reads = 0;
     uvc1_refgpos_big_t total_n_rposs_x_rposs = 0;
-    if (NOT_PROVIDED != region_bed_fname) {
+    if (this->_bedlines.size() > 0) {
         for (; this->_bedregion_idx < this->_bedlines.size(); this->_bedregion_idx++) {
             const auto & bedline = (this->_bedlines[this->_bedregion_idx]);
             bedlines.push_back(bedline);
             const auto bed_tid = bedline.tid; // std::get<0>(bedreg);
             const auto bed_beg = bedline.beg_pos;
             const auto bed_end = bedline.end_pos;
-            int64_t region_n_reads = bed_in_avg_sequencing_DP; // Please note that left-over reads from the previoous iteration are ignored
+            int64_t region_n_reads = INT64MUL(bed_in_avg_sequencing_DP, (bed_end - bed_beg)); // Please note that left-over reads from the previoous iteration are ignored
             if (-1 == bed_in_avg_sequencing_DP) {
                 region_n_reads = 0;
                 while (    (NULL == sam_idx && (sam_read1(this->sam_infile, this->samheader, alnrecord) >= 0))
