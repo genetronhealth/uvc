@@ -81,9 +81,9 @@ SamIter::target_region_to_contigs(
     while (getline(regionstream, region, ',')) {
         char *tname = (char*)malloc(region.size() + 1);
         uint64_t tbeg1, tend1;
-        int n_tokens = sscanf(region.c_str(), "%s:%lu-%lu", tname, &tbeg1, &tend1);
+        int n_tokens = sscanf(region.c_str(), "%[^:]:%lu-%lu", tname, &tbeg1, &tend1);
         if (n_tokens < 3) {
-            n_tokens = sscanf(region.c_str(), "%s:%lu", tname, &tbeg1);
+            n_tokens = sscanf(region.c_str(), "%[^:]:%lu", tname, &tbeg1);
             tend1 = tbeg1 + 1;
         }
         if (n_tokens < 2) {
