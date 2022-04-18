@@ -139,6 +139,7 @@ struct BatchArg {
     bcf_hdr_t *bcf_hdr;
     bcf_srs_t *sr;
     
+    BedLine prev_bedline;
     BedLine bedline;
     std::tuple<std::string, uint32_t> tname_tseqlen_tuple;
     size_t regionbatch_ordinal;
@@ -439,8 +440,8 @@ process_batch(
     
     auto tid = bedline.tid;
     
-    auto incluBegPosition = bedline.beg_pos;
-    auto excluEndPosition = bedline.end_pos;
+    const auto incluBegPosition = bedline.beg_pos;
+    const auto excluEndPosition = bedline.end_pos;
     bool end2end = (bedline.region_flag & BED_END_TO_END_BIT); 
     
     std::map<uint64_t, std::pair<std::array<std::map<uint64_t, std::vector<bam1_t *>>, 2>, MolecularBarcode>> umi_to_strand_to_reads;
@@ -539,6 +540,9 @@ process_batch(
             region_repeatvec,
             baq_offsetarr,
             baq_offsetarr2,
+            
+            arg.prev_bedline,
+            arg.bedline,
             
             paramset,
             0);
@@ -1289,10 +1293,12 @@ main(int argc, char **argv) {
     
     std::map<std::tuple<uvc1_refgpos_t, uvc1_refgpos_t, AlignmentSymbol>, std::vector<TumorKeyInfo>> tid_pos_symb_to_tkis1; 
     std::map<std::tuple<uvc1_refgpos_t, uvc1_refgpos_t, AlignmentSymbol>, std::vector<TumorKeyInfo>> tid_pos_symb_to_tkis2; 
+    BedLine prev_bedline_tmp = BedLine(-1, 0, 0, 0, 0);
     SamIter samIter(paramset);
     int64_t n_sam_iters = 0;
     uvc1_flag_t iter_ret_flag;
     int64_t iter_nreads = samIter.iternext(iter_ret_flag, bedlines1, 0);
+    
     LOG(logINFO) << "PreProcessed " << iter_nreads << " reads in tier-1-region no " << (n_sam_iters);
     // rescue_variants_from_vcf
     tid_pos_symb_to_tkis1 = rescue_variants_from_vcf(bedlines1, tid_to_tname_tseqlen_tuple_vec, paramset.vcf_tumor_fname, g_bcf_hdr, paramset.is_tumor_format_retrieved);
@@ -1412,6 +1418,7 @@ main(int argc, char **argv) {
                     bcf_hdr : g_bcf_hdr,
                     sr : NULL,
                     
+                    prev_bedline: prev_bedline_tmp,
                     bedline: BedLine(-1, 0, 0, 0, 0), // bedlines.at(0),
                     tname_tseqlen_tuple : tid_to_tname_tseqlen_tuple_vec.at(0),
                     regionbatch_ordinal : 0,
@@ -1459,6 +1466,9 @@ main(int argc, char **argv) {
                         batcharg.regionbatch_tot_num = beg_end_pair.second;
                         assert (((size_t)(allridx + j) < bedlines.size())
                                 || !fprintf(stderr, "%lu + %lu < %lu failed!\n", allridx, j, bedlines.size()));
+                        if (allridx + j > 0) {
+                            batcharg.prev_bedline = bedlines.at(allridx + j - 1);
+                        }
                         batcharg.bedline = bedlines.at(allridx + j);
                         assert (((size_t)(batcharg.bedline.tid)) < tid_to_tname_tseqlen_tuple_vec.size() 
                                 || !fprintf(stderr, "%lu < %lu failed!\n", (size_t)(batcharg.bedline.tid), tid_to_tname_tseqlen_tuple_vec.size()));
@@ -1495,6 +1505,7 @@ main(int argc, char **argv) {
                 }
             }
         }
+        prev_bedline_tmp = (bedlines1.size() ? LAST(bedlines1) : prev_bedline_tmp);
         autoswap(bedlines1, bedlines2);
         autoswap(tid_pos_symb_to_tkis1, tid_pos_symb_to_tkis2);
     }

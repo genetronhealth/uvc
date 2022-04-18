@@ -5,6 +5,7 @@
 
 #include "CmdLineArgs.hpp"
 #include "common.hpp"
+#include "iohts.hpp"
 #include "logging.hpp"
 #include "main_consensus.hpp"
 #include "main_conversion.hpp"
@@ -2710,6 +2711,9 @@ struct Symbol2CountCoverageSet {
             const T3 & baq_offsetarr,
             const T4 & baq_offsetarr2,
             
+            const BedLine & prev_bedline,
+            const BedLine & curr_bedline,
+            
             const CommandLineArgs & paramset,
             const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
         
@@ -2732,10 +2736,16 @@ struct Symbol2CountCoverageSet {
                 FastqRecord fq_baseBQ_pairs; //
                 const auto & alns2 = alns2pair[strand];
                 if (alns2.size() == 0) { continue; }
-                const bool is_consensus_to_fastq = ((paramset.fam_consensus_out_fastq.size() > 0) && ((size_t)paramset.fam_thres_dup1add <= alns2.size()));
                 
                 uvc1_refgpos_t tid2, beg2, end2;
                 fillTidBegEndFromAlns2(tid2, beg2, end2, alns2);
+                
+                const bool is_consensus_applicable = ((paramset.fam_consensus_out_fastq.size() > 0) && ((size_t)paramset.fam_thres_dup1add <= alns2.size()));
+                const bool is_consensus_only_done_here = (
+                        ((prev_bedline.tid != tid2) || !(ARE_INTERVALS_OVERLAPPING(prev_bedline.beg_pos, beg2, prev_bedline.end_pos, end2)))
+                     && ((curr_bedline.tid == tid2) &&  (ARE_INTERVALS_OVERLAPPING(curr_bedline.beg_pos, beg2, curr_bedline.end_pos, end2))));
+                const bool is_consensus_to_fastq = (is_consensus_applicable && is_consensus_only_done_here);
+
                 Symbol2CountCoverage read_family_mmm_ampl(tid2, beg2, end2);
                 Symbol2CountCoverage read_family_con_ampl(tid2, beg2, end2); 
                 for (const auto & alns1 : alns2) {
@@ -3320,7 +3330,10 @@ struct Symbol2CountCoverageSet {
             std::vector<RegionalTandemRepeat> & region_repeatvec,
             const CoveredRegion<uvc1_qual_big_t> & baq_offsetarr,
             const CoveredRegion<uvc1_qual_big_t> & baq_offsetarr2,
-
+            
+            const BedLine & prev_bedline,
+            const BedLine & bedline,
+            
             const CommandLineArgs & paramset,
             const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
         
@@ -3358,6 +3371,9 @@ struct Symbol2CountCoverageSet {
                 region_repeatvec,
                 baq_offsetarr,
                 baq_offsetarr2,
+                
+                prev_bedline,
+                bedline,
                 
                 paramset,
                 0);
