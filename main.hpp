@@ -2910,6 +2910,8 @@ struct Symbol2CountCoverageSet {
                         }
                         // END of consensus at family level
 
+if (paramset.inferred_is_vcf_generated) {
+
                         if (is_fam_good) {
                             this->symbol_to_fam_format_depth_sets_2strand[strand].getRefByPos(epos)[con_symbol][FAM_cDP2] += 1;
                             if (isSymbolIns(con_symbol)) {
@@ -3051,6 +3053,7 @@ struct Symbol2CountCoverageSet {
                                 this->symbol_to_fam_format_depth_sets_2strand[strand].getRefByPos(epos)[con_symbol][FAM_cDPM] += tot_count;
                             }
                         }
+}
                     }
                 }
                 if (paramset.fam_consensus_out_fastq.size() > 0 && fq_baseBQ_pairs.size() >= 20) {
@@ -3065,6 +3068,9 @@ struct Symbol2CountCoverageSet {
                 }
             }
         }
+
+if (paramset.inferred_is_vcf_generated) {
+        
         niters = 0;
         for (const auto & alns2pair2umibarcode : alns3) {
             const auto & alns2pair = alns2pair2umibarcode.first;
@@ -3247,6 +3253,7 @@ struct Symbol2CountCoverageSet {
                 this->dedup_ampDistr[strand].getRefByPos(epos).clearSymbolBucketCount();
             }
         }
+}
         return 0;
     };
     
@@ -3344,6 +3351,8 @@ struct Symbol2CountCoverageSet {
         std::map<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>> mutform2count4map_f2q;
 
         std::basic_string<AlignmentSymbol> ref_symbol_string = string2symbolseq(refstring);
+
+if (paramset.inferred_is_vcf_generated) { 
         
         updateByAlns3UsingBQ(
                 mutform2count4map_bq, 
@@ -3362,7 +3371,7 @@ struct Symbol2CountCoverageSet {
                 paramset.phasing_haplotype_max_count,
                 paramset.phasing_haplotype_min_ad,
                 paramset.phasing_haplotype_max_detail_cnt);
-        
+}
         updateByAlns3UsingFQ(
                 fastq_outstrings,
                 mutform2count4map_fq,

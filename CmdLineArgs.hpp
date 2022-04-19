@@ -402,6 +402,9 @@ struct CommandLineArgs {
     // How to tell the difference between HDR and kataegis?
 // *** end 
     
+    bool inferred_is_fastq_generated = false;
+    bool inferred_is_vcf_generated = true;
+    
     int
     initFromArgCV(int & parsing_result_flag, int argc, const char *const* argv);
     

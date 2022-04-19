@@ -546,6 +546,11 @@ process_batch(
             
             paramset,
             0);
+
+    std::string buf_out_string_pass;
+
+if (paramset.inferred_is_vcf_generated) {
+
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts analyzing phasing info"; }
     auto simplemut2indices_bq = mutform2count4vec_to_simplemut2indices(mutform2count4vec_bq);
     auto simplemut2indices_fq = mutform2count4vec_to_simplemut2indices(mutform2count4vec_fq);
@@ -553,7 +558,6 @@ process_batch(
 
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id  << " starts generating block gzipped vcf"; }
     
-    std::string buf_out_string_pass;
     const std::set<size_t> empty_size_t_set;
     uvc1_readpos_t prev_tracklen = 0;
     uvc1_readpos_t curr_tracklen = 0;
@@ -1122,7 +1126,7 @@ process_batch(
             } // fmt_tki_tup_vec
         } // end of SYMBOL_TYPE_ARR
     } // zerobased_pos
-    
+}
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id  << " starts destroying bam records"; }
     for (auto strand_readset : umi_strand_readset) {
         for (int strand = 0; strand < 2; strand++) {
@@ -1141,7 +1145,9 @@ process_batch(
         outstring_pass += buf_out_string_pass;
     }
     */
+if (paramset.inferred_is_vcf_generated) {
     uncompressed_vcf_string += buf_out_string_pass;
+}
     if (paramset.fam_consensus_out_fastq.size() > 0) {
         // bgzip-equivalent of: outstring_fastq += fqdata;
         for (size_t i = 0; i < 3; i++) { bgzip_string(outstring3fastq[i], fqdata3[i]); }
