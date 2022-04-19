@@ -417,6 +417,7 @@ template <class T>
 int 
 process_batch(
         std::string & uncompressed_vcf_string,
+        std::array<std::string, 3> & uncompressed_3fastq_string;
         BatchArg & arg,
         const T & tid_pos_symb_to_tkis) {
     
@@ -1149,8 +1150,9 @@ if (paramset.inferred_is_vcf_generated) {
     uncompressed_vcf_string += buf_out_string_pass;
 }
     if (paramset.fam_consensus_out_fastq.size() > 0) {
-        // bgzip-equivalent of: outstring_fastq += fqdata;
-        for (size_t i = 0; i < 3; i++) { bgzip_string(outstring3fastq[i], fqdata3[i]); }
+        for (size_t i = 0; i < 3; i++) { 
+            uncompressed_3fastq_string[i] += fqdata3[i];
+        }
     }
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id  << " is done with current task"; }
     return 0;
@@ -1467,6 +1469,7 @@ main(int argc, char **argv) {
                             << beg_end_pair.first << " to " << beg_end_pair.second;
                     assert (beg_end_pair.first < beg_end_pair.second);
                     std::string uncompressed_vcf_string;
+                    std::array<std::string, 3> uncompressed_3fastq_string;
                     for (size_t j = beg_end_pair.first; j < beg_end_pair.second; j++) {
                         batcharg.regionbatch_ordinal = j;
                         batcharg.regionbatch_tot_num = beg_end_pair.second;
@@ -1479,12 +1482,15 @@ main(int argc, char **argv) {
                         assert (((size_t)(batcharg.bedline.tid)) < tid_to_tname_tseqlen_tuple_vec.size() 
                                 || !fprintf(stderr, "%lu < %lu failed!\n", (size_t)(batcharg.bedline.tid), tid_to_tname_tseqlen_tuple_vec.size()));
                         batcharg.tname_tseqlen_tuple = tid_to_tname_tseqlen_tuple_vec.at((batcharg.bedline.tid));                        
-                        process_batch(uncompressed_vcf_string, batcharg, tid_pos_symb_to_tkis1);
+                        process_batch(uncompressed_vcf_string, uncompressed_3fastq_string, batcharg, tid_pos_symb_to_tkis1);
                     }
                     if (batcharg.is_vcf_out_pass_to_stdout) {
                         batcharg.outstring_pass += uncompressed_vcf_string;
                     } else {
                         bgzip_string(batcharg.outstring_pass, uncompressed_vcf_string);
+                    }
+                    for (size_t i = 0; i < 3; i++) {
+                        bgzip_string(batcharg.outstring3fastq[i], uncompressed_3fastq_string[i]);
                     }
 #if defined(USE_STDLIB_THREAD)
             });
@@ -1499,11 +1505,16 @@ main(int argc, char **argv) {
 #endif
         for (size_t beg_end_pair_idx = 0; beg_end_pair_idx < beg_end_pair_vec.size(); beg_end_pair_idx++) {
             if (batchargs[beg_end_pair_idx].outstring_pass.size() > 0) {
-                clearstring<true>(fp_pass, batchargs[beg_end_pair_idx].outstring_pass); // empty string means end of file
-                for (size_t i = 0; i < fastq_fps.size(); i++) { clearstring<true>(fastq_fps[i], batchargs[beg_end_pair_idx].outstring3fastq[i]); } // empty string means end of file
+                // empty string means end of file
+                clearstring<true>(fp_pass, batchargs[beg_end_pair_idx].outstring_pass);
             }
+            for (size_t i = 0; i < fastq_fps.size(); i++) { 
+                if (batchargs[beg_end_pair_idx].outstring3fastq[i].size() > 0) {
+                    clearstring<true>(fastq_fps[i], batchargs[beg_end_pair_idx].outstring3fastq[i]); 
+                }
+            } 
         }
-        read_bam_thread.join(); // end this iter
+        read_bam_thread.join(); // end this iteration
         for (auto tid_pos_symb_to_tkis1_pair: tid_pos_symb_to_tkis1) {
             for (auto tki : tid_pos_symb_to_tkis1_pair.second) {
                 if (NULL != tki.bcf1_record) {
