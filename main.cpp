@@ -417,12 +417,10 @@ template <class T>
 int 
 process_batch(
         std::string & uncompressed_vcf_string,
-        std::array<std::string, 3> & uncompressed_3fastq_string;
+        std::array<std::string, 3> & uncompressed_3fastq_string,
         BatchArg & arg,
         const T & tid_pos_symb_to_tkis) {
     
-    std::array<std::string, 3> &outstring3fastq = arg.outstring3fastq;
-    // std::string & outstring_pass = arg.outstring_pass;
     const faidx_t *const ref_faidx = arg.ref_faidx;
     
     const bcf_hdr_t *const bcf_hdr = arg.bcf_hdr;
@@ -433,7 +431,6 @@ process_batch(
     const auto regionbatch_ordinal = arg.regionbatch_ordinal;
     const auto regionbatch_tot_num = arg.regionbatch_tot_num;
     const auto thread_id = arg.thread_id;
-    // const auto is_vcf_out_pass_to_stdout = arg.is_vcf_out_pass_to_stdout;
     
     bool is_loginfo_enabled = (ispowerof2(regionbatch_ordinal + 1) || ispowerof2(regionbatch_tot_num - regionbatch_ordinal));
     std::string raw_out_string;
@@ -492,7 +489,7 @@ process_batch(
             // The short deletion at 22:17946835 in NA12878-NA24385 mixture is overwhelmed by the false positve long del spanning the true positive short del.
             // Due to the VCF specs and left alignment as best practice, the symmetry between left and right alignments are broken. 
             // Thus, this variant is true positive if using left alignemnt but false positive if using right alignment. 
-            // TODO: modifications to the VCF specs or somatic-variant definitions.
+            // TODO: modifications to the VCF specs or somatic-variant definitions, which is beyond the scope of this program.
             LOG(logDEBUG4) << "Thread " << thread_id << " iterated over symbolpos " << symbolpos << " and symbol " << std::get<2>(tkis_it->first) << " as a rescued var";
         }
     } // bigger region
@@ -1224,7 +1221,7 @@ main(int argc, char **argv) {
     bool is_vcf_out_pass_to_stdout = (std::string("-") == paramset.vcf_out_pass_fname);
     BGZF *fp_pass = ((!is_vcf_out_pass_empty_string && !is_vcf_out_pass_to_stdout) ? bgzip_open_wrap1(paramset.vcf_out_pass_fname) : NULL);
     std::array<BGZF*, 3> fastq_fps;
-    std::array<std::string, 3> seqends = { "SE", "R1", "R2" };
+    std::array<std::string, 3> seqends = { "R1", "R2", "SE" };
     std::array<std::string, 3> fastq_filenames = { "", "", "" };
     for (size_t i = 0; i < 3; i++) {
         fastq_filenames[i] = paramset.fam_consensus_out_fastq + "." + seqends[i] + ".fastq.gz";

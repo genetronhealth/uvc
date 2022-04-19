@@ -2379,6 +2379,18 @@ struct Symbol2CountCoverageSet {
             const MolecularBarcode & mb,
             const auto & alns2) {
        
+        size_t n_PE_alns = 0;
+        size_t n_SE_alns = 0;
+        for (const auto bams : alns2) {
+            for (const bam1_t *bam : bams) {
+                if (bam->core.flag & 0x1) {
+                    n_PE_alns++;
+                } else {
+                    n_SE_alns++;
+                }
+            }
+        }
+
         size_t ret = 0;
         const char *base_NN_desc = SYMBOL_TO_DESC_ARR[BASE_NN];
         size_t beg = 0;
@@ -2404,7 +2416,7 @@ struct Symbol2CountCoverageSet {
         } else {
             stringof_baseBQ_pairs_vec[1] = (FastqRecord());
         }
-        for (size_t idx = 0; idx < 2; idx++) {
+        for (size_t idx = 0; idx < ((n_PE_alns >= n_SE_alns) ? 2 : 1); idx++) {
             auto &  stringof_baseBQ_pairs = stringof_baseBQ_pairs_vec[idx];
             // FQ line 1: read name
             if (idx) { // is insert ending at the right border
@@ -2423,7 +2435,7 @@ struct Symbol2CountCoverageSet {
                     + "|" + mb.umistring
                     + "#-1-"
                     + anyuint2hexstring(mb.hashvalue); // + "#" + std::to_string(alns2.size());
-            auto &fqdata = fastq_outstrings[idx^strand];
+            auto &fqdata = fastq_outstrings[((n_PE_alns >= n_SE_alns) ? (idx^strand) : 2)];
             const size_t ini_fqdata_size = fqdata.size();
             //  here we put all read names of the original BAM that did not go through any consensus.
             std::string fqcomment = std::to_string(alns2.size()) + "x" + std::to_string(fq_baseBQ_pairs.size());
