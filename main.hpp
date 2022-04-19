@@ -93,6 +93,7 @@ posToIndelToCount_updateByConsensus(std::map<uvc1_refgpos_t, std::map<T, uvc1_re
     return src_indel;
 }
 
+// For reason of commenting-out this method, please check the method updateByRepresentative that calls this method
 /*
 template <bool TIsIncVariable, class T>
 uvc1_readnum_t
@@ -444,6 +445,7 @@ public:
         return {baseSymb, linkSymb};
     };
     
+    // For reason of commenting-out this method, please check the identically named method that calls it
     /*
     template <bool TIsIncVariable = true>
     AlignmentSymbol
@@ -979,9 +981,8 @@ update_seg_format_prep_sets_by_aln(
     const uvc1_refgpos_t frag_pos_L = MIN(aln->core.pos, aln->core.mpos); 
     const uvc1_refgpos_t frag_pos_R = (frag_pos_L + abs(aln->core.isize));
     
-    // strand does not seem to be useful here?
-    
     const bool isrc = ((aln->core.flag & 0x10) == 0x10); 
+    // strand does not seem to be useful here? 
     /*
     const bool isr2 = ((aln->core.flag & 0x80) == 0x80 && (aln->core.flag & 0x1) == 0x1);
     const bool strand = bam_get_strand(aln); //(isrc ^ isr2);
@@ -1595,7 +1596,10 @@ public:
         assert(this->getIncluBegPosition() <= other.getIncluBegPosition() || !fprintf(stderr, "%d <= %d failed!", this->getIncluBegPosition(), other.getIncluBegPosition()));
         assert(this->getExcluEndPosition() >= other.getExcluEndPosition() || !fprintf(stderr, "%d >= %d failed!", this->getExcluEndPosition(), other.getExcluEndPosition())); 
     }
-    // mainly for grouping reads sharing the same UMI into one family
+    // This method is mainly for grouping reads sharing the same UMI into one family. 
+    // This method can be used to maintain backward compatibility if needed. 
+    // Please note that updateByConsensus offers almost the exact functionality and makes more sens.
+    // Hence, updateByConsensus should be used instead of this method.  
     /*
     template <bool TIsIncVariable = true>
     void
@@ -1717,7 +1721,10 @@ public:
         auto &r = this->getRefByPos(epos, bam);
         r.template incSymbolCount<(TUpdateType2)>(symbol, incvalue);
     };
-
+    
+    // This method is useful if we would like to 
+    // generate a consensus sequence of the soft-clipped reads 
+    // counting each exact clipped sequence instead of counting nucleotide at each position of the clipped sequences. 
     /*
     void // GenericSymbol2CountCoverage<TSymbol2Count>::
     incClip(const uvc1_refgpos_t epos, const std::string & cseq, const uvc1_readnum_t incvalue = 1) {
@@ -2231,23 +2238,24 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
 #endif
 }
                 rpos += cigar_oplen;
-            } else if (BAM_CSOFT_CLIP == cigar_op) {
-                std::string iseq;
-                std::vector<int8_t> iqual;
-                iseq.reserve(cigar_oplen);
-                iqual.reserve(cigar_oplen);
-                //int8_t incvalue2 = 80;
-                for (uint32_t i2 = 0; i2 < cigar_oplen; i2++) {
-                    const auto base4bit = bam_seqi(bseq, qpos+i2);
-                    const auto base8bit = seq_nt16_str[base4bit];
-                    const int8_t basequal = BAM_PHREDI(aln, qpos+i2);
-                    iseq.push_back(base8bit);
-                    iqual.push_back(basequal);
-                    // incvalue2 = MIN(incvalue2, basequal);
-                }
-                //this->incClip(rpos, iseq, MAX(SIGN2UNSIGN(1), incvalue2)); // similar to incIns
-                this->conblocksets[CONSENSUS_BLOCK_CSOFT_CLIP].incByPosSeqQual(rpos, iseq, iqual);
             } else {
+                if (BAM_CSOFT_CLIP == cigar_op) {
+                    std::string iseq;
+                    std::vector<int8_t> iqual;
+                    iseq.reserve(cigar_oplen);
+                    iqual.reserve(cigar_oplen);
+                    //int8_t incvalue2 = 80;
+                    for (uint32_t i2 = 0; i2 < cigar_oplen; i2++) {
+                        const auto base4bit = bam_seqi(bseq, qpos+i2);
+                        const auto base8bit = seq_nt16_str[base4bit];
+                        const int8_t basequal = BAM_PHREDI(aln, qpos+i2);
+                        iseq.push_back(base8bit);
+                        iqual.push_back(basequal);
+                        // incvalue2 = MIN(incvalue2, basequal);
+                    }
+                    //this->incClip(rpos, iseq, MAX(SIGN2UNSIGN(1), incvalue2)); // similar to incIns
+                    this->conblocksets[CONSENSUS_BLOCK_CSOFT_CLIP].incByPosSeqQual(rpos, iseq, iqual);
+                }
                 process_cigar(qpos, rpos, cigar_op, cigar_oplen);
             } 
         }
@@ -2402,7 +2410,7 @@ struct Symbol2CountCoverageSet {
         const FastqRecord stringof_baseBQ_pairs = fq_baseBQ_pairs.substr(beg, end - beg);
         std::vector<size_t> begposs, endposs;
         std::array<std::basic_string<std::pair<char, int8_t>>, 2> stringof_baseBQ_pairs_vec;
-        // assert (l2r_qseqlens.size() == r2l_qseqlens.size());
+        // assert (l2r_qseqlens.size() == r2l_qseqlens.size()); // this holds if and only if only proper-paired reads were kept, which is now the case as of now
         if ((l2r_qseqlens.size() > 0)) {
             size_t endpos = MIN((size_t)MEDIAN(l2r_qseqlens), stringof_baseBQ_pairs.size());
             stringof_baseBQ_pairs_vec[0] = (stringof_baseBQ_pairs.substr(0, endpos));
@@ -2429,12 +2437,12 @@ struct Symbol2CountCoverageSet {
                      + ":" + std::to_string(min2.second)
                     +  "|" + std::to_string(max2.first)
                      + ":" + std::to_string(max2.second)
-                    //+ ":" + std::to_string(beg2) 
+                    //+ ":" + std::to_string(beg2) // begin is not well defined for split-mapped reads
                     + "|" + (strand ? "+-" : "-+")  + std::to_string((min2.first == max2.first) ? (max2.second - min2.second - 1) : 0) 
                         // the extra -1 is due to possible insertion at the front/back of the fragment
                     + "|" + mb.umistring
                     + "#-1-"
-                    + anyuint2hexstring(mb.hashvalue); // + "#" + std::to_string(alns2.size());
+                    + anyuint2hexstring(mb.hashvalue);
             auto &fqdata = fastq_outstrings[((n_PE_alns >= n_SE_alns) ? (idx^strand) : 2)];
             const size_t ini_fqdata_size = fqdata.size();
             //  here we put all read names of the original BAM that did not go through any consensus.
@@ -2746,8 +2754,7 @@ struct Symbol2CountCoverageSet {
             niters++;
             assert (alns2pair[0].size() != 0 || alns2pair[1].size() != 0);
             for (int strand = 0; strand < 2; strand++) {
-                // std::vector<std::pair<char, int8_t>>
-                FastqRecord fq_baseBQ_pairs; //
+                FastqRecord fq_baseBQ_pairs; 
                 const auto & alns2 = alns2pair[strand];
                 if (alns2.size() == 0) { continue; }
                 
@@ -2855,9 +2862,6 @@ struct Symbol2CountCoverageSet {
                             uvc1_qual_t conBQ = non_neg_minus(con_sumBQs * 2, tot_sumBQs) / alns2.size() + 10;
                             assert(conBQ < 127 - 33);
                             
-                            //if (0 == tot_sumBQs) { continue; }
-                            //uvc1_readnum_t con_nfrags = read_family_con_ampl.getByPos(epos).getSymbolCount(con_symbol);
-                            //uvc1_readnum_t tot_nfrags = read_family_con_ampl.getByPos(epos).sumBySymbolType(symboltype);
                             if ((LINK_SYMBOL == symboltype)) {
                                 const auto effective_tot_count = (uvc1_readnum_t)alns2.size();
                                 const auto cigarMD_count = con_ampl_symbol2count.getSymbolCount(LINK_M) 
@@ -2882,7 +2886,10 @@ struct Symbol2CountCoverageSet {
                                             }
                                         }
                                     };
-                                
+                                    
+                                    // If each inserted-or-clipped sequence instead of each base at each position of the inserted-or-clipped sequence was counted,
+                                    //   then the following code becomes useful again. 
+
                                     // const std::pair<uvc1_readnum_t, std::string> cnt_iseq_pair = read_family_con_ampl_getMajority_ins(read_family_con_ampl, epos);
                                     // const std::pair<uvc1_readnum_t, uvc1_refgpos_t> cnt_dlen_pair = read_family_con_ampl_getMajority_del(read_family_con_ampl, epos);
                                     /*
@@ -2910,7 +2917,6 @@ struct Symbol2CountCoverageSet {
                                     // assert(strlen(desc) == 1);
                                     // fq_baseBQ_pairs.push_back((std::make_pair(desc[0], 0)));
                                 } else if (is_fam_good) {
-                                    //const uvc1_qual_t conBQ = 59 - MIN(tot_count - con_count, 9);
                                     const char *desc = SYMBOL_TO_DESC_ARR[con_symbol];
                                     assert(strlen(desc) == 1);
                                     fq_baseBQ_pairs.push_back(std::make_pair(desc[0], conBQ));
@@ -3134,14 +3140,13 @@ if (paramset.inferred_is_vcf_generated) {
                 std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>> pos_symbol_string;
                 std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>> pos_symbol_string_confam;
                 
-                // Start init consensus-block
+                // We can also start init consensus-block here instead of before, but we didn't to save time assuming fam-consensus-out-fastq is not generated
                 /* std::map<uvc1_refgpos_t, ConsensusBlock>::iterator consensusBlockSetsIts[NUM_CONSENSUS_BLOCK_CIGAR_TYPES];
                 std::map<uvc1_refgpos_t, ConsensusBlock>::const_iterator consensusBlockSetsEnds[NUM_CONSENSUS_BLOCK_CIGAR_TYPES];
                 for (auto cigartype: ALL_CONSENSUS_BLOCK_CIGAR_TYPES) {
                     consensusBlockSetsIts[cigartype] = read_family_con_ampl.getRefConsensusBlockSet(cigartype).pos2conblock.begin();
                     consensusBlockSetsEnds[cigartype] = read_family_con_ampl.getConsensusBlockSet(cigartype).pos2conblock.end();
                 };*/
-                // End init consensus-block
                 
                 for (auto epos = read_family_mmm_ampl.getIncluBegPosition(); 
                         epos < read_family_mmm_ampl.getExcluEndPosition(); 
