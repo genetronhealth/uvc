@@ -204,8 +204,9 @@ anyuint2hexstring(T n) {
     static const char *hexnum2char = "0123456789ABCDEF";
     T n1 = n;
     std::string ret;
-    ret.reserve(sizeof(T) * 2);
-    while (n1) {
+    const size_t nchars = sizeof(T) * 2;
+    ret.reserve(nchars);
+    for (size_t i = 0; i < nchars; i++) {
         T n2 = (n1 & 0xF);
         ret.push_back(hexnum2char[n2]);
         n1 >>= 4UL;
