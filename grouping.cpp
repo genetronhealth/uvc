@@ -917,10 +917,10 @@ bamfname_to_strand_to_familyuid_to_reads(
         const auto alnflag = (aln->core.flag); 
         const bool are_borders_preserved = ((alnflag & 0x1) && (!(alnflag & 0x4)) && (!(alnflag & 0x8)) 
                 && (abs(aln->core.isize) >= (MAX_INSERT_SIZE * 3 / 4) || aln->core.isize == 0));
-        uvc1_refgpos_t begtid = (((aln->core.flag & 0x1) && aln->core.flag & 0x4) ? aln->core.tid  : (INT32_MAX-1));
-        uvc1_refgpos_t endtid = (((aln->core.flag & 0x1) && aln->core.flag & 0x8) ? aln->core.mtid : (INT32_MAX-1));
-        uvc1_refgpos_t beg3 = (are_borders_preserved ? (aln->core.pos)  : beg2);
-        uvc1_refgpos_t end3 = (are_borders_preserved ? (aln->core.mpos) : end2);
+        uvc1_refgpos_t begtid = ((!(aln->core.flag & 0x4)) ? aln->core.tid  : (INT32_MAX-1));
+        uvc1_refgpos_t endtid = (((aln->core.flag & 0x1) && !(aln->core.flag & 0x8)) ? aln->core.mtid : (INT32_MAX-1));
+        uvc1_refgpos_t beg3 = (are_borders_preserved ? (aln->core.pos)  : (beg2 - ARRPOS_MARGIN + fetch_tbeg));
+        uvc1_refgpos_t end3 = (are_borders_preserved ? (aln->core.mpos) : (end2 - APPROS_MARGIN + fetch_tbeg));
         std::pair<uvc1_refgpos_t, uvc1_refgpos_t> begpair = std::make_pair(begtid, beg3);
         std::pair<uvc1_refgpos_t, uvc1_refgpos_t> endpair = std::make_pair(endtid, end3);
         
