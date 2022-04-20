@@ -29,6 +29,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+// Three FASTQ files and three cluster files
+#define NUM_FQLIKE_CON_OUT_FILES (2*3)
+
 class HapLink {
 public:
     std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>> pos_symb_string;
@@ -2444,7 +2447,9 @@ struct Symbol2CountCoverageSet {
                     + "|" + mb.umistring
                     + "#-1-"
                     + anyuint2hexstring(mb.hashvalue);
-            auto &fqdata = fastq_outstrings[((n_PE_alns >= n_SE_alns) ? (idx^strand) : 2)];
+            const size_t fqidx = ((n_PE_alns >= n_SE_alns) ? (idx^strand) : 2);
+            auto &fqdata = fastq_outstrings[fqidx];
+            auto &clusterdata = fastq_outstrings[fqidx+3];
             const size_t ini_fqdata_size = fqdata.size();
             //  here we put all read names of the original BAM that did not go through any consensus.
             std::string fqcomment = std::to_string(alns2.size()) + "x" + std::to_string(fq_baseBQ_pairs.size());
@@ -2460,7 +2465,8 @@ struct Symbol2CountCoverageSet {
                     fqcomment += bam_get_qname(bams[0]);
                 }
             }
-            fqdata += fqname + " " +  fqcomment + "\n";
+            fqdata += fqname + "\n";
+            clusterdata += fqname + " " +  fqcomment + "\n";
             // FQ line 2: sequence
             for (const auto & baseBQ : stringof_baseBQ_pairs) {
                 fqdata.push_back(baseBQ.first);
@@ -2724,7 +2730,7 @@ struct Symbol2CountCoverageSet {
     template <class T1, class T2, class T3, class T4>
     int
     updateByAlns3UsingFQ(
-            std::array<std::string, 3> &fastq_outstrings,
+            std::array<std::string, NUM_FQLIKE_CON_OUT_FILES> &fastq_outstrings,
             std::map<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>> & mutform2count4map,
             std::map<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>> & mutform2count4map_confam,
             const T1 & alns3, 
@@ -3346,7 +3352,7 @@ if (paramset.inferred_is_vcf_generated) {
     
     int 
     updateByRegion3Aln(
-            std::array<std::string, 3> & fastq_outstrings,
+            std::array<std::string, NUM_FQLIKE_CON_OUT_FILES> & fastq_outstrings,
             std::vector<HapLink> & mutform2count4vec_bq,
             std::vector<HapLink> & mutform2count4vec_fq,
             std::vector<HapLink> & mutform2count4vec_f2q,

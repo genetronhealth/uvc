@@ -129,7 +129,7 @@ bgzip_string(std::string & compressed_outstring, const std::string & uncompresse
 }
 
 struct BatchArg {
-    std::array<std::string, 3> outstring3fastq; // outstring_fastq;
+    std::array<std::string, NUM_FQLIKE_CON_OUT_FILES> outstring3fastq; // outstring_fastq;
     std::string outstring_allp;
     std::string outstring_pass;
     int thread_id;
@@ -417,7 +417,7 @@ template <class T>
 int 
 process_batch(
         std::string & uncompressed_vcf_string,
-        std::array<std::string, 3> & uncompressed_3fastq_string,
+        std::array<std::string, NUM_FQLIKE_CON_OUT_FILES> & uncompressed_3fastq_string,
         BatchArg & arg,
         const T & tid_pos_symb_to_tkis) {
     
@@ -526,7 +526,7 @@ process_batch(
     std::vector<HapLink> mutform2count4vec_bq;
     std::vector<HapLink> mutform2count4vec_fq;
     std::vector<HapLink> mutform2count4vec_f2q;
-    std::array<std::string, 3> fqdata3;
+    std::array<std::string, NUM_FQLIKE_CON_OUT_FILES> fqdata3;
     symbolToCountCoverageSet12.updateByRegion3Aln(
             fqdata3,
             mutform2count4vec_bq,
@@ -1147,7 +1147,7 @@ if (paramset.inferred_is_vcf_generated) {
     uncompressed_vcf_string += buf_out_string_pass;
 }
     if (paramset.fam_consensus_out_fastq.size() > 0) {
-        for (size_t i = 0; i < 3; i++) { 
+        for (size_t i = 0; i < NUM_FQLIKE_CON_OUT_FILES; i++) { 
             uncompressed_3fastq_string[i] += fqdata3[i];
         }
     }
@@ -1220,11 +1220,13 @@ main(int argc, char **argv) {
     bool is_vcf_out_pass_empty_string = (std::string("") == paramset.vcf_out_pass_fname);
     bool is_vcf_out_pass_to_stdout = (std::string("-") == paramset.vcf_out_pass_fname);
     BGZF *fp_pass = ((!is_vcf_out_pass_empty_string && !is_vcf_out_pass_to_stdout) ? bgzip_open_wrap1(paramset.vcf_out_pass_fname) : NULL);
-    std::array<BGZF*, 3> fastq_fps;
-    std::array<std::string, 3> seqends = { "R1", "R2", "SE" };
-    std::array<std::string, 3> fastq_filenames = { "", "", "" };
-    for (size_t i = 0; i < 3; i++) {
-        fastq_filenames[i] = paramset.fam_consensus_out_fastq + "." + seqends[i] + ".fastq.gz";
+    std::array<BGZF*, NUM_FQLIKE_CON_OUT_FILES> fastq_fps;
+    std::array<std::string, NUM_FQLIKE_CON_OUT_FILES> seqends = { 
+            "R1.fastq.gz", "R2.fastq.gz", "SE.fastq.gz", 
+            "R1.group.gz", "R2.group.gz", "SE.group.gz"};
+    std::array<std::string, NUM_FQLIKE_CON_OUT_FILES> fastq_filenames = {{ "" }};
+    for (size_t i = 0; i < NUM_FQLIKE_CON_OUT_FILES; i++) {
+        fastq_filenames[i] = paramset.fam_consensus_out_fastq + "." + seqends[i];
         fastq_fps[i] = ((paramset.fam_consensus_out_fastq.size() > 0) ? (bgzip_open_wrap1(fastq_filenames[i])) :  NULL);
     }
     // Commented out for now due to lack of good documentation for these bgzf APIs. Can investigate later.
@@ -1413,7 +1415,7 @@ main(int argc, char **argv) {
         batchargs.reserve(beg_end_pair_vec.size());
         for (size_t beg_end_pair_idx = 0; beg_end_pair_idx < beg_end_pair_vec.size(); beg_end_pair_idx++) {
             struct BatchArg a = {
-                    outstring3fastq : (std::array<std::string, 3> {{std::string(""), std::string(""), std::string("")}}),
+                    outstring3fastq : (std::array<std::string, NUM_FQLIKE_CON_OUT_FILES> {{ std::string("") }}),
                     outstring_allp : "",
                     outstring_pass : "",
                     thread_id : 0,
@@ -1466,7 +1468,7 @@ main(int argc, char **argv) {
                             << beg_end_pair.first << " to " << beg_end_pair.second;
                     assert (beg_end_pair.first < beg_end_pair.second);
                     std::string uncompressed_vcf_string;
-                    std::array<std::string, 3> uncompressed_3fastq_string;
+                    std::array<std::string, NUM_FQLIKE_CON_OUT_FILES> uncompressed_3fastq_string;
                     for (size_t j = beg_end_pair.first; j < beg_end_pair.second; j++) {
                         batcharg.regionbatch_ordinal = j;
                         batcharg.regionbatch_tot_num = beg_end_pair.second;
@@ -1486,7 +1488,7 @@ main(int argc, char **argv) {
                     } else {
                         bgzip_string(batcharg.outstring_pass, uncompressed_vcf_string);
                     }
-                    for (size_t i = 0; i < 3; i++) {
+                    for (size_t i = 0; i < NUM_FQLIKE_CON_OUT_FILES; i++) {
                         bgzip_string(batcharg.outstring3fastq[i], uncompressed_3fastq_string[i]);
                     }
 #if defined(USE_STDLIB_THREAD)
