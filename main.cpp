@@ -442,7 +442,7 @@ process_batch(
     const auto excluEndPosition = bedline.end_pos;
     bool end2end = (bedline.region_flag & BED_END_TO_END_BIT); 
     
-    std::map<uint64_t, std::pair<std::array<std::map<uint64_t, std::vector<bam1_t *>>, 2>, MolecularBarcode>> umi_to_strand_to_reads;
+    std::map<MolecularBarcode, std::pair<std::array<std::map<uvc1_hash_t, std::vector<bam1_t *>>, 2>, MolecularBarcode>> umi_to_strand_to_reads;
     uvc1_refgpos_t bam_inclu_beg_pos, bam_exclu_end_pos; 
     std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, MolecularBarcode>> umi_strand_readset;
 

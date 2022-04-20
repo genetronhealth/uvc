@@ -9,6 +9,7 @@
 #include "logging.hpp"
 #include "main_consensus.hpp"
 #include "main_conversion.hpp"
+#include "MolecularID.hpp"
 
 #include "htslib/faidx.h"
 #include "htslib/hts.h"

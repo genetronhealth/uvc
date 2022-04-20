@@ -149,14 +149,6 @@ struct RegionalTandemRepeat {
     uvc1_readpos_t anyTR_unitlen = 0;
 };
 
-struct MolecularBarcode {
-    std::string umistring = "";
-    std::pair<uvc1_refgpos_t, uvc1_refgpos_t> beg_tidpos_pair;
-    std::pair<uvc1_refgpos_t, uvc1_refgpos_t> end_tidpos_pair;
-    uvc1_hash_t hashvalue;
-    uvc1_flag_t duplexflag = 0x0;
-};
-
 struct RevComplement {
     char data[128];
     char table16[16];
@@ -214,6 +206,13 @@ anyuint2hexstring(T n) {
     std::reverse(ret.begin(), ret.end());
     return ret;
 }
+
+template <class T>
+inline void
+compare_diff_less(bool & isdiff, bool & isless, const T & k1, const T & k2) {
+    isdiff = (k1 != k2);
+    isless = (k1 < k2);
+};
 
 #endif
 
