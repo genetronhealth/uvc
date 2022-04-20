@@ -392,7 +392,8 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
         "Flag determinating what information is used for dedupping. "
         "(0x1: read begin position. 0x2: read end position. 0x4: read QNAME. 0x8: UMI molecular-barcode). "
         "If this flag is zero, then infer such information from sequencing data. "
-        "For example, if set to 0x3, then reads having the same begin and end positions are considered to be duplicates of each other. ");
+        "For example, if set to 0x3, then reads having the same begin and end positions are considered to be duplicates of each other. "
+        "If the 0x4 bit is set, then only reads having the same read name can be assumed to originate from the same original DNA molecule, which essentially disables duplicate detection. ");
     
 // *** 05. parameters related to bias thresholds
     
