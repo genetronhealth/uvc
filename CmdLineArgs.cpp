@@ -59,7 +59,7 @@ CommandLineArgs::selfUpdateByPlatform() {
                 countSE++;
             }
             qlens.push_back(b->core.l_qseq);
-            
+            /*
             int skip_l_qlen = 0;
             int skip_r_qlen = 0;
             if ((!(b->core.flag & 0x4)) && (b->core.n_cigar > 0)) {
@@ -71,7 +71,9 @@ CommandLineArgs::selfUpdateByPlatform() {
                     skip_r_qlen = bam_cigar_oplen(cigar[b->core.n_cigar-1]);
                  }
             }
-            for (int qpos = skip_l_qlen ; qpos < ((int)b->core.l_qseq) - skip_r_qlen; qpos++) {
+            
+            for (int qpos = skip_l_qlen ; qpos < ((int)b->core.l_qseq) - skip_r_qlen; qpos++) */
+            for (int qpos = 0; qpos < ((int)b->core.l_qseq); qpos++) {
                 uvc1_unsigned_int_t bq = (bam_get_qual((b))[(qpos)]);
                 if (bq < 30) {
                     q30_n_fail_bases++;
@@ -87,13 +89,20 @@ CommandLineArgs::selfUpdateByPlatform() {
         sam_close(sam_infile);
         const bool isPE = (0 < countPE);
         const bool isQ30BQ = (q30_n_fail_bases * 3 < q30_n_pass_bases);
+        const bool isQ30BQsoft = (q30_n_fail_bases < q30_n_pass_bases);
         const bool isfixqlen = (qlens.at(qlens.size()/2) * 100 > qlens.at(qlens.size()-1) * 90);
-        std::cerr << "IsPairedEnd=" << isPE << " isQ30passedForBQ=" << isQ30BQ << " isFixedReadQuerySeqLength=" << isfixqlen << std::endl;
-        if (isPE || isQ30BQ || isfixqlen) {
+        if (isPE || isQ30BQ || (isQ30BQsoft && isfixqlen)) {
             inferred_sequencing_platform = SEQUENCING_PLATFORM_ILLUMINA;
         } else {
             inferred_sequencing_platform = SEQUENCING_PLATFORM_IONTORRENT;
         }
+        std::cerr << "Inferred_sequencing_platform=" <<  SEQUENCING_PLATFORM_TO_NAME.at(inferred_sequencing_platform)
+                << " IsPairedEnd=" << isPE 
+                << " isQ30BaseQualityPassed=" << isQ30BQ 
+                << " isQ30BaseQualitySoftPassed=" << isQ30BQsoft 
+                << " isFixedReadQuerySeqLength=" << isfixqlen 
+                << std::endl;
+
     }
     if (SEQUENCING_PLATFORM_IONTORRENT == inferred_sequencing_platform && SEQUENCING_PLATFORM_OTHER != this->sequencing_platform) {
         bq_phred_added_indel += 0;
