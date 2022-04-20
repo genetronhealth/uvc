@@ -2426,6 +2426,7 @@ struct Symbol2CountCoverageSet {
         }
         for (size_t idx = 0; idx < ((n_PE_alns >= n_SE_alns) ? 2 : 1); idx++) {
             auto &  stringof_baseBQ_pairs = stringof_baseBQ_pairs_vec[idx];
+            if (stringof_baseBQ_pairs.size() < 20) { continue; }
             // FQ line 1: read name
             if (idx) { // is insert ending at the right border
                 reverseAndComplement(stringof_baseBQ_pairs); // RevComplement
