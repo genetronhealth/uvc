@@ -79,7 +79,7 @@
 
 #define bam_get_strand(aln) ((((aln)->core.flag & 0x81) == 0x81) ? (!!((aln)->core.flag & 0x20)) : (!!((aln)->core.flag & 0x10)))
 
-#define ARE_INTERVALS_OVERLAPPING(x1, x2, y1, y2) (!(((x2) <= (y1)) || (((y2) <= (x1)))))
+#define ARE_INTERVALS_OVERLAPPING(int1min, int1max, int2min, int2max) (!(((int1max) <= (int2min)) || (((int2max) <= (int1min)))))
 
 typedef uint64_t uvc1_unsigned_int_t; // It seems that a bug in g++ causes compiling error if this type is defined as (unsigned int)
 

@@ -9,8 +9,6 @@
 #define NUM_BYTES_PER_READ ((size_t)(512)) // estimated
 
 #define UPDATE_MIN(a, b) ((a) = MIN((a), (b)));
-// x1 and y1 are inclusive whereas x2 and y2 are exclusive
-#define ARE_INTERVALS_OVERLAPPING(x1, x2, y1, y2) (!(((x2) <= (y1)) || (((y2) <= (x1)))))
 
 template <class T>
 inline 

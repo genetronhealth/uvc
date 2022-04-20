@@ -658,7 +658,7 @@ fillTidBegEndFromAlns1(uvc1_refgpos_t & tid, uvc1_refgpos_t & inc_beg, uvc1_refg
         assert (tid == -1 || SIGN2UNSIGN(aln->core.tid) == tid);
         tid = aln->core.tid;
         inc_beg = MIN(inc_beg, SIGN2UNSIGN(aln->core.pos));
-        exc_end = MAX(exc_end, SIGN2UNSIGN(bam_endpos(aln))) + 1; // accounts for insertion at the end 
+        exc_end = MAX(exc_end, SIGN2UNSIGN(bam_endpos(aln))) + 1; // The plus one accounts for possible insertion and/or soft-clip at the end 
     }
     assert (tid != -1);
     assert (inc_beg < exc_end);
@@ -2763,8 +2763,8 @@ struct Symbol2CountCoverageSet {
                 
                 const bool is_consensus_applicable = ((paramset.fam_consensus_out_fastq.size() > 0) && ((size_t)paramset.fam_thres_dup1add <= alns2.size()));
                 const bool is_consensus_only_done_here = (
-                        ((prev_bedline.tid != tid2) || !(ARE_INTERVALS_OVERLAPPING(prev_bedline.beg_pos, beg2, prev_bedline.end_pos, end2)))
-                     && ((curr_bedline.tid == tid2) &&  (ARE_INTERVALS_OVERLAPPING(curr_bedline.beg_pos, beg2, curr_bedline.end_pos, end2))));
+                        ((prev_bedline.tid != tid2) || !(ARE_INTERVALS_OVERLAPPING(prev_bedline.beg_pos, prev_bedline.end_pos, beg2, end2)))
+                     && ((curr_bedline.tid == tid2) &&  (ARE_INTERVALS_OVERLAPPING(curr_bedline.beg_pos, curr_bedline.end_pos, beg2, end2))));
                 const bool is_consensus_to_fastq = (is_consensus_applicable && is_consensus_only_done_here);
 
                 Symbol2CountCoverage read_family_mmm_ampl(tid2, beg2, end2);
