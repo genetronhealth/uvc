@@ -30,9 +30,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-// Three FASTQ files and three cluster files
-#define NUM_FQLIKE_CON_OUT_FILES (2*3)
-
 class HapLink {
 public:
     std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>> pos_symb_string;
@@ -5364,12 +5361,12 @@ generate_vcf_header(
         + "More detail is described in FORMAT/POS_VT_BDP_CDP_HomRefQ. \">\n";
     ret += "##INFO=<ID=ADDITIONAL_INDEL_CANDIDATE,Number=0,Type=Flag,Description=\"Position with an abnormally high number of (soft/hard)-clipped sequences adjacent to this position (which can be caused by long InDel, copy-number variation (CNV), structural variation (SV), etc.) or with a high STR track length after it\">\n";
 
-    ret += ("##INFO=<ID=SomaticQ,Number=A,Type=Float,Description=\"Somatic quality of the variant, the PHRED-scale probability that this variant is not somatic. "
+    ret += ("##INFO=<ID=SomaticQ,Number=A,Type=Float,Description=\"Somatic quality of the variant, the Phred-scaled odds that this variant is not somatic. "
           "CAVEAT: if only tumor bam file is provided, then this quality usually cannot reach 60 even with the help of a very big germline database because "
           "germline and somatic variants share similar characteristics in the tumor. "
           "Therefore, a matched normal is absolutely required to confidently determine the germline-vs-somatic origin of a biological variant. \">\n");
-    ret += "##INFO=<ID=TLODQ,Number=A,Type=Float,Description=\"Tumor log-of-data-likelihood quality, the PHRED-scale probability that this variant is not of biological origin (i.e., artifactual). \">\n";
-    ret += "##INFO=<ID=NLODQ,Number=A,Type=Float,Description=\"Normal log-of-data-likelihood quality, the PHRED-scale probability that this variant is of germline origin. \">\n";
+    ret += "##INFO=<ID=TLODQ,Number=A,Type=Float,Description=\"Tumor log-of-data-likelihood quality, the Phred-scaled odds that this variant is not of biological origin (i.e., artifactual). \">\n";
+    ret += "##INFO=<ID=NLODQ,Number=A,Type=Float,Description=\"Normal log-of-data-likelihood quality, the Phred-scaled odds that this variant is of germline origin. \">\n";
     ret += "##INFO=<ID=NLODV,Number=A,Type=String,Description=\"The variant symbol that minimizes NLODQ. \">\n";
 
     ret += "##INFO=<ID=TNBQF,Number=4,Type=Float,Description=\"Binomial reward, power-law reward, systematic-error penalty, and normal-adjusted tumor variant quality computed using deduplicated read fragments. \">\n";

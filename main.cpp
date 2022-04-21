@@ -1221,12 +1221,9 @@ main(int argc, char **argv) {
     bool is_vcf_out_pass_to_stdout = (std::string("-") == paramset.vcf_out_pass_fname);
     BGZF *fp_pass = ((!is_vcf_out_pass_empty_string && !is_vcf_out_pass_to_stdout) ? bgzip_open_wrap1(paramset.vcf_out_pass_fname) : NULL);
     std::array<BGZF*, NUM_FQLIKE_CON_OUT_FILES> fastq_fps;
-    std::array<std::string, NUM_FQLIKE_CON_OUT_FILES> seqends = { 
-            "R1.fastq.gz", "R2.fastq.gz", "SE.fastq.gz", 
-            "R1.group.gz", "R2.group.gz", "SE.group.gz"};
     std::array<std::string, NUM_FQLIKE_CON_OUT_FILES> fastq_filenames = {{ "" }};
     for (size_t i = 0; i < NUM_FQLIKE_CON_OUT_FILES; i++) {
-        fastq_filenames[i] = paramset.fam_consensus_out_fastq + "." + seqends[i];
+        fastq_filenames[i] = paramset.fam_consensus_out_fastq + FASTQ_LIKE_SUFFIXES[i];
         fastq_fps[i] = ((paramset.fam_consensus_out_fastq.size() > 0) ? (bgzip_open_wrap1(fastq_filenames[i])) :  NULL);
     }
     // Commented out for now due to lack of good documentation for these bgzf APIs. Can investigate later.
