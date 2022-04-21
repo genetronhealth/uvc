@@ -9,6 +9,13 @@
 
 #define DEBUG_NOTE_FLAG_BITMASK_BAQ_OFFSETARR 0x1
 
+// Three FASTQ files and three cluster files
+#define NUM_FQLIKE_CON_OUT_FILES (2*3)
+
+static const std::array<std::string, NUM_FQLIKE_CON_OUT_FILES> FASTQ_LIKE_SUFFIXES = {
+        "R1.fastq.gz", "R2.fastq.gz", "SE.fastq.gz",
+        "R1.group.gz", "R2.group.gz", "SE.group.gz"};
+
 struct CommandLineArgs {
 
 // *** 00. frequently used parameters
@@ -304,7 +311,7 @@ struct CommandLineArgs {
     uvc1_qual_t tn_q_inc_max_sscs_CG_AT = 0;
     uvc1_qual_t tn_q_inc_max_sscs_other = 5;
     
-    // PHRED-scaled likelihood that the observed allele fraction additively deviates from the expected allele fraction by a multiplicative factor of 2
+    // Phred-scaled likelihood that the observed allele fraction additively deviates from the expected allele fraction by a multiplicative factor of 2
     double      tn_syserr_norm_devqual = 15.0; // can be (double)(12.5);
     uvc1_flag_t tn_is_paired = false;
     //uvc1_flag_t tn_flag = 0x0;
