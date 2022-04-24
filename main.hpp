@@ -2432,8 +2432,8 @@ struct Symbol2CountCoverageSet {
             if (idx) { // is insert ending at the right border
                 reverseAndComplement(stringof_baseBQ_pairs); // RevComplement
             }
-            const auto min2 = MIN(mb.beg_tidpos_pair, mb.end_tidpos_pair);
-            const auto max2 = MAX(mb.beg_tidpos_pair, mb.end_tidpos_pair);
+            const auto min2 = ((mb.duplexflag & 0x8) ? mb.beg_tidpos_pair : MIN(mb.beg_tidpos_pair, mb.end_tidpos_pair));
+            const auto max2 = ((mb.duplexflag & 0x8) ? mb.end_tidpos_pair : MAX(mb.beg_tidpos_pair, mb.end_tidpos_pair));
             std::string fqname = std::string("@")
                     +        std::to_string(min2.first)
                      + ":" + std::to_string(min2.second)
@@ -2444,7 +2444,7 @@ struct Symbol2CountCoverageSet {
                         // the extra -1 is due to possible insertion at the front/back of the fragment
                     + "|" + mb.umistring
                     + "#-1-"
-                    + anyuint2hexstring(mb.hashvalue);
+                    + anyuint2hexstring(mb.hashvalue) + " flag=" + std::to_string(mb.duplexflag);
             const size_t fqidx = ((n_PE_alns >= n_SE_alns) ? (idx^strand) : 2);
             auto &fqdata = fastq_outstrings[fqidx];
             auto &clusterdata = fastq_outstrings[fqidx+3];
