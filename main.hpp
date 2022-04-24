@@ -4291,7 +4291,7 @@ BcfFormat_symbol_calc_DPv(
     const double tier1_selfplus_aFA_amplicon_min = (is_tmore_amplicon_with_primerlen 
             ? (MINVEC(std::vector<double>(aLPFA2, aRPFA2))) : 1.0);
     const auto tier1_selfplus_aFA_vec = std::vector<double>{{
-            aLBFA2, aRBFA2
+            aLBFA2, aRBFA2,
             
             cROFA1,
             aSSFA2,
