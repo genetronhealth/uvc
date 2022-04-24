@@ -232,7 +232,7 @@ struct CommandLineArgs {
     uvc1_readnum_t      fam_min_n_copies_DPxAD = 20 * 1000;
     uvc1_readnum100x_t  fam_min_overseq_perc = 200; // 250; // percent fold of over-sequencing
     uvc1_readnum100x_t  fam_bias_overseq_perc = 150; // percent fold of over-sequencing
-    
+    uvc1_readnum100x_t  fam_tier3DP_bias_overseq_perc = 350;
     uvc1_readnum100x_t  fam_indel_nonUMI_phred_dec_per_fold_overseq = 9;
 
     // 10: error of 10 PCR cycles using low-fidelity polymerase, https://www.nature.com/articles/s41598-020-63102-8

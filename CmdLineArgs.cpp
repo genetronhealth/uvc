@@ -655,7 +655,8 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
         "Mininum percentage of over-sequencing (one plus average family size) to have zero penalty for UMI-labeled barcode-family. ");
     ADD_OPTDEF2(app, fam_bias_overseq_perc,
         "Mininum percentage of over-sequencing (one plus average family size) to trigger the computation of biases for tier-2 single-strand consensus-sequence (SSCS) families. ");
-    
+    ADD_OPTDEF2(app, fam_tier3DP_bias_overseq_perc,
+        "Mininum percentage of over-sequencing (one plus average family size) to enable the computation of biases of the discordance between tier-2 and tier-3 single-strand consensus-sequence (SSCS) families allele fractions. ");
     ADD_OPTDEF2(app, fam_indel_nonUMI_phred_dec_per_fold_overseq,
         std::string("Phred decrease in non-UMI variant quality for InDels per fold over-sequencing above (")
         + REPLACE_UNDERSCORE_WITH_HYPHEN(fam_thres_emperr_all_flat_indel) + " + 1). ");
