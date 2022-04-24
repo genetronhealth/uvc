@@ -2433,7 +2433,7 @@ struct Symbol2CountCoverageSet {
                 reverseAndComplement(stringof_baseBQ_pairs); // RevComplement
             }
             const auto min2 = MIN(mb.beg_tidpos_pair, mb.end_tidpos_pair);
-            const auto max2 = MIN(mb.beg_tidpos_pair, mb.end_tidpos_pair);
+            const auto max2 = MAX(mb.beg_tidpos_pair, mb.end_tidpos_pair);
             std::string fqname = std::string("@")
                     +        std::to_string(min2.first)
                      + ":" + std::to_string(min2.second)
@@ -4287,11 +4287,11 @@ BcfFormat_symbol_calc_DPv(
             }};
     const auto tier1_selfonly_aFA_min = MINVEC(tier1_selfonly_aFA_vec);
     
+    // Tumor ctDNA may inherently have position bias relative to non-tumor cfDNA due to nucleosome-related fragmentation
+    const double tier1_selfplus_aFA_amplicon_min = (is_tmore_amplicon_with_primerlen 
+            ? (MINVEC(std::vector<double>(aLPFA2, aRPFA2))) : 1.0);
     const auto tier1_selfplus_aFA_vec = std::vector<double>{{
-            aLPFA2,
-            aRPFA2,
-            aLBFA2,
-            aRBFA2,
+            aLBFA2, aRBFA2
             
             cROFA1,
             aSSFA2,
@@ -4300,8 +4300,8 @@ BcfFormat_symbol_calc_DPv(
             aRIFA2,
             MAX(aDPFA * 0.01, aSIFA)
             }};
-    const auto tier1_selfplus_aFA_min = MINVEC(tier1_selfplus_aFA_vec);
-
+    const auto tier1_selfplus_aFA_min = MIN(tier1_selfplus_aFA_amplicon_min, MINVEC(tier1_selfplus_aFA_vec));
+    
     fmt.nNFA.push_back(-numstates2deciphred(counterbias_P_FA));
     fmt.nNFA.push_back(-numstates2deciphred(counterbias_BQ_FA));
     
@@ -4333,7 +4333,8 @@ BcfFormat_symbol_calc_DPv(
     fmt_bias_push(fmt.nBCFA, cFA2,  c2RBFA2, paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::c2AlignR]);
     
     double cFA2a = ((is_tmore_amplicon_with_primerlen && !is_rescued) ? (cFA2 * (paramset.powlaw_amplicon_allele_fraction_coef)) : cFA2);
-    auto min_cFA23_vec = std::vector<double> {{ cFA2a, cFA3 }};
+    const double cFA3b = ((normBDP * ((paramset.fam_tier3DP_bias_overseq_perc - 100) / (is_rescued ? 2 : 1) + 100) >= normCDP1 * 100) ? cFA3 : 1.0);
+    auto min_cFA23_vec = std::vector<double> {{ cFA2a, cFA3b }}; // overseq_perc
     double c23FA = MINVEC(min_cFA23_vec);
 
     auto tier2_selfonly_c2FA_vec = std::vector<double>{{
