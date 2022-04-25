@@ -4098,7 +4098,7 @@ BcfFormat_symbol_calc_DPv(
         const auto c2DP = (f.cDP2f[a] + f.cDP2r[a]);
         const auto C2DP = (f.CDP2f[0] + f.CDP2r[0]);
         const double priorAD = ((double)normCDP1 / (double)normBDP);
-        const double prior_dec = MIN(c2DP, paramset.powlaw_exponent) * frac2phred(priorAD);
+        const double prior_dec = (is_tmore_amplicon ? (MIN(c2DP, paramset.powlaw_exponent) * frac2phred(priorAD)) : 0);
         const double c2Ppriorfreq = MAX(0, aPpriorfreq - prior_dec);
         const double c2Bpriorfreq = MAX(0, aBpriorfreq - prior_dec);
         auto c2LPFAx2 = dp4_to_pcFA<false>(f.c2LP1[a], c2DP, f.C2LP2[0] + f.c2LP1[a] - f.c2LP2[a], C2DP, paramset.powlaw_exponent, phred2nat(c2Ppriorfreq),
@@ -4288,12 +4288,15 @@ BcfFormat_symbol_calc_DPv(
     const auto tier1_selfonly_aFA_min = MINVEC(tier1_selfonly_aFA_vec);
     
     // Tumor ctDNA may inherently have position bias relative to non-tumor cfDNA due to nucleosome-related fragmentation
-    const double tier1_selfplus_aFA_amplicon_min = (is_tmore_amplicon_with_primerlen 
-            ? (MINVEC(std::vector<double> {{ aLPFA2, aRPFA2 }} )) : 1.0);
-    const auto tier1_selfplus_aFA_vec = std::vector<double>{{
-            aLBFA2, aRBFA2,
-            
+    const double tier1_selfplus_aFA_amplicon_min = (is_tmore_amplicon_with_primerlen ? (MINVEC(std::vector<double> {{ 
+            aSSFA2,
             cROFA1,
+            aLPFA2, 
+            aRPFA2, 
+            aLBFA2, 
+            aRBFA2
+            }} )) : 1.0);
+    const auto tier1_selfplus_aFA_vec = std::vector<double>{{
             aSSFA2,
             
             aLIFA2,
@@ -4301,6 +4304,20 @@ BcfFormat_symbol_calc_DPv(
             MAX(aDPFA * 0.01, aSIFA)
             }};
     const auto tier1_selfplus_aFA_min = MIN(tier1_selfplus_aFA_amplicon_min, MINVEC(tier1_selfplus_aFA_vec));
+    
+    double cFA2a = ((is_tmore_amplicon_with_primerlen && !is_rescued) ? (cFA2 * (paramset.powlaw_amplicon_allele_fraction_coef)) : cFA2);
+    const double cFA3b = ((normBDP * ((paramset.fam_tier3DP_bias_overseq_perc - 100) / (is_rescued ? 2 : 1) + 100) >= normCDP1 * 100) ? cFA3 : 1.0);
+    auto min_cFA23_vec = std::vector<double> {{ cFA2a, cFA3b }}; // overseq_perc
+    double c23FA = MINVEC(min_cFA23_vec);
+
+    auto tier2_selfonly_c2FA_vec = std::vector<double>{{
+            c23FA,
+            cROFA2,
+            c2LPFA2,
+            c2RPFA2,
+            c2LBFA2,
+            c2RBFA2}};
+    double tier2_selfonly_c2FA_min = MINVEC(tier2_selfonly_c2FA_vec);
     
     fmt.nNFA.push_back(-numstates2deciphred(counterbias_P_FA));
     fmt.nNFA.push_back(-numstates2deciphred(counterbias_BQ_FA));
@@ -4324,6 +4341,7 @@ BcfFormat_symbol_calc_DPv(
     
     fmt_bias_push(fmt.nBCFA, bFA,    cFA0,   paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::bcDup]);
     fmt_bias_push(fmt.nBCFA, cFA0,   bFA,    paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::cbDup]);
+    
     fmt_bias_push(fmt.nBCFA, cFA0,  cROFA1,  paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::c0Orientation]);
     fmt_bias_push(fmt.nBCFA, cFA2,  cROFA2,  paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::c2Orientation]);
     
@@ -4332,19 +4350,6 @@ BcfFormat_symbol_calc_DPv(
     fmt_bias_push(fmt.nBCFA, cFA2,  c2LBFA2, paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::c2AlignL]);
     fmt_bias_push(fmt.nBCFA, cFA2,  c2RBFA2, paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::c2AlignR]);
     
-    double cFA2a = ((is_tmore_amplicon_with_primerlen && !is_rescued) ? (cFA2 * (paramset.powlaw_amplicon_allele_fraction_coef)) : cFA2);
-    const double cFA3b = ((normBDP * ((paramset.fam_tier3DP_bias_overseq_perc - 100) / (is_rescued ? 2 : 1) + 100) >= normCDP1 * 100) ? cFA3 : 1.0);
-    auto min_cFA23_vec = std::vector<double> {{ cFA2a, cFA3b }}; // overseq_perc
-    double c23FA = MINVEC(min_cFA23_vec);
-
-    auto tier2_selfonly_c2FA_vec = std::vector<double>{{
-            c23FA,
-            cROFA2,
-            c2LPFA2,
-            c2RPFA2,
-            c2LBFA2,
-            c2RBFA2}};
-    double tier2_selfonly_c2FA_min = MINVEC(tier2_selfonly_c2FA_vec);
     
     if (fmt.FTS.size() == 0 || (LAST(fmt.FTS).size() == 0)) {
         fmt.FTS = std::vector<std::string> {{ "PASS" }};
