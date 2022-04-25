@@ -4289,7 +4289,7 @@ BcfFormat_symbol_calc_DPv(
     
     // Tumor ctDNA may inherently have position bias relative to non-tumor cfDNA due to nucleosome-related fragmentation
     const double tier1_selfplus_aFA_amplicon_min = (is_tmore_amplicon_with_primerlen 
-            ? (MINVEC(std::vector<double>(aLPFA2, aRPFA2))) : 1.0);
+            ? (MINVEC(std::vector<double> {{ aLPFA2, aRPFA2 }} )) : 1.0);
     const auto tier1_selfplus_aFA_vec = std::vector<double>{{
             aLBFA2, aRBFA2,
             
