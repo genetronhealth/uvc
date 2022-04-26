@@ -786,8 +786,8 @@ std::array<double, 2>
 dp4_to_pcFA(double overseq_frac, double aADpass, double aADfail, double aDPpass, double aDPfail, 
         double pl_exponent = 3.0, double n_nats = log(500+1),
         double aADavgKeyVal = -1, double aDPavgKeyVal = -1, double priorAD = 0.5, double priorDP = 1.0) {
-    assert(aADpass >= 0 || !fprintf(stderr, "%f >= %f failed for pass!\n", aADpass, 0));
-    assert(aADfail >= 0 || !fprintf(stderr, "%f >= %f failed for fail!\n", aADfail, 0));
+    assert(aADpass >= 0.0 || !fprintf(stderr, "%f >= %f failed for pass!\n", aADpass, 0.0));
+    assert(aADfail >= 0.0 || !fprintf(stderr, "%f >= %f failed for fail!\n", aADfail, 0.0));
     assert(aADpass <= aDPpass || !fprintf(stderr, "%f <= %f failed for pass!\n", aADpass, aDPpass));
     assert(aADfail <= aDPfail || !fprintf(stderr, "%f <= %f failed for fail!\n", aADfail, aDPfail));
     if (!TIsOverseqFracDisabled) {

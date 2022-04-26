@@ -4109,7 +4109,7 @@ BcfFormat_symbol_calc_DPv(
         const auto c2DP = (f.cDP2f[a] + f.cDP2r[a]);
         const auto C2DP = (f.CDP2f[0] + f.CDP2r[0]);
         const double priorAD = ((double)normCDP1 / (double)normBDP);
-        const double prior_dec = (is_tmore_amplicon ? (MIN(c2DP, paramset.powlaw_exponent) * frac2phred(priorAD)) : 0);
+        const double prior_dec = 0; // (is_tmore_amplicon ? (MIN(c2DP, paramset.powlaw_exponent) * frac2phred(priorAD)) : 0);
         const double c2Ppriorfreq = MAX(0, aPpriorfreq - prior_dec);
         const double c2Bpriorfreq = MAX(0, aBpriorfreq - prior_dec);
         auto c2LPFAx2 = dp4_to_pcFA<false,true>(-1, f.c2LP1[a], c2DP, f.C2LP2[0] + f.c2LP1[a] - f.c2LP2[a], C2DP, paramset.powlaw_exponent, phred2nat(c2Ppriorfreq),
@@ -4298,23 +4298,30 @@ BcfFormat_symbol_calc_DPv(
             }};
     const auto tier1_selfonly_aFA_min = MINVEC(tier1_selfonly_aFA_vec);
     
-    // Tumor ctDNA may inherently have position bias relative to non-tumor cfDNA due to nucleosome-related fragmentation
-    const double tier1_selfplus_aFA_amplicon_min = (is_tmore_amplicon_with_primerlen ? (MINVEC(std::vector<double> {{ 
+    /* const double tier1_selfplus_aFA_amplicon_min = (is_tmore_amplicon_with_primerlen ? (MINVEC(std::vector<double> {{ 
             aSSFA2,
             cROFA1,
             aLPFA2, 
             aRPFA2, 
             aLBFA2, 
             aRBFA2
-            }} )) : 1.0);
+            }} )) : 1.0); */
     const auto tier1_selfplus_aFA_vec = std::vector<double>{{
             aSSFA2,
+            
+            cROFA1,
+            
+            aLPFA2, 
+            aRPFA2, 
+            aLBFA2, 
+            aRBFA2,
             
             aLIFA2,
             aRIFA2,
             MAX(aDPFA * 0.01, aSIFA)
             }};
-    const auto tier1_selfplus_aFA_min = MIN(tier1_selfplus_aFA_amplicon_min, MINVEC(tier1_selfplus_aFA_vec));
+    // const auto tier1_selfplus_aFA_min = MIN(tier1_selfplus_aFA_amplicon_min, MINVEC(tier1_selfplus_aFA_vec));
+    const auto tier1_selfplus_aFA_min = MINVEC(tier1_selfplus_aFA_vec);
     
     double cFA2a = ((is_tmore_amplicon_with_primerlen && !is_rescued) ? (cFA2 * (paramset.powlaw_amplicon_allele_fraction_coef)) : cFA2);
     const double cFA3b = ((normBDP * ((paramset.fam_tier3DP_bias_overseq_perc - 100) / (is_rescued ? 2 : 1) + 100) >= normCDP1 * 100) ? cFA3 : 1.0);
@@ -4898,7 +4905,7 @@ BcfFormat_symbol_calc_qual(
     const uvc1_qual_big_t dVQinc = MIN(MIN(dFA_vq_binom, dFA_vq_powlaw) - MAX(0, MIN(LAST(fmt.cIAQ), LAST(fmt.cPLQ2))), paramset.fam_phred_dscs_inc_max); 
     clear_push(fmt.dVQinc, dVQinc, a);
     
-    const uvc1_qual_t cVQ2 = MIN3(systematicVQsomatic + 3,
+    const uvc1_qual_t cVQ2 = MIN3(systematicVQsomatic,
             LAST(fmt.cIAQ) + MAX(0, dVQinc),
             LAST(fmt.cPLQ2) + MAX(0, dVQinc)) - indel_penal4multialleles;
     clear_push(fmt.cVQ2, MAX(mincVQ2, MIN(cVQ2, LAST(fmt.cTINQ))), a);
