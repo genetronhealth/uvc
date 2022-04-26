@@ -781,13 +781,21 @@ get_avgBQ(const T1 & bg_seg_bqsum_conslogo, const T2 & symbol_to_seg_format_dept
 }
 
 template
-<bool TBidirectional = true>
+<bool TBidirectional = true, bool TIsOverseqFracDisabled = false>
 std::array<double, 2> 
-dp4_to_pcFA(double aADpass, double aADfail, double aDPpass, double aDPfail, 
+dp4_to_pcFA(double overseq_frac, double aADpass, double aADfail, double aDPpass, double aDPfail, 
         double pl_exponent = 3.0, double n_nats = log(500+1),
         double aADavgKeyVal = -1, double aDPavgKeyVal = -1, double priorAD = 0.5, double priorDP = 1.0) {
+    assert(aADpass >= 0 || !fprintf(stderr, "%f >= %f failed for pass!\n", aADpass, 0));
+    assert(aADfail >= 0 || !fprintf(stderr, "%f >= %f failed for fail!\n", aADfail, 0));
     assert(aADpass <= aDPpass || !fprintf(stderr, "%f <= %f failed for pass!\n", aADpass, aDPpass));
     assert(aADfail <= aDPfail || !fprintf(stderr, "%f <= %f failed for fail!\n", aADfail, aDPfail));
+    if (!TIsOverseqFracDisabled) {
+        aDPfail *= overseq_frac;
+        aDPpass *= overseq_frac;
+        aADfail *= overseq_frac;
+        aADpass *= overseq_frac;
+    }
     aDPfail += priorDP;
     aDPpass += priorDP;
     aADfail += priorAD;
@@ -839,10 +847,11 @@ main(int argc, char **argv) {
     double pca = atof(argv[9]);
     double pcb = atof(argv[10]);
     
-    const auto ret1 = dp4_to_pcFA<false>(adpass, adfail, dppass, dpfail, entropy, entrmax, ldist, rdist, pca, pcb);
-    const auto ret2 = dp4_to_pcFA<true>(adpass, adfail, dppass, dpfail, entropy, entrmax, ldist, rdist, pca, pcb);
-    printf("dp4_to_pcFA<false, true>(%f, %f, %f, %f, %f, %f, %f, %f, %f, %f) = <{%f, %f}, {%f, %f}>\n", adpass, adfail, dppass, dpfail, entropy, entrmax, ldist, rdist, pca, pcb, ret1[0], ret1[1], ret2[0], ret2[1]);
-}   
+    const auto ret1 = dp4_to_pcFA<false>(-1, adpass, adfail, dppass, dpfail, entropy, entrmax, ldist, rdist, pca, pcb);
+    const auto ret2 = dp4_to_pcFA<true>(-1, adpass, adfail, dppass, dpfail, entropy, entrmax, ldist, rdist, pca, pcb);
+    printf("dp4_to_pcFA<(false AND true)>(%f, %f, %f, %f, %f, %f, %f, %f, %f, %f) = ({%f, %f} AND {%f, %f})\n", 
+            adpass, adfail, dppass, dpfail, entropy, entrmax, ldist, rdist, pca, pcb, ret1[0], ret1[1], ret2[0], ret2[1]);
+}
 
 #endif
 
