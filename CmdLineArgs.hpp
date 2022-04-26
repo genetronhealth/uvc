@@ -187,7 +187,7 @@ struct CommandLineArgs {
     uvc1_qual_t        bias_thres_BAQ1 = 23;
     uvc1_qual_t        bias_thres_BAQ2 = 33;
     
-    double             bias_thres_FTS_FA = 2.0;
+    double             bias_thres_FTS_FA = 1+1e-5; // 2.0;
     bool               bias_is_orientation_artifact_mixed_with_sequencing_error = false;
 // *** 06. parameters related to the priors of bias
     
