@@ -28,7 +28,7 @@ void
 reverseAndComplement(FastqRecord & fqrec) {
     std::reverse(fqrec.begin(), fqrec.end());
     for (auto & baseBQ :fqrec) {
-        baseBQ.second = STATIC_REV_COMPLEMENT.data[baseBQ.second];
+        baseBQ.first = STATIC_REV_COMPLEMENT.data[baseBQ.first];
     }
 }
 
