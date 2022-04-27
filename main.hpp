@@ -4171,10 +4171,12 @@ BcfFormat_symbol_calc_DPv(
             aRPFA += 2.0;
             aLBFA += 2.0;
             aRBFA += 2.0;
-            c2LPFA += 2.0;
-            c2RPFA += 2.0;
-            c2LBFA += 2.0;
-            c2RBFA += 2.0;
+            if (fmt.enable_tier2_consensus_format_tags) {
+                c2LPFA += 2.0;
+                c2RPFA += 2.0;
+                c2LBFA += 2.0;
+                c2RBFA += 2.0;
+            }
         }
         if (LAST(fmt.bMQ) >= paramset.microadjust_nobias_pos_indel_bMQ && LAST(fmt.a2XM2) * 100 >= aDP * 100 * paramset.microadjust_nobias_pos_indel_perc) { 
             aLIFA += 2.0; 
@@ -4197,8 +4199,12 @@ BcfFormat_symbol_calc_DPv(
         double aRPFA_minA = (pc + LAST(fmt.aRP1)) / (double)(pc * 2 + fmt.ALP1[0]);
         UPDATE_MIN(aLPFA, aLPFA_minA);
         UPDATE_MIN(aRPFA, aRPFA_minA);
-        UPDATE_MIN(c2LPFA, aLPFA_minA);
-        UPDATE_MIN(c2RPFA, aRPFA_minA);
+        if (fmt.enable_tier2_consensus_format_tags) {
+            // Assume that non-UMI mode does not generate any such InDel error here, so that UMI is not needed. 
+            // Otherwise, we have to perform more computation for very little benefit. Hence, this assumption is made. 
+            UPDATE_MIN(c2LPFA, aLPFA_minA); 
+            UPDATE_MIN(c2RPFA, aRPFA_minA);
+        }
     }
     
     if (NOT_PROVIDED != paramset.vcf_tumor_fname || (SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform)) {
@@ -4228,7 +4234,7 @@ BcfFormat_symbol_calc_DPv(
     }
     const auto cROFA1x2 = _cROFA1x2; 
     const auto cROFA2x2 = dp4_to_pcFA<true,true>(-1, fmt.cDP2f[a], fmt.cDP2r[a], fmt.CDP2f[0], fmt.CDP2r[0], paramset.powlaw_exponent, 
-            log(mathsquare(aDPFA)) + phred2nat(bias_priorfreq_orientation_base, -1, -1, c2altpc, 1.0));
+            log(mathsquare(aDPFA)) + phred2nat(bias_priorfreq_orientation_base), -1, -1, c2altpc, 1.0);
     
     double aSSFA = aSSFAx2[0] * dir_bias_div;
     double cROFA1 = cROFA1x2[0] * dir_bias_div;
@@ -4800,14 +4806,17 @@ BcfFormat_symbol_calc_qual(
         }
     }
     
+    const auto _systematicMQ_base = ((fmt.bMQ[a] * (paramset.syserr_MQ_max - paramset.syserr_MQ_nonref_base) / paramset.syserr_MQ_max + paramset.syserr_MQ_nonref_base))
+            - (uvc1_qual_t)(diffMQ2)
+            - (uvc1_qual_t)(fmt.bNMQ[a]);
+    
     const uvc1_qual_t _systematicMQ = (((refsymbol == symbol) && (ADP > aDP * 2))
                 ? fmt.bMQ[a] // small
-                : (fmt.bMQ[a] * (paramset.syserr_MQ_max - paramset.syserr_MQ_nonref_base) / paramset.syserr_MQ_max + paramset.syserr_MQ_nonref_base))
-            - (uvc1_qual_t)(diffMQ2)
-            - (uvc1_qual_t)(fmt.bNMQ[a])
-            - (uvc1_qual_t)(numstates2phred((ADP + 1.0) / (aDP + 0.5)));
-    auto systematicMQVQ1 = MIN((MAX(_systematicMQ, paramset.syserr_MQ_min) + _systematicMQVQadd), readlenMQcap);
+                : (_systematicMQ_base - (uvc1_qual_t)(numstates2phred((ADP + 1.0) / (aDP + 0.5)))));
+    // We may need to consider that: if an amplicon panel is designed for a target region, then there must be wet-lab protocol to deal with low mapping quality.
     
+    auto systematicMQVQ1 = MIN((MAX(_systematicMQ, paramset.syserr_MQ_min) + _systematicMQVQadd), readlenMQcap);
+
     const uvc1_qual_t systematicBQVQ = (
             ((SEQUENCING_PLATFORM_IONTORRENT != paramset.inferred_sequencing_platform) && isSymbolSubstitution(AlignmentSymbol(LAST(fmt.VTI)))) 
             ? fmt.aBQQ[a] : (200));
@@ -4854,6 +4863,7 @@ BcfFormat_symbol_calc_qual(
             : (is_tmore_amplicon ? paramset.microadjust_dedup_absence_indel_penalty : 0));
     
     const auto tn_syserr_q = systematicMQVQ + paramset.tn_q_inc_max;
+    
     clear_push(fmt.bMQQ, systematicMQVQ);
     
     clear_push(fmt.bIAQ, duped_frag_binom_qual - indel_penal_base2, a);
