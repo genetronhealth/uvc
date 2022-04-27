@@ -3928,6 +3928,7 @@ BcfFormat_symbol_calc_DPv(
     const int a = 0;
     const bool is_rescued = (tpfa >= 0);
     const double pfa = (is_rescued ? tpfa : 0.5);
+    const double c2altpc = 0.025;
     
     // Non-UMI universality-based prequal allele fraction
     const uvc1_readnum_t ADP1 = (fmt.ADPff[0] + fmt.ADPfr[0] + fmt.ADPrf[0] + fmt.ADPrr[0]);
@@ -3937,10 +3938,10 @@ BcfFormat_symbol_calc_DPv(
     const uvc1_readnum_t cDP1 = (fmt.cDP1f[a] + fmt.CDP1r[a]);
     const uvc1_readnum_t CDP1 = (fmt.CDP1f[0] + fmt.CDP1r[0]);
     
-    const double cFA2 = (fmt.cDP2f[a] + fmt.cDP2r[a] + 0.5) / (fmt.CDP2f[0] + fmt.CDP2r[0] + 1.0);
+    const double cFA2 = (fmt.cDP2f[a] + fmt.cDP2r[a] + c2altpc) / (fmt.CDP2f[0] + fmt.CDP2r[0] + 1.0);
     // The following code without + 1 pseudocount in both nominator and denominator can result in false negative calls at low allele fraction (it is rare but can happen).
     // double cFA3 = (fmt.cDP3f[a] + fmt.cDP3r[a] + pfa + 1) / (fmt.CDP3f[0] + fmt.CDP3r[0] + 1.0);
-    const double cFA3 = (fmt.cDP3f[a] + fmt.cDP3r[a] + 0.5) / (fmt.CDP3f[0] + fmt.CDP3r[0] + 1.0);
+    const double cFA3 = (fmt.cDP3f[a] + fmt.cDP3r[a] + c2altpc) / (fmt.CDP3f[0] + fmt.CDP3r[0] + 1.0);
     assert( cFA2 > 0 );
     assert( cFA2 < 1 );
     assert( cFA3 > 0 );
@@ -4108,18 +4109,18 @@ BcfFormat_symbol_calc_DPv(
         // Over-sequencing results in less possibility for remaining SSCS support, thus decreasing the prior of having no bias
         const auto c2DP = (f.cDP2f[a] + f.cDP2r[a]);
         const auto C2DP = (f.CDP2f[0] + f.CDP2r[0]);
-        const double priorAD = ((double)normCDP1 / (double)normBDP);
+        // const double priorAD = ((double)normCDP1 / (double)normBDP);
         const double prior_dec = 0; // (is_tmore_amplicon ? (MIN(c2DP, paramset.powlaw_exponent) * frac2phred(priorAD)) : 0);
         const double c2Ppriorfreq = MAX(0, aPpriorfreq - prior_dec);
         const double c2Bpriorfreq = MAX(0, aBpriorfreq - prior_dec);
         auto c2LPFAx2 = dp4_to_pcFA<false,true>(-1, f.c2LP1[a], c2DP, f.C2LP2[0] + f.c2LP1[a] - f.c2LP2[a], C2DP, paramset.powlaw_exponent, phred2nat(c2Ppriorfreq),
-            MAX(1, f.c2LPL[a]) / (double)MAX(1, f.c2BQ2[a]), MAX(1, f.C2LPL[0]) / (double)MAX(1, f.C2BQ2[0]), priorAD * 0.5, priorAD * 1.0); 
+            MAX(1, f.c2LPL[a]) / (double)MAX(1, f.c2BQ2[a]), MAX(1, f.C2LPL[0]) / (double)MAX(1, f.C2BQ2[0]), c2altpc, 1.0); 
         auto c2RPFAx2 = dp4_to_pcFA<false,true>(-1, f.c2RP1[a], c2DP, f.C2RP2[0] + f.c2RP1[a] - f.c2RP2[a], C2DP, paramset.powlaw_exponent, phred2nat(c2Ppriorfreq),
-            MAX(1, f.c2RPL[a]) / (double)MAX(1, f.c2BQ2[a]), MAX(1, f.C2RPL[0]) / (double)MAX(1, f.C2BQ2[0]), priorAD * 0.5, priorAD * 1.0 ); 
+            MAX(1, f.c2RPL[a]) / (double)MAX(1, f.c2BQ2[a]), MAX(1, f.C2RPL[0]) / (double)MAX(1, f.C2BQ2[0]), c2altpc, 1.0); 
         auto c2LBFAx2 = dp4_to_pcFA<false,true>(-1, f.c2LB1[a], c2DP, f.C2LB2[0] + f.c2LB1[a] - f.c2LB2[a], C2DP, paramset.powlaw_exponent, phred2nat(c2Bpriorfreq),
-            MAX(1, f.c2LBL[a]) / (double)MAX(1, f.c2BQ2[a]), MAX(1, f.C2LBL[0]) / (double)MAX(1, f.C2BQ2[0]), priorAD * 0.5, priorAD * 1.0);
+            MAX(1, f.c2LBL[a]) / (double)MAX(1, f.c2BQ2[a]), MAX(1, f.C2LBL[0]) / (double)MAX(1, f.C2BQ2[0]), c2altpc, 1.0);
         auto c2RBFAx2 = dp4_to_pcFA<false,true>(-1, f.c2RB1[a], c2DP, f.C2RB2[0] + f.c2RB1[a] - f.c2RB2[a], C2DP, paramset.powlaw_exponent, phred2nat(c2Bpriorfreq),
-            MAX(1, f.c2RBL[a]) / (double)MAX(1, f.c2BQ2[a]), MAX(1, f.C2RBL[0]) / (double)MAX(1, f.C2BQ2[0]), priorAD * 0.5, priorAD * 1.0);
+            MAX(1, f.c2RBL[a]) / (double)MAX(1, f.c2BQ2[a]), MAX(1, f.C2RBL[0]) / (double)MAX(1, f.C2BQ2[0]), c2altpc, 1.0);
         c2LPFA = c2LPFAx2[0];
         c2RPFA = c2RPFAx2[0];
         c2LBFA = c2LBFAx2[0];
@@ -4227,7 +4228,7 @@ BcfFormat_symbol_calc_DPv(
     }
     const auto cROFA1x2 = _cROFA1x2; 
     const auto cROFA2x2 = dp4_to_pcFA<true,true>(-1, fmt.cDP2f[a], fmt.cDP2r[a], fmt.CDP2f[0], fmt.CDP2r[0], paramset.powlaw_exponent, 
-            log(mathsquare(aDPFA)) + phred2nat(bias_priorfreq_orientation_base));
+            log(mathsquare(aDPFA)) + phred2nat(bias_priorfreq_orientation_base, -1, -1, c2altpc, 1.0));
     
     double aSSFA = aSSFAx2[0] * dir_bias_div;
     double cROFA1 = cROFA1x2[0] * dir_bias_div;
