@@ -102,6 +102,8 @@ const std::vector<std::pair<std::string, std::string>> FILTER_VEC = {
     std::make_pair("c2AlignR",      "For FORMAT/FTS: Alignment bias on the right mapping coordinate of the tier-2 single-strand consensus sequence (SSCS) relative to all alleles. "),
     std::make_pair("c2PositionL",   "For FORMAT/FTS: Position bias on the left mapping coordinate of the tier-2 single-strand consensus sequence (SSCS) relative to all alleles. "),
     std::make_pair("c2PositionR",   "For FORMAT/FTS: Position bias on the right mapping coordinate of the tier-2 single-strand consensus sequence (SSCS) relative to all alleles. "),
+    std::make_pair("c2StrictPosL",  "For FORMAT/FTS: Strictly defined position bias (which has zero prior probability of not having bias) on the left mapping coordinate of the tier-2 single-strand consensus sequence (SSCS) relative to all alleles. "),
+    std::make_pair("c2StrictPosR",  "For FORMAT/FTS: Strictly defined position bias (which has zero prior probability of not having bias) on the right mapping coordinate of the tier-2 single-strand consensus sequence (SSCS) relative to all alleles. "),
 };
 
 struct BcfFormatStruct {
@@ -311,6 +313,11 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     BcfFormatStruct("CDP2r" , 2,         BCF_INTEGER, "SSCS depth on the reverse read orientation for all alleles by sum. "),
     BcfFormatStruct("c2BQ2" , BCF_NUM_R, BCF_INTEGER, "SSCS depth unaffected by tier-2 base quality bias. ").sscs(),
     BcfFormatStruct("C2BQ2" , 2,1,       BCF_INTEGER, "SSCS depth unaffected by tier-2 base quality bias. ").sscs(),
+    
+    BcfFormatStruct("c2LP0" , BCF_NUM_R, BCF_INTEGER, "SSCS depth unaffected by strictly defined no-prior left-side position bias. ").sscs(),
+    BcfFormatStruct("C2LP0" , 2,1,       BCF_INTEGER, "SSCS depth unaffected by strictly defined no-prior left-side position bias. ").sscs(),
+    BcfFormatStruct("c2RP0" , BCF_NUM_R, BCF_INTEGER, "SSCS depth unaffected by strictly defined no-prior right-side position bias. ").sscs().not_put_in_vcf(),
+    BcfFormatStruct("C2RP0" , 2,1,       BCF_INTEGER, "SSCS depth unaffected by strictly defined no-prior right-side position bias. ").sscs().not_put_in_vcf(),
     
     BcfFormatStruct("_C2XP" , 1,         BCF_SEP,     "SSCS statistics related to position bias. "
                                          "If this tag is present and absent, then all SSCS-related tags are all present and absent, respectively. ").sscs(),

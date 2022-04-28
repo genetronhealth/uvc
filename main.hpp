@@ -3006,6 +3006,12 @@ if (paramset.inferred_is_vcf_generated) {
                                                 true,
                                                 0);
                                     }
+                                    if (fam2_l_nbases >= paramset.bias_thres_strict_c2LRP0) {
+                                        fam_info_set.faminfo_c2LP0++;
+                                    }
+                                    if (fam2_r_nbases >= paramset.bias_thres_strict_c2LRP0) {
+                                        fam_info_set.faminfo_c2RP0++;
+                                    }
                                     
                                     const uvc1_qual_t seg_l_baq = baq_offsetarr.getByPos(rpos) - baq_offsetarr.getByPos(MAX(rbeg, non_neg_minus(rpos, MAX_STR_N_BASES))) + 1;
                                     const uvc1_qual_t _seg_r_baq = baq_offsetarr.getByPos(MIN3(rend-1, rpos + (MAX_STR_N_BASES), baq_offsetarr.getExcluEndPosition()-1)) - baq_offsetarr.getByPos(rpos) + 1;
@@ -3708,7 +3714,10 @@ BcfFormat_symboltype_init(bcfrec::BcfFormat & fmt,
     filla_symboltype_fmt(fmt.C2RBL,  symbol_to_fam_format_info_sets, faminfo_c2RBL, refpos, symboltype, refsymbol);
     
     filla_symboltype_fmt(fmt.C2BQ2,  symbol_to_fam_format_info_sets, faminfo_c2BQ2, refpos, symboltype, refsymbol);
-
+    
+    filla_symboltype_fmt(fmt.C2LP0,  symbol_to_fam_format_info_sets, faminfo_c2LP0, refpos, symboltype, refsymbol);
+    filla_symboltype_fmt(fmt.C2RP0,  symbol_to_fam_format_info_sets, faminfo_c2RP0, refpos, symboltype, refsymbol);
+    
     const auto & symbol_to_duplex_format_depth_sets = symbol2CountCoverageSet12.symbol_to_duplex_format_depth_sets;
     fill_symboltype_fmt(fmt.DDP1,  symbol_to_duplex_format_depth_sets, DUPLEX_dDP1, refpos, symboltype, refsymbol);
     fill_symboltype_fmt(fmt.DDP2,  symbol_to_duplex_format_depth_sets, DUPLEX_dDP2, refpos, symboltype, refsymbol);
@@ -3842,7 +3851,10 @@ BcfFormat_symbol_init(
     filla_symbol_fmt(fmt.c2RBL, symbol_to_fam_format_info_sets, faminfo_c2RBL, refpos, symbol, a);
     
     filla_symbol_fmt(fmt.c2BQ2, symbol_to_fam_format_info_sets, faminfo_c2BQ2, refpos, symbol, a);
-
+    
+    filla_symbol_fmt(fmt.c2LP0, symbol_to_fam_format_info_sets, faminfo_c2LP0, refpos, symbol, a);
+    filla_symbol_fmt(fmt.c2RP0, symbol_to_fam_format_info_sets, faminfo_c2RP0, refpos, symbol, a);
+    
     const auto & symbol_to_duplex_format_depth_sets = symbol2CountCoverageSet12.symbol_to_duplex_format_depth_sets;
     fill_symbol_fmt(fmt.dDP1,  symbol_to_duplex_format_depth_sets, DUPLEX_dDP1, refpos, symbol, a);
     fill_symbol_fmt(fmt.dDP2,  symbol_to_duplex_format_depth_sets, DUPLEX_dDP2, refpos, symbol, a);
@@ -3895,7 +3907,7 @@ fmt_bias_push(T1 & vecFA, const T2 refFA, const T3 biasFA, const double thresFAr
         ftss.push_back("");
     }
     std::string & fts = ftss[ftss.size()-1];
-    if (biasFA * thresFAratio < refFA) {
+    if (biasFA < refFA * thresFAratio) {
         if (fts.size() > 0) { fts += std::string("|"); }
         fts += ft + "-" + std::to_string((uvc1_readnum100x_t)round(100.0 * biasFA / refFA));
         return 1;
@@ -3939,6 +3951,7 @@ BcfFormat_symbol_calc_DPv(
     const uvc1_readnum_t CDP1 = (fmt.CDP1f[0] + fmt.CDP1r[0]);
     
     const double cFA2 = (fmt.cDP2f[a] + fmt.cDP2r[a] + c2altpc) / (fmt.CDP2f[0] + fmt.CDP2r[0] + 1.0);
+    
     // The following code without + 1 pseudocount in both nominator and denominator can result in false negative calls at low allele fraction (it is rare but can happen).
     // double cFA3 = (fmt.cDP3f[a] + fmt.cDP3r[a] + pfa + 1) / (fmt.CDP3f[0] + fmt.CDP3r[0] + 1.0);
     const double cFA3 = (fmt.cDP3f[a] + fmt.cDP3r[a] + c2altpc) / (fmt.CDP3f[0] + fmt.CDP3r[0] + 1.0);
@@ -4096,15 +4109,23 @@ BcfFormat_symbol_calc_DPv(
     // tier-2 UMI families
     const uvc1_readnum_t normCDP1 = (fmt.CDP12f[0] + fmt.CDP12r[0] + 1);
     const uvc1_readnum_t normBDP = (fmt.BDPf[0] + fmt.BDPr[0] + 1);
-    double c2LPFA = 1.0;
-    double c2RPFA = 1.0;
-    double c2LBFA = 1.0;
-    double c2RBFA = 1.0;
+    const auto c2DP = (f.cDP2f[a] + f.cDP2r[a]);
+
     const bool try_enable_tier2_consensus_format_tags = (
             ((f.cDP2f[a] + f.cDP2r[a]) >= 2) 
             && (normBDP * paramset.fam_bias_overseq_perc >= normCDP1 * 100) 
             && (seg_format_prep_sets.segprep_a_umi_dp * 100 > seg_format_prep_sets.segprep_a_dp * 50));
     fmt.enable_tier2_consensus_format_tags = (is_rescued ? (tki.enable_tier2_consensus_format_tags) : (try_enable_tier2_consensus_format_tags));
+
+    const double cFA2L = (fmt.enable_tier2_consensus_format_tags ? ((mathsquare((uvc1_readnum_big_t)fmt.c2LP0[a]) * 2 / BETWEEN(c2DP, 1, fmt.c2LP0[0] * 4) + c2altpc) / (fmt.C2LP0[0] + 1.0)) : 1.0);
+    const double cFA2R = (fmt.enable_tier2_consensus_format_tags ? ((mathsquare((uvc1_readnum_big_t)fmt.c2RP0[a]) * 2 / BETWEEN(c2DP, 1, fmt.c2RP0[0] * 4) + c2altpc) / (fmt.C2RP0[0] + 1.0)) : 1.0);
+    
+    
+    double c2LPFA = 1.0;
+    double c2RPFA = 1.0;
+    double c2LBFA = 1.0;
+    double c2RBFA = 1.0;
+    
     if (fmt.enable_tier2_consensus_format_tags) {
         // Over-sequencing results in less possibility for remaining SSCS support, thus decreasing the prior of having no bias
         const auto c2DP = (f.cDP2f[a] + f.cDP2r[a]);
@@ -4125,7 +4146,6 @@ BcfFormat_symbol_calc_DPv(
         c2RPFA = c2RPFAx2[0];
         c2LBFA = c2LBFAx2[0];
         c2RBFA = c2RBFAx2[0];
-        fmt.enable_tier2_consensus_format_tags = true;
     }
     
     std::array<double, 2> _aLIFAx2 = {{ 0, 0 }};
@@ -4336,6 +4356,8 @@ BcfFormat_symbol_calc_DPv(
     double c23FA = MINVEC(min_cFA23_vec);
 
     auto tier2_selfonly_c2FA_vec = std::vector<double>{{
+            cFA2L,
+            cFA2R,
             c23FA,
             cROFA2,
             c2LPFA2,
@@ -4375,7 +4397,9 @@ BcfFormat_symbol_calc_DPv(
     fmt_bias_push(fmt.nBCFA, cFA2,  c2LBFA2, paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::c2AlignL]);
     fmt_bias_push(fmt.nBCFA, cFA2,  c2RBFA2, paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::c2AlignR]);
     
-    
+    fmt_bias_push(fmt.nBCFA, cFA2,  cFA2L,   paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::c2StrictPosL]);
+    fmt_bias_push(fmt.nBCFA, cFA2,  cFA2R,   paramset.bias_thres_FTS_FA, fmt.FTS, bcfrec::FILTER_IDS[bcfrec::c2StrictPosR]);
+        
     if (fmt.FTS.size() == 0 || (LAST(fmt.FTS).size() == 0)) {
         fmt.FTS = std::vector<std::string> {{ "PASS" }};
     }
@@ -4549,7 +4573,7 @@ BcfFormat_symbol_calc_qual(
             paramset.fam_phred_sscs_indel_open,
             paramset.fam_phred_sscs_indel_ext,
             (paramset.vcf_tumor_fname.size() > 0));
-
+    
     const double cFA2 = (fmt.cDP2f[a] + fmt.cDP2r[a] + 0.5) / (fmt.CDP2f[0] + fmt.CDP2r[0] + 1.0);
     const uvc1_qual_t powlaw_sscs_phrederr = sscs_mut_table.toPhredErrRate(refsymbol, symbol)
             + (NOT_PROVIDED == paramset.vcf_tumor_fname ? 0 : 4);
@@ -4650,14 +4674,17 @@ BcfFormat_symbol_calc_qual(
     //        int64mul((fmt.cDP2f[a] + fmt.cDP2r[a]) + 1, fmt.cDP1v[a] + 1)
     //        / (fmt.cDP1f[a] + fmt.cDP1r[a] + 1) + 1); // cDP1v was already normalized by 100UL
     
-    const uvc1_qual_big_t cIADmincnt = (fmt.cDP2v[a] + 1);
+    const uvc1_qual_big_t cIADmincnt = MIN(cIADnormcnt, fmt.cDP2v[a] + 1);
 
     const uvc1_qual_big_t sscs_binom_qual_fw = fmt.cIAQf[a] + int64mul(fmt.cIAQr[a], MIN(paramset.fam_phred_dscs_all - fmt.cIDQf[a], fmt.cIDQr[a])) / MAX(fmt.cIDQr[a], 1);
     const uvc1_qual_big_t sscs_binom_qual_rv = fmt.cIAQr[a] + int64mul(fmt.cIAQf[a], MIN(paramset.fam_phred_dscs_all - fmt.cIDQr[a], fmt.cIDQf[a])) / MAX(fmt.cIDQf[a], 1);
     
     const uvc1_qual_big_t contam_sscs_withmin_qual = (uvc1_qual_big_t)round(calc_binom_10log10_likeratio(t2n_contam_frac, cDP2, CDP2 - cDP2)) + 9 - 3;
     
-    uvc1_qual_big_t sscs_binom_qual = int64mul(MAX(sscs_binom_qual_fw, sscs_binom_qual_rv), cIADmincnt) / (cIADnormcnt); // - ((non_duplex_binom_dec_x10) * MIN(cIADmincnt, 200) / (10*100));
+    uvc1_qual_big_t sscs_binom_qual = int64mul(non_neg_minus(
+                MAX(sscs_binom_qual_fw, sscs_binom_qual_rv), 
+                numstates2phred(cIADnormcnt / (double)cIADmincnt) * cIADnormcnt / 100.0), 
+            cIADmincnt) / (cIADnormcnt); // - ((non_duplex_binom_dec_x10) * MIN(cIADmincnt, 200) / (10*100));
     if (MAX(sscs_binom_qual_fw, sscs_binom_qual_rv) > paramset.microadjust_fam_binom_qual_halving_thres && isSymbolSubstitution(symbol)) {
         sscs_binom_qual = MIN(sscs_binom_qual, 
                 paramset.microadjust_fam_binom_qual_halving_thres 

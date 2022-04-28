@@ -558,7 +558,7 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
         "The tier-2-threshold of base alignment quality (BAQ) below which the read support is not effective. ");
     
     ADD_OPTDEF2(app, bias_thres_FTS_FA,
-        "If the bias-reduced allele fraction multiplied by this parameter is less than the non bias-reduced allele fraction, then flag the variant for bias in FTS. ");
+        "If the non-bias-reduced allele fraction multiplied by this parameter is greater than the bias-reduced allele fraction, then flag the variant for bias in FTS. ");
     ADD_OPTDEF2(app, bias_is_orientation_artifact_mixed_with_sequencing_error,
         "Model false positive calls as a mixture of read-orientation-specific error and sequencing error. "
             "Improve specificity at the cost of sensitivity. "

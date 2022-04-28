@@ -695,6 +695,9 @@ struct FamFormatInfoSet {
     uvc1_readnum_t faminfo_c2RP2;
     uvc1_readpos_t faminfo_c2RPL;
     
+    uvc1_readnum_t faminfo_c2LP0;
+    uvc1_readnum_t faminfo_c2RP0;
+    
     uvc1_readnum_t faminfo_c2LB1; // left tier-2-consensus family pos
     uvc1_readnum_t faminfo_c2LB2;
     uvc1_readpos_big_t faminfo_c2LBL;
