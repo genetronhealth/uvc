@@ -4117,8 +4117,8 @@ BcfFormat_symbol_calc_DPv(
             && (seg_format_prep_sets.segprep_a_umi_dp * 100 > seg_format_prep_sets.segprep_a_dp * 50));
     fmt.enable_tier2_consensus_format_tags = (is_rescued ? (tki.enable_tier2_consensus_format_tags) : (try_enable_tier2_consensus_format_tags));
 
-    const double cFA2L = (fmt.enable_tier2_consensus_format_tags ? ((mathsquare((uvc1_readnum_big_t)fmt.c2LP0[a]) * 2 / BETWEEN(c2DP, 1, fmt.c2LP0[0] * 4) + c2altpc) / (fmt.C2LP0[0] + 1.0)) : 1.0);
-    const double cFA2R = (fmt.enable_tier2_consensus_format_tags ? ((mathsquare((uvc1_readnum_big_t)fmt.c2RP0[a]) * 2 / BETWEEN(c2DP, 1, fmt.c2RP0[0] * 4) + c2altpc) / (fmt.C2RP0[0] + 1.0)) : 1.0);
+    const double cFA2L = (fmt.enable_tier2_consensus_format_tags ? ((mathsquare((uvc1_readnum_big_t)fmt.c2LP0[a]) * 2 / MAX(1, MIN(c2DP, fmt.c2LP0[0] * 4)) + c2altpc) / (fmt.C2LP0[0] + 1.0)) : 1.0);
+    const double cFA2R = (fmt.enable_tier2_consensus_format_tags ? ((mathsquare((uvc1_readnum_big_t)fmt.c2RP0[a]) * 2 / MAX(1, MIN(c2DP, fmt.c2RP0[0] * 4)) + c2altpc) / (fmt.C2RP0[0] + 1.0)) : 1.0);
     
     
     double c2LPFA = 1.0;
