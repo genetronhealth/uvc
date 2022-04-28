@@ -557,6 +557,13 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
     ADD_OPTDEF2(app, bias_thres_BAQ2,
         "The tier-2-threshold of base alignment quality (BAQ) below which the read support is not effective. ");
     
+    ADD_OPTDEF2(app, bias_thres_strict_c2LRP0,
+        "The strictly defined position bias without any prior of non-bias, "
+            "which uses SSCS support not within X-bps of the left/right SSCS mapping coordinates to eliminate biased SSCS support, "
+            "where X is the value of this command-line parameter. "
+        "This bias is always assumed to be present (although its strength can be weak to have any effect at all) "
+            "and hence not subject to the Bayes-factor with the null hypothesis of having no bias. ");
+    
     ADD_OPTDEF2(app, bias_thres_FTS_FA,
         "If the non-bias-reduced allele fraction multiplied by this parameter is greater than the bias-reduced allele fraction, then flag the variant for bias in FTS. ");
     ADD_OPTDEF2(app, bias_is_orientation_artifact_mixed_with_sequencing_error,
