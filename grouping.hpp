@@ -76,6 +76,11 @@ struct SamIter {
             }
             target_region_to_contigs(this->_bedlines, this->tier1_target_region, this->samheader);
         } else if (NOT_PROVIDED != this->region_bed_fname) {
+            this->sam_idx = sam_index_load(this->sam_infile, input_bam_fname.c_str());
+            if (NULL == this->sam_idx) {
+                fprintf(stderr, "Failed to load the index for the file %s!", input_bam_fname.c_str());
+                abort();
+            }
             bed_fname_to_contigs(this->_bedlines, this->region_bed_fname, this->samheader); 
         }
     }

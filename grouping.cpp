@@ -174,9 +174,14 @@ SamIter::iternext(
             const auto bed_end = bedline.end_pos;
             int64_t region_n_reads = INT64MUL(bed_in_avg_sequencing_DP, (bed_end - bed_beg)); // Please note that left-over reads from the previoous iteration are ignored
             if (-1 == bed_in_avg_sequencing_DP) {
+                hts_itr_t *hts_itr = sam_itr_queryi(this->sam_idx, bed_tid, bed_beg, bed_end);
+                if (NULL == hts_itr) {
+                    LOG(logERROR) << "Error when fetching region tid=" << bed_tid << ":" << bed_beg << "-" <<  bed_end << ", aborting now. ";
+                    exit(18);
+                }
                 region_n_reads = 0;
                 while (    (NULL == sam_idx && (sam_read1(this->sam_infile, this->samheader, alnrecord) >= 0))
-                        || (NULL != sam_idx && (sam_itr_next(this->sam_infile, this->sam_itr, alnrecord) >= 0))) {
+                        || (NULL != sam_idx && (sam_itr_next(this->sam_infile, hts_itr, alnrecord) >= 0))) {
                     if ((bed_tid == alnrecord->core.tid) && 
                             ARE_INTERVALS_OVERLAPPING(bed_beg, bed_end, alnrecord->core.pos, bam_endpos(alnrecord))) {
                         region_n_reads++;
@@ -184,6 +189,7 @@ SamIter::iternext(
                         break;
                     }
                 }
+                sam_itr_destroy(hts_itr);
             }
             uvc1_refgpos_big_t region_n_rposs = bed_end - bed_beg; // region-n-ref-positions
             // total_n_regions++;
