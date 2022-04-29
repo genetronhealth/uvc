@@ -2381,7 +2381,10 @@ struct Symbol2CountCoverageSet {
     size_t
     generate_consensus_fastq_data(
             auto & fastq_outstrings,
-            const auto & fq_baseBQ_pairs, 
+            // const auto & fq_baseBQ_pairs, 
+            const FastqRecord & stringof_baseBQ_pairs,
+            const uvc1_refgpos_t extended_beg_pos,
+            const uvc1_refgpos_t extended_end_pos,
             const auto & l2r_qseqlens,
             const auto & r2l_qseqlens,
             const auto strand,
@@ -2401,6 +2404,7 @@ struct Symbol2CountCoverageSet {
         }
 
         size_t ret = 0;
+        /*
         const char *base_NN_desc = SYMBOL_TO_DESC_ARR[BASE_NN];
         size_t beg = 0;
         size_t end = fq_baseBQ_pairs.size();
@@ -2409,6 +2413,7 @@ struct Symbol2CountCoverageSet {
         while (beg < end && (base_NN_desc[0] == fq_baseBQ_pairs[end-1].first)) { end--; }
         
         const FastqRecord stringof_baseBQ_pairs = fq_baseBQ_pairs.substr(beg, end - beg);
+        */
         std::vector<size_t> begposs, endposs;
         std::array<std::basic_string<std::pair<char, int8_t>>, 2> stringof_baseBQ_pairs_vec;
         // assert (l2r_qseqlens.size() == r2l_qseqlens.size()); // this holds if and only if only proper-paired reads were kept, which is now the case as of now
@@ -2450,7 +2455,7 @@ struct Symbol2CountCoverageSet {
             auto &clusterdata = fastq_outstrings[fqidx+3];
             const size_t ini_fqdata_size = fqdata.size();
             //  here we put all read names of the original BAM that did not go through any consensus.
-            std::string fqcomment = std::to_string(alns2.size()) + "x" + std::to_string(fq_baseBQ_pairs.size());
+            std::string fqcomment = std::to_string(alns2.size()) + "x(" + std::to_string(extended_beg_pos) + "-" + std::to_string(extended_end_pos) + ")";
             for (const auto bams : alns2) {
                 assert(bams.size() <= 2);
                 assert(bams.size() >= 1);
@@ -2567,6 +2572,7 @@ struct Symbol2CountCoverageSet {
                 for (const auto & alns1 : alns2) {
                     uvc1_refgpos_t tid2, beg2, end2;
                     fillTidBegEndFromAlns1(tid2, beg2, end2, alns1);
+                    
                     Symbol2CountCoverage read_ampBQerr_fragWithR1R2(tid, beg2, end2);
                     read_ampBQerr_fragWithR1R2.updateByRead1Aln(
                             alns1, 
@@ -2630,6 +2636,22 @@ struct Symbol2CountCoverageSet {
                                 this->dedup_ampDistr[0].getRefByPos(epos).incSymbolBucketCount(con_symbol, pbucket, 1);
                             }
                             
+#ifdef UVC_IN_DEBUG_MODE
+                            if (tid2 == paramset.debug_tid && epos == paramset.debug_pos) {
+                                const auto umifam = alns2pair2umibarcode.second;
+                                LOG(logINFO) << "DebugINFO:" << "UMI-GROUP-IS " << umifam.umistring << " " << umifam.beg_tidpos_pair.second << " " << umifam.end_tidpos_pair.second;
+                                LOG(logINFO) << "DebugINFO:" << "FRAG-GROUP-IS " << (alns1.size() > 0 ? bam_get_qname(alns1[0]) : "NONE");
+                                if (alns1.size()) {
+                                    const bam1_t* firstbam = alns1[0];
+                                    for (const bam1_t* aln : alns1) {
+                                        assert(0 == strcmp(bam_get_qname(firstbam), bam_get_qname(aln)) 
+                                                || !fprintf(stderr, "%s equals %s failed!\n", bam_get_qname(firstbam), bam_get_qname(aln)));
+                                        LOG(logINFO) << "DebugINFO:\tFRAG_bDP_inc: " << bam_get_qname(aln) 
+                                            << " flag=" << aln->core.flag << " tid=" << aln->core.tid << " pos=" << aln->core.pos << " symbol=" << con_symbol << " id=" << strand << "-" << this->symbol_to_frag_format_depth_sets[strand].getByPos(epos)[con_symbol][FRAG_bDP];
+                                    }
+                                }
+                            }
+#endif
                             this->symbol_to_frag_format_depth_sets[strand].getRefByPos(epos)[con_symbol][FRAG_bDP] += 1;
                             this->symbol_to_VQ_format_tag_sets.getRefByPos(epos)[con_symbol][VQ_bMQ] += (normMQ * normMQ) / SQR_QUAL_DIV;
                             
@@ -2806,7 +2828,10 @@ struct Symbol2CountCoverageSet {
                 }
 
                 // BEGIN of bias+consensus prep at family level
+                // std::vector<uvc1_refgpos_t> l2r_start_poss, r2l_start_poss;
                 std::vector<uvc1_refgpos_t> l2r_end_poss, r2l_end_poss; // cannot peform sum or average due to the possibility of overflow
+                // l2r_start_poss.reserve(alns2.size());
+                // r2l_start_poss.reserve(alns2.size());
                 l2r_end_poss.reserve(alns2.size());
                 r2l_end_poss.reserve(alns2.size());
                 
@@ -2817,9 +2842,11 @@ struct Symbol2CountCoverageSet {
                     for (const bam1_t *aln : alns1) {
                         const bool isrc = ((aln->core.flag & 0x10) == 0x10);
                         if (isrc) {
+                            //r2l_start_poss.push_back(bam_endpos(aln));
                             r2l_end_poss.push_back(aln->core.pos);
                             r2l_qseqlens.push_back(aln->core.l_qseq);
                         } else {
+                            //l2r_start_poss.push_back(aln->core.pos);
                             l2r_end_poss.push_back(bam_endpos(aln));
                             l2r_qseqlens.push_back(aln->core.l_qseq);
                         }
@@ -2827,6 +2854,8 @@ struct Symbol2CountCoverageSet {
                 }
                 const uvc1_refgpos_t l2r_end_median_pos = ((l2r_end_poss.size() > 0) ? (MEDIAN(l2r_end_poss)) : read_family_con_ampl.getExcluEndPosition());
                 const uvc1_refgpos_t r2l_end_median_pos = ((r2l_end_poss.size() > 0) ? (MEDIAN(r2l_end_poss)) : read_family_con_ampl.getIncluBegPosition());
+                //const uvc1_refgpos_t l2r_start_median_pos = ((l2r_start_poss.size() > 0) ? (MEDIAN(l2r_start_poss)) : r2l_end_median_pos);
+                //const uvc1_refgpos_t r2l_start_median_pos = ((r2l_start_poss.size() > 0) ? (MEDIAN(r2l_start_poss)) : l2r_end_median_pos);
                 // without indel_adj_tracklen_dist it is exact non-overlap with <=
                 const bool fam_has_nonconf_middle = ((l2r_end_median_pos) <= (r2l_end_median_pos + paramset.indel_adj_tracklen_dist)); 
 
@@ -2842,7 +2871,40 @@ struct Symbol2CountCoverageSet {
                 // END of the init of consensus-block
                 // END of bias+consensus prep at family level
                 
-                for (auto epos = read_family_con_ampl.getIncluBegPosition(); epos < read_family_con_ampl.getExcluEndPosition(); epos++) {
+                // CoveredRegion<bool> pos2iscon(tid2, beg2, end2);
+                uvc1_refgpos_t no_strict_bias_pos_min = read_family_con_ampl.getExcluEndPosition();
+                uvc1_refgpos_t no_strict_bias_pos_max = read_family_con_ampl.getIncluBegPosition();
+                
+                if (UNSIGN2SIGN(alns2.size()) >= paramset.fam_thres_dup1add) {
+                    std::array<uvc1_refgpos_t, 2> no_strict_bias_poss = {{ read_family_con_ampl.getExcluEndPosition(), read_family_con_ampl.getIncluBegPosition() }};
+                    for (size_t i = 0; i < 2; i++) {
+                        int64_t begpos = (i ? (read_family_con_ampl.getExcluEndPosition() - 1) : read_family_con_ampl.getIncluBegPosition());
+                        int64_t endpos = (i ? ((int64_t)(read_family_con_ampl.getIncluBegPosition()) - 1) : (read_family_con_ampl.getExcluEndPosition()));
+                        int64_t inc = (i ? (-1) : 1);
+                        for (auto epos = begpos; epos != endpos; epos += inc) {
+                            const auto & con_ampl_symbol2count = read_family_con_ampl.getByPos(epos);
+                            const SymbolType symboltype = BASE_SYMBOL;
+                            AlignmentSymbol con_symbol;
+                            uvc1_qual_t con_count, tot_count;
+                            con_ampl_symbol2count.fillConsensusCounts(con_symbol, con_count, tot_count, symboltype);
+                            if (0 == tot_count) { continue ; }
+                            const auto effective_tot_count = tot_count; // (uvc1_readnum_t)alns2.size() does not consider filtered out fragment support.
+                            const bool is_fam_big = (paramset.fam_thres_dup1add <= effective_tot_count);
+                            const bool is_fam_con = (con_count * 100 >= effective_tot_count * paramset.fam_thres_dup1perc);
+                            const bool is_fam_good = (is_fam_big && is_fam_con 
+                                    && ((alns2pair2umibarcode.second.duplexflag & 0x1) || (paramset.fam_flag & 0x2)));
+                            if (is_fam_good && (BASE_N != con_symbol) && (BASE_NN != con_symbol)) {
+                                no_strict_bias_poss[i] = epos;
+                                break;
+                            }
+                        }
+                    }
+                    no_strict_bias_pos_min = no_strict_bias_poss[0];
+                    no_strict_bias_pos_max = no_strict_bias_poss[1];
+                }
+                for (auto epos = read_family_con_ampl.getIncluBegPosition(); // MAX(read_family_con_ampl.getIncluBegPosition(), l2r_start_median_pos);
+                            epos < read_family_con_ampl.getExcluEndPosition(); // MIN(read_family_con_ampl.getExcluEndPosition(), r2l_start_median_pos);
+                            epos++) {
                     const auto & con_ampl_symbol2count = read_family_con_ampl.getByPos(epos);
                     for (SymbolType symboltype : SYMBOL_TYPE_ARR) {
                         AlignmentSymbol con_symbol;
@@ -2952,13 +3014,13 @@ if (paramset.inferred_is_vcf_generated) {
                             /* Please note that there is an edge case of having a position-biased family support for an ALT at the very small overlap between R1 and R2,
                              * so r2l_end_median_pos and l2r_end_median_pos are needed */
                             const auto rpos = epos;
-                            auto rbeg = read_family_con_ampl.getIncluBegPosition();
-                            auto rend = read_family_con_ampl.getExcluEndPosition();
+                            auto rbeg = MIN(no_strict_bias_pos_min, epos); // l2r_start_median_pos ; // read_family_con_ampl.getIncluBegPosition();
+                            auto rend = MAX(no_strict_bias_pos_max, epos); // r2l_start_median_pos; // read_family_con_ampl.getExcluEndPosition();
                             if (fam_has_nonconf_middle && epos < r2l_end_median_pos) {
-                                rend = MAX(MIN(l2r_end_median_pos, r2l_end_median_pos), epos);
+                                rend = MAX(MIN3(l2r_end_median_pos, r2l_end_median_pos, rend), epos);
                             }
                             if (fam_has_nonconf_middle && l2r_end_median_pos < epos) {
-                                rbeg = MIN(MAX(l2r_end_median_pos, r2l_end_median_pos), epos);
+                                rbeg = MIN(MAX3(l2r_end_median_pos, r2l_end_median_pos, rbeg), epos);
                             }
 
                             const auto & seg_format_thres_set = this->seg_format_thres_sets.getRefByPos(rpos);
@@ -2971,9 +3033,9 @@ if (paramset.inferred_is_vcf_generated) {
                                     const auto  bias_thres_veryhighBQ = paramset.bias_thres_highBQ;
                                     const bool is_BQ_high_enough_for_tier2 = (isGap || bq >= bias_thres_veryhighBQ);
                                     
-                                    uvc1_refgpos_t fam2_l_nbases = epos - rbeg + 1;
-                                    uvc1_refgpos_t fam2_r_nbases = rend - epos;
-
+                                    uvc1_refgpos_t fam2_l_nbases = non_neg_minus(epos + 1, rbeg);
+                                    uvc1_refgpos_t fam2_r_nbases = non_neg_minus(rend, epos);
+                                    
                                     auto _const_LPxT = seg_format_thres_set.segthres_aLPxT; 
                                     const auto const_RPxT = seg_format_thres_set.segthres_aRPxT; 
                                     const auto const_LPxT = (isGap ? _const_LPxT : MIN(_const_LPxT, const_RPxT));
@@ -3006,11 +3068,27 @@ if (paramset.inferred_is_vcf_generated) {
                                                 true,
                                                 0);
                                     }
-                                    if (fam2_l_nbases >= paramset.bias_thres_strict_c2LRP0) {
+                                    uvc1_refgpos_t fam2_l_nbases_strict = non_neg_minus(epos + 1, no_strict_bias_pos_min);
+                                    uvc1_refgpos_t fam2_r_nbases_strict = non_neg_minus(no_strict_bias_pos_max, epos);
+                                    if (fam2_l_nbases_strict >= paramset.bias_thres_strict_c2LRP0) {
                                         fam_info_set.faminfo_c2LP0++;
+#ifdef UVC_IN_DEBUG_MODE
+                                        if (paramset.debug_tid == tid2 && paramset.debug_pos == epos) {
+                                            LOG(logINFO) << "DebugINFO: fam_l_nbases " << fam2_l_nbases_strict << " >= " << paramset.bias_thres_strict_c2LRP0 << " in SSCS " 
+                                                <<  read_family_con_ampl.getIncluBegPosition() << "-" << read_family_con_ampl.getExcluEndPosition() << "#" << alns2pair2umibarcode.second.umistring 
+                                                << " at-TID-POS-ALT=" << tid2 << "-" << epos << "-" << SYMBOL_TO_DESC_ARR[con_symbol];
+                                        }
+#endif
                                     }
-                                    if (fam2_r_nbases >= paramset.bias_thres_strict_c2LRP0) {
+                                    if (fam2_r_nbases_strict >= paramset.bias_thres_strict_c2LRP0) {
                                         fam_info_set.faminfo_c2RP0++;
+#ifdef UVC_IN_DEBUG_MODE
+                                        if (paramset.debug_tid == tid2 && paramset.debug_pos == epos) {
+                                            LOG(logINFO) << "DebugINFO: fam2_r_nbases " << fam2_r_nbases_strict << " >= " << paramset.bias_thres_strict_c2LRP0 << " in SSCS " 
+                                                <<  read_family_con_ampl.getIncluBegPosition() << "-" << read_family_con_ampl.getExcluEndPosition() << "#" << alns2pair2umibarcode.second.umistring
+                                                << " at-TID-POS-ALT=" << tid2 << "-" << epos << "-" << SYMBOL_TO_DESC_ARR[con_symbol];
+                                        }
+#endif
                                     }
                                     
                                     const uvc1_qual_t seg_l_baq = baq_offsetarr.getByPos(rpos) - baq_offsetarr.getByPos(MAX(rbeg, non_neg_minus(rpos, MAX_STR_N_BASES))) + 1;
@@ -3089,6 +3167,8 @@ if (paramset.inferred_is_vcf_generated) {
                     generate_consensus_fastq_data(
                             fastq_outstrings, 
                             fq_baseBQ_pairs,
+                            read_family_con_ampl.getIncluBegPosition(),
+                            read_family_con_ampl.getExcluEndPosition(),
                             l2r_qseqlens,
                             r2l_qseqlens,
                             strand, 
