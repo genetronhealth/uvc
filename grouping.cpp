@@ -239,7 +239,7 @@ SamIter::iternext(
             const bool is_template_changed = (curr_tid != block_tid);
             // is_very_far_jumped results in a lot of wasted mem-alloc and computation, so it is not used
             //const bool is_very_far_jumped = ((curr_tid == block_tid) && (block_running_end + MAX_INSERT_SIZE < curr_beg));
-            const bool is_far_jumped = ((curr_tid == block_tid) && (block_running_end + MAX_STR_N_BASES < curr_beg));
+            const bool is_far_jumped = ((curr_tid == block_tid) && (block_running_end + (MAX_STR_N_BASES * 2) < curr_beg));
             
             if (0 == (total_n_reads % (1024*1024))) {
                 LOG(logDEBUG4) << "ReadName=" << bam_get_qname(alnrecord) 
@@ -654,11 +654,12 @@ bamfname_to_strand_to_familyuid_to_reads(
     hts_itr_t * hts_itr;
     bam1_t *aln = bam_init1();
     
-    std::set<std::string> visited_qnames;
-    std::array<uvc1_readnum_t, NUM_FILTER_REASONS> fillcode_to_num_alns;
-    uvc1_readnum_t num_pass_alns = 0;
-    uvc1_readnum_t num_iter_alns = 0;
-    hts_itr = sam_itr_queryi(hts_idx, tid, fetch_tbeg, fetch_tend);
+    
+    // Although the following line can speed up things, it may result in different output depending on tid:fetch_tbeg-fetch_tend
+    // hts_itr = sam_itr_queryi(hts_idx, tid, fetch_tbeg, fetch_tend);
+    // Hence, the following line is used instead
+    hts_itr = sam_itr_queryi(hts_idx, tid, non_neg_minus(fetch_tbeg, MAX_INSERT_SIZE), (fetch_tend + MAX_INSERT_SIZE));
+    
     while (sam_itr_next(sam_infile, hts_itr, aln) >= 0) { 
     //for (const bam1_t *aln : bam_list){
         bool isrc = false;
@@ -675,36 +676,15 @@ bamfname_to_strand_to_familyuid_to_reads(
                 paramset.kept_aln_is_zero_isize_discarded,
                 end2end, is_pair_end_merge_enabled);
         if (!is_pair_end_merge_enabled) { assert(!isr2); }
+        
         if (NOT_FILTERED == filterReason) {
-            isrc_isr2_to_beg_count[isrc * 2 + isr2][tBeg + ARRPOS_MARGIN - fetch_tbeg] += 1;
-            isrc_isr2_to_end_count[isrc * 2 + isr2][tEnd + ARRPOS_MARGIN - fetch_tbeg] += 1;
-            num_pass_alns += 1;
-            extended_inclu_beg_pos = MIN(extended_inclu_beg_pos, SIGN2UNSIGN(aln->core.pos));
-            extended_exclu_end_pos = MAX(extended_exclu_end_pos, SIGN2UNSIGN(bam_endpos(aln)));
-            if (UNSIGN2SIGN(visited_qnames.size()) < paramset.min_altdp_thres) {
-                visited_qnames.insert(bam_get_qname(aln));
-            }
+            uvc1_refgpos_t begidx = tBeg + ARRPOS_MARGIN - fetch_tbeg;
+            uvc1_refgpos_t endidx = tEnd + ARRPOS_MARGIN - fetch_tbeg;
+            if (begidx >= 0 && ((size_t)begidx) < isrc_isr2_to_beg_count[isrc * 2 + isr2].size()) { isrc_isr2_to_beg_count[isrc * 2 + isr2][begidx] += 1; }
+            if (endidx >= 0 && ((size_t)endidx) < isrc_isr2_to_end_count[isrc * 2 + isr2].size()) { isrc_isr2_to_end_count[isrc * 2 + isr2][endidx] += 1; }
         }
-        fillcode_to_num_alns[filterReason]++;
-        num_iter_alns += 1;
     }
     sam_itr_destroy(hts_itr);
-    
-    const bool is_min_DP_failed_1 = (
-            (NOT_PROVIDED == paramset.vcf_tumor_fname) 
-         && (UNSIGN2SIGN(visited_qnames.size()) < paramset.min_altdp_thres) 
-         && (!paramset.should_output_all));
-    // IMPORTANT_NOTE: if singleton should be generated too, then the following variable should always be set to true
-    const bool is_min_DP_failed_2 = ((paramset.fam_consensus_out_fastq.size() > 0) && (UNSIGN2SIGN(visited_qnames.size()) < paramset.fam_thres_dup2add));
-    
-    const bool is_min_DP_failed = (is_min_DP_failed_1 && is_min_DP_failed_2);
-    
-    if (is_min_DP_failed){
-        bam_destroy1(aln);
-        // sam_close(sam_infile); 
-        if (should_log) { LOG(logINFO) << "Thread " << thread_id << " skipped dedupping."; }
-        return std::array<uvc1_readnum_t, 3>({ -1, -1, -1});
-    }
     
     for (size_t isrc_isr2 = 0; isrc_isr2 < 4; isrc_isr2++) {
         uvc1_readnum_big_t beg_prefixsum = 0;
@@ -734,6 +714,11 @@ bamfname_to_strand_to_familyuid_to_reads(
         }
     }
     
+    std::set<std::string> visited_qnames;
+    std::array<uvc1_readnum_t, NUM_FILTER_REASONS> fillcode_to_num_alns;
+    uvc1_readnum_t num_pass_alns = 0;
+    uvc1_readnum_t num_iter_alns = 0;
+    
     size_t alnidx = 0;
     hts_itr = sam_itr_queryi(hts_idx, tid, fetch_tbeg, fetch_tend);
     while (sam_itr_next(sam_infile, hts_itr, aln) >= 0) {
@@ -752,7 +737,19 @@ bamfname_to_strand_to_familyuid_to_reads(
                 paramset.kept_aln_max_isize,
                 paramset.kept_aln_is_zero_isize_discarded,
                 end2end, is_pair_end_merge_enabled);
+        
         if (!is_pair_end_merge_enabled) { assert(!isr2); }
+        if (NOT_FILTERED == filterReason) {
+            num_pass_alns += 1;
+            extended_inclu_beg_pos = MIN(extended_inclu_beg_pos, SIGN2UNSIGN(aln->core.pos));
+            extended_exclu_end_pos = MAX(extended_exclu_end_pos, SIGN2UNSIGN(bam_endpos(aln)));
+            if (UNSIGN2SIGN(visited_qnames.size()) < paramset.min_altdp_thres) {
+                visited_qnames.insert(bam_get_qname(aln));
+            }
+        }
+        fillcode_to_num_alns[filterReason]++;
+        num_iter_alns += 1;
+        
         if (NOT_FILTERED != filterReason) {
             continue;
         }
@@ -975,7 +972,19 @@ bamfname_to_strand_to_familyuid_to_reads(
     bam_destroy1(aln);
     // sam_close(sam_infile);
     
-    if (should_log) { LOG(logINFO) << "Thread " << thread_id << " finished dedupping."; }
-    return std::array<uvc1_readnum_t, 3>({ ((is_min_DP_failed ? -1 : 1) * num_pass_alns), pcrpassed, umi_pcrpassed});
+    const bool is_min_DP_failed_1 = (
+            (NOT_PROVIDED == paramset.vcf_tumor_fname) 
+         && (UNSIGN2SIGN(visited_qnames.size()) < paramset.min_altdp_thres) 
+         && (!paramset.should_output_all));
+    // IMPORTANT_NOTE: if singleton should be generated too, then the following variable should always be set to true
+    const bool is_min_DP_failed_2 = ((paramset.fam_consensus_out_fastq.size() > 0) && (UNSIGN2SIGN(visited_qnames.size()) < paramset.fam_thres_dup2add));
+    const bool is_min_DP_failed = (is_min_DP_failed_1 && is_min_DP_failed_2);
+    if (is_min_DP_failed){
+        if (should_log) { LOG(logINFO) << "Thread " << thread_id << " skipped dedupping."; }
+        return std::array<uvc1_readnum_t, 3>({ -1, -1, -1});
+    } else {
+        if (should_log) { LOG(logINFO) << "Thread " << thread_id << " finished dedupping."; }
+        return std::array<uvc1_readnum_t, 3>({ ((is_min_DP_failed ? -1 : 1) * num_pass_alns), pcrpassed, umi_pcrpassed});
+    }
 }
 
