@@ -316,8 +316,8 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     
     BcfFormatStruct("c2LP0" , BCF_NUM_R, BCF_INTEGER, "SSCS depth unaffected by strictly defined no-prior left-side position bias. ").sscs(),
     BcfFormatStruct("C2LP0" , 2,1,       BCF_INTEGER, "SSCS depth unaffected by strictly defined no-prior left-side position bias. ").sscs(),
-    BcfFormatStruct("c2RP0" , BCF_NUM_R, BCF_INTEGER, "SSCS depth unaffected by strictly defined no-prior right-side position bias. ").sscs().not_put_in_vcf(),
-    BcfFormatStruct("C2RP0" , 2,1,       BCF_INTEGER, "SSCS depth unaffected by strictly defined no-prior right-side position bias. ").sscs().not_put_in_vcf(),
+    BcfFormatStruct("c2RP0" , BCF_NUM_R, BCF_INTEGER, "SSCS depth unaffected by strictly defined no-prior right-side position bias. ").sscs(),
+    BcfFormatStruct("C2RP0" , 2,1,       BCF_INTEGER, "SSCS depth unaffected by strictly defined no-prior right-side position bias. ").sscs(),
     
     BcfFormatStruct("_C2XP" , 1,         BCF_SEP,     "SSCS statistics related to position bias. "
                                          "If this tag is present and absent, then all SSCS-related tags are all present and absent, respectively. ").sscs(),
