@@ -962,7 +962,11 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
     ADD_OPTDEF2(app, debug_warn_min_read_end_ins_cigar_oplen,
         "If an insertion cigar operation (op) is the first or last cigar op in the cigar string and the cigar-op length is above this threshold, "
         "then a warning is generated to stderr. Does not affect the VCF output result. "); 
-
+    ADD_OPTDEF2(app, debug_tid,
+        "This option is used for advanced debugging. This option set the tid of the locus for which detailed debug message will be printed to stdout. ");
+    ADD_OPTDEF2(app, debug_pos,
+        "This option is used for advanced debugging. This option set the pos of the locus for which detailed debug message will be printed to stdout. ");
+    
 /// *** end
 
     app.callback([&]() {
