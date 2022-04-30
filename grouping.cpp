@@ -654,6 +654,7 @@ bamfname_to_strand_to_familyuid_to_reads(
     hts_itr_t * hts_itr;
     bam1_t *aln = bam_init1();
     
+    std::set<std::string> visited_qnames;
     
     // Although the following line can speed up things, it may result in different output depending on tid:fetch_tbeg-fetch_tend
     // hts_itr = sam_itr_queryi(hts_idx, tid, fetch_tbeg, fetch_tend);
@@ -682,6 +683,11 @@ bamfname_to_strand_to_familyuid_to_reads(
             uvc1_refgpos_t endidx = tEnd + ARRPOS_MARGIN - fetch_tbeg;
             if (begidx >= 0 && ((size_t)begidx) < isrc_isr2_to_beg_count[isrc * 2 + isr2].size()) { isrc_isr2_to_beg_count[isrc * 2 + isr2][begidx] += 1; }
             if (endidx >= 0 && ((size_t)endidx) < isrc_isr2_to_end_count[isrc * 2 + isr2].size()) { isrc_isr2_to_end_count[isrc * 2 + isr2][endidx] += 1; }
+            
+            if (// UNSIGN2SIGN(visited_qnames.size()) < paramset.min_altdp_thres && 
+                    ARE_INTERVALS_OVERLAPPING(aln->core.pos, bam_endpos(aln), fetch_tbeg, fetch_tend)) {
+                visited_qnames.insert(bam_get_qname(aln));
+            }
         }
     }
     sam_itr_destroy(hts_itr);
@@ -714,16 +720,20 @@ bamfname_to_strand_to_familyuid_to_reads(
         }
     }
     
-    std::set<std::string> visited_qnames;
     std::array<uvc1_readnum_t, NUM_FILTER_REASONS> fillcode_to_num_alns;
     uvc1_readnum_t num_pass_alns = 0;
-    uvc1_readnum_t num_iter_alns = 0;
     
     size_t alnidx = 0;
-    hts_itr = sam_itr_queryi(hts_idx, tid, fetch_tbeg, fetch_tend);
+    // hts_itr = sam_itr_queryi(hts_idx, tid, fetch_tbeg, fetch_tend);
+    hts_itr = sam_itr_queryi(hts_idx, tid, non_neg_minus(fetch_tbeg, MAX_INSERT_SIZE), (fetch_tend + MAX_INSERT_SIZE));
     while (sam_itr_next(sam_infile, hts_itr, aln) >= 0) {
-    // for (bam1_t * mut_aln : bam_list) {
-        // const bam1_t * aln = mut_aln;
+        if (aln->core.pos < non_neg_minus(fetch_tbeg, MAX_INSERT_SIZE) || bam_endpos(aln) > (fetch_tend + MAX_INSERT_SIZE)) {
+            continue;
+        }
+        if (visited_qnames.find(bam_get_qname(aln)) == visited_qnames.end()) {
+            continue;
+        }
+
         bool isrc = false;
         bool isr2 = false;
         uvc1_refgpos_t tBeg = 0;
@@ -737,22 +747,18 @@ bamfname_to_strand_to_familyuid_to_reads(
                 paramset.kept_aln_max_isize,
                 paramset.kept_aln_is_zero_isize_discarded,
                 end2end, is_pair_end_merge_enabled);
-        
         if (!is_pair_end_merge_enabled) { assert(!isr2); }
-        if (NOT_FILTERED == filterReason) {
-            num_pass_alns += 1;
-            extended_inclu_beg_pos = MIN(extended_inclu_beg_pos, SIGN2UNSIGN(aln->core.pos));
-            extended_exclu_end_pos = MAX(extended_exclu_end_pos, SIGN2UNSIGN(bam_endpos(aln)));
-            if (UNSIGN2SIGN(visited_qnames.size()) < paramset.min_altdp_thres) {
-                visited_qnames.insert(bam_get_qname(aln));
-            }
-        }
+
         fillcode_to_num_alns[filterReason]++;
-        num_iter_alns += 1;
         
         if (NOT_FILTERED != filterReason) {
             continue;
         }
+        
+        num_pass_alns += 1;
+        extended_inclu_beg_pos = MIN(extended_inclu_beg_pos, SIGN2UNSIGN(aln->core.pos));
+        extended_exclu_end_pos = MAX(extended_exclu_end_pos, SIGN2UNSIGN(bam_endpos(aln)));
+
         const char *qname = bam_get_qname(aln);
         const uvc1_hash_t qname_hash = strhash(qname, 31UL);
         const uvc1_hash_t qname_hash2 = strhash(qname, 17UL);

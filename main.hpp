@@ -3071,24 +3071,28 @@ if (paramset.inferred_is_vcf_generated) {
                                     uvc1_refgpos_t fam2_r_nbases_strict = non_neg_minus(no_strict_bias_pos_max, epos);
                                     if (fam2_l_nbases_strict >= paramset.bias_thres_strict_c2LRP0) {
                                         fam_info_set.faminfo_c2LP0++;
-#ifdef UVC_IN_DEBUG_MODE
-                                        if (paramset.debug_tid == tid2 && paramset.debug_pos == epos) {
-                                            LOG(logINFO) << "DebugINFO: fam_l_nbases " << fam2_l_nbases_strict << " >= " << paramset.bias_thres_strict_c2LRP0 << " in SSCS " 
-                                                <<  read_family_con_ampl.getIncluBegPosition() << "-" << read_family_con_ampl.getExcluEndPosition() << "#" << alns2pair2umibarcode.second.umistring 
-                                                << " at-TID-POS-ALT=" << tid2 << "-" << epos << "-" << SYMBOL_TO_DESC_ARR[con_symbol];
-                                        }
-#endif
                                     }
+#ifdef UVC_IN_DEBUG_MODE
+                                    if (paramset.debug_tid == tid2 && paramset.debug_pos == epos) {
+                                        LOG(logINFO) << "DebugINFO: fam_l_nbases " << fam2_l_nbases << " and " 
+                                            << fam2_l_nbases_strict << " >= " << paramset.bias_thres_strict_c2LRP0 << " in SSCS " 
+                                            <<  read_family_con_ampl.getIncluBegPosition() << "-" << read_family_con_ampl.getExcluEndPosition() 
+                                            << "#" << alns2pair2umibarcode.second.umistring 
+                                            << " at-TID-POS-ALT=" << tid2 << "-" << epos << "-" << SYMBOL_TO_DESC_ARR[con_symbol];
+                                    }
+#endif
                                     if (fam2_r_nbases_strict >= paramset.bias_thres_strict_c2LRP0) {
                                         fam_info_set.faminfo_c2RP0++;
-#ifdef UVC_IN_DEBUG_MODE
-                                        if (paramset.debug_tid == tid2 && paramset.debug_pos == epos) {
-                                            LOG(logINFO) << "DebugINFO: fam2_r_nbases " << fam2_r_nbases_strict << " >= " << paramset.bias_thres_strict_c2LRP0 << " in SSCS " 
-                                                <<  read_family_con_ampl.getIncluBegPosition() << "-" << read_family_con_ampl.getExcluEndPosition() << "#" << alns2pair2umibarcode.second.umistring
-                                                << " at-TID-POS-ALT=" << tid2 << "-" << epos << "-" << SYMBOL_TO_DESC_ARR[con_symbol];
-                                        }
-#endif
                                     }
+#ifdef UVC_IN_DEBUG_MODE
+                                    if (paramset.debug_tid == tid2 && paramset.debug_pos == epos) {
+                                        LOG(logINFO) << "DebugINFO: fam2_r_nbases " << fam2_r_nbases << " and " 
+                                            << fam2_r_nbases_strict << " >= " << paramset.bias_thres_strict_c2LRP0 << " in SSCS " 
+                                            <<  read_family_con_ampl.getIncluBegPosition() << "-" << read_family_con_ampl.getExcluEndPosition() 
+                                            << "#" << alns2pair2umibarcode.second.umistring
+                                            << " at-TID-POS-ALT=" << tid2 << "-" << epos << "-" << SYMBOL_TO_DESC_ARR[con_symbol];
+                                    }
+#endif
                                     
                                     const uvc1_qual_t seg_l_baq = baq_offsetarr.getByPos(rpos) - baq_offsetarr.getByPos(MAX(rbeg, non_neg_minus(rpos, MAX_STR_N_BASES))) + 1;
                                     const uvc1_qual_t _seg_r_baq = baq_offsetarr.getByPos(MIN3(rend-1, rpos + (MAX_STR_N_BASES), baq_offsetarr.getExcluEndPosition()-1)) - baq_offsetarr.getByPos(rpos) + 1;
