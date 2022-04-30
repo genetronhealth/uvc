@@ -432,7 +432,7 @@ process_batch(
     const auto regionbatch_tot_num = arg.regionbatch_tot_num;
     const auto thread_id = arg.thread_id;
     
-    bool is_loginfo_enabled = (ispowerof2(regionbatch_ordinal + 1) || ispowerof2(regionbatch_tot_num - regionbatch_ordinal));
+    bool is_loginfo_enabled = (ispowerof2(regionbatch_ordinal + 1) || ispowerof2(regionbatch_tot_num - regionbatch_ordinal) || paramset.always_log);
     std::string raw_out_string;
     std::string raw_out_string_pass;
     
@@ -1502,7 +1502,7 @@ main(int argc, char **argv) {
         for (size_t beg_end_pair_idx = 0; beg_end_pair_idx < beg_end_pair_vec.size(); beg_end_pair_idx++) {
             if (batchargs[beg_end_pair_idx].outstring_pass.size() > 0) {
                 // empty string means end of file
-                clearstring<true>(fp_pass, batchargs[beg_end_pair_idx].outstring_pass);
+                clearstring<true>(fp_pass, batchargs[beg_end_pair_idx].outstring_pass, is_vcf_out_pass_to_stdout);
             }
             for (size_t i = 0; i < fastq_fps.size(); i++) { 
                 if (batchargs[beg_end_pair_idx].outstring3fastq[i].size() > 0) {
