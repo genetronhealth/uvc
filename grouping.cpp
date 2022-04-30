@@ -93,7 +93,7 @@ SamIter::target_region_to_contigs(
             uvc1_refgpos_t tbeg = (uvc1_refgpos_t)tbeg1;
             uvc1_refgpos_t tend = (uvc1_refgpos_t)tend1;
             uvc1_flag_t bedline_flag = 0x0;
-            uvc1_readnum_big_t nreads = bed_in_avg_sequencing_DP * (tend - tbeg);
+            uvc1_readnum_big_t nreads = ((-1 == bed_in_avg_sequencing_DP) ? 0 : (bed_in_avg_sequencing_DP * (tend - tbeg) + 1));
             if (tname_to_tid.find(tname) == tname_to_tid.end()) {
                 LOG(logERROR) << "The template name " << region << " is not found in the input BAM header (template usually denotes chromosome). ";
                 exit(17);
@@ -140,7 +140,7 @@ SamIter::bed_fname_to_contigs(
         }
         uvc1_flag_t bedline_flag = 0x0;
         std::string token;
-        uvc1_readnum_t nreads = bed_in_avg_sequencing_DP * (tend - tbeg);
+        uvc1_readnum_t nreads = ((-1 == bed_in_avg_sequencing_DP) ? 0 : (bed_in_avg_sequencing_DP * (tend - tbeg) + 1));
         while (linestream.good()) {
             linestream >> token;
             if (token == ("BedLineFlag")) {
@@ -668,6 +668,7 @@ bamfname_to_strand_to_familyuid_to_reads(
         uvc1_refgpos_t tBeg = 0;
         uvc1_refgpos_t tEnd = 0;
         uvc1_unsigned_int_t num_seqs = 0;
+        NORM_INSERT_SIZE(aln); // may be too early here?
         FilterReason filterReason = fill_isrc_isr2_beg_end_with_aln(isrc, isr2, tBeg, tEnd, num_seqs, 
                 aln, fetch_tbeg, fetch_tend, 
                 paramset.kept_aln_min_aln_len, 
@@ -684,8 +685,7 @@ bamfname_to_strand_to_familyuid_to_reads(
             if (begidx >= 0 && ((size_t)begidx) < isrc_isr2_to_beg_count[isrc * 2 + isr2].size()) { isrc_isr2_to_beg_count[isrc * 2 + isr2][begidx] += 1; }
             if (endidx >= 0 && ((size_t)endidx) < isrc_isr2_to_end_count[isrc * 2 + isr2].size()) { isrc_isr2_to_end_count[isrc * 2 + isr2][endidx] += 1; }
             
-            if (// UNSIGN2SIGN(visited_qnames.size()) < paramset.min_altdp_thres && 
-                    ARE_INTERVALS_OVERLAPPING(aln->core.pos, bam_endpos(aln), fetch_tbeg, fetch_tend)) {
+            if (ARE_INTERVALS_OVERLAPPING(MIN(tBeg, tEnd), MAX(tBeg, tEnd) + 2, fetch_tbeg, fetch_tend)) {
                 visited_qnames.insert(bam_get_qname(aln));
             }
         }
@@ -727,7 +727,7 @@ bamfname_to_strand_to_familyuid_to_reads(
     // hts_itr = sam_itr_queryi(hts_idx, tid, fetch_tbeg, fetch_tend);
     hts_itr = sam_itr_queryi(hts_idx, tid, non_neg_minus(fetch_tbeg, MAX_INSERT_SIZE), (fetch_tend + MAX_INSERT_SIZE));
     while (sam_itr_next(sam_infile, hts_itr, aln) >= 0) {
-        if (aln->core.pos < non_neg_minus(fetch_tbeg, MAX_INSERT_SIZE) || bam_endpos(aln) > (fetch_tend + MAX_INSERT_SIZE)) {
+        if (aln->core.pos < non_neg_minus(fetch_tbeg, MAX_INSERT_SIZE + 1) || bam_endpos(aln) > (fetch_tend + MAX_INSERT_SIZE + 1)) {
             continue;
         }
         if (visited_qnames.find(bam_get_qname(aln)) == visited_qnames.end()) {
@@ -739,6 +739,7 @@ bamfname_to_strand_to_familyuid_to_reads(
         uvc1_refgpos_t tBeg = 0;
         uvc1_refgpos_t tEnd = 0;
         uvc1_unsigned_int_t num_seqs = 0;
+        NORM_INSERT_SIZE(aln); // may be too early here?
         FilterReason filterReason = fill_isrc_isr2_beg_end_with_aln(isrc, isr2, tBeg, tEnd, num_seqs, 
                 aln, fetch_tbeg, fetch_tend, 
                 paramset.kept_aln_min_aln_len, 
