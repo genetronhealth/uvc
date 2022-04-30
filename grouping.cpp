@@ -655,7 +655,7 @@ bamfname_to_strand_to_familyuid_to_reads(
     bam1_t *aln = bam_init1();
     
     std::set<std::string> visited_qnames;
-    
+    uvc1_readnum_big_t num_iter1_passed_alns = 0;
     // Although the following line can speed up things, it may result in different output depending on tid:fetch_tbeg-fetch_tend
     // hts_itr = sam_itr_queryi(hts_idx, tid, fetch_tbeg, fetch_tend);
     // Hence, the following line is used instead
@@ -688,6 +688,7 @@ bamfname_to_strand_to_familyuid_to_reads(
             if (ARE_INTERVALS_OVERLAPPING(MIN(tBeg, tEnd), MAX(tBeg, tEnd) + 2, fetch_tbeg, fetch_tend)) {
                 visited_qnames.insert(bam_get_qname(aln));
             }
+            num_iter1_passed_alns++;
         }
     }
     sam_itr_destroy(hts_itr);
@@ -721,7 +722,6 @@ bamfname_to_strand_to_familyuid_to_reads(
     }
     
     std::array<uvc1_readnum_t, NUM_FILTER_REASONS> fillcode_to_num_alns;
-    uvc1_readnum_t num_pass_alns = 0;
     
     size_t alnidx = 0;
     // hts_itr = sam_itr_queryi(hts_idx, tid, fetch_tbeg, fetch_tend);
@@ -733,7 +733,7 @@ bamfname_to_strand_to_familyuid_to_reads(
         if (visited_qnames.find(bam_get_qname(aln)) == visited_qnames.end()) {
             continue;
         }
-
+        
         bool isrc = false;
         bool isr2 = false;
         uvc1_refgpos_t tBeg = 0;
@@ -756,7 +756,6 @@ bamfname_to_strand_to_familyuid_to_reads(
             continue;
         }
         
-        num_pass_alns += 1;
         extended_inclu_beg_pos = MIN(extended_inclu_beg_pos, SIGN2UNSIGN(aln->core.pos));
         extended_exclu_end_pos = MAX(extended_exclu_end_pos, SIGN2UNSIGN(bam_endpos(aln)));
 
@@ -941,13 +940,13 @@ bamfname_to_strand_to_familyuid_to_reads(
         umi_to_strand_to_reads[mbkey].first[strand][qname_hash2].push_back(bam_dup1(aln));
         // umi_to_strand_to_reads[molecule_hash].first[strand][qname_hash2].push_back((mut_aln));
         
-        const bool should_log_read = (ispowerof2(alnidx + 1) || ispowerof2(num_pass_alns - alnidx));
+        const bool should_log_read = (ispowerof2(alnidx + 1));
         if (!is_pair_end_merge_enabled) { assert(!isr2); }
         if ((should_log_read && (beg_peak_max >= 2000 || should_log)) || paramset.always_log) {
             LOG(logINFO) << "thread_id = " << thread_id << " ; "
                     << "readname = " << qname << " ; "
                     << "alnidx = " << alnidx << " ; "
-                    << "num_pass_alns = " << num_pass_alns << " ; "
+                    << "num_iter1_passed_alns = " << num_iter1_passed_alns << " ; "
                     << "isrc = " << isrc << " ; "
                     << "isr2 = " << isr2 << " ; "
                     << "strand = " << strand << " ; "
@@ -991,7 +990,7 @@ bamfname_to_strand_to_familyuid_to_reads(
         return std::array<uvc1_readnum_t, 3>({ -1, -1, -1});
     } else {
         if (should_log) { LOG(logINFO) << "Thread " << thread_id << " finished dedupping."; }
-        return std::array<uvc1_readnum_t, 3>({ ((is_min_DP_failed ? -1 : 1) * num_pass_alns), pcrpassed, umi_pcrpassed});
+        return std::array<uvc1_readnum_t, 3>({alnidx, pcrpassed, umi_pcrpassed});
     }
 }
 
