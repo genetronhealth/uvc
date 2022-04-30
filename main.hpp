@@ -2616,6 +2616,7 @@ struct Symbol2CountCoverageSet {
                             if (0 == tot_count) { continue; }                            
                             uvc1_qual_t max_qual = 8 + get_avgBQ(bg_seg_bqsum_conslogo, symbol_to_seg_format_info_sets, epos, con_symbol);
                             uvc1_qual_t phredlike = 0;
+                            uvc1_qual_t con_qual = con_count * 2 - tot_count;
                             if ((0x1 & paramset.fam_flag)) {
                                 uvc1_qual_t phredlike_by_sscs= sscs_mut_table.toPhredErrRate(refsymbol, con_symbol);
                                 phredlike = MIN3(con_count * 2 - tot_count, max_qual, phredlike_by_sscs);
@@ -2665,8 +2666,8 @@ struct Symbol2CountCoverageSet {
                             
                             cov_mut_vec[epos - read_ampBQerr_fragWithR1R2.getIncluBegPosition()] |= 0x1;
                             const bool is_var_of_highBQ = ((SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform)
-                                ? (BASE_SYMBOL == symboltype || phredlike + 3 >= paramset.bias_thres_highBQ)
-                                : (LINK_SYMBOL == symboltype || phredlike >= paramset.bias_thres_highBQ));
+                                ? (BASE_SYMBOL == symboltype || con_qual + 3 >= paramset.bias_thres_highBQ)
+                                : (LINK_SYMBOL == symboltype || con_qual >= paramset.bias_thres_highBQ));
                             if (areSymbolsMutated(refsymbol, con_symbol) && is_var_of_highBQ) {
                                 pos_symbol_string.push_back(std::make_pair(epos, con_symbol));
                                 cov_mut_vec[epos - read_ampBQerr_fragWithR1R2.getIncluBegPosition()] |= 0x2;
@@ -2684,8 +2685,8 @@ struct Symbol2CountCoverageSet {
                     }
                     for (size_t i = 0; i < cov_mut_vec.size(); i++) {
                         if (cov_mut_vec[i] & 0x2) {
-                            for (size_t j = i - paramset.syserr_mut_region_n_bases; j < i + paramset.syserr_mut_region_n_bases + 1; j++) {
-                                if (j < cov_mut_vec.size()) {
+                            for (int j = (int)i - (int)paramset.syserr_mut_region_n_bases; j < (int)(i + paramset.syserr_mut_region_n_bases + 1); j++) {
+                                if ((0 <= j) && (j < (int)cov_mut_vec.size())) {
                                     cov_mut_vec[j] |= 0x4;
                                 }
                             }
@@ -2705,8 +2706,38 @@ struct Symbol2CountCoverageSet {
                         const auto ivec = epos - read_ampBQerr_fragWithR1R2.getIncluBegPosition();
                         for (const auto con_symbol : std::array<AlignmentSymbol, 2> {{ cov_mut_base_symbol_vec[ivec], cov_mut_link_symbol_vec[ivec] }} ) {
                             if (con_symbol != END_ALIGNMENT_SYMBOLS) {
+#ifdef UVC_IN_DEBUG_MODE
+                                if (paramset.debug_tid == tid2 && paramset.debug_pos == epos) {
+                                        std::string covstring;
+                                        for (const auto covflag : cov_mut_vec) {
+                                           covstring.push_back('0' + covflag);
+                                        }
+                                        LOG(logINFO) << "DebugINFO:" 
+                                            << " FRAG_GROUP_NAME=" << (alns1.size() > 0 ? bam_get_qname(alns1[0]) : "NONE")
+                                            << " FRAG_bTA_bTB_info:"
+                                            << " epos=" << epos 
+                                            << " strand=" << strand
+                                            << " symbol=" << SYMBOL_TO_DESC_ARR[con_symbol] 
+                                            << " FRAG_bTA+=" << b10xSeqTlen
+                                            << " FRAG_bTB+=" << b10xSeqTNevents
+                                            << " covstring=" << covstring;
+                                }
+#endif
                                 this->symbol_to_frag_format_depth_sets[strand].getRefByPos(epos)[con_symbol][FRAG_bTA] += b10xSeqTlen;
                                 this->symbol_to_frag_format_depth_sets[strand].getRefByPos(epos)[con_symbol][FRAG_bTB] += b10xSeqTNevents;
+                            } else {
+#ifdef UVC_IN_DEBUG_MODE
+                                if (paramset.debug_tid == tid2 && paramset.debug_pos == epos) {
+                                        LOG(logINFO) << "DebugINFO:" 
+                                            << " FRAG_GROUP_NAME=" << (alns1.size() > 0 ? bam_get_qname(alns1[0]) : "NONE")
+                                            << " FRAG_bTA_bTB_info:"
+                                            << " epos=" << epos 
+                                            << " strand=" << strand
+                                            << " symbol=" << SYMBOL_TO_DESC_ARR[con_symbol]
+                                            << " FRAG_bTA+=" << 0
+                                            << " FRAG_bTB+=" << 0;
+                                }
+#endif
                             }
                         }
                     }
