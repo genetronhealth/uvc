@@ -11,13 +11,20 @@
 
 
 enum ConsensusBlockCigarType {
+    CONSENSUS_BLOCK_CSOFT_CLIP_FIXED_LEFT_TO_VAR_RIGHT,
     CONSENSUS_BLOCK_CINS,
-    CONSENSUS_BLOCK_CSOFT_CLIP,
+    CONSENSUS_BLOCK_CSOFT_CLIP_FIXED_RIGHT_TO_VAR_LEFT,
     CONSENSUS_BLOCK_END,
 };
-#define NUM_CONSENSUS_BLOCK_CIGAR_TYPES 2
+#define NUM_CONSENSUS_BLOCK_CIGAR_TYPES 3
 static_assert(NUM_CONSENSUS_BLOCK_CIGAR_TYPES == CONSENSUS_BLOCK_END);
-#define ALL_CONSENSUS_BLOCK_CIGAR_TYPES (std::array<ConsensusBlockCigarType, NUM_CONSENSUS_BLOCK_CIGAR_TYPES> {{ CONSENSUS_BLOCK_CINS, CONSENSUS_BLOCK_CSOFT_CLIP }})
+#define ALL_CONSENSUS_BLOCK_CIGAR_TYPES (std::array<ConsensusBlockCigarType, NUM_CONSENSUS_BLOCK_CIGAR_TYPES> \
+    {{ CONSENSUS_BLOCK_CSOFT_CLIP_FIXED_LEFT_TO_VAR_RIGHT, CONSENSUS_BLOCK_CINS, CONSENSUS_BLOCK_CSOFT_CLIP_FIXED_RIGHT_TO_VAR_LEFT }})
+
+bool 
+is_ConsensusBlockCigarType_right2left(ConsensusBlockCigarType cigartype) { 
+    return (CONSENSUS_BLOCK_CSOFT_CLIP_FIXED_RIGHT_TO_VAR_LEFT == cigartype); 
+}; 
 
 // typedef std::pair<char, int8_t> FastqBaseAndQual;
 typedef std::basic_string<std::pair<char, int8_t>> FastqRecord;
@@ -33,10 +40,11 @@ reverseAndComplement(FastqRecord & fqrec) {
 }
 
 const FastqRecord
-consensusBlockToSeqQual(const ConsensusBlock & cb1) {
+consensusBlockToSeqQual(const ConsensusBlock & cb1, bool is_right2left) {
     FastqRecord ret;
     // ConsensusBlock & cb1 ; // = pos2conblock4it.first->second;
-    for (size_t inspos = 0; inspos < cb1.size(); inspos++) {
+    for (size_t inspos1 = 0; inspos1 < cb1.size(); inspos1++) {
+        size_t inspos = (is_right2left ? (cb1.size() - inspos1 - 1) : inspos1);
         AlignmentSymbol conbase = BASE_NN;
         uvc1_readnum_t concount = 0;
         uvc1_readnum_t totcount = 0;
@@ -56,6 +64,8 @@ consensusBlockToSeqQual(const ConsensusBlock & cb1) {
 
 struct ConsensusBlockSet {
     std::map<uvc1_refgpos_t, ConsensusBlock> pos2conblock;
+    void setIsRightToLeft(bool is_r2l) { is_right2left = is_r2l; }
+    
     void
     incByPosSeqQual(uvc1_readpos_t pos, const std::string & seq, const auto & qual) {
         assert(seq.size() == qual.size());
@@ -75,7 +85,7 @@ struct ConsensusBlockSet {
         FastqRecord ret;
         auto pos2conblock4it = this->pos2conblock.find(pos);
         if (pos2conblock4it != this->pos2conblock.end()) {
-            return consensusBlockToSeqQual(pos2conblock4it->second);
+            return consensusBlockToSeqQual(pos2conblock4it->second, is_right2left);
         } else {
             return FastqRecord();
         }
@@ -150,6 +160,8 @@ struct ConsensusBlockSet {
         }
     };
     */
+private: 
+    bool is_right2left = false;
 };
 
 #endif
