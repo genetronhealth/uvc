@@ -447,7 +447,7 @@ process_batch(
     std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, MolecularBarcode>> umi_strand_readset;
 
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts bamfname_to_strand_to_familyuid_to_reads with pair_end_merge = " << paramset.pair_end_merge; }
-    std::array<uvc1_readnum_t, 3> passed_pcrpassed_umipassed = bamfname_to_strand_to_familyuid_to_reads(
+    std::array<uvc1_readnum_big_t, 3> passed_pcrpassed_umipassed = bamfname_to_strand_to_familyuid_to_reads(
             umi_to_strand_to_reads,
             bam_inclu_beg_pos,
             bam_exclu_end_pos,

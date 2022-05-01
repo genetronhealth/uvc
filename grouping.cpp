@@ -603,7 +603,7 @@ bam2umihash(int & is_umi_found, const bam1_t *aln, const std::vector<uint8_t> & 
     return 0;
 };
 
-std::array<uvc1_readnum_t, 3>
+std::array<uvc1_readnum_big_t, 3>
 bamfname_to_strand_to_familyuid_to_reads(
         std::map<MolecularBarcode, std::pair<std::array<std::map<uvc1_hash_t, std::vector<bam1_t *>>, 2>, MolecularBarcode>> &umi_to_strand_to_reads,
         uvc1_refgpos_t & extended_inclu_beg_pos, 
@@ -635,7 +635,7 @@ bamfname_to_strand_to_familyuid_to_reads(
     extended_inclu_beg_pos = INT32_MAX;
     extended_exclu_end_pos = 0;
     
-    uvc1_readnum_t pcrpassed, umi_pcrpassed;
+    uvc1_readnum_big_t pcrpassed, umi_pcrpassed;
     pcrpassed = umi_pcrpassed = 0;
    
     // samFile *sam_infile = sam_open(paramset.bam_input_fname.c_str(), "r");
@@ -723,7 +723,7 @@ bamfname_to_strand_to_familyuid_to_reads(
     
     std::array<uvc1_readnum_t, NUM_FILTER_REASONS> fillcode_to_num_alns;
     
-    size_t alnidx = 0;
+    uvc1_readnum_big_t alnidx = 0;
     // hts_itr = sam_itr_queryi(hts_idx, tid, fetch_tbeg, fetch_tend);
     hts_itr = sam_itr_queryi(hts_idx, tid, non_neg_minus(fetch_tbeg, MAX_INSERT_SIZE), (fetch_tend + MAX_INSERT_SIZE));
     while (sam_itr_next(sam_infile, hts_itr, aln) >= 0) {
@@ -987,10 +987,10 @@ bamfname_to_strand_to_familyuid_to_reads(
     const bool is_min_DP_failed = (is_min_DP_failed_1 && is_min_DP_failed_2);
     if (is_min_DP_failed){
         if (should_log) { LOG(logINFO) << "Thread " << thread_id << " skipped dedupping."; }
-        return std::array<uvc1_readnum_t, 3>({ -1, -1, -1});
+        return std::array<uvc1_readnum_big_t, 3>({ -1, -1, -1});
     } else {
         if (should_log) { LOG(logINFO) << "Thread " << thread_id << " finished dedupping."; }
-        return std::array<uvc1_readnum_t, 3>({alnidx, pcrpassed, umi_pcrpassed});
+        return std::array<uvc1_readnum_big_t, 3>({alnidx, pcrpassed, umi_pcrpassed});
     }
 }
 
