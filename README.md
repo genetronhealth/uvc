@@ -51,13 +51,13 @@ Otherwise, it is recommended to reject such variant candidate.
 In fact, uvc1 and some other executables all generated the same output given the same input. Their differences are as follows.
  1. uvc1: the release version that runs the fastest with multi-threading. 
     Because of extreme runtime optimization, this program probably will not generate any useful error message when an error arises.
- 2. uvc.mt.out: the debug version that runs with multi-threading. 
+ 2. uvc-2-omp-thread.debug: the debug version that runs with multi-threading. 
     If the release version encounters any problem. please use this debug version to generate some useful error message. 
     The error message can then be used by the software maintainer for debugging and/or testing.
- 3. uvc.st.out: the debug version that runs without multi-threading. 
+ 3. uvc-3.debug: the debug version that runs without multi-threading. 
     If the debug version with multi-threading encounters any problem, please use this debug version to generate some useful error message.
     The error message can then be used by the software maintainer for debugging and/or testing.
- 4. uvc.cppt.out: similar to uvc1 except that uvc.cppt.out uses c++14 thread instead of OpenMP for multi-threading.
+ 4. uvc-1-cpp-std-thread.out: similar to uvc1 except that uvc.cppt.out uses C++14 STL thread instead of OpenMP for multi-threading.
 
 All bug reports, feature requests, and ideas for improvement are welcome (although not all of them may be addressed in time)!
 
