@@ -1,7 +1,7 @@
 # Example command to build: make all -j9 && make deploy
 
-all : uvc-1-fopenmp-thread.out uvc-1-cpp-std-thread.out uvc-2-fopenmp-thread.debug uvc-2-cpp-std-thread.debug uvc-3.debug 
-ALL : uvc-1-fopenmp-thread.out uvc-1-cpp-std-thread.out uvc-2-fopenmp-thread.debug uvc-2-cpp-std-thread.debug uvc-3.debug uvc-4.debug uvc-1-fopenmp-thread.debug uvc-1-cpp-std-thread.debug 
+all : debarcode uvc-1-fopenmp-thread.out uvc-1-cpp-std-thread.out uvc-2-fopenmp-thread.debug uvc-2-cpp-std-thread.debug uvc-3.debug 
+ALL : all uvc-4.debug uvc-1-fopenmp-thread.debug uvc-1-cpp-std-thread.debug 
 
 HDR=CLI11-1.7.1/CLI11.hpp Hash.hpp main_conversion.hpp main_consensus.hpp \
     CmdLineArgs.hpp common.hpp grouping.hpp iohts.hpp logging.hpp main.hpp MolecularID.hpp version.h
