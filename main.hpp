@@ -3046,9 +3046,7 @@ struct Symbol2CountCoverageSet {
                                             }
                                         }
 #endif
-
-                                        const uvc1_refgpos_t conpos = consensusBlockSetsIts[cigartype]->first;
-                                        if (conpos == epos) {
+                                        if (consensusBlockSetsIts[cigartype] != consensusBlockSetsEnds[cigartype] && consensusBlockSetsIts[cigartype]->first == epos) {
                                             const ConsensusBlock & conblock = consensusBlockSetsIts[cigartype]->second;
                                             const FastqRecord sqvec = consensusBlockToSeqQual(conblock, is_ConsensusBlockCigarType_right2left(cigartype));
                                             for (const auto & sq : sqvec) {
