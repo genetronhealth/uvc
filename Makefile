@@ -65,7 +65,7 @@ bcf_formats.step1.hpp : bcf_formats_generator1.out
 .PHONY: clean deploy
 
 clean:
-	rm bcf_formats_generator1.out bcf_formats.step1.hpp *.o *.debug *.gch debarcode || true
+	rm bcf_formats_generator1.out bcf_formats.step1.hpp *.o *.debug uvc-1-fopenmp-thread.out uvc-1-cpp-std-thread.out *.gch debarcode || true
 	
 # uvc1 is used by uvcTN.sh
 deploy:
