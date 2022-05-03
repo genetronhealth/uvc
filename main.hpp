@@ -4543,7 +4543,7 @@ BcfFormat_symbol_calc_DPv(
     const auto tier1_selfplus_aFA_min = MINVEC(tier1_selfplus_aFA_vec);
     
     double cFA2a = ((is_tmore_amplicon_with_primerlen && !is_rescued) ? (cFA2 * (paramset.powlaw_amplicon_allele_fraction_coef)) : cFA2);
-    const double cFA3b = ((normBDP * ((paramset.fam_tier3DP_bias_overseq_perc - 100) / (is_rescued ? 2 : 1) + 100) >= normCDP1 * 100) ? cFA3 : 1.0);
+    const double cFA3b = ((normBDP * 100 > normCDP1 * ((paramset.fam_tier3DP_bias_overseq_perc - 100) / (is_rescued ? 2 : 1) + 100)) ? cFA3 : 1.0);
     auto min_cFA23_vec = std::vector<double> {{ cFA2a, cFA3b }}; // overseq_perc
     double c23FA = MINVEC(min_cFA23_vec);
 
