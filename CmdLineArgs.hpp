@@ -191,6 +191,8 @@ struct CommandLineArgs {
     
     double             bias_thres_FTS_FA = 0.95+1e-5;
     bool               bias_is_orientation_artifact_mixed_with_sequencing_error = false;
+    double             bias_orientation_min_effective_allelefrac = 0.004;
+
 // *** 06. parameters related to the priors of bias
     
     uvc1_readnum100x_t bias_prior_DPadd_perc = 50;

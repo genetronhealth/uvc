@@ -570,6 +570,10 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
         "Model false positive calls as a mixture of read-orientation-specific error and sequencing error. "
             "Improve specificity at the cost of sensitivity. "
             "This may be useful if both heavy FFPE artifact and heavy sequencing error are present. ");
+    ADD_OPTDEF2(app, bias_orientation_min_effective_allelefrac,
+        "The minimum allele fraction that is effective for orientation bias. "
+            "This parameter should be set to the allele fraction of oxidation artifact. ");
+
 
 // *** 06. parameters related to the priors of bias
     

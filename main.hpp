@@ -4431,14 +4431,15 @@ BcfFormat_symbol_calc_DPv(
     const auto bias_priorfreq_orientation_base = (isSymbolSubstitution(symbol) 
             ? paramset.bias_priorfreq_orientation_snv_base : paramset.bias_priorfreq_orientation_indel_base) + allbias_allprior;
     
+    const double bias_priorfreq_orientation_all = log(mathsquare(MAX(aDPFA, paramset.bias_orientation_min_effective_allelefrac))) + phred2nat(bias_priorfreq_orientation_base);
     auto _cROFA1x2 = dp4_to_pcFA<true>(dedup_frag_frac, fmt.cDP1f[a], fmt.cDP1r[a], fmt.CDP1f[0], fmt.CDP1r[0], paramset.powlaw_exponent, 
-                log(mathsquare(aDPFA)) + phred2nat(bias_priorfreq_orientation_base));
+                bias_priorfreq_orientation_all);
     if (paramset.bias_is_orientation_artifact_mixed_with_sequencing_error) {
         // this is useful for dealing with heavy FFPE artifact and heavy sequencing error
         const auto cROFA10x2 = dp4_to_pcFA<true>(dedup_frag_frac, fmt.cDP1f[a], fmt.cDP1r[a], fmt.CDP1f[0], fmt.CDP1r[0], paramset.powlaw_exponent, 
-                log(mathsquare(aDPFA)) + phred2nat(bias_priorfreq_orientation_base));
+                bias_priorfreq_orientation_all);
         const auto cROFA12x2 = dp4_to_pcFA<true>(dedup_frag_frac, fmt.cDP12f[a], fmt.cDP12r[a], fmt.CDP12f[0], fmt.CDP12r[0], paramset.powlaw_exponent, 
-                log(mathsquare(aDPFA)) + phred2nat(bias_priorfreq_orientation_base));
+                bias_priorfreq_orientation_all);
         _cROFA1x2 = (
                     ((fmt.ADPff[0] * 8 >= ADP) && (fmt.ADPfr[0] * 8 >= ADP) 
                   && (fmt.ADPrf[0] * 8 >= ADP) && (fmt.ADPrr[0] * 8 >= ADP)) 
@@ -4446,7 +4447,7 @@ BcfFormat_symbol_calc_DPv(
     }
     const auto cROFA1x2 = _cROFA1x2; 
     const auto cROFA2x2 = dp4_to_pcFA<true,true>(-1, fmt.cDP2f[a], fmt.cDP2r[a], fmt.CDP2f[0], fmt.CDP2r[0], paramset.powlaw_exponent, 
-            log(mathsquare(aDPFA)) + phred2nat(bias_priorfreq_orientation_base), -1, -1, c2altpc, 1.0);
+            bias_priorfreq_orientation_all, -1, -1, c2altpc, 1.0);
     
     double aSSFA = aSSFAx2[0] * dir_bias_div;
     double cROFA1 = cROFA1x2[0] * dir_bias_div;
@@ -4509,10 +4510,16 @@ BcfFormat_symbol_calc_DPv(
     const bool is_tmore_amplicon_with_primerlen = (is_tmore_amplicon || ((paramset.primerlen > 0) && !(0x4 & paramset.primer_flag)));
     double bFAa = bFA; // (is_tmore_amplicon_with_primerlen ? (bFA * (paramset.powlaw_amplicon_allele_fraction_coef)) : bFA); // is only enabled at high seq depth (when UMI is present)
     const auto tier1_selfonly_aFA_vec = std::vector<double>{{
-            aDPFA * BETWEEN(1.0 + aDPFA - alt_frac_mut_affected_tpos, 0.1, 1.0),
-            bFAa,
+            cROFA1,
+            aLPFA2, 
+            aRPFA2, 
+            aLBFA2, 
+            aRBFA2,
+            
+            // bFAa, // this is also good for tier-2-SSCS
             cFA0, 
             
+            aDPFA * BETWEEN(1.0 + aDPFA - alt_frac_mut_affected_tpos, 0.1, 1.0),
             aPFFA * aSSFA2 / MAX(aSSFA2, aSSFAx2[1])
             }};
     const auto tier1_selfonly_aFA_min = MINVEC(tier1_selfonly_aFA_vec);
@@ -4528,34 +4535,33 @@ BcfFormat_symbol_calc_DPv(
     const auto tier1_selfplus_aFA_vec = std::vector<double>{{
             aSSFA2,
             
-            cROFA1,
-            
-            aLPFA2, 
-            aRPFA2, 
-            aLBFA2, 
-            aRBFA2,
-            
             aLIFA2,
             aRIFA2,
-            MAX(aDPFA * 0.01, aSIFA)
+            MAX(aDPFA * 0.01, aSIFA),
+            
+            bFAa // this is also good for tier-2-SSCS
             }};
     // const auto tier1_selfplus_aFA_min = MIN(tier1_selfplus_aFA_amplicon_min, MINVEC(tier1_selfplus_aFA_vec));
     const auto tier1_selfplus_aFA_min = MINVEC(tier1_selfplus_aFA_vec);
     
     double cFA2a = ((is_tmore_amplicon_with_primerlen && !is_rescued) ? (cFA2 * (paramset.powlaw_amplicon_allele_fraction_coef)) : cFA2);
-    const double cFA3b = ((normBDP * 100 > normCDP1 * ((paramset.fam_tier3DP_bias_overseq_perc - 100) / (is_rescued ? 2 : 1) + 100)) ? cFA3 : 1.0);
-    auto min_cFA23_vec = std::vector<double> {{ cFA2a, cFA3b }}; // overseq_perc
-    double c23FA = MINVEC(min_cFA23_vec);
+    const double cFA3a = ((normBDP * 100 > normCDP1 * ((paramset.fam_tier3DP_bias_overseq_perc - 100) / (is_rescued ? 2 : 1) + 100)) ? cFA3 : 1.0);
+    // auto min_cFA23_vec = std::vector<double> {{ cFA2a, cFA3a }}; // overseq_perc
+    double c23FA = cFA2a; // MINVEC(min_cFA23_vec); // limit the use of c3FAa
 
     auto tier2_selfonly_c2FA_vec = std::vector<double>{{
-            cFA2L,
-            cFA2R,
-            c23FA,
             cROFA2,
             c2LPFA2,
             c2RPFA2,
             c2LBFA2,
-            c2RBFA2}};
+            c2RBFA2
+            
+            cFA2a,
+            cFA3a,
+            
+            cFA2L,
+            cFA2R
+            }};
     double tier2_selfonly_c2FA_min = MINVEC(tier2_selfonly_c2FA_vec);
     
     fmt.nNFA.push_back(-numstates2deciphred(counterbias_P_FA));
