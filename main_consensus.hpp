@@ -121,7 +121,7 @@ struct ConsensusBlockSet {
         FastqRecord ret;
         auto pos2conblock4it = this->pos2conblock.find(pos);
         if (pos2conblock4it != this->pos2conblock.end()) {
-            return consensusBlockToSeqQual(ConsensusBlock_trim(pos2conblock4it->second, percDP), is_right2left, n_frag_supports);
+            return consensusBlockToSeqQual(ConsensusBlock_trim(pos2conblock4it->second, percDP, n_consec_positions), is_right2left, n_frag_supports);
         } else {
             return FastqRecord();
         }
