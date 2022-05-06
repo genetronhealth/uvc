@@ -1649,19 +1649,19 @@ public:
                 }
             }
             for (auto cigartype: ALL_CONSENSUS_BLOCK_CIGAR_TYPES) {
-                if (update_pos2indel2count) this->getRefConsensusBlockSet(cigartype).incByConsensus(other.getConsensusBlockSet(cigartype));
+                if (update_pos2indel2count) { this->getRefConsensusBlockSet(cigartype).incByConsensus(other.getConsensusBlockSet(cigartype)); }
             }
         }
     }
     
     // Add read supports to a bigger family, while excluding read supports that did not pass the threshold.
+    template <bool TIsIndelCounted = false, bool TIsConsensusBlock = false>
     int
     updateByFiltering(
             const GenericSymbol2CountCoverage<TSymbol2Count> &other, 
             const std::array<uvc1_qual_t, NUM_SYMBOL_TYPES> thres,
             const bool is_padded_del_ignored,
-            uvc1_readnum_t incvalue = 1,
-            const bool update_pos2indel2count = false) {
+            uvc1_readnum_t incvalue = 1) {
         this->assertUpdateIsLegal(other);
         int num_updated_pos = 0;
         // other.assertUpdateIsLegal(thres); // may not hold because threshold is delimited by bed whereas this is not delimited by bed.
@@ -1675,7 +1675,7 @@ public:
                     is_padded_del_ignored,
                     thres,
                     incvalue);
-            if (update_pos2indel2count) {
+            if (TIsIndelCounted) {
                 if (isSymbolIns(consymbols[1])) {
                     posToIndelToCount_updateByConsensus(this->getRefPosToIseqToData(consymbols[1]), other.getPosToIseqToData(consymbols[1]), epos, incvalue);
                 } else if (isSymbolDel(consymbols[1])) {
@@ -1685,7 +1685,7 @@ public:
             if (updateresult) { num_updated_pos++; }
         }
         for (auto cigartype: ALL_CONSENSUS_BLOCK_CIGAR_TYPES) {
-            if (update_pos2indel2count) this->getRefConsensusBlockSet(cigartype).incByConsensus(other.getConsensusBlockSet(cigartype));
+            if (TIsConsensusBlock) this->getRefConsensusBlockSet(cigartype).incByConsensus(other.getConsensusBlockSet(cigartype));
         }
         return num_updated_pos;
     };
@@ -2872,7 +2872,7 @@ struct Symbol2CountCoverageSet {
                             paramset,
                             0);
                     
-                    read_family_con_ampl.updateByFiltering(
+                    read_family_con_ampl.updateByFiltering<true>(
                         read_ampBQerr_fragWithR1R2, 
                         std::array<uvc1_qual_t, NUM_SYMBOL_TYPES> {{ paramset.fam_thres_highBQ_snv, 0 }},
                         (paramset.microadjust_padded_deletion_flag & ((SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform) ? 0x2 : 0x1)));

@@ -49,15 +49,20 @@ Otherwise, it is recommended to reject such variant candidate.
 # What to report if a runtime error arises
 
 In fact, uvc1 and some other executables all generated the same output given the same input. Their differences are as follows.
- 1. uvc1: the release version that runs the fastest with multi-threading. 
+ 1. uvc1: the release version that runs the fastest with multi-threading (this binary exe file identical to the file named uvc-1-cpp-std-thread.out). 
     Because of extreme runtime optimization, this program probably will not generate any useful error message when an error arises.
- 2. uvc-2-omp-thread.debug: the debug version that runs with multi-threading. 
-    If the release version encounters any problem. please use this debug version to generate some useful error message. 
-    The error message can then be used by the software maintainer for debugging and/or testing.
- 3. uvc-3.debug: the debug version that runs without multi-threading. 
-    If the debug version with multi-threading encounters any problem, please use this debug version to generate some useful error message.
-    The error message can then be used by the software maintainer for debugging and/or testing.
- 4. uvc-1-cpp-std-thread.out: similar to uvc1 except that uvc.cppt.out uses C++14 STL thread instead of OpenMP for multi-threading.
+ 2. uvc-2-omp-thread-asan.debug: the OpenMP-multi-thread debug version that runs with address sanitizer (Asan). 
+    If the release version encounters any runtime error. please use this debug version to generate some useful error message. 
+    The error message can then be used by the code maintainer(s) for debugging and/or testing. 
+ 3. uvc-3-asan.debug: the single-thread debug version that runs with address sanitizer (Asan). 
+    If the debug version with multi-threading encounters any runtime error obfuscated by multi-threading, please use this debug version to generate some useful error message. 
+    The error message can then be used by the code maintainer(s) for debugging and/or testing. 
+ 4. uvc-1-cpp-std-thread.out: similar to uvc1 except that uvc.cppt.out uses C++14 STL thread instead of OpenMP for multi-threading. 
+    If the OpenMP library is not available, then this version can be used instead of uvc1. 
+
+The diagnostic runtime error messages provided by uvc-2-omp-thread-ubsan.debug and/or uvc-3-ubsan.debug (UBsans) can provide additional debug information to the code maintainer(s). 
+UBsans were not compiled by default due to slow compiling time. 
+If uvc-2-omp-thread-asan.debug and uvc-3-asan.debug did not provide any useful stack-trace, then please compile UBsans and run UBsans instead of Asans to generate some useful error message. 
 
 All bug reports, feature requests, and ideas for improvement are welcome (although not all of them may be addressed in time)!
 
