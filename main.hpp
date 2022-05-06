@@ -73,23 +73,23 @@ posToIndelToData_get(const std::map<uvc1_readnum_t, std::map<T, uvc1_readnum_t>>
 template <class T>
 void
 posToIndelToCount_inc(std::map<uvc1_refgpos_t, std::map<T, uvc1_readnum_t>> & pos2indel2count, uvc1_readpos_t pos, const T indel, uvc1_readnum_t incvalue = 1) {
-    assert(incvalue > 0);
+    assertUVC(incvalue > 0);
     auto pos2indel2count4it = pos2indel2count.insert(std::make_pair(pos, std::map<T, uvc1_readnum_t>()));
     auto indel2count4it = pos2indel2count4it.first->second.insert(std::make_pair(indel, 0));
     indel2count4it.first->second += incvalue;
-    assert (posToIndelToData_get(pos2indel2count, pos, indel) > 0);
+    assertUVC (posToIndelToData_get(pos2indel2count, pos, indel) > 0);
 }
 
 template <class T>
 T
 posToIndelToCount_updateByConsensus(std::map<uvc1_refgpos_t, std::map<T, uvc1_readnum_t>> & dst, const std::map<uvc1_refgpos_t, std::map<T, uvc1_readnum_t>> & src, uvc1_readnum_t epos, uvc1_readnum_t incvalue = 1) {
     const auto pos2indel2count4it = src.find(epos);
-    assert(pos2indel2count4it != src.end());
+    assertUVC(pos2indel2count4it != src.end());
     auto indel2count = pos2indel2count4it->second;
     const T & src_indel = (indel2count.size() > 1 ? (indelToData_getMajority(indel2count).second) : indel2count.begin()->first); 
     // The following code generates null-valued InDels if more than one InDel is found, which is not intended. 
     // const T & src_indel = (indel2count.size() > 1 ? T() : indel2count.begin()->first); 
-    assert (indel2count.begin()->second > 0);
+    assertUVC (indel2count.begin()->second > 0);
     posToIndelToCount_inc<T>(dst, epos, src_indel, incvalue);
     return src_indel;
 }
@@ -100,7 +100,7 @@ template <bool TIsIncVariable, class T>
 uvc1_readnum_t
 posToIndelToCount_updateByRepresentative(std::map<uvc1_readnum_t, std::map<T, uvc1_readnum_t>> & dst, const std::map<uvc1_readnum_t, std::map<T, uvc1_readnum_t>> & src, uvc1_readnum_t epos, uvc1_readnum_t incvalue = 1) {
     const auto pos2indel2count4it = src.find(epos);
-    assert(pos2indel2count4it != src.end());
+    assertUVC(pos2indel2count4it != src.end());
 
     T max_indel;
     uvc1_readnum_t max_count = 0;
@@ -114,7 +114,7 @@ posToIndelToCount_updateByRepresentative(std::map<uvc1_readnum_t, std::map<T, uv
         }
         if (TIsIncVariable) {sum_count += count; }
     }
-    assert(0 < max_count);
+    assertUVC(0 < max_count);
     if (TIsIncVariable) {
         posToIndelToCount_inc<T>(dst, epos, max_indel, sum_count);
     } else {
@@ -131,7 +131,7 @@ posToIndelToCount_updateBySummation(std::map<uvc1_readnum_t, std::map<T, uvc1_re
         auto src_pos = src_pos2indel2count4it.first;
         auto src_indel2count = src_pos2indel2count4it.second;
         for (auto src_indel2count4it : src_indel2count) {
-            assert(src_indel2count4it.second > 0 || !(
+            assertUVC(src_indel2count4it.second > 0 || !(
                 std::cerr << src_indel2count4it.second << " > 0 failed for the key " << src_indel2count4it.first << " at position " << src_pos << std::endl
             ));
             posToIndelToCount_inc<T>(dst, src_pos, src_indel2count4it.first, src_indel2count4it.second);
@@ -291,7 +291,7 @@ class GenericSymbol2Bucket2Count : TDistribution<TB2C> {
 public:    
     molcount_t
     getSymbolBucketCount(AlignmentSymbol symbol, size_t bucket) const {
-        assert(bucket < NUM_BUCKETS);
+        assertUVC(bucket < NUM_BUCKETS);
         return this->symbol2data[symbol][bucket];
     };
     
@@ -302,7 +302,7 @@ public:
 
     void
     incSymbolBucketCount(AlignmentSymbol symbol, size_t bucket, uvc1_qual_t increment) {
-        assert(bucket < NUM_BUCKETS || !fprintf(stderr, "%lu < %d failed!", bucket, NUM_BUCKETS));
+        assertUVC(bucket < NUM_BUCKETS || !fprintf(stderr, "%lu < %d failed!", bucket, NUM_BUCKETS));
         this->symbol2data[symbol].at(bucket) += increment;
     };
     
@@ -319,7 +319,7 @@ public:
 
     void
     clearSymbolBucketCount() {
-        assert(sizeof(TB2C) * NUM_ALIGNMENT_SYMBOLS == sizeof(this->symbol2data) || !fprintf(stderr, "%lu * %u != %lu\n", sizeof(TB2C), NUM_ALIGNMENT_SYMBOLS, sizeof(this->symbol2data)));
+        assertUVC(sizeof(TB2C) * NUM_ALIGNMENT_SYMBOLS == sizeof(this->symbol2data) || !fprintf(stderr, "%lu * %u != %lu\n", sizeof(TB2C), NUM_ALIGNMENT_SYMBOLS, sizeof(this->symbol2data)));
         for (size_t i = 0; i < NUM_ALIGNMENT_SYMBOLS; i++) {
             for (size_t j = 0; j < this->symbol2data[0].size(); j++) {
                 this->symbol2data[i][j] = 0;
@@ -350,7 +350,7 @@ public:
     
     const TInteger
     _sumBySymbolType(AlignmentSymbol beg, AlignmentSymbol end) const {
-        assert (beg <= end);
+        assertUVC (beg <= end);
         
         TInteger alpha_sum = 0;
         for (AlignmentSymbol symb = beg; symb <= end; symb = AlignmentSymbol(((uvc1_unsigned_int_t)symb) + 1)) {
@@ -376,7 +376,7 @@ public:
     _fillConsensusCounts(
             AlignmentSymbol & count_argmax, uvc1_qual_t & count_max, uvc1_qual_t & count_sum,
             AlignmentSymbol incluBeg, AlignmentSymbol incluEnd) const {
-        assert (incluBeg <= incluEnd);
+        assertUVC (incluBeg <= incluEnd);
         
         count_argmax = incluEnd; // assign with the value AlignmentSymbol(NUM_ALIGNMENT_SYMBOLS) to flag for error
         count_max = 0;
@@ -397,7 +397,7 @@ public:
             }
         }
         
-        assert((incluBeg <= count_argmax && count_argmax <= incluEnd) || !fprintf(stderr, "The value %u is not between %u and %u", count_argmax, incluBeg, incluEnd));
+        assertUVC((incluBeg <= count_argmax && count_argmax <= incluEnd) || !fprintf(stderr, "The value %u is not between %u and %u", count_argmax, incluBeg, incluEnd));
         return 0;
     };
     
@@ -536,7 +536,7 @@ public:
     
     CoveredRegion() {};
     CoveredRegion(uvc1_refgpos_t tid, uvc1_refgpos_t beg, uvc1_refgpos_t end): tid(tid), incluBegPosition(beg)  {
-        assert (beg < end || !fprintf(stderr, "assertion %d < %d failed!\n", beg, end));
+        assertUVC (beg < end || !fprintf(stderr, "assertion %d < %d failed!\n", beg, end));
         this->idx2symbol2data = std::vector<T>(end-beg); // end should be real end position plus one
         for (const auto conblock_cigartype : ALL_CONSENSUS_BLOCK_CIGAR_TYPES) {
             if (is_ConsensusBlockCigarType_right2left(conblock_cigartype)) {
@@ -547,17 +547,17 @@ public:
     
     T &
     getRefByPos(const uvc1_refgpos_t pos, const bam1_t *bam = NULL) {
-        assert(pos >= this->incluBegPosition || !fprintf(stderr, "%d >= %d failed for qname %s !\n", pos, this->incluBegPosition, (NULL != bam ? bam_get_qname(bam) : "?")));
+        assertUVC(pos >= this->incluBegPosition || !fprintf(stderr, "%d >= %d failed for qname %s !\n", pos, this->incluBegPosition, (NULL != bam ? bam_get_qname(bam) : "?")));
         uvc1_refgpos_t pos2 = pos - this->incluBegPosition;
-        assert(pos2 < UNSIGN2SIGN(idx2symbol2data.size()) || !fprintf(stderr, "%d  < %d failed for qname %s !\n", pos, this->incluBegPosition + (uvc1_refgpos_t)(idx2symbol2data.size()), (NULL != bam ? bam_get_qname(bam) : "?")));
+        assertUVC(pos2 < UNSIGN2SIGN(idx2symbol2data.size()) || !fprintf(stderr, "%d  < %d failed for qname %s !\n", pos, this->incluBegPosition + (uvc1_refgpos_t)(idx2symbol2data.size()), (NULL != bam ? bam_get_qname(bam) : "?")));
         return this->idx2symbol2data[pos2];
     };
     
     const T &
     getByPos(const uvc1_refgpos_t pos, const bam1_t *bam = NULL) const {
-        assert(pos >= this->incluBegPosition || !fprintf(stderr, "%d >= %d failed for qname %s !\n", pos, this->incluBegPosition, (NULL != bam ? bam_get_qname(bam) : "?")));
+        assertUVC(pos >= this->incluBegPosition || !fprintf(stderr, "%d >= %d failed for qname %s !\n", pos, this->incluBegPosition, (NULL != bam ? bam_get_qname(bam) : "?")));
         uvc1_refgpos_t pos2 = pos - this->incluBegPosition;
-        assert((pos2 < UNSIGN2SIGN(idx2symbol2data.size())) || !fprintf(stderr, "%d  < %d failed for qname %s !\n", pos, this->incluBegPosition + (uvc1_refgpos_t)(idx2symbol2data.size()), (NULL != bam ? bam_get_qname(bam) : "?")));
+        assertUVC((pos2 < UNSIGN2SIGN(idx2symbol2data.size())) || !fprintf(stderr, "%d  < %d failed for qname %s !\n", pos, this->incluBegPosition + (uvc1_refgpos_t)(idx2symbol2data.size()), (NULL != bam ? bam_get_qname(bam) : "?")));
         return this->idx2symbol2data[pos2];
     };
     
@@ -656,24 +656,24 @@ initTidBegEnd(uvc1_refgpos_t & tid, uvc1_refgpos_t & inc_beg, uvc1_refgpos_t & e
 
 int 
 fillTidBegEndFromAlns1(uvc1_refgpos_t & tid, uvc1_refgpos_t & inc_beg, uvc1_refgpos_t & exc_end, const std::vector<bam1_t *> & alns1, bool initialized=false) {
-    assert(alns1.size() > 0);
+    assertUVC(alns1.size() > 0);
     if (!initialized) {
         initTidBegEnd(tid, inc_beg, exc_end);
     }
     for (const bam1_t *aln : alns1) {
-        assert (tid == -1 || SIGN2UNSIGN(aln->core.tid) == tid);
+        assertUVC (tid == -1 || SIGN2UNSIGN(aln->core.tid) == tid);
         tid = aln->core.tid;
         inc_beg = MIN(inc_beg, SIGN2UNSIGN(aln->core.pos));
         exc_end = MAX(exc_end, SIGN2UNSIGN(bam_endpos(aln))) + 1; // The plus one accounts for possible insertion and/or soft-clip at the end 
     }
-    assert (tid != -1);
-    assert (inc_beg < exc_end);
+    assertUVC (tid != -1);
+    assertUVC (inc_beg < exc_end);
     return 0;
 };
 
 int 
 fillTidBegEndFromAlns2(uvc1_refgpos_t  & tid, uvc1_refgpos_t & inc_beg, uvc1_refgpos_t & exc_end, const std::vector<std::vector<bam1_t *>> &alns2, bool initialized=false) {
-    assert(alns2.size() > 0);
+    assertUVC(alns2.size() > 0);
     if (!initialized) {
         initTidBegEnd(tid, inc_beg, exc_end);
     }
@@ -685,7 +685,7 @@ fillTidBegEndFromAlns2(uvc1_refgpos_t  & tid, uvc1_refgpos_t & inc_beg, uvc1_ref
 
 int 
 fillTidBegEndFromAlns3(uvc1_refgpos_t & tid, uvc1_refgpos_t & inc_beg, uvc1_refgpos_t & exc_end, const std::vector<std::vector<std::vector<bam1_t *>>> & alns3, bool initialized=false) {
-    assert(alns3.size() > 0);
+    assertUVC(alns3.size() > 0);
     if (!initialized) {
         initTidBegEnd(tid, inc_beg, exc_end);
     }
@@ -755,7 +755,7 @@ indelpos_to_context(
 
 uvc1_qual_t
 indel_len_rusize_phred(uvc1_refgpos_t indel_len, uvc1_refgpos_t repeatunit_size) {
-    assert (indel_len > 0 && repeatunit_size > 0);
+    assertUVC (indel_len > 0 && repeatunit_size > 0);
     // https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2734402/#bib41 suggests power law with exponent of 1.5-1.6
     // TODO: investigate this
     // derived from the python code: for i in range(1, 20): print("{}  {}".format(  int( round(10.0/log(10.0)*log(i)) ) , i  )) 
@@ -841,7 +841,7 @@ refstring2repeatvec(
                 anyTR_repeat_endpos = qidx + repeatsize;
             }
         }
-        assert(repeat_endpos > refpos);
+        assertUVC(repeat_endpos > refpos);
         {
             uvc1_refgpos_t tl = MIN(repeat_endpos, UNSIGN2SIGN(refstring.size())) - refpos;
             const uvc1_qual_t decphred = indel_phred(indel_polymerase_slip_rate * (indel_del_to_ins_err_ratio), 
@@ -978,7 +978,7 @@ update_seg_format_prep_sets_by_aln(
     
     const auto *bam_aux_data = bam_aux_get(aln, "NM");
     const uvc1_refgpos_t nm_cnt = ((bam_aux_data != NULL) ? bam_aux2i(bam_aux_data) : nge_cnt);
-    assert (nm_cnt >= nge_cnt);
+    assertUVC (nm_cnt >= nge_cnt);
     const uvc1_base1500x_t xm_cnt = nm_cnt - nge_cnt;
     const uvc1_base1500x_t xm1500 = xm_cnt * 1500 / (rend - aln->core.pos);
     const uvc1_base1500x_t go1500 = ngo_cnt * 1500 / (rend - aln->core.pos);
@@ -1105,7 +1105,7 @@ update_seg_format_prep_sets_by_aln(
         } else if (cigar_op == BAM_CDEL) {
             const auto & rtr1 = rtr_vec[MAX(paramset.indel_adj_tracklen_dist, rpos - region_offset) - paramset.indel_adj_tracklen_dist];
             const auto & rtr2 = rtr_vec[MIN(rpos - region_offset + paramset.indel_adj_tracklen_dist, UNSIGN2SIGN(rtr_vec.size()) - 1)];
-            assert (rtr1.begpos <= rtr2.begpos || !fprintf(stderr, "AssertionError: %d <= %d failed for rtr1 and rtr2!\n", rtr1.begpos, rtr2.begpos));
+            assertUVC (rtr1.begpos <= rtr2.begpos || !fprintf(stderr, "AssertionError: %d <= %d failed for rtr1 and rtr2!\n", rtr1.begpos, rtr2.begpos));
             
             // this code has the potential to be useful at extremely high sequencing depth, which usually does not occur in practice
 #if COMPILATION_TRY_HIGH_DEPTH_POS_BIAS
@@ -1197,7 +1197,7 @@ update_seg_format_prep_sets_by_aln(
             process_cigar(qpos, rpos, cigar_op, cigar_oplen);
         }
     }
-    assert(bam_endpos(aln) == rpos || !fprintf(stderr, "%ld == %d failed for bam %s at tid %d position %ld", 
+    assertUVC(bam_endpos(aln) == rpos || !fprintf(stderr, "%ld == %d failed for bam %s at tid %d position %ld", 
             bam_endpos(aln), rpos, bam_get_qname(aln), aln->core.tid, aln->core.pos));
     return 0;
 }
@@ -1211,11 +1211,11 @@ update_seg_format_thres_from_prep_sets(
         const CommandLineArgs & paramset,
         const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
     
-    assert(seg_format_thres_sets.getIncluBegPosition() + UNSIGN2SIGN(region_repeatvec.size()) == seg_format_thres_sets.getExcluEndPosition() 
+    assertUVC(seg_format_thres_sets.getIncluBegPosition() + UNSIGN2SIGN(region_repeatvec.size()) == seg_format_thres_sets.getExcluEndPosition() 
             || !fprintf(stderr, "%d + %lu == %d failed !\n", 
            seg_format_thres_sets.getIncluBegPosition(), region_repeatvec.size(), seg_format_thres_sets.getExcluEndPosition()));
-    assert(seg_format_thres_sets.getIncluBegPosition() == seg_format_prep_sets.getIncluBegPosition());
-    assert(seg_format_thres_sets.getExcluEndPosition() == seg_format_prep_sets.getExcluEndPosition());
+    assertUVC(seg_format_thres_sets.getIncluBegPosition() == seg_format_prep_sets.getIncluBegPosition());
+    assertUVC(seg_format_thres_sets.getExcluEndPosition() == seg_format_prep_sets.getExcluEndPosition());
     for (uvc1_refgpos_t epos = seg_format_prep_sets.getIncluBegPosition(); epos != seg_format_prep_sets.getExcluEndPosition(); epos++) {
 #if COMPILATION_ENABLE_XMGOT
         const uvc1_readnum_t segprep_a_dp = MAX(seg_format_prep_sets.getByPos(epos).segprep_a_dp, 1);
@@ -1247,8 +1247,8 @@ update_seg_format_thres_from_prep_sets(
         }
         const auto pc_inc1 = (uvc1_qual_t)(3 * 100 * MAX(1, p.segprep_a_near_ins_dp + p.segprep_a_near_del_dp)
                 / (MAX(1, p.segprep_a_near_ins_inv100len + p.segprep_a_near_del_inv100len))) - 3;
-        assert (epos >= seg_format_prep_sets.getIncluBegPosition() || !fprintf(stderr, "%d >= %d failed!", epos, seg_format_prep_sets.getIncluBegPosition()));
-        assert (epos - seg_format_prep_sets.getIncluBegPosition() < UNSIGN2SIGN(region_repeatvec.size())
+        assertUVC (epos >= seg_format_prep_sets.getIncluBegPosition() || !fprintf(stderr, "%d >= %d failed!", epos, seg_format_prep_sets.getIncluBegPosition()));
+        assertUVC (epos - seg_format_prep_sets.getIncluBegPosition() < UNSIGN2SIGN(region_repeatvec.size())
                 || !fprintf(stderr, "%d - %d < %lu failed!", epos, seg_format_prep_sets.getIncluBegPosition(), region_repeatvec.size()));
         rtr.indelphred += BETWEEN(pc_inc1, 0, 6);
         UPDATE_MAX(rtr.indelphred, 0);
@@ -1598,9 +1598,9 @@ public:
     
     void
     assertUpdateIsLegal(const GenericSymbol2CountCoverage<TSymbol2Count> & other) const {
-        assert(this->tid == other.tid);
-        assert(this->getIncluBegPosition() <= other.getIncluBegPosition() || !fprintf(stderr, "%d <= %d failed!", this->getIncluBegPosition(), other.getIncluBegPosition()));
-        assert(this->getExcluEndPosition() >= other.getExcluEndPosition() || !fprintf(stderr, "%d >= %d failed!", this->getExcluEndPosition(), other.getExcluEndPosition())); 
+        assertUVC(this->tid == other.tid);
+        assertUVC(this->getIncluBegPosition() <= other.getIncluBegPosition() || !fprintf(stderr, "%d <= %d failed!", this->getIncluBegPosition(), other.getIncluBegPosition()));
+        assertUVC(this->getExcluEndPosition() >= other.getExcluEndPosition() || !fprintf(stderr, "%d >= %d failed!", this->getExcluEndPosition(), other.getExcluEndPosition())); 
     }
     // This method is mainly for grouping reads sharing the same UMI into one family. 
     // This method can be used to maintain backward compatibility if needed. 
@@ -1736,24 +1736,24 @@ public:
     /*
     void // GenericSymbol2CountCoverage<TSymbol2Count>::
     incClip(const uvc1_refgpos_t epos, const std::string & cseq, const uvc1_readnum_t incvalue = 1) {
-        assert (incvalue > 0); 
-        assert (cseq.size() > 0);
+        assertUVC (incvalue > 0); 
+        assertUVC (cseq.size() > 0);
         size_t cpos = epos;
         posToIndelToCount_inc(this->getRefPosToCseqToData(), cpos, cseq, incvalue);
     };*/
 
     void // GenericSymbol2CountCoverage<TSymbol2Count>::
     incIns(const uvc1_refgpos_t epos, const std::string & iseq, const AlignmentSymbol symbol, const uvc1_readnum_t incvalue = 1) {
-        assert (incvalue > 0); 
-        assert (iseq.size() > 0);
+        assertUVC (incvalue > 0); 
+        assertUVC (iseq.size() > 0);
         size_t ipos = epos;
         posToIndelToCount_inc(this->getRefPosToIseqToData(symbol), ipos, iseq, incvalue);
     };
 
     void // GenericSymbol2CountCoverage<TSymbol2Count>::
     incDel(const uvc1_refgpos_t epos, const uvc1_refgpos_t dlen, const AlignmentSymbol symbol, const uvc1_readnum_t incvalue = 1) {
-        assert (incvalue > 0);
-        assert (dlen > 0);
+        assertUVC (incvalue > 0);
+        assertUVC (dlen > 0);
         size_t ipos = epos;
         posToIndelToCount_inc(this->getRefPosToDlenToData(symbol), ipos, dlen, incvalue);
     };
@@ -1779,9 +1779,9 @@ public:
             const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
         
         STATIC_ASSERT_WITH_DEFAULT_MSG(BASE_QUALITY_MAX == TUpdateType || SYMBOL_COUNT_SUM == TUpdateType);
-        assert(this->tid == SIGN2UNSIGN(aln->core.tid));
-        assert(this->getIncluBegPosition() <= SIGN2UNSIGN(aln->core.pos)   || !fprintf(stderr, "%d <= %ld failed", this->getIncluBegPosition(), aln->core.pos));
-        assert(this->getExcluEndPosition() >= SIGN2UNSIGN(bam_endpos(aln)) || !fprintf(stderr, "%d >= %ld failed", this->getExcluEndPosition(), bam_endpos(aln)));
+        assertUVC(this->tid == SIGN2UNSIGN(aln->core.tid));
+        assertUVC(this->getIncluBegPosition() <= SIGN2UNSIGN(aln->core.pos)   || !fprintf(stderr, "%d <= %ld failed", this->getIncluBegPosition(), aln->core.pos));
+        assertUVC(this->getExcluEndPosition() >= SIGN2UNSIGN(bam_endpos(aln)) || !fprintf(stderr, "%d >= %ld failed", this->getExcluEndPosition(), bam_endpos(aln)));
         
         const bool is_assay_amplicon = ((dflag & 0x4) || ((paramset.primerlen > 0) && !(0x2 & paramset.primer_flag)));
         
@@ -1808,7 +1808,7 @@ public:
         
         const auto *bam_aux_data = bam_aux_get(aln, "NM");
         const uvc1_readnum_t nm_cnt = ((bam_aux_data != NULL) ? bam_aux2i(bam_aux_data) : nge_cnt);
-        assert (nm_cnt >= nge_cnt);
+        assertUVC (nm_cnt >= nge_cnt);
         const uvc1_base1500x_t xm_cnt = nm_cnt - nge_cnt;
         const uvc1_base1500x_t xm1500 = xm_cnt * 1500 / (rend - aln->core.pos);
         const uvc1_base1500x_t go1500 = ngo_cnt * 1500 / (rend - aln->core.pos);
@@ -1888,7 +1888,7 @@ public:
             const auto cigar_oplen = bam_cigar_oplen(c);
             if (cigar_op == BAM_CMATCH || cigar_op == BAM_CEQUAL || cigar_op == BAM_CDIFF) {
                 for (uint32_t i2 = 0; i2 < cigar_oplen; i2++) {
-                    assert((rpos >= SIGN2UNSIGN(aln->core.pos) && rpos < SIGN2UNSIGN(bam_endpos(aln)))
+                    assertUVC((rpos >= SIGN2UNSIGN(aln->core.pos) && rpos < SIGN2UNSIGN(bam_endpos(aln)))
                             || !fprintf(stderr, "Bam line with QNAME %s has rpos %d which is not the in range (%ld - %ld)", 
                             bam_get_qname(aln), rpos, aln->core.pos, bam_endpos(aln)));
 if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <= rpos && rpos < iend)) {
@@ -1910,8 +1910,8 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
                                 (region_offset + rtr2.begpos + rtr2.tracklen) - rpos,
                                 seg_format_thres_sets.getByPos(rpos).segthres_aRP1t));
                         dist_to_interfering_indel = MIN(prevlen, nextlen);
-                        assert (rpos >= (region_offset + rtr1.begpos));
-                        assert ((region_offset + rtr2.begpos + rtr2.tracklen) >= rpos);
+                        assertUVC (rpos >= (region_offset + rtr1.begpos));
+                        assertUVC ((region_offset + rtr2.begpos + rtr2.tracklen) >= rpos);
                     }
                     
                     if (i2 > 0) {
@@ -2391,7 +2391,7 @@ struct Symbol2CountCoverageSet {
         dedup_ampDistr({Symbol2Bucket2CountCoverage(t, beg, end), Symbol2Bucket2CountCoverage(t, beg, end)}),
         additional_note(Symbol2CountCoverageString(t, beg, end)) 
     {
-        assert(beg < end);
+        assertUVC(beg < end);
     };
     
     uvc1_refgpos_t
@@ -2441,7 +2441,7 @@ struct Symbol2CountCoverageSet {
         */
         std::vector<size_t> begposs, endposs;
         std::array<std::basic_string<std::pair<char, int8_t>>, 2> stringof_baseBQ_pairs_vec;
-        // assert (l2r_qseqlens.size() == r2l_qseqlens.size()); // this holds if and only if only proper-paired reads were kept, which is now the case as of now
+        // assertUVC (l2r_qseqlens.size() == r2l_qseqlens.size()); // this holds if and only if only proper-paired reads were kept, which is now the case as of now
         if ((l2r_qseqlens.size() > 0)) {
             size_t endpos = MIN((size_t)MEDIAN(l2r_qseqlens), stringof_baseBQ_pairs.size());
             stringof_baseBQ_pairs_vec[0] = (stringof_baseBQ_pairs.substr(0, endpos));
@@ -2481,10 +2481,10 @@ struct Symbol2CountCoverageSet {
             //  here we put all read names of the original BAM that did not go through any consensus.
             std::string fqcomment = std::to_string(alns2.size()) + "x(" + std::to_string(extended_beg_pos) + "-" + std::to_string(extended_end_pos) + ")";
             for (const auto bams : alns2) {
-                assert(bams.size() <= 2);
-                assert(bams.size() >= 1);
+                assertUVC(bams.size() <= 2);
+                assertUVC(bams.size() >= 1);
                 if (bams.size() == 2) {
-                    assert(!strcmp(bam_get_qname(bams[0]),bam_get_qname(bams[1])));
+                    assertUVC(!strcmp(bam_get_qname(bams[0]),bam_get_qname(bams[1])));
                     fqcomment += " @@"; // pair-end
                     fqcomment += bam_get_qname(bams[0]);
                 } else if (bams.size() == 1) {
@@ -2637,7 +2637,7 @@ struct Symbol2CountCoverageSet {
                             } else {
                                 read_ampBQerr_fragWithR1R2.getByPos(epos).template fillConsensusCounts<false>(con_symbol, con_count, tot_count, symboltype); 
                             }
-                            assert (con_count * 2 >= tot_count);
+                            assertUVC (con_count * 2 >= tot_count);
                             if (0 == tot_count) { continue; }                            
                             uvc1_qual_t max_qual = 8 + get_avgBQ(bg_seg_bqsum_conslogo, symbol_to_seg_format_info_sets, epos, con_symbol);
                             uvc1_qual_t phredlike = 0;
@@ -2668,7 +2668,7 @@ struct Symbol2CountCoverageSet {
                                 LOG(logINFO) << "DebugINFO:" << "FRAG-GROUP-IS " << (alns1.size() > 0 ? bam_get_qname(alns1[0]) : "NONE");
                                 if (alns1.size()) {
                                     for (const bam1_t* aln : alns1) {
-                                        assert(0 == strcmp(bam_get_qname(alns1[0]), bam_get_qname(aln)) 
+                                        assertUVC(0 == strcmp(bam_get_qname(alns1[0]), bam_get_qname(aln)) 
                                                 || !fprintf(stderr, "%s equals %s failed!\n", bam_get_qname(alns1[0]), bam_get_qname(aln)));
                                         LOG(logINFO) << "DebugINFO:\tFRAG_bDP_inc: " << bam_get_qname(aln) 
                                             << " flag=" << aln->core.flag << " tid=" << aln->core.tid << " pos=" << aln->core.pos << " symbol=" << con_symbol << " id=" << strand << "-" << this->symbol_to_frag_format_depth_sets[strand].getByPos(epos)[con_symbol][FRAG_bDP];
@@ -2768,8 +2768,8 @@ struct Symbol2CountCoverageSet {
                 }
             }
         }
-        assert(this->symbol_to_seg_format_info_sets.getIncluBegPosition() == this->dedup_ampDistr[0].getIncluBegPosition());
-        assert(this->symbol_to_seg_format_info_sets.getExcluEndPosition() == this->dedup_ampDistr[0].getExcluEndPosition());
+        assertUVC(this->symbol_to_seg_format_info_sets.getIncluBegPosition() == this->dedup_ampDistr[0].getIncluBegPosition());
+        assertUVC(this->symbol_to_seg_format_info_sets.getExcluEndPosition() == this->dedup_ampDistr[0].getExcluEndPosition());
         for (auto epos = this->getUnifiedIncluBegPosition(); epos < this->getUnifiedExcluEndPosition(); epos++) {
             for (SymbolType symboltype : SYMBOL_TYPE_ARR) {
                 for (AlignmentSymbol symbol : SYMBOL_TYPE_TO_SYMBOLS[symboltype]) {
@@ -2833,7 +2833,7 @@ struct Symbol2CountCoverageSet {
         for (const auto & alns2pair2umibarcode : alns3) {
             const auto & alns2pair = alns2pair2umibarcode.first;
             niters++;
-            assert (alns2pair[0].size() != 0 || alns2pair[1].size() != 0);
+            assertUVC (alns2pair[0].size() != 0 || alns2pair[1].size() != 0);
             for (int strand = 0; strand < 2; strand++) {
                 FastqRecord fq_baseBQ_pairs; 
                 const auto & alns2 = alns2pair[strand];
@@ -2980,7 +2980,7 @@ struct Symbol2CountCoverageSet {
                             uvc1_qual_t con_sumBQs, tot_sumBQs;
                             read_family_mmm_ampl.getRefByPos(epos).fillConsensusCounts(con_mmm_symbol, con_sumBQs, tot_sumBQs, symboltype);
                             uvc1_qual_t conBQ = non_neg_minus(con_sumBQs * 2, tot_sumBQs) / alns2.size() + 10;
-                            assert(conBQ < 127 - 33 && conBQ >= 0);
+                            assertUVC(conBQ < 127 - 33 && conBQ >= 0);
 
                             if ((LINK_SYMBOL == symboltype)) {
                                 const auto effective_tot_count = (uvc1_readnum_t)alns2.size();
@@ -3109,11 +3109,11 @@ struct Symbol2CountCoverageSet {
                                 if (BASE_NN == con_symbol) {
                                     // we do nothing for both padded deletion and uncovered position
                                     // const char *desc = SYMBOL_TO_DESC_ARR[BASE_NN];
-                                    // assert(strlen(desc) == 1);
+                                    // assertUVC(strlen(desc) == 1);
                                     // fq_baseBQ_pairs.push_back((std::make_pair(desc[0], 0)));
                                 } else if (is_fam_good) {
                                     const char *desc = SYMBOL_TO_DESC_ARR[con_symbol];
-                                    assert(strlen(desc) == 1);
+                                    assertUVC(strlen(desc) == 1);
                                     fq_baseBQ_pairs.push_back(std::make_pair(desc[0], conBQ));
                                 } else {
                                     // 0/1 means the position-associated family is probably singleton/with-weak-consensus-base
@@ -3324,7 +3324,7 @@ if (paramset.inferred_is_vcf_generated) {
             niters++;
             uvc1_refgpos_t tid2, beg2, end2;
             tid2 = 0; beg2 = INT32_MAX; end2 = 0; bool initialized = false;
-            assert (alns2pair[0].size() != 0 || alns2pair[1].size() != 0);
+            assertUVC (alns2pair[0].size() != 0 || alns2pair[1].size() != 0);
             if (alns2pair[0].size() > 0) { fillTidBegEndFromAlns2(tid2, beg2, end2, alns2pair[0], initialized); initialized = true; }
             if (alns2pair[1].size() > 0) { fillTidBegEndFromAlns2(tid2, beg2, end2, alns2pair[1], initialized); initialized = true; }
             Symbol2CountCoverage read_duplex_amplicon(tid2, beg2, end2);
@@ -3448,7 +3448,7 @@ if (paramset.inferred_is_vcf_generated) {
                         AlignmentSymbol con_symbol;
                         uvc1_readnum_t con_count, tot_count;
                         read_duplex_amplicon.getRefByPos(epos).fillConsensusCounts(con_symbol, con_count, tot_count, symboltype);
-                        assert (tot_count <= 2 || !fprintf(stderr, "%d <= 2 failed for duplex family, a duplex family is supported by two single-strand families!\n", tot_count));
+                        assertUVC (tot_count <= 2 || !fprintf(stderr, "%d <= 2 failed for duplex family, a duplex family is supported by two single-strand families!\n", tot_count));
                         if (0 < tot_count) {
                             this->symbol_to_duplex_format_depth_sets.getRefByPos(epos)[con_symbol][DUPLEX_dDP1] += 1;
                         }
@@ -3460,8 +3460,8 @@ if (paramset.inferred_is_vcf_generated) {
             }
         }
         for (int strand = 0; strand < 2; strand++) {
-            assert(this->symbol_to_fam_format_depth_sets_2strand[strand].getExcluEndPosition() == this->dedup_ampDistr[strand].getExcluEndPosition());
-            assert(this->symbol_to_fam_format_depth_sets_2strand[strand].getIncluBegPosition() == this->dedup_ampDistr[strand].getIncluBegPosition()); 
+            assertUVC(this->symbol_to_fam_format_depth_sets_2strand[strand].getExcluEndPosition() == this->dedup_ampDistr[strand].getExcluEndPosition());
+            assertUVC(this->symbol_to_fam_format_depth_sets_2strand[strand].getIncluBegPosition() == this->dedup_ampDistr[strand].getIncluBegPosition()); 
             auto VQ_cIAQ = (strand ? VQ_cIAQr : VQ_cIAQf);
             auto VQ_cIAD = (strand ? VQ_cIADr : VQ_cIADf);
             auto VQ_cIDQ = (strand ? VQ_cIDQr : VQ_cIDQf);
@@ -3687,7 +3687,7 @@ fill_symbol_fmt(
     if (0 == allele_idx) {
         fmtAD.clear();
     } else {
-        assert(fmtAD.size() > 0);
+        assertUVC(fmtAD.size() > 0);
     }
     const auto cnt = symbol_to_abcd_format_depth_sets.getByPos(refpos)[symbol][format_field];
     fmtAD.push_back(cnt);
@@ -3695,7 +3695,7 @@ fill_symbol_fmt(
 
 #define filla_symbol_fmt(fmtAD, symbol_to_abcd_format_depth_sets, format_field, refpos, symbol, allele_idx) { \
     if (0 == allele_idx) { fmtAD.clear(); } \
-    else { assert(fmtAD.size() > 0); } \
+    else { assertUVC(fmtAD.size() > 0); } \
     const auto cnt = symbol_to_abcd_format_depth_sets.getByPos(refpos)[symbol] . format_field; \
     fmtAD.push_back(cnt); \
 };
@@ -3722,8 +3722,8 @@ fill_symbol_VQ_fmts(
     
     const uvc1_qual_t rssDPbBQ = ((aDPf + aDPr) * sqrt((a2BQf + a2BQr) * SQR_QUAL_DIV / MAX(1, aDPf + aDPr)));
     
-    assert ((aDPf + aDPr) * 100 >= LAST(fmt.a2XM2));
-    assert ((aDPf + aDPr) * 100 >= LAST(fmt.a2BM2));
+    assertUVC ((aDPf + aDPr) * 100 >= LAST(fmt.a2XM2));
+    assertUVC ((aDPf + aDPr) * 100 >= LAST(fmt.a2BM2));
     // TODO: what is the exact theory behind the following line of code to rescue hetero and homalt?
     uvc1_qual_t minABQa = minABQ - (uvc1_qual_t)(5 * 10.0 * mathsquare(MAX(0, ((aDPf + aDPr + 0.5) * 2.0 / (ADP + 1.0) - 1.0))));
     const uvc1_readnum_t dp10pc = 10;
@@ -3947,7 +3947,7 @@ BcfFormat_symboltype_init(bcfrec::BcfFormat & fmt,
 template <class T1, class T2>
 const auto 
 vectorsum(const T1 v1, const T2 v2) {
-    assert(v1.size() == v2.size());
+    assertUVC(v1.size() == v2.size());
     auto ret = v1;
     for (size_t i = 0; i < v1.size(); i++) {
         ret[i] += v2[i];
@@ -4173,10 +4173,10 @@ BcfFormat_symbol_calc_DPv(
     // The following code without + 1 pseudocount in both nominator and denominator can result in false negative calls at low allele fraction (it is rare but can happen).
     // double cFA3 = (fmt.cDP3f[a] + fmt.cDP3r[a] + pfa + 1) / (fmt.CDP3f[0] + fmt.CDP3r[0] + 1.0);
     const double cFA3 = (fmt.cDP3f[a] + fmt.cDP3r[a] + c2altpc) / (fmt.CDP3f[0] + fmt.CDP3r[0] + 1.0);
-    assert( cFA2 > 0 );
-    assert( cFA2 < 1 );
-    assert( cFA3 > 0 );
-    assert( cFA3 < 1 );
+    assertUVC( cFA2 > 0 );
+    assertUVC( cFA2 < 1 );
+    assertUVC( cFA3 > 0 );
+    assertUVC( cFA3 < 1 );
     
     const auto & f = fmt;
     const auto symbol = AlignmentSymbol(LAST(f.VTI));
@@ -4989,8 +4989,8 @@ BcfFormat_symbol_calc_qual(
         }
         const uvc1_readnum_t nearInDelDP = (isSymbolIns(symbol) ? fmt.APDP[1] : fmt.APDP[2]);
         
-        // This assertion may fail if InDels were re-aligned to the begin and/or end of the reads
-        // assert (nearInDelDP >= aDP || !fprintf(stderr, "nearInDelDP >= aDP failed (%d >= %d failed) at tid %d pos %d!\n", nearInDelDP, aDP, tid, refpos));
+        // This assertUVCion may fail if InDels were re-aligned to the begin and/or end of the reads
+        // assertUVC (nearInDelDP >= aDP || !fprintf(stderr, "nearInDelDP >= aDP failed (%d >= %d failed) at tid %d pos %d!\n", nearInDelDP, aDP, tid, refpos));
         
         const auto indel_penal4multialleles1 = (uvc1_qual_t)round(paramset.indel_multiallele_samepos_penal / log(2.0) 
                 * log((double)(indelcdepth + eps) / (double)(fmt.cDP0a[a] + eps)));
@@ -5197,7 +5197,7 @@ fill_by_indel_info(
         const std::string & refstring, 
         const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
 
-    assert(isSymbolIns(symbol) || isSymbolDel(symbol));
+    assertUVC(isSymbolIns(symbol) || isSymbolDel(symbol));
     if (isSymbolIns(symbol)) {
         return fill_by_indel_info2_1(fmt, symbol2CountCoverageSet, strand, refpos, symbol,
                 symbol2CountCoverageSet.symbol_to_frag_format_depth_sets.at(strand).getPosToIseqToData(symbol),
@@ -5262,8 +5262,8 @@ indel_get_majority(
         indelstrings.push_back(std::make_pair(std::array<uvc1_readnum_t, 2>({{0, 0}}), SYMBOL_TO_DESC_ARR[symbol]));
     } else {
         std::map<std::string, std::array<uvc1_readnum_t, 2>> indelmap;
-        assert(UNSIGN2SIGN(fmt.gapSeq.size()) == (SUMVEC(fmt.gapNf) + SUMVEC(fmt.gapNr)));
-        assert(fmt.gapbAD1.size() == fmt.gapSeq.size());
+        assertUVC(UNSIGN2SIGN(fmt.gapSeq.size()) == (SUMVEC(fmt.gapNf) + SUMVEC(fmt.gapNr)));
+        assertUVC(fmt.gapbAD1.size() == fmt.gapSeq.size());
         for (size_t i = 0; i < fmt.gapSeq.size(); i++) {
             const auto & it = indelmap.find(fmt.gapSeq[i]);
             if (it == indelmap.end()) {
@@ -5333,7 +5333,7 @@ output_germline(
         const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
     
     const bool is_rescued = (NOT_PROVIDED != paramset.vcf_tumor_fname);
-    assert(symbol_format_vec.size() >= 4 || 
+    assertUVC(symbol_format_vec.size() >= 4 || 
             !fprintf(stderr, " The variant-type %s:%d %d has symbol_format_vec of length %lu", 
             tname, refpos, refsymbol, symbol_format_vec.size()));
     uvc1_refgpos_t regionpos = refpos- extended_inclu_beg_pos;
@@ -5357,8 +5357,8 @@ output_germline(
             allele_idx++;
         }
     }
-    assert(ref_alt1_alt2_alt3[0].second != NULL);
-    assert(ref_alt1_alt2_alt3[3].second != NULL || !fprintf(stderr, "%d %d %d %d is invalid!\n", 
+    assertUVC(ref_alt1_alt2_alt3[0].second != NULL);
+    assertUVC(ref_alt1_alt2_alt3[3].second != NULL || !fprintf(stderr, "%d %d %d %d is invalid!\n", 
         ref_alt1_alt2_alt3[0].first, 
         ref_alt1_alt2_alt3[1].first,
         ref_alt1_alt2_alt3[2].first, 
@@ -5473,7 +5473,7 @@ output_germline(
     uvc1_qual_t alt1_uniallelic_phred = 200;
     bool is_alt1_uniallelic = true;
     if (isSymbolSubstitution(refsymbol)) {
-        assert(refstring.substr(regionpos, 1) == ref_alt1_alt2_vcfstr_arr[0]);
+        assertUVC(refstring.substr(regionpos, 1) == ref_alt1_alt2_vcfstr_arr[0]);
         vcfref = std::string(ref_alt1_alt2_vcfstr_arr[0]);
         vcfalt = std::string(ref_alt1_alt2_vcfstr_arr[1]);
         if (3 == GLidx) {
@@ -5541,8 +5541,8 @@ output_germline(
                 if (isSymbolIns(s1) && isSymbolIns(s2)) {
                     vcfalt = vcfref1 + indelstring1 + "," + vcfref1 + indelstring2;
                 } else if (isSymbolDel(s1) && isSymbolDel(s2)) {
-                    assert(indelstring1.size() != indelstring2.size());
-                    assert(indelstring1.substr(0, MIN(indelstring1.size(), indelstring2.size())) 
+                    assertUVC(indelstring1.size() != indelstring2.size());
+                    assertUVC(indelstring1.substr(0, MIN(indelstring1.size(), indelstring2.size())) 
                         == indelstring2.substr(0, MIN(indelstring1.size(), indelstring2.size())));
                     if (indelstring1.size() > indelstring2.size()) {
                         vcfref = vcfref1 + indelstring1;
@@ -5724,7 +5724,7 @@ std::string
 bcf1_to_string_2(const bcf_hdr_t *tki_bcf1_hdr, const bcf1_t *bcf1_record) {
     kstring_t ks = { 0, 0, NULL };
     vcf_format(tki_bcf1_hdr, bcf1_record, &ks);
-    assert (ks.l > 2);
+    assertUVC (ks.l > 2);
     std::string ret = ks.s;
     if (ks.s != NULL) {
         free(ks.s);
@@ -5736,7 +5736,7 @@ std::string
 bcf1_to_string(const bcf_hdr_t *tki_bcf1_hdr, const bcf1_t *bcf1_record) {
     kstring_t ks = { 0, 0, NULL };
     vcf_format(tki_bcf1_hdr, bcf1_record, &ks);
-    assert (ks.l > 2); 
+    assertUVC (ks.l > 2); 
     size_t idx = ks.l - 1;
     for (;idx != 0 && ks.s[idx] != '\t'; idx--) {
     }
@@ -5899,15 +5899,15 @@ append_vcf_record(
         vcfalt = SYMBOL_TO_DESC_ARR[symbol];
     }
     
-    assert (2 == fmt.cDP1v.size());
-    assert (2 == fmt.cDP2v.size());
-    assert (2 == fmt.CDP1v.size());
-    assert (2 == fmt.CDP2v.size());
-    assert (2 == fmt.cVQ1.size());
-    assert (2 == fmt.cVQ2.size());
+    assertUVC (2 == fmt.cDP1v.size());
+    assertUVC (2 == fmt.cDP2v.size());
+    assertUVC (2 == fmt.CDP1v.size());
+    assertUVC (2 == fmt.CDP2v.size());
+    assertUVC (2 == fmt.cVQ1.size());
+    assertUVC (2 == fmt.cVQ2.size());
     
-    assert (tki.cDP1x <= tki.CDP1x || !fprintf(stderr, "%d <= %d failed for cDP1x tname %s pos %d aln-symbol %d\n", tki.cDP1x, tki.CDP1x, tname, refpos, symbol));
-    assert (tki.cDP2x <= tki.CDP2x || !fprintf(stderr, "%d <= %d failed for cDP2x tname %s pos %d aln-symbol %d\n", tki.cDP2x, tki.CDP2x, tname, refpos, symbol));
+    assertUVC (tki.cDP1x <= tki.CDP1x || !fprintf(stderr, "%d <= %d failed for cDP1x tname %s pos %d aln-symbol %d\n", tki.cDP1x, tki.CDP1x, tname, refpos, symbol));
+    assertUVC (tki.cDP2x <= tki.CDP2x || !fprintf(stderr, "%d <= %d failed for cDP2x tname %s pos %d aln-symbol %d\n", tki.cDP2x, tki.CDP2x, tname, refpos, symbol));
     const auto & rtr1 =  region_repeatvec.at(MAX(refpos - region_offset, paramset.indel_adj_tracklen_dist) - paramset.indel_adj_tracklen_dist);
     const auto & rtr2 =  region_repeatvec.at(MIN(refpos - region_offset + paramset.indel_adj_tracklen_dist, UNSIGN2SIGN(region_repeatvec.size()) - paramset.indel_adj_tracklen_dist));
     const auto rtr1_tpos = ((0 == rtr1.tracklen) ? 0 : (region_offset + rtr1.begpos));

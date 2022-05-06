@@ -92,7 +92,7 @@ consensusBlockToSeqQual(const ConsensusBlock & cb1, bool is_right2left, uvc1_rea
             totcount += cb1[inspos][posbase];
         }
         const char *desc = SYMBOL_TO_DESC_ARR[conbase];
-        assert (strlen(desc) == 1);
+        assertUVC (strlen(desc) == 1);
         ret.push_back(std::make_pair(desc[0], non_neg_minus(concount * 2, totcount) / n_frag_supports));
     }
     return ret;
@@ -104,7 +104,7 @@ struct ConsensusBlockSet {
     
     void
     incByPosSeqQual(uvc1_readpos_t pos, const std::string & seq, const auto & qual) {
-        assert(seq.size() == qual.size());
+        assertUVC(seq.size() == qual.size());
         auto pos2conblock4it = this->pos2conblock.insert(std::make_pair(pos, ConsensusBlock()));
         ConsensusBlock & cb2 = pos2conblock4it.first->second;
         while (cb2.size() < seq.size()) {

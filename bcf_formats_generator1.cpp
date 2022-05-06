@@ -607,7 +607,7 @@ main(int argc, char **argv) {
     std::cout << "    bool enable_tier2_consensus_format_tags = false;\n";
     for (auto fmt : FORMAT_VEC) {
         if (0 == fmt.in_num_1 || 1 == fmt.in_num_1) {
-            if (0 == fmt.in_num_1) { assert ((CPP_DATA_STRING[fmt.type] == std::string("bool")) || !fprintf(stderr, "TypeOf(%s) == bool failed!\n", fmt.id.c_str())); }
+            if (0 == fmt.in_num_1) { assertUVC ((CPP_DATA_STRING[fmt.type] == std::string("bool")) || !fprintf(stderr, "TypeOf(%s) == bool failed!\n", fmt.id.c_str())); }
             std::cout << "    " << CPP_DATA_STRING[fmt.type] << " " << fmt.id << " = " << CPP_DATA_VALUES[fmt.type] << ";" << "\n";
         } else if (1 < fmt.in_num_1) {
             std::cout << "    std::array <" << CPP_DATA_STRING[fmt.type] << ", " << fmt.in_num_1 << ">" << fmt.id << " = {{" << CPP_DATA_VALUES[fmt.type] << "}};" << "\n";
@@ -639,7 +639,7 @@ main(int argc, char **argv) {
             }
             std::cout << "    outstring += " << ((BCF_STRING == fmt.type) ? "" : "std::to_string") << "(fmt." << fmt.id << ");\n";
         } else if (fmt.in_num_1 > 1) {
-            assert(fmt.in_num_1 >= fmt.out_num_2);
+            assertUVC(fmt.in_num_1 >= fmt.out_num_2);
             std::cout << "    for (unsigned int i = 0; i < " <<fmt.out_num_2 << "; i++) {\n";
             std::cout << "        if (0 != i) { outstring += \",\"; }; outstring += " << ((BCF_STRING == fmt.type) ? "" : "std::to_string")
                     << "(" << "fmt." << fmt.id << "[i]" << ");\n";

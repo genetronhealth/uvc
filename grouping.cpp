@@ -620,7 +620,7 @@ bamfname_to_strand_to_familyuid_to_reads(
         size_t thread_id,
         const CommandLineArgs & paramset,
         const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
-    assert (fetch_tend > fetch_tbeg);
+    assertUVC (fetch_tend > fetch_tbeg);
     
     const bool is_pair_end_merge_enabled = (PAIR_END_MERGE_NO != paramset.pair_end_merge);
 
@@ -677,7 +677,7 @@ bamfname_to_strand_to_familyuid_to_reads(
                 paramset.kept_aln_max_isize,
                 paramset.kept_aln_is_zero_isize_discarded,
                 end2end, is_pair_end_merge_enabled);
-        if (!is_pair_end_merge_enabled) { assert(!isr2); }
+        if (!is_pair_end_merge_enabled) { assertUVC(!isr2); }
         
         if (NOT_FILTERED == filterReason) {
             uvc1_refgpos_t begidx = tBeg + ARRPOS_MARGIN - fetch_tbeg;
@@ -748,7 +748,7 @@ bamfname_to_strand_to_familyuid_to_reads(
                 paramset.kept_aln_max_isize,
                 paramset.kept_aln_is_zero_isize_discarded,
                 end2end, is_pair_end_merge_enabled);
-        if (!is_pair_end_merge_enabled) { assert(!isr2); }
+        if (!is_pair_end_merge_enabled) { assertUVC(!isr2); }
 
         fillcode_to_num_alns[filterReason]++;
         
@@ -803,7 +803,7 @@ bamfname_to_strand_to_familyuid_to_reads(
         uvc1_readnum_t beg2surrcount = 0;
         for (auto i = -ARRPOS_OUTER_RANGE; i < ARRPOS_OUTER_RANGE + 1; i++) {
             if (i > ARRPOS_INNER_RANGE || i < -ARRPOS_INNER_RANGE) {
-                assert(i+beg2 < fetch_size || !fprintf(stderr, "beg2 index %d + %d = %d is too big!", i, beg2, i+beg2));
+                assertUVC(i+beg2 < fetch_size || !fprintf(stderr, "beg2 index %d + %d = %d is too big!", i, beg2, i+beg2));
                 uvc1_readnum_t beg_count = isrc_isr2_to_beg_count.at(isrc_isr2).at(i + beg2);
                 beg2surrcount = MAX(beg2surrcount, beg_count);
             }
@@ -811,7 +811,7 @@ bamfname_to_strand_to_familyuid_to_reads(
         uvc1_readnum_t end2surrcount = 0;
         for (auto i = -ARRPOS_OUTER_RANGE; i < ARRPOS_OUTER_RANGE + 1; i++) {
             if (i > ARRPOS_INNER_RANGE && i < -ARRPOS_INNER_RANGE) {
-                assert(i + end2 < fetch_size || !fprintf(stderr, "end2 index %d + %d = %d is too big!", i, end2, i + end2));
+                assertUVC(i + end2 < fetch_size || !fprintf(stderr, "end2 index %d + %d = %d is too big!", i, end2, i + end2));
                 uvc1_readnum_t end_count = isrc_isr2_to_end_count.at(isrc_isr2).at(i + end2);
                 end2surrcount = MAX(end2surrcount, end_count);
             }
@@ -941,7 +941,7 @@ bamfname_to_strand_to_familyuid_to_reads(
         // umi_to_strand_to_reads[molecule_hash].first[strand][qname_hash2].push_back((mut_aln));
         
         const bool should_log_read = (ispowerof2(alnidx + 1));
-        if (!is_pair_end_merge_enabled) { assert(!isr2); }
+        if (!is_pair_end_merge_enabled) { assertUVC(!isr2); }
         if ((should_log_read && (beg_peak_max >= 2000 || should_log)) || paramset.always_log) {
             LOG(logINFO) << "thread_id = " << thread_id << " ; "
                     << "readname = " << qname << " ; "

@@ -29,7 +29,10 @@
 #define STRINGIZE_(x) #x
 #define STRINGIZE(x) STRINGIZE_(x)
 
-#define STATIC_ASSERT_WITH_DEFAULT_MSG(x) static_assert((x), "Static assertion failed at " __FILE__ ":" STRINGIZE(__LINE__));
+#define STATIC_ASSERT_WITH_DEFAULT_MSG(x) static_assert((x), "Static assertUVCion failed at " __FILE__ ":" STRINGIZE(__LINE__));
+
+// #define assertUVC(x) (assert(x)) // assertion error prevents us from checking the stack-trace that is otherwise printed by enabling address/undefine-behavior sanitizer(s). 
+#define assertUVC(x) 
 
 // constants
 

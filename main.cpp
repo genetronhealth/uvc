@@ -52,14 +52,14 @@ clearstring(BGZF * bgzip_file, const std::string & outstring_allp, bool is_outpu
 
 std::string 
 load_refstring(const faidx_t *ref_faidx, uvc1_refgpos_t tid, uvc1_refgpos_t incbeg, uvc1_refgpos_t excend) {
-    assert(incbeg < excend);
+    assertUVC(incbeg < excend);
     if (NULL == ref_faidx) {
         return std::string(excend - incbeg, 'n');
     }
     const char *tname = faidx_iseq(ref_faidx, tid);
     int regionlen;
     char *fetchedseq = faidx_fetch_seq(ref_faidx, tname, incbeg, excend - 1, &regionlen);
-    assert (regionlen == (excend - incbeg) || !fprintf(stderr, "%d == %u - %u failed for %s:%d-%d\n", regionlen, excend, incbeg, tname, incbeg, excend));
+    assertUVC (regionlen == (excend - incbeg) || !fprintf(stderr, "%d == %u - %u failed for %s:%d-%d\n", regionlen, excend, incbeg, tname, incbeg, excend));
     std::string ret(fetchedseq);
     for (size_t i = 0; i < ret.size(); i++) {
         ret[i] = toupper(ret[i]);
@@ -169,7 +169,7 @@ als_to_string(const char *const* const allele, uint32_t n_allele) {
 #define BCF_GET_FORMAT_INT32_WITH_CHECK(v) \
         ndst_val = 0; \
         valsize = bcf_get_format_int32(bcf_hdr, line, v, &bcfints, &ndst_val); \
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for %s and line %ld!\n", ndst_val, valsize, v, line->pos));
+        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for %s and line %ld!\n", ndst_val, valsize, v, line->pos));
 
 template <class T1, class T2, class T3>
 const std::map<std::tuple<uvc1_refgpos_t, uvc1_refgpos_t, AlignmentSymbol>, std::vector<TumorKeyInfo>>
@@ -240,8 +240,8 @@ rescue_variants_from_vcf(
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "VTI", &bcfints, &ndst_val);
         if (valsize <= 0) { continue; }
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for VTI and line %ld!\n", ndst_val, valsize, line->pos));
-        assert((2 == line->n_allele) || !fprintf(stderr, "Bcf line %ld has %d alleles!\n", line->pos, line->n_allele));
+        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for VTI and line %ld!\n", ndst_val, valsize, line->pos));
+        assertUVC((2 == line->n_allele) || !fprintf(stderr, "Bcf line %ld has %d alleles!\n", line->pos, line->n_allele));
         const AlignmentSymbol symbol = AlignmentSymbol(bcfints[1]);
         
         auto symbolpos = ((isSymbolSubstitution(symbol) || MGVCF_SYMBOL == symbol || ADDITIONAL_INDEL_CANDIDATE_SYMBOL == symbol) ? (line->pos) : (line->pos + 1));
@@ -259,70 +259,70 @@ if (MGVCF_SYMBOL != symbol && ADDITIONAL_INDEL_CANDIDATE_SYMBOL != symbol) {
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "BDPf", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for BDPf and line %ld!\n", ndst_val, valsize, line->pos));
+        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for BDPf and line %ld!\n", ndst_val, valsize, line->pos));
         tki.BDP = bcfints[0];
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "BDPr", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for BDPr and line %ld!\n", ndst_val, valsize, line->pos));
+        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for BDPr and line %ld!\n", ndst_val, valsize, line->pos));
         tki.BDP += bcfints[0];
 
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "bDPf", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for bDPf and line %ld!\n", ndst_val, valsize, line->pos));
+        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for bDPf and line %ld!\n", ndst_val, valsize, line->pos));
         tki.bDP = bcfints[1];
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "bDPr", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for bDPr and line %ld!\n", ndst_val, valsize, line->pos));
+        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for bDPr and line %ld!\n", ndst_val, valsize, line->pos));
         tki.bDP += bcfints[1];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "CDP1x", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for CDP1x and line %ld!\n", ndst_val, valsize, line->pos));
+        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for CDP1x and line %ld!\n", ndst_val, valsize, line->pos));
         tki.CDP1x = bcfints[0];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "cDP1x", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cDP1x and line %ld!\n", ndst_val, valsize, line->pos));
+        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cDP1x and line %ld!\n", ndst_val, valsize, line->pos));
         tki.cDP1x = bcfints[1];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "cVQ1", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cVQ1 and line %ld!\n", ndst_val, valsize, line->pos));
+        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cVQ1 and line %ld!\n", ndst_val, valsize, line->pos));
         tki.cVQ1 = bcfints[1];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "cPCQ1", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cPCQ1 and line %ld!\n", ndst_val, valsize, line->pos));
+        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cPCQ1 and line %ld!\n", ndst_val, valsize, line->pos));
         tki.cPCQ1 = bcfints[1];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "CDP2x", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for CDP2x and line %ld!\n", ndst_val, valsize, line->pos));
+        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for CDP2x and line %ld!\n", ndst_val, valsize, line->pos));
         tki.CDP2x = bcfints[0];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "cDP2x", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cDP2x and line %ld!\n", ndst_val, valsize, line->pos));
+        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cDP2x and line %ld!\n", ndst_val, valsize, line->pos));
         tki.cDP2x = bcfints[1];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "cVQ2", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cVQ2 and line %ld!\n", ndst_val, valsize, line->pos));
+        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cVQ2 and line %ld!\n", ndst_val, valsize, line->pos));
         tki.cVQ2 = bcfints[1];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "cPCQ2", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cPCQ2 and line %ld!\n", ndst_val, valsize, line->pos));
+        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cPCQ2 and line %ld!\n", ndst_val, valsize, line->pos));
         tki.cPCQ2 = bcfints[1];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "bNMQ", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for bNMQ and line %ld!\n", ndst_val, valsize, line->pos));
+        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for bNMQ and line %ld!\n", ndst_val, valsize, line->pos));
         tki.bNMQ = bcfints[1];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "vHGQ", &bcfints, &ndst_val);
-        assert((1 == ndst_val && 1 == valsize) || !fprintf(stderr, "1 == %d && 1 == %d failed for vHGQ and line %ld!\n", ndst_val, valsize, line->pos));
+        assertUVC((1 == ndst_val && 1 == valsize) || !fprintf(stderr, "1 == %d && 1 == %d failed for vHGQ and line %ld!\n", ndst_val, valsize, line->pos));
         tki.vHGQ = bcfints[0];
         
         // extra code for backward compatibility
@@ -383,9 +383,9 @@ region_repeatvec_to_baq_offsetarr(
         auto rtr_idx = i - extended_inclu_beg_pos;
         const auto & rtr = region_repeatvec[rtr_idx];
         const auto tracklen2 = (TIsAnyTandemRepeat ? rtr.anyTR_tracklen : rtr.tracklen);
-        assert (rtr.begpos <= rtr_idx);
-        assert (rtr.unitlen > 0);
-        assert (tracklen2 >= rtr.unitlen);
+        assertUVC (rtr.begpos <= rtr_idx);
+        assertUVC (rtr.unitlen > 0);
+        assertUVC (tracklen2 >= rtr.unitlen);
         if (tracklen2 / rtr.unitlen >= 3 || (tracklen2 / rtr.unitlen >= 2 && tracklen2 >= (uvc1_readpos_t)round(paramset.indel_polymerase_size))) {
             baq_prefixsum += (paramset.indel_str_phred_per_region * 10) / (tracklen2) + 1;
             ret.getRefByPos(i) = baq_prefixsum;
@@ -517,7 +517,7 @@ process_batch(
     const auto & baq_offsetarr = region_repeatvec_to_baq_offsetarr(region_repeatvec, tid, extended_inclu_beg_pos, extended_exclu_end_pos + 1, paramset);
     const auto & baq_offsetarr2 = region_repeatvec_to_baq_offsetarr<true>(region_repeatvec, tid, extended_inclu_beg_pos, extended_exclu_end_pos + 1, paramset);
 
-    assert(((baq_offsetarr.getExcluEndPosition() - baq_offsetarr.getIncluBegPosition()) == UNSIGN2SIGN(region_repeatvec.size())) 
+    assertUVC(((baq_offsetarr.getExcluEndPosition() - baq_offsetarr.getIncluBegPosition()) == UNSIGN2SIGN(region_repeatvec.size())) 
             || !fprintf(stderr, "%d - %d == %lu failed (baq == repeat in size)!\n", baq_offsetarr.getExcluEndPosition(), baq_offsetarr.getIncluBegPosition(), region_repeatvec.size()));
 
     // begin of smaller regions
@@ -828,7 +828,7 @@ if (paramset.inferred_is_vcf_generated) {
                             if (vcfref.size() > vcfalt.size()) {
                                 indelstring = vcfref.substr(vcfalt.size());
                             } else {
-                                assert (vcfref.size() < vcfalt.size());
+                                assertUVC (vcfref.size() < vcfalt.size());
                                 indelstring = vcfalt.substr(vcfref.size());
                             }
                             bcad0a_indelstring_tki_vec.push_back(std::make_tuple(bdepth, cdepth, indelstring, tki));
@@ -915,7 +915,7 @@ if (paramset.inferred_is_vcf_generated) {
                 for (auto & fmt_tki_tup : fmt_tki_tup_vec) 
                 {
                     const auto VTI = LAST(std::get<0>(fmt_tki_tup).VTI);
-                    assert((VTI >= 0 && VTI <= END_ALIGNMENT_SYMBOLS) || !fprintf(stderr, "VTI %d at pos %d is invalid!\n", VTI, refpos));
+                    assertUVC((VTI >= 0 && VTI <= END_ALIGNMENT_SYMBOLS) || !fprintf(stderr, "VTI %d at pos %d is invalid!\n", VTI, refpos));
                     AlignmentSymbol symbol = (VTI >= 0 ? AlignmentSymbol(VTI) : END_ALIGNMENT_SYMBOLS);
                     auto & fmt = std::get<0>(fmt_tki_tup);
                     const auto & tki = std::get<1>(fmt_tki_tup);
@@ -1038,7 +1038,7 @@ if (paramset.inferred_is_vcf_generated) {
             for (auto & fmt_tki_tup : fmt_tki_tup_vec) 
             {
                 auto & fmt = std::get<0>(fmt_tki_tup);
-                assert(fmt.vAC.size() == curr_vAC.size());
+                assertUVC(fmt.vAC.size() == curr_vAC.size());
                 for (size_t i = 0; i < fmt.vAC.size(); i++) { fmt.vAC[i] = curr_vAC[i]; }
                 const auto & symbol = (AlignmentSymbol)(LAST(fmt.VTI));
                 auto & tki = std::get<1>(fmt_tki_tup);
@@ -1055,7 +1055,7 @@ if (paramset.inferred_is_vcf_generated) {
                     const auto nlodq_singlesample = nlodq_singlesite - 3 
                             + (isSymbolSubstitution(symbol) ? paramset.germ_phred_hetero_snp : paramset.germ_phred_hetero_indel);
                     
-                    assert ((NOT_PROVIDED == paramset.vcf_tumor_fname) == (0 == tki.ref_alt.size()));
+                    assertUVC ((NOT_PROVIDED == paramset.vcf_tumor_fname) == (0 == tki.ref_alt.size()));
                     if (NOT_PROVIDED != paramset.vcf_tumor_fname) {
                         uvc1_qual_t nlodq_inc = 999;
                         const auto fmtptrs = std::vector<bcfrec::BcfFormat*> {{ std::get<1>(nlodq_fmtptr1_fmtptr2_tup), std::get<2>(nlodq_fmtptr1_fmtptr2_tup) }} ;
@@ -1330,7 +1330,7 @@ main(int argc, char **argv) {
             npositions += bedlines[region_idx].end_pos - bedlines[region_idx].beg_pos; 
         }
         
-        assert(incvalue > 0);
+        assertUVC(incvalue > 0);
         
         // distribute inputs as evenly as possible
 #if defined(USE_STDLIB_THREAD)
@@ -1390,7 +1390,7 @@ main(int argc, char **argv) {
             t1_tot_n_reads += t2_tot_n_reads;
             t1_tot_n_bases += t2_tot_n_bases;
         }
-        assert(((size_t)t1_tot_n_bases) == npositions || !fprintf(stderr, "%lu ==%lu failed!", ((size_t)t1_tot_n_bases), npositions));
+        assertUVC(((size_t)t1_tot_n_bases) == npositions || !fprintf(stderr, "%lu ==%lu failed!", ((size_t)t1_tot_n_bases), npositions));
         LOG(logINFO) << "End-of-tier-1-region-no-" << (n_sam_iters-1) << " tot_n_reads=" << t1_tot_n_reads << " tot_n_ref_bases=" << t1_tot_n_bases;
         if (bed_out.is_open()) { 
             bed_out << bedstring; 
@@ -1463,19 +1463,19 @@ main(int argc, char **argv) {
 #endif
                     LOG(logINFO) << "Thread " << batcharg.thread_id << " will process the sub-chunk " << beg_end_pair_idx << " which ranges from " 
                             << beg_end_pair.first << " to " << beg_end_pair.second;
-                    assert (beg_end_pair.first < beg_end_pair.second);
+                    assertUVC (beg_end_pair.first < beg_end_pair.second);
                     std::string uncompressed_vcf_string;
                     std::array<std::string, NUM_FQLIKE_CON_OUT_FILES> uncompressed_3fastq_string;
                     for (size_t j = beg_end_pair.first; j < beg_end_pair.second; j++) {
                         batcharg.regionbatch_ordinal = j;
                         batcharg.regionbatch_tot_num = beg_end_pair.second;
-                        assert (((size_t)(allridx + j) < bedlines.size())
+                        assertUVC (((size_t)(allridx + j) < bedlines.size())
                                 || !fprintf(stderr, "%lu + %lu < %lu failed!\n", allridx, j, bedlines.size()));
                         if (allridx + j > 0) {
                             batcharg.prev_bedline = bedlines.at(allridx + j - 1);
                         }
                         batcharg.bedline = bedlines.at(allridx + j);
-                        assert (((size_t)(batcharg.bedline.tid)) < tid_to_tname_tseqlen_tuple_vec.size() 
+                        assertUVC (((size_t)(batcharg.bedline.tid)) < tid_to_tname_tseqlen_tuple_vec.size() 
                                 || !fprintf(stderr, "%lu < %lu failed!\n", (size_t)(batcharg.bedline.tid), tid_to_tname_tseqlen_tuple_vec.size()));
                         batcharg.tname_tseqlen_tuple = tid_to_tname_tseqlen_tuple_vec.at((batcharg.bedline.tid));                        
                         process_batch(uncompressed_vcf_string, uncompressed_3fastq_string, batcharg, tid_pos_symb_to_tkis1);

@@ -23,19 +23,19 @@
 
 template <class T>
 auto MEDIAN(const T & v) {
-    assert(v.size() > 0);
+    assertUVC(v.size() > 0);
     return (v[(v.size() - 1) / 2] + v[(v.size()) / 2]) / 2;
 }
 
 template <class T>
 auto FIRST(const T & v) {
-    assert(v.size() > 0);
+    assertUVC(v.size() > 0);
     return v[0];
 }
 
 template <class T>
 auto LAST(const T & v) {
-    assert(v.size() > 0);
+    assertUVC(v.size() > 0);
     return v[(v.size()-1)];
 }
 
@@ -78,7 +78,7 @@ MIN5(T1 a, T2 b, T3 c, T4 d, T5 e) {
 template <class T>
 auto
 MINVEC(T v) {
-    assert(v.size() > 0);
+    assertUVC(v.size() > 0);
     auto ret = v[0];
     for (auto e : v) {
         ret = MIN(ret, e);
@@ -113,7 +113,7 @@ MAX6(T1 a, T2 b, T3 c, T4 d, T5 e, T6 f) {
 template <class T>
 auto
 MAXVEC(T v) {
-    assert(v.size() > 0);
+    assertUVC(v.size() > 0);
     auto ret = v[0];
     for (auto e : v) {
         ret = MAX(ret, e);
@@ -180,14 +180,14 @@ mathcube(T x) {
 constexpr
 double
 prob2odds(double p) {
-    assert((0.0 < p && p < 1.0) || !fprintf(stderr, "%f is not between 0 and 1!", p));
+    assertUVC((0.0 < p && p < 1.0) || !fprintf(stderr, "%f is not between 0 and 1!", p));
     return p /  (1.0 - p);
 }
 
 constexpr
 double
 odds2prob(double odds) {
-    assert((0.0 < odds) || !fprintf(stderr, "%f is not greater than zero!", odds));
+    assertUVC((0.0 < odds) || !fprintf(stderr, "%f is not greater than zero!", odds));
     return odds / (odds + 1.0);
 }
 
@@ -213,7 +213,7 @@ constexpr double
 calc_binom_10log10_likeratio(double prob, double a, double b) {
     if (TSetMaxProbToOne) { prob = MIN(1.0, prob); }
     prob = (prob + DBL_EPSILON) / (1.0 + (2.0 * DBL_EPSILON));
-    assert((prob > 0 && prob < 1) || !fprintf(stderr, "The assertion 0 < %f < 1 failed!\n", prob));
+    assertUVC((prob > 0 && prob < 1) || !fprintf(stderr, "The assertUVCion 0 < %f < 1 failed!\n", prob));
     a += DBL_EPSILON;
     b += DBL_EPSILON;
     double A = (      prob) * (a + b);
@@ -423,14 +423,14 @@ isSymbolDel(const AlignmentSymbol symbol) {
 
 constexpr AlignmentSymbol
 insLenToSymbol(uvc1_readpos_t len, const bam1_t *b) {
-    assert(len >= 0 || !fprintf(stderr, "Error: the bam record with qname %s at tid %d pos %ld has insertion of length %d !\n",
+    assertUVC(len >= 0 || !fprintf(stderr, "Error: the bam record with qname %s at tid %d pos %ld has insertion of length %d !\n",
             bam_get_qname(b), b->core.tid, b->core.pos, len));
     return (1 == len ? LINK_I1 : ((2 == len) ? LINK_I2 : LINK_I3P));
 }
 
 constexpr AlignmentSymbol
 delLenToSymbol(uvc1_readpos_t len, const bam1_t *b) {
-    assert(len >= 0 || !fprintf(stderr, "Error: the bam record with qname %s at tid %d pos %ld has deletion of length %d !\n",
+    assertUVC(len >= 0 || !fprintf(stderr, "Error: the bam record with qname %s at tid %d pos %ld has deletion of length %d !\n",
             bam_get_qname(b), b->core.tid, b->core.pos, len));
     return (1 == len ? LINK_D1 : ((2 == len) ? LINK_D2 : LINK_D3P));
 }
@@ -789,10 +789,10 @@ std::array<double, 2>
 dp4_to_pcFA(double overseq_frac, double aADpass, double aADfail, double aDPpass, double aDPfail, 
         double pl_exponent = 3.0, double n_nats = log(500+1),
         double aADavgKeyVal = -1, double aDPavgKeyVal = -1, double priorAD = 0.5, double priorDP = 1.0) {
-    assert(aADpass >= 0.0 || !fprintf(stderr, "%f >= %f failed for pass!\n", aADpass, 0.0));
-    assert(aADfail >= 0.0 || !fprintf(stderr, "%f >= %f failed for fail!\n", aADfail, 0.0));
-    assert(aADpass <= aDPpass || !fprintf(stderr, "%f <= %f failed for pass!\n", aADpass, aDPpass));
-    assert(aADfail <= aDPfail || !fprintf(stderr, "%f <= %f failed for fail!\n", aADfail, aDPfail));
+    assertUVC(aADpass >= 0.0 || !fprintf(stderr, "%f >= %f failed for pass!\n", aADpass, 0.0));
+    assertUVC(aADfail >= 0.0 || !fprintf(stderr, "%f >= %f failed for fail!\n", aADfail, 0.0));
+    assertUVC(aADpass <= aDPpass || !fprintf(stderr, "%f <= %f failed for pass!\n", aADpass, aDPpass));
+    assertUVC(aADfail <= aDPfail || !fprintf(stderr, "%f <= %f failed for fail!\n", aADfail, aDPfail));
     if (!TIsOverseqFracDisabled) {
         aDPfail *= overseq_frac;
         aDPpass *= overseq_frac;
@@ -814,8 +814,8 @@ dp4_to_pcFA(double overseq_frac, double aADpass, double aADfail, double aDPpass,
     }
     auto aBDfail = aDPfail * 2 - aADfail * 1;
     auto aBDpass = aDPpass * 2 - aADpass * 1;
-    assert (aBDfail > 0);
-    assert (aBDpass > 0);
+    assertUVC (aBDfail > 0);
+    assertUVC (aBDpass > 0);
     double aADpassfrac = aADpass / (aADpass + aADfail);
     double aBDpassfrac = aBDpass / (aBDpass + aBDfail);
     if ((!TBidirectional) && (aADavgKeyVal >= 0) && (aDPavgKeyVal >= 0)) {
