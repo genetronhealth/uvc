@@ -221,6 +221,9 @@ struct CommandLineArgs {
     uvc1_qual_t    bias_FA_powerlaw_withUMI_phred_inc_snv = 5+3;
     uvc1_qual_t    bias_FA_powerlaw_withUMI_phred_inc_indel = 7;
     
+    uvc1_readnum_t bias_reduction_by_high_sequencingDP_min_n_totDepth = 800;
+    uvc1_readnum_t bias_reduction_by_high_sequencingDP_min_n_altDepth = 3;
+
     uvc1_flag_t    nobias_flag = 0x2;
     double         nobias_pos_indel_lenfrac_thres = 2.0; // set very low to disable position bias for InDels
     uvc1_readpos_t nobias_pos_indel_str_track_len = 16;

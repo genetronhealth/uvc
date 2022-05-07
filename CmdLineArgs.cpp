@@ -623,7 +623,13 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
         "The Phred-scaled decrease in false positive rates applied on top of universality for UMI SNVs. ");
     ADD_OPTDEF2(app, bias_FA_powerlaw_withUMI_phred_inc_indel,
         "The Phred-scaled decrease in false positive rates applied on top of universality for UMI Indels. ");
-
+    ADD_OPTDEF2(app, bias_reduction_by_high_sequencingDP_min_n_totDepth,
+        "Minimum all-allele total sequencing depth at each locus above which the number of effective reads supporting each bias is reduced in inverse proportion "
+        "if the condition below is also satisfied. ");
+    ADD_OPTDEF2(app, bias_reduction_by_high_sequencingDP_min_n_altDepth,
+        "Minimum allele-specific  sequencing depth at each locus above which the number of effective reads supporting each bias is reduced in inverse proportion "
+        "if the above condition is also satisfied. ");
+    
     ADD_OPTDEF2(app, nobias_flag,
         "Advanced flag for reducing one bias by another bias. ");
     
