@@ -1,0 +1,3 @@
+R"ZXF_specQUOTE(
+git diff ommited version!
+)ZXF_specQUOTE"

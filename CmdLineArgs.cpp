@@ -111,6 +111,22 @@ check_file_exist(const std::string & fname, const std::string ftype) {
         std::cerr << "The file " << fname << " of type (" << ftype << ") does not exist. " << std::endl;
         exit(-4);
     }
+    ifile.close();
+}
+
+void
+check_alt_files_exist(const std::string & fname1, const std::string & fname2, const std::string ftype) {
+    std::ifstream ifile1(fname1.c_str());
+    if (!(bool) ifile1) {
+        std::ifstream  ifile2(fname2.c_str());
+        if (!(bool) ifile2) {
+            std::cerr << "The file " << fname1 << " or " << fname2 << " of type (" << ftype << ") does not exist. "
+                      << std::endl;
+            exit(-4);
+        }
+        ifile2.close();
+    } else
+        ifile1.close();
 }
 
 const std::string 
@@ -872,7 +888,7 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
         }
         
         check_file_exist(bam_input_fname, "BAM");
-        check_file_exist(bam_input_fname + ".bai", "BAM index");
+        check_alt_files_exist(bam_input_fname + ".bai", bam_input_fname.substr(0, bam_input_fname.size() - 4) + ".bai", "BAM index");
         if (fasta_ref_fname.compare(std::string("NA")) != 0) {
             check_file_exist(fasta_ref_fname, "FASTA");
             check_file_exist(fasta_ref_fname + ".fai", "FASTA index");
