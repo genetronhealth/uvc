@@ -15,7 +15,7 @@ jobs:
     - uses: actions/checkout@v3
     
     - name: Install dependencies
-      run: ./install-dependecies.sh
+      run: ./install-dependencies.sh
     - name: Run compile all
       run: make all -j8
     - name: Run deploy
