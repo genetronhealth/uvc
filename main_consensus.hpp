@@ -26,9 +26,10 @@ is_ConsensusBlockCigarType_right2left(ConsensusBlockCigarType cigartype) {
     return (CONSENSUS_BLOCK_CSOFT_CLIP_FIXED_RIGHT_TO_VAR_LEFT == cigartype); 
 }; 
 
+#define BASE2COUNT_NFRAGS_IDX (BASE_NN+1)
 // typedef std::pair<char, int8_t> FastqBaseAndQual;
 typedef std::basic_string<std::pair<char, int8_t>> FastqRecord;
-typedef std::array<uvc1_qual_t, BASE_NN> BaseToCount;
+typedef std::array<uvc1_qual_t, BASE2COUNT_NFRAGS_IDX+1> BaseToCount;
 typedef std::vector<BaseToCount> ConsensusBlock;
 
 void
@@ -76,7 +77,7 @@ ConsensusBlock_trim(const ConsensusBlock & conblock, uvc1_qual_t percDP_thres = 
 }
 
 const FastqRecord
-consensusBlockToSeqQual(const ConsensusBlock & cb1, bool is_right2left, uvc1_readnum_t n_frag_supports) {
+consensusBlockToSeqQual(const ConsensusBlock & cb1, bool is_right2left) {
     FastqRecord ret;
     // ConsensusBlock & cb1 ; // = pos2conblock4it.first->second;
     for (size_t inspos1 = 0; inspos1 < cb1.size(); inspos1++) {
@@ -93,7 +94,7 @@ consensusBlockToSeqQual(const ConsensusBlock & cb1, bool is_right2left, uvc1_rea
         }
         const char *desc = SYMBOL_TO_DESC_ARR[conbase];
         assertUVC (strlen(desc) == 1);
-        ret.push_back(std::make_pair(desc[0], non_neg_minus(concount * 2, totcount) / n_frag_supports));
+        ret.push_back(std::make_pair(desc[0], non_neg_minus(concount * 2, totcount) / MAX(cb1[inspos][BASE2COUNT_NFRAGS_IDX], 1)));
     }
     return ret;
 }
@@ -108,20 +109,21 @@ struct ConsensusBlockSet {
         auto pos2conblock4it = this->pos2conblock.insert(std::make_pair(pos, ConsensusBlock()));
         ConsensusBlock & cb2 = pos2conblock4it.first->second;
         while (cb2.size() < seq.size()) {
-            cb2.push_back(std::array<uvc1_qual_t, BASE_NN> {{ 0 }});
+            cb2.push_back(std::array<uvc1_qual_t, BASE2COUNT_NFRAGS_IDX+1> {{ 0 }});
         }
         for (size_t inspos = 0; inspos < seq.size(); inspos++) {
             AlignmentSymbol posbase = CHAR_TO_SYMBOL.data[seq[inspos]];
-            cb2[inspos][posbase] += qual[inspos];
+            UPDATE_MAX(cb2[inspos][posbase], qual[inspos]);
+            cb2[inspos][BASE2COUNT_NFRAGS_IDX] = 1;
         }
     };
     
     FastqRecord
-    returnSeqQualVec(uvc1_readpos_t pos, uvc1_readnum_t n_frag_supports, uvc1_qual_t percDP = 20, uvc1_refgpos_t n_consec_positions = 3) {
+    returnSeqQualVec(uvc1_readpos_t pos, uvc1_qual_t percDP = 20, uvc1_refgpos_t n_consec_positions = 3) {
         FastqRecord ret;
         auto pos2conblock4it = this->pos2conblock.find(pos);
         if (pos2conblock4it != this->pos2conblock.end()) {
-            return consensusBlockToSeqQual(ConsensusBlock_trim(pos2conblock4it->second, percDP, n_consec_positions), is_right2left, n_frag_supports);
+            return consensusBlockToSeqQual(ConsensusBlock_trim(pos2conblock4it->second, percDP, n_consec_positions), is_right2left);
         } else {
             return FastqRecord();
         }
@@ -135,7 +137,7 @@ struct ConsensusBlockSet {
             const ConsensusBlock & cb1 = cbset.pos2conblock.at(pos);
             ConsensusBlock & cb2 = pos2conblock4it.first->second;
             while (cb2.size() < cb1.size()) {
-                cb2.push_back(std::array<uvc1_qual_t, BASE_NN> {{ 0 }});
+                cb2.push_back(std::array<uvc1_qual_t, BASE2COUNT_NFRAGS_IDX+1> {{ 0 }});
             }
             for (size_t inspos = 0; inspos < cb1.size(); inspos++) {
                 AlignmentSymbol conbase = BASE_NN;
@@ -147,6 +149,7 @@ struct ConsensusBlockSet {
                     }
                 }
                 cb2[inspos][conbase] += incvalue;
+                cb2[inspos][BASE2COUNT_NFRAGS_IDX] += 1;
             }
         }
     };
@@ -159,7 +162,7 @@ struct ConsensusBlockSet {
             const ConsensusBlock & cb1 = cbset.pos2conblock.at(pos);
             ConsensusBlock & cb2 = pos2conblock4it.first->second;
             while (cb2.size() < cb1.size()) {
-                cb2.push_back(std::array<uvc1_qual_t, BASE_NN> {{ 0 }});
+                cb2.push_back(std::array<uvc1_qual_t, BASE2COUNT_NFRAGS_IDX+1> {{ 0 }});
             }
             for (size_t inspos = 0; inspos < cb1.size(); inspos++) {
                 AlignmentSymbol conbase = BASE_NN;
@@ -173,6 +176,7 @@ struct ConsensusBlockSet {
                     totcount += cb1[inspos][posbase];
                 }
                 cb2[inspos][conbase] += non_neg_minus(concount * 2, totcount);
+                cb2[inspos][BASE2COUNT_NFRAGS_IDX] += cb1[inspos][BASE2COUNT_NFRAGS_IDX];
             }
         }
     };

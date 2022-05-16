@@ -3043,7 +3043,7 @@ struct Symbol2CountCoverageSet {
                                                         const uvc1_refgpos_t conpos = consensusBlockSetsIts[cigartype]->first;
                                                         const FastqRecord sqvec = consensusBlockToSeqQual(
                                                                 consensusBlockSetsIts[cigartype]->second, 
-                                                                is_ConsensusBlockCigarType_right2left(cigartype), (uvc1_readnum_t)alns2.size());
+                                                                is_ConsensusBlockCigarType_right2left(cigartype));
                                                         LOG(logINFO) << "DebugINFO: CONSENSUS-PRE-PROCESSING" 
                                                                     << " cigartype=" << cigartype 
                                                                     << " conpos=" << conpos
@@ -3059,7 +3059,7 @@ struct Symbol2CountCoverageSet {
 
                                             if (consensusBlockSetsIts[cigartype] != consensusBlockSetsEnds[cigartype] && consensusBlockSetsIts[cigartype]->first == epos) {
                                                 const ConsensusBlock & conblock = consensusBlockSetsIts[cigartype]->second;
-                                                const FastqRecord sqvec = consensusBlockToSeqQual(conblock, is_ConsensusBlockCigarType_right2left(cigartype), (uvc1_readnum_t)alns2.size());
+                                                const FastqRecord sqvec = consensusBlockToSeqQual(conblock, is_ConsensusBlockCigarType_right2left(cigartype));
                                                 for (const auto & sq : sqvec) {
                                                     const auto sq2 = std::make_pair(tolower(sq.first), sq.second + 10);
                                                     fq_baseBQ_pairs.push_back(sq2);
