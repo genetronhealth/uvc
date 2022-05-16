@@ -3328,6 +3328,16 @@ if (paramset.inferred_is_vcf_generated) {
             if (alns2pair[0].size() > 0) { fillTidBegEndFromAlns2(tid2, beg2, end2, alns2pair[0], initialized); initialized = true; }
             if (alns2pair[1].size() > 0) { fillTidBegEndFromAlns2(tid2, beg2, end2, alns2pair[1], initialized); initialized = true; }
             Symbol2CountCoverage read_duplex_amplicon(tid2, beg2, end2);
+            
+            bool will_inc_dscs = false;
+            bool will_inc_sscs = false;
+            if ((0x2 == (alns2pair2umibarcode.second.duplexflag & 0x2)) && alns2pair[0].size() > 0 && alns2pair[1].size() > 0) { // is duplex
+                
+                will_inc_dscs = true;
+            } else if ((0x2 == (alns2pair2umibarcode.second.duplexflag & 0x2)) && (alns2pair[0].size() <= 0 || alns2pair[1].size() <= 0)) {
+                will_inc_sscs = true;
+            }
+            
             for (int strand = 0; strand < 2; strand++) {
                 const auto & alns2 = alns2pair[strand];
                 if (alns2.size() == 0) { continue; }
@@ -3363,7 +3373,7 @@ if (paramset.inferred_is_vcf_generated) {
                             (paramset.microadjust_padded_deletion_flag & ((SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform) ? 0x2 : 0x1)));
                     read_family_mmm_ampl.updateByMajorMinusMinor(read_ampBQerr_fragWithR1R2);
                 }
-                if ((0x2 == (alns2pair2umibarcode.second.duplexflag & 0x2)) && alns2pair[0].size() > 0 && alns2pair[1].size() > 0) { // is duplex
+                if (will_inc_dscs) {
                     // read_duplex_amplicon.template updateByConsensus(read_family_con_ampl);
                     read_duplex_amplicon.template updateByFiltering<false, false, false>(
                             read_family_con_ampl, 
@@ -3394,6 +3404,9 @@ if (paramset.inferred_is_vcf_generated) {
                         uvc1_readnum_t tot_nfrags = read_family_con_ampl.getByPos(epos).sumBySymbolType(symboltype);
                         
                         this->symbol_to_fam_format_depth_sets_2strand[strand].getRefByPos(epos)[con_symbol][FAM_cDP1] += 1; // in some rare cases, cDP1 > cDP0 
+                        if (will_inc_sscs && (!will_inc_dscs) && (tot_nfrags >= paramset.fam_thres_dup1add) && (con_nfrags * 100 >= tot_nfrags * paramset.fam_thres_dup1perc)) {
+                            this->symbol_to_fam_format_depth_sets_2strand[strand].getRefByPos(epos)[con_symbol][FAM_cDPD] += 1;
+                        }
                         
                         const uvc1_qual_t avgBQ = ((0 == tot_nfrags) ? 1 : (con_sumBQs / tot_nfrags));
                         const uvc1_readnum_t majorcount = this->symbol_to_fam_format_depth_sets_2strand[strand].getByPos(epos).at(con_symbol).at(FAM_cDPM);
@@ -3446,7 +3459,7 @@ if (paramset.inferred_is_vcf_generated) {
                     mutform2count4map_confam[pos_symbol_string_confam][strand]++;
                 }
             }
-            if ((0x2 == (alns2pair2umibarcode.second.duplexflag & 0x2)) && alns2pair[0].size() > 0 && alns2pair[1].size() > 0) { // is duplex
+            if (will_inc_dscs) { // is duplex
                 for (auto epos = read_duplex_amplicon.getIncluBegPosition(); epos < read_duplex_amplicon.getExcluEndPosition(); epos++) {
                     for (SymbolType symboltype : SYMBOL_TYPE_ARR) {
                         AlignmentSymbol con_symbol;
@@ -3669,6 +3682,19 @@ fill_symboltype_fmt(
     const auto symbolNN = SYMBOL_TYPE_TO_AMBIG[symboltype];
     fmtDP[0] = formatSumBySymbolType(symbol_to_abcd_format_depth_sets.getByPos(refpos), symboltype, format_field);
     fmtDP[1] = symbol_to_abcd_format_depth_sets.getByPos(refpos)[symbolNN][format_field];
+};
+
+template <class T1, class T2, class T3, class T4>
+void 
+fill_symboltype_fr_fmt(
+        T1 & fmtDP,
+        const T2 & symbol_to_abcd_format_depth_sets,
+        const T3 format_field,
+        const T4 refpos,
+        const SymbolType symboltype, 
+        const AlignmentSymbol refsymbol IGNORE_UNUSED_PARAM) {
+    fmtDP[0] = formatSumBySymbolType(symbol_to_abcd_format_depth_sets[0].getByPos(refpos), symboltype, format_field);
+    fmtDP[1] = formatSumBySymbolType(symbol_to_abcd_format_depth_sets[1].getByPos(refpos), symboltype, format_field);
 };
 
 #define filla_symboltype_fmt(fmtDP, symbol_to_abcd_format_depth_sets, format_field, refpos, symboltype, refsymbol) { \
@@ -3911,17 +3937,22 @@ BcfFormat_symboltype_init(bcfrec::BcfFormat & fmt,
     fill_symboltype_fmt(fmt.CDP12f,symbol_to_fam_format_depth_sets[0], FAM_cDP12,refpos, symboltype, refsymbol);
     fill_symboltype_fmt(fmt.CDP2f, symbol_to_fam_format_depth_sets[0], FAM_cDP2, refpos, symboltype, refsymbol);
     fill_symboltype_fmt(fmt.CDP3f, symbol_to_fam_format_depth_sets[0], FAM_cDP3, refpos, symboltype, refsymbol);
-    fill_symboltype_fmt(fmt.CDP21f,symbol_to_fam_format_depth_sets[0], FAM_cDP21,refpos, symboltype, refsymbol);
-    fill_symboltype_fmt(fmt.CDPMf, symbol_to_fam_format_depth_sets[0], FAM_cDPM, refpos, symboltype, refsymbol);
-    fill_symboltype_fmt(fmt.CDPmf, symbol_to_fam_format_depth_sets[0], FAM_cDPm, refpos, symboltype, refsymbol);
-    
+    // fill_symboltype_fmt(fmt.CDP21f,symbol_to_fam_format_depth_sets[0], FAM_cDP21,refpos, symboltype, refsymbol);
+    // fill_symboltype_fmt(fmt.CDPMf, symbol_to_fam_format_depth_sets[0], FAM_cDPM, refpos, symboltype, refsymbol);
+    // fill_symboltype_fmt(fmt.CDPmf, symbol_to_fam_format_depth_sets[0], FAM_cDPm, refpos, symboltype, refsymbol);
+
     fill_symboltype_fmt(fmt.CDP1r, symbol_to_fam_format_depth_sets[1], FAM_cDP1, refpos, symboltype, refsymbol);
     fill_symboltype_fmt(fmt.CDP12r,symbol_to_fam_format_depth_sets[1], FAM_cDP12,refpos, symboltype, refsymbol);
     fill_symboltype_fmt(fmt.CDP2r, symbol_to_fam_format_depth_sets[1], FAM_cDP2, refpos, symboltype, refsymbol);
     fill_symboltype_fmt(fmt.CDP3r, symbol_to_fam_format_depth_sets[1], FAM_cDP3, refpos, symboltype, refsymbol);
-    fill_symboltype_fmt(fmt.CDP21r,symbol_to_fam_format_depth_sets[1], FAM_cDP21,refpos, symboltype, refsymbol);
-    fill_symboltype_fmt(fmt.CDPMr, symbol_to_fam_format_depth_sets[1], FAM_cDPM, refpos, symboltype, refsymbol);
-    fill_symboltype_fmt(fmt.CDPmr, symbol_to_fam_format_depth_sets[1], FAM_cDPm, refpos, symboltype, refsymbol);
+    // fill_symboltype_fmt(fmt.CDP21r,symbol_to_fam_format_depth_sets[1], FAM_cDP21,refpos, symboltype, refsymbol);
+    // fill_symboltype_fmt(fmt.CDPMr, symbol_to_fam_format_depth_sets[1], FAM_cDPM, refpos, symboltype, refsymbol);
+    // fill_symboltype_fmt(fmt.CDPmr, symbol_to_fam_format_depth_sets[1], FAM_cDPm, refpos, symboltype, refsymbol);
+    
+    fill_symboltype_fr_fmt(fmt.CDP21, symbol_to_fam_format_depth_sets, FAM_cDP21,refpos, symboltype, refsymbol);
+    fill_symboltype_fr_fmt(fmt.CDPM,  symbol_to_fam_format_depth_sets, FAM_cDPM, refpos, symboltype, refsymbol);
+    fill_symboltype_fr_fmt(fmt.CDPm,  symbol_to_fam_format_depth_sets, FAM_cDPm, refpos, symboltype, refsymbol);
+    fill_symboltype_fr_fmt(fmt.CDPD,  symbol_to_fam_format_depth_sets, FAM_cDPD, refpos, symboltype, refsymbol);
     
     const auto & symbol_to_fam_format_info_sets = symbol2CountCoverageSet12.symbol_to_fam_format_info_sets;
     
@@ -4047,7 +4078,8 @@ BcfFormat_symbol_init(
     fill_symbol_fmt(fmt.cDP21f,symbol_to_fam_format_depth_sets[0], FAM_cDP21,refpos, symbol, a);
     fill_symbol_fmt(fmt.cDPMf, symbol_to_fam_format_depth_sets[0], FAM_cDPM, refpos, symbol, a);
     fill_symbol_fmt(fmt.cDPmf, symbol_to_fam_format_depth_sets[0], FAM_cDPm, refpos, symbol, a);
-    
+    fill_symbol_fmt(fmt.cDPDf, symbol_to_fam_format_depth_sets[0], FAM_cDPD, refpos, symbol, a);
+
     fill_symbol_fmt(fmt.cDP1r, symbol_to_fam_format_depth_sets[1], FAM_cDP1, refpos, symbol, a);
     fill_symbol_fmt(fmt.cDP12r,symbol_to_fam_format_depth_sets[1], FAM_cDP12,refpos, symbol, a);
     fill_symbol_fmt(fmt.cDP2r, symbol_to_fam_format_depth_sets[1], FAM_cDP2, refpos, symbol, a);
@@ -4055,7 +4087,8 @@ BcfFormat_symbol_init(
     fill_symbol_fmt(fmt.cDP21r,symbol_to_fam_format_depth_sets[1], FAM_cDP21,refpos, symbol, a);
     fill_symbol_fmt(fmt.cDPMr, symbol_to_fam_format_depth_sets[1], FAM_cDPM, refpos, symbol, a);
     fill_symbol_fmt(fmt.cDPmr, symbol_to_fam_format_depth_sets[1], FAM_cDPm, refpos, symbol, a);
-    
+    fill_symbol_fmt(fmt.cDPDr, symbol_to_fam_format_depth_sets[1], FAM_cDPD, refpos, symbol, a);
+
     const auto & symbol_to_fam_format_info_sets = symbol2CountCoverageSet12.symbol_to_fam_format_info_sets;
 
     filla_symbol_fmt(fmt.c2LP1, symbol_to_fam_format_info_sets, faminfo_c2LP1, refpos, symbol, a);

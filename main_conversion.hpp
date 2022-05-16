@@ -716,6 +716,7 @@ enum FamFormatDepthSet {
     FAM_cDPM, // duped match
     FAM_cDPm, // duped mismatch
     FAM_cDP21, // singleton
+    FAM_cDPD,  // support of single-strand-consensus sequence which did not form a duplex consensus sequence
     
     FAM_FORMAT_DEPTH_SET_END
 };
