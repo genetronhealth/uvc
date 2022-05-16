@@ -2973,10 +2973,13 @@ struct Symbol2CountCoverageSet {
                         
                         // BEGIN of consensus at family level
                         if (is_consensus_to_fastq) {
+                            const bool is_fastq_fam_good = (is_fam_con && (paramset.fam_consensus_out_fastq_thres_dup1add <= effective_tot_count)
+                                && ((alns2pair2umibarcode.second.duplexflag & 0x1) || (paramset.fam_flag & 0x2)));
+                            
                             AlignmentSymbol con_mmm_symbol; // assign with the value AlignmentSymbol(NUM_ALIGNMENT_SYMBOLS) to flag for error
                             uvc1_qual_t con_sumBQs, tot_sumBQs;
                             read_family_mmm_ampl.getRefByPos(epos).fillConsensusCounts(con_mmm_symbol, con_sumBQs, tot_sumBQs, symboltype);
-                            uvc1_qual_t conBQ = non_neg_minus(con_sumBQs * 2, tot_sumBQs) / alns2.size() + 10;
+                            uvc1_qual_t conBQ = non_neg_minus(con_sumBQs * 2, tot_sumBQs) / alns2.size();
                             assertUVC(conBQ < 127 - 33 && conBQ >= 0);
 
                             if ((LINK_SYMBOL == symboltype)) {
@@ -2985,8 +2988,8 @@ struct Symbol2CountCoverageSet {
                                         + con_ampl_symbol2count.getSymbolCount(LINK_D1)
                                         + con_ampl_symbol2count.getSymbolCount(LINK_D2)
                                         + con_ampl_symbol2count.getSymbolCount(LINK_D3P);
-                                const bool is_nonMD_con = (((effective_tot_count - cigarMD_count) * 100 >= effective_tot_count * paramset.fam_thres_dup1perc) 
-                                        && (effective_tot_count > paramset.fam_thres_dup1add));
+                                const bool is_nonMD_fam_good = (((effective_tot_count - cigarMD_count) * 100 >= effective_tot_count * paramset.fam_thres_dup1perc) 
+                                        && (paramset.fam_consensus_out_fastq_thres_dup1add <= effective_tot_count));
 #ifdef UVC_IN_DEBUG_MODE
                                 if (paramset.debug_tid == tid2 && (paramset.debug_pos - 10 <= epos) && (epos <= paramset.debug_pos + 10)) {
                                     std::string all_qnames;
@@ -3006,7 +3009,7 @@ struct Symbol2CountCoverageSet {
                                                 ;
                                 }
 #endif
-                                if (is_nonMD_con) {
+                                if (is_nonMD_fam_good) {
                                     // Put insertions and soft-clips into the FASTQ files
                                     for (auto cigartype: ALL_CONSENSUS_BLOCK_CIGAR_TYPES) {
                                         const auto & morecenter_con_ampl_symbol2count = (is_ConsensusBlockCigarType_right2left(cigartype) 
@@ -3108,13 +3111,13 @@ struct Symbol2CountCoverageSet {
                                     // const char *desc = SYMBOL_TO_DESC_ARR[BASE_NN];
                                     // assertUVC(strlen(desc) == 1);
                                     // fq_baseBQ_pairs.push_back((std::make_pair(desc[0], 0)));
-                                } else if (is_fam_good) {
+                                } else if (is_fastq_fam_good) {
                                     const char *desc = SYMBOL_TO_DESC_ARR[con_symbol];
                                     assertUVC(strlen(desc) == 1);
                                     fq_baseBQ_pairs.push_back(std::make_pair(desc[0], conBQ));
                                 } else {
                                     // 0/1 means the position-associated family is probably singleton/with-weak-consensus-base
-                                    fq_baseBQ_pairs.push_back(std::make_pair('N', 2 - (is_fam_big ? 1 : 0)));
+                                    fq_baseBQ_pairs.push_back(std::make_pair('N', (is_fam_big ? 1 : 0)));
                                 }
                             }
                         }

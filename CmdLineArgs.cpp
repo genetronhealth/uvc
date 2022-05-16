@@ -272,6 +272,8 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
         "for (PE-R1-FASTQ, PE-R2-FASTQ, SE-FASTQ, PE-R1-GROUP, PE-R2-GROUP and SE-GROUP) files, respectively, "
         "where PE, SE and GROUP mean paire-end, single-end and UMI-(molecular-barcode)-group-composition-by-read-query-name, respectively. "
         "If this parameter is set to the empty string, then consensus by UMI-group is not performed so that neither FASTQ file nor GROUP file is generated. ");
+    ADD_OPTDEF2(app, fam_consensus_out_fastq_thres_dup1add,
+        "Tier-1 threshold of barcode-family size (PMC3111315, supermutant) for the generation of consensus FASTQ file. "); 
 
 // *** 01. parameters of the names of files, samples, regions, etc
     

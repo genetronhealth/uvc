@@ -45,6 +45,7 @@ struct CommandLineArgs {
     uvc1_readnum_t     fam_thres_dup2add = 3;
     uvc1_readnum100x_t fam_thres_dup2perc = 70; // 85 for more consensus specificity
     std::string        fam_consensus_out_fastq = "";
+    uvc1_readnum_t     fam_consensus_out_fastq_thres_dup1add = 1;
     
 // *** 01. parameters of the names of files, samples, regions, etc.
     
