@@ -1093,7 +1093,7 @@ if (paramset.inferred_is_vcf_generated) {
                                 }
                             }
                         }
-                        const auto totBDP = (fmt.BDPf[0] + fmt.BDPr[0]);
+                        const auto totBDP = SUMPAIR(fmt.BDPb); // (fmt.BDPf[0] + fmt.BDPr[0]);
                         const auto n_norm_alts = (totBDP - (FIRST(fmt.bDPf) + FIRST(fmt.bDPr))) + (LAST(fmt.bDPf) + LAST(fmt.bDPr));
                         nlodq = MAX(nlodq_singlesite + nlodq_inc, tki.vHGQ + MIN(3, totBDP - n_norm_alts * (int)round(0.5 / paramset.contam_any_mul_frac)));
                     } else {

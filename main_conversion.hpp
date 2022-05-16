@@ -149,6 +149,16 @@ SUMVEC(const T & vec) {
     return r;
 }
 
+const size_t left2right = 0;
+const size_t right2left = 1;
+
+template <class T>
+auto
+SUMPAIR(const T & array) {
+    STATIC_ASSERT_WITH_DEFAULT_MSG(array.size() == 2);
+    return (array[0] + array[1]);
+}
+
 template <class T>
 T
 calc_non_negative(const T v, T base = pow(10.0, 0.1), T thres = 10.0) {
