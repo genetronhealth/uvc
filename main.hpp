@@ -2988,10 +2988,11 @@ struct Symbol2CountCoverageSet {
                                         + con_ampl_symbol2count.getSymbolCount(LINK_D1)
                                         + con_ampl_symbol2count.getSymbolCount(LINK_D2)
                                         + con_ampl_symbol2count.getSymbolCount(LINK_D3P);
-                                const bool is_nonMD_fam_good = (((effective_tot_count - cigarMD_count) * 100 >= effective_tot_count * paramset.fam_thres_dup1perc) 
+                                const bool is_nonMD_fam_good = (
+                                        ((effective_tot_count - cigarMD_count) * 100 >= effective_tot_count * paramset.fam_thres_dup1perc) 
                                         && (paramset.fam_consensus_out_fastq_thres_dup1add <= effective_tot_count));
 #ifdef UVC_IN_DEBUG_MODE
-                                if (paramset.debug_tid == tid2 && (paramset.debug_pos - 10 <= epos) && (epos <= paramset.debug_pos + 10)) {
+                                if (paramset.debug_tid == tid2 && (paramset.debug_pos - 3 <= epos) && (epos < paramset.debug_pos + 3)) {
                                     std::string all_qnames;
                                     for (const auto alns1 : alns2) {
                                         for (const auto aln : alns1) {
@@ -3006,6 +3007,7 @@ struct Symbol2CountCoverageSet {
                                                 << " cigarMD_count=" << cigarMD_count
                                                 << " tid:pos=" << tid2 << ":" << epos
                                                 << " qnames=" << all_qnames
+                                                << " is_nonMD_fam_good=" << is_nonMD_fam_good
                                                 ;
                                 }
 #endif
@@ -3014,17 +3016,23 @@ struct Symbol2CountCoverageSet {
                                     for (auto cigartype: ALL_CONSENSUS_BLOCK_CIGAR_TYPES) {
                                         const auto & morecenter_con_ampl_symbol2count = (is_ConsensusBlockCigarType_right2left(cigartype) 
                                                 ? read_family_con_ampl.getByPos(BETWEEN(epos + 1, read_family_con_ampl.getIncluBegPosition(), read_family_con_ampl.getExcluEndPosition() - 1)) 
-                                                : read_family_con_ampl.getByPos(BETWEEN(epos - 1, read_family_con_ampl.getExcluEndPosition(), read_family_con_ampl.getExcluEndPosition() - 1)));
+                                                : read_family_con_ampl.getByPos(BETWEEN(epos - 1, read_family_con_ampl.getIncluBegPosition(), read_family_con_ampl.getExcluEndPosition() - 1)));
                                         const auto morecenter_cigarMD_count = morecenter_con_ampl_symbol2count.getSymbolCount(LINK_M)
                                                 + morecenter_con_ampl_symbol2count.getSymbolCount(LINK_D1)
                                                 + morecenter_con_ampl_symbol2count.getSymbolCount(LINK_D2)
                                                 + morecenter_con_ampl_symbol2count.getSymbolCount(LINK_D3P);
-                                        const bool is_morecenter_nonMD_con = (((effective_tot_count - morecenter_cigarMD_count) *  100 >= effective_tot_count * paramset.fam_thres_dup1perc)
-                                                && (effective_tot_count > paramset.fam_thres_dup1add));
-                                        if (!is_morecenter_nonMD_con) {
+                                        const bool is_morecenter_nonMD_fam_good = (
+                                                ((effective_tot_count - morecenter_cigarMD_count) * 100 >= effective_tot_count * paramset.fam_thres_dup1perc)
+                                                && (paramset.fam_consensus_out_fastq_thres_dup1add <= effective_tot_count));
+#ifdef UVC_IN_DEBUG_MODE
+                                        LOG(logINFO) << "DebugINFO: CONSENSUS-PREP2-CURR" 
+                                                << " is_morecenter_nonMD_fam_good=" << is_morecenter_nonMD_fam_good 
+                                                << " isRightToLeft=" << is_ConsensusBlockCigarType_right2left(cigartype);
+#endif
+                                        if (!is_morecenter_nonMD_fam_good) {
                                             while (consensusBlockSetsIts[cigartype] != consensusBlockSetsEnds[cigartype] && consensusBlockSetsIts[cigartype]->first < epos) {
 #ifdef UVC_IN_DEBUG_MODE
-                                                if (paramset.debug_tid == tid2 && paramset.debug_pos == epos) {
+                                                if (paramset.debug_tid == tid2 && (paramset.debug_pos - 3 < consensusBlockSetsIts[cigartype]->first) && (consensusBlockSetsIts[cigartype]->first < paramset.debug_pos + 3)) {
                                                     std::string all_qnames;
                                                     for (const auto alns1 : alns2) {
                                                         for (const auto aln : alns1) {
@@ -3041,7 +3049,7 @@ struct Symbol2CountCoverageSet {
                                                                     << " conpos=" << conpos
                                                                     << " sqvec.size()=" << sqvec.size()
                                                                     << " qnames=" << all_qnames
-                                                                    << " tid:pos=" << tid2 << ":" << epos
+                                                                    << " tid:pos=" << tid2 << ":" << consensusBlockSetsIts[cigartype]->first
                                                                     ;
                                                     }
                                                 }
