@@ -2839,7 +2839,7 @@ struct Symbol2CountCoverageSet {
                 uvc1_refgpos_t tid2, beg2, end2;
                 fillTidBegEndFromAlns2(tid2, beg2, end2, alns2);
                 
-                const bool is_consensus_applicable = ((paramset.fam_consensus_out_fastq.size() > 0) && ((size_t)paramset.fam_thres_dup1add <= alns2.size()));
+                const bool is_consensus_applicable = ((paramset.fam_consensus_out_fastq.size() > 0) && ((size_t)paramset.fam_consensus_out_fastq_thres_dup1add <= alns2.size()));
                 const bool is_consensus_only_done_here = (
                         ((prev_bedline.tid != tid2) || !(ARE_INTERVALS_OVERLAPPING(prev_bedline.beg_pos, prev_bedline.end_pos, beg2, end2)))
                      && ((curr_bedline.tid == tid2) &&  (ARE_INTERVALS_OVERLAPPING(curr_bedline.beg_pos, curr_bedline.end_pos, beg2, end2))));
