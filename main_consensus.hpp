@@ -41,7 +41,7 @@ reverseAndComplement(FastqRecord & fqrec) {
 }
 
 ConsensusBlock
-ConsensusBlock_trim(const ConsensusBlock & conblock, uvc1_qual_t percDP_thres = 20, uvc1_readpos_t n_consec_positions_thres = 3) {
+ConsensusBlock_trim(const ConsensusBlock & conblock, uvc1_qual_t percDP_thres = 20, uvc1_readpos_t n_consec_positions_thres = 5) {
     uvc1_qual_t maxDP = 0;
     for (const auto base2cnt : conblock) {
         uvc1_qual_t thisDP = 0;
@@ -60,14 +60,14 @@ ConsensusBlock_trim(const ConsensusBlock & conblock, uvc1_qual_t percDP_thres = 
         for (const AlignmentSymbol posbase : SYMBOL_TYPE_TO_NON_NN_SYMBOLS[BASE_SYMBOL]) {
             thisDP += base2cnt[posbase];
         }
-        if (thisDP * 100 >= maxDP * percDP_thres) {
+        if (thisDP * 100 < maxDP * percDP_thres) {
             if (prev_pos + 1 == curr_pos) { n_consec_positions++ ;}
             else { n_consec_positions = 1; }
             if (n_consec_positions >= n_consec_positions_thres) {
                 for (uvc1_refgpos_t i = 1; i < n_consec_positions; i++) {
                     ret.pop_back();
                 }
-                break; 
+                return ret;
             }
         }
         prev_pos = curr_pos;
