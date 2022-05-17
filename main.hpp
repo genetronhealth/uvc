@@ -2467,7 +2467,7 @@ struct Symbol2CountCoverageSet {
                     +  "-" + std::to_string(max2.first)
                      + ":" + std::to_string(max2.second)
                     //+ ":" + std::to_string(beg2) // begin is not well defined for split-mapped reads
-                    + "|" + (strand ? "+-" : "-+")  + std::to_string((min2.first == max2.first) ? (max2.second - min2.second - 1) : 0) 
+                    + "|" + (strand ? "+-" : "-+")  + std::to_string((min2.first == max2.first) ? (max2.second - min2.second + 1) : 0) 
                         // the extra -1 is due to possible insertion at the front/back of the fragment
                     + "|" + mb.umistring + "#" //+ "#-1-"
                     + anyuint2hexstring(mb.hashvalue) + " flag=" + anyuint2hexstring((uint16_t)(mb.dedup_idflag * 256 + mb.duplexflag));
