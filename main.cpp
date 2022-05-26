@@ -4,6 +4,7 @@
 #include "CmdLineArgs.hpp"
 #include "common.hpp"
 #include "grouping.hpp"
+#include "iohts.hpp"
 #include "version.h"
 
 #include "htslib/bgzf.h"
@@ -51,14 +52,14 @@ clearstring(BGZF * bgzip_file, const std::string & outstring_allp, bool is_outpu
 
 std::string 
 load_refstring(const faidx_t *ref_faidx, uvc1_refgpos_t tid, uvc1_refgpos_t incbeg, uvc1_refgpos_t excend) {
-    assert(incbeg < excend);
+    assertUVC(incbeg < excend);
     if (NULL == ref_faidx) {
         return std::string(excend - incbeg, 'n');
     }
     const char *tname = faidx_iseq(ref_faidx, tid);
     int regionlen;
     char *fetchedseq = faidx_fetch_seq(ref_faidx, tname, incbeg, excend - 1, &regionlen);
-    assert (regionlen == (excend - incbeg) || !fprintf(stderr, "%d == %u - %u failed", regionlen, excend, incbeg));
+    assertUVC (regionlen == (excend - incbeg) || !fprintf(stderr, "%d == %u - %u failed for %s:%d-%d\n", regionlen, excend, incbeg, tname, incbeg, excend));
     std::string ret(fetchedseq);
     for (size_t i = 0; i < ret.size(); i++) {
         ret[i] = toupper(ret[i]);
@@ -79,7 +80,6 @@ map2vector(const std::map<TKey, TVal> & key2val4map) {
 
 std::map<std::pair<uvc1_refgpos_t, AlignmentSymbol>, std::set<size_t>>
 mutform2count4vec_to_simplemut2indices(
-        //std::vector<std::pair<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>>> mutform2count4vec
         std::vector<HapLink> mutform2count4vec) {
     
     std::map<std::pair<uvc1_refgpos_t, AlignmentSymbol>, std::set<size_t>> simplemut2indices;
@@ -129,15 +129,18 @@ bgzip_string(std::string & compressed_outstring, const std::string & uncompresse
 }
 
 struct BatchArg {
+    std::array<std::string, NUM_FQLIKE_CON_OUT_FILES> outstring3fastq; // outstring_fastq;
     std::string outstring_allp;
     std::string outstring_pass;
     int thread_id;
+    samFile *samfile;
     hts_idx_t *hts_idx;
     faidx_t *ref_faidx;
     bcf_hdr_t *bcf_hdr;
     bcf_srs_t *sr;
     
-    std::tuple<uvc1_refgpos_t, uvc1_refgpos_t, uvc1_refgpos_t, bool, uvc1_readnum_t> tid_beg_end_e2e_tuple;
+    BedLine prev_bedline;
+    BedLine bedline;
     std::tuple<std::string, uint32_t> tname_tseqlen_tuple;
     size_t regionbatch_ordinal;
     size_t regionbatch_tot_num;
@@ -166,12 +169,12 @@ als_to_string(const char *const* const allele, uint32_t n_allele) {
 #define BCF_GET_FORMAT_INT32_WITH_CHECK(v) \
         ndst_val = 0; \
         valsize = bcf_get_format_int32(bcf_hdr, line, v, &bcfints, &ndst_val); \
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for %s and line %ld!\n", ndst_val, valsize, v, line->pos));
+        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for %s and line %ld!\n", ndst_val, valsize, v, line->pos));
 
 template <class T1, class T2, class T3>
 const std::map<std::tuple<uvc1_refgpos_t, uvc1_refgpos_t, AlignmentSymbol>, std::vector<TumorKeyInfo>>
 rescue_variants_from_vcf(
-        const T1 & tid_beg_end_e2e_vec,
+        const T1 & bedlines,
         const T2 & tid_to_tname_tlen_tuple_vec,
         const std::string & vcf_tumor_fname, 
         const T3 *bcf_hdr,
@@ -181,10 +184,10 @@ rescue_variants_from_vcf(
         return ret;
     }
     std::string regionstring;
-    for (const auto & tid_beg_end_e2e : tid_beg_end_e2e_vec) {
-        const uvc1_refgpos_t tid = std::get<0>(tid_beg_end_e2e);
-        const uvc1_refgpos_t rpos_inclu_beg = std::get<1>(tid_beg_end_e2e);
-        const uvc1_refgpos_t rpos_exclu_end = std::get<2>(tid_beg_end_e2e);
+    for (const auto & bedline : bedlines) {
+        const uvc1_refgpos_t tid = bedline.tid; // std::get<0>(tid_beg_end_e2e);
+        const uvc1_refgpos_t rpos_inclu_beg = bedline.beg_pos; // std::get<1>(tid_beg_end_e2e);
+        const uvc1_refgpos_t rpos_exclu_end = bedline.end_pos; // std::get<2>(tid_beg_end_e2e);
         
         const auto & tname_tseqlen_tuple = tid_to_tname_tlen_tuple_vec[tid];
         if (0 < regionstring.size()) { regionstring += std::string(","); }
@@ -237,8 +240,8 @@ rescue_variants_from_vcf(
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "VTI", &bcfints, &ndst_val);
         if (valsize <= 0) { continue; }
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for VTI and line %ld!\n", ndst_val, valsize, line->pos));
-        assert((2 == line->n_allele) || !fprintf(stderr, "Bcf line %ld has %d alleles!\n", line->pos, line->n_allele));
+        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for VTI and line %ld!\n", ndst_val, valsize, line->pos));
+        assertUVC((2 == line->n_allele) || !fprintf(stderr, "Bcf line %ld has %d alleles!\n", line->pos, line->n_allele));
         const AlignmentSymbol symbol = AlignmentSymbol(bcfints[1]);
         
         auto symbolpos = ((isSymbolSubstitution(symbol) || MGVCF_SYMBOL == symbol || ADDITIONAL_INDEL_CANDIDATE_SYMBOL == symbol) ? (line->pos) : (line->pos + 1));
@@ -256,70 +259,70 @@ if (MGVCF_SYMBOL != symbol && ADDITIONAL_INDEL_CANDIDATE_SYMBOL != symbol) {
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "BDPf", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for BDPf and line %ld!\n", ndst_val, valsize, line->pos));
+        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for BDPf and line %ld!\n", ndst_val, valsize, line->pos));
         tki.BDP = bcfints[0];
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "BDPr", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for BDPr and line %ld!\n", ndst_val, valsize, line->pos));
+        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for BDPr and line %ld!\n", ndst_val, valsize, line->pos));
         tki.BDP += bcfints[0];
 
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "bDPf", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for bDPf and line %ld!\n", ndst_val, valsize, line->pos));
+        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for bDPf and line %ld!\n", ndst_val, valsize, line->pos));
         tki.bDP = bcfints[1];
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "bDPr", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for bDPr and line %ld!\n", ndst_val, valsize, line->pos));
+        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for bDPr and line %ld!\n", ndst_val, valsize, line->pos));
         tki.bDP += bcfints[1];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "CDP1x", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for CDP1x and line %ld!\n", ndst_val, valsize, line->pos));
+        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for CDP1x and line %ld!\n", ndst_val, valsize, line->pos));
         tki.CDP1x = bcfints[0];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "cDP1x", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cDP1x and line %ld!\n", ndst_val, valsize, line->pos));
+        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cDP1x and line %ld!\n", ndst_val, valsize, line->pos));
         tki.cDP1x = bcfints[1];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "cVQ1", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cVQ1 and line %ld!\n", ndst_val, valsize, line->pos));
+        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cVQ1 and line %ld!\n", ndst_val, valsize, line->pos));
         tki.cVQ1 = bcfints[1];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "cPCQ1", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cPCQ1 and line %ld!\n", ndst_val, valsize, line->pos));
+        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cPCQ1 and line %ld!\n", ndst_val, valsize, line->pos));
         tki.cPCQ1 = bcfints[1];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "CDP2x", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for CDP2x and line %ld!\n", ndst_val, valsize, line->pos));
+        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for CDP2x and line %ld!\n", ndst_val, valsize, line->pos));
         tki.CDP2x = bcfints[0];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "cDP2x", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cDP2x and line %ld!\n", ndst_val, valsize, line->pos));
+        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cDP2x and line %ld!\n", ndst_val, valsize, line->pos));
         tki.cDP2x = bcfints[1];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "cVQ2", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cVQ2 and line %ld!\n", ndst_val, valsize, line->pos));
+        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cVQ2 and line %ld!\n", ndst_val, valsize, line->pos));
         tki.cVQ2 = bcfints[1];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "cPCQ2", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cPCQ2 and line %ld!\n", ndst_val, valsize, line->pos));
+        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cPCQ2 and line %ld!\n", ndst_val, valsize, line->pos));
         tki.cPCQ2 = bcfints[1];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "bNMQ", &bcfints, &ndst_val);
-        assert((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for bNMQ and line %ld!\n", ndst_val, valsize, line->pos));
+        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for bNMQ and line %ld!\n", ndst_val, valsize, line->pos));
         tki.bNMQ = bcfints[1];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "vHGQ", &bcfints, &ndst_val);
-        assert((1 == ndst_val && 1 == valsize) || !fprintf(stderr, "1 == %d && 1 == %d failed for vHGQ and line %ld!\n", ndst_val, valsize, line->pos));
+        assertUVC((1 == ndst_val && 1 == valsize) || !fprintf(stderr, "1 == %d && 1 == %d failed for vHGQ and line %ld!\n", ndst_val, valsize, line->pos));
         tki.vHGQ = bcfints[0];
         
         // extra code for backward compatibility
@@ -350,6 +353,11 @@ if (MGVCF_SYMBOL != symbol && ADDITIONAL_INDEL_CANDIDATE_SYMBOL != symbol) {
         if (is_tumor_format_retrieved) {
             tki.bcf1_record = bcf_dup(line);
         }
+        
+        ndst_val = 0;
+        valsize = bcf_get_format_char(bcf_hdr, line, "_C2XP", &bcfstring, &ndst_val);
+        tki.enable_tier2_consensus_format_tags = (valsize > 0);
+        
         const auto retkey = std::make_tuple(line->rid, symbolpos, symbol);
         ret.insert(std::make_pair(retkey, std::vector<TumorKeyInfo>()));
         ret[retkey].push_back(tki);
@@ -375,9 +383,9 @@ region_repeatvec_to_baq_offsetarr(
         auto rtr_idx = i - extended_inclu_beg_pos;
         const auto & rtr = region_repeatvec[rtr_idx];
         const auto tracklen2 = (TIsAnyTandemRepeat ? rtr.anyTR_tracklen : rtr.tracklen);
-        assert (rtr.begpos <= rtr_idx);
-        assert (rtr.unitlen > 0);
-        assert (tracklen2 >= rtr.unitlen);
+        assertUVC (rtr.begpos <= rtr_idx);
+        assertUVC (rtr.unitlen > 0);
+        assertUVC (tracklen2 >= rtr.unitlen);
         if (tracklen2 / rtr.unitlen >= 3 || (tracklen2 / rtr.unitlen >= 2 && tracklen2 >= (uvc1_readpos_t)round(paramset.indel_polymerase_size))) {
             baq_prefixsum += (paramset.indel_str_phred_per_region * 10) / (tracklen2) + 1;
             ret.getRefByPos(i) = baq_prefixsum;
@@ -407,37 +415,39 @@ are_depths_diff(uvc1_readnum_t currDP, uvc1_readnum_t prevDP, uvc1_readnum_t mul
 
 template <class T>
 int 
-process_batch(BatchArg & arg, const T & tid_pos_symb_to_tkis) {
+process_batch(
+        std::string & uncompressed_vcf_string,
+        std::array<std::string, NUM_FQLIKE_CON_OUT_FILES> & uncompressed_3fastq_string,
+        BatchArg & arg,
+        const T & tid_pos_symb_to_tkis) {
     
-    std::string & outstring_pass = arg.outstring_pass;
-    const hts_idx_t *const hts_idx = arg.hts_idx;
     const faidx_t *const ref_faidx = arg.ref_faidx;
     
     const bcf_hdr_t *const bcf_hdr = arg.bcf_hdr;
     const CommandLineArgs & paramset = arg.paramset;
     const std::string UMI_STRUCT_STRING = arg.UMI_STRUCT_STRING;
-    const std::tuple<uvc1_refgpos_t, uvc1_refgpos_t, uvc1_refgpos_t, bool, uvc1_readnum_t> tid_beg_end_e2e_tuple = arg.tid_beg_end_e2e_tuple;
+    const BedLine bedline = arg.bedline;
     const std::tuple<std::string, uvc1_refgpos_t> tname_tseqlen_tuple = arg.tname_tseqlen_tuple;
     const auto regionbatch_ordinal = arg.regionbatch_ordinal;
     const auto regionbatch_tot_num = arg.regionbatch_tot_num;
     const auto thread_id = arg.thread_id;
-    const auto is_vcf_out_pass_to_stdout = arg.is_vcf_out_pass_to_stdout;
     
-    bool is_loginfo_enabled = (ispowerof2(regionbatch_ordinal + 1) || ispowerof2(regionbatch_tot_num - regionbatch_ordinal));
+    bool is_loginfo_enabled = (ispowerof2(regionbatch_ordinal + 1) || ispowerof2(regionbatch_tot_num - regionbatch_ordinal) || paramset.always_log);
     std::string raw_out_string;
     std::string raw_out_string_pass;
     
-    auto tid = std::get<0>(tid_beg_end_e2e_tuple);
-    auto incluBegPosition = std::get<1>(tid_beg_end_e2e_tuple);
-    auto excluEndPosition = std::get<2>(tid_beg_end_e2e_tuple);
-    auto end2end = std::get<3>(tid_beg_end_e2e_tuple);
+    auto tid = bedline.tid;
     
-    std::map<uint64_t, std::pair<std::array<std::map<uint64_t, std::vector<bam1_t *>>, 2>, uint32_t>> umi_to_strand_to_reads;
+    const auto incluBegPosition = bedline.beg_pos;
+    const auto excluEndPosition = bedline.end_pos;
+    bool end2end = (bedline.region_flag & BED_END_TO_END_BIT); 
+    
+    std::map<MolecularBarcode, std::pair<std::array<std::map<uvc1_hash_t, std::vector<bam1_t *>>, 2>, MolecularBarcode>> umi_to_strand_to_reads;
     uvc1_refgpos_t bam_inclu_beg_pos, bam_exclu_end_pos; 
-    std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, uint32_t>> umi_strand_readset;
+    std::vector<std::pair<std::array<std::vector<std::vector<bam1_t *>>, 2>, MolecularBarcode>> umi_strand_readset;
 
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts bamfname_to_strand_to_familyuid_to_reads with pair_end_merge = " << paramset.pair_end_merge; }
-    std::array<uvc1_readnum_t, 3> passed_pcrpassed_umipassed = bamfname_to_strand_to_familyuid_to_reads(
+    std::array<uvc1_readnum_big_t, 3> passed_pcrpassed_umipassed = bamfname_to_strand_to_familyuid_to_reads(
             umi_to_strand_to_reads,
             bam_inclu_beg_pos,
             bam_exclu_end_pos,
@@ -448,23 +458,24 @@ process_batch(BatchArg & arg, const T & tid_pos_symb_to_tkis) {
             regionbatch_ordinal,
             regionbatch_tot_num,
             UMI_STRUCT_STRING,
-            hts_idx,
+            arg.samfile,
+            arg.hts_idx,
             thread_id,
             paramset,
             0);
-    const auto num_passed_reads = passed_pcrpassed_umipassed[0];
+    const auto num_passed_reads = passed_pcrpassed_umipassed[0]; // -1 means that min read depth is not satisfied. 
     const auto num_pcrpassed_reads = passed_pcrpassed_umipassed[1];
     const bool is_by_capture = ((num_pcrpassed_reads) * 2 <= num_passed_reads);
     const AssayType inferred_assay_type = ((ASSAY_TYPE_AUTO == paramset.assay_type) ? (is_by_capture ? ASSAY_TYPE_CAPTURE : ASSAY_TYPE_AMPLICON) : (paramset.assay_type));
     
-    if (0 == num_passed_reads) { return -1; };
+    if ((0 == num_passed_reads) || (-1 == num_passed_reads)) { return -1; };
     const uvc1_qual_t minABQ_snv = ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? paramset.syserr_minABQ_pcr_snv : paramset.syserr_minABQ_cap_snv);
     const uvc1_qual_t minABQ_indel = ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? paramset.syserr_minABQ_pcr_indel : paramset.syserr_minABQ_cap_indel);
     
     const uvc1_refgpos_t rpos_inclu_beg = MAX(incluBegPosition, bam_inclu_beg_pos);
-    const uvc1_refgpos_t rpos_exclu_end = MIN(excluEndPosition, bam_exclu_end_pos); 
-    const uvc1_refgpos_t extended_inclu_beg_pos = MAX(0, MIN(incluBegPosition - 100, bam_inclu_beg_pos));
-    const uvc1_refgpos_t extended_exclu_end_pos = MIN(std::get<1>(tname_tseqlen_tuple), MAX(excluEndPosition + 100, bam_exclu_end_pos));
+    const uvc1_refgpos_t rpos_exclu_end = MIN(excluEndPosition, bam_exclu_end_pos);
+    const uvc1_refgpos_t extended_inclu_beg_pos = MAX(0, non_neg_minus(MIN(incluBegPosition, bam_inclu_beg_pos), MAX_STR_N_BASES));
+    const uvc1_refgpos_t extended_exclu_end_pos = MIN(std::get<1>(tname_tseqlen_tuple), MAX(excluEndPosition, bam_exclu_end_pos) + MAX_STR_N_BASES);
     
     const auto tkis_beg = tid_pos_symb_to_tkis.lower_bound(std::make_tuple(tid, extended_inclu_beg_pos    , AlignmentSymbol(0)));
     const auto tkis_end = tid_pos_symb_to_tkis.upper_bound(std::make_tuple(tid, extended_exclu_end_pos + 1, AlignmentSymbol(0)));
@@ -478,10 +489,10 @@ process_batch(BatchArg & arg, const T & tid_pos_symb_to_tkis) {
             // The short deletion at 22:17946835 in NA12878-NA24385 mixture is overwhelmed by the false positve long del spanning the true positive short del.
             // Due to the VCF specs and left alignment as best practice, the symmetry between left and right alignments are broken. 
             // Thus, this variant is true positive if using left alignemnt but false positive if using right alignment. 
-            // TODO: modifications to the VCF specs or somatic-variant definitions.
+            // TODO: modifications to the VCF specs or somatic-variant definitions, which is beyond the scope of this program.
             LOG(logDEBUG4) << "Thread " << thread_id << " iterated over symbolpos " << symbolpos << " and symbol " << std::get<2>(tkis_it->first) << " as a rescued var";
         }
-    }
+    } // bigger region
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " deals with " << num_rescued << " tumor-sample variants in region " << extended_inclu_beg_pos << " to " << extended_exclu_end_pos + 1 ;}
     
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts converting umi_to_strand_to_reads with is_by_capture = " << is_by_capture << "  " ;}
@@ -489,13 +500,12 @@ process_batch(BatchArg & arg, const T & tid_pos_symb_to_tkis) {
             umi_strand_readset, 
             umi_to_strand_to_reads, 
             paramset,
-            0);
+            0); // bigger region
     
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts constructing symbolToCountCoverageSet12 with " << extended_inclu_beg_pos << (" , ") << extended_exclu_end_pos; }
     // + 1 accounts for insertion at the end of the region, this should happen rarely for only re-aligned reads at around once per one billion base pairs
-    Symbol2CountCoverageSet symbolToCountCoverageSet12(tid, extended_inclu_beg_pos, extended_exclu_end_pos + 1); 
     if (is_loginfo_enabled) { LOG(logINFO)<< "Thread " << thread_id << " starts updateByRegion3Aln with " << umi_strand_readset.size() << " families"; }
-    std::string refstring = load_refstring(ref_faidx, tid, extended_inclu_beg_pos, extended_exclu_end_pos);
+    const std::string refstring = load_refstring(ref_faidx, tid, extended_inclu_beg_pos, extended_exclu_end_pos);
     std::vector<RegionalTandemRepeat> region_repeatvec = refstring2repeatvec(
             refstring, 
             paramset.indel_str_repeatsize_max,
@@ -507,16 +517,18 @@ process_batch(BatchArg & arg, const T & tid_pos_symb_to_tkis) {
     const auto & baq_offsetarr = region_repeatvec_to_baq_offsetarr(region_repeatvec, tid, extended_inclu_beg_pos, extended_exclu_end_pos + 1, paramset);
     const auto & baq_offsetarr2 = region_repeatvec_to_baq_offsetarr<true>(region_repeatvec, tid, extended_inclu_beg_pos, extended_exclu_end_pos + 1, paramset);
 
-    assert(((baq_offsetarr.getExcluEndPosition() - baq_offsetarr.getIncluBegPosition()) == UNSIGN2SIGN(region_repeatvec.size())) 
+    assertUVC(((baq_offsetarr.getExcluEndPosition() - baq_offsetarr.getIncluBegPosition()) == UNSIGN2SIGN(region_repeatvec.size())) 
             || !fprintf(stderr, "%d - %d == %lu failed (baq == repeat in size)!\n", baq_offsetarr.getExcluEndPosition(), baq_offsetarr.getIncluBegPosition(), region_repeatvec.size()));
+
+    // begin of smaller regions
+    Symbol2CountCoverageSet symbolToCountCoverageSet12(tid, extended_inclu_beg_pos, extended_exclu_end_pos + 1); 
     
-    // std::vector<std::pair<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>>> mutform2count4vec_bq;
-    // std::vector<std::pair<std::basic_string<std::pair<uvc1_refgpos_t, AlignmentSymbol>>, std::array<uvc1_readnum_t, 2>>> mutform2count4vec_fq;
     std::vector<HapLink> mutform2count4vec_bq;
     std::vector<HapLink> mutform2count4vec_fq;
     std::vector<HapLink> mutform2count4vec_f2q;
-    
+    std::array<std::string, NUM_FQLIKE_CON_OUT_FILES> fqdata3;
     symbolToCountCoverageSet12.updateByRegion3Aln(
+            fqdata3,
             mutform2count4vec_bq,
             mutform2count4vec_fq,
             mutform2count4vec_f2q,
@@ -527,8 +539,16 @@ process_batch(BatchArg & arg, const T & tid_pos_symb_to_tkis) {
             baq_offsetarr,
             baq_offsetarr2,
             
+            arg.prev_bedline,
+            arg.bedline,
+            
             paramset,
             0);
+
+    std::string buf_out_string_pass;
+
+if (paramset.inferred_is_vcf_generated) {
+
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts analyzing phasing info"; }
     auto simplemut2indices_bq = mutform2count4vec_to_simplemut2indices(mutform2count4vec_bq);
     auto simplemut2indices_fq = mutform2count4vec_to_simplemut2indices(mutform2count4vec_fq);
@@ -536,7 +556,6 @@ process_batch(BatchArg & arg, const T & tid_pos_symb_to_tkis) {
 
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id  << " starts generating block gzipped vcf"; }
     
-    std::string buf_out_string_pass;
     const std::set<size_t> empty_size_t_set;
     uvc1_readpos_t prev_tracklen = 0;
     uvc1_readpos_t curr_tracklen = 0;
@@ -809,7 +828,7 @@ process_batch(BatchArg & arg, const T & tid_pos_symb_to_tkis) {
                             if (vcfref.size() > vcfalt.size()) {
                                 indelstring = vcfref.substr(vcfalt.size());
                             } else {
-                                assert (vcfref.size() < vcfalt.size());
+                                assertUVC (vcfref.size() < vcfalt.size());
                                 indelstring = vcfalt.substr(vcfref.size());
                             }
                             bcad0a_indelstring_tki_vec.push_back(std::make_tuple(bdepth, cdepth, indelstring, tki));
@@ -869,7 +888,10 @@ process_batch(BatchArg & arg, const T & tid_pos_symb_to_tkis) {
                             region_repeatvec[MAX(refpos - extended_inclu_beg_pos, 3) - 3],
                             region_repeatvec[MIN(refpos - extended_inclu_beg_pos + 3, UNSIGN2SIGN(region_repeatvec.size()) - 1)],
                             ((is_var_rescued && (tki.VTI == LAST(fmt.VTI))) ? ((double)(tki.cDP1x + 1) / (double)(tki.CDP1x + 2)) : -1.0), /* tpfa */
+                            tki,
                             refsymbol,
+                            symbolToCountCoverageSet12,
+                            refpos,
                             paramset,
                             0);
                     st_to_fmt_tki_tup_vec[symboltype].push_back(std::make_tuple(fmt, std::get<3>(bcad0a_indelstring_tki)));
@@ -893,7 +915,7 @@ process_batch(BatchArg & arg, const T & tid_pos_symb_to_tkis) {
                 for (auto & fmt_tki_tup : fmt_tki_tup_vec) 
                 {
                     const auto VTI = LAST(std::get<0>(fmt_tki_tup).VTI);
-                    assert((VTI >= 0 && VTI <= END_ALIGNMENT_SYMBOLS) || !fprintf(stderr, "VTI %d at pos %d is invalid!\n", VTI, refpos));
+                    assertUVC((VTI >= 0 && VTI <= END_ALIGNMENT_SYMBOLS) || !fprintf(stderr, "VTI %d at pos %d is invalid!\n", VTI, refpos));
                     AlignmentSymbol symbol = (VTI >= 0 ? AlignmentSymbol(VTI) : END_ALIGNMENT_SYMBOLS);
                     auto & fmt = std::get<0>(fmt_tki_tup);
                     const auto & tki = std::get<1>(fmt_tki_tup);
@@ -917,6 +939,7 @@ process_batch(BatchArg & arg, const T & tid_pos_symb_to_tkis) {
                             refsymbol,
                             ((NOT_PROVIDED != paramset.vcf_tumor_fname && (tki.VTI == LAST(fmt.VTI))) ? 
                                 ((double)(tki.bDP + 0.5) / (double)(tki.BDP + 1.0)) : -1.0),
+                            symbolToCountCoverageSet12,
                             paramset,
                             0);
                     if (refsymbol != symbol) {
@@ -1015,7 +1038,7 @@ process_batch(BatchArg & arg, const T & tid_pos_symb_to_tkis) {
             for (auto & fmt_tki_tup : fmt_tki_tup_vec) 
             {
                 auto & fmt = std::get<0>(fmt_tki_tup);
-                assert(fmt.vAC.size() == curr_vAC.size());
+                assertUVC(fmt.vAC.size() == curr_vAC.size());
                 for (size_t i = 0; i < fmt.vAC.size(); i++) { fmt.vAC[i] = curr_vAC[i]; }
                 const auto & symbol = (AlignmentSymbol)(LAST(fmt.VTI));
                 auto & tki = std::get<1>(fmt_tki_tup);
@@ -1032,7 +1055,7 @@ process_batch(BatchArg & arg, const T & tid_pos_symb_to_tkis) {
                     const auto nlodq_singlesample = nlodq_singlesite - 3 
                             + (isSymbolSubstitution(symbol) ? paramset.germ_phred_hetero_snp : paramset.germ_phred_hetero_indel);
                     
-                    assert ((NOT_PROVIDED == paramset.vcf_tumor_fname) == (0 == tki.ref_alt.size()));
+                    assertUVC ((NOT_PROVIDED == paramset.vcf_tumor_fname) == (0 == tki.ref_alt.size()));
                     if (NOT_PROVIDED != paramset.vcf_tumor_fname) {
                         uvc1_qual_t nlodq_inc = 999;
                         const auto fmtptrs = std::vector<bcfrec::BcfFormat*> {{ std::get<1>(nlodq_fmtptr1_fmtptr2_tup), std::get<2>(nlodq_fmtptr1_fmtptr2_tup) }} ;
@@ -1101,7 +1124,7 @@ process_batch(BatchArg & arg, const T & tid_pos_symb_to_tkis) {
             } // fmt_tki_tup_vec
         } // end of SYMBOL_TYPE_ARR
     } // zerobased_pos
-    
+}
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id  << " starts destroying bam records"; }
     for (auto strand_readset : umi_strand_readset) {
         for (int strand = 0; strand < 2; strand++) {
@@ -1113,15 +1136,49 @@ process_batch(BatchArg & arg, const T & tid_pos_symb_to_tkis) {
             }
         }
     }
+    /*
     if (!is_vcf_out_pass_to_stdout) {
         bgzip_string(outstring_pass, buf_out_string_pass);
     } else {
         outstring_pass += buf_out_string_pass;
     }
+    */
+if (paramset.inferred_is_vcf_generated) {
+    uncompressed_vcf_string += buf_out_string_pass;
+}
+    if (paramset.fam_consensus_out_fastq.size() > 0) {
+        for (size_t i = 0; i < NUM_FQLIKE_CON_OUT_FILES; i++) { 
+            uncompressed_3fastq_string[i] += fqdata3[i];
+        }
+    }
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id  << " is done with current task"; }
     return 0;
 };
 
+
+BGZF *bgzip_open_wrap1(const std::string &filename) {
+    BGZF *fp = bgzf_open(filename.c_str(), "w");
+    if (NULL == fp) {
+        LOG(logERROR) << "Unable to open the bgzip file " << filename << " for writinng!";
+        exit(-9);
+    }
+    return fp;
+}
+
+int gzip_close_wrap1(BGZF *fp, const std::string &filename) {
+    if (NULL != fp) {
+        int closeresult = bgzf_close(fp);
+        if (closeresult != 0) {
+            LOG(logERROR) << "Unable to close the bgzip file " << filename << " for writing!";
+        }
+        return closeresult;
+    } else {
+        return 0;
+    }
+}
+
+static_assert((sizeof(size_t) > 4), "Error: 32-bit architectures are not supported!");
+static_assert((sizeof(void*) > 4), "Error: 32-bit memory systems are not supported!");
 int 
 main(int argc, char **argv) {
     std::clock_t c_start = std::clock();
@@ -1144,8 +1201,12 @@ main(int argc, char **argv) {
         std::cout << header_outstring << std::endl;
         return 0;
     }
+    if (paramset.bam_input_fname.compare(OPT_ONLY_PRINT_DEBUG_DETAIL) == 0) {
+        LOG(logINFO) << "Use about " << SIZE_PER_GENOMIC_POS << " bytes per genomic position";
+        return 0;
+    }
     if (parsing_result_ret || parsing_result_flag) {
-        return parsing_result_ret; 
+        return parsing_result_ret;
     }
     LOG(logINFO) << "Program " << argv[0] << " version " << VERSION_DETAIL;
     LOG(logINFO) << "<GIT_DIFF_FULL_DISPLAY_MSG>"; 
@@ -1158,13 +1219,12 @@ main(int argc, char **argv) {
     const int nthreads = paramset.max_cpu_num;
     bool is_vcf_out_pass_empty_string = (std::string("") == paramset.vcf_out_pass_fname);
     bool is_vcf_out_pass_to_stdout = (std::string("-") == paramset.vcf_out_pass_fname);
-    BGZF *fp_pass = NULL;
-    if (!is_vcf_out_pass_empty_string && !is_vcf_out_pass_to_stdout) {  
-        fp_pass = bgzf_open(paramset.vcf_out_pass_fname.c_str(), "w");
-        if (NULL == fp_pass) {
-            LOG(logERROR) << "Unable to open the bgzip file " << paramset.vcf_out_pass_fname;
-            exit(-9);
-        }
+    BGZF *fp_pass = ((!is_vcf_out_pass_empty_string && !is_vcf_out_pass_to_stdout) ? bgzip_open_wrap1(paramset.vcf_out_pass_fname) : NULL);
+    std::array<BGZF*, NUM_FQLIKE_CON_OUT_FILES> fastq_fps;
+    std::array<std::string, NUM_FQLIKE_CON_OUT_FILES> fastq_filenames = {{ "" }};
+    for (size_t i = 0; i < NUM_FQLIKE_CON_OUT_FILES; i++) {
+        fastq_filenames[i] = paramset.fam_consensus_out_fastq + FASTQ_LIKE_SUFFIXES[i];
+        fastq_fps[i] = ((paramset.fam_consensus_out_fastq.size() > 0) ? (bgzip_open_wrap1(fastq_filenames[i])) :  NULL);
     }
     // Commented out for now due to lack of good documentation for these bgzf APIs. Can investigate later.
     /*
@@ -1232,78 +1292,114 @@ main(int argc, char **argv) {
             paramset);
     clearstring<false>(fp_pass, header_outstring, is_vcf_out_pass_to_stdout);
 
-    std::vector<std::tuple<uvc1_refgpos_t, uvc1_refgpos_t, uvc1_refgpos_t, bool, uvc1_readnum_t>> tid_beg_end_e2e_tuple_vec1;
-    std::vector<std::tuple<uvc1_refgpos_t, uvc1_refgpos_t, uvc1_refgpos_t, bool, uvc1_readnum_t>> tid_beg_end_e2e_tuple_vec2;
+    std::vector<BedLine> bedlines1;
+    std::vector<BedLine> bedlines2;
+    
     std::map<std::tuple<uvc1_refgpos_t, uvc1_refgpos_t, AlignmentSymbol>, std::vector<TumorKeyInfo>> tid_pos_symb_to_tkis1; 
     std::map<std::tuple<uvc1_refgpos_t, uvc1_refgpos_t, AlignmentSymbol>, std::vector<TumorKeyInfo>> tid_pos_symb_to_tkis2; 
-    SamIter samIter(paramset.bam_input_fname, paramset.tier1_target_region, paramset.bed_region_fname, nthreads); 
+    BedLine prev_bedline_tmp = BedLine(-1, 0, 0, 0, 0);
+    SamIter samIter(paramset);
     int64_t n_sam_iters = 0;
-    int64_t iter_nreads = samIter.iternext(tid_beg_end_e2e_tuple_vec1);
-    LOG(logINFO) << "PreProcessed " << iter_nreads << " reads in super-contig no " << (n_sam_iters);
+    uvc1_flag_t iter_ret_flag;
+    int64_t iter_nreads = samIter.iternext(iter_ret_flag, bedlines1, 0);
+    
+    LOG(logINFO) << "PreProcessed " << iter_nreads << " reads in tier-1-region no " << (n_sam_iters);
     // rescue_variants_from_vcf
-    tid_pos_symb_to_tkis1 = rescue_variants_from_vcf(tid_beg_end_e2e_tuple_vec1, tid_to_tname_tseqlen_tuple_vec, paramset.vcf_tumor_fname, g_bcf_hdr, paramset.is_tumor_format_retrieved);
-    LOG(logINFO) << "Rescued/retrieved " << tid_pos_symb_to_tkis1.size() << " variants in super-contig no " << (n_sam_iters);
+    tid_pos_symb_to_tkis1 = rescue_variants_from_vcf(bedlines1, tid_to_tname_tseqlen_tuple_vec, paramset.vcf_tumor_fname, g_bcf_hdr, paramset.is_tumor_format_retrieved);
+    LOG(logINFO) << "Rescued/retrieved " << tid_pos_symb_to_tkis1.size() << " variants in tier-1-region no " << (n_sam_iters);
     while (iter_nreads > 0) {
         n_sam_iters++;
-        std::thread read_bam_thread([&tid_beg_end_e2e_tuple_vec2, &tid_pos_symb_to_tkis2, &samIter, &iter_nreads, &n_sam_iters, &paramset, &tid_to_tname_tseqlen_tuple_vec, g_bcf_hdr]() {
-            tid_beg_end_e2e_tuple_vec2.clear();
-            iter_nreads = samIter.iternext(tid_beg_end_e2e_tuple_vec2);
-            LOG(logINFO) << "PreProcessed " << iter_nreads << " reads in super-contig no " << (n_sam_iters);
+        std::thread read_bam_thread([&bedlines2, &tid_pos_symb_to_tkis2, &samIter, &iter_nreads, &iter_ret_flag, &n_sam_iters, &paramset, &tid_to_tname_tseqlen_tuple_vec, g_bcf_hdr]() {
+            bedlines2.clear();
+            iter_nreads = samIter.iternext(iter_ret_flag, bedlines2, 0);
+            LOG(logINFO) << "PreProcessed " << iter_nreads << " reads in tier-1-region no " << (n_sam_iters);
             
-            tid_pos_symb_to_tkis2 = rescue_variants_from_vcf(tid_beg_end_e2e_tuple_vec2, tid_to_tname_tseqlen_tuple_vec, paramset.vcf_tumor_fname, g_bcf_hdr, paramset.is_tumor_format_retrieved);
-            LOG(logINFO) << "Rescued/retrieved " << tid_pos_symb_to_tkis2.size() << " variants in super-contig no " << (n_sam_iters);
+            tid_pos_symb_to_tkis2 = rescue_variants_from_vcf(bedlines2, tid_to_tname_tseqlen_tuple_vec, paramset.vcf_tumor_fname, g_bcf_hdr, paramset.is_tumor_format_retrieved);
+            LOG(logINFO) << "Rescued/retrieved " << tid_pos_symb_to_tkis2.size() << " variants in tier-1-region no " << (n_sam_iters);
         });
-        const auto & tid_beg_end_e2e_tuple_vec = tid_beg_end_e2e_tuple_vec1; 
-        const std::string bedstring_header = std::string("The BED-genomic-region is as follows (") + std::to_string(tid_beg_end_e2e_tuple_vec.size()) 
-                + " chunks) for super-contig no " + std::to_string(n_sam_iters-1) + "\n";
-        std::string bedstring = "";
-        for (const auto & tid_beg_end_e2e_tuple : tid_beg_end_e2e_tuple_vec) {
-            bedstring += (std::get<0>(tid_to_tname_tseqlen_tuple_vec[std::get<0>(tid_beg_end_e2e_tuple)]) + "\t"
-                  + std::to_string(std::get<1>(tid_beg_end_e2e_tuple)) + "\t"
-                  + std::to_string(std::get<2>(tid_beg_end_e2e_tuple)) + "\t"
-                  + std::to_string(std::get<3>(tid_beg_end_e2e_tuple)) + "\t"
-                  + "NumberOfReadsInThisInterval\t"
-                  + std::to_string(std::get<4>(tid_beg_end_e2e_tuple)) + "\t" 
-                  + "\n");
-        }
-        LOG(logINFO) << bedstring_header << bedstring;
-        if (bed_out.is_open()) { bed_out << bedstring; }
-        const size_t allridx = 0;  
-        const size_t incvalue = tid_beg_end_e2e_tuple_vec.size();
+        const auto & bedlines = bedlines1;
         
-        uvc1_unsigned_int_t nreads = 0;
-        uvc1_unsigned_int_t npositions = 0;
+        const size_t allridx = 0;
+        const size_t incvalue = bedlines.size();
+        
+        size_t nreads = 0;
+        size_t npositions = 0;
         for (size_t j = 0; j < incvalue; j++) {
             auto region_idx = allridx + j;
-            nreads += std::get<4>(tid_beg_end_e2e_tuple_vec[region_idx]);
-            npositions += std::get<2>(tid_beg_end_e2e_tuple_vec[region_idx]) - std::get<1>(tid_beg_end_e2e_tuple_vec[region_idx]); 
+            nreads += bedlines[region_idx].n_reads;
+            npositions += bedlines[region_idx].end_pos - bedlines[region_idx].beg_pos; 
         }
         
-        assert(incvalue > 0);
+        assertUVC(incvalue > 0);
         
         // distribute inputs as evenly as possible
 #if defined(USE_STDLIB_THREAD)
-        const uvc1_unsigned_int_t UNDERLOAD_RATIO = 1;
+        const size_t UNDERLOAD_RATIO = 1;
 #else
-        const uvc1_unsigned_int_t UNDERLOAD_RATIO = 4;
+        const size_t UNDERLOAD_RATIO = NUM_WORKING_UNITS_PER_THREAD;
 #endif
-        uvc1_unsigned_int_t curr_nreads = 0;
-        uvc1_unsigned_int_t curr_npositions = 0;
-        uvc1_unsigned_int_t curr_zerobased_region_idx = 0;
+        uvc1_refgpos_t last_tid = ((bedlines.size() > 0) ? (bedlines[0].tid) : -1);
+        uvc1_readnum_big_t curr_nreads = 0;
+        uvc1_refgpos_t curr_npositions = 0;
+        size_t curr_zerobased_region_idx = 0;
         std::vector<std::pair<size_t, size_t>> beg_end_pair_vec;
         for (size_t j = 0; j < incvalue; j++) {
             auto region_idx = allridx + j;
-            curr_nreads += std::get<4>(tid_beg_end_e2e_tuple_vec[region_idx]);
-            curr_npositions += std::get<2>(tid_beg_end_e2e_tuple_vec[region_idx]) - std::get<1>(tid_beg_end_e2e_tuple_vec[region_idx]); 
-            if (curr_nreads * nthreads * UNDERLOAD_RATIO > nreads || curr_npositions * nthreads * UNDERLOAD_RATIO > npositions || (j == incvalue - 1)) {
-                beg_end_pair_vec.push_back(std::make_pair(curr_zerobased_region_idx, j+1));
+            const auto curr_tid = bedlines[region_idx].tid;
+            curr_nreads += bedlines[region_idx].n_reads;
+            curr_npositions +=(bedlines[region_idx].end_pos) - (bedlines[region_idx].beg_pos);
+            if ((j > 0) && ((last_tid != curr_tid)
+                    || (curr_nreads * nthreads * UNDERLOAD_RATIO > nreads)
+                    || (curr_npositions * nthreads * UNDERLOAD_RATIO > npositions))) {
+                beg_end_pair_vec.push_back(std::make_pair(curr_zerobased_region_idx, j));
+                curr_zerobased_region_idx = j;
+                last_tid = curr_tid;
                 curr_nreads = 0;
                 curr_npositions = 0;
-                curr_zerobased_region_idx = j+1;
             }
         }
+        beg_end_pair_vec.push_back(std::make_pair(curr_zerobased_region_idx, incvalue));
+
+        uvc1_readnum_big_t t1_tot_n_reads = 0;
+        uvc1_refgpos_big_t t1_tot_n_bases = 0;
+
+        std::string bedstring = "";
+        LOG(logINFO) << "Start-bam-iteration-" << (n_sam_iters-1) << ": will-process-the-following-tier1-regions (all indices are zero-based): ";
+        for (size_t t2_idx = 0; t2_idx < beg_end_pair_vec.size(); t2_idx++) {
+            size_t beg = beg_end_pair_vec[t2_idx].first;
+            size_t end = beg_end_pair_vec[t2_idx].second;
+            uvc1_readnum_big_t t2_tot_n_reads = 0;
+            uvc1_readnum_big_t t2_tot_n_bases = 0;
+            for (size_t t3_idx = beg; t3_idx < end; t3_idx++) {
+                const auto & bedline = bedlines[t3_idx];
+                const auto n_bases = bedline.end_pos - bedline.beg_pos;
+                bedstring += (std::get<0>(tid_to_tname_tseqlen_tuple_vec[bedline.tid ])
+                          + "\t" + std::to_string(bedline.beg_pos)
+                          + "\t" + std::to_string(bedline.end_pos)
+                          + "\tBedLineFlag\t" + std::to_string(bedline.region_flag)
+                          + "\tNumberOfReadsInThisInterval\t" + std::to_string(bedline.n_reads)
+                          + "\tNumberOfRefBasesInThisInterval\t" + std::to_string(n_bases)
+                          + "\tTier1regionIndex\t" + std::to_string(n_sam_iters - 1)
+                          + "\tTier2regionIndex\t" + std::to_string(t2_idx)
+                          + "\tTier3regionIndex\t" + std::to_string(t3_idx)
+                          + "\n");
+                t2_tot_n_reads += bedline.n_reads;
+                t2_tot_n_bases += n_bases;
+            }
+            LOG(logINFO) << "End-of-tier-2-region-no-" << t2_idx << " tot_n_reads=" << t2_tot_n_reads << " tot_n_ref_bases=" << t2_tot_n_bases;
+            t1_tot_n_reads += t2_tot_n_reads;
+            t1_tot_n_bases += t2_tot_n_bases;
+        }
+        assertUVC(((size_t)t1_tot_n_bases) == npositions || !fprintf(stderr, "%lu ==%lu failed!", ((size_t)t1_tot_n_bases), npositions));
+        LOG(logINFO) << "End-of-tier-1-region-no-" << (n_sam_iters-1) << " tot_n_reads=" << t1_tot_n_reads << " tot_n_ref_bases=" << t1_tot_n_bases;
+        if (bed_out.is_open()) { 
+            bed_out << bedstring; 
+        }
+        LOG(logINFO) << "The " << (n_sam_iters-1) << "-th tier-1 BED region is as follows " 
+                << "(each tier-1 region is parsed as one unit, each tier-2 region is processed by one thread, "
+                << "and each tier-3 region is one unit of to call variants within):\n" << bedstring;
         
-        LOG(logINFO) << "Will process the chunks from " << allridx << " to " << allridx + incvalue
+        LOG(logINFO) << "Start processing the chunks from " << allridx << " to " << allridx + incvalue
                 << " which contains approximately " << nreads << " reads and " << npositions << " positions divided into " 
                 << beg_end_pair_vec.size() << " sub-chunks";
         
@@ -1316,15 +1412,18 @@ main(int argc, char **argv) {
         batchargs.reserve(beg_end_pair_vec.size());
         for (size_t beg_end_pair_idx = 0; beg_end_pair_idx < beg_end_pair_vec.size(); beg_end_pair_idx++) {
             struct BatchArg a = {
+                    outstring3fastq : (std::array<std::string, NUM_FQLIKE_CON_OUT_FILES> {{ std::string("") }}),
                     outstring_allp : "",
                     outstring_pass : "",
                     thread_id : 0,
+                    samfile: NULL,
                     hts_idx : NULL, 
                     ref_faidx : NULL,
                     bcf_hdr : g_bcf_hdr,
                     sr : NULL,
                     
-                    tid_beg_end_e2e_tuple : tid_beg_end_e2e_tuple_vec.at(0),
+                    prev_bedline: prev_bedline_tmp,
+                    bedline: BedLine(-1, 0, 0, 0, 0), // bedlines.at(0),
                     tname_tseqlen_tuple : tid_to_tname_tseqlen_tuple_vec.at(0),
                     regionbatch_ordinal : 0,
                     regionbatch_tot_num : 0,
@@ -1351,6 +1450,7 @@ main(int argc, char **argv) {
 #endif
             auto & batcharg = batchargs[beg_end_pair_idx];
             batcharg.thread_id = thread_id;
+            batcharg.samfile = samfiles[thread_id];
             batcharg.hts_idx = sam_idxs[thread_id];
             batcharg.ref_faidx = ref_faidxs[thread_id];
             batcharg.sr = srs[thread_id];
@@ -1358,27 +1458,41 @@ main(int argc, char **argv) {
             std::pair<size_t, size_t> beg_end_pair = beg_end_pair_vec[beg_end_pair_idx];
 #if defined(USE_STDLIB_THREAD)
             std::thread athread([
-                        &batcharg, allridx, beg_end_pair, beg_end_pair_idx, &tid_beg_end_e2e_tuple_vec, &tid_to_tname_tseqlen_tuple_vec, &tid_pos_symb_to_tkis1
+                        &batcharg, allridx, beg_end_pair, beg_end_pair_idx, &bedlines, &tid_to_tname_tseqlen_tuple_vec, &tid_pos_symb_to_tkis1
                         ]() {
 #endif
                     LOG(logINFO) << "Thread " << batcharg.thread_id << " will process the sub-chunk " << beg_end_pair_idx << " which ranges from " 
                             << beg_end_pair.first << " to " << beg_end_pair.second;
-                    
+                    assertUVC (beg_end_pair.first < beg_end_pair.second);
+                    std::string uncompressed_vcf_string;
+                    std::array<std::string, NUM_FQLIKE_CON_OUT_FILES> uncompressed_3fastq_string;
                     for (size_t j = beg_end_pair.first; j < beg_end_pair.second; j++) {
                         batcharg.regionbatch_ordinal = j;
                         batcharg.regionbatch_tot_num = beg_end_pair.second;
-                        assert (((size_t)(allridx + j) < tid_beg_end_e2e_tuple_vec.size())
-                                || !fprintf(stderr, "%lu + %lu < %lu failed!\n", allridx, j, tid_beg_end_e2e_tuple_vec.size()));
-                        batcharg.tid_beg_end_e2e_tuple = tid_beg_end_e2e_tuple_vec.at(allridx + j);
-                        assert (((size_t)std::get<0>(batcharg.tid_beg_end_e2e_tuple)) < tid_to_tname_tseqlen_tuple_vec.size() 
-                                || !fprintf(stderr, "%lu < %lu failed!\n", (size_t)std::get<0>(batcharg.tid_beg_end_e2e_tuple), tid_to_tname_tseqlen_tuple_vec.size()));
-                        batcharg.tname_tseqlen_tuple = tid_to_tname_tseqlen_tuple_vec.at(std::get<0>(batcharg.tid_beg_end_e2e_tuple));
-                        process_batch(batcharg, tid_pos_symb_to_tkis1);
+                        assertUVC (((size_t)(allridx + j) < bedlines.size())
+                                || !fprintf(stderr, "%lu + %lu < %lu failed!\n", allridx, j, bedlines.size()));
+                        if (allridx + j > 0) {
+                            batcharg.prev_bedline = bedlines.at(allridx + j - 1);
+                        }
+                        batcharg.bedline = bedlines.at(allridx + j);
+                        assertUVC (((size_t)(batcharg.bedline.tid)) < tid_to_tname_tseqlen_tuple_vec.size() 
+                                || !fprintf(stderr, "%lu < %lu failed!\n", (size_t)(batcharg.bedline.tid), tid_to_tname_tseqlen_tuple_vec.size()));
+                        batcharg.tname_tseqlen_tuple = tid_to_tname_tseqlen_tuple_vec.at((batcharg.bedline.tid));                        
+                        process_batch(uncompressed_vcf_string, uncompressed_3fastq_string, batcharg, tid_pos_symb_to_tkis1);
+                    }
+                    if (batcharg.is_vcf_out_pass_to_stdout) {
+                        batcharg.outstring_pass += uncompressed_vcf_string;
+                    } else {
+                        bgzip_string(batcharg.outstring_pass, uncompressed_vcf_string);
+                    }
+                    for (size_t i = 0; i < NUM_FQLIKE_CON_OUT_FILES; i++) {
+                        bgzip_string(batcharg.outstring3fastq[i], uncompressed_3fastq_string[i]);
                     }
 #if defined(USE_STDLIB_THREAD)
             });
             threads.push_back(std::move(athread));
 #endif
+            
         }
 #if defined(USE_STDLIB_THREAD)
         for (auto & t : threads) {
@@ -1387,10 +1501,16 @@ main(int argc, char **argv) {
 #endif
         for (size_t beg_end_pair_idx = 0; beg_end_pair_idx < beg_end_pair_vec.size(); beg_end_pair_idx++) {
             if (batchargs[beg_end_pair_idx].outstring_pass.size() > 0) {
-                clearstring<true>(fp_pass, batchargs[beg_end_pair_idx].outstring_pass); // empty string means end of file
+                // empty string means end of file
+                clearstring<true>(fp_pass, batchargs[beg_end_pair_idx].outstring_pass, is_vcf_out_pass_to_stdout);
             }
+            for (size_t i = 0; i < fastq_fps.size(); i++) { 
+                if (batchargs[beg_end_pair_idx].outstring3fastq[i].size() > 0) {
+                    clearstring<true>(fastq_fps[i], batchargs[beg_end_pair_idx].outstring3fastq[i]); 
+                }
+            } 
         }
-        read_bam_thread.join(); // end this iter
+        read_bam_thread.join(); // end this iteration
         for (auto tid_pos_symb_to_tkis1_pair: tid_pos_symb_to_tkis1) {
             for (auto tki : tid_pos_symb_to_tkis1_pair.second) {
                 if (NULL != tki.bcf1_record) {
@@ -1398,11 +1518,14 @@ main(int argc, char **argv) {
                 }
             }
         }
-        autoswap(tid_beg_end_e2e_tuple_vec1, tid_beg_end_e2e_tuple_vec2);
+        prev_bedline_tmp = (bedlines1.size() ? LAST(bedlines1) : prev_bedline_tmp);
+        autoswap(bedlines1, bedlines2);
         autoswap(tid_pos_symb_to_tkis1, tid_pos_symb_to_tkis2);
     }
     
     clearstring<true>(fp_pass, std::string(""), is_vcf_out_pass_to_stdout); // write end of file
+    for (auto fastq_fp : fastq_fps) { clearstring<true>(fastq_fp, std::string("")); } // empty string means end of file
+
     bam_hdr_destroy(samheader);
     if (NULL != g_bcf_hdr) {
         bcf_hdr_destroy(g_bcf_hdr);
@@ -1422,12 +1545,9 @@ main(int argc, char **argv) {
         }
     }
     // bgzf_flush is internally called by bgzf_close
-    if (fp_pass) {
-        int closeresult = bgzf_close(fp_pass);
-        if (closeresult != 0) {
-            LOG(logERROR) << "Unable to close the bgzip file " << paramset.vcf_out_pass_fname;
-        }
-    }
+    gzip_close_wrap1(fp_pass, paramset.vcf_out_pass_fname);
+    for (size_t i = 0; i < fastq_fps.size(); i++) { gzip_close_wrap1(fastq_fps[i], fastq_filenames[i]); }
+    
     std::clock_t c_end = std::clock();
     auto t_end = std::chrono::high_resolution_clock::now();
  

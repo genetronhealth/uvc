@@ -6,9 +6,11 @@
 
 // #include "precompiled/precompiled_main.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cassert>
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include <float.h>
@@ -27,11 +29,19 @@
 #define STRINGIZE_(x) #x
 #define STRINGIZE(x) STRINGIZE_(x)
 
-#define STATIC_ASSERT_WITH_DEFAULT_MSG(x) static_assert((x), "Static assertion failed at " __FILE__ ":" STRINGIZE(__LINE__));
+#define STATIC_ASSERT_WITH_DEFAULT_MSG(x) static_assert((x), "Static assertUVCion failed at " __FILE__ ":" STRINGIZE(__LINE__));
+
+// #define assertUVC(x) (assert(x)) // assertion error prevents us from checking the stack-trace that is otherwise printed by enabling address/undefine-behavior sanitizer(s). 
+#ifdef ENABLE_ASSERT_IN_UVC
+#define assertUVC(x) (assert(x))
+#else
+#define assertUVC(x)
+#endif
 
 // constants
 
 #define MGVCF_REGION_MAX_SIZE 1000
+#define NUM_WORKING_UNITS_PER_THREAD 8
 
 #define OUTVAR_GERMLINE 0x1
 #define OUTVAR_SOMATIC 0x2
@@ -43,10 +53,12 @@
 
 #define NOT_PROVIDED ("")
 #define OPT_ONLY_PRINT_VCF_HEADER "/only-print-vcf-header/"
+#define OPT_ONLY_PRINT_DEBUG_DETAIL "/only-print-debug-detail/"
 #define PLAT_ILLUMINA_LIKE "Illumina/BGI"
 #define PLAT_ION_LIKE "IonTorrent/LifeTechnologies/ThermoFisher"
 
-#define MAX_INSERT_SIZE 2000 // (1024*2) // https://doi.org/10.2147/AGG.S162531
+#define MAX_STR_N_BASES 100 // doi: 10.1016/S1672-0229(07)60009-6
+#define MAX_INSERT_SIZE 2000 // https://doi.org/10.2147/AGG.S162531
 #define DBLFLT_EPS ((double)FLT_EPSILON)
 
 // substitutions
@@ -72,6 +84,10 @@
 #define phred2numstates(x) (pow(10.0, (x)/10.0))
 #define numstates2deciphred(x) ((uvc1_qual_t)round((100.0/log(10.0)) * log(x)))
 
+#define bam_get_strand(aln) ((((aln)->core.flag & 0x81) == 0x81) ? (!!((aln)->core.flag & 0x20)) : (!!((aln)->core.flag & 0x10)))
+
+#define ARE_INTERVALS_OVERLAPPING(int1min, int1max, int2min, int2max) (!(((int1max) <= (int2min)) || (((int2max) <= (int1min)))))
+
 typedef uint64_t uvc1_unsigned_int_t; // It seems that a bug in g++ causes compiling error if this type is defined as (unsigned int)
 
 typedef int32_t uvc1_qual_t;    // quality (usually Phred-scaled)
@@ -88,6 +104,7 @@ typedef int32_t uvc1_base1500x_t;
 
 typedef int64_t uvc1_readnum_big_t;
 typedef int64_t uvc1_readpos_big_t;
+typedef int64_t uvc1_refgpos_big_t;
 typedef int64_t uvc1_qual_big_t; // big qual
 
 typedef uint32_t uvc1_flag_t;
@@ -137,6 +154,71 @@ struct RegionalTandemRepeat {
     uvc1_refgpos_t anyTR_begpos = 0;
     uvc1_readpos_t anyTR_tracklen = 0;
     uvc1_readpos_t anyTR_unitlen = 0;
+};
+
+struct RevComplement {
+    char data[128];
+    char table16[16];
+    RevComplement() {
+        for (int i = 0; i < 128; i++) {
+            data[i] = (char)i;
+        }
+        data['A'] = 'T';
+        data['T'] = 'A';
+        data['C'] = 'G';
+        data['G'] = 'C';
+        data['a'] = 't';
+        data['t'] = 'a';
+        data['c'] = 'g';
+        data['g'] = 'c';
+        for (int i = 0; i < 16; i++) {
+            table16[i] = (char)i;
+        }
+        table16[1] = 8/1;
+        table16[2] = 8/2;
+        table16[4] = 8/4;
+        table16[8] = 8/8;
+    }
+};
+const static RevComplement STATIC_REV_COMPLEMENT;
+
+template <class T>
+inline 
+T 
+mathsquare(T x) {
+    return x * x; 
+}
+
+template <class T1, class T2>
+inline 
+auto
+non_neg_minus(T1 a, T2 b) {
+    return (a > b ? (a - b) : 0);
+}
+
+template <class T>
+inline
+std::string
+anyuint2hexstring(T n) {
+    static const char *hexnum2char = "0123456789ABCDEF";
+    T n1 = n;
+    std::string ret;
+    const size_t nchars = sizeof(T) * 2;
+    ret.reserve(nchars);
+    for (size_t i = 0; i < nchars; i++) {
+        T n2 = (n1 & 0xF);
+        ret.push_back(hexnum2char[n2]);
+        n1 >>= 4UL;
+    }
+    std::reverse(ret.begin(), ret.end());
+    return ret;
+}
+
+template <class T>
+inline void
+compare_diff_less(bool & isdiff, bool & isless, const T & k1, const T & k2) {
+    isdiff = (k1 != k2);
+    isless = (k1 < k2);
 };
 
 #endif

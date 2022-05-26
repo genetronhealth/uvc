@@ -7,6 +7,7 @@
 #include "htslib/vcf.h"
 
 #include <algorithm>
+#include <array>
 #include <iostream>
 
 #include <assert.h>
@@ -22,19 +23,19 @@
 
 template <class T>
 auto MEDIAN(const T & v) {
-    assert(v.size() > 0);
+    assertUVC(v.size() > 0);
     return (v[(v.size() - 1) / 2] + v[(v.size()) / 2]) / 2;
 }
 
 template <class T>
 auto FIRST(const T & v) {
-    assert(v.size() > 0);
+    assertUVC(v.size() > 0);
     return v[0];
 }
 
 template <class T>
 auto LAST(const T & v) {
-    assert(v.size() > 0);
+    assertUVC(v.size() > 0);
     return v[(v.size()-1)];
 }
 
@@ -48,12 +49,6 @@ template <class T1, class T2>
 uint64_t
 uint64mul(const T1 a, const T2 b) {
     return ((uint64_t)a) * ((uint64_t)b);
-}
-
-template <class T1, class T2>
-auto 
-non_neg_minus(T1 a, T2 b) {
-    return (a > b ? (a - b) : 0);
 }
 
 template <class T1, class T2>
@@ -83,7 +78,7 @@ MIN5(T1 a, T2 b, T3 c, T4 d, T5 e) {
 template <class T>
 auto
 MINVEC(T v) {
-    assert(v.size() > 0);
+    assertUVC(v.size() > 0);
     auto ret = v[0];
     for (auto e : v) {
         ret = MIN(ret, e);
@@ -118,7 +113,7 @@ MAX6(T1 a, T2 b, T3 c, T4 d, T5 e, T6 f) {
 template <class T>
 auto
 MAXVEC(T v) {
-    assert(v.size() > 0);
+    assertUVC(v.size() > 0);
     auto ret = v[0];
     for (auto e : v) {
         ret = MAX(ret, e);
@@ -178,21 +173,29 @@ calc_score_with_penal_at_low_val(const T v, T penal_mult, T thres = 60.0) {
 
 template <class T>
 auto
-mathsquare(T x) {
-    return x * x; 
-}
-
-template <class T>
-auto
 mathcube(T x) {
     return x * x * x;
 }
 
+constexpr
 double
 prob2odds(double p) {
-    assert((0.0 < p && p < 1.0) || !fprintf(stderr, "%f is not between 0 and 1!", p));
+    assertUVC((0.0 < p && p < 1.0) || !fprintf(stderr, "%f is not between 0 and 1!", p));
     return p /  (1.0 - p);
 }
+
+constexpr
+double
+odds2prob(double odds) {
+    assertUVC((0.0 < odds) || !fprintf(stderr, "%f is not greater than zero!", odds));
+    return odds / (odds + 1.0);
+}
+
+static_assert(prob2odds(odds2prob(1)) > 0.99);
+static_assert(prob2odds(odds2prob(1)) < 1.01);
+
+static_assert(odds2prob(prob2odds(0.66)) > 0.65);
+static_assert(odds2prob(prob2odds(0.66)) < 0.67);
 
 double
 logit(double p) {
@@ -210,7 +213,7 @@ constexpr double
 calc_binom_10log10_likeratio(double prob, double a, double b) {
     if (TSetMaxProbToOne) { prob = MIN(1.0, prob); }
     prob = (prob + DBL_EPSILON) / (1.0 + (2.0 * DBL_EPSILON));
-    assert((prob > 0 && prob < 1) || !fprintf(stderr, "The assertion 0 < %f < 1 failed!\n", prob));
+    assertUVC((prob > 0 && prob < 1) || !fprintf(stderr, "The assertUVCion 0 < %f < 1 failed!\n", prob));
     a += DBL_EPSILON;
     b += DBL_EPSILON;
     double A = (      prob) * (a + b);
@@ -305,7 +308,7 @@ enum AlignmentSymbol {
     BASE_G,  //   = 2,
     BASE_T,  //   = 3,
     BASE_N,  //   = 4, // ambigous in the original sequencing data
-    BASE_NN, //   = 5, // padded match-mismatch symbol in deleted sequence
+    BASE_NN, //   = 5, // NA not available
     LINK_M,  //   = 6, // absence of any gap
     LINK_D3P,// = 7, // deletion of length 3 or plus
     LINK_D2, //  = 8,  // deletion of length 2
@@ -319,7 +322,143 @@ enum AlignmentSymbol {
     ADDITIONAL_INDEL_CANDIDATE_SYMBOL,
 };
 
+const char* SYMBOL_TO_DESC_ARR[] = {
+    [BASE_A] = "A", [BASE_C] = "C", [BASE_G] = "G", [BASE_T] = "T", [BASE_N] = "N",
+    [BASE_NN] = "*",
+    [LINK_M] = "<LR>",
+    [LINK_D3P] = "<LD3P>", [LINK_D2] = "<LD2>", [LINK_D1] = "<LD1>",
+    [LINK_I3P] = "<LI3P>", [LINK_I2] = "<LI2>", [LINK_I1] = "<LI1>",
+    [LINK_NN] = "*",
+    [END_ALIGNMENT_SYMBOLS] = "<NONE>",
+    [MGVCF_SYMBOL] = "<NON_REF>",
+    [ADDITIONAL_INDEL_CANDIDATE_SYMBOL] = "<ADDITIONAL_INDEL_CANDIDATE>",
+};
+
 #define NUM_ALIGNMENT_SYMBOLS 14
+STATIC_ASSERT_WITH_DEFAULT_MSG(NUM_ALIGNMENT_SYMBOLS == END_ALIGNMENT_SYMBOLS);
+
+// Please note that there are left-to-right clips and right-to-left clips, but I cannot know in advance if the direction matters in consensus. 
+// My intuition tells me that it matters but only for some extremely rare situations, so I did not divide soft-clips according to their strands. 
+// #define NUM_CLIP_SYMBOLS 2
+// const std::array<ClipSymbol, NUM_CLIP_SYMBOLS> CLIP_SYMBOLS = {{CLIP_LEFT_TO_RIGHT, CLIP_RIGHT_TO_LEFT}};
+
+#define NUM_INS_SYMBOLS 3
+const std::array<AlignmentSymbol, NUM_INS_SYMBOLS> INS_SYMBOLS = {{LINK_I1, LINK_I2, LINK_I3P}};
+
+#define NUM_DEL_SYMBOLS 3
+const std::array<AlignmentSymbol, NUM_DEL_SYMBOLS> DEL_SYMBOLS = {{LINK_D1, LINK_D2, LINK_D3P}};
+
+const std::array<AlignmentSymbol, (NUM_INS_SYMBOLS+NUM_DEL_SYMBOLS)> INDEL_SYMBOLS = {{LINK_I1, LINK_I2, LINK_I3P, LINK_D1, LINK_D2, LINK_D3P}};
+
+constexpr bool
+areSymbolsMutated(AlignmentSymbol ref, AlignmentSymbol alt) {
+    if (alt <= BASE_NN) {
+        return ref != alt && ref < BASE_N && alt < BASE_N;
+    } else {
+        return alt != LINK_M && alt != LINK_NN;
+    }
+};
+
+
+
+enum SymbolType {
+    BASE_SYMBOL,
+    LINK_SYMBOL,
+    NUM_SYMBOL_TYPES,
+};
+
+enum LinkType {
+    MAT_LINK,
+    INS_LINK,
+    DEL_LINK,
+    NUM_LINK_TYPES,
+};
+
+const AlignmentSymbol SYMBOL_TYPE_TO_INCLU_BEG[NUM_SYMBOL_TYPES] = {
+    [BASE_SYMBOL] = BASE_A,
+    [LINK_SYMBOL] = LINK_M,
+};
+
+const std::array<SymbolType, 2> SYMBOL_TYPE_ARR = {
+    BASE_SYMBOL, LINK_SYMBOL
+};
+
+const std::array<std::vector<AlignmentSymbol>, NUM_SYMBOL_TYPES> SYMBOL_TYPE_TO_SYMBOLS = {{
+    [BASE_SYMBOL] = std::vector<AlignmentSymbol>{{BASE_A,   BASE_C,   BASE_G,  BASE_T,   BASE_N,   BASE_NN}},
+    [LINK_SYMBOL] = std::vector<AlignmentSymbol>{{LINK_M,   LINK_I1,  LINK_I2, LINK_I3P, LINK_D1,  LINK_D2,  LINK_D3P, LINK_NN}}
+}};
+
+const std::array<std::vector<AlignmentSymbol>, NUM_SYMBOL_TYPES> SYMBOL_TYPE_TO_NON_NN_SYMBOLS = {{
+    [BASE_SYMBOL] = std::vector<AlignmentSymbol>{{ BASE_A, BASE_C, BASE_G,  BASE_T,   BASE_N }},
+    [LINK_SYMBOL] = std::vector<AlignmentSymbol>{{ LINK_M, LINK_I1,LINK_I2, LINK_I3P, LINK_D1, LINK_D2, LINK_D3P }}
+}};
+
+const AlignmentSymbol SYMBOL_TYPE_TO_INCLU_END[NUM_SYMBOL_TYPES] = {
+    [BASE_SYMBOL] = BASE_NN,
+    [LINK_SYMBOL] = LINK_NN,
+};
+
+const AlignmentSymbol SYMBOL_TYPE_TO_AMBIG[NUM_SYMBOL_TYPES] = {
+    [BASE_SYMBOL] = BASE_NN,
+    [LINK_SYMBOL] = LINK_NN,
+};
+
+constexpr bool
+isSymbolIns(const AlignmentSymbol symbol) {
+    if (LINK_I3P == symbol || LINK_I2 == symbol || LINK_I1 == symbol) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+constexpr bool
+isSymbolDel(const AlignmentSymbol symbol) {
+     if (LINK_D3P == symbol || LINK_D2 == symbol || LINK_D1 == symbol) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+constexpr AlignmentSymbol
+insLenToSymbol(uvc1_readpos_t len, const bam1_t *b) {
+    assertUVC(len >= 0 || !fprintf(stderr, "Error: the bam record with qname %s at tid %d pos %ld has insertion of length %d !\n",
+            bam_get_qname(b), b->core.tid, b->core.pos, len));
+    return (1 == len ? LINK_I1 : ((2 == len) ? LINK_I2 : LINK_I3P));
+}
+
+constexpr AlignmentSymbol
+delLenToSymbol(uvc1_readpos_t len, const bam1_t *b) {
+    assertUVC(len >= 0 || !fprintf(stderr, "Error: the bam record with qname %s at tid %d pos %ld has deletion of length %d !\n",
+            bam_get_qname(b), b->core.tid, b->core.pos, len));
+    return (1 == len ? LINK_D1 : ((2 == len) ? LINK_D2 : LINK_D3P));
+}
+
+
+
+int
+insSymbolToInsIdx(AlignmentSymbol s) {
+    return (LINK_I1 == s ? 0 : ((LINK_I2 == s) ? 1: 2));
+}
+
+int
+delSymbolToDelIdx(AlignmentSymbol s) {
+    return (LINK_D1 == s ? 0 : ((LINK_D2 == s) ? 1: 2));
+}
+
+const std::array<SymbolType, 2> SYMBOL_TYPES_IN_VCF_ORDER = {{LINK_SYMBOL, BASE_SYMBOL}};
+
+bool
+isSymbolSubstitution(AlignmentSymbol symbol) {
+    return (SYMBOL_TYPE_TO_INCLU_BEG[BASE_SYMBOL] <= symbol && symbol <= SYMBOL_TYPE_TO_INCLU_END[BASE_SYMBOL]);
+}
+
+
+
+
+
+
 struct _CharToSymbol {
     std::array<AlignmentSymbol, 128> data;
     _CharToSymbol() {
@@ -340,6 +479,7 @@ const _CharToSymbol CHAR_TO_SYMBOL;
 struct TumorKeyInfo {
     std::string ref_alt;
     int32_t VTI = -1;
+    bool enable_tier2_consensus_format_tags = false;
     uvc1_refgpos_t pos = 0;
     
     uvc1_readnum_t BDP = 0;
@@ -365,6 +505,7 @@ struct TumorKeyInfo {
     std::array<uvc1_readnum_t, 2> nADR = {{ 0 }};
     uvc1_readnum_t tDPC = 0;
     std::array<uvc1_readnum_t, 2> tADCR = {{ 0 }};
+    std::array<uvc1_readnum_t, 2> nADCR = {{ 0 }}; 
     
     /*
     ~TumorKeyInfo() {
@@ -393,7 +534,9 @@ struct SegFormatPrepSet {
     uvc1_readnum_t segprep_a_near_RTR_ins_dp;
     uvc1_readnum_t segprep_a_near_RTR_del_dp;
     
-    uvc1_readnum_t segprep_a_pcr_dp;       // depth of PCR amplicons
+    // std::array<uvc1_readnum_t, 2> segprep_a_pcr_dps = {{ 0 }}; // depth of PCR amplicons on the R1R2 and R2R1 orientations
+    uvc1_readnum_t segprep_a_pcr_dp;       // depth of PCR-amplicon sequencing segments
+    uvc1_readnum_t segprep_a_umi_dp;       // depth of UMI-enabled sequencing segments
     uvc1_readnum_t segprep_a_snv_dp;
     uvc1_readnum_t segprep_a_dnv_dp;
     uvc1_readnum_t segprep_a_highBQ_dp;    // depth of high-BQ bases
@@ -532,8 +675,6 @@ struct SegFormatInfoSet {
     uvc1_readnum_t seginfo_aRIf;
     uvc1_readnum_t seginfo_aLIr;
 
-    uvc1_readpos_t seginfo_aLPT;
-    uvc1_readpos_t seginfo_aRPT;
     uvc1_readpos_big_t seginfo_aLIT;
     uvc1_readpos_big_t seginfo_aRIT;
 };
@@ -546,6 +687,27 @@ enum FragFormatDepthSet {
 };
 #define NUM_FRAG_FORMAT_DEPTH_SETS ((size_t)FRAG_FORMAT_DEPTH_SET_END)
 
+struct FamFormatInfoSet {
+    uvc1_readnum_t faminfo_c2LP1; // left tier-2-consensus family pos
+    uvc1_readnum_t faminfo_c2LP2;
+    uvc1_readpos_t faminfo_c2LPL;
+    uvc1_readnum_t faminfo_c2RP1; // right tier-2-consensus family pos
+    uvc1_readnum_t faminfo_c2RP2;
+    uvc1_readpos_t faminfo_c2RPL;
+    
+    uvc1_readnum_t faminfo_c2LP0;
+    uvc1_readnum_t faminfo_c2RP0;
+    
+    uvc1_readnum_t faminfo_c2LB1; // left tier-2-consensus family pos
+    uvc1_readnum_t faminfo_c2LB2;
+    uvc1_readpos_big_t faminfo_c2LBL;
+    uvc1_readnum_t faminfo_c2RB1; // right tier-2-consensus family pos
+    uvc1_readnum_t faminfo_c2RB2;
+    uvc1_readpos_big_t faminfo_c2RBL;
+
+    uvc1_readnum_t faminfo_c2BQ2;
+};
+
 enum FamFormatDepthSet {
     FAM_cDP1, // raw
     FAM_cDP12,// filtered
@@ -553,7 +715,7 @@ enum FamFormatDepthSet {
     FAM_cDP3, // 10, 0.8, family-consensus
     FAM_cDPM, // duped match
     FAM_cDPm, // duped mismatch
-    FAM_c1DP, //  singleton
+    FAM_cDP21, // singleton
     
     FAM_FORMAT_DEPTH_SET_END
 };
@@ -622,13 +784,21 @@ get_avgBQ(const T1 & bg_seg_bqsum_conslogo, const T2 & symbol_to_seg_format_dept
 }
 
 template
-<bool TBidirectional = true>
+<bool TBidirectional = true, bool TIsOverseqFracDisabled = false>
 std::array<double, 2> 
-dp4_to_pcFA(double aADpass, double aADfail, double aDPpass, double aDPfail, 
+dp4_to_pcFA(double overseq_frac, double aADpass, double aADfail, double aDPpass, double aDPfail, 
         double pl_exponent = 3.0, double n_nats = log(500+1),
         double aADavgKeyVal = -1, double aDPavgKeyVal = -1, double priorAD = 0.5, double priorDP = 1.0) {
-    assert(aADpass <= aDPpass || !fprintf(stderr, "%f <= %f failed for pass!\n", aADpass, aDPpass));
-    assert(aADfail <= aDPfail || !fprintf(stderr, "%f <= %f failed for fail!\n", aADfail, aDPfail));
+    assertUVC(aADpass >= 0.0 || !fprintf(stderr, "%f >= %f failed for pass!\n", aADpass, 0.0));
+    assertUVC(aADfail >= 0.0 || !fprintf(stderr, "%f >= %f failed for fail!\n", aADfail, 0.0));
+    assertUVC(aADpass <= aDPpass || !fprintf(stderr, "%f <= %f failed for pass!\n", aADpass, aDPpass));
+    assertUVC(aADfail <= aDPfail || !fprintf(stderr, "%f <= %f failed for fail!\n", aADfail, aDPfail));
+    if (!TIsOverseqFracDisabled) {
+        aDPfail *= overseq_frac;
+        aDPpass *= overseq_frac;
+        aADfail *= overseq_frac;
+        aADpass *= overseq_frac;
+    }
     aDPfail += priorDP;
     aDPpass += priorDP;
     aADfail += priorAD;
@@ -644,8 +814,8 @@ dp4_to_pcFA(double aADpass, double aADfail, double aDPpass, double aDPfail,
     }
     auto aBDfail = aDPfail * 2 - aADfail * 1;
     auto aBDpass = aDPpass * 2 - aADpass * 1;
-    assert (aBDfail > 0);
-    assert (aBDpass > 0);
+    assertUVC (aBDfail > 0);
+    assertUVC (aBDpass > 0);
     double aADpassfrac = aADpass / (aADpass + aADfail);
     double aBDpassfrac = aBDpass / (aBDpass + aBDfail);
     if ((!TBidirectional) && (aADavgKeyVal >= 0) && (aDPavgKeyVal >= 0)) {
@@ -680,10 +850,11 @@ main(int argc, char **argv) {
     double pca = atof(argv[9]);
     double pcb = atof(argv[10]);
     
-    const auto ret1 = dp4_to_pcFA<false>(adpass, adfail, dppass, dpfail, entropy, entrmax, ldist, rdist, pca, pcb);
-    const auto ret2 = dp4_to_pcFA<true>(adpass, adfail, dppass, dpfail, entropy, entrmax, ldist, rdist, pca, pcb);
-    printf("dp4_to_pcFA<false, true>(%f, %f, %f, %f, %f, %f, %f, %f, %f, %f) = <{%f, %f}, {%f, %f}>\n", adpass, adfail, dppass, dpfail, entropy, entrmax, ldist, rdist, pca, pcb, ret1[0], ret1[1], ret2[0], ret2[1]);
-}   
+    const auto ret1 = dp4_to_pcFA<false>(-1, adpass, adfail, dppass, dpfail, entropy, entrmax, ldist, rdist, pca, pcb);
+    const auto ret2 = dp4_to_pcFA<true>(-1, adpass, adfail, dppass, dpfail, entropy, entrmax, ldist, rdist, pca, pcb);
+    printf("dp4_to_pcFA<(false AND true)>(%f, %f, %f, %f, %f, %f, %f, %f, %f, %f) = ({%f, %f} AND {%f, %f})\n", 
+            adpass, adfail, dppass, dpfail, entropy, entrmax, ldist, rdist, pca, pcb, ret1[0], ret1[1], ret2[0], ret2[1]);
+}
 
 #endif
 

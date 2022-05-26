@@ -9,6 +9,13 @@
 
 #define DEBUG_NOTE_FLAG_BITMASK_BAQ_OFFSETARR 0x1
 
+// Three FASTQ files and three cluster files
+#define NUM_FQLIKE_CON_OUT_FILES (2*3)
+
+static const std::array<std::string, NUM_FQLIKE_CON_OUT_FILES> FASTQ_LIKE_SUFFIXES = {
+        "R1.fastq.gz", "R2.fastq.gz", "SE.fastq.gz",
+        "R1.group.gz", "R2.group.gz", "SE.group.gz"};
+
 struct CommandLineArgs {
 
 // *** 00. frequently used parameters
@@ -22,6 +29,7 @@ struct CommandLineArgs {
     std::string sample_name = "-";
     
     size_t      max_cpu_num = 8;
+    size_t      mem_per_thread = (1024 * 3 / 2); // MegaBytes, for samtools sort 1.11 the value is 768. Variant calling is more complex and mem-consuming than sorting.
     
     uvc1_flag_t outvar_flag = OUTVAR_SOMATIC + OUTVAR_ANY + OUTVAR_MGVCF + OUTVAR_BASE_NN + OUTVAR_ADDITIONAL_INDEL_CANDIDATE;
     bool        should_output_all = false;
@@ -36,12 +44,14 @@ struct CommandLineArgs {
     uvc1_readnum100x_t fam_thres_dup1perc = 80;
     uvc1_readnum_t     fam_thres_dup2add = 3;
     uvc1_readnum100x_t fam_thres_dup2perc = 70; // 85 for more consensus specificity
+    std::string        fam_consensus_out_fastq = "";
     
 // *** 01. parameters of the names of files, samples, regions, etc.
     
     std::string vcf_tumor_fname = NOT_PROVIDED;
     std::string bed_out_fname = NOT_PROVIDED;
     std::string bed_in_fname = NOT_PROVIDED;
+    uvc1_readnum_t bed_in_avg_sequencing_DP = -1; // infer from input BAM data
     
 // *** 02. parameters that control input, output, and logs (driven by computational requirements and resources)
     
@@ -66,11 +76,10 @@ struct CommandLineArgs {
     
     uvc1_readnum_t     min_r_ad = 0;
     uvc1_readnum_t     min_a_ad = 0;
-
+    
     bool        should_add_note = false;
     bool        always_log = false;
-       
-// *** 03. parameters that are driven by the properties of the assay
+   // *** 03. parameters that are driven by the properties of the assay
     
     MoleculeTag molecule_tag = MOLECULE_TAG_AUTO;
     SequencingPlatform sequencing_platform = SEQUENCING_PLATFORM_AUTO;
@@ -83,6 +92,7 @@ struct CommandLineArgs {
     bool              disable_duplex = false;
     uvc1_readpos_t    primerlen = 0; // 23; // https://link.springer.com/chapter/10.1007/978-1-4020-6241-4_5 : 18 - 22 bps
     uvc1_readpos_t    primerlen2 = 23; // https://genome.cshlp.org/content/3/3/S30.full.pdf : 18 - 24 bps
+    uvc1_flag_t       primer_flag = 0x0; 
     uvc1_readpos_t    central_readlen = 0; // estimate from the data
     uvc1_qual_t       bq_phred_added_misma = 0; // estimate from the data
     uvc1_qual_t       bq_phred_added_indel = 0; // estimate from the data
@@ -91,10 +101,12 @@ struct CommandLineArgs {
     // https://cs.brynmawr.edu/Courses/cs380/spring2013/section02/slides/10_ScaleFreeNetworks.pdf
     double           powlaw_exponent = 3.0; // universality constant
     double           powlaw_anyvar_base = (double)(60+25+5); // universality constant
+    double           powlaw_amplicon_allele_fraction_coef = (5.0/8.0);
     
     uvc1_qual_t      penal4lowdep = 37;
     uvc1_qual_t      assay_sequencing_BQ_max = 37;
-    
+    uvc1_qual_t      assay_sequencing_BQ_inc = 0;
+
     uvc1_readnum_t   phasing_haplotype_max_count = 8;
     uvc1_readnum_t   phasing_haplotype_min_ad = 1;
     uvc1_readnum_t   phasing_haplotype_max_detail_cnt = 3;
@@ -104,10 +116,18 @@ struct CommandLineArgs {
     // PCR stutter noise at (di,tri,tetra,...)-nucleotide generates +-(2,3,4...) shift in read end position, 
     // so more accurate dedupping requires us to consider these cases. This constant is good enough for the general case.
     double           dedup_center_mult = 5; 
-    double           dedup_amplicon_count_to_surrcount_ratio = 16; // can be 20
-    double           dedup_amplicon_count_to_surrcount_ratio_twosided = 4; // can be 5 or 6
+    //double           dedup_amplicon_count_to_surrcount_ratio = 16; // can be 20
+    //double           dedup_amplicon_count_to_surrcount_ratio_twosided = 4; // can be 5 or 6
     double           dedup_amplicon_end2end_ratio = 1.5;
+    double           dedup_amplicon_border_to_insert_cov_weak_avgDP_ratio = 5; // *1.5;
+    double           dedup_amplicon_border_to_insert_cov_strong_avgDP_ratio = 20; // *1.5;
     
+    double           dedup_amplicon_border_to_insert_cov_weak_totDP_ratio = 0.05;
+    double           dedup_amplicon_border_to_insert_cov_strong_totDP_ratio = 0.20;
+    
+    double           dedup_amplicon_border_weak_minDP = 100;
+    double           dedup_amplicon_border_strong_minDP = 400;
+
     uvc1_flag_t      dedup_flag = 0x0;
     
 // *** 05. parameters related to bias thresholds
@@ -167,8 +187,12 @@ struct CommandLineArgs {
     uvc1_qual_t        bias_thres_BAQ1 = 23;
     uvc1_qual_t        bias_thres_BAQ2 = 33;
     
-    double             bias_thres_FTS_FA = 2.0;
+    uvc1_readpos_t     bias_thres_strict_c2LRP0 = 5;
+    
+    double             bias_thres_FTS_FA = 0.95+1e-5;
     bool               bias_is_orientation_artifact_mixed_with_sequencing_error = false;
+    double             bias_orientation_min_effective_allelefrac = 0.004;
+
 // *** 06. parameters related to the priors of bias
     
     uvc1_readnum100x_t bias_prior_DPadd_perc = 50;
@@ -197,6 +221,9 @@ struct CommandLineArgs {
     uvc1_qual_t    bias_FA_powerlaw_withUMI_phred_inc_snv = 5+3;
     uvc1_qual_t    bias_FA_powerlaw_withUMI_phred_inc_indel = 7;
     
+    uvc1_readnum_t bias_reduction_by_high_sequencingDP_min_n_totDepth = 800;
+    uvc1_readnum_t bias_reduction_by_high_sequencingDP_min_n_altDepth = 3;
+
     uvc1_flag_t    nobias_flag = 0x2;
     double         nobias_pos_indel_lenfrac_thres = 2.0; // set very low to disable position bias for InDels
     uvc1_readpos_t nobias_pos_indel_str_track_len = 16;
@@ -208,9 +235,11 @@ struct CommandLineArgs {
     uvc1_readnum_t      fam_thres_emperr_all_flat_indel = 4; // can be 5
     uvc1_readnum100x_t  fam_thres_emperr_con_perc_indel = 67; // can be 75
     
-    uvc1_readnum_t      fam_min_n_copies = 300 * 3; // 300 DNA copies per nanogram of DNA
-    uvc1_readnum100x_t  fam_min_overseq_perc = 250; // percent fold of over-sequencing
-    
+    uvc1_readnum_t      fam_min_n_copies = 800; // 300 * 3; // 300 DNA copies per nanogram of DNA
+    uvc1_readnum_t      fam_min_n_copies_DPxAD = 20 * 1000;
+    uvc1_readnum100x_t  fam_min_overseq_perc = 200; // 250; // percent fold of over-sequencing
+    uvc1_readnum100x_t  fam_bias_overseq_perc = 150; // percent fold of over-sequencing
+    uvc1_readnum100x_t  fam_tier3DP_bias_overseq_perc = 350;
     uvc1_readnum100x_t  fam_indel_nonUMI_phred_dec_per_fold_overseq = 9;
 
     // 10: error of 10 PCR cycles using low-fidelity polymerase, https://www.nature.com/articles/s41598-020-63102-8
@@ -231,11 +260,14 @@ struct CommandLineArgs {
     uvc1_qual_t         fam_phred_dscs_max = 68; // theoretical max
     uvc1_qual_t         fam_phred_dscs_inc_max = (68-48);
     
-    uvc1_qual_t         fam_phred_pow_sscs_transversion_AT_TA_origin = 44-41+4; // A:T > T:A somatic mutations are uncommon
-    double              fam_phred_pow_sscs_snv_origin = 44 - 41; // 10*log((2.7e-3-3.5e-5)/(1.5e-4-3.5e-5))/log(10)*3 is 41 from https://doi.org/10.1073/pnas.1208715109 PMC3437896
+    // 10*log((2.7e-3-3.5e-5)/(1.5e-4-3.5e-5))/log(10)*3 is 41 from https://doi.org/10.1073/pnas.1208715109 PMC3437896
+    // The -6 is to accommodate for the fact that most BQs are strictly above 30.
+    uvc1_qual_t         fam_phred_pow_sscs_transversion_AT_TA_origin = 44 - (41-6) + 4; // A:T > T:A somatic mutations are uncommon
+    double              fam_phred_pow_sscs_snv_origin = 44 - (41-6);
     double              fam_phred_pow_sscs_indel_origin = fam_phred_sscs_indel_open - 9 * 3;
     double              fam_phred_pow_dscs_all_origin = 0;
-    
+    uvc1_flag_t         fam_flag = 0x0; // 0x1: set cap to BQ. 0x2: disable requirement of having UMI to consensus.
+
 // *** 08. parameters related to systematic errors
     
     uvc1_qual_t         syserr_BQ_prior = 30; // https://bmcbioinformatics.biomedcentral.com/articles/10.1186/1471-2105-12-451
@@ -286,10 +318,10 @@ struct CommandLineArgs {
     uvc1_qual_t tn_q_inc_max_sscs_CG_AT = 0;
     uvc1_qual_t tn_q_inc_max_sscs_other = 5;
     
-    // PHRED-scaled likelihood that the observed allele fraction additively deviates from the expected allele fraction by a multiplicative factor of 2
+    // Phred-scaled likelihood that the observed allele fraction additively deviates from the expected allele fraction by a multiplicative factor of 2
     double      tn_syserr_norm_devqual = 15.0; // can be (double)(12.5);
     uvc1_flag_t tn_is_paired = false;
-    uvc1_flag_t tn_flag = 0x0;
+    //uvc1_flag_t tn_flag = 0x0;
 
 // *** 11. parameters related to InDels.
     
@@ -343,7 +375,7 @@ struct CommandLineArgs {
     double              microadjust_counterbias_pos_odds_ratio = 3.5;
     double              microadjust_counterbias_pos_fold_ratio = 5.0;
     
-    uvc1_qual_t         microadjust_fam_binom_qual_halving_thres = 60; // changed the buggy 22; 60 means halved effect of read support at one-FP/million-BP
+    uvc1_qual_t         microadjust_fam_binom_qual_halving_thres = 70; // 22; // =x where x means halved effect of read support at one-FP/(10^(x/10)) base-pairs
     int32_t             microadjust_fam_lowfreq_invFA = 1000;
     uvc1_qual_t         microadjust_ref_MQ_dec_max = 15;
     
@@ -378,11 +410,16 @@ struct CommandLineArgs {
 // *** 14. parameters related to debugging in vcf
     uvc1_flag_t         debug_note_flag = 0x0;
     uvc1_readpos_t      debug_warn_min_read_end_ins_cigar_oplen = 16;
-
+    uvc1_refgpos_t      debug_tid = -1;
+    uvc1_refgpos_t      debug_pos = -1;
+    
 // *** extra useful info
     // https://www.biostars.org/p/254467/#254868 : Question: Are these false somatic variants? Visual inspection with IGV
     // How to tell the difference between HDR and kataegis?
 // *** end 
+    
+    bool inferred_is_fastq_generated = false;
+    bool inferred_is_vcf_generated = true;
     
     int
     initFromArgCV(int & parsing_result_flag, int argc, const char *const* argv);
