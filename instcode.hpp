@@ -26,17 +26,17 @@ fill_by_indel_info2_2
         const std::string & refchars IGNORE_UNUSED_PARAM,
         const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
     
-    assert(isSymbolIns(symbol) || isSymbolDel(symbol));
+    assertUVC(isSymbolIns(symbol) || isSymbolDel(symbol));
     if (isSymbolIns(symbol)) {
-        assert (LINK_I1 == symbol || LINK_I2 == symbol || LINK_I3P == symbol || 
+        assertUVC (LINK_I1 == symbol || LINK_I2 == symbol || LINK_I3P == symbol || 
                 !fprintf(stderr, "Symbol %s does not match any of {%s, %s, %s}", 
                 SYMBOL_TO_DESC_ARR[symbol], SYMBOL_TO_DESC_ARR[LINK_I1], SYMBOL_TO_DESC_ARR[LINK_I2], SYMBOL_TO_DESC_ARR[LINK_I3P]));
     } else {
-        assert (LINK_D1 == symbol || LINK_D2 == symbol || LINK_D3P == symbol || 
+        assertUVC (LINK_D1 == symbol || LINK_D2 == symbol || LINK_D3P == symbol || 
                 !fprintf(stderr, "Symbol %s does not match any of {%s, %s, %s}", 
                 SYMBOL_TO_DESC_ARR[symbol], SYMBOL_TO_DESC_ARR[LINK_D1], SYMBOL_TO_DESC_ARR[LINK_D2], SYMBOL_TO_DESC_ARR[LINK_D3P]));
     }
-    assert(bq_tsum_depth.find(refpos) != bq_tsum_depth.end());
+    assertUVC(bq_tsum_depth.find(refpos) != bq_tsum_depth.end());
     
     std::vector<std::tuple<uvc1_readnum_t, uvc1_readnum_t, uvc1_readnum_t, uvc1_readnum_t, std::string>> bqfq_depth_mutform_tuples;
     for (auto indel2data4 : bq_tsum_depth.at(refpos)) {
@@ -54,7 +54,7 @@ fill_by_indel_info2_2
         const uvc1_readnum_t fqdata = posToIndelToData_get(fq_tsum_depth, refpos, indel);
         const uvc1_readnum_t fqdata_cDP2 = posToIndelToData_get(fq_tsum_depth_cDP2, refpos, indel);
         const uvc1_readnum_t fqdata_cDP3 = posToIndelToData_get(fq_tsum_depth_cDP3, refpos, indel);
-        assert(bqdata > 0);
+        assertUVC(bqdata > 0);
         bqfq_depth_mutform_tuples.push_back(std::make_tuple(fqdata, bqdata, fqdata_cDP2, fqdata_cDP3, indelstring));
     }
     uvc1_readnum_t gapbAD1sum = 0;
@@ -67,7 +67,7 @@ fill_by_indel_info2_2
     uvc1_readnum_t maxdiff = 0; 
     for (auto bqfq_depth_mutform : bqfq_depth_mutform_tuples) {
         const auto gap_seq = std::get<2+2>(bqfq_depth_mutform);
-        assert(gap_seq.size() > 0);
+        assertUVC(gap_seq.size() > 0);
         auto gap_cAD = std::get<0>(bqfq_depth_mutform);
         auto gap_cAD2 = std::get<2>(bqfq_depth_mutform);
         auto gap_cAD3 = std::get<3>(bqfq_depth_mutform);
@@ -97,11 +97,11 @@ fill_by_indel_info2_2
     */
     // "/4+16" is a probabilistic check in the following code
     /*
-    assert(fmt.AD2[strand] >= gapAD2sum && (fmt.AD2[strand] <= gapAD2sum * 5 / 4 + 16) ||
+    assertUVC(fmt.AD2[strand] >= gapAD2sum && (fmt.AD2[strand] <= gapAD2sum * 5 / 4 + 16) ||
             !(std::cerr << fmt.AD2[strand] << " >= | <=5/4+16 " << gapAD2sum
             << " failed for AD2 and gapAD2sum for strand " << strand << " at position " << refpos << " for symbol " << SYMBOL_TO_DESC_ARR[symbol] 
             << " and gapNum " << fmt.gapNum[strand] << " or equiv " << rawdu2_dedup_size1_mutform_tuples.size() << std::endl));
-    assert(fmt.ADr[strand] >= gapADrsum && (fmt.ADr[strand] <= gapADrsum * 5 / 4 + 16) ||
+    assertUVC(fmt.ADr[strand] >= gapADrsum && (fmt.ADr[strand] <= gapADrsum * 5 / 4 + 16) ||
             !(std::cerr << fmt.ADr[strand] << " >= | <=5/4+16 " << gapADrsum
             << " failed for ADr and gapADrsum for strand " << strand << " at position " << refpos << " for symbol " << SYMBOL_TO_DESC_ARR[symbol] << " and gapNum " << fmt.gapNum[strand] << std::endl));
     */
