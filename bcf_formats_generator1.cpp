@@ -380,7 +380,7 @@ const std::vector<BcfFormatStruct> FORMAT_VEC = {
     // BcfFormatStruct("CDPmr" , 2,1,       BCF_INTEGER, "Depth of PCR fragments not supporting the UMI-consensus allele on the reverse read orientation for all alleles by sum. ").sscs(),
     BcfFormatStruct("CDPmb"  , 2,         BCF_INTEGER, "Depth of PCR fragments not supporting the UMI-consensus allele on the forward and reverse read orientations for all alleles by sum. ").sscs(),
     
-    BcfFormatStruct("CDPDb" , 2,         BCF_INTEGER, "DSCS-excluded SSCS depths on the forward and reverse read orientations. "),
+    BcfFormatStruct("CDPDb" , 2,         BCF_INTEGER, "DSCS-excluded SSCS depths on the forward and reverse read orientations for all alleles by sum. "),
     BcfFormatStruct("cDPDf" , BCF_NUM_R, BCF_INTEGER, "DSCS-excluded SSCS depth on the forward read orientation. "),
     BcfFormatStruct("cDPDr" , BCF_NUM_R, BCF_INTEGER, "DSCS-excluded SSCS depth on the reverse read orientation. "),
     
