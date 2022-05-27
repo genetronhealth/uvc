@@ -2461,6 +2461,10 @@ struct Symbol2CountCoverageSet {
             }
             const auto min2 = ((mb.duplexflag & 0x8) ? mb.beg_tidpos_pair : MIN(mb.beg_tidpos_pair, mb.end_tidpos_pair));
             const auto max2 = ((mb.duplexflag & 0x8) ? mb.end_tidpos_pair : MAX(mb.beg_tidpos_pair, mb.end_tidpos_pair));
+            std::string fqcomment_common = 
+                    std::to_string("umiFamSize=") + std::to_string(alns2.size())
+                    + ";extPositions=" + std::to_string(extended_beg_pos) + "-" + std::to_string(extended_end_pos)
+                    + ";dupFlag=" + anyuint2hexstring((uint16_t)(mb.dedup_idflag * 256 + mb.duplexflag));
             std::string fqname = std::string("@")
                     +        std::to_string(min2.first)
                      + ":" + std::to_string(min2.second)
@@ -2470,13 +2474,13 @@ struct Symbol2CountCoverageSet {
                     + "|" + (strand ? "+-" : "-+")  + std::to_string((min2.first == max2.first) ? (max2.second - min2.second + 1) : 0) 
                         // the extra -1 is due to possible insertion at the front/back of the fragment
                     + "|" + mb.umistring + "#" //+ "#-1-"
-                    + anyuint2hexstring(mb.hashvalue) + " flag=" + anyuint2hexstring((uint16_t)(mb.dedup_idflag * 256 + mb.duplexflag));
+                    + anyuint2hexstring(mb.hashvalue);
             const size_t fqidx = ((n_PE_alns >= n_SE_alns) ? (idx^strand) : 2);
             auto &fqdata = fastq_outstrings[fqidx];
             auto &clusterdata = fastq_outstrings[fqidx+3];
             const size_t ini_fqdata_size = fqdata.size();
             //  here we put all read names of the original BAM that did not go through any consensus.
-            std::string fqcomment = std::to_string(alns2.size()) + "x(" + std::to_string(extended_beg_pos) + "-" + std::to_string(extended_end_pos) + ")";
+            std::string fqcomment = fqcomment_common;
             for (const auto bams : alns2) {
                 assertUVC(bams.size() <= 2);
                 assertUVC(bams.size() >= 1);
@@ -2489,7 +2493,7 @@ struct Symbol2CountCoverageSet {
                     fqcomment += bam_get_qname(bams[0]);
                 }
             }
-            fqdata += fqname + "\n";
+            fqdata += fqname + " " + fqcomment_common + "\n";
             clusterdata += fqname + " " +  fqcomment + "\n";
             // FQ line 2: sequence
             for (const auto & baseBQ : stringof_baseBQ_pairs) {
@@ -5852,9 +5856,11 @@ fill_conditional_tki(TumorKeyInfo & tki, const bcfrec::BcfFormat & fmt) {
     if (TIsFmtTumor) {
         tki.tDP = SUMPAIR(fmt.CDP1b); // (fmt.CDP1f[0] + fmt.CDP1r[0]);
         tki.tADR = {{ fmt.cDP1f[0] + fmt.cDP1r[0], LAST(fmt.cDP1f) + LAST(fmt.cDP1r) }};
-        tki.tDPC = SUMPAIR(fmt.CDP2b); // (fmt.CDP2f[0] + fmt.CDP2r[0]);
-        tki.tADCR = {{ fmt.cDP2f[0] + fmt.cDP2r[0], LAST(fmt.cDP2f) + LAST(fmt.cDP2r) }};
-        
+        // tki.tDPC = SUMPAIR(fmt.CDP2b); // (fmt.CDP2f[0] + fmt.CDP2r[0]);
+        // tki.tADCR = {{ fmt.cDP2f[0] + fmt.cDP2r[0], LAST(fmt.cDP2f) + LAST(fmt.cDP2r) }};
+        tki.tDPC = SUMPAIR(fmt.CDPDb) + SUMPAIR(fmt.DDP2);
+        tki.tADCR = {{ fmt.cDPDf[0] + fmt.cDPDr[0] + fmt.dDP2[0], LAST(fmt.cDPDf) + LAST(fmt.cDPDr) + LAST(fmt.dDP2) }};
+
         tki.nDP = 0;
         tki.nADR = {{ 0 }};
         //tki.nDPC = 0; // this tag does not seem to be useful in most situations
@@ -5863,7 +5869,8 @@ fill_conditional_tki(TumorKeyInfo & tki, const bcfrec::BcfFormat & fmt) {
         tki.nDP = SUMPAIR(fmt.CDP1b);  //(fmt.CDP1f[0] + fmt.CDP1r[0]);
         tki.nADR = {{ fmt.cDP1f[0] + fmt.cDP1r[0], LAST(fmt.cDP1f) + LAST(fmt.cDP1r) }};
         //tki.nDPC = (fmt.CDP2f[0] + fmt.CDP2r[0]);
-        tki.nADCR = {{ fmt.cDP2f[0] + fmt.cDP2r[0], LAST(fmt.cDP2f) + LAST(fmt.cDP2r) }};
+        //tki.nADCR = {{ fmt.cDP2f[0] + fmt.cDP2r[0], LAST(fmt.cDP2f) + LAST(fmt.cDP2r) }};
+        tki.nADCR = {{ fmt.cDPDf[0] + fmt.cDPDr[0] + fmt.dDP2[0], LAST(fmt.cDPDf) + LAST(fmt.cDPDr) + LAST(fmt.dDP2) }};
     }
     return TIsFmtTumor;
 }
