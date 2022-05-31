@@ -482,6 +482,13 @@ process_batch(
     const bool is_by_capture = ((num_pcrpassed_reads) * 2 <= num_passed_reads);
     const AssayType inferred_assay_type = ((ASSAY_TYPE_AUTO == paramset.assay_type) ? (is_by_capture ? ASSAY_TYPE_CAPTURE : ASSAY_TYPE_AMPLICON) : (paramset.assay_type));
     
+    if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts converting umi_to_strand_to_reads with is_by_capture = " << is_by_capture << "  " ;}
+    fill_strand_umi_readset_with_strand_to_umi_to_reads(
+            umi_strand_readset, 
+            umi_to_strand_to_reads, 
+            paramset,
+            0); // bigger region
+    
     if ((0 == num_passed_reads) || (-1 == num_passed_reads)) { 
         umi_strand_readset_uvc_destroy(umi_strand_readset);
         return -1; 
@@ -511,13 +518,6 @@ process_batch(
         }
     } // bigger region
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " deals with " << num_rescued << " tumor-sample variants in region " << extended_inclu_beg_pos << " to " << extended_exclu_end_pos + 1 ;}
-    
-    if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts converting umi_to_strand_to_reads with is_by_capture = " << is_by_capture << "  " ;}
-    fill_strand_umi_readset_with_strand_to_umi_to_reads(
-            umi_strand_readset, 
-            umi_to_strand_to_reads, 
-            paramset,
-            0); // bigger region
     
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts constructing symbolToCountCoverageSet12 with " << extended_inclu_beg_pos << (" , ") << extended_exclu_end_pos; }
     // + 1 accounts for insertion at the end of the region, this should happen rarely for only re-aligned reads at around once per one billion base pairs
