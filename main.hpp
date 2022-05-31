@@ -1647,7 +1647,7 @@ public:
             }
         }
         for (auto cigartype: ALL_CONSENSUS_BLOCK_CIGAR_TYPES) {
-            if (TIsConsensusBlock) { this->getRefConsensusBlockSet(cigartype).incByConsensus(other.getConsensusBlockSet(cigartype)); }
+            if (TIsConsensusBlock) { this->getRefConsensusBlockSet(cigartype).incByConsensusForSeq(other.getConsensusBlockSet(cigartype)); }
         }
     }
     
@@ -1682,7 +1682,7 @@ public:
             if (updateresult) { num_updated_pos++; }
         }
         for (auto cigartype: ALL_CONSENSUS_BLOCK_CIGAR_TYPES) {
-            if (TIsConsensusBlock) this->getRefConsensusBlockSet(cigartype).incByConsensus(other.getConsensusBlockSet(cigartype));
+            if (TIsConsensusBlock) this->getRefConsensusBlockSet(cigartype).incByConsensusForSeq(other.getConsensusBlockSet(cigartype));
         }
         return num_updated_pos;
     };
@@ -2404,9 +2404,9 @@ struct Symbol2CountCoverageSet {
     generate_consensus_fastq_data(
             auto & fastq_outstrings,
             // const auto & fq_baseBQ_pairs, 
-            const FastqRecord & stringof_baseBQ_pairs,
-            const uvc1_refgpos_t extended_beg_pos,
-            const uvc1_refgpos_t extended_end_pos,
+            const FastqConsensusSeqSegment & stringof_baseBQ_pairs,
+            //const uvc1_refgpos_t extended_beg_pos,
+            //const uvc1_refgpos_t extended_end_pos,
             const auto & l2r_qseqlens,
             const auto & r2l_qseqlens,
             const auto strand,
@@ -2424,7 +2424,7 @@ struct Symbol2CountCoverageSet {
                 }
             }
         }
-
+        
         size_t ret = 0;
         /*
         const char *base_NN_desc = SYMBOL_TO_DESC_ARR[BASE_NN];
@@ -2434,78 +2434,81 @@ struct Symbol2CountCoverageSet {
         while (beg < end && (base_NN_desc[0] == fq_baseBQ_pairs[beg].first)) { beg++; }
         while (beg < end && (base_NN_desc[0] == fq_baseBQ_pairs[end-1].first)) { end--; }
         
-        const FastqRecord stringof_baseBQ_pairs = fq_baseBQ_pairs.substr(beg, end - beg);
+        const FastqConsensusSeqSegment stringof_baseBQ_pairs = fq_baseBQ_pairs.substr(beg, end - beg);
         */
         std::vector<size_t> begposs, endposs;
-        std::array<std::basic_string<std::pair<char, int8_t>>, 2> stringof_baseBQ_pairs_vec;
+        std::array<FastqConsensusSeqSegment, 2> stringof_baseBQ_pairs_vec;
         // assertUVC (l2r_qseqlens.size() == r2l_qseqlens.size()); // this holds if and only if only proper-paired reads were kept, which is now the case as of now
         if ((l2r_qseqlens.size() > 0)) {
             size_t endpos = MIN((size_t)MEDIAN(l2r_qseqlens), stringof_baseBQ_pairs.size());
             stringof_baseBQ_pairs_vec[0] = (stringof_baseBQ_pairs.substr(0, endpos));
         } else {
-            stringof_baseBQ_pairs_vec[0] = (FastqRecord());
+            stringof_baseBQ_pairs_vec[0] = (FastqConsensusSeqSegment());
         }
         if ((r2l_qseqlens.size() > 0)) {
             size_t begpos = stringof_baseBQ_pairs.size() - MIN((size_t)MEDIAN(r2l_qseqlens), stringof_baseBQ_pairs.size());
             size_t endpos = stringof_baseBQ_pairs.size();
             stringof_baseBQ_pairs_vec[1] = (stringof_baseBQ_pairs.substr(begpos, endpos - begpos));
         } else {
-            stringof_baseBQ_pairs_vec[1] = (FastqRecord());
+            stringof_baseBQ_pairs_vec[1] = (FastqConsensusSeqSegment());
         }
         for (size_t idx = 0; idx < ((n_PE_alns >= n_SE_alns) ? 2 : 1); idx++) {
-            auto &  stringof_baseBQ_pairs = stringof_baseBQ_pairs_vec[idx];
+            auto & stringof_baseBQ_pairs = stringof_baseBQ_pairs_vec[idx];
             if (stringof_baseBQ_pairs.size() < 20) { continue; }
-            // FQ line 1: read name
             if (idx) { // is insert ending at the right border
                 reverseAndComplement(stringof_baseBQ_pairs); // RevComplement
             }
             const auto min2 = ((mb.duplexflag & 0x8) ? mb.beg_tidpos_pair : MIN(mb.beg_tidpos_pair, mb.end_tidpos_pair));
             const auto max2 = ((mb.duplexflag & 0x8) ? mb.end_tidpos_pair : MAX(mb.beg_tidpos_pair, mb.end_tidpos_pair));
+            /* 
             std::string fqcomment_common = 
-                    std::to_string("umiFamSize=") + std::to_string(alns2.size())
+                    std::string("umiFamSize=") + std::to_string(alns2.size())
                     + ";extPositions=" + std::to_string(extended_beg_pos) + "-" + std::to_string(extended_end_pos)
                     + ";dupFlag=" + anyuint2hexstring((uint16_t)(mb.dedup_idflag * 256 + mb.duplexflag));
+            */
             std::string fqname = std::string("@")
                     +        std::to_string(min2.first)
                      + ":" + std::to_string(min2.second)
                     +  "-" + std::to_string(max2.first)
                      + ":" + std::to_string(max2.second)
-                    //+ ":" + std::to_string(beg2) // begin is not well defined for split-mapped reads
                     + "|" + (strand ? "+-" : "-+")  + std::to_string((min2.first == max2.first) ? (max2.second - min2.second + 1) : 0) 
-                        // the extra -1 is due to possible insertion at the front/back of the fragment
-                    + "|" + mb.umistring + "#" //+ "#-1-"
-                    + anyuint2hexstring(mb.hashvalue);
+                    + "|" + mb.umistring + "#-1#0_0"
+                    + "|" + anyuint2hexstring(mb.hashvalue);
+            
             const size_t fqidx = ((n_PE_alns >= n_SE_alns) ? (idx^strand) : 2);
-            auto &fqdata = fastq_outstrings[fqidx];
-            auto &clusterdata = fastq_outstrings[fqidx+3];
-            const size_t ini_fqdata_size = fqdata.size();
-            //  here we put all read names of the original BAM that did not go through any consensus.
-            std::string fqcomment = fqcomment_common;
-            for (const auto bams : alns2) {
-                assertUVC(bams.size() <= 2);
-                assertUVC(bams.size() >= 1);
-                if (bams.size() == 2) {
-                    assertUVC(!strcmp(bam_get_qname(bams[0]),bam_get_qname(bams[1])));
-                    fqcomment += " @@"; // pair-end
-                    fqcomment += bam_get_qname(bams[0]);
-                } else if (bams.size() == 1) {
-                    fqcomment += " @"; // single-end
-                    fqcomment += bam_get_qname(bams[0]);
-                }
+            
+            std::string fqcomment_umi_famsize, fqcomment_umi_famcons;
+            uvc1_readnum_t max_family_size = 0;
+            for (const auto & baseBQ : stringof_baseBQ_pairs) {
+                UPDATE_MAX(max_family_size, baseBQ.family_size);
             }
-            fqdata += fqname + " " + fqcomment_common + "\n";
-            clusterdata += fqname + " " +  fqcomment + "\n";
+            size_t baseBQ_idx = 0;
+            for (const auto & baseBQ : stringof_baseBQ_pairs) {
+                if (0 < baseBQ_idx) {
+                    fqcomment_umi_famsize.push_back(',');
+                    fqcomment_umi_famcons.push_back(',');
+                }
+                fqcomment_umi_famsize += ((baseBQ.family_size == max_family_size) ? "." : std::to_string(baseBQ.family_size));
+                fqcomment_umi_famcons += ((baseBQ.family_identity >= 1.0 - (double)(FLT_EPSILON)) ? "." : std::to_string(baseBQ.family_identity));
+                baseBQ_idx++;
+            }
+            std::string fqcomment1 = std::to_string(fqidx + 1) + ":N:0:" + std::to_string(max_family_size) + "," + fqcomment_umi_famsize + ";" + fqcomment_umi_famcons;
+            
+            auto &fqdata = fastq_outstrings[fqidx];
+            const size_t ini_fqdata_size = fqdata.size();
+            
+            // FQ line 1: read-name
+            fqdata += fqname + " " + fqcomment1 +  "\n";
             // FQ line 2: sequence
             for (const auto & baseBQ : stringof_baseBQ_pairs) {
-                fqdata.push_back(baseBQ.first);
+                fqdata.push_back(baseBQ.base);
             }
             fqdata += "\n";
             // FQ line 3: optional
             fqdata += "+\n";
-            
             // FQ line 4: base-call qualities
             for (const auto & baseBQ : stringof_baseBQ_pairs) {
-                fqdata.push_back((char)(baseBQ.second + 33)); // the exclamation mark '!' with ascii value 33 denotes the Phred score of zero. 
+                fqdata.push_back((char)(baseBQ.quality + 33)); // the exclamation mark '!' with ascii value 33 denotes the Phred score of zero. 
             }
             fqdata += "\n"; 
             ret += fqdata.size() - ini_fqdata_size;
@@ -2836,7 +2839,9 @@ struct Symbol2CountCoverageSet {
             niters++;
             assertUVC (alns2pair[0].size() != 0 || alns2pair[1].size() != 0);
             for (int strand = 0; strand < 2; strand++) {
-                FastqRecord fq_baseBQ_pairs; 
+                FastqConsensusSeqSegment fq_baseBQ_pairs;
+                std::vector<uvc1_readnum_t> fq_family_sizes;
+                std::vector<float> fq_family_identities;
                 const auto & alns2 = alns2pair[strand];
                 if (alns2.size() == 0) { continue; }
                 
@@ -2874,15 +2879,12 @@ struct Symbol2CountCoverageSet {
                             0);
                     
                     read_family_con_ampl.updateByFiltering<true>(
-                        read_ampBQerr_fragWithR1R2, 
-                        std::array<uvc1_qual_t, NUM_SYMBOL_TYPES> {{ paramset.fam_thres_highBQ_snv, 0 }},
-                        (paramset.microadjust_padded_deletion_flag & ((SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform) ? 0x2 : 0x1)));
+                            read_ampBQerr_fragWithR1R2, 
+                            std::array<uvc1_qual_t, NUM_SYMBOL_TYPES> {{ paramset.fam_thres_highBQ_snv, 0 }},
+                            (paramset.microadjust_padded_deletion_flag & ((SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform) ? 0x2 : 0x1)));
                     if (is_consensus_to_fastq) {
-                        //for (auto cigartype: ALL_CONSENSUS_BLOCK_CIGAR_TYPES) {
-                        //    read_family_con_ampl.getRefConsensusBlockSet(cigartype).incByConsensus(read_ampBQerr_fragWithR1R2.getConsensusBlockSet(cigartype));
-                        //};
                         read_family_mmm_ampl.updateByMajorMinusMinor<true>(read_ampBQerr_fragWithR1R2);
-                    }
+                    } 
                 }
 
                 // BEGIN of bias+consensus prep at family level
@@ -3029,9 +3031,12 @@ struct Symbol2CountCoverageSet {
                                                 ((effective_tot_count - morecenter_cigarMD_count) * 100 >= effective_tot_count * paramset.fam_thres_dup1perc)
                                                 && (paramset.fam_consensus_out_fastq_thres_dup1add <= effective_tot_count));
 #ifdef UVC_IN_DEBUG_MODE
-                                        LOG(logINFO) << "DebugINFO: CONSENSUS-PREP2-CURR" 
+                                        if (paramset.debug_tid == tid2 && (paramset.debug_pos - 3 < consensusBlockSetsIts[cigartype]->first) 
+                                                && (consensusBlockSetsIts[cigartype]->first < paramset.debug_pos + 3)) {
+                                            LOG(logINFO) << "DebugINFO: CONSENSUS-PREP2-CURR" 
                                                 << " is_morecenter_nonMD_fam_good=" << is_morecenter_nonMD_fam_good 
                                                 << " isRightToLeft=" << is_ConsensusBlockCigarType_right2left(cigartype);
+                                        }
 #endif
                                         if (!is_morecenter_nonMD_fam_good) {
                                             while (consensusBlockSetsIts[cigartype] != consensusBlockSetsEnds[cigartype] && consensusBlockSetsIts[cigartype]->first < epos) {
@@ -3045,7 +3050,7 @@ struct Symbol2CountCoverageSet {
                                                     }
                                                     if (consensusBlockSetsIts[cigartype] != consensusBlockSetsEnds[cigartype]) {
                                                         const uvc1_refgpos_t conpos = consensusBlockSetsIts[cigartype]->first;
-                                                        const FastqRecord sqvec = consensusBlockToSeqQual(
+                                                        const FastqConsensusSeqSegment sqvec = consensusBlockToSeqQual(
                                                                 consensusBlockSetsIts[cigartype]->second, 
                                                                 is_ConsensusBlockCigarType_right2left(cigartype));
                                                         LOG(logINFO) << "DebugINFO: CONSENSUS-PRE-PROCESSING" 
@@ -3063,10 +3068,10 @@ struct Symbol2CountCoverageSet {
 
                                             if (consensusBlockSetsIts[cigartype] != consensusBlockSetsEnds[cigartype] && consensusBlockSetsIts[cigartype]->first == epos) {
                                                 const ConsensusBlock & conblock = consensusBlockSetsIts[cigartype]->second;
-                                                const FastqRecord sqvec = consensusBlockToSeqQual(conblock, is_ConsensusBlockCigarType_right2left(cigartype));
+                                                const FastqConsensusSeqSegment sqvec = consensusBlockToSeqQual(conblock, is_ConsensusBlockCigarType_right2left(cigartype));
                                                 for (const auto & sq : sqvec) {
-                                                    const auto sq2 = std::make_pair(tolower(sq.first), sq.second + 10);
-                                                    fq_baseBQ_pairs.push_back(sq2);
+                                                    // const auto sq2 = std::make_pair(tolower(sq.base), sq.quality);
+                                                    fq_baseBQ_pairs.push_back(sq);
                                                 }
 #ifdef UVC_IN_DEBUG_MODE
                                                 if ((paramset.debug_tid == tid2) && (paramset.debug_pos - 10 <= epos) && (epos <= paramset.debug_pos + 10)) {
@@ -3077,7 +3082,7 @@ struct Symbol2CountCoverageSet {
                                                         }
                                                     }
                                                     const uvc1_refgpos_t conpos = consensusBlockSetsIts[cigartype]->first;
-                                                    /*const FastqRecord sqvec = consensusBlockToSeqQual(
+                                                    /*const FastqConsensusSeqSegment sqvec = consensusBlockToSeqQual(
                                                             consensusBlockSetsIts[cigartype]->second,
                                                             is_ConsensusBlockCigarType_right2left(cigartype));
                                                     */
@@ -3126,10 +3131,20 @@ struct Symbol2CountCoverageSet {
                                 } else if (is_fastq_fam_good) {
                                     const char *desc = SYMBOL_TO_DESC_ARR[con_symbol];
                                     assertUVC(strlen(desc) == 1);
-                                    fq_baseBQ_pairs.push_back(std::make_pair(desc[0], conBQ));
+                                    FastqConsensusBase fcb;
+                                    fcb.base = desc[0];
+                                    fcb.quality = conBQ;
+                                    fcb.family_size = tot_count;
+                                    fcb.family_identity = (double)con_count / (double)MAX(1, tot_count);
+                                    fq_baseBQ_pairs.push_back(fcb);
                                 } else {
                                     // 0/1 means the position-associated family is probably singleton/with-weak-consensus-base
-                                    fq_baseBQ_pairs.push_back(std::make_pair('N', (is_fam_big ? 1 : 0)));
+                                    FastqConsensusBase fcb;
+                                    fcb.base = 'N';
+                                    fcb.quality = (is_fam_big ? 1 : 0);
+                                    fcb.family_size = tot_count;
+                                    fcb.family_identity = (double)con_count / (double)MAX(1, tot_count);
+                                    fq_baseBQ_pairs.push_back(fcb);
                                 }
                             }
                         }
@@ -3317,8 +3332,8 @@ if (paramset.inferred_is_vcf_generated) {
                     generate_consensus_fastq_data(
                             fastq_outstrings, 
                             fq_baseBQ_pairs,
-                            read_family_con_ampl.getIncluBegPosition(),
-                            read_family_con_ampl.getExcluEndPosition(),
+                            //read_family_con_ampl.getIncluBegPosition(),
+                            //read_family_con_ampl.getExcluEndPosition(),
                             l2r_qseqlens,
                             r2l_qseqlens,
                             strand, 

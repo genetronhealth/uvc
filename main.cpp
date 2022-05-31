@@ -413,6 +413,20 @@ are_depths_diff(uvc1_readnum_t currDP, uvc1_readnum_t prevDP, uvc1_readnum_t mul
     return true;
 }
 
+void
+umi_strand_readset_uvc_destroy(auto & umi_strand_readset) {
+    for (auto strand_readset : umi_strand_readset) {
+        for (int strand = 0; strand < 2; strand++) {
+            auto readset = strand_readset.first[strand]; 
+            for (auto read : readset) {
+                for (bam1_t *b : read) {
+                    bam_destroy1(b);
+                } 
+            }
+        }
+    }
+}
+
 template <class T>
 int 
 process_batch(
@@ -468,7 +482,10 @@ process_batch(
     const bool is_by_capture = ((num_pcrpassed_reads) * 2 <= num_passed_reads);
     const AssayType inferred_assay_type = ((ASSAY_TYPE_AUTO == paramset.assay_type) ? (is_by_capture ? ASSAY_TYPE_CAPTURE : ASSAY_TYPE_AMPLICON) : (paramset.assay_type));
     
-    if ((0 == num_passed_reads) || (-1 == num_passed_reads)) { return -1; };
+    if ((0 == num_passed_reads) || (-1 == num_passed_reads)) { 
+        umi_strand_readset_uvc_destroy(umi_strand_readset);
+        return -1; 
+    };
     const uvc1_qual_t minABQ_snv = ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? paramset.syserr_minABQ_pcr_snv : paramset.syserr_minABQ_cap_snv);
     const uvc1_qual_t minABQ_indel = ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? paramset.syserr_minABQ_pcr_indel : paramset.syserr_minABQ_cap_indel);
     
@@ -1126,16 +1143,7 @@ if (paramset.inferred_is_vcf_generated) {
     } // zerobased_pos
 }
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id  << " starts destroying bam records"; }
-    for (auto strand_readset : umi_strand_readset) {
-        for (int strand = 0; strand < 2; strand++) {
-            auto readset = strand_readset.first[strand]; 
-            for (auto read : readset) {
-                for (bam1_t *b : read) {
-                    bam_destroy1(b);
-                } 
-            }
-        }
-    }
+    umi_strand_readset_uvc_destroy(umi_strand_readset);
     /*
     if (!is_vcf_out_pass_to_stdout) {
         bgzip_string(outstring_pass, buf_out_string_pass);
