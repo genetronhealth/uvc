@@ -2492,13 +2492,27 @@ struct Symbol2CountCoverageSet {
                 fqcomment_umi_famcons += ((baseBQ.family_identity >= 1.0 - (double)(FLT_EPSILON)) ? "." : std::to_string(baseBQ.family_identity));
                 baseBQ_idx++;
             }
-            std::string fqcomment1 = std::to_string(fqidx + 1) + ":N:0:" + std::to_string(max_family_size) + "," + fqcomment_umi_famsize + ";" + fqcomment_umi_famcons;
+            std::string fqcomment_readinfo;
+            for (const auto bams : alns2) {
+                assertUVC((bams.size() == 2) || (bams.size() == 1));
+                for (const bam1_t *bam : bams) {
+                    std::string qname, seq, qual;
+                    qname = bam_get_qname(bam);
+                    for (int i = 0; i < bam->core.l_qseq; i++) {
+                        seq.push_back((char)(seq_nt16_str[bam_seqi(bam_get_seq(bam), i)]));
+                        qual.push_back((char)(33+BAM_PHREDI(bam, i)));
+                    }
+                    fqcomment_readinfo += std::string("\t") + qname + "|" + seq + "|" + qual;
+                }
+            }
+            
+            std::string fqcomment1 = std::to_string(fqidx + 1) + ":N:0:" + std::to_string(max_family_size) + "," + fqcomment_umi_famsize + ":" + fqcomment_umi_famcons;
             
             auto &fqdata = fastq_outstrings[fqidx];
             const size_t ini_fqdata_size = fqdata.size();
             
             // FQ line 1: read-name
-            fqdata += fqname + " " + fqcomment1 +  "\n";
+            fqdata += fqname + " " + fqcomment1 + fqcomment_readinfo + "\n";
             // FQ line 2: sequence
             for (const auto & baseBQ : stringof_baseBQ_pairs) {
                 fqdata.push_back(baseBQ.base);
