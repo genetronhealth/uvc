@@ -1666,7 +1666,7 @@ public:
         auto excluEndPos = other.getExcluEndPosition();
         std::array<AlignmentSymbol, NUM_SYMBOL_TYPES> consymbols; 
         for (auto epos = incluBegPos; epos < excluEndPos; epos++) {
-            int updateresult = this->getRefByPos(epos).template updateByFiltering(
+            int updateresult = this->getRefByPos(epos).template updateByFiltering<TIsBestKeptAsCons>(
                     consymbols, 
                     other.getByPos(epos), 
                     is_padded_del_ignored,
@@ -2368,9 +2368,9 @@ struct Symbol2CountCoverageSet {
     Symbol2CountCoverageString additional_note;
     
     std::array<std::array<std::map<uvc1_refgpos_t, std::map<uvc1_readpos_t, uvc1_readnum_t>>, NUM_INS_SYMBOLS>, 2> pos2dlen2data_cDP2;
-    std::array<std::array<std::map<uvc1_refgpos_t, std::map<uvc1_readpos_t, uvc1_readnum_t>>, NUM_INS_SYMBOLS>, 2> pos2dlen2data_cDP3;
+    std::array<std::array<std::map<uvc1_refgpos_t, std::map<uvc1_readpos_t, uvc1_readnum_t>>, NUM_INS_SYMBOLS>, 2> pos2dlen2data_c2dDP;
     std::array<std::array<std::map<uvc1_refgpos_t, std::map<std::string,    uvc1_readnum_t>>, NUM_DEL_SYMBOLS>, 2> pos2iseq2data_cDP2;
-    std::array<std::array<std::map<uvc1_refgpos_t, std::map<std::string,    uvc1_readnum_t>>, NUM_DEL_SYMBOLS>, 2> pos2iseq2data_cDP3;
+    std::array<std::array<std::map<uvc1_refgpos_t, std::map<std::string,    uvc1_readnum_t>>, NUM_DEL_SYMBOLS>, 2> pos2iseq2data_c2dDP;
     
     Symbol2CountCoverageSet(uvc1_refgpos_t t, uvc1_refgpos_t beg, uvc1_refgpos_t end):
         tid(t), 
@@ -3301,16 +3301,7 @@ if (paramset.inferred_is_vcf_generated) {
                         
                         if (paramset.fam_thres_dup2add <= tot_count && (con_count * 100 >= tot_count * paramset.fam_thres_dup2perc)) {
                             this->symbol_to_fam_format_depth_sets_2strand[strand].getRefByPos(epos)[con_symbol][FAM_cDP3] += 1;
-                            if (isSymbolIns(con_symbol)) {
-                                posToIndelToCount_updateByConsensus(
-                                        this->pos2iseq2data_cDP3[strand][insSymbolToInsIdx(con_symbol)],
-                                        read_family_con_ampl.getPosToIseqToData(con_symbol), epos, 1);
-                            }
-                            if (isSymbolDel(con_symbol)) {
-                                posToIndelToCount_updateByConsensus(
-                                        this->pos2dlen2data_cDP3[strand][delSymbolToDelIdx(con_symbol)],
-                                        read_family_con_ampl.getPosToDlenToData(con_symbol), epos, 1);
-                            }
+                            
                         }
                         
                         if (isSymbolIns(con_symbol)) {
@@ -3373,7 +3364,6 @@ if (paramset.inferred_is_vcf_generated) {
             bool will_inc_dscs = false;
             bool will_inc_sscs = false;
             if ((0x2 == (alns2pair2umibarcode.second.duplexflag & 0x2)) && alns2pair[0].size() > 0 && alns2pair[1].size() > 0) { // is duplex
-                
                 will_inc_dscs = true;
             } else if ((0x2 == (alns2pair2umibarcode.second.duplexflag & 0x2)) && (alns2pair[0].size() <= 0 || alns2pair[1].size() <= 0)) {
                 will_inc_sscs = true;
@@ -3390,7 +3380,7 @@ if (paramset.inferred_is_vcf_generated) {
                     uvc1_refgpos_t tid1, beg1, end1;
                     fillTidBegEndFromAlns1(tid1, beg1, end1, aln_vec);
                     Symbol2CountCoverage read_ampBQerr_fragWithR1R2(tid1, beg1, end1);
-                    read_ampBQerr_fragWithR1R2.updateByRead1Aln(
+                    read_ampBQerr_fragWithR1R2.updateByRead1Aln<BASE_QUALITY_MAX, false, false>(
                             aln_vec,
                             
                             this->getUnifiedIncluBegPosition(), 
@@ -3408,7 +3398,7 @@ if (paramset.inferred_is_vcf_generated) {
                             paramset,
                             0);
                     // The line below is similar to : read_family_mmm_ampl.updateByConsensus<SYMBOL_COUNT_SUM>(read_ampBQerr_fragWithR1R2);
-                    read_family_con_ampl.updateByFiltering(
+                    read_family_con_ampl.updateByFiltering<true>(
                             read_ampBQerr_fragWithR1R2, 
                             std::array<uvc1_qual_t, NUM_SYMBOL_TYPES> {{ paramset.fam_thres_highBQ_snv, 0 }},
                             (paramset.microadjust_padded_deletion_flag & ((SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform) ? 0x2 : 0x1)));
@@ -3416,7 +3406,7 @@ if (paramset.inferred_is_vcf_generated) {
                 }
                 if (will_inc_dscs) {
                     // read_duplex_amplicon.template updateByConsensus(read_family_con_ampl);
-                    read_duplex_amplicon.template updateByFiltering<false, false, false>(
+                    read_duplex_amplicon.template updateByFiltering<true, false, false>(
                             read_family_con_ampl, 
                             std::array<uvc1_qual_t, NUM_SYMBOL_TYPES> {{ 1, 1 }}, // require only one read support from each strand of the duplex
                             (paramset.microadjust_padded_deletion_flag & ((SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform) ? 0x2 : 0x1)));
@@ -3447,6 +3437,16 @@ if (paramset.inferred_is_vcf_generated) {
                         this->symbol_to_fam_format_depth_sets_2strand[strand].getRefByPos(epos)[con_symbol][FAM_cDP1] += 1; // in some rare cases, cDP1 > cDP0 
                         if (will_inc_sscs && (!will_inc_dscs) && (tot_nfrags >= paramset.fam_thres_dup1add) && (con_nfrags * 100 >= tot_nfrags * paramset.fam_thres_dup1perc)) {
                             this->symbol_to_fam_format_depth_sets_2strand[strand].getRefByPos(epos)[con_symbol][FAM_cDPD] += 1;
+                            if (isSymbolIns(con_symbol)) {
+                                posToIndelToCount_updateByConsensus(
+                                        this->pos2iseq2data_c2dDP[strand][insSymbolToInsIdx(con_symbol)],
+                                        read_family_con_ampl.getPosToIseqToData(con_symbol), epos, 1);
+                            }
+                            if (isSymbolDel(con_symbol)) {
+                                posToIndelToCount_updateByConsensus(
+                                        this->pos2dlen2data_c2dDP[strand][delSymbolToDelIdx(con_symbol)],
+                                        read_family_con_ampl.getPosToDlenToData(con_symbol), epos, 1);
+                            }
                         }
                         
                         const uvc1_qual_t avgBQ = ((0 == tot_nfrags) ? 1 : (con_sumBQs / tot_nfrags));
@@ -3512,6 +3512,18 @@ if (paramset.inferred_is_vcf_generated) {
                         }
                         if (1 < tot_count) {
                             this->symbol_to_duplex_format_depth_sets.getRefByPos(epos)[con_symbol][DUPLEX_dDP2] += 1;
+                            for (size_t strand = 0; strand < 2; strand++) {
+                                if (isSymbolIns(con_symbol)) {
+                                    posToIndelToCount_updateByConsensus(
+                                            this->pos2iseq2data_c2dDP[strand][insSymbolToInsIdx(con_symbol)],
+                                            read_duplex_amplicon.getPosToIseqToData(con_symbol), epos, 1);
+                                }
+                                if (isSymbolDel(con_symbol)) {
+                                    posToIndelToCount_updateByConsensus(
+                                            this->pos2dlen2data_c2dDP[strand][delSymbolToDelIdx(con_symbol)],
+                                            read_duplex_amplicon.getPosToDlenToData(con_symbol), epos, 1);
+                                }
+                            }
                         }
                     }
                 }
@@ -5312,7 +5324,7 @@ fill_by_indel_info(
                 symbol2CountCoverageSet.symbol_to_frag_format_depth_sets.at(strand).getPosToIseqToData(symbol),
                 symbol2CountCoverageSet.symbol_to_fam_format_depth_sets_2strand.at(strand).getPosToIseqToData(symbol),
                 symbol2CountCoverageSet.pos2iseq2data_cDP2[strand][insSymbolToInsIdx(symbol)],
-                symbol2CountCoverageSet.pos2iseq2data_cDP3[strand][insSymbolToInsIdx(symbol)],
+                symbol2CountCoverageSet.pos2iseq2data_c2dDP[strand][insSymbolToInsIdx(symbol)],
                 refstring,
                 0);
     } else {
@@ -5320,7 +5332,7 @@ fill_by_indel_info(
                 symbol2CountCoverageSet.symbol_to_frag_format_depth_sets.at(strand).getPosToDlenToData(symbol),
                 symbol2CountCoverageSet.symbol_to_fam_format_depth_sets_2strand.at(strand).getPosToDlenToData(symbol),
                 symbol2CountCoverageSet.pos2dlen2data_cDP2[strand][delSymbolToDelIdx(symbol)],
-                symbol2CountCoverageSet.pos2dlen2data_cDP3[strand][delSymbolToDelIdx(symbol)],
+                symbol2CountCoverageSet.pos2dlen2data_c2dDP[strand][delSymbolToDelIdx(symbol)],
                 refstring,
                 0);
     }
@@ -5774,8 +5786,8 @@ generate_vcf_header(
 
     ret += "##INFO=<ID=tDP,Number=1,Type=Integer,Description=\"Tumor total deduped depth (deprecated, please see CDP1b (previously named as CDP1f and CDP1r)). \">\n";
     ret += "##INFO=<ID=tAD,Number=R,Type=Integer,Description=\"Tumor deduped depth of each allele (deprecated, please see cDP1f and cDP1r). \">\n";
-    ret += "##INFO=<ID=t2DP,Number=1,Type=Integer,Description=\"Tumor total UMI-barcoded-family depth (deprecated, please see cDP2b (previously named as CDP2f and CDP2r)). \">\n";
-    ret += "##INFO=<ID=t2AD,Number=R,Type=Integer,Description=\"Tumor UMI-barcoded-family depth of each allele (deprecated, please see cDP2f and cDP2r). \">\n";
+    ret += "##INFO=<ID=t2DP,Number=1,Type=Integer,Description=\"Tumor total UMI-barcoded-family depth for duplex-rescued SSCS (CDP2b + DDP2 (previously used CDP2f and CDP2r)). \">\n";
+    ret += "##INFO=<ID=t2AD,Number=R,Type=Integer,Description=\"Tumor UMI-barcoded-family depth of each allele for duplex-rescued SSCS (cDP2b + dDP2 (previously used cDP2f and cDP2r)). \">\n";
     
     ret += "##INFO=<ID=nDP,Number=1,Type=Integer,Description=\"Normal total deduped depth (deprecated, please see CDP1b (previously named as CDP1f and CDP1r)). \">\n";
     ret += "##INFO=<ID=nAD,Number=R,Type=Integer,Description=\"Normal deduped depth of each allele (deprecated, please see cDP1f and cDP1r). \">\n";
@@ -5878,18 +5890,31 @@ fill_tki(TumorKeyInfo & tki, const bcfrec::BcfFormat & fmt, size_t a = 1) {
     return 0;
 };
 
+uvc1_readnum_t 
+indelstring_gapSeq_gapAD_to_AD(const std::string & indelstring, const auto & gapSeq, const auto & gapAD) {
+    uvc1_readnum_t ret = 0;
+    for (size_t i = 0; i < gapSeq.size(); i++) {
+        if (indelstring.compare(gapSeq[i]) == 0) {
+            ret += gapAD[i];
+        }
+    }
+    return ret;
+}
+
 template <bool TIsFmtTumor>
 int 
-fill_conditional_tki(TumorKeyInfo & tki, const bcfrec::BcfFormat & fmt) {
+fill_conditional_tki(TumorKeyInfo & tki, const bcfrec::BcfFormat & fmt, const AlignmentSymbol symbol, const std::string & indelstring) {
     // extra code for backward compatibility
     if (TIsFmtTumor) {
         tki.tDP = SUMPAIR(fmt.CDP1b); // (fmt.CDP1f[0] + fmt.CDP1r[0]);
         tki.tADR = {{ fmt.cDP1f[0] + fmt.cDP1r[0], LAST(fmt.cDP1f) + LAST(fmt.cDP1r) }};
         // tki.tDPC = SUMPAIR(fmt.CDP2b); // (fmt.CDP2f[0] + fmt.CDP2r[0]);
         // tki.tADCR = {{ fmt.cDP2f[0] + fmt.cDP2r[0], LAST(fmt.cDP2f) + LAST(fmt.cDP2r) }};
-        tki.tDPC = SUMPAIR(fmt.CDPDb) + SUMPAIR(fmt.DDP2);
-        tki.tADCR = {{ fmt.cDPDf[0] + fmt.cDPDr[0] + (fmt.dDP2[0] * 2), LAST(fmt.cDPDf) + LAST(fmt.cDPDr) + (LAST(fmt.dDP2) * 2)}};
-
+        tki.tDPC = SUMPAIR(fmt.CDPDb) + (SUMPAIR(fmt.DDP2) * 2);
+        const uvc1_readnum_t cond_altDP = ((isSymbolIns(symbol) || isSymbolDel(symbol)) 
+                ? (indelstring_gapSeq_gapAD_to_AD(indelstring, fmt.gapSeq, fmt.gc2dAD)) 
+                : (LAST(fmt.cDPDf) + LAST(fmt.cDPDr) + (LAST(fmt.dDP2) * 2)));
+        tki.tADCR = {{ fmt.cDPDf[0] + fmt.cDPDr[0] + (fmt.dDP2[0] * 2), cond_altDP }};
         tki.nDP = 0;
         tki.nADR = {{ 0 }};
         //tki.nDPC = 0; // this tag does not seem to be useful in most situations
@@ -5899,7 +5924,11 @@ fill_conditional_tki(TumorKeyInfo & tki, const bcfrec::BcfFormat & fmt) {
         tki.nADR = {{ fmt.cDP1f[0] + fmt.cDP1r[0], LAST(fmt.cDP1f) + LAST(fmt.cDP1r) }};
         //tki.nDPC = (fmt.CDP2f[0] + fmt.CDP2r[0]);
         //tki.nADCR = {{ fmt.cDP2f[0] + fmt.cDP2r[0], LAST(fmt.cDP2f) + LAST(fmt.cDP2r) }};
-        tki.nADCR = {{ fmt.cDPDf[0] + fmt.cDPDr[0] + (fmt.dDP2[0] * 2), LAST(fmt.cDPDf) + LAST(fmt.cDPDr) + (LAST(fmt.dDP2) * 2)}};
+        // tki.nADCR = {{ fmt.cDPDf[0] + fmt.cDPDr[0] + (fmt.dDP2[0] * 2), LAST(fmt.cDPDf) + LAST(fmt.cDPDr) + (LAST(fmt.dDP2) * 2)}};
+        const uvc1_readnum_t cond_altDP = ((isSymbolIns(symbol) || isSymbolDel(symbol)) 
+                ? (indelstring_gapSeq_gapAD_to_AD(indelstring, fmt.gapSeq, fmt.gc2dAD)) 
+                : (LAST(fmt.cDPDf) + LAST(fmt.cDPDr) + (LAST(fmt.dDP2) * 2)));
+        tki.tADCR = {{ fmt.cDPDf[0] + fmt.cDPDr[0] + (fmt.dDP2[0] * 2), cond_altDP }};
     }
     return TIsFmtTumor;
 }
@@ -5981,10 +6010,10 @@ append_vcf_record(
 
     const bcfrec::BcfFormat & nfm = (is_processing_normal ? fmt : FORMAT_UNCOV);
     if (is_processing_normal) {
-        fill_conditional_tki<false>(tki, fmt);
+        fill_conditional_tki<false>(tki, fmt, symbol, indelstring);
     } else {
         fill_tki(tki, fmt);
-        fill_conditional_tki<true>(tki, fmt);
+        fill_conditional_tki<true>(tki, fmt, symbol, indelstring);
     }
     const auto regionpos = refpos - region_offset;
     uvc1_refgpos_t vcfpos;
