@@ -5888,7 +5888,7 @@ fill_conditional_tki(TumorKeyInfo & tki, const bcfrec::BcfFormat & fmt) {
         // tki.tDPC = SUMPAIR(fmt.CDP2b); // (fmt.CDP2f[0] + fmt.CDP2r[0]);
         // tki.tADCR = {{ fmt.cDP2f[0] + fmt.cDP2r[0], LAST(fmt.cDP2f) + LAST(fmt.cDP2r) }};
         tki.tDPC = SUMPAIR(fmt.CDPDb) + SUMPAIR(fmt.DDP2);
-        tki.tADCR = {{ fmt.cDPDf[0] + fmt.cDPDr[0] + fmt.dDP2[0], LAST(fmt.cDPDf) + LAST(fmt.cDPDr) + LAST(fmt.dDP2) }};
+        tki.tADCR = {{ fmt.cDPDf[0] + fmt.cDPDr[0] + (fmt.dDP2[0] * 2), LAST(fmt.cDPDf) + LAST(fmt.cDPDr) + (LAST(fmt.dDP2) * 2)}};
 
         tki.nDP = 0;
         tki.nADR = {{ 0 }};
@@ -5899,7 +5899,7 @@ fill_conditional_tki(TumorKeyInfo & tki, const bcfrec::BcfFormat & fmt) {
         tki.nADR = {{ fmt.cDP1f[0] + fmt.cDP1r[0], LAST(fmt.cDP1f) + LAST(fmt.cDP1r) }};
         //tki.nDPC = (fmt.CDP2f[0] + fmt.CDP2r[0]);
         //tki.nADCR = {{ fmt.cDP2f[0] + fmt.cDP2r[0], LAST(fmt.cDP2f) + LAST(fmt.cDP2r) }};
-        tki.nADCR = {{ fmt.cDPDf[0] + fmt.cDPDr[0] + fmt.dDP2[0], LAST(fmt.cDPDf) + LAST(fmt.cDPDr) + LAST(fmt.dDP2) }};
+        tki.nADCR = {{ fmt.cDPDf[0] + fmt.cDPDr[0] + (fmt.dDP2[0] * 2), LAST(fmt.cDPDf) + LAST(fmt.cDPDr) + (LAST(fmt.dDP2) * 2)}};
     }
     return TIsFmtTumor;
 }
