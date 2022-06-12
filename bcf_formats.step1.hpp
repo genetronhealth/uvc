@@ -7,7 +7,7 @@
 #include<vector>
 #include<assert.h>
 namespace bcfrec {
-static const unsigned int FILTER_NUM = 24;
+static const unsigned int FILTER_NUM = 28;
 enum FILTER_ENUM {
     noVar,
     upstreamDel,
@@ -18,21 +18,25 @@ enum FILTER_ENUM {
     Q40,
     Q50,
     Q60,
-    ASI,
-    AXMB,
-    ABQB,
-    PFB,
-    DB1,
-    DB2,
-    BB1L,
-    BB1R,
-    PB1L,
-    PB1R,
-    PB2L,
-    PB2R,
-    SB1,
-    ROB1,
-    ROB2,
+    aInsertSize,
+    aBQXM,
+    bcDup,
+    cbDup,
+    aAlignL,
+    aAlignR,
+    aPositionL,
+    aPositionR,
+    abPositionL,
+    abPositionR,
+    aStrand,
+    c0Orientation,
+    c2Orientation,
+    c2AlignL,
+    c2AlignR,
+    c2PositionL,
+    c2PositionR,
+    c2StrictPosL,
+    c2StrictPosR,
 };
 const char *const FILTER_IDS[] = {
     "noVar",
@@ -44,24 +48,28 @@ const char *const FILTER_IDS[] = {
     "Q40",
     "Q50",
     "Q60",
-    "ASI",
-    "AXMB",
-    "ABQB",
-    "PFB",
-    "DB1",
-    "DB2",
-    "BB1L",
-    "BB1R",
-    "PB1L",
-    "PB1R",
-    "PB2L",
-    "PB2R",
-    "SB1",
-    "ROB1",
-    "ROB2",
+    "aInsertSize",
+    "aBQXM",
+    "bcDup",
+    "cbDup",
+    "aAlignL",
+    "aAlignR",
+    "aPositionL",
+    "aPositionR",
+    "abPositionL",
+    "abPositionR",
+    "aStrand",
+    "c0Orientation",
+    "c2Orientation",
+    "c2AlignL",
+    "c2AlignR",
+    "c2PositionL",
+    "c2PositionR",
+    "c2StrictPosL",
+    "c2StrictPosR",
 };
 const char *const FILTER_LINES[] = {
-    "##FILTER=<ID=noVar,Description=\"Not a variant (for example, when REF and ALT are the same), but still included to get all statistics.\">",
+    "##FILTER=<ID=noVar,Description=\"Not a variant (for example, when REF and ALT are the same), but still included to get all statistics. \">",
     "##FILTER=<ID=upstreamDel,Description=\"Deletion extended from another upstream deletion\">",
     "##FILTER=<ID=s50,Description=\"Less than 50% of samples have data\">",
     "##FILTER=<ID=Q10,Description=\"Quality below 10 and no other filters\">",
@@ -70,23 +78,27 @@ const char *const FILTER_LINES[] = {
     "##FILTER=<ID=Q40,Description=\"Quality below 40 and no other filters\">",
     "##FILTER=<ID=Q50,Description=\"Quality below 50 and no other filters\">",
     "##FILTER=<ID=Q60,Description=\"Quality below 60 and no other filters\">",
-    "##FILTER=<ID=ASI,Description=\"For FORMAT/FTS: Stranded insert bias, meaning the most-supported strand has abnormal insert size.\">",
-    "##FILTER=<ID=AXMB,Description=\"For FORMAT/FTS: Absolute mismatch bias, meaning the variant is suppported by reads with a high number of mismatches\">",
-    "##FILTER=<ID=ABQB,Description=\"For FORMAT/FTS: Absolute base-quality (BQ) bias, meaning the variant is suppported by reads with low base qualities at the variant site\">",
-    "##FILTER=<ID=PFB,Description=\"For FORMAT/FTS: Passing-filter bias, meaning the variant allele is supported by reads with low base qualities at the variant site and/or with high number of mismatches relative to all alleles.\">",
-    "##FILTER=<ID=DB1,Description=\"For FORMAT/FTS: Deduplication bias for the under-amplification of variant reads, meaning the variant is under-amplified by PCR relative to all alleles\">",
-    "##FILTER=<ID=DB2,Description=\"For FORMAT/FTS: Deduplication bias for the over-amplification of variant reads, meaning the variant is over-amplified by PCR relative to all alleles\">",
-    "##FILTER=<ID=BB1L,Description=\"For FORMAT/FTS: Alignment bias on the left mappping coordinate of the sequenced segment relative to all alleles.\">",
-    "##FILTER=<ID=BB1R,Description=\"For FORMAT/FTS: Alignment bias on the right mappping coordinate of the sequenced segment relative to all alleles.\">",
-    "##FILTER=<ID=PB1L,Description=\"For FORMAT/FTS: Position bias on the left mappping coordinate of the sequenced segment relative to all alleles.\">",
-    "##FILTER=<ID=PB1R,Description=\"For FORMAT/FTS: Position bias on the right mappping coordinate of the sequenced segment relative to all alleles.\">",
-    "##FILTER=<ID=PB2L,Description=\"For FORMAT/FTS: Position bias on the left mapping coordinate of the insert relative to all alleles.\">",
-    "##FILTER=<ID=PB2R,Description=\"For FORMAT/FTS: Position bias on the right mapping coordinate of the insert relative to all alleles\">",
-    "##FILTER=<ID=SB1,Description=\"For FORMAT/FTS: Strand bias relative to all alleles\">",
-    "##FILTER=<ID=ROB1,Description=\"For FORMAT/FTS: Read-orientation bias using deduplicated reads families passing the base-quality threshold for generating barcode families relative to all alleles\">",
-    "##FILTER=<ID=ROB2,Description=\"For FORMAT/FTS: Read-orientation bias using tier-2 barcode families relative to all alleles\">",
+    "##FILTER=<ID=aInsertSize,Description=\"For FORMAT/FTS: Stranded insert bias, meaning the most-supported strand has abnormal insert size at either the left or right end. \">",
+    "##FILTER=<ID=aBQXM,Description=\"For FORMAT/FTS: Passing-filter bias, meaning the variant allele is supported by reads with low base qualities at the variant site and/or with high number of mismatches relative to all alleles. \">",
+    "##FILTER=<ID=bcDup,Description=\"For FORMAT/FTS: Duplication bias for less-than-expected amplification of variant reads, meaning the variant is under-amplified by PCR relative to all alleles. \">",
+    "##FILTER=<ID=cbDup,Description=\"For FORMAT/FTS: Duplication bias for more-than-expected amplification of variant reads, meaning the variant is over-amplified by PCR relative to all alleles. \">",
+    "##FILTER=<ID=aAlignL,Description=\"For FORMAT/FTS: Alignment bias on the left mapping coordinate of the sequenced segment relative to all alleles. \">",
+    "##FILTER=<ID=aAlignR,Description=\"For FORMAT/FTS: Alignment bias on the right mapping coordinate of the sequenced segment relative to all alleles. \">",
+    "##FILTER=<ID=aPositionL,Description=\"For FORMAT/FTS: Position bias on the left mapping coordinate of the sequenced segment relative to all alleles. \">",
+    "##FILTER=<ID=aPositionR,Description=\"For FORMAT/FTS: Position bias on the right mapping coordinate of the sequenced segment relative to all alleles. \">",
+    "##FILTER=<ID=abPositionL,Description=\"For FORMAT/FTS: Position bias on the left mapping coordinate of the insert relative to all alleles. \">",
+    "##FILTER=<ID=abPositionR,Description=\"For FORMAT/FTS: Position bias on the right mapping coordinate of the insert relative to all alleles. \">",
+    "##FILTER=<ID=aStrand,Description=\"For FORMAT/FTS: Strand bias relative to all alleles. \">",
+    "##FILTER=<ID=c0Orientation,Description=\"For FORMAT/FTS: Read-orientation bias using de-duplicated reads families passing the base-quality threshold for generating UMI-barcode families relative to all alleles. \">",
+    "##FILTER=<ID=c2Orientation,Description=\"For FORMAT/FTS: Read-orientation bias using tier-2 UMI-barcode families relative to all alleles. \">",
+    "##FILTER=<ID=c2AlignL,Description=\"For FORMAT/FTS: Alignment bias on the left mapping coordinate of the tier-2 single-strand consensus sequence (SSCS) relative to all alleles. \">",
+    "##FILTER=<ID=c2AlignR,Description=\"For FORMAT/FTS: Alignment bias on the right mapping coordinate of the tier-2 single-strand consensus sequence (SSCS) relative to all alleles. \">",
+    "##FILTER=<ID=c2PositionL,Description=\"For FORMAT/FTS: Position bias on the left mapping coordinate of the tier-2 single-strand consensus sequence (SSCS) relative to all alleles. \">",
+    "##FILTER=<ID=c2PositionR,Description=\"For FORMAT/FTS: Position bias on the right mapping coordinate of the tier-2 single-strand consensus sequence (SSCS) relative to all alleles. \">",
+    "##FILTER=<ID=c2StrictPosL,Description=\"For FORMAT/FTS: Strictly defined position bias (which has zero prior probability of not having bias) on the left mapping coordinate of the tier-2 single-strand consensus sequence (SSCS) relative to all alleles. \">",
+    "##FILTER=<ID=c2StrictPosR,Description=\"For FORMAT/FTS: Strictly defined position bias (which has zero prior probability of not having bias) on the right mapping coordinate of the tier-2 single-strand consensus sequence (SSCS) relative to all alleles. \">",
 };
-static const unsigned int FORMAT_NUM = 247;
+static const unsigned int FORMAT_NUM = 263;
 enum FORMAT_ENUM {
     GT,
     GQ,
@@ -114,193 +126,209 @@ enum FORMAT_ENUM {
     ALRPt,
     ALRBt,
     _AQ,
-    AMQs,
-    A1BQf,
-    A1BQr,
-    _A1,
-    ADPff,
-    ADPfr,
-    ADPrf,
-    ADPrr,
-    _A2,
-    ALP1,
-    ALP2,
-    ALPL,
-    ARP1,
-    ARP2,
-    ARPL,
-    _A3,
-    ALB1,
-    ALB2,
-    ALBL,
-    ARB1,
-    ARB2,
-    ARBL,
-    _A4,
-    ABQ2,
-    APF1,
-    APF2,
-    AP1,
-    AP2,
-    _A5,
-    ALI1,
-    ALI2,
-    ALIr,
-    ARI1,
-    ARI2,
-    ARIf,
-    _aQ,
     aMQs,
+    AMQs,
     a1BQf,
+    A1BQf,
     a1BQr,
-    _aE,
-    aLPT,
-    aRPT,
+    A1BQr,
+    _ADPf,
+    aDPff,
+    ADPff,
+    aDPfr,
+    ADPfr,
+    _ADPr,
+    aDPrf,
+    ADPrf,
+    aDPrr,
+    ADPrr,
+    _ALP,
+    aLP1,
+    ALP1,
+    aLP2,
+    ALP2,
+    aLPL,
+    ALPL,
+    _ARP,
+    aRP1,
+    ARP1,
+    aRP2,
+    ARP2,
+    aRPL,
+    ARPL,
+    _ALB,
+    aLB1,
+    aLB2,
+    ALB2,
+    aLBL,
+    ALBL,
+    _ARB,
+    aRB1,
+    aRB2,
+    ARB2,
+    aRBL,
+    ARBL,
+    _ALI,
+    aLI1,
+    aLI2,
+    ALI2,
+    aLIr,
+    ALIr,
+    _ARI,
+    aRI1,
+    aRI2,
+    ARI2,
+    aRIf,
+    ARIf,
+    _AX,
+    aBQ2,
+    ABQ2,
+    aPF2,
+    APF2,
+    aP1,
+    AP1,
+    aP2,
+    AP2,
+    _Ax,
+    aPF1,
     aLIT,
     aRIT,
     aP3,
     aNC,
-    _a1,
-    aDPff,
-    aDPfr,
-    aDPrf,
-    aDPrr,
-    _a2,
-    aLP1,
-    aLP2,
-    aLPL,
-    aRP1,
-    aRP2,
-    aRPL,
-    _a3,
-    aLB1,
-    aLB2,
-    aLBL,
-    aRB1,
-    aRB2,
-    aRBL,
-    _a4,
-    aBQ2,
-    aPF1,
-    aPF2,
-    aP1,
-    aP2,
-    _a5,
-    aLI1,
-    aLI2,
-    aRI1,
-    aRI2,
-    aLIr,
-    aRIf,
-    _B1,
-    BDPf,
-    BTAf,
-    BTBf,
-    BDPr,
-    BTAr,
-    BTBr,
-    _b1,
+    _BDP,
     bDPf,
-    bTAf,
-    bTBf,
+    BDPf,
     bDPr,
+    BDPr,
+    _BT,
+    bTAf,
+    BTAf,
     bTAr,
+    BTAr,
+    bTBf,
+    BTBf,
     bTBr,
-    _C1,
-    CDP1f,
-    CDP12f,
-    CDP2f,
-    CDP3f,
-    C1DPf,
-    CDPMf,
-    CDPmf,
-    _C2,
-    CDP1r,
-    CDP12r,
-    CDP2r,
-    CDP3r,
-    C1DPr,
-    CDPMr,
-    CDPmr,
-    _c1,
+    BTBr,
+    _CDP1,
     cDP1f,
-    cDP12f,
-    cDP2f,
-    cDP3f,
-    c1DPf,
-    cDPMf,
-    cDPmf,
-    _c2,
+    CDP1f,
     cDP1r,
+    CDP1r,
+    cDP12f,
+    CDP12f,
     cDP12r,
+    CDP12r,
+    _CDP2,
+    cDP2f,
+    CDP2f,
     cDP2r,
+    CDP2r,
+    c2BQ2,
+    C2BQ2,
+    c2LP0,
+    C2LP0,
+    c2RP0,
+    C2RP0,
+    _C2XP,
+    c2LP1,
+    c2LP2,
+    C2LP2,
+    c2RP1,
+    c2RP2,
+    C2RP2,
+    c2LPL,
+    C2LPL,
+    c2RPL,
+    C2RPL,
+    _C2XB,
+    c2LB1,
+    c2LB2,
+    C2LB2,
+    c2RB1,
+    c2RB2,
+    C2RB2,
+    c2LBL,
+    C2LBL,
+    c2RBL,
+    C2RBL,
+    _CDPx,
+    cDP3f,
+    CDP3f,
     cDP3r,
-    c1DPr,
+    CDP3r,
+    cDP21f,
+    CDP21f,
+    cDP21r,
+    CDP21r,
+    _cDPMm,
+    cDPMf,
+    CDPMf,
     cDPMr,
+    CDPMr,
+    cDPmf,
+    CDPmf,
     cDPmr,
-    _Dd,
+    CDPmr,
+    _DDP,
     DDP1,
-    DDP2,
     dDP1,
+    DDP2,
     dDP2,
-    _e1,
+    _ea,
     aBQ,
     a2BQf,
     a2BQr,
     a2XM2,
     a2BM2,
     aBQQ,
-    _e2,
+    _eb,
     bMQ,
     aAaMQ,
     bNMQ,
     bNMa,
     bNMb,
     bMQQ,
-    _e3,
+    _eB,
     bIAQb,
     bIADb,
     bIDQb,
-    _e4,
+    _eC,
     cIAQf,
     cIADf,
     cIDQf,
-    _e5,
     cIAQr,
     cIADr,
     cIDQr,
-    _e6,
+    _eE,
     bIAQ,
     cIAQ,
     bTINQ,
     cTINQ,
-    _e7,
+    _eQ1,
     cPCQ1,
     cPLQ1,
     cVQ1,
     gVQ1,
-    _e8,
+    _eQ2,
     cPCQ2,
     cPLQ2,
     cVQ2,
     cMmQ,
     dVQinc,
-    _Ef1,
-    CDP1v,
-    CDP1w,
-    CDP1x,
-    _ef1,
+    _CDP1vx,
     cDP1v,
+    CDP1v,
     cDP1w,
+    CDP1w,
     cDP1x,
-    _Ef2,
-    CDP2v,
-    CDP2w,
-    CDP2x,
-    _ef2,
+    CDP1x,
+    _CDP2vx,
     cDP2v,
+    CDP2v,
     cDP2w,
+    CDP2w,
     cDP2x,
+    CDP2x,
     _f1,
     CONTQ,
     nPF,
@@ -336,7 +364,8 @@ enum FORMAT_ENUM {
     vNLODQ,
     note,
 };
-const char *const FORMAT_STRING_PER_REC = "GT:GQ:HQ:FT:FTS:_A_:DP:AD:bDP:bAD:c2DP:c2AD:_Aa:APDP:APXM:_Ab:APLRID:APLRI:APLRP:_Ac:ALRPxT:ALRIT:ALRIt:ALRPt:ALRBt:_AQ:AMQs:A1BQf:A1BQr:_A1:ADPff:ADPfr:ADPrf:ADPrr:_A2:ALP1:ALP2:ALPL:ARP1:ARP2:ARPL:_A3:ALB1:ALB2:ALBL:ARB1:ARB2:ARBL:_A4:ABQ2:APF1:APF2:AP1:AP2:_A5:ALI1:ALI2:ALIr:ARI1:ARI2:ARIf:_aQ:aMQs:a1BQf:a1BQr:_aE:aLPT:aRPT:aLIT:aRIT:aP3:aNC:_a1:aDPff:aDPfr:aDPrf:aDPrr:_a2:aLP1:aLP2:aLPL:aRP1:aRP2:aRPL:_a3:aLB1:aLB2:aLBL:aRB1:aRB2:aRBL:_a4:aBQ2:aPF1:aPF2:aP1:aP2:_a5:aLI1:aLI2:aRI1:aRI2:aLIr:aRIf:_B1:BDPf:BTAf:BTBf:BDPr:BTAr:BTBr:_b1:bDPf:bTAf:bTBf:bDPr:bTAr:bTBr:_C1:CDP1f:CDP12f:CDP2f:CDP3f:C1DPf:CDPMf:CDPmf:_C2:CDP1r:CDP12r:CDP2r:CDP3r:C1DPr:CDPMr:CDPmr:_c1:cDP1f:cDP12f:cDP2f:cDP3f:c1DPf:cDPMf:cDPmf:_c2:cDP1r:cDP12r:cDP2r:cDP3r:c1DPr:cDPMr:cDPmr:_Dd:DDP1:DDP2:dDP1:dDP2:_e1:aBQ:a2BQf:a2BQr:a2XM2:a2BM2:aBQQ:_e2:bMQ:aAaMQ:bNMQ:bNMa:bNMb:bMQQ:_e3:bIAQb:bIADb:bIDQb:_e4:cIAQf:cIADf:cIDQf:_e5:cIAQr:cIADr:cIDQr:_e6:bIAQ:cIAQ:bTINQ:cTINQ:_e7:cPCQ1:cPLQ1:cVQ1:gVQ1:_e8:cPCQ2:cPLQ2:cVQ2:cMmQ:dVQinc:_Ef1:CDP1v:CDP1w:CDP1x:_ef1:cDP1v:cDP1w:cDP1x:_Ef2:CDP2v:CDP2w:CDP2x:_ef2:cDP2v:cDP2w:cDP2x:_f1:CONTQ:nPF:nNFA:nAFA:nBCFA:_g1:VTI:VTD:cVQ1M:cVQ2M:cVQAM:cVQSM:_g2:gapNf:gapNr:gapSeq:gapbAD1:gapcAD1:gcAD2:gcAD3:_g3:bDPa:cDP0a:gapSa:_h1:bHap:cHap:c2Hap:_i1:vHGQ:vAC:vNLODQ:note";
+const char *const FORMAT_STRING_PER_REC = "GT:GQ:HQ:FT:FTS:_A_:DP:AD:bDP:bAD:c2DP:c2AD:_Aa:APDP:APXM:_Ab:APLRID:APLRI:APLRP:_Ac:ALRPxT:ALRIT:ALRIt:ALRPt:ALRBt:_AQ:aMQs:AMQs:a1BQf:A1BQf:a1BQr:A1BQr:_ADPf:aDPff:ADPff:aDPfr:ADPfr:_ADPr:aDPrf:ADPrf:aDPrr:ADPrr:_ALP:aLP1:ALP1:aLP2:ALP2:aLPL:ALPL:_ARP:aRP1:ARP1:aRP2:ARP2:aRPL:ARPL:_ALB:aLB1:aLB2:ALB2:aLBL:ALBL:_ARB:aRB1:aRB2:ARB2:aRBL:ARBL:_ALI:aLI1:aLI2:ALI2:aLIr:ALIr:_ARI:aRI1:aRI2:ARI2:aRIf:ARIf:_AX:aBQ2:ABQ2:aPF2:APF2:aP1:AP1:aP2:AP2:_Ax:aPF1:aLIT:aRIT:aP3:aNC:_BDP:bDPf:BDPf:bDPr:BDPr:_BT:bTAf:BTAf:bTAr:BTAr:bTBf:BTBf:bTBr:BTBr:_CDP1:cDP1f:CDP1f:cDP1r:CDP1r:cDP12f:CDP12f:cDP12r:CDP12r:_CDP2:cDP2f:CDP2f:cDP2r:CDP2r:c2BQ2:C2BQ2:c2LP0:C2LP0:c2RP0:C2RP0:_C2XP:c2LP1:c2LP2:c2RP1:c2RP2:c2LPL:c2RPL:_C2XB:c2LB1:c2LB2:c2RB1:c2RB2:c2LBL:c2RBL:_CDPx:cDP3f:CDP3f:cDP3r:CDP3r:cDP21f:CDP21f:cDP21r:CDP21r:_cDPMm:cDPMf:CDPMf:cDPMr:CDPMr:cDPmf:CDPmf:cDPmr:CDPmr:_DDP:DDP1:dDP1:DDP2:dDP2:_ea:aBQ:a2BQf:a2BQr:a2XM2:a2BM2:aBQQ:_eb:bMQ:aAaMQ:bNMQ:bNMa:bNMb:bMQQ:_eB:bIAQb:bIADb:bIDQb:_eC:cIAQf:cIADf:cIDQf:cIAQr:cIADr:cIDQr:_eE:bIAQ:cIAQ:bTINQ:cTINQ:_eQ1:cPCQ1:cPLQ1:cVQ1:gVQ1:_eQ2:cPCQ2:cPLQ2:cVQ2:cMmQ:dVQinc:_CDP1vx:cDP1v:CDP1v:cDP1w:CDP1w:cDP1x:CDP1x:_CDP2vx:cDP2v:CDP2v:cDP2w:CDP2w:cDP2x:CDP2x:_f1:CONTQ:nPF:nNFA:nAFA:nBCFA:_g1:VTI:VTD:cVQ1M:cVQ2M:cVQAM:cVQSM:_g2:gapNf:gapNr:gapSeq:gapbAD1:gapcAD1:gcAD2:gcAD3:_g3:bDPa:cDP0a:gapSa:_h1:bHap:cHap:c2Hap:_i1:vHGQ:vAC:vNLODQ:note";
+const char *const FORMAT_STRING_PER_REC_WITHOUT_SSCS = "GT:GQ:HQ:FT:FTS:_A_:DP:AD:bDP:bAD:c2DP:c2AD:_Aa:APDP:APXM:_Ab:APLRID:APLRI:APLRP:_Ac:ALRPxT:ALRIT:ALRIt:ALRPt:ALRBt:_AQ:aMQs:AMQs:a1BQf:A1BQf:a1BQr:A1BQr:_ADPf:aDPff:ADPff:aDPfr:ADPfr:_ADPr:aDPrf:ADPrf:aDPrr:ADPrr:_ALP:aLP1:ALP1:aLP2:ALP2:aLPL:ALPL:_ARP:aRP1:ARP1:aRP2:ARP2:aRPL:ARPL:_ALB:aLB1:aLB2:ALB2:aLBL:ALBL:_ARB:aRB1:aRB2:ARB2:aRBL:ARBL:_ALI:aLI1:aLI2:ALI2:aLIr:ALIr:_ARI:aRI1:aRI2:ARI2:aRIf:ARIf:_AX:aBQ2:ABQ2:aPF2:APF2:aP1:AP1:aP2:AP2:_Ax:aPF1:aLIT:aRIT:aP3:aNC:_BDP:bDPf:BDPf:bDPr:BDPr:_BT:bTAf:BTAf:bTAr:BTAr:bTBf:BTBf:bTBr:BTBr:_CDP1:cDP1f:CDP1f:cDP1r:CDP1r:cDP12f:CDP12f:cDP12r:CDP12r:_CDP2:cDP2f:CDP2f:cDP2r:CDP2r:_DDP:DDP1:dDP1:DDP2:dDP2:_ea:aBQ:a2BQf:a2BQr:a2XM2:a2BM2:aBQQ:_eb:bMQ:aAaMQ:bNMQ:bNMa:bNMb:bMQQ:_eB:bIAQb:bIADb:bIDQb:_eC:cIAQf:cIADf:cIDQf:cIAQr:cIADr:cIDQr:_eE:bIAQ:cIAQ:bTINQ:cTINQ:_eQ1:cPCQ1:cPLQ1:cVQ1:gVQ1:_eQ2:cPCQ2:cPLQ2:cVQ2:cMmQ:dVQinc:_CDP1vx:cDP1v:CDP1v:cDP1w:CDP1w:cDP1x:CDP1x:_CDP2vx:cDP2v:CDP2v:cDP2w:CDP2w:cDP2x:CDP2x:_f1:CONTQ:nPF:nNFA:nAFA:nBCFA:_g1:VTI:VTD:cVQ1M:cVQ2M:cVQAM:cVQSM:_g2:gapNf:gapNr:gapSeq:gapbAD1:gapcAD1:gcAD2:gcAD3:_g3:bDPa:cDP0a:gapSa:_h1:bHap:cHap:c2Hap:_i1:vHGQ:vAC:vNLODQ:note";
 const char *const FORMAT_IDS[] = {
     "GT",
     "GQ",
@@ -364,193 +393,209 @@ const char *const FORMAT_IDS[] = {
     "ALRPt",
     "ALRBt",
     "_AQ",
-    "AMQs",
-    "A1BQf",
-    "A1BQr",
-    "_A1",
-    "ADPff",
-    "ADPfr",
-    "ADPrf",
-    "ADPrr",
-    "_A2",
-    "ALP1",
-    "ALP2",
-    "ALPL",
-    "ARP1",
-    "ARP2",
-    "ARPL",
-    "_A3",
-    "ALB1",
-    "ALB2",
-    "ALBL",
-    "ARB1",
-    "ARB2",
-    "ARBL",
-    "_A4",
-    "ABQ2",
-    "APF1",
-    "APF2",
-    "AP1",
-    "AP2",
-    "_A5",
-    "ALI1",
-    "ALI2",
-    "ALIr",
-    "ARI1",
-    "ARI2",
-    "ARIf",
-    "_aQ",
     "aMQs",
+    "AMQs",
     "a1BQf",
+    "A1BQf",
     "a1BQr",
-    "_aE",
-    "aLPT",
-    "aRPT",
+    "A1BQr",
+    "_ADPf",
+    "aDPff",
+    "ADPff",
+    "aDPfr",
+    "ADPfr",
+    "_ADPr",
+    "aDPrf",
+    "ADPrf",
+    "aDPrr",
+    "ADPrr",
+    "_ALP",
+    "aLP1",
+    "ALP1",
+    "aLP2",
+    "ALP2",
+    "aLPL",
+    "ALPL",
+    "_ARP",
+    "aRP1",
+    "ARP1",
+    "aRP2",
+    "ARP2",
+    "aRPL",
+    "ARPL",
+    "_ALB",
+    "aLB1",
+    "aLB2",
+    "ALB2",
+    "aLBL",
+    "ALBL",
+    "_ARB",
+    "aRB1",
+    "aRB2",
+    "ARB2",
+    "aRBL",
+    "ARBL",
+    "_ALI",
+    "aLI1",
+    "aLI2",
+    "ALI2",
+    "aLIr",
+    "ALIr",
+    "_ARI",
+    "aRI1",
+    "aRI2",
+    "ARI2",
+    "aRIf",
+    "ARIf",
+    "_AX",
+    "aBQ2",
+    "ABQ2",
+    "aPF2",
+    "APF2",
+    "aP1",
+    "AP1",
+    "aP2",
+    "AP2",
+    "_Ax",
+    "aPF1",
     "aLIT",
     "aRIT",
     "aP3",
     "aNC",
-    "_a1",
-    "aDPff",
-    "aDPfr",
-    "aDPrf",
-    "aDPrr",
-    "_a2",
-    "aLP1",
-    "aLP2",
-    "aLPL",
-    "aRP1",
-    "aRP2",
-    "aRPL",
-    "_a3",
-    "aLB1",
-    "aLB2",
-    "aLBL",
-    "aRB1",
-    "aRB2",
-    "aRBL",
-    "_a4",
-    "aBQ2",
-    "aPF1",
-    "aPF2",
-    "aP1",
-    "aP2",
-    "_a5",
-    "aLI1",
-    "aLI2",
-    "aRI1",
-    "aRI2",
-    "aLIr",
-    "aRIf",
-    "_B1",
-    "BDPf",
-    "BTAf",
-    "BTBf",
-    "BDPr",
-    "BTAr",
-    "BTBr",
-    "_b1",
+    "_BDP",
     "bDPf",
-    "bTAf",
-    "bTBf",
+    "BDPf",
     "bDPr",
+    "BDPr",
+    "_BT",
+    "bTAf",
+    "BTAf",
     "bTAr",
+    "BTAr",
+    "bTBf",
+    "BTBf",
     "bTBr",
-    "_C1",
-    "CDP1f",
-    "CDP12f",
-    "CDP2f",
-    "CDP3f",
-    "C1DPf",
-    "CDPMf",
-    "CDPmf",
-    "_C2",
-    "CDP1r",
-    "CDP12r",
-    "CDP2r",
-    "CDP3r",
-    "C1DPr",
-    "CDPMr",
-    "CDPmr",
-    "_c1",
+    "BTBr",
+    "_CDP1",
     "cDP1f",
-    "cDP12f",
-    "cDP2f",
-    "cDP3f",
-    "c1DPf",
-    "cDPMf",
-    "cDPmf",
-    "_c2",
+    "CDP1f",
     "cDP1r",
+    "CDP1r",
+    "cDP12f",
+    "CDP12f",
     "cDP12r",
+    "CDP12r",
+    "_CDP2",
+    "cDP2f",
+    "CDP2f",
     "cDP2r",
+    "CDP2r",
+    "c2BQ2",
+    "C2BQ2",
+    "c2LP0",
+    "C2LP0",
+    "c2RP0",
+    "C2RP0",
+    "_C2XP",
+    "c2LP1",
+    "c2LP2",
+    "C2LP2",
+    "c2RP1",
+    "c2RP2",
+    "C2RP2",
+    "c2LPL",
+    "C2LPL",
+    "c2RPL",
+    "C2RPL",
+    "_C2XB",
+    "c2LB1",
+    "c2LB2",
+    "C2LB2",
+    "c2RB1",
+    "c2RB2",
+    "C2RB2",
+    "c2LBL",
+    "C2LBL",
+    "c2RBL",
+    "C2RBL",
+    "_CDPx",
+    "cDP3f",
+    "CDP3f",
     "cDP3r",
-    "c1DPr",
+    "CDP3r",
+    "cDP21f",
+    "CDP21f",
+    "cDP21r",
+    "CDP21r",
+    "_cDPMm",
+    "cDPMf",
+    "CDPMf",
     "cDPMr",
+    "CDPMr",
+    "cDPmf",
+    "CDPmf",
     "cDPmr",
-    "_Dd",
+    "CDPmr",
+    "_DDP",
     "DDP1",
-    "DDP2",
     "dDP1",
+    "DDP2",
     "dDP2",
-    "_e1",
+    "_ea",
     "aBQ",
     "a2BQf",
     "a2BQr",
     "a2XM2",
     "a2BM2",
     "aBQQ",
-    "_e2",
+    "_eb",
     "bMQ",
     "aAaMQ",
     "bNMQ",
     "bNMa",
     "bNMb",
     "bMQQ",
-    "_e3",
+    "_eB",
     "bIAQb",
     "bIADb",
     "bIDQb",
-    "_e4",
+    "_eC",
     "cIAQf",
     "cIADf",
     "cIDQf",
-    "_e5",
     "cIAQr",
     "cIADr",
     "cIDQr",
-    "_e6",
+    "_eE",
     "bIAQ",
     "cIAQ",
     "bTINQ",
     "cTINQ",
-    "_e7",
+    "_eQ1",
     "cPCQ1",
     "cPLQ1",
     "cVQ1",
     "gVQ1",
-    "_e8",
+    "_eQ2",
     "cPCQ2",
     "cPLQ2",
     "cVQ2",
     "cMmQ",
     "dVQinc",
-    "_Ef1",
-    "CDP1v",
-    "CDP1w",
-    "CDP1x",
-    "_ef1",
+    "_CDP1vx",
     "cDP1v",
+    "CDP1v",
     "cDP1w",
+    "CDP1w",
     "cDP1x",
-    "_Ef2",
-    "CDP2v",
-    "CDP2w",
-    "CDP2x",
-    "_ef2",
+    "CDP1x",
+    "_CDP2vx",
     "cDP2v",
+    "CDP2v",
     "cDP2w",
+    "CDP2w",
     "cDP2x",
+    "CDP2x",
     "_f1",
     "CONTQ",
     "nPF",
@@ -587,11 +632,12 @@ const char *const FORMAT_IDS[] = {
     "note",
 };
 struct BcfFormat {
+    bool enable_tier2_consensus_format_tags = false;
     std::string GT = "";
     int32_t GQ = 0;
     std::array <int32_t, 2>HQ = {{0}};
     std::string FT = "";
-    std::string FTS = "";
+    std::vector<std::string>FTS;
     bool _A_ = false;
     int32_t DP = 0;
     std::vector<int32_t>AD;
@@ -600,7 +646,7 @@ struct BcfFormat {
     int32_t c2DP = 0;
     std::vector<int32_t>c2AD;
     bool _Aa = false;
-    std::array <int32_t, 11>APDP = {{0}};
+    std::array <int32_t, 12>APDP = {{0}};
     std::array <int64_t, 8>APXM = {{0}};
     bool _Ab = false;
     std::array <int64_t, 4>APLRID = {{0}};
@@ -613,193 +659,209 @@ struct BcfFormat {
     std::array <int32_t, 4>ALRPt = {{0}};
     std::array <int32_t, 4>ALRBt = {{0}};
     bool _AQ = false;
-    std::array <int32_t, 2>AMQs = {{0}};
-    std::array <int32_t, 2>A1BQf = {{0}};
-    std::array <int32_t, 2>A1BQr = {{0}};
-    bool _A1 = false;
-    std::array <int32_t, 2>ADPff = {{0}};
-    std::array <int32_t, 2>ADPfr = {{0}};
-    std::array <int32_t, 2>ADPrf = {{0}};
-    std::array <int32_t, 2>ADPrr = {{0}};
-    bool _A2 = false;
-    std::array <int32_t, 2>ALP1 = {{0}};
-    std::array <int32_t, 2>ALP2 = {{0}};
-    std::array <int32_t, 2>ALPL = {{0}};
-    std::array <int32_t, 2>ARP1 = {{0}};
-    std::array <int32_t, 2>ARP2 = {{0}};
-    std::array <int32_t, 2>ARPL = {{0}};
-    bool _A3 = false;
-    std::array <int32_t, 2>ALB1 = {{0}};
-    std::array <int32_t, 2>ALB2 = {{0}};
-    std::array <int32_t, 2>ALBL = {{0}};
-    std::array <int32_t, 2>ARB1 = {{0}};
-    std::array <int32_t, 2>ARB2 = {{0}};
-    std::array <int32_t, 2>ARBL = {{0}};
-    bool _A4 = false;
-    std::array <int32_t, 2>ABQ2 = {{0}};
-    std::array <int32_t, 2>APF1 = {{0}};
-    std::array <int32_t, 2>APF2 = {{0}};
-    std::array <int32_t, 2>AP1 = {{0}};
-    std::array <int32_t, 2>AP2 = {{0}};
-    bool _A5 = false;
-    std::array <int32_t, 2>ALI1 = {{0}};
-    std::array <int32_t, 2>ALI2 = {{0}};
-    std::array <int32_t, 2>ALIr = {{0}};
-    std::array <int32_t, 2>ARI1 = {{0}};
-    std::array <int32_t, 2>ARI2 = {{0}};
-    std::array <int32_t, 2>ARIf = {{0}};
-    bool _aQ = false;
     std::vector<int32_t>aMQs;
+    std::array <int32_t, 2>AMQs = {{0}};
     std::vector<int32_t>a1BQf;
+    std::array <int32_t, 2>A1BQf = {{0}};
     std::vector<int32_t>a1BQr;
-    bool _aE = false;
-    std::vector<int32_t>aLPT;
-    std::vector<int32_t>aRPT;
+    std::array <int32_t, 2>A1BQr = {{0}};
+    bool _ADPf = false;
+    std::vector<int32_t>aDPff;
+    std::array <int32_t, 2>ADPff = {{0}};
+    std::vector<int32_t>aDPfr;
+    std::array <int32_t, 2>ADPfr = {{0}};
+    bool _ADPr = false;
+    std::vector<int32_t>aDPrf;
+    std::array <int32_t, 2>ADPrf = {{0}};
+    std::vector<int32_t>aDPrr;
+    std::array <int32_t, 2>ADPrr = {{0}};
+    bool _ALP = false;
+    std::vector<int32_t>aLP1;
+    std::array <int32_t, 2>ALP1 = {{0}};
+    std::vector<int32_t>aLP2;
+    std::array <int32_t, 2>ALP2 = {{0}};
+    std::vector<int64_t>aLPL;
+    std::array <int64_t, 2>ALPL = {{0}};
+    bool _ARP = false;
+    std::vector<int32_t>aRP1;
+    std::array <int32_t, 2>ARP1 = {{0}};
+    std::vector<int32_t>aRP2;
+    std::array <int32_t, 2>ARP2 = {{0}};
+    std::vector<int64_t>aRPL;
+    std::array <int64_t, 2>ARPL = {{0}};
+    bool _ALB = false;
+    std::vector<int32_t>aLB1;
+    std::vector<int32_t>aLB2;
+    std::array <int32_t, 2>ALB2 = {{0}};
+    std::vector<int64_t>aLBL;
+    std::array <int64_t, 2>ALBL = {{0}};
+    bool _ARB = false;
+    std::vector<int32_t>aRB1;
+    std::vector<int32_t>aRB2;
+    std::array <int32_t, 2>ARB2 = {{0}};
+    std::vector<int64_t>aRBL;
+    std::array <int64_t, 2>ARBL = {{0}};
+    bool _ALI = false;
+    std::vector<int32_t>aLI1;
+    std::vector<int32_t>aLI2;
+    std::array <int32_t, 2>ALI2 = {{0}};
+    std::vector<int32_t>aLIr;
+    std::array <int32_t, 2>ALIr = {{0}};
+    bool _ARI = false;
+    std::vector<int32_t>aRI1;
+    std::vector<int32_t>aRI2;
+    std::array <int32_t, 2>ARI2 = {{0}};
+    std::vector<int32_t>aRIf;
+    std::array <int32_t, 2>ARIf = {{0}};
+    bool _AX = false;
+    std::vector<int32_t>aBQ2;
+    std::array <int32_t, 2>ABQ2 = {{0}};
+    std::vector<int32_t>aPF2;
+    std::array <int32_t, 2>APF2 = {{0}};
+    std::vector<int32_t>aP1;
+    std::array <int32_t, 2>AP1 = {{0}};
+    std::vector<int32_t>aP2;
+    std::array <int32_t, 2>AP2 = {{0}};
+    bool _Ax = false;
+    std::vector<int32_t>aPF1;
     std::vector<int64_t>aLIT;
     std::vector<int64_t>aRIT;
     std::vector<int32_t>aP3;
     std::vector<int32_t>aNC;
-    bool _a1 = false;
-    std::vector<int32_t>aDPff;
-    std::vector<int32_t>aDPfr;
-    std::vector<int32_t>aDPrf;
-    std::vector<int32_t>aDPrr;
-    bool _a2 = false;
-    std::vector<int32_t>aLP1;
-    std::vector<int32_t>aLP2;
-    std::vector<int64_t>aLPL;
-    std::vector<int32_t>aRP1;
-    std::vector<int32_t>aRP2;
-    std::vector<int64_t>aRPL;
-    bool _a3 = false;
-    std::vector<int32_t>aLB1;
-    std::vector<int32_t>aLB2;
-    std::vector<int64_t>aLBL;
-    std::vector<int32_t>aRB1;
-    std::vector<int32_t>aRB2;
-    std::vector<int64_t>aRBL;
-    bool _a4 = false;
-    std::vector<int32_t>aBQ2;
-    std::vector<int32_t>aPF1;
-    std::vector<int32_t>aPF2;
-    std::vector<int32_t>aP1;
-    std::vector<int32_t>aP2;
-    bool _a5 = false;
-    std::vector<int32_t>aLI1;
-    std::vector<int32_t>aLI2;
-    std::vector<int32_t>aRI1;
-    std::vector<int32_t>aRI2;
-    std::vector<int32_t>aLIr;
-    std::vector<int32_t>aRIf;
-    bool _B1 = false;
-    std::array <int32_t, 2>BDPf = {{0}};
-    std::array <int32_t, 2>BTAf = {{0}};
-    std::array <int32_t, 2>BTBf = {{0}};
-    std::array <int32_t, 2>BDPr = {{0}};
-    std::array <int32_t, 2>BTAr = {{0}};
-    std::array <int32_t, 2>BTBr = {{0}};
-    bool _b1 = false;
+    bool _BDP = false;
     std::vector<int32_t>bDPf;
-    std::vector<int32_t>bTAf;
-    std::vector<int32_t>bTBf;
+    std::array <int32_t, 2>BDPf = {{0}};
     std::vector<int32_t>bDPr;
+    std::array <int32_t, 2>BDPr = {{0}};
+    bool _BT = false;
+    std::vector<int32_t>bTAf;
+    std::array <int32_t, 2>BTAf = {{0}};
     std::vector<int32_t>bTAr;
+    std::array <int32_t, 2>BTAr = {{0}};
+    std::vector<int32_t>bTBf;
+    std::array <int32_t, 2>BTBf = {{0}};
     std::vector<int32_t>bTBr;
-    bool _C1 = false;
-    std::array <int32_t, 2>CDP1f = {{0}};
-    std::array <int32_t, 2>CDP12f = {{0}};
-    std::array <int32_t, 2>CDP2f = {{0}};
-    std::array <int32_t, 2>CDP3f = {{0}};
-    std::array <int32_t, 2>C1DPf = {{0}};
-    std::array <int32_t, 2>CDPMf = {{0}};
-    std::array <int32_t, 2>CDPmf = {{0}};
-    bool _C2 = false;
-    std::array <int32_t, 2>CDP1r = {{0}};
-    std::array <int32_t, 2>CDP12r = {{0}};
-    std::array <int32_t, 2>CDP2r = {{0}};
-    std::array <int32_t, 2>CDP3r = {{0}};
-    std::array <int32_t, 2>C1DPr = {{0}};
-    std::array <int32_t, 2>CDPMr = {{0}};
-    std::array <int32_t, 2>CDPmr = {{0}};
-    bool _c1 = false;
+    std::array <int32_t, 2>BTBr = {{0}};
+    bool _CDP1 = false;
     std::vector<int32_t>cDP1f;
-    std::vector<int32_t>cDP12f;
-    std::vector<int32_t>cDP2f;
-    std::vector<int32_t>cDP3f;
-    std::vector<int32_t>c1DPf;
-    std::vector<int32_t>cDPMf;
-    std::vector<int32_t>cDPmf;
-    bool _c2 = false;
+    std::array <int32_t, 2>CDP1f = {{0}};
     std::vector<int32_t>cDP1r;
+    std::array <int32_t, 2>CDP1r = {{0}};
+    std::vector<int32_t>cDP12f;
+    std::array <int32_t, 2>CDP12f = {{0}};
     std::vector<int32_t>cDP12r;
+    std::array <int32_t, 2>CDP12r = {{0}};
+    bool _CDP2 = false;
+    std::vector<int32_t>cDP2f;
+    std::array <int32_t, 2>CDP2f = {{0}};
     std::vector<int32_t>cDP2r;
+    std::array <int32_t, 2>CDP2r = {{0}};
+    std::vector<int32_t>c2BQ2;
+    std::array <int32_t, 2>C2BQ2 = {{0}};
+    std::vector<int32_t>c2LP0;
+    std::array <int32_t, 2>C2LP0 = {{0}};
+    std::vector<int32_t>c2RP0;
+    std::array <int32_t, 2>C2RP0 = {{0}};
+    bool _C2XP = false;
+    std::vector<int32_t>c2LP1;
+    std::vector<int32_t>c2LP2;
+    std::array <int32_t, 2>C2LP2 = {{0}};
+    std::vector<int32_t>c2RP1;
+    std::vector<int32_t>c2RP2;
+    std::array <int32_t, 2>C2RP2 = {{0}};
+    std::vector<int64_t>c2LPL;
+    std::array <int64_t, 2>C2LPL = {{0}};
+    std::vector<int64_t>c2RPL;
+    std::array <int64_t, 2>C2RPL = {{0}};
+    bool _C2XB = false;
+    std::vector<int32_t>c2LB1;
+    std::vector<int32_t>c2LB2;
+    std::array <int32_t, 2>C2LB2 = {{0}};
+    std::vector<int32_t>c2RB1;
+    std::vector<int32_t>c2RB2;
+    std::array <int32_t, 2>C2RB2 = {{0}};
+    std::vector<int64_t>c2LBL;
+    std::array <int64_t, 2>C2LBL = {{0}};
+    std::vector<int64_t>c2RBL;
+    std::array <int64_t, 2>C2RBL = {{0}};
+    bool _CDPx = false;
+    std::vector<int32_t>cDP3f;
+    std::array <int32_t, 2>CDP3f = {{0}};
     std::vector<int32_t>cDP3r;
-    std::vector<int32_t>c1DPr;
+    std::array <int32_t, 2>CDP3r = {{0}};
+    std::vector<int32_t>cDP21f;
+    std::array <int32_t, 2>CDP21f = {{0}};
+    std::vector<int32_t>cDP21r;
+    std::array <int32_t, 2>CDP21r = {{0}};
+    bool _cDPMm = false;
+    std::vector<int32_t>cDPMf;
+    std::array <int32_t, 2>CDPMf = {{0}};
     std::vector<int32_t>cDPMr;
+    std::array <int32_t, 2>CDPMr = {{0}};
+    std::vector<int32_t>cDPmf;
+    std::array <int32_t, 2>CDPmf = {{0}};
     std::vector<int32_t>cDPmr;
-    bool _Dd = false;
+    std::array <int32_t, 2>CDPmr = {{0}};
+    bool _DDP = false;
     std::array <int32_t, 2>DDP1 = {{0}};
-    std::array <int32_t, 2>DDP2 = {{0}};
     std::vector<int32_t>dDP1;
+    std::array <int32_t, 2>DDP2 = {{0}};
     std::vector<int32_t>dDP2;
-    bool _e1 = false;
+    bool _ea = false;
     std::vector<int32_t>aBQ;
     std::vector<int32_t>a2BQf;
     std::vector<int32_t>a2BQr;
     std::vector<int32_t>a2XM2;
     std::vector<int32_t>a2BM2;
     std::vector<int32_t>aBQQ;
-    bool _e2 = false;
+    bool _eb = false;
     std::vector<int32_t>bMQ;
     std::vector<int32_t>aAaMQ;
     std::vector<int32_t>bNMQ;
     std::vector<int32_t>bNMa;
     std::vector<int32_t>bNMb;
     std::vector<int32_t>bMQQ;
-    bool _e3 = false;
+    bool _eB = false;
     std::vector<int32_t>bIAQb;
     std::vector<int32_t>bIADb;
     std::vector<int32_t>bIDQb;
-    bool _e4 = false;
+    bool _eC = false;
     std::vector<int32_t>cIAQf;
     std::vector<int32_t>cIADf;
     std::vector<int32_t>cIDQf;
-    bool _e5 = false;
     std::vector<int32_t>cIAQr;
     std::vector<int32_t>cIADr;
     std::vector<int32_t>cIDQr;
-    bool _e6 = false;
+    bool _eE = false;
     std::vector<int32_t>bIAQ;
     std::vector<int32_t>cIAQ;
     std::vector<int32_t>bTINQ;
     std::vector<int32_t>cTINQ;
-    bool _e7 = false;
+    bool _eQ1 = false;
     std::vector<int32_t>cPCQ1;
     std::vector<int32_t>cPLQ1;
     std::vector<int32_t>cVQ1;
     std::vector<int32_t>gVQ1;
-    bool _e8 = false;
+    bool _eQ2 = false;
     std::vector<int32_t>cPCQ2;
     std::vector<int32_t>cPLQ2;
     std::vector<int32_t>cVQ2;
     std::vector<int32_t>cMmQ;
     std::vector<int32_t>dVQinc;
-    bool _Ef1 = false;
-    std::array <int32_t, 2>CDP1v = {{0}};
-    std::array <int32_t, 2>CDP1w = {{0}};
-    std::array <int32_t, 2>CDP1x = {{0}};
-    bool _ef1 = false;
+    bool _CDP1vx = false;
     std::vector<int32_t>cDP1v;
+    std::array <int32_t, 2>CDP1v = {{0}};
     std::vector<int32_t>cDP1w;
+    std::array <int32_t, 2>CDP1w = {{0}};
     std::vector<int32_t>cDP1x;
-    bool _Ef2 = false;
-    std::array <int32_t, 2>CDP2v = {{0}};
-    std::array <int32_t, 2>CDP2w = {{0}};
-    std::array <int32_t, 2>CDP2x = {{0}};
-    bool _ef2 = false;
+    std::array <int32_t, 2>CDP1x = {{0}};
+    bool _CDP2vx = false;
     std::vector<int32_t>cDP2v;
+    std::array <int32_t, 2>CDP2v = {{0}};
     std::vector<int32_t>cDP2w;
+    std::array <int32_t, 2>CDP2w = {{0}};
     std::vector<int32_t>cDP2x;
+    std::array <int32_t, 2>CDP2x = {{0}};
     bool _f1 = false;
     std::vector<int32_t>CONTQ;
     std::vector<int32_t>nPF;
@@ -836,1085 +898,1836 @@ struct BcfFormat {
     std::string note = "";
 };
 static int streamAppendBcfFormat(std::string & outstring, const BcfFormat & fmt) {
+if (true) {
     if (fmt.GT.size() == 0) { outstring += "."; }
     outstring += (fmt.GT);
+
+}
+if (true) {
     outstring += ":";;
     outstring += std::to_string(fmt.GQ);
+
+}
+if (true) {
     outstring += ":";;
-    if (fmt.HQ.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.HQ.size(); i++) {
+    for (unsigned int i = 0; i < 2; i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.HQ[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.FT.size() == 0) { outstring += "."; }
     outstring += (fmt.FT);
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.FTS.size() == 0) { outstring += "."; }
-    outstring += (fmt.FTS);
+    for (unsigned int i = 0; i <  fmt.FTS.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += (fmt.FTS[i]);
+    };
+
+}
+if (true) {
     outstring += ":";;
     outstring += std::string(FORMAT_IDS[5]) + "";
+
+}
+if (true) {
     outstring += ":";;
     outstring += std::to_string(fmt.DP);
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.AD.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.AD.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.AD.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.AD[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
     outstring += std::to_string(fmt.bDP);
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.bAD.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.bAD.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.bAD.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.bAD[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
     outstring += std::to_string(fmt.c2DP);
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.c2AD.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.c2AD.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.c2AD.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.c2AD[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
     outstring += std::string(FORMAT_IDS[12]) + "";
+
+}
+if (true) {
     outstring += ":";;
-    if (fmt.APDP.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.APDP.size(); i++) {
+    for (unsigned int i = 0; i < 12; i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.APDP[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
-    if (fmt.APXM.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.APXM.size(); i++) {
+    for (unsigned int i = 0; i < 8; i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.APXM[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
     outstring += std::string(FORMAT_IDS[15]) + "";
+
+}
+if (true) {
     outstring += ":";;
-    if (fmt.APLRID.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.APLRID.size(); i++) {
+    for (unsigned int i = 0; i < 4; i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.APLRID[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
-    if (fmt.APLRI.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.APLRI.size(); i++) {
+    for (unsigned int i = 0; i < 4; i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.APLRI[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
-    if (fmt.APLRP.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.APLRP.size(); i++) {
+    for (unsigned int i = 0; i < 4; i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.APLRP[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
     outstring += std::string(FORMAT_IDS[19]) + "";
+
+}
+if (true) {
     outstring += ":";;
-    if (fmt.ALRPxT.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.ALRPxT.size(); i++) {
+    for (unsigned int i = 0; i < 2; i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.ALRPxT[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
-    if (fmt.ALRIT.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.ALRIT.size(); i++) {
+    for (unsigned int i = 0; i < 4; i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.ALRIT[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
-    if (fmt.ALRIt.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.ALRIt.size(); i++) {
+    for (unsigned int i = 0; i < 4; i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.ALRIt[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
-    if (fmt.ALRPt.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.ALRPt.size(); i++) {
+    for (unsigned int i = 0; i < 4; i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.ALRPt[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
-    if (fmt.ALRBt.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.ALRBt.size(); i++) {
+    for (unsigned int i = 0; i < 4; i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.ALRBt[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
     outstring += std::string(FORMAT_IDS[25]) + "";
-    outstring += ":";;
-    if (fmt.AMQs.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.AMQs.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.AMQs[i]);
-    };
-    outstring += ":";;
-    if (fmt.A1BQf.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.A1BQf.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.A1BQf[i]);
-    };
-    outstring += ":";;
-    if (fmt.A1BQr.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.A1BQr.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.A1BQr[i]);
-    };
-    outstring += ":";;
-    outstring += std::string(FORMAT_IDS[29]) + "";
-    outstring += ":";;
-    if (fmt.ADPff.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.ADPff.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.ADPff[i]);
-    };
-    outstring += ":";;
-    if (fmt.ADPfr.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.ADPfr.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.ADPfr[i]);
-    };
-    outstring += ":";;
-    if (fmt.ADPrf.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.ADPrf.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.ADPrf[i]);
-    };
-    outstring += ":";;
-    if (fmt.ADPrr.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.ADPrr.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.ADPrr[i]);
-    };
-    outstring += ":";;
-    outstring += std::string(FORMAT_IDS[34]) + "";
-    outstring += ":";;
-    if (fmt.ALP1.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.ALP1.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.ALP1[i]);
-    };
-    outstring += ":";;
-    if (fmt.ALP2.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.ALP2.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.ALP2[i]);
-    };
-    outstring += ":";;
-    if (fmt.ALPL.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.ALPL.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.ALPL[i]);
-    };
-    outstring += ":";;
-    if (fmt.ARP1.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.ARP1.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.ARP1[i]);
-    };
-    outstring += ":";;
-    if (fmt.ARP2.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.ARP2.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.ARP2[i]);
-    };
-    outstring += ":";;
-    if (fmt.ARPL.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.ARPL.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.ARPL[i]);
-    };
-    outstring += ":";;
-    outstring += std::string(FORMAT_IDS[41]) + "";
-    outstring += ":";;
-    if (fmt.ALB1.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.ALB1.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.ALB1[i]);
-    };
-    outstring += ":";;
-    if (fmt.ALB2.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.ALB2.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.ALB2[i]);
-    };
-    outstring += ":";;
-    if (fmt.ALBL.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.ALBL.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.ALBL[i]);
-    };
-    outstring += ":";;
-    if (fmt.ARB1.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.ARB1.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.ARB1[i]);
-    };
-    outstring += ":";;
-    if (fmt.ARB2.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.ARB2.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.ARB2[i]);
-    };
-    outstring += ":";;
-    if (fmt.ARBL.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.ARBL.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.ARBL[i]);
-    };
-    outstring += ":";;
-    outstring += std::string(FORMAT_IDS[48]) + "";
-    outstring += ":";;
-    if (fmt.ABQ2.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.ABQ2.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.ABQ2[i]);
-    };
-    outstring += ":";;
-    if (fmt.APF1.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.APF1.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.APF1[i]);
-    };
-    outstring += ":";;
-    if (fmt.APF2.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.APF2.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.APF2[i]);
-    };
-    outstring += ":";;
-    if (fmt.AP1.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.AP1.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.AP1[i]);
-    };
-    outstring += ":";;
-    if (fmt.AP2.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.AP2.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.AP2[i]);
-    };
-    outstring += ":";;
-    outstring += std::string(FORMAT_IDS[54]) + "";
-    outstring += ":";;
-    if (fmt.ALI1.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.ALI1.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.ALI1[i]);
-    };
-    outstring += ":";;
-    if (fmt.ALI2.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.ALI2.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.ALI2[i]);
-    };
-    outstring += ":";;
-    if (fmt.ALIr.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.ALIr.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.ALIr[i]);
-    };
-    outstring += ":";;
-    if (fmt.ARI1.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.ARI1.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.ARI1[i]);
-    };
-    outstring += ":";;
-    if (fmt.ARI2.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.ARI2.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.ARI2[i]);
-    };
-    outstring += ":";;
-    if (fmt.ARIf.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.ARIf.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.ARIf[i]);
-    };
-    outstring += ":";;
-    outstring += std::string(FORMAT_IDS[61]) + "";
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.aMQs.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.aMQs.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.aMQs.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aMQs[i]);
     };
+
+}
+if (true) {
+    outstring += ":";;
+    for (unsigned int i = 0; i < 1; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.AMQs[i]);
+    };
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.a1BQf.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.a1BQf.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.a1BQf.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.a1BQf[i]);
     };
+
+}
+if (true) {
+    outstring += ":";;
+    for (unsigned int i = 0; i < 1; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.A1BQf[i]);
+    };
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.a1BQr.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.a1BQr.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.a1BQr.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.a1BQr[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
-    outstring += std::string(FORMAT_IDS[65]) + "";
-    outstring += ":";;
-    if (fmt.aLPT.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.aLPT.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aLPT[i]);
+    for (unsigned int i = 0; i < 1; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.A1BQr[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
-    if (fmt.aRPT.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.aRPT.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aRPT[i]);
-    };
-    outstring += ":";;
-    if (fmt.aLIT.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.aLIT.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aLIT[i]);
-    };
-    outstring += ":";;
-    if (fmt.aRIT.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.aRIT.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aRIT[i]);
-    };
-    outstring += ":";;
-    if (fmt.aP3.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.aP3.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aP3[i]);
-    };
-    outstring += ":";;
-    if (fmt.aNC.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.aNC.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aNC[i]);
-    };
-    outstring += ":";;
-    outstring += std::string(FORMAT_IDS[72]) + "";
+    outstring += std::string(FORMAT_IDS[32]) + "";
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.aDPff.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.aDPff.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.aDPff.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aDPff[i]);
     };
+
+}
+if (true) {
+    outstring += ":";;
+    for (unsigned int i = 0; i < 2; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.ADPff[i]);
+    };
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.aDPfr.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.aDPfr.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.aDPfr.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aDPfr[i]);
     };
+
+}
+if (true) {
+    outstring += ":";;
+    for (unsigned int i = 0; i < 2; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.ADPfr[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    outstring += std::string(FORMAT_IDS[37]) + "";
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.aDPrf.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.aDPrf.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.aDPrf.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aDPrf[i]);
     };
+
+}
+if (true) {
+    outstring += ":";;
+    for (unsigned int i = 0; i < 2; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.ADPrf[i]);
+    };
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.aDPrr.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.aDPrr.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.aDPrr.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aDPrr[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
-    outstring += std::string(FORMAT_IDS[77]) + "";
+    for (unsigned int i = 0; i < 2; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.ADPrr[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    outstring += std::string(FORMAT_IDS[42]) + "";
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.aLP1.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.aLP1.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.aLP1.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aLP1[i]);
     };
+
+}
+if (true) {
+    outstring += ":";;
+    for (unsigned int i = 0; i < 1; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.ALP1[i]);
+    };
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.aLP2.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.aLP2.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.aLP2.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aLP2[i]);
     };
+
+}
+if (true) {
+    outstring += ":";;
+    for (unsigned int i = 0; i < 1; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.ALP2[i]);
+    };
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.aLPL.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.aLPL.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.aLPL.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aLPL[i]);
     };
+
+}
+if (true) {
+    outstring += ":";;
+    for (unsigned int i = 0; i < 1; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.ALPL[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    outstring += std::string(FORMAT_IDS[49]) + "";
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.aRP1.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.aRP1.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.aRP1.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aRP1[i]);
     };
+
+}
+if (true) {
+    outstring += ":";;
+    for (unsigned int i = 0; i < 1; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.ARP1[i]);
+    };
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.aRP2.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.aRP2.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.aRP2.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aRP2[i]);
     };
+
+}
+if (true) {
+    outstring += ":";;
+    for (unsigned int i = 0; i < 1; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.ARP2[i]);
+    };
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.aRPL.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.aRPL.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.aRPL.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aRPL[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
-    outstring += std::string(FORMAT_IDS[84]) + "";
+    for (unsigned int i = 0; i < 1; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.ARPL[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    outstring += std::string(FORMAT_IDS[56]) + "";
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.aLB1.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.aLB1.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.aLB1.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aLB1[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.aLB2.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.aLB2.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.aLB2.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aLB2[i]);
     };
+
+}
+if (true) {
+    outstring += ":";;
+    for (unsigned int i = 0; i < 1; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.ALB2[i]);
+    };
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.aLBL.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.aLBL.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.aLBL.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aLBL[i]);
     };
+
+}
+if (true) {
+    outstring += ":";;
+    for (unsigned int i = 0; i < 1; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.ALBL[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    outstring += std::string(FORMAT_IDS[62]) + "";
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.aRB1.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.aRB1.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.aRB1.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aRB1[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.aRB2.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.aRB2.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.aRB2.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aRB2[i]);
     };
+
+}
+if (true) {
+    outstring += ":";;
+    for (unsigned int i = 0; i < 1; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.ARB2[i]);
+    };
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.aRBL.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.aRBL.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.aRBL.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aRBL[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
-    outstring += std::string(FORMAT_IDS[91]) + "";
-    outstring += ":";;
-    if (fmt.aBQ2.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.aBQ2.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aBQ2[i]);
+    for (unsigned int i = 0; i < 1; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.ARBL[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
-    if (fmt.aPF1.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.aPF1.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aPF1[i]);
-    };
-    outstring += ":";;
-    if (fmt.aPF2.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.aPF2.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aPF2[i]);
-    };
-    outstring += ":";;
-    if (fmt.aP1.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.aP1.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aP1[i]);
-    };
-    outstring += ":";;
-    if (fmt.aP2.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.aP2.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aP2[i]);
-    };
-    outstring += ":";;
-    outstring += std::string(FORMAT_IDS[97]) + "";
+    outstring += std::string(FORMAT_IDS[68]) + "";
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.aLI1.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.aLI1.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.aLI1.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aLI1[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.aLI2.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.aLI2.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.aLI2.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aLI2[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
-    if (fmt.aRI1.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.aRI1.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aRI1[i]);
+    for (unsigned int i = 0; i < 1; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.ALI2[i]);
     };
-    outstring += ":";;
-    if (fmt.aRI2.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.aRI2.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aRI2[i]);
-    };
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.aLIr.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.aLIr.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.aLIr.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aLIr[i]);
     };
+
+}
+if (true) {
+    outstring += ":";;
+    for (unsigned int i = 0; i < 1; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.ALIr[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    outstring += std::string(FORMAT_IDS[74]) + "";
+
+}
+if (true) {
+    outstring += ":";;
+    if (fmt.aRI1.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.aRI1.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aRI1[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    if (fmt.aRI2.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.aRI2.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aRI2[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    for (unsigned int i = 0; i < 1; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.ARI2[i]);
+    };
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.aRIf.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.aRIf.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.aRIf.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aRIf[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
-    outstring += std::string(FORMAT_IDS[104]) + "";
-    outstring += ":";;
-    if (fmt.BDPf.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.BDPf.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.BDPf[i]);
+    for (unsigned int i = 0; i < 1; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.ARIf[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
-    if (fmt.BTAf.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.BTAf.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.BTAf[i]);
+    outstring += std::string(FORMAT_IDS[80]) + "";
+
+}
+if (true) {
+    outstring += ":";;
+    if (fmt.aBQ2.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.aBQ2.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aBQ2[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
-    if (fmt.BTBf.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.BTBf.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.BTBf[i]);
+    for (unsigned int i = 0; i < 1; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.ABQ2[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
-    if (fmt.BDPr.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.BDPr.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.BDPr[i]);
+    if (fmt.aPF2.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.aPF2.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aPF2[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
-    if (fmt.BTAr.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.BTAr.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.BTAr[i]);
+    for (unsigned int i = 0; i < 1; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.APF2[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
-    if (fmt.BTBr.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.BTBr.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.BTBr[i]);
+    if (fmt.aP1.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.aP1.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aP1[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
-    outstring += std::string(FORMAT_IDS[111]) + "";
+    for (unsigned int i = 0; i < 1; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.AP1[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    if (fmt.aP2.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.aP2.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aP2[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    for (unsigned int i = 0; i < 1; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.AP2[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    outstring += std::string(FORMAT_IDS[89]) + "";
+
+}
+if (true) {
+    outstring += ":";;
+    if (fmt.aPF1.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.aPF1.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aPF1[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    if (fmt.aLIT.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.aLIT.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aLIT[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    if (fmt.aRIT.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.aRIT.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aRIT[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    if (fmt.aP3.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.aP3.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aP3[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    if (fmt.aNC.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.aNC.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aNC[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    outstring += std::string(FORMAT_IDS[95]) + "";
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.bDPf.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.bDPf.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.bDPf.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.bDPf[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
-    if (fmt.bTAf.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.bTAf.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.bTAf[i]);
+    for (unsigned int i = 0; i < 2; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.BDPf[i]);
     };
-    outstring += ":";;
-    if (fmt.bTBf.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.bTBf.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.bTBf[i]);
-    };
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.bDPr.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.bDPr.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.bDPr.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.bDPr[i]);
     };
+
+}
+if (true) {
+    outstring += ":";;
+    for (unsigned int i = 0; i < 2; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.BDPr[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    outstring += std::string(FORMAT_IDS[100]) + "";
+
+}
+if (true) {
+    outstring += ":";;
+    if (fmt.bTAf.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.bTAf.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.bTAf[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    for (unsigned int i = 0; i < 1; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.BTAf[i]);
+    };
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.bTAr.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.bTAr.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.bTAr.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.bTAr[i]);
     };
+
+}
+if (true) {
+    outstring += ":";;
+    for (unsigned int i = 0; i < 1; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.BTAr[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    if (fmt.bTBf.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.bTBf.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.bTBf[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    for (unsigned int i = 0; i < 1; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.BTBf[i]);
+    };
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.bTBr.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.bTBr.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.bTBr.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.bTBr[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
-    outstring += std::string(FORMAT_IDS[118]) + "";
-    outstring += ":";;
-    if (fmt.CDP1f.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.CDP1f.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.CDP1f[i]);
+    for (unsigned int i = 0; i < 1; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.BTBr[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
-    if (fmt.CDP12f.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.CDP12f.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.CDP12f[i]);
-    };
-    outstring += ":";;
-    if (fmt.CDP2f.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.CDP2f.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.CDP2f[i]);
-    };
-    outstring += ":";;
-    if (fmt.CDP3f.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.CDP3f.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.CDP3f[i]);
-    };
-    outstring += ":";;
-    if (fmt.C1DPf.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.C1DPf.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.C1DPf[i]);
-    };
-    outstring += ":";;
-    if (fmt.CDPMf.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.CDPMf.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.CDPMf[i]);
-    };
-    outstring += ":";;
-    if (fmt.CDPmf.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.CDPmf.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.CDPmf[i]);
-    };
-    outstring += ":";;
-    outstring += std::string(FORMAT_IDS[126]) + "";
-    outstring += ":";;
-    if (fmt.CDP1r.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.CDP1r.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.CDP1r[i]);
-    };
-    outstring += ":";;
-    if (fmt.CDP12r.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.CDP12r.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.CDP12r[i]);
-    };
-    outstring += ":";;
-    if (fmt.CDP2r.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.CDP2r.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.CDP2r[i]);
-    };
-    outstring += ":";;
-    if (fmt.CDP3r.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.CDP3r.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.CDP3r[i]);
-    };
-    outstring += ":";;
-    if (fmt.C1DPr.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.C1DPr.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.C1DPr[i]);
-    };
-    outstring += ":";;
-    if (fmt.CDPMr.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.CDPMr.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.CDPMr[i]);
-    };
-    outstring += ":";;
-    if (fmt.CDPmr.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.CDPmr.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.CDPmr[i]);
-    };
-    outstring += ":";;
-    outstring += std::string(FORMAT_IDS[134]) + "";
+    outstring += std::string(FORMAT_IDS[109]) + "";
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.cDP1f.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.cDP1f.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.cDP1f.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cDP1f[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
-    if (fmt.cDP12f.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.cDP12f.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cDP12f[i]);
+    for (unsigned int i = 0; i < 2; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.CDP1f[i]);
     };
-    outstring += ":";;
-    if (fmt.cDP2f.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.cDP2f.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cDP2f[i]);
-    };
-    outstring += ":";;
-    if (fmt.cDP3f.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.cDP3f.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cDP3f[i]);
-    };
-    outstring += ":";;
-    if (fmt.c1DPf.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.c1DPf.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.c1DPf[i]);
-    };
-    outstring += ":";;
-    if (fmt.cDPMf.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.cDPMf.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cDPMf[i]);
-    };
-    outstring += ":";;
-    if (fmt.cDPmf.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.cDPmf.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cDPmf[i]);
-    };
-    outstring += ":";;
-    outstring += std::string(FORMAT_IDS[142]) + "";
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.cDP1r.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.cDP1r.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.cDP1r.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cDP1r[i]);
     };
+
+}
+if (true) {
+    outstring += ":";;
+    for (unsigned int i = 0; i < 2; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.CDP1r[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    if (fmt.cDP12f.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.cDP12f.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cDP12f[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    for (unsigned int i = 0; i < 2; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.CDP12f[i]);
+    };
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.cDP12r.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.cDP12r.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.cDP12r.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cDP12r[i]);
     };
+
+}
+if (true) {
+    outstring += ":";;
+    for (unsigned int i = 0; i < 2; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.CDP12r[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    outstring += std::string(FORMAT_IDS[118]) + "";
+
+}
+if (true) {
+    outstring += ":";;
+    if (fmt.cDP2f.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.cDP2f.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cDP2f[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    for (unsigned int i = 0; i < 2; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.CDP2f[i]);
+    };
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.cDP2r.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.cDP2r.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.cDP2r.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cDP2r[i]);
     };
+
+}
+if (true) {
+    outstring += ":";;
+    for (unsigned int i = 0; i < 2; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.CDP2r[i]);
+    };
+
+}
+if (fmt.enable_tier2_consensus_format_tags) {
+    outstring += ":";;
+    if (fmt.c2BQ2.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.c2BQ2.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.c2BQ2[i]);
+    };
+
+}
+if (fmt.enable_tier2_consensus_format_tags) {
+    outstring += ":";;
+    for (unsigned int i = 0; i < 1; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.C2BQ2[i]);
+    };
+
+}
+if (fmt.enable_tier2_consensus_format_tags) {
+    outstring += ":";;
+    if (fmt.c2LP0.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.c2LP0.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.c2LP0[i]);
+    };
+
+}
+if (fmt.enable_tier2_consensus_format_tags) {
+    outstring += ":";;
+    for (unsigned int i = 0; i < 1; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.C2LP0[i]);
+    };
+
+}
+if (fmt.enable_tier2_consensus_format_tags) {
+    outstring += ":";;
+    if (fmt.c2RP0.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.c2RP0.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.c2RP0[i]);
+    };
+
+}
+if (fmt.enable_tier2_consensus_format_tags) {
+    outstring += ":";;
+    for (unsigned int i = 0; i < 1; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.C2RP0[i]);
+    };
+
+}
+if (fmt.enable_tier2_consensus_format_tags) {
+    outstring += ":";;
+    outstring += std::string(FORMAT_IDS[129]) + "";
+
+}
+if (fmt.enable_tier2_consensus_format_tags) {
+    outstring += ":";;
+    if (fmt.c2LP1.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.c2LP1.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.c2LP1[i]);
+    };
+
+}
+if (fmt.enable_tier2_consensus_format_tags) {
+    outstring += ":";;
+    if (fmt.c2LP2.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.c2LP2.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.c2LP2[i]);
+    };
+
+}
+/* The FORMAT/TAG C2LP2 is skipped */
+if (fmt.enable_tier2_consensus_format_tags) {
+    outstring += ":";;
+    if (fmt.c2RP1.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.c2RP1.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.c2RP1[i]);
+    };
+
+}
+if (fmt.enable_tier2_consensus_format_tags) {
+    outstring += ":";;
+    if (fmt.c2RP2.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.c2RP2.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.c2RP2[i]);
+    };
+
+}
+/* The FORMAT/TAG C2RP2 is skipped */
+if (fmt.enable_tier2_consensus_format_tags) {
+    outstring += ":";;
+    if (fmt.c2LPL.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.c2LPL.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.c2LPL[i]);
+    };
+
+}
+/* The FORMAT/TAG C2LPL is skipped */
+if (fmt.enable_tier2_consensus_format_tags) {
+    outstring += ":";;
+    if (fmt.c2RPL.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.c2RPL.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.c2RPL[i]);
+    };
+
+}
+/* The FORMAT/TAG C2RPL is skipped */
+if (fmt.enable_tier2_consensus_format_tags) {
+    outstring += ":";;
+    outstring += std::string(FORMAT_IDS[140]) + "";
+
+}
+if (fmt.enable_tier2_consensus_format_tags) {
+    outstring += ":";;
+    if (fmt.c2LB1.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.c2LB1.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.c2LB1[i]);
+    };
+
+}
+if (fmt.enable_tier2_consensus_format_tags) {
+    outstring += ":";;
+    if (fmt.c2LB2.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.c2LB2.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.c2LB2[i]);
+    };
+
+}
+/* The FORMAT/TAG C2LB2 is skipped */
+if (fmt.enable_tier2_consensus_format_tags) {
+    outstring += ":";;
+    if (fmt.c2RB1.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.c2RB1.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.c2RB1[i]);
+    };
+
+}
+if (fmt.enable_tier2_consensus_format_tags) {
+    outstring += ":";;
+    if (fmt.c2RB2.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.c2RB2.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.c2RB2[i]);
+    };
+
+}
+/* The FORMAT/TAG C2RB2 is skipped */
+if (fmt.enable_tier2_consensus_format_tags) {
+    outstring += ":";;
+    if (fmt.c2LBL.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.c2LBL.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.c2LBL[i]);
+    };
+
+}
+/* The FORMAT/TAG C2LBL is skipped */
+if (fmt.enable_tier2_consensus_format_tags) {
+    outstring += ":";;
+    if (fmt.c2RBL.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.c2RBL.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.c2RBL[i]);
+    };
+
+}
+/* The FORMAT/TAG C2RBL is skipped */
+if (fmt.enable_tier2_consensus_format_tags) {
+    outstring += ":";;
+    outstring += std::string(FORMAT_IDS[151]) + "";
+
+}
+if (fmt.enable_tier2_consensus_format_tags) {
+    outstring += ":";;
+    if (fmt.cDP3f.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.cDP3f.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cDP3f[i]);
+    };
+
+}
+if (fmt.enable_tier2_consensus_format_tags) {
+    outstring += ":";;
+    for (unsigned int i = 0; i < 1; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.CDP3f[i]);
+    };
+
+}
+if (fmt.enable_tier2_consensus_format_tags) {
     outstring += ":";;
     if (fmt.cDP3r.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.cDP3r.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.cDP3r.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cDP3r[i]);
     };
+
+}
+if (fmt.enable_tier2_consensus_format_tags) {
     outstring += ":";;
-    if (fmt.c1DPr.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.c1DPr.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.c1DPr[i]);
+    for (unsigned int i = 0; i < 1; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.CDP3r[i]);
     };
+
+}
+if (fmt.enable_tier2_consensus_format_tags) {
+    outstring += ":";;
+    if (fmt.cDP21f.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.cDP21f.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cDP21f[i]);
+    };
+
+}
+if (fmt.enable_tier2_consensus_format_tags) {
+    outstring += ":";;
+    for (unsigned int i = 0; i < 1; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.CDP21f[i]);
+    };
+
+}
+if (fmt.enable_tier2_consensus_format_tags) {
+    outstring += ":";;
+    if (fmt.cDP21r.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.cDP21r.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cDP21r[i]);
+    };
+
+}
+if (fmt.enable_tier2_consensus_format_tags) {
+    outstring += ":";;
+    for (unsigned int i = 0; i < 1; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.CDP21r[i]);
+    };
+
+}
+if (fmt.enable_tier2_consensus_format_tags) {
+    outstring += ":";;
+    outstring += std::string(FORMAT_IDS[160]) + "";
+
+}
+if (fmt.enable_tier2_consensus_format_tags) {
+    outstring += ":";;
+    if (fmt.cDPMf.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.cDPMf.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cDPMf[i]);
+    };
+
+}
+if (fmt.enable_tier2_consensus_format_tags) {
+    outstring += ":";;
+    for (unsigned int i = 0; i < 1; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.CDPMf[i]);
+    };
+
+}
+if (fmt.enable_tier2_consensus_format_tags) {
     outstring += ":";;
     if (fmt.cDPMr.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.cDPMr.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.cDPMr.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cDPMr[i]);
     };
+
+}
+if (fmt.enable_tier2_consensus_format_tags) {
+    outstring += ":";;
+    for (unsigned int i = 0; i < 1; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.CDPMr[i]);
+    };
+
+}
+if (fmt.enable_tier2_consensus_format_tags) {
+    outstring += ":";;
+    if (fmt.cDPmf.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.cDPmf.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cDPmf[i]);
+    };
+
+}
+if (fmt.enable_tier2_consensus_format_tags) {
+    outstring += ":";;
+    for (unsigned int i = 0; i < 1; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.CDPmf[i]);
+    };
+
+}
+if (fmt.enable_tier2_consensus_format_tags) {
     outstring += ":";;
     if (fmt.cDPmr.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.cDPmr.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.cDPmr.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cDPmr[i]);
     };
+
+}
+if (fmt.enable_tier2_consensus_format_tags) {
     outstring += ":";;
-    outstring += std::string(FORMAT_IDS[150]) + "";
-    outstring += ":";;
-    if (fmt.DDP1.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.DDP1.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.DDP1[i]);
+    for (unsigned int i = 0; i < 1; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.CDPmr[i]);
     };
-    outstring += ":";;
-    if (fmt.DDP2.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.DDP2.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.DDP2[i]);
-    };
-    outstring += ":";;
-    if (fmt.dDP1.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.dDP1.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.dDP1[i]);
-    };
-    outstring += ":";;
-    if (fmt.dDP2.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.dDP2.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.dDP2[i]);
-    };
-    outstring += ":";;
-    outstring += std::string(FORMAT_IDS[155]) + "";
-    outstring += ":";;
-    if (fmt.aBQ.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.aBQ.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aBQ[i]);
-    };
-    outstring += ":";;
-    if (fmt.a2BQf.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.a2BQf.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.a2BQf[i]);
-    };
-    outstring += ":";;
-    if (fmt.a2BQr.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.a2BQr.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.a2BQr[i]);
-    };
-    outstring += ":";;
-    if (fmt.a2XM2.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.a2XM2.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.a2XM2[i]);
-    };
-    outstring += ":";;
-    if (fmt.a2BM2.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.a2BM2.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.a2BM2[i]);
-    };
-    outstring += ":";;
-    if (fmt.aBQQ.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.aBQQ.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aBQQ[i]);
-    };
-    outstring += ":";;
-    outstring += std::string(FORMAT_IDS[162]) + "";
-    outstring += ":";;
-    if (fmt.bMQ.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.bMQ.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.bMQ[i]);
-    };
-    outstring += ":";;
-    if (fmt.aAaMQ.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.aAaMQ.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aAaMQ[i]);
-    };
-    outstring += ":";;
-    if (fmt.bNMQ.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.bNMQ.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.bNMQ[i]);
-    };
-    outstring += ":";;
-    if (fmt.bNMa.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.bNMa.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.bNMa[i]);
-    };
-    outstring += ":";;
-    if (fmt.bNMb.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.bNMb.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.bNMb[i]);
-    };
-    outstring += ":";;
-    if (fmt.bMQQ.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.bMQQ.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.bMQQ[i]);
-    };
+
+}
+if (true) {
     outstring += ":";;
     outstring += std::string(FORMAT_IDS[169]) + "";
+
+}
+if (true) {
     outstring += ":";;
-    if (fmt.bIAQb.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.bIAQb.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.bIAQb[i]);
+    for (unsigned int i = 0; i < 2; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.DDP1[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
-    if (fmt.bIADb.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.bIADb.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.bIADb[i]);
+    if (fmt.dDP1.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.dDP1.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.dDP1[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
-    if (fmt.bIDQb.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.bIDQb.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.bIDQb[i]);
+    for (unsigned int i = 0; i < 2; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.DDP2[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
-    outstring += std::string(FORMAT_IDS[173]) + "";
-    outstring += ":";;
-    if (fmt.cIAQf.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.cIAQf.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cIAQf[i]);
+    if (fmt.dDP2.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.dDP2.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.dDP2[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
-    if (fmt.cIADf.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.cIADf.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cIADf[i]);
+    outstring += std::string(FORMAT_IDS[174]) + "";
+
+}
+if (true) {
+    outstring += ":";;
+    if (fmt.aBQ.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.aBQ.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aBQ[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
-    if (fmt.cIDQf.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.cIDQf.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cIDQf[i]);
+    if (fmt.a2BQf.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.a2BQf.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.a2BQf[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
-    outstring += std::string(FORMAT_IDS[177]) + "";
-    outstring += ":";;
-    if (fmt.cIAQr.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.cIAQr.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cIAQr[i]);
+    if (fmt.a2BQr.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.a2BQr.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.a2BQr[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
-    if (fmt.cIADr.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.cIADr.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cIADr[i]);
+    if (fmt.a2XM2.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.a2XM2.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.a2XM2[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
-    if (fmt.cIDQr.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.cIDQr.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cIDQr[i]);
+    if (fmt.a2BM2.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.a2BM2.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.a2BM2[i]);
     };
+
+}
+if (true) {
+    outstring += ":";;
+    if (fmt.aBQQ.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.aBQQ.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aBQQ[i]);
+    };
+
+}
+if (true) {
     outstring += ":";;
     outstring += std::string(FORMAT_IDS[181]) + "";
+
+}
+if (true) {
+    outstring += ":";;
+    if (fmt.bMQ.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.bMQ.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.bMQ[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    if (fmt.aAaMQ.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.aAaMQ.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.aAaMQ[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    if (fmt.bNMQ.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.bNMQ.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.bNMQ[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    if (fmt.bNMa.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.bNMa.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.bNMa[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    if (fmt.bNMb.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.bNMb.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.bNMb[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    if (fmt.bMQQ.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.bMQQ.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.bMQQ[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    outstring += std::string(FORMAT_IDS[188]) + "";
+
+}
+if (true) {
+    outstring += ":";;
+    if (fmt.bIAQb.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.bIAQb.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.bIAQb[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    if (fmt.bIADb.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.bIADb.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.bIADb[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    if (fmt.bIDQb.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.bIDQb.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.bIDQb[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    outstring += std::string(FORMAT_IDS[192]) + "";
+
+}
+if (true) {
+    outstring += ":";;
+    if (fmt.cIAQf.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.cIAQf.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cIAQf[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    if (fmt.cIADf.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.cIADf.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cIADf[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    if (fmt.cIDQf.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.cIDQf.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cIDQf[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    if (fmt.cIAQr.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.cIAQr.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cIAQr[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    if (fmt.cIADr.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.cIADr.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cIADr[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    if (fmt.cIDQr.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.cIDQr.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cIDQr[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    outstring += std::string(FORMAT_IDS[199]) + "";
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.bIAQ.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.bIAQ.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.bIAQ.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.bIAQ[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.cIAQ.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.cIAQ.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.cIAQ.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cIAQ[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.bTINQ.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.bTINQ.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.bTINQ.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.bTINQ[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.cTINQ.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.cTINQ.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.cTINQ.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cTINQ[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
-    outstring += std::string(FORMAT_IDS[186]) + "";
+    outstring += std::string(FORMAT_IDS[204]) + "";
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.cPCQ1.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.cPCQ1.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.cPCQ1.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cPCQ1[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.cPLQ1.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.cPLQ1.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.cPLQ1.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cPLQ1[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.cVQ1.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.cVQ1.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.cVQ1.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cVQ1[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.gVQ1.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.gVQ1.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.gVQ1.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.gVQ1[i]);
     };
-    outstring += ":";;
-    outstring += std::string(FORMAT_IDS[191]) + "";
-    outstring += ":";;
-    if (fmt.cPCQ2.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.cPCQ2.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cPCQ2[i]);
-    };
-    outstring += ":";;
-    if (fmt.cPLQ2.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.cPLQ2.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cPLQ2[i]);
-    };
-    outstring += ":";;
-    if (fmt.cVQ2.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.cVQ2.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cVQ2[i]);
-    };
-    outstring += ":";;
-    if (fmt.cMmQ.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.cMmQ.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cMmQ[i]);
-    };
-    outstring += ":";;
-    if (fmt.dVQinc.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.dVQinc.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.dVQinc[i]);
-    };
-    outstring += ":";;
-    outstring += std::string(FORMAT_IDS[197]) + "";
-    outstring += ":";;
-    if (fmt.CDP1v.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.CDP1v.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.CDP1v[i]);
-    };
-    outstring += ":";;
-    if (fmt.CDP1w.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.CDP1w.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.CDP1w[i]);
-    };
-    outstring += ":";;
-    if (fmt.CDP1x.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.CDP1x.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.CDP1x[i]);
-    };
-    outstring += ":";;
-    outstring += std::string(FORMAT_IDS[201]) + "";
-    outstring += ":";;
-    if (fmt.cDP1v.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.cDP1v.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cDP1v[i]);
-    };
-    outstring += ":";;
-    if (fmt.cDP1w.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.cDP1w.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cDP1w[i]);
-    };
-    outstring += ":";;
-    if (fmt.cDP1x.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.cDP1x.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cDP1x[i]);
-    };
-    outstring += ":";;
-    outstring += std::string(FORMAT_IDS[205]) + "";
-    outstring += ":";;
-    if (fmt.CDP2v.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.CDP2v.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.CDP2v[i]);
-    };
-    outstring += ":";;
-    if (fmt.CDP2w.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.CDP2w.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.CDP2w[i]);
-    };
-    outstring += ":";;
-    if (fmt.CDP2x.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.CDP2x.size(); i++) {
-        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.CDP2x[i]);
-    };
+
+}
+if (true) {
     outstring += ":";;
     outstring += std::string(FORMAT_IDS[209]) + "";
+
+}
+if (true) {
+    outstring += ":";;
+    if (fmt.cPCQ2.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.cPCQ2.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cPCQ2[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    if (fmt.cPLQ2.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.cPLQ2.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cPLQ2[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    if (fmt.cVQ2.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.cVQ2.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cVQ2[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    if (fmt.cMmQ.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.cMmQ.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cMmQ[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    if (fmt.dVQinc.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.dVQinc.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.dVQinc[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    outstring += std::string(FORMAT_IDS[215]) + "";
+
+}
+if (true) {
+    outstring += ":";;
+    if (fmt.cDP1v.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.cDP1v.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cDP1v[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    for (unsigned int i = 0; i < 2; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.CDP1v[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    if (fmt.cDP1w.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.cDP1w.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cDP1w[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    for (unsigned int i = 0; i < 1; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.CDP1w[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    if (fmt.cDP1x.size() == 0) { outstring += "."; }
+    for (unsigned int i = 0; i <  fmt.cDP1x.size(); i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cDP1x[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    for (unsigned int i = 0; i < 1; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.CDP1x[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    outstring += std::string(FORMAT_IDS[222]) + "";
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.cDP2v.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.cDP2v.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.cDP2v.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cDP2v[i]);
     };
+
+}
+if (true) {
+    outstring += ":";;
+    for (unsigned int i = 0; i < 2; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.CDP2v[i]);
+    };
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.cDP2w.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.cDP2w.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.cDP2w.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cDP2w[i]);
     };
+
+}
+if (true) {
+    outstring += ":";;
+    for (unsigned int i = 0; i < 1; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.CDP2w[i]);
+    };
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.cDP2x.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.cDP2x.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.cDP2x.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cDP2x[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
-    outstring += std::string(FORMAT_IDS[213]) + "";
+    for (unsigned int i = 0; i < 1; i++) {
+        if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.CDP2x[i]);
+    };
+
+}
+if (true) {
+    outstring += ":";;
+    outstring += std::string(FORMAT_IDS[229]) + "";
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.CONTQ.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.CONTQ.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.CONTQ.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.CONTQ[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.nPF.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.nPF.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.nPF.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.nPF[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.nNFA.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.nNFA.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.nNFA.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.nNFA[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.nAFA.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.nAFA.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.nAFA.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.nAFA[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.nBCFA.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.nBCFA.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.nBCFA.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.nBCFA[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
-    outstring += std::string(FORMAT_IDS[219]) + "";
+    outstring += std::string(FORMAT_IDS[235]) + "";
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.VTI.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.VTI.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.VTI.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.VTI[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.VTD.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.VTD.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.VTD.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += (fmt.VTD[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
-    if (fmt.cVQ1M.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.cVQ1M.size(); i++) {
+    for (unsigned int i = 0; i < 2; i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cVQ1M[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
-    if (fmt.cVQ2M.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.cVQ2M.size(); i++) {
+    for (unsigned int i = 0; i < 2; i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cVQ2M[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
-    if (fmt.cVQAM.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.cVQAM.size(); i++) {
+    for (unsigned int i = 0; i < 2; i++) {
         if (0 != i) { outstring += ","; }; outstring += (fmt.cVQAM[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
-    if (fmt.cVQSM.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.cVQSM.size(); i++) {
+    for (unsigned int i = 0; i < 2; i++) {
         if (0 != i) { outstring += ","; }; outstring += (fmt.cVQSM[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
-    outstring += std::string(FORMAT_IDS[226]) + "";
+    outstring += std::string(FORMAT_IDS[242]) + "";
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.gapNf.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.gapNf.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.gapNf.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.gapNf[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.gapNr.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.gapNr.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.gapNr.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.gapNr[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.gapSeq.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.gapSeq.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.gapSeq.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += (fmt.gapSeq[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.gapbAD1.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.gapbAD1.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.gapbAD1.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.gapbAD1[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.gapcAD1.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.gapcAD1.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.gapcAD1.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.gapcAD1[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.gcAD2.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.gcAD2.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.gcAD2.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.gcAD2[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.gcAD3.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.gcAD3.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.gcAD3.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.gcAD3[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
-    outstring += std::string(FORMAT_IDS[234]) + "";
+    outstring += std::string(FORMAT_IDS[250]) + "";
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.bDPa.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.bDPa.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.bDPa.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.bDPa[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.cDP0a.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.cDP0a.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.cDP0a.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.cDP0a[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.gapSa.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.gapSa.size(); i++) {
+    for (unsigned int i = 0; i <  fmt.gapSa.size(); i++) {
         if (0 != i) { outstring += ","; }; outstring += (fmt.gapSa[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
-    outstring += std::string(FORMAT_IDS[238]) + "";
+    outstring += std::string(FORMAT_IDS[254]) + "";
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.bHap.size() == 0) { outstring += "."; }
     outstring += (fmt.bHap);
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.cHap.size() == 0) { outstring += "."; }
     outstring += (fmt.cHap);
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.c2Hap.size() == 0) { outstring += "."; }
     outstring += (fmt.c2Hap);
+
+}
+if (true) {
     outstring += ":";;
-    outstring += std::string(FORMAT_IDS[242]) + "";
+    outstring += std::string(FORMAT_IDS[258]) + "";
+
+}
+if (true) {
     outstring += ":";;
     outstring += std::to_string(fmt.vHGQ);
+
+}
+if (true) {
     outstring += ":";;
-    if (fmt.vAC.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.vAC.size(); i++) {
+    for (unsigned int i = 0; i < 2; i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.vAC[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
-    if (fmt.vNLODQ.size() == 0) { outstring += "."; }
-    for (unsigned int i = 0; i < fmt.vNLODQ.size(); i++) {
+    for (unsigned int i = 0; i < 2; i++) {
         if (0 != i) { outstring += ","; }; outstring += std::to_string(fmt.vNLODQ[i]);
     };
+
+}
+if (true) {
     outstring += ":";;
     if (fmt.note.size() == 0) { outstring += "."; }
     outstring += (fmt.note);
+
+}
 
     return 0;};
 static int resetBcfFormatD(BcfFormat & fmt) {
@@ -1962,36 +2775,6 @@ static int streamFrontPushBcfFormatR(BcfFormat & dst, const BcfFormat & src) {
     auto a1BQr_tmp = dst.a1BQr[0];
     dst.a1BQr[0] = src.a1BQr[0];
     dst.a1BQr.push_back(a1BQr_tmp);
-    assert(dst.aLPT.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aLPT", dst.aLPT.size() ) );
-    assert(src.aLPT.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aLPT", src.aLPT.size() ) );
-    auto aLPT_tmp = dst.aLPT[0];
-    dst.aLPT[0] = src.aLPT[0];
-    dst.aLPT.push_back(aLPT_tmp);
-    assert(dst.aRPT.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aRPT", dst.aRPT.size() ) );
-    assert(src.aRPT.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aRPT", src.aRPT.size() ) );
-    auto aRPT_tmp = dst.aRPT[0];
-    dst.aRPT[0] = src.aRPT[0];
-    dst.aRPT.push_back(aRPT_tmp);
-    assert(dst.aLIT.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aLIT", dst.aLIT.size() ) );
-    assert(src.aLIT.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aLIT", src.aLIT.size() ) );
-    auto aLIT_tmp = dst.aLIT[0];
-    dst.aLIT[0] = src.aLIT[0];
-    dst.aLIT.push_back(aLIT_tmp);
-    assert(dst.aRIT.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aRIT", dst.aRIT.size() ) );
-    assert(src.aRIT.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aRIT", src.aRIT.size() ) );
-    auto aRIT_tmp = dst.aRIT[0];
-    dst.aRIT[0] = src.aRIT[0];
-    dst.aRIT.push_back(aRIT_tmp);
-    assert(dst.aP3.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aP3", dst.aP3.size() ) );
-    assert(src.aP3.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aP3", src.aP3.size() ) );
-    auto aP3_tmp = dst.aP3[0];
-    dst.aP3[0] = src.aP3[0];
-    dst.aP3.push_back(aP3_tmp);
-    assert(dst.aNC.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aNC", dst.aNC.size() ) );
-    assert(src.aNC.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aNC", src.aNC.size() ) );
-    auto aNC_tmp = dst.aNC[0];
-    dst.aNC[0] = src.aNC[0];
-    dst.aNC.push_back(aNC_tmp);
     assert(dst.aDPff.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aDPff", dst.aDPff.size() ) );
     assert(src.aDPff.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aDPff", src.aDPff.size() ) );
     auto aDPff_tmp = dst.aDPff[0];
@@ -2072,16 +2855,41 @@ static int streamFrontPushBcfFormatR(BcfFormat & dst, const BcfFormat & src) {
     auto aRBL_tmp = dst.aRBL[0];
     dst.aRBL[0] = src.aRBL[0];
     dst.aRBL.push_back(aRBL_tmp);
+    assert(dst.aLI1.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aLI1", dst.aLI1.size() ) );
+    assert(src.aLI1.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aLI1", src.aLI1.size() ) );
+    auto aLI1_tmp = dst.aLI1[0];
+    dst.aLI1[0] = src.aLI1[0];
+    dst.aLI1.push_back(aLI1_tmp);
+    assert(dst.aLI2.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aLI2", dst.aLI2.size() ) );
+    assert(src.aLI2.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aLI2", src.aLI2.size() ) );
+    auto aLI2_tmp = dst.aLI2[0];
+    dst.aLI2[0] = src.aLI2[0];
+    dst.aLI2.push_back(aLI2_tmp);
+    assert(dst.aLIr.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aLIr", dst.aLIr.size() ) );
+    assert(src.aLIr.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aLIr", src.aLIr.size() ) );
+    auto aLIr_tmp = dst.aLIr[0];
+    dst.aLIr[0] = src.aLIr[0];
+    dst.aLIr.push_back(aLIr_tmp);
+    assert(dst.aRI1.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aRI1", dst.aRI1.size() ) );
+    assert(src.aRI1.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aRI1", src.aRI1.size() ) );
+    auto aRI1_tmp = dst.aRI1[0];
+    dst.aRI1[0] = src.aRI1[0];
+    dst.aRI1.push_back(aRI1_tmp);
+    assert(dst.aRI2.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aRI2", dst.aRI2.size() ) );
+    assert(src.aRI2.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aRI2", src.aRI2.size() ) );
+    auto aRI2_tmp = dst.aRI2[0];
+    dst.aRI2[0] = src.aRI2[0];
+    dst.aRI2.push_back(aRI2_tmp);
+    assert(dst.aRIf.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aRIf", dst.aRIf.size() ) );
+    assert(src.aRIf.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aRIf", src.aRIf.size() ) );
+    auto aRIf_tmp = dst.aRIf[0];
+    dst.aRIf[0] = src.aRIf[0];
+    dst.aRIf.push_back(aRIf_tmp);
     assert(dst.aBQ2.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aBQ2", dst.aBQ2.size() ) );
     assert(src.aBQ2.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aBQ2", src.aBQ2.size() ) );
     auto aBQ2_tmp = dst.aBQ2[0];
     dst.aBQ2[0] = src.aBQ2[0];
     dst.aBQ2.push_back(aBQ2_tmp);
-    assert(dst.aPF1.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aPF1", dst.aPF1.size() ) );
-    assert(src.aPF1.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aPF1", src.aPF1.size() ) );
-    auto aPF1_tmp = dst.aPF1[0];
-    dst.aPF1[0] = src.aPF1[0];
-    dst.aPF1.push_back(aPF1_tmp);
     assert(dst.aPF2.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aPF2", dst.aPF2.size() ) );
     assert(src.aPF2.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aPF2", src.aPF2.size() ) );
     auto aPF2_tmp = dst.aPF2[0];
@@ -2097,61 +2905,56 @@ static int streamFrontPushBcfFormatR(BcfFormat & dst, const BcfFormat & src) {
     auto aP2_tmp = dst.aP2[0];
     dst.aP2[0] = src.aP2[0];
     dst.aP2.push_back(aP2_tmp);
-    assert(dst.aLI1.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aLI1", dst.aLI1.size() ) );
-    assert(src.aLI1.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aLI1", src.aLI1.size() ) );
-    auto aLI1_tmp = dst.aLI1[0];
-    dst.aLI1[0] = src.aLI1[0];
-    dst.aLI1.push_back(aLI1_tmp);
-    assert(dst.aLI2.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aLI2", dst.aLI2.size() ) );
-    assert(src.aLI2.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aLI2", src.aLI2.size() ) );
-    auto aLI2_tmp = dst.aLI2[0];
-    dst.aLI2[0] = src.aLI2[0];
-    dst.aLI2.push_back(aLI2_tmp);
-    assert(dst.aRI1.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aRI1", dst.aRI1.size() ) );
-    assert(src.aRI1.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aRI1", src.aRI1.size() ) );
-    auto aRI1_tmp = dst.aRI1[0];
-    dst.aRI1[0] = src.aRI1[0];
-    dst.aRI1.push_back(aRI1_tmp);
-    assert(dst.aRI2.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aRI2", dst.aRI2.size() ) );
-    assert(src.aRI2.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aRI2", src.aRI2.size() ) );
-    auto aRI2_tmp = dst.aRI2[0];
-    dst.aRI2[0] = src.aRI2[0];
-    dst.aRI2.push_back(aRI2_tmp);
-    assert(dst.aLIr.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aLIr", dst.aLIr.size() ) );
-    assert(src.aLIr.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aLIr", src.aLIr.size() ) );
-    auto aLIr_tmp = dst.aLIr[0];
-    dst.aLIr[0] = src.aLIr[0];
-    dst.aLIr.push_back(aLIr_tmp);
-    assert(dst.aRIf.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aRIf", dst.aRIf.size() ) );
-    assert(src.aRIf.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aRIf", src.aRIf.size() ) );
-    auto aRIf_tmp = dst.aRIf[0];
-    dst.aRIf[0] = src.aRIf[0];
-    dst.aRIf.push_back(aRIf_tmp);
+    assert(dst.aPF1.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aPF1", dst.aPF1.size() ) );
+    assert(src.aPF1.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aPF1", src.aPF1.size() ) );
+    auto aPF1_tmp = dst.aPF1[0];
+    dst.aPF1[0] = src.aPF1[0];
+    dst.aPF1.push_back(aPF1_tmp);
+    assert(dst.aLIT.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aLIT", dst.aLIT.size() ) );
+    assert(src.aLIT.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aLIT", src.aLIT.size() ) );
+    auto aLIT_tmp = dst.aLIT[0];
+    dst.aLIT[0] = src.aLIT[0];
+    dst.aLIT.push_back(aLIT_tmp);
+    assert(dst.aRIT.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aRIT", dst.aRIT.size() ) );
+    assert(src.aRIT.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aRIT", src.aRIT.size() ) );
+    auto aRIT_tmp = dst.aRIT[0];
+    dst.aRIT[0] = src.aRIT[0];
+    dst.aRIT.push_back(aRIT_tmp);
+    assert(dst.aP3.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aP3", dst.aP3.size() ) );
+    assert(src.aP3.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aP3", src.aP3.size() ) );
+    auto aP3_tmp = dst.aP3[0];
+    dst.aP3[0] = src.aP3[0];
+    dst.aP3.push_back(aP3_tmp);
+    assert(dst.aNC.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aNC", dst.aNC.size() ) );
+    assert(src.aNC.size() == 1 || !fprintf(stderr, "%lu == 1 failed for aNC", src.aNC.size() ) );
+    auto aNC_tmp = dst.aNC[0];
+    dst.aNC[0] = src.aNC[0];
+    dst.aNC.push_back(aNC_tmp);
     assert(dst.bDPf.size() == 1 || !fprintf(stderr, "%lu == 1 failed for bDPf", dst.bDPf.size() ) );
     assert(src.bDPf.size() == 1 || !fprintf(stderr, "%lu == 1 failed for bDPf", src.bDPf.size() ) );
     auto bDPf_tmp = dst.bDPf[0];
     dst.bDPf[0] = src.bDPf[0];
     dst.bDPf.push_back(bDPf_tmp);
-    assert(dst.bTAf.size() == 1 || !fprintf(stderr, "%lu == 1 failed for bTAf", dst.bTAf.size() ) );
-    assert(src.bTAf.size() == 1 || !fprintf(stderr, "%lu == 1 failed for bTAf", src.bTAf.size() ) );
-    auto bTAf_tmp = dst.bTAf[0];
-    dst.bTAf[0] = src.bTAf[0];
-    dst.bTAf.push_back(bTAf_tmp);
-    assert(dst.bTBf.size() == 1 || !fprintf(stderr, "%lu == 1 failed for bTBf", dst.bTBf.size() ) );
-    assert(src.bTBf.size() == 1 || !fprintf(stderr, "%lu == 1 failed for bTBf", src.bTBf.size() ) );
-    auto bTBf_tmp = dst.bTBf[0];
-    dst.bTBf[0] = src.bTBf[0];
-    dst.bTBf.push_back(bTBf_tmp);
     assert(dst.bDPr.size() == 1 || !fprintf(stderr, "%lu == 1 failed for bDPr", dst.bDPr.size() ) );
     assert(src.bDPr.size() == 1 || !fprintf(stderr, "%lu == 1 failed for bDPr", src.bDPr.size() ) );
     auto bDPr_tmp = dst.bDPr[0];
     dst.bDPr[0] = src.bDPr[0];
     dst.bDPr.push_back(bDPr_tmp);
+    assert(dst.bTAf.size() == 1 || !fprintf(stderr, "%lu == 1 failed for bTAf", dst.bTAf.size() ) );
+    assert(src.bTAf.size() == 1 || !fprintf(stderr, "%lu == 1 failed for bTAf", src.bTAf.size() ) );
+    auto bTAf_tmp = dst.bTAf[0];
+    dst.bTAf[0] = src.bTAf[0];
+    dst.bTAf.push_back(bTAf_tmp);
     assert(dst.bTAr.size() == 1 || !fprintf(stderr, "%lu == 1 failed for bTAr", dst.bTAr.size() ) );
     assert(src.bTAr.size() == 1 || !fprintf(stderr, "%lu == 1 failed for bTAr", src.bTAr.size() ) );
     auto bTAr_tmp = dst.bTAr[0];
     dst.bTAr[0] = src.bTAr[0];
     dst.bTAr.push_back(bTAr_tmp);
+    assert(dst.bTBf.size() == 1 || !fprintf(stderr, "%lu == 1 failed for bTBf", dst.bTBf.size() ) );
+    assert(src.bTBf.size() == 1 || !fprintf(stderr, "%lu == 1 failed for bTBf", src.bTBf.size() ) );
+    auto bTBf_tmp = dst.bTBf[0];
+    dst.bTBf[0] = src.bTBf[0];
+    dst.bTBf.push_back(bTBf_tmp);
     assert(dst.bTBr.size() == 1 || !fprintf(stderr, "%lu == 1 failed for bTBr", dst.bTBr.size() ) );
     assert(src.bTBr.size() == 1 || !fprintf(stderr, "%lu == 1 failed for bTBr", src.bTBr.size() ) );
     auto bTBr_tmp = dst.bTBr[0];
@@ -2162,66 +2965,141 @@ static int streamFrontPushBcfFormatR(BcfFormat & dst, const BcfFormat & src) {
     auto cDP1f_tmp = dst.cDP1f[0];
     dst.cDP1f[0] = src.cDP1f[0];
     dst.cDP1f.push_back(cDP1f_tmp);
-    assert(dst.cDP12f.size() == 1 || !fprintf(stderr, "%lu == 1 failed for cDP12f", dst.cDP12f.size() ) );
-    assert(src.cDP12f.size() == 1 || !fprintf(stderr, "%lu == 1 failed for cDP12f", src.cDP12f.size() ) );
-    auto cDP12f_tmp = dst.cDP12f[0];
-    dst.cDP12f[0] = src.cDP12f[0];
-    dst.cDP12f.push_back(cDP12f_tmp);
-    assert(dst.cDP2f.size() == 1 || !fprintf(stderr, "%lu == 1 failed for cDP2f", dst.cDP2f.size() ) );
-    assert(src.cDP2f.size() == 1 || !fprintf(stderr, "%lu == 1 failed for cDP2f", src.cDP2f.size() ) );
-    auto cDP2f_tmp = dst.cDP2f[0];
-    dst.cDP2f[0] = src.cDP2f[0];
-    dst.cDP2f.push_back(cDP2f_tmp);
-    assert(dst.cDP3f.size() == 1 || !fprintf(stderr, "%lu == 1 failed for cDP3f", dst.cDP3f.size() ) );
-    assert(src.cDP3f.size() == 1 || !fprintf(stderr, "%lu == 1 failed for cDP3f", src.cDP3f.size() ) );
-    auto cDP3f_tmp = dst.cDP3f[0];
-    dst.cDP3f[0] = src.cDP3f[0];
-    dst.cDP3f.push_back(cDP3f_tmp);
-    assert(dst.c1DPf.size() == 1 || !fprintf(stderr, "%lu == 1 failed for c1DPf", dst.c1DPf.size() ) );
-    assert(src.c1DPf.size() == 1 || !fprintf(stderr, "%lu == 1 failed for c1DPf", src.c1DPf.size() ) );
-    auto c1DPf_tmp = dst.c1DPf[0];
-    dst.c1DPf[0] = src.c1DPf[0];
-    dst.c1DPf.push_back(c1DPf_tmp);
-    assert(dst.cDPMf.size() == 1 || !fprintf(stderr, "%lu == 1 failed for cDPMf", dst.cDPMf.size() ) );
-    assert(src.cDPMf.size() == 1 || !fprintf(stderr, "%lu == 1 failed for cDPMf", src.cDPMf.size() ) );
-    auto cDPMf_tmp = dst.cDPMf[0];
-    dst.cDPMf[0] = src.cDPMf[0];
-    dst.cDPMf.push_back(cDPMf_tmp);
-    assert(dst.cDPmf.size() == 1 || !fprintf(stderr, "%lu == 1 failed for cDPmf", dst.cDPmf.size() ) );
-    assert(src.cDPmf.size() == 1 || !fprintf(stderr, "%lu == 1 failed for cDPmf", src.cDPmf.size() ) );
-    auto cDPmf_tmp = dst.cDPmf[0];
-    dst.cDPmf[0] = src.cDPmf[0];
-    dst.cDPmf.push_back(cDPmf_tmp);
     assert(dst.cDP1r.size() == 1 || !fprintf(stderr, "%lu == 1 failed for cDP1r", dst.cDP1r.size() ) );
     assert(src.cDP1r.size() == 1 || !fprintf(stderr, "%lu == 1 failed for cDP1r", src.cDP1r.size() ) );
     auto cDP1r_tmp = dst.cDP1r[0];
     dst.cDP1r[0] = src.cDP1r[0];
     dst.cDP1r.push_back(cDP1r_tmp);
+    assert(dst.cDP12f.size() == 1 || !fprintf(stderr, "%lu == 1 failed for cDP12f", dst.cDP12f.size() ) );
+    assert(src.cDP12f.size() == 1 || !fprintf(stderr, "%lu == 1 failed for cDP12f", src.cDP12f.size() ) );
+    auto cDP12f_tmp = dst.cDP12f[0];
+    dst.cDP12f[0] = src.cDP12f[0];
+    dst.cDP12f.push_back(cDP12f_tmp);
     assert(dst.cDP12r.size() == 1 || !fprintf(stderr, "%lu == 1 failed for cDP12r", dst.cDP12r.size() ) );
     assert(src.cDP12r.size() == 1 || !fprintf(stderr, "%lu == 1 failed for cDP12r", src.cDP12r.size() ) );
     auto cDP12r_tmp = dst.cDP12r[0];
     dst.cDP12r[0] = src.cDP12r[0];
     dst.cDP12r.push_back(cDP12r_tmp);
+    assert(dst.cDP2f.size() == 1 || !fprintf(stderr, "%lu == 1 failed for cDP2f", dst.cDP2f.size() ) );
+    assert(src.cDP2f.size() == 1 || !fprintf(stderr, "%lu == 1 failed for cDP2f", src.cDP2f.size() ) );
+    auto cDP2f_tmp = dst.cDP2f[0];
+    dst.cDP2f[0] = src.cDP2f[0];
+    dst.cDP2f.push_back(cDP2f_tmp);
     assert(dst.cDP2r.size() == 1 || !fprintf(stderr, "%lu == 1 failed for cDP2r", dst.cDP2r.size() ) );
     assert(src.cDP2r.size() == 1 || !fprintf(stderr, "%lu == 1 failed for cDP2r", src.cDP2r.size() ) );
     auto cDP2r_tmp = dst.cDP2r[0];
     dst.cDP2r[0] = src.cDP2r[0];
     dst.cDP2r.push_back(cDP2r_tmp);
+    assert(dst.c2BQ2.size() == 1 || !fprintf(stderr, "%lu == 1 failed for c2BQ2", dst.c2BQ2.size() ) );
+    assert(src.c2BQ2.size() == 1 || !fprintf(stderr, "%lu == 1 failed for c2BQ2", src.c2BQ2.size() ) );
+    auto c2BQ2_tmp = dst.c2BQ2[0];
+    dst.c2BQ2[0] = src.c2BQ2[0];
+    dst.c2BQ2.push_back(c2BQ2_tmp);
+    assert(dst.c2LP0.size() == 1 || !fprintf(stderr, "%lu == 1 failed for c2LP0", dst.c2LP0.size() ) );
+    assert(src.c2LP0.size() == 1 || !fprintf(stderr, "%lu == 1 failed for c2LP0", src.c2LP0.size() ) );
+    auto c2LP0_tmp = dst.c2LP0[0];
+    dst.c2LP0[0] = src.c2LP0[0];
+    dst.c2LP0.push_back(c2LP0_tmp);
+    assert(dst.c2RP0.size() == 1 || !fprintf(stderr, "%lu == 1 failed for c2RP0", dst.c2RP0.size() ) );
+    assert(src.c2RP0.size() == 1 || !fprintf(stderr, "%lu == 1 failed for c2RP0", src.c2RP0.size() ) );
+    auto c2RP0_tmp = dst.c2RP0[0];
+    dst.c2RP0[0] = src.c2RP0[0];
+    dst.c2RP0.push_back(c2RP0_tmp);
+    assert(dst.c2LP1.size() == 1 || !fprintf(stderr, "%lu == 1 failed for c2LP1", dst.c2LP1.size() ) );
+    assert(src.c2LP1.size() == 1 || !fprintf(stderr, "%lu == 1 failed for c2LP1", src.c2LP1.size() ) );
+    auto c2LP1_tmp = dst.c2LP1[0];
+    dst.c2LP1[0] = src.c2LP1[0];
+    dst.c2LP1.push_back(c2LP1_tmp);
+    assert(dst.c2LP2.size() == 1 || !fprintf(stderr, "%lu == 1 failed for c2LP2", dst.c2LP2.size() ) );
+    assert(src.c2LP2.size() == 1 || !fprintf(stderr, "%lu == 1 failed for c2LP2", src.c2LP2.size() ) );
+    auto c2LP2_tmp = dst.c2LP2[0];
+    dst.c2LP2[0] = src.c2LP2[0];
+    dst.c2LP2.push_back(c2LP2_tmp);
+    assert(dst.c2RP1.size() == 1 || !fprintf(stderr, "%lu == 1 failed for c2RP1", dst.c2RP1.size() ) );
+    assert(src.c2RP1.size() == 1 || !fprintf(stderr, "%lu == 1 failed for c2RP1", src.c2RP1.size() ) );
+    auto c2RP1_tmp = dst.c2RP1[0];
+    dst.c2RP1[0] = src.c2RP1[0];
+    dst.c2RP1.push_back(c2RP1_tmp);
+    assert(dst.c2RP2.size() == 1 || !fprintf(stderr, "%lu == 1 failed for c2RP2", dst.c2RP2.size() ) );
+    assert(src.c2RP2.size() == 1 || !fprintf(stderr, "%lu == 1 failed for c2RP2", src.c2RP2.size() ) );
+    auto c2RP2_tmp = dst.c2RP2[0];
+    dst.c2RP2[0] = src.c2RP2[0];
+    dst.c2RP2.push_back(c2RP2_tmp);
+    assert(dst.c2LPL.size() == 1 || !fprintf(stderr, "%lu == 1 failed for c2LPL", dst.c2LPL.size() ) );
+    assert(src.c2LPL.size() == 1 || !fprintf(stderr, "%lu == 1 failed for c2LPL", src.c2LPL.size() ) );
+    auto c2LPL_tmp = dst.c2LPL[0];
+    dst.c2LPL[0] = src.c2LPL[0];
+    dst.c2LPL.push_back(c2LPL_tmp);
+    assert(dst.c2RPL.size() == 1 || !fprintf(stderr, "%lu == 1 failed for c2RPL", dst.c2RPL.size() ) );
+    assert(src.c2RPL.size() == 1 || !fprintf(stderr, "%lu == 1 failed for c2RPL", src.c2RPL.size() ) );
+    auto c2RPL_tmp = dst.c2RPL[0];
+    dst.c2RPL[0] = src.c2RPL[0];
+    dst.c2RPL.push_back(c2RPL_tmp);
+    assert(dst.c2LB1.size() == 1 || !fprintf(stderr, "%lu == 1 failed for c2LB1", dst.c2LB1.size() ) );
+    assert(src.c2LB1.size() == 1 || !fprintf(stderr, "%lu == 1 failed for c2LB1", src.c2LB1.size() ) );
+    auto c2LB1_tmp = dst.c2LB1[0];
+    dst.c2LB1[0] = src.c2LB1[0];
+    dst.c2LB1.push_back(c2LB1_tmp);
+    assert(dst.c2LB2.size() == 1 || !fprintf(stderr, "%lu == 1 failed for c2LB2", dst.c2LB2.size() ) );
+    assert(src.c2LB2.size() == 1 || !fprintf(stderr, "%lu == 1 failed for c2LB2", src.c2LB2.size() ) );
+    auto c2LB2_tmp = dst.c2LB2[0];
+    dst.c2LB2[0] = src.c2LB2[0];
+    dst.c2LB2.push_back(c2LB2_tmp);
+    assert(dst.c2RB1.size() == 1 || !fprintf(stderr, "%lu == 1 failed for c2RB1", dst.c2RB1.size() ) );
+    assert(src.c2RB1.size() == 1 || !fprintf(stderr, "%lu == 1 failed for c2RB1", src.c2RB1.size() ) );
+    auto c2RB1_tmp = dst.c2RB1[0];
+    dst.c2RB1[0] = src.c2RB1[0];
+    dst.c2RB1.push_back(c2RB1_tmp);
+    assert(dst.c2RB2.size() == 1 || !fprintf(stderr, "%lu == 1 failed for c2RB2", dst.c2RB2.size() ) );
+    assert(src.c2RB2.size() == 1 || !fprintf(stderr, "%lu == 1 failed for c2RB2", src.c2RB2.size() ) );
+    auto c2RB2_tmp = dst.c2RB2[0];
+    dst.c2RB2[0] = src.c2RB2[0];
+    dst.c2RB2.push_back(c2RB2_tmp);
+    assert(dst.c2LBL.size() == 1 || !fprintf(stderr, "%lu == 1 failed for c2LBL", dst.c2LBL.size() ) );
+    assert(src.c2LBL.size() == 1 || !fprintf(stderr, "%lu == 1 failed for c2LBL", src.c2LBL.size() ) );
+    auto c2LBL_tmp = dst.c2LBL[0];
+    dst.c2LBL[0] = src.c2LBL[0];
+    dst.c2LBL.push_back(c2LBL_tmp);
+    assert(dst.c2RBL.size() == 1 || !fprintf(stderr, "%lu == 1 failed for c2RBL", dst.c2RBL.size() ) );
+    assert(src.c2RBL.size() == 1 || !fprintf(stderr, "%lu == 1 failed for c2RBL", src.c2RBL.size() ) );
+    auto c2RBL_tmp = dst.c2RBL[0];
+    dst.c2RBL[0] = src.c2RBL[0];
+    dst.c2RBL.push_back(c2RBL_tmp);
+    assert(dst.cDP3f.size() == 1 || !fprintf(stderr, "%lu == 1 failed for cDP3f", dst.cDP3f.size() ) );
+    assert(src.cDP3f.size() == 1 || !fprintf(stderr, "%lu == 1 failed for cDP3f", src.cDP3f.size() ) );
+    auto cDP3f_tmp = dst.cDP3f[0];
+    dst.cDP3f[0] = src.cDP3f[0];
+    dst.cDP3f.push_back(cDP3f_tmp);
     assert(dst.cDP3r.size() == 1 || !fprintf(stderr, "%lu == 1 failed for cDP3r", dst.cDP3r.size() ) );
     assert(src.cDP3r.size() == 1 || !fprintf(stderr, "%lu == 1 failed for cDP3r", src.cDP3r.size() ) );
     auto cDP3r_tmp = dst.cDP3r[0];
     dst.cDP3r[0] = src.cDP3r[0];
     dst.cDP3r.push_back(cDP3r_tmp);
-    assert(dst.c1DPr.size() == 1 || !fprintf(stderr, "%lu == 1 failed for c1DPr", dst.c1DPr.size() ) );
-    assert(src.c1DPr.size() == 1 || !fprintf(stderr, "%lu == 1 failed for c1DPr", src.c1DPr.size() ) );
-    auto c1DPr_tmp = dst.c1DPr[0];
-    dst.c1DPr[0] = src.c1DPr[0];
-    dst.c1DPr.push_back(c1DPr_tmp);
+    assert(dst.cDP21f.size() == 1 || !fprintf(stderr, "%lu == 1 failed for cDP21f", dst.cDP21f.size() ) );
+    assert(src.cDP21f.size() == 1 || !fprintf(stderr, "%lu == 1 failed for cDP21f", src.cDP21f.size() ) );
+    auto cDP21f_tmp = dst.cDP21f[0];
+    dst.cDP21f[0] = src.cDP21f[0];
+    dst.cDP21f.push_back(cDP21f_tmp);
+    assert(dst.cDP21r.size() == 1 || !fprintf(stderr, "%lu == 1 failed for cDP21r", dst.cDP21r.size() ) );
+    assert(src.cDP21r.size() == 1 || !fprintf(stderr, "%lu == 1 failed for cDP21r", src.cDP21r.size() ) );
+    auto cDP21r_tmp = dst.cDP21r[0];
+    dst.cDP21r[0] = src.cDP21r[0];
+    dst.cDP21r.push_back(cDP21r_tmp);
+    assert(dst.cDPMf.size() == 1 || !fprintf(stderr, "%lu == 1 failed for cDPMf", dst.cDPMf.size() ) );
+    assert(src.cDPMf.size() == 1 || !fprintf(stderr, "%lu == 1 failed for cDPMf", src.cDPMf.size() ) );
+    auto cDPMf_tmp = dst.cDPMf[0];
+    dst.cDPMf[0] = src.cDPMf[0];
+    dst.cDPMf.push_back(cDPMf_tmp);
     assert(dst.cDPMr.size() == 1 || !fprintf(stderr, "%lu == 1 failed for cDPMr", dst.cDPMr.size() ) );
     assert(src.cDPMr.size() == 1 || !fprintf(stderr, "%lu == 1 failed for cDPMr", src.cDPMr.size() ) );
     auto cDPMr_tmp = dst.cDPMr[0];
     dst.cDPMr[0] = src.cDPMr[0];
     dst.cDPMr.push_back(cDPMr_tmp);
+    assert(dst.cDPmf.size() == 1 || !fprintf(stderr, "%lu == 1 failed for cDPmf", dst.cDPmf.size() ) );
+    assert(src.cDPmf.size() == 1 || !fprintf(stderr, "%lu == 1 failed for cDPmf", src.cDPmf.size() ) );
+    auto cDPmf_tmp = dst.cDPmf[0];
+    dst.cDPmf[0] = src.cDPmf[0];
+    dst.cDPmf.push_back(cDPmf_tmp);
     assert(dst.cDPmr.size() == 1 || !fprintf(stderr, "%lu == 1 failed for cDPmr", dst.cDPmr.size() ) );
     assert(src.cDPmr.size() == 1 || !fprintf(stderr, "%lu == 1 failed for cDPmr", src.cDPmr.size() ) );
     auto cDPmr_tmp = dst.cDPmr[0];
@@ -2474,248 +3352,264 @@ const char *const FORMAT_LINES[] = {
     "##FORMAT=<ID=GQ,Number=1,Type=Integer,Description=\"Genotype Quality\">",
     "##FORMAT=<ID=HQ,Number=2,Type=Integer,Description=\"Haplotype Quality\">",
     "##FORMAT=<ID=FT,Number=1,Type=String,Description=\"Sample genotype filter indicating if this genotype was 'called' (similar in concept to the FILTER field). Again, use PASS to indicate that all filters have been passed, a semi-colon separated list of codes for filters that fail, or ‘.’ to indicate that filters have not been applied. These values should be described in the meta-information in the same way as FILTERs (String, no white-space or semi-colons permitted)\">",
-    "##FORMAT=<ID=FTS,Number=1,Type=String,Description=\"Sample variant filter indicating if this variant was 'called' (similar in concept to the FILTER field). Again, use PASS to indicate that all filters have been passed, an amperstand-separated list of codes for filters that fail, or '.' to indicate that filters have not been applied. These values should be described in the meta-information in the same way as FILTERs. No white-space, semi-colons, or amperstand permitted.\">",
-    "##FORMAT=<ID=_A_,Number=1,Type=String,Description=\"Summary statistics.\">",
+    "##FORMAT=<ID=FTS,Number=A,Type=String,Description=\"Sample variant filter indicating if this variant was 'called' (similar in concept to the FILTER field). Again, use PASS to indicate that all filters have been passed, a vertical bar (|)-separated list of codes for filters that fail, or '.' to indicate that filters have not been applied. These values should be described in the meta-information in the same way as FILTERs. No white-space, semi-colons, or vertical bar (|) permitted. \">",
+    "##FORMAT=<ID=_A_,Number=1,Type=String,Description=\"SUB-HEADER: Summary statistics. \">",
     "##FORMAT=<ID=DP,Number=1,Type=Integer,Description=\"Fragment depth of coverage with duplicates removed. \">",
     "##FORMAT=<ID=AD,Number=R,Type=Integer,Description=\"Fragment depth supporting the ALT allele with duplicates removed. \">",
     "##FORMAT=<ID=bDP,Number=1,Type=Integer,Description=\"Fragment depth of coverage with duplicates kept. \">",
     "##FORMAT=<ID=bAD,Number=R,Type=Integer,Description=\"Fragment depth supporting the ALT allele with duplicates kept. \">",
-    "##FORMAT=<ID=c2DP,Number=1,Type=Integer,Description=\"Consensus barcode family depth of coverage using tier-2 thresholds for grouping fragments into families. \">",
-    "##FORMAT=<ID=c2AD,Number=R,Type=Integer,Description=\"Consensus barcode family depth of coverage supporting the ALT allele using tier-2 thresholds for grouping fragments into families. \">",
-    "##FORMAT=<ID=_Aa,Number=1,Type=String,Description=\"Preparation statistics for segment biases at this position.\">",
-    "##FORMAT=<ID=APDP,Number=11,Type=Integer,Description=\"Total segment depth (1), segment depths within the indel length of insertion (2) and deletion (3), segment depths within the tandem-repeat track length of insertion (4) and deletion (5), PCR-amplicon (6), SNV (7), and DNV (8) segment depths, segment depth of high quality (9), near-clip segment depth (10), and segment depth supported by confident alignments which have no long InDels and no long clips (11).\">",
-    "##FORMAT=<ID=APXM,Number=8,Type=Integer,Description=\"Expected number of mismatches (1) and gap openings (2) in a 1500-bp window. Total sum of query length (3). Total sum of average InDel length of each sequenced segment (4). The (sum of squares (5,6)) and (sum of 100 divided by (7,8)) of insertion (5,7) and deletion (6,8) lengths.\">",
-    "##FORMAT=<ID=_Ab,Number=1,Type=String,Description=\"Preparation statistics for segment biases at this position.\">",
-    "##FORMAT=<ID=APLRID,Number=4,Type=Integer,Description=\"Summed squared insertion (1,2) and deletion (3,4) lengths to the left (1,3) and right (2,4) ends of the InDel-affected region.\">",
-    "##FORMAT=<ID=APLRI,Number=4,Type=Integer,Description=\"Summed distance to left insert end and the number of such inserts, and similarly for right insert end.\">",
-    "##FORMAT=<ID=APLRP,Number=4,Type=Integer,Description=\"Summed distance to left and right ends, summed insertion length, and summed deletion length.\">",
-    "##FORMAT=<ID=_Ac,Number=1,Type=String,Description=\"Threshold for each type of bias (tier-1 means weak bias and tier-2 means strong bias).\">",
-    "##FORMAT=<ID=ALRPxT,Number=2,Type=Integer,Description=\"Number of bases to left (1,2) and right (3.4) segment ends above which the segment is not used for computing position bias.\">",
-    "##FORMAT=<ID=ALRIT,Number=4,Type=Integer,Description=\"Number of bases to left (1,2) and right (3.4) insert ends above which there is tier-1 and tier-2 insert bias.\">",
-    "##FORMAT=<ID=ALRIt,Number=4,Type=Integer,Description=\"Number of bases to left (1,2) and right (3,4) insert ends below which there is tier-1 and tier-2 insert bias.\">",
-    "##FORMAT=<ID=ALRPt,Number=4,Type=Integer,Description=\"Number of bases to left (1,2) and right (3,4) read-segment ends below which there is tier-1 and tier-2 position bias.\">",
-    "##FORMAT=<ID=ALRBt,Number=4,Type=Integer,Description=\"Base alignment quality (BAQ) to left (1,2) and right (3,4) read-segment ends below which there is tier-1 and tier-2 position bias.\">",
-    "##FORMAT=<ID=_AQ,Number=1,Type=String,Description=\"Statistics of the raw sequencing segments for (all alleles) and (the padded deletion allele).\">",
-    "##FORMAT=<ID=AMQs,Number=2,Type=Integer,Description=\"Raw sequencing segment sum of mapping qualities.\">",
-    "##FORMAT=<ID=A1BQf,Number=2,Type=Integer,Description=\"Summed sequencing-segment base quality on the forward strand.\">",
-    "##FORMAT=<ID=A1BQr,Number=2,Type=Integer,Description=\"Summed sequencing-segment base quality on the reverse strand.\">",
-    "##FORMAT=<ID=_A1,Number=1,Type=String,Description=\"Depths of the raw sequencing segments for (all alleles) and (the padded deletion allele).\">",
-    "##FORMAT=<ID=ADPff,Number=2,Type=Integer,Description=\"Raw sequencing segment depth with the R1-forward orientation and strand.\">",
-    "##FORMAT=<ID=ADPfr,Number=2,Type=Integer,Description=\"Raw sequencing segment depth with the R2-reverse orientation and strand.\">",
-    "##FORMAT=<ID=ADPrf,Number=2,Type=Integer,Description=\"Raw sequencing segment depth with the R2-forward orientation and strand.\">",
-    "##FORMAT=<ID=ADPrr,Number=2,Type=Integer,Description=\"Raw sequencing segment depth with the R1-reverse orientation and strand.\">",
-    "##FORMAT=<ID=_A2,Number=1,Type=String,Description=\"Depths of the raw sequencing segments for (all alleles) and (the padded deletion allele).\">",
-    "##FORMAT=<ID=ALP1,Number=2,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-1 left-side position bias.\">",
-    "##FORMAT=<ID=ALP2,Number=2,Type=Integer,Description=\"RSEaw sequencing segment depth unaffected by tier-2 left-side position bias.\">",
-    "##FORMAT=<ID=ALPL,Number=2,Type=Integer,Description=\"Raw summed distance (number of bases) to the left-side sequencing-segment end using only high-quality bases far from alignment ends.\">",
-    "##FORMAT=<ID=ARP1,Number=2,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-1 right-side position bias.\">",
-    "##FORMAT=<ID=ARP2,Number=2,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-2 right-side position bias.\">",
-    "##FORMAT=<ID=ARPL,Number=2,Type=Integer,Description=\"Raw summed distance (number of bases) to the right-side sequencing-segment end using only high-quality bases far from alignment ends.\">",
-    "##FORMAT=<ID=_A3,Number=1,Type=String,Description=\"Depths of the raw sequencing segments for (all alleles) and (the padded deletion allele).\">",
-    "##FORMAT=<ID=ALB1,Number=2,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-1 left-side position bias.\">",
-    "##FORMAT=<ID=ALB2,Number=2,Type=Integer,Description=\"RSEaw sequencing segment depth unaffected by tier-2 left-side position bias.\">",
-    "##FORMAT=<ID=ALBL,Number=2,Type=Integer,Description=\"Raw summed distance (number of bases) to the left-side sequencing-segment end.\">",
-    "##FORMAT=<ID=ARB1,Number=2,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-1 right-side position bias.\">",
-    "##FORMAT=<ID=ARB2,Number=2,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-2 right-side position bias.\">",
-    "##FORMAT=<ID=ARBL,Number=2,Type=Integer,Description=\"Raw summed distance (number of bases) to the right-side sequencing-segment end.\">",
-    "##FORMAT=<ID=_A4,Number=1,Type=String,Description=\"As before.\">",
-    "##FORMAT=<ID=ABQ2,Number=2,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-2 base quality bias.\">",
-    "##FORMAT=<ID=APF1,Number=2,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-1 mismatch bias.\">",
-    "##FORMAT=<ID=APF2,Number=2,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-2 mismatch bias.\">",
-    "##FORMAT=<ID=AP1,Number=2,Type=Integer,Description=\"Raw sequencing segment depth of reads passing left and right number of bases threshold of distance.\">",
-    "##FORMAT=<ID=AP2,Number=2,Type=Integer,Description=\"Raw sequencing segment depth of reads that are either labeled with UMIs or not coming from PCR amplicons.\">",
-    "##FORMAT=<ID=_A5,Number=1,Type=String,Description=\"As before.\">",
-    "##FORMAT=<ID=ALI1,Number=2,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-1 insert bias on the left side.\">",
-    "##FORMAT=<ID=ALI2,Number=2,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-2 insert bias on the right side.\">",
-    "##FORMAT=<ID=ALIr,Number=2,Type=Integer,Description=\"Raw sequencing segment depth eligible for left-side reverse-strand bias computation.\">",
-    "##FORMAT=<ID=ARI1,Number=2,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-1 insert bias on the left side.\">",
-    "##FORMAT=<ID=ARI2,Number=2,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-2 insert bias on the right side.\">",
-    "##FORMAT=<ID=ARIf,Number=2,Type=Integer,Description=\"Raw sequencing segment depth eligible for right-side forward-strand bias computation.\">",
-    "##FORMAT=<ID=_aQ,Number=1,Type=String,Description=\"Statistics of the raw sequencing segments for the REF and each ALT allele.\">",
-    "##FORMAT=<ID=aMQs,Number=R,Type=Integer,Description=\"Raw sequencing segment sum of mapping qualities.\">",
-    "##FORMAT=<ID=a1BQf,Number=R,Type=Integer,Description=\"Summed sequencing-segment base quality on the forward strand.\">",
-    "##FORMAT=<ID=a1BQr,Number=R,Type=Integer,Description=\"Summed sequencing-segment base quality on the reverse strand.\">",
-    "##FORMAT=<ID=_aE,Number=1,Type=String,Description=\"Statistics of the raw sequencing segments for the REF and each ALT allele.\">",
-    "##FORMAT=<ID=aLPT,Number=R,Type=Integer,Description=\"Raw summed distance (number of bases) to the left-side sequencing-segment end.\">",
-    "##FORMAT=<ID=aRPT,Number=R,Type=Integer,Description=\"Raw summed distance (number of bases) to the right-side sequencing-segment end.\">",
-    "##FORMAT=<ID=aLIT,Number=R,Type=Integer,Description=\"Raw summed distance (number of bases) to the left-side insert end.\">",
-    "##FORMAT=<ID=aRIT,Number=R,Type=Integer,Description=\"Raw summed distance (number of bases) to the right-side insert end.\">",
-    "##FORMAT=<ID=aP3,Number=R,Type=Integer,Description=\"Raw sequencing segment depth of reads that are not affected by nearby InDels.\">",
-    "##FORMAT=<ID=aNC,Number=R,Type=Integer,Description=\"Raw sequencing segment depth of reads that do not have any clips (including soft and hard clips).\">",
-    "##FORMAT=<ID=_a1,Number=1,Type=String,Description=\"Depths of the raw sequencing segments for the REF and each ALT allele.\">",
-    "##FORMAT=<ID=aDPff,Number=R,Type=Integer,Description=\"Raw sequencing segment depth with the R1-forward orientation and strand.\">",
-    "##FORMAT=<ID=aDPfr,Number=R,Type=Integer,Description=\"Raw sequencing segment depth with the R2-reverse orientation and strand.\">",
-    "##FORMAT=<ID=aDPrf,Number=R,Type=Integer,Description=\"Raw sequencing segment depth with the R2-forward orientation and strand.\">",
-    "##FORMAT=<ID=aDPrr,Number=R,Type=Integer,Description=\"Raw sequencing segment depth with the R1-reverse orientation and strand.\">",
-    "##FORMAT=<ID=_a2,Number=1,Type=String,Description=\"As before.\">",
-    "##FORMAT=<ID=aLP1,Number=R,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-1 left-side position bias.\">",
-    "##FORMAT=<ID=aLP2,Number=R,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-2 left-side position bias.\">",
-    "##FORMAT=<ID=aLPL,Number=R,Type=Integer,Description=\"Raw summed distance (number of bases) to the left-side sequencing-segment end using only high-quality bases far from alignment ends.\">",
-    "##FORMAT=<ID=aRP1,Number=R,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-1 right-side position bias.\">",
-    "##FORMAT=<ID=aRP2,Number=R,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-2 right-side position bias.\">",
-    "##FORMAT=<ID=aRPL,Number=R,Type=Integer,Description=\"Raw summed distance (number of bases) to the right-side sequencing-segment end using only high-quality bases far from alignment ends.\">",
-    "##FORMAT=<ID=_a3,Number=1,Type=String,Description=\"As before.\">",
-    "##FORMAT=<ID=aLB1,Number=R,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-1 left-side base-alignment bias.\">",
-    "##FORMAT=<ID=aLB2,Number=R,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-2 left-side base-alignment bias.\">",
-    "##FORMAT=<ID=aLBL,Number=R,Type=Integer,Description=\"Raw summed BAQ (base-alignment quality) to the left-side sequencing-segment end.\">",
-    "##FORMAT=<ID=aRB1,Number=R,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-1 right-side base-alignment bias.\">",
-    "##FORMAT=<ID=aRB2,Number=R,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-2 right-side base-alignment  bias.\">",
-    "##FORMAT=<ID=aRBL,Number=R,Type=Integer,Description=\"Raw summed BAQ (base-alignment quality) to the right-side sequencing-segment end.\">",
-    "##FORMAT=<ID=_a4,Number=1,Type=String,Description=\"As before.\">",
-    "##FORMAT=<ID=aBQ2,Number=R,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-2 base quality bias.\">",
-    "##FORMAT=<ID=aPF1,Number=R,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-1 relative mismatch bias and base quality bias.\">",
-    "##FORMAT=<ID=aPF2,Number=R,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-2 relative mismatch bias and base quality bias.\">",
-    "##FORMAT=<ID=aP1,Number=R,Type=Integer,Description=\"Raw sequencing segment depth of reads passing left and right number of bases threshold of distance.\">",
-    "##FORMAT=<ID=aP2,Number=R,Type=Integer,Description=\"Raw sequencing segment depth of reads that are either labeled with UMIs or not coming from PCR amplicons.\">",
-    "##FORMAT=<ID=_a5,Number=1,Type=String,Description=\"As before.\">",
-    "##FORMAT=<ID=aLI1,Number=R,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-1 insert bias on the left side.\">",
-    "##FORMAT=<ID=aLI2,Number=R,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-2 insert bias on the right side.\">",
-    "##FORMAT=<ID=aRI1,Number=R,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-1 insert bias on the left side.\">",
-    "##FORMAT=<ID=aRI2,Number=R,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-2 insert bias on the left side.\">",
-    "##FORMAT=<ID=aLIr,Number=R,Type=Integer,Description=\"Raw sequencing segment depth eligible for left-side reverse-strand bias computation.\">",
-    "##FORMAT=<ID=aRIf,Number=R,Type=Integer,Description=\"Raw sequencing segment depth eligible for right-side forward-strand bias computation.\">",
-    "##FORMAT=<ID=_B1,Number=1,Type=String,Description=\"Non-deduped fragment depth for (all alleles) and (the padded deletion allele).\">",
-    "##FORMAT=<ID=BDPf,Number=2,Type=Integer,Description=\"Non-deduped fragment depth on the forward strand for (all alleles) and (the padded deletion allele).\">",
-    "##FORMAT=<ID=BTAf,Number=2,Type=Integer,Description=\"Non-deduped sum of sequenced fragment positions on the forward strand for (all alleles) and (the padded deletion allele).\">",
-    "##FORMAT=<ID=BTBf,Number=2,Type=Integer,Description=\"Non-deduped sum of sequenced fragment positions near mutations on the forward strand for (all alleles) and (the padded deletion allele).\">",
-    "##FORMAT=<ID=BDPr,Number=2,Type=Integer,Description=\"Non-deduped fragment depth on the reverse strand for (all alleles) and (the padded deletion allele).\">",
-    "##FORMAT=<ID=BTAr,Number=2,Type=Integer,Description=\"Non-deduped sum of sequenced fragment positions on the reverse strand for (all alleles) and (the padded deletion allele).\">",
-    "##FORMAT=<ID=BTBr,Number=2,Type=Integer,Description=\"Non-deduped sum of sequenced fragment positions near mutations on the reverse strand for (all alleles) and (the padded deletion allele).\">",
-    "##FORMAT=<ID=_b1,Number=1,Type=String,Description=\"Non-deduped depths of the fragments for the REF allele and each ATL allele.\">",
-    "##FORMAT=<ID=bDPf,Number=R,Type=Integer,Description=\"See BDPf.\">",
-    "##FORMAT=<ID=bTAf,Number=R,Type=Integer,Description=\"See BTAf.\">",
-    "##FORMAT=<ID=bTBf,Number=R,Type=Integer,Description=\"See BTBf.\">",
-    "##FORMAT=<ID=bDPr,Number=R,Type=Integer,Description=\"See BDPr.\">",
-    "##FORMAT=<ID=bTAr,Number=R,Type=Integer,Description=\"See BTAr.\">",
-    "##FORMAT=<ID=bTBr,Number=R,Type=Integer,Description=\"See BTBr.\">",
-    "##FORMAT=<ID=_C1,Number=1,Type=String,Description=\"Deduped depths of the unique molecular fragments for (all alleles) and (the padded deletion allele).\">",
-    "##FORMAT=<ID=CDP1f,Number=2,Type=Integer,Description=\"Nonfiltered deduped depth of the unique molecular fragments on the forward read orientation.\">",
-    "##FORMAT=<ID=CDP12f,Number=2,Type=Integer,Description=\"BQ-filtered deduped depth of the unique molecular fragments on the forward read orientation .\">",
-    "##FORMAT=<ID=CDP2f,Number=2,Type=Integer,Description=\"Weak consensus deduped depth of the unique molecular fragments on the forward read orientation.\">",
-    "##FORMAT=<ID=CDP3f,Number=2,Type=Integer,Description=\"Strong consensus deduped depth of the unique molecular fragments on the forward read orientation.\">",
-    "##FORMAT=<ID=C1DPf,Number=2,Type=Integer,Description=\"Singleton deduped depth of the unique molecular fragments on the forward read orientation.\">",
-    "##FORMAT=<ID=CDPMf,Number=2,Type=Integer,Description=\"Major duped fragment depth on the forward read orientation.\">",
-    "##FORMAT=<ID=CDPmf,Number=2,Type=Integer,Description=\"Minor duped fragment depth on the forward read orientation.\">",
-    "##FORMAT=<ID=_C2,Number=1,Type=String,Description=\"As before.\">",
-    "##FORMAT=<ID=CDP1r,Number=2,Type=Integer,Description=\"Nonfiltered deduped depth of the unique molecular fragments on the reverse read orientation.\">",
-    "##FORMAT=<ID=CDP12r,Number=2,Type=Integer,Description=\"BQ-Filtered deduped depth of the unique molecular fragments on the reverse read orientation.\">",
-    "##FORMAT=<ID=CDP2r,Number=2,Type=Integer,Description=\"Weak consensus deduped depth of the unique molecular fragments on the reverse read orientation.\">",
-    "##FORMAT=<ID=CDP3r,Number=2,Type=Integer,Description=\"Strong consensus deduped depth of the unique molecular fragments on the reverse read orientation.\">",
-    "##FORMAT=<ID=C1DPr,Number=2,Type=Integer,Description=\"Singleton deduped depth of the unique molecular fragments on the reverse read orientation.\">",
-    "##FORMAT=<ID=CDPMr,Number=2,Type=Integer,Description=\"Major duped fragment depth on the reverse read orientation.\">",
-    "##FORMAT=<ID=CDPmr,Number=2,Type=Integer,Description=\"Minor duped fragment depth on the reverse read orientation.\">",
-    "##FORMAT=<ID=_c1,Number=1,Type=String,Description=\"Deduped depths of the unique molecular fragments for the REF allele and each ALT allele.\">",
-    "##FORMAT=<ID=cDP1f,Number=R,Type=Integer,Description=\"Nonfiltered deduped depth of the unique molecular fragments on the forward read orientation.\">",
-    "##FORMAT=<ID=cDP12f,Number=R,Type=Integer,Description=\"BQ-filtered deduped depth of the unique molecular fragments on the forward read orientation.\">",
-    "##FORMAT=<ID=cDP2f,Number=R,Type=Integer,Description=\"Weak consensus deduped depth of the unique molecular fragments on the forward read orientation.\">",
-    "##FORMAT=<ID=cDP3f,Number=R,Type=Integer,Description=\"Strong consensus deduped depth of the unique molecular fragments on the forward read orientation.\">",
-    "##FORMAT=<ID=c1DPf,Number=R,Type=Integer,Description=\"Singleton deduped depth of the unique molecular fragments on the forward read orientation.\">",
-    "##FORMAT=<ID=cDPMf,Number=R,Type=Integer,Description=\"Major duped fragment depth on the forward read orientation.\">",
-    "##FORMAT=<ID=cDPmf,Number=R,Type=Integer,Description=\"Minor duped fragment depth on the forward read orientation.\">",
-    "##FORMAT=<ID=_c2,Number=1,Type=String,Description=\"As before.\">",
-    "##FORMAT=<ID=cDP1r,Number=R,Type=Integer,Description=\"Nonfiltered deduped depth of the unique molecular fragments on the reverse read orientation.\">",
-    "##FORMAT=<ID=cDP12r,Number=R,Type=Integer,Description=\"BQ-filtered deduped depth of the unique molecular fragments on the reverse read orientation.\">",
-    "##FORMAT=<ID=cDP2r,Number=R,Type=Integer,Description=\"Weak consensus deduped depth of the unique molecular fragments on the reverse read orientation.\">",
-    "##FORMAT=<ID=cDP3r,Number=R,Type=Integer,Description=\"Strong consensus deduped depth of the unique molecular fragments on the reverse read orientation.\">",
-    "##FORMAT=<ID=c1DPr,Number=R,Type=Integer,Description=\"Singleton deduped depth of the unique molecular fragments on the reverse read orientation.\">",
-    "##FORMAT=<ID=cDPMr,Number=R,Type=Integer,Description=\"Major duped fragment depth on the reverse read orientation.\">",
-    "##FORMAT=<ID=cDPmr,Number=R,Type=Integer,Description=\"Minor duped fragment depth on the reverse read orientation.\">",
-    "##FORMAT=<ID=_Dd,Number=1,Type=String,Description=\"Duplex depths of the original double-strand molecular fragments.\">",
-    "##FORMAT=<ID=DDP1,Number=2,Type=Integer,Description=\"Duplex depth regardless of allele agreement on the two strands for (all alleles) and (the padded deletion allele).\">",
-    "##FORMAT=<ID=DDP2,Number=2,Type=Integer,Description=\"Duplex depth with allele agreement on the two strands for (all alleles) and (the padded deletion allele).\">",
-    "##FORMAT=<ID=dDP1,Number=R,Type=Integer,Description=\"Duplex depth regardless of allele agreement on the two strands for the REF allele and each ALT allele.\">",
-    "##FORMAT=<ID=dDP2,Number=R,Type=Integer,Description=\"Duplex depth with allele agreement on the two strands for the REF allele and each ALT allele.\">",
-    "##FORMAT=<ID=_e1,Number=1,Type=String,Description=\"Error variables inferred from systematically low basecall qualities (BQs).\">",
-    "##FORMAT=<ID=aBQ,Number=R,Type=Integer,Description=\"Root-mean-square base quality for sequencing segments.\">",
-    "##FORMAT=<ID=a2BQf,Number=R,Type=Integer,Description=\"Summed squared/32 sequencing-segment base quality on the forward strand.\">",
-    "##FORMAT=<ID=a2BQr,Number=R,Type=Integer,Description=\"Summed squared/32 sequencing-segment base quality on the reverse strand.\">",
-    "##FORMAT=<ID=a2XM2,Number=R,Type=Integer,Description=\"Raw sequencing segment depth unaffected by absolute mismatch bias.\">",
-    "##FORMAT=<ID=a2BM2,Number=R,Type=Integer,Description=\"Raw sequencing segment depth unaffected by absolute base-specific mismatch bias.\">",
-    "##FORMAT=<ID=aBQQ,Number=R,Type=Integer,Description=\"Variant quality capped by systematic error inferred from base qualities.\">",
-    "##FORMAT=<ID=_e2,Number=1,Type=String,Description=\"Error variables inferred from systematically low mapping qualities (MAPQs or MQs).\">",
-    "##FORMAT=<ID=bMQ,Number=R,Type=Integer,Description=\"Root-mean-square mapping quality for read fragments (max of R1 and R2 MQ is taken).\">",
-    "##FORMAT=<ID=aAaMQ,Number=R,Type=Integer,Description=\"Read segment difference of average mapping quality between the ALT allele and the non-ALT alleles.\">",
-    "##FORMAT=<ID=bNMQ,Number=R,Type=Integer,Description=\"Phred penalty inferred from high-BQ mismatches to the mapping quality (MAPQ). This penalty increases the MAPQ-related systematic error.\">",
-    "##FORMAT=<ID=bNMa,Number=R,Type=Integer,Description=\"Percent of the number of fragment positions that are affected by nearby high-BQ mutation (by default, nearby means within one turn of DNA helix) for the ALT alleles.\">",
-    "##FORMAT=<ID=bNMb,Number=R,Type=Integer,Description=\"Percent of the number of fragment positions that are affected by nearby high-BQ mutation (by default, nearby means within one turn of DNA helix) for all non-ALT alleles.\">",
-    "##FORMAT=<ID=bMQQ,Number=R,Type=Integer,Description=\"Variant quality capped by systematic error inferred from mapping qualities.\">",
-    "##FORMAT=<ID=_e3,Number=1,Type=String,Description=\"Quality-related variables assuming IID read support (IID: independent and identically distributed) for duped reads.\">",
-    "##FORMAT=<ID=bIAQb,Number=R,Type=Integer,Description=\"IID allele quality maximized with IAD and IDQ.\">",
-    "##FORMAT=<ID=bIADb,Number=R,Type=Integer,Description=\"IID allele depth (number of reads supporting each ALT)\">",
-    "##FORMAT=<ID=bIDQb,Number=R,Type=Integer,Description=\"IDD quality threshold per read support.\">",
-    "##FORMAT=<ID=_e4,Number=1,Type=String,Description=\"Quality-related variables assuming read supports are IID for deduped reads.\">",
-    "##FORMAT=<ID=cIAQf,Number=R,Type=Integer,Description=\"IID allele quality maximized with IAD and IDQ on the forward read orientation.\">",
-    "##FORMAT=<ID=cIADf,Number=R,Type=Integer,Description=\"IID allele depth (number of reads supporting each ALT) on the forward read orientation.\">",
-    "##FORMAT=<ID=cIDQf,Number=R,Type=Integer,Description=\"IDD quality threshold per read support on the forward read orientation.\">",
-    "##FORMAT=<ID=_e5,Number=1,Type=String,Description=\"Quality-related variables assuming read supports are IID for deduped reads.\">",
-    "##FORMAT=<ID=cIAQr,Number=R,Type=Integer,Description=\"IID allele quality maximized with IAD and IDQ on the reverse read orientation.\">",
-    "##FORMAT=<ID=cIADr,Number=R,Type=Integer,Description=\"IID allele depth (number of reads supporting each ALT) on the reverse read orientation.\">",
-    "##FORMAT=<ID=cIDQr,Number=R,Type=Integer,Description=\"IDD quality threshold per read support on the reverse read orientation.\">",
-    "##FORMAT=<ID=_e6,Number=1,Type=String,Description=\"Binomial variant qualities.\">",
-    "##FORMAT=<ID=bIAQ,Number=R,Type=Integer,Description=\"The duped fragment binomial variant quality by assuming statistical independence.\">",
-    "##FORMAT=<ID=cIAQ,Number=R,Type=Integer,Description=\"The deduplicated fragment binomial variant quality by assuming statistical independence.\">",
-    "##FORMAT=<ID=bTINQ,Number=R,Type=Integer,Description=\"The fragment binomial tumor-in-normal quality by assuming statistical independence.\">",
-    "##FORMAT=<ID=cTINQ,Number=R,Type=Integer,Description=\"The single-strand-consensus-sequence binomial tumor-in-normal quality by assuming statistical independence.\">",
-    "##FORMAT=<ID=_e7,Number=1,Type=String,Description=\"Power-law variant quality statistics for deduped read fragments.\">",
-    "##FORMAT=<ID=cPCQ1,Number=R,Type=Integer,Description=\"The deduplicatd read fragment power-law variant allele quality cap that is not lowered by using matched normal.\">",
-    "##FORMAT=<ID=cPLQ1,Number=R,Type=Integer,Description=\"The deduplicatd read fragment power-law variant allele quality.\">",
-    "##FORMAT=<ID=cVQ1,Number=R,Type=Integer,Description=\"The final variant quality computed with deduplicated read fragments.\">",
-    "##FORMAT=<ID=gVQ1,Number=R,Type=Integer,Description=\"The final variant quality computed with deduplicated read fragments used for germline variant calls.\">",
-    "##FORMAT=<ID=_e8,Number=1,Type=String,Description=\"Power-law variant quality statistics for SSCS UMI-barcoded families.\">",
-    "##FORMAT=<ID=cPCQ2,Number=R,Type=Integer,Description=\"The SSCS power-law variant allele quality cap that is not lowered by using matched normal.\">",
-    "##FORMAT=<ID=cPLQ2,Number=R,Type=Integer,Description=\"The single-strand-consensus-sequence (SSCS) UMI-barcoded power-law variant allele quality.\">",
-    "##FORMAT=<ID=cVQ2,Number=R,Type=Integer,Description=\"The final variant allele quality computed with SSCS UMI-barcoded families.\">",
-    "##FORMAT=<ID=cMmQ,Number=R,Type=Integer,Description=\"The empirical base quality estimated with high-quality UMI barcode families. This field is defined to be the Phred-scale fraction of minor read support to the sum of major and major read support, where major means agreement with UMI consensus, and minor means disagreement with UMI consensus. \">",
-    "##FORMAT=<ID=dVQinc,Number=R,Type=Integer,Description=\"The increase in cVQ2 (excluding systematic error) contributed by double-strand-consensus-sequences (DSCSs) of duplex barcode famillies. Negative value means no increase.\">",
-    "##FORMAT=<ID=_Ef1,Number=1,Type=String,Description=\"Effective read support for deduplicated read fragments for all alleles and the padded-deletion allele.\">",
-    "##FORMAT=<ID=CDP1v,Number=2,Type=Integer,Description=\"The effective number of deduplicated read fragments supporting all alleles multiplied by 100 for within-sample comparison.\">",
-    "##FORMAT=<ID=CDP1w,Number=2,Type=Integer,Description=\"The effective number of deduplicated read fragments supporting all alleles multiplied by 100 for sample-specific variant-quality cap.\">",
-    "##FORMAT=<ID=CDP1x,Number=2,Type=Integer,Description=\"The effective number of deduplicated read fragments supporting all alleles multiplied by 100 \">",
-    "##FORMAT=<ID=_ef1,Number=1,Type=String,Description=\"Effective read support for deduplicated read fragments for the REF allele and each ALT allele.\">",
-    "##FORMAT=<ID=cDP1v,Number=R,Type=Integer,Description=\"The effective number of deduplicated read fragments supporting each allele multiplied by 100 for within-sample comparison.\">",
-    "##FORMAT=<ID=cDP1w,Number=R,Type=Integer,Description=\"The effective number of deduplicated read fragments supporting each allele multiplied by 100 for sample-specific variant-quality cap.\">",
-    "##FORMAT=<ID=cDP1x,Number=R,Type=Integer,Description=\"The effective number of deduplicated read fragments supporting each allele multiplied by 100 for between-sample comparison.\">",
-    "##FORMAT=<ID=_Ef2,Number=1,Type=String,Description=\"Effective read support for SSCS UMI-barcoded families.\">",
-    "##FORMAT=<ID=CDP2v,Number=2,Type=Integer,Description=\"The effective number of SSCS UMI-barcoded families supporting all alleles multiplied by 100 for within-sample comparison.\">",
-    "##FORMAT=<ID=CDP2w,Number=2,Type=Integer,Description=\"The effective number of SSCS UMI-barcoded families supporting all alleles multiplied by 100 for sample-specific variant-quality cap.\">",
-    "##FORMAT=<ID=CDP2x,Number=2,Type=Integer,Description=\"The effective number of SSCS UMI-barcoded families supporting all alleles multiplied by 100 for between-sample comparison.\">",
-    "##FORMAT=<ID=_ef2,Number=1,Type=String,Description=\"Effective read support for SSCS UMI-barcoded families.\">",
-    "##FORMAT=<ID=cDP2v,Number=R,Type=Integer,Description=\"The effective number of SSCS UMI-barcoded families supporting each allele multiplied by 100 for within-sample comparison.\">",
-    "##FORMAT=<ID=cDP2w,Number=R,Type=Integer,Description=\"The effective number of SSCS UMI-barcoded families supporting each allele multiplied by 100 for sample-specific variant-quality cap.\">",
-    "##FORMAT=<ID=cDP2x,Number=R,Type=Integer,Description=\"The effective number of SSCS UMI-barcoded families supporting each allele multiplied by 100 for between-sample comparison.\">",
-    "##FORMAT=<ID=_f1,Number=1,Type=String,Description=\"Filter-related informationn including counter-filters that rescue variants.\">",
-    "##FORMAT=<ID=CONTQ,Number=R,Type=Integer,Description=\"Likelihood of the variant signal if the variant signal is contaminated. This value rescues variants in the matched normal control sample.\">",
-    "##FORMAT=<ID=nPF,Number=.,Type=Integer,Description=\"Phred prior bias probability for base position and BAQ.\">",
+    "##FORMAT=<ID=c2DP,Number=1,Type=Integer,Description=\"Consensus UMI-barcode family depth of coverage using tier-2 thresholds for grouping fragments into families. \">",
+    "##FORMAT=<ID=c2AD,Number=R,Type=Integer,Description=\"Consensus UMI_barcode family depth of coverage supporting the ALT allele using tier-2 thresholds for grouping fragments into families. \">",
+    "##FORMAT=<ID=_Aa,Number=1,Type=String,Description=\"SUB-HEADER: Preparation statistics for segment biases at this position. \">",
+    "##FORMAT=<ID=APDP,Number=12,Type=Integer,Description=\"Read segment sequencing depths with the following characteristics: total (1), within the InDel length of insertion (2) and deletion (3), within the tandem-repeat track length of insertion (4) and deletion (5), originated from PCR amplicons (6), of SNV (7), of DNV (8), of high quality (9), near-clip (10), supported by confident alignments which have no long InDels and no long clips (11), and UMI (unique molecular identifier, a.k.a. molecular barcode)-labeled (12). \">",
+    "##FORMAT=<ID=APXM,Number=8,Type=Integer,Description=\"Expected number of mismatches (1) and gap openings (2) in a 1500-bp window. Total sum of query length (3). Total sum of average InDel length of each sequenced segment (4). The (sum of squares (5,6)) and (sum of 100 divided by (7,8)) of insertion (5,7) and deletion (6,8) lengths. \">",
+    "##FORMAT=<ID=_Ab,Number=1,Type=String,Description=\"SUB-HEADER: Preparation statistics for segment biases at this position. \">",
+    "##FORMAT=<ID=APLRID,Number=4,Type=Integer,Description=\"Summed squared insertion (1,2) and deletion (3,4) lengths to the left (1,3) and right (2,4) ends of the InDel-affected region. \">",
+    "##FORMAT=<ID=APLRI,Number=4,Type=Integer,Description=\"Summed distance to left insert end and the number of such inserts, and similarly for right insert end. \">",
+    "##FORMAT=<ID=APLRP,Number=4,Type=Integer,Description=\"Summed distance to left and right ends, summed insertion length, and summed deletion length. \">",
+    "##FORMAT=<ID=_Ac,Number=1,Type=String,Description=\"SUB-HEADER: Threshold for each type of bias (tier-1 means weak bias and tier-2 means strong bias). \">",
+    "##FORMAT=<ID=ALRPxT,Number=2,Type=Integer,Description=\"Number of bases to left (1,2) and right (3.4) segment ends above which the segment is not used for computing position bias. \">",
+    "##FORMAT=<ID=ALRIT,Number=4,Type=Integer,Description=\"Number of bases to left (1,2) and right (3.4) insert ends above which there is tier-1 and tier-2 insert bias. \">",
+    "##FORMAT=<ID=ALRIt,Number=4,Type=Integer,Description=\"Number of bases to left (1,2) and right (3,4) insert ends below which there is tier-1 and tier-2 insert bias. \">",
+    "##FORMAT=<ID=ALRPt,Number=4,Type=Integer,Description=\"Number of bases to left (1,2) and right (3,4) read-segment ends below which there is tier-1 and tier-2 position bias. \">",
+    "##FORMAT=<ID=ALRBt,Number=4,Type=Integer,Description=\"Base alignment quality (BAQ) to left (1,2) and right (3,4) read-segment ends below which there is tier-1 and tier-2 position bias. \">",
+    "##FORMAT=<ID=_AQ,Number=1,Type=String,Description=\"SUB-HEADER: Sum of qualities (For FORMAT/TAG with '_A', '_B', '_C', or '_D' in the above SUB-HEADER, the TAG values are for REF/ALT if Number=R (i.e., starting with ABCD), all alleles by sum if Number=1 (i.e., starting with abcd), and all-alleles by sum/the padded deletion allele if Number=2 (i.e., starting with abcd)). \">",
+    "##FORMAT=<ID=aMQs,Number=R,Type=Integer,Description=\"Raw sequencing segment sum of mapping qualities for the REF and ALT alleles. \">",
+    "##FORMAT=<ID=AMQs,Number=1,Type=Integer,Description=\"Raw sequencing segment sum of mapping qualities for all alleles by sum and the padded deletion. \">",
+    "##FORMAT=<ID=a1BQf,Number=R,Type=Integer,Description=\"Raw sequencing-segment sum of base quality on the forward strand. \">",
+    "##FORMAT=<ID=A1BQf,Number=1,Type=Integer,Description=\"Raw sequencing-segment sum of base quality on the forward strand. \">",
+    "##FORMAT=<ID=a1BQr,Number=R,Type=Integer,Description=\"Raw sequencing-segment sum of base quality on the reverse strand. \">",
+    "##FORMAT=<ID=A1BQr,Number=1,Type=Integer,Description=\"Raw sequencing-segment sum of base quality on the reverse strand. \">",
+    "##FORMAT=<ID=_ADPf,Number=1,Type=String,Description=\"SUB-HEADER: Raw sequencing segment depths with forward orientation. \">",
+    "##FORMAT=<ID=aDPff,Number=R,Type=Integer,Description=\"Raw sequencing segment depth with the R1-forward orientation and strand. \">",
+    "##FORMAT=<ID=ADPff,Number=2,Type=Integer,Description=\"Raw sequencing segment depth with the R1-forward orientation and strand. \">",
+    "##FORMAT=<ID=aDPfr,Number=R,Type=Integer,Description=\"Raw sequencing segment depth with the R2-reverse orientation and strand. \">",
+    "##FORMAT=<ID=ADPfr,Number=2,Type=Integer,Description=\"Raw sequencing segment depth with the R2-reverse orientation and strand. \">",
+    "##FORMAT=<ID=_ADPr,Number=1,Type=String,Description=\"SUB-HEADER: Raw sequencing segment depths with reverse orientation. \">",
+    "##FORMAT=<ID=aDPrf,Number=R,Type=Integer,Description=\"Raw sequencing segment depth with the R2-forward orientation and strand. \">",
+    "##FORMAT=<ID=ADPrf,Number=2,Type=Integer,Description=\"Raw sequencing segment depth with the R2-forward orientation and strand. \">",
+    "##FORMAT=<ID=aDPrr,Number=R,Type=Integer,Description=\"Raw sequencing segment depth with the R1-reverse orientation and strand. \">",
+    "##FORMAT=<ID=ADPrr,Number=2,Type=Integer,Description=\"Raw sequencing segment depth with the R1-reverse orientation and strand. \">",
+    "##FORMAT=<ID=_ALP,Number=1,Type=String,Description=\"SUB-HEADER: Raw sequencing segment statistics related to position bias on the left side. \">",
+    "##FORMAT=<ID=aLP1,Number=R,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-1 left-side position bias. \">",
+    "##FORMAT=<ID=ALP1,Number=1,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-1 left-side position bias. \">",
+    "##FORMAT=<ID=aLP2,Number=R,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-2 left-side position bias. \">",
+    "##FORMAT=<ID=ALP2,Number=1,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-2 left-side position bias. \">",
+    "##FORMAT=<ID=aLPL,Number=R,Type=Integer,Description=\"Raw summed distance (number of bases) to the left-side sequencing-segment end using only high-quality bases far from alignment ends. \">",
+    "##FORMAT=<ID=ALPL,Number=1,Type=Integer,Description=\"Raw summed distance (number of bases) to the left-side sequencing-segment end using only high-quality bases far from alignment ends. \">",
+    "##FORMAT=<ID=_ARP,Number=1,Type=String,Description=\"SUB-HEADER: Raw sequencing segment statistics related to position bias on the right side. \">",
+    "##FORMAT=<ID=aRP1,Number=R,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-1 right-side position bias. \">",
+    "##FORMAT=<ID=ARP1,Number=1,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-1 right-side position bias. \">",
+    "##FORMAT=<ID=aRP2,Number=R,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-2 right-side position bias. \">",
+    "##FORMAT=<ID=ARP2,Number=1,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-2 right-side position bias. \">",
+    "##FORMAT=<ID=aRPL,Number=R,Type=Integer,Description=\"Raw summed distance (number of bases) to the right-side sequencing-segment end using only high-quality bases far from alignment ends. \">",
+    "##FORMAT=<ID=ARPL,Number=1,Type=Integer,Description=\"Raw summed distance (number of bases) to the right-side sequencing-segment end using only high-quality bases far from alignment ends. \">",
+    "##FORMAT=<ID=_ALB,Number=1,Type=String,Description=\"SUB-HEADER: Raw sequencing segment statistics related to base-alignment-quality (BAQ) bias on the left side. \">",
+    "##FORMAT=<ID=aLB1,Number=R,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-1 left-side base-alignment bias. \">",
+    "##FORMAT=<ID=aLB2,Number=R,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-2 left-side base-alignment bias. \">",
+    "##FORMAT=<ID=ALB2,Number=1,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-2 left-side position bias. \">",
+    "##FORMAT=<ID=aLBL,Number=R,Type=Integer,Description=\"Raw summed BAQ (base-alignment quality) to the left-side sequencing-segment end. \">",
+    "##FORMAT=<ID=ALBL,Number=1,Type=Integer,Description=\"Raw summed distance (number of bases) to the left-side sequencing-segment end. \">",
+    "##FORMAT=<ID=_ARB,Number=1,Type=String,Description=\"SUB-HEADER: Raw sequencing segment statistics related to base-alignment-quality (BAQ) bias on the right side. \">",
+    "##FORMAT=<ID=aRB1,Number=R,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-1 right-side base-alignment bias. \">",
+    "##FORMAT=<ID=aRB2,Number=R,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-2 right-side base-alignment bias. \">",
+    "##FORMAT=<ID=ARB2,Number=1,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-2 right-side position bias. \">",
+    "##FORMAT=<ID=aRBL,Number=R,Type=Integer,Description=\"Raw summed BAQ (base-alignment quality) to the right-side sequencing-segment end. \">",
+    "##FORMAT=<ID=ARBL,Number=1,Type=Integer,Description=\"Raw summed distance (number of bases) to the right-side sequencing-segment end. \">",
+    "##FORMAT=<ID=_ALI,Number=1,Type=String,Description=\"SUB-HEADER: Raw sequencing segment statistics related to insert-end bias on the left side. \">",
+    "##FORMAT=<ID=aLI1,Number=R,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-1 insert bias on the left side. \">",
+    "##FORMAT=<ID=aLI2,Number=R,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-2 insert bias on the left side. \">",
+    "##FORMAT=<ID=ALI2,Number=1,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-2 insert bias on the left side. \">",
+    "##FORMAT=<ID=aLIr,Number=R,Type=Integer,Description=\"Raw sequencing segment depth eligible for left-side reverse-strand bias computation. \">",
+    "##FORMAT=<ID=ALIr,Number=1,Type=Integer,Description=\"Raw sequencing segment depth eligible for left-side reverse-strand bias computation. \">",
+    "##FORMAT=<ID=_ARI,Number=1,Type=String,Description=\"SUB-HEADER: Raw sequencing segment statistics related to insert-end bias on the right side. \">",
+    "##FORMAT=<ID=aRI1,Number=R,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-1 insert bias on the right side. \">",
+    "##FORMAT=<ID=aRI2,Number=R,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-2 insert bias on the right side. \">",
+    "##FORMAT=<ID=ARI2,Number=1,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-2 insert bias on the right side. \">",
+    "##FORMAT=<ID=aRIf,Number=R,Type=Integer,Description=\"Raw sequencing segment depth eligible for right-side forward-strand bias computation. \">",
+    "##FORMAT=<ID=ARIf,Number=1,Type=Integer,Description=\"Raw sequencing segment depth eligible for right-side forward-strand bias computation. \">",
+    "##FORMAT=<ID=_AX,Number=1,Type=String,Description=\"SUB-HEADER: Raw sequencing segment statistics for extra information. \">",
+    "##FORMAT=<ID=aBQ2,Number=R,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-2 base quality bias. \">",
+    "##FORMAT=<ID=ABQ2,Number=1,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-2 base quality bias. \">",
+    "##FORMAT=<ID=aPF2,Number=R,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-2 relative mismatch bias and base quality bias. \">",
+    "##FORMAT=<ID=APF2,Number=1,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-2 mismatch bias. \">",
+    "##FORMAT=<ID=aP1,Number=R,Type=Integer,Description=\"Raw sequencing segment depth of reads passing left and right number of bases threshold of distance. \">",
+    "##FORMAT=<ID=AP1,Number=1,Type=Integer,Description=\"Raw sequencing segment depth of reads passing left and right number of bases threshold of distance. \">",
+    "##FORMAT=<ID=aP2,Number=R,Type=Integer,Description=\"Raw sequencing segment depth of reads that are either labeled with UMIs or not coming from PCR amplicons. \">",
+    "##FORMAT=<ID=AP2,Number=1,Type=Integer,Description=\"Raw sequencing segment depth of reads that are either labeled with UMIs or not coming from PCR amplicons. \">",
+    "##FORMAT=<ID=_Ax,Number=1,Type=String,Description=\"SUB-HEADER: Raw sequencing segment statistics for extra information for only the REF and ALT alleles. \">",
+    "##FORMAT=<ID=aPF1,Number=R,Type=Integer,Description=\"Raw sequencing segment depth unaffected by tier-1 relative mismatch bias and base quality bias. \">",
+    "##FORMAT=<ID=aLIT,Number=R,Type=Integer,Description=\"Raw summed distance (number of bases) to the left-side insert end. \">",
+    "##FORMAT=<ID=aRIT,Number=R,Type=Integer,Description=\"Raw summed distance (number of bases) to the right-side insert end. \">",
+    "##FORMAT=<ID=aP3,Number=R,Type=Integer,Description=\"Raw sequencing segment depth of reads that are not affected by nearby InDels. \">",
+    "##FORMAT=<ID=aNC,Number=R,Type=Integer,Description=\"Raw sequencing segment depth of reads that do not have any clips (including soft and hard clips). \">",
+    "##FORMAT=<ID=_BDP,Number=1,Type=String,Description=\"SUB-HEADER: Non-de-duplicated fragment depth for all alleles by sum and the padded deletion allele. \">",
+    "##FORMAT=<ID=bDPf,Number=R,Type=Integer,Description=\"See BDPf. \">",
+    "##FORMAT=<ID=BDPf,Number=2,Type=Integer,Description=\"Non-de-duplicated fragment depth on the forward strand for all alleles by sum and the padded deletion allele. \">",
+    "##FORMAT=<ID=bDPr,Number=R,Type=Integer,Description=\"See BDPr. \">",
+    "##FORMAT=<ID=BDPr,Number=2,Type=Integer,Description=\"Non-de-duplicated fragment depth on the reverse strand for all alleles by sum and the padded deletion allele. \">",
+    "##FORMAT=<ID=_BT,Number=1,Type=String,Description=\"SUB-HEADER: Non-de-duplicated fragment depth for all alleles by sum and the padded deletion allele. \">",
+    "##FORMAT=<ID=bTAf,Number=R,Type=Integer,Description=\"See BTAf. \">",
+    "##FORMAT=<ID=BTAf,Number=1,Type=Integer,Description=\"Non-de-duplicated sum of sequenced fragment positions on the forward strand for all alleles by sum. \">",
+    "##FORMAT=<ID=bTAr,Number=R,Type=Integer,Description=\"See BTAr. \">",
+    "##FORMAT=<ID=BTAr,Number=1,Type=Integer,Description=\"Non-de-duplicated sum of sequenced fragment positions on the reverse strand for all alleles by sum. \">",
+    "##FORMAT=<ID=bTBf,Number=R,Type=Integer,Description=\"See BTBf. \">",
+    "##FORMAT=<ID=BTBf,Number=1,Type=Integer,Description=\"Non-de-duplicated sum of sequenced fragment positions near mutations on the forward strand for all alleles by sum. \">",
+    "##FORMAT=<ID=bTBr,Number=R,Type=Integer,Description=\"See BTBr. \">",
+    "##FORMAT=<ID=BTBr,Number=1,Type=Integer,Description=\"Non-de-duplicated sum of sequenced fragment positions near mutations on the reverse strand for all alleles by sum. \">",
+    "##FORMAT=<ID=_CDP1,Number=1,Type=String,Description=\"SUB-HEADER: De-duplicated depths of the unique molecular fragments for all alleles by sum and the padded deletion allele. \">",
+    "##FORMAT=<ID=cDP1f,Number=R,Type=Integer,Description=\"Non-filtered de-duplicated depth of the unique molecular fragments on the forward read orientation. \">",
+    "##FORMAT=<ID=CDP1f,Number=2,Type=Integer,Description=\"Non-filtered de-duplicated depth of the unique molecular fragments on the forward read orientation. \">",
+    "##FORMAT=<ID=cDP1r,Number=R,Type=Integer,Description=\"Non-filtered de-duplicated depth of the unique molecular fragments on the reverse read orientation. \">",
+    "##FORMAT=<ID=CDP1r,Number=2,Type=Integer,Description=\"Non-filtered de-duplicated depth of the unique molecular fragments on the reverse read orientation. \">",
+    "##FORMAT=<ID=cDP12f,Number=R,Type=Integer,Description=\"BQ-filtered de-duplicated depth of the unique molecular fragments on the forward read orientation. \">",
+    "##FORMAT=<ID=CDP12f,Number=2,Type=Integer,Description=\"BQ-filtered de-duplicated depth of the unique molecular fragments on the forward read orientation . \">",
+    "##FORMAT=<ID=cDP12r,Number=R,Type=Integer,Description=\"BQ-filtered de-duplicated depth of the unique molecular fragments on the reverse read orientation. \">",
+    "##FORMAT=<ID=CDP12r,Number=2,Type=Integer,Description=\"BQ-Filtered de-duplicated depth of the unique molecular fragments on the reverse read orientation. \">",
+    "##FORMAT=<ID=_CDP2,Number=1,Type=String,Description=\"SUB-HEADER: Tier-2 single-strand consensus sequence (SSCS) depth. \">",
+    "##FORMAT=<ID=cDP2f,Number=R,Type=Integer,Description=\"SSCS depth on the forward read orientation for each allele. \">",
+    "##FORMAT=<ID=CDP2f,Number=2,Type=Integer,Description=\"SSCS depth on the forward read orientation for all alleles by sum. \">",
+    "##FORMAT=<ID=cDP2r,Number=R,Type=Integer,Description=\"SSCS depth on the reverse read orientation for each allele. \">",
+    "##FORMAT=<ID=CDP2r,Number=2,Type=Integer,Description=\"SSCS depth on the reverse read orientation for all alleles by sum. \">",
+    "##FORMAT=<ID=c2BQ2,Number=R,Type=Integer,Description=\"SSCS depth unaffected by tier-2 base quality bias. \">",
+    "##FORMAT=<ID=C2BQ2,Number=1,Type=Integer,Description=\"SSCS depth unaffected by tier-2 base quality bias. \">",
+    "##FORMAT=<ID=c2LP0,Number=R,Type=Integer,Description=\"SSCS depth unaffected by strictly defined no-prior left-side position bias. \">",
+    "##FORMAT=<ID=C2LP0,Number=1,Type=Integer,Description=\"SSCS depth unaffected by strictly defined no-prior left-side position bias. \">",
+    "##FORMAT=<ID=c2RP0,Number=R,Type=Integer,Description=\"SSCS depth unaffected by strictly defined no-prior right-side position bias. \">",
+    "##FORMAT=<ID=C2RP0,Number=1,Type=Integer,Description=\"SSCS depth unaffected by strictly defined no-prior right-side position bias. \">",
+    "##FORMAT=<ID=_C2XP,Number=1,Type=String,Description=\"SUB-HEADER: SSCS statistics related to position bias. If this tag is present and absent, then all SSCS-related tags are all present and absent, respectively. \">",
+    "##FORMAT=<ID=c2LP1,Number=R,Type=Integer,Description=\"SSCS depth unaffected by tier-1 left-side position bias. \">",
+    "##FORMAT=<ID=c2LP2,Number=R,Type=Integer,Description=\"SSCS depth unaffected by tier-2 left-side position bias. \">",
+    "##FORMAT=<ID=C2LP2,Number=1,Type=Integer,Description=\"SSCS depth unaffected by tier-2 left-side position bias. \">",
+    "##FORMAT=<ID=c2RP1,Number=R,Type=Integer,Description=\"SSCS depth unaffected by tier-1 right-side position bias. \">",
+    "##FORMAT=<ID=c2RP2,Number=R,Type=Integer,Description=\"SSCS depth unaffected by tier-2 right-side position bias. \">",
+    "##FORMAT=<ID=C2RP2,Number=1,Type=Integer,Description=\"SSCS depth unaffected by tier-2 right-side position bias. \">",
+    "##FORMAT=<ID=c2LPL,Number=R,Type=Integer,Description=\"Raw summed distance (number of bases) to the left-side tier-2 SSCS end. \">",
+    "##FORMAT=<ID=C2LPL,Number=1,Type=Integer,Description=\"Raw summed distance (number of bases) to the left-side tier-2 SSCS end. \">",
+    "##FORMAT=<ID=c2RPL,Number=R,Type=Integer,Description=\"Raw summed distance (number of bases) to the right-side tier-2 SSCS end. \">",
+    "##FORMAT=<ID=C2RPL,Number=1,Type=Integer,Description=\"Raw summed distance (number of bases) to the right-side tier-2 SSCS end. \">",
+    "##FORMAT=<ID=_C2XB,Number=1,Type=String,Description=\"SUB-HEADER: SSCS statistics related to alignment quality bias. \">",
+    "##FORMAT=<ID=c2LB1,Number=R,Type=Integer,Description=\"SSCS depth unaffected by tier-1 left-side base-alignment bias. \">",
+    "##FORMAT=<ID=c2LB2,Number=R,Type=Integer,Description=\"SSCS depth unaffected by tier-2 left-side base-alignment bias. \">",
+    "##FORMAT=<ID=C2LB2,Number=1,Type=Integer,Description=\"SSCS depth unaffected by tier-2 left-side position bias. \">",
+    "##FORMAT=<ID=c2RB1,Number=R,Type=Integer,Description=\"SSCS depth unaffected by tier-1 right-side base-alignment bias. \">",
+    "##FORMAT=<ID=c2RB2,Number=R,Type=Integer,Description=\"SSCS depth unaffected by tier-2 right-side base-alignment bias. \">",
+    "##FORMAT=<ID=C2RB2,Number=1,Type=Integer,Description=\"SSCS depth unaffected by tier-2 right-side position bias. \">",
+    "##FORMAT=<ID=c2LBL,Number=R,Type=Integer,Description=\"Raw summed BAQ (base-alignment quality) to the left-side of tier-2 SSCS. \">",
+    "##FORMAT=<ID=C2LBL,Number=1,Type=Integer,Description=\"Raw summed BAQ (base-alignment quality) to the left-side of tier-2 SSCS. \">",
+    "##FORMAT=<ID=c2RBL,Number=R,Type=Integer,Description=\"Raw summed BAQ (base-alignment quality) to the left-side of tier-2 SSCS. \">",
+    "##FORMAT=<ID=C2RBL,Number=1,Type=Integer,Description=\"Raw summed BAQ (base-alignment quality) to the left-side of tier-2 SSCS. \">",
+    "##FORMAT=<ID=_CDPx,Number=1,Type=String,Description=\"SUB-HEADER: Other extra tags extracted from single-strand consensus sequences (SSCSs) derived by UMI molecular-barcode families. \">",
+    "##FORMAT=<ID=cDP3f,Number=R,Type=Integer,Description=\"Strong SSCS depth on the forward read orientation for each allele. \">",
+    "##FORMAT=<ID=CDP3f,Number=1,Type=Integer,Description=\"Strong SSCS depth on the forward read orientation for all alleles by sum. \">",
+    "##FORMAT=<ID=cDP3r,Number=R,Type=Integer,Description=\"Strong SSCS depth on the reverse read orientation for each allele\">",
+    "##FORMAT=<ID=CDP3r,Number=1,Type=Integer,Description=\"Strong SSCS depth on the reverse read orientation for all alleles by sum. \">",
+    "##FORMAT=<ID=cDP21f,Number=R,Type=Integer,Description=\"SSCS singleton on the forward read orientation. \">",
+    "##FORMAT=<ID=CDP21f,Number=1,Type=Integer,Description=\"SSCS singleton on the forward read orientation for all alleles by sum. \">",
+    "##FORMAT=<ID=cDP21r,Number=R,Type=Integer,Description=\"SSCS singleton on the reverse read orientation. \">",
+    "##FORMAT=<ID=CDP21r,Number=1,Type=Integer,Description=\"SSCS singleton on the reverse read orientation for all alleles by sum. \">",
+    "##FORMAT=<ID=_cDPMm,Number=1,Type=String,Description=\"SUB-HEADER: Empirical PCR-fragment (with dups) error in SSCS UMI-families used to estimate base-call-like qualities. \">",
+    "##FORMAT=<ID=cDPMf,Number=R,Type=Integer,Description=\"Depth of PCR fragments supporting the UMI-consensus allele on the forward read orientation for each allele. \">",
+    "##FORMAT=<ID=CDPMf,Number=1,Type=Integer,Description=\"Depth of PCR fragments supporting the UMI-consensus allele on the forward read orientation for all alleles by sum. \">",
+    "##FORMAT=<ID=cDPMr,Number=R,Type=Integer,Description=\"Depth of PCR fragments supporting the UMI-consensus allele on the reverse read orientation for each allele. \">",
+    "##FORMAT=<ID=CDPMr,Number=1,Type=Integer,Description=\"Depth of PCR fragments supporting the UMI-consensus allele on the reverse read orientation for all alleles by sum. \">",
+    "##FORMAT=<ID=cDPmf,Number=R,Type=Integer,Description=\"Depth of PCR fragments not supporting the UMI-consensus allele on the forward read orientation for each allele. \">",
+    "##FORMAT=<ID=CDPmf,Number=1,Type=Integer,Description=\"Depth of PCR fragments not supporting the UMI-consensus allele on the forward read orientation for all alleles by sum. \">",
+    "##FORMAT=<ID=cDPmr,Number=R,Type=Integer,Description=\"Depth of PCR fragments not supporting the UMI-consensus allele on the reverse read orientation for each allele. \">",
+    "##FORMAT=<ID=CDPmr,Number=1,Type=Integer,Description=\"Depth of PCR fragments not supporting the UMI-consensus allele on the reberse read orientation for all alleles by sum. \">",
+    "##FORMAT=<ID=_DDP,Number=1,Type=String,Description=\"SUB-HEADER: Duplex consensus sequence (DCS, or double-strand consensus sequence (DSCS)) depths from the original double-stranded input molecule. \">",
+    "##FORMAT=<ID=DDP1,Number=2,Type=Integer,Description=\"DCS depth regardless of allele agreement on the two strands for all alleles by sum and the padded deletion allele. \">",
+    "##FORMAT=<ID=dDP1,Number=R,Type=Integer,Description=\"DCS depth regardless of allele agreement on the two strands for each allele. \">",
+    "##FORMAT=<ID=DDP2,Number=2,Type=Integer,Description=\"DCS depth with allele agreement on the two strands for all alleles by sum and the padded deletion allele. \">",
+    "##FORMAT=<ID=dDP2,Number=R,Type=Integer,Description=\"DCS depth with allele agreement on the two strands for each allele. \">",
+    "##FORMAT=<ID=_ea,Number=1,Type=String,Description=\"SUB-HEADER: Error variables inferred from systematically low base-call qualities (BQs). \">",
+    "##FORMAT=<ID=aBQ,Number=R,Type=Integer,Description=\"Root-mean-square base quality for sequencing segments. \">",
+    "##FORMAT=<ID=a2BQf,Number=R,Type=Integer,Description=\"Summed squared/32 sequencing-segment base quality on the forward strand. \">",
+    "##FORMAT=<ID=a2BQr,Number=R,Type=Integer,Description=\"Summed squared/32 sequencing-segment base quality on the reverse strand. \">",
+    "##FORMAT=<ID=a2XM2,Number=R,Type=Integer,Description=\"Raw sequencing segment depth unaffected by absolute mismatch bias. \">",
+    "##FORMAT=<ID=a2BM2,Number=R,Type=Integer,Description=\"Raw sequencing segment depth unaffected by absolute base-specific mismatch bias. \">",
+    "##FORMAT=<ID=aBQQ,Number=R,Type=Integer,Description=\"Variant quality capped by systematic error inferred from base qualities. \">",
+    "##FORMAT=<ID=_eb,Number=1,Type=String,Description=\"SUB-HEADER: Error variables inferred from systematically low mapping qualities (MAPQs or MQs). \">",
+    "##FORMAT=<ID=bMQ,Number=R,Type=Integer,Description=\"Root-mean-square mapping quality for read fragments (max of R1 and R2 MQ is taken). \">",
+    "##FORMAT=<ID=aAaMQ,Number=R,Type=Integer,Description=\"Read segment difference of average mapping quality between the ALT allele and the non-ALT alleles. \">",
+    "##FORMAT=<ID=bNMQ,Number=R,Type=Integer,Description=\"Phred penalty inferred from high-BQ mismatches to the mapping quality (MAPQ). This penalty increases the MAPQ-related systematic error. \">",
+    "##FORMAT=<ID=bNMa,Number=R,Type=Integer,Description=\"Percent of the number of fragment positions that are affected by nearby high-BQ mutation (by default, nearby means within one turn of DNA helix) for the ALT alleles. \">",
+    "##FORMAT=<ID=bNMb,Number=R,Type=Integer,Description=\"Percent of the number of fragment positions that are affected by nearby high-BQ mutation (by default, nearby means within one turn of DNA helix) for all non-ALT alleles. \">",
+    "##FORMAT=<ID=bMQQ,Number=R,Type=Integer,Description=\"Variant quality capped by systematic error inferred from mapping qualities. \">",
+    "##FORMAT=<ID=_eB,Number=1,Type=String,Description=\"SUB-HEADER: Quality-related variables assuming IID read support (IID: independent and identically distributed) for duped reads. \">",
+    "##FORMAT=<ID=bIAQb,Number=R,Type=Integer,Description=\"IID allele quality maximized with IAD and IDQ. \">",
+    "##FORMAT=<ID=bIADb,Number=R,Type=Integer,Description=\"IID allele depth (number of reads supporting each ALT). \">",
+    "##FORMAT=<ID=bIDQb,Number=R,Type=Integer,Description=\"IDD quality threshold per read support. \">",
+    "##FORMAT=<ID=_eC,Number=1,Type=String,Description=\"SUB-HEADER: Quality-related variables assuming read supports are IID for de-duplicated reads. \">",
+    "##FORMAT=<ID=cIAQf,Number=R,Type=Integer,Description=\"IID allele quality maximized with IAD and IDQ on the forward read orientation. \">",
+    "##FORMAT=<ID=cIADf,Number=R,Type=Integer,Description=\"IID allele depth (number of reads supporting each ALT) on the forward read orientation. \">",
+    "##FORMAT=<ID=cIDQf,Number=R,Type=Integer,Description=\"IDD quality threshold per read support on the forward read orientation. \">",
+    "##FORMAT=<ID=cIAQr,Number=R,Type=Integer,Description=\"IID allele quality maximized with IAD and IDQ on the reverse read orientation. \">",
+    "##FORMAT=<ID=cIADr,Number=R,Type=Integer,Description=\"IID allele depth (number of reads supporting each ALT) on the reverse read orientation. \">",
+    "##FORMAT=<ID=cIDQr,Number=R,Type=Integer,Description=\"IDD quality threshold per read support on the reverse read orientation. \">",
+    "##FORMAT=<ID=_eE,Number=1,Type=String,Description=\"SUB-HEADER: Binomial variant qualities. \">",
+    "##FORMAT=<ID=bIAQ,Number=R,Type=Integer,Description=\"The duped fragment binomial variant quality by assuming statistical independence. \">",
+    "##FORMAT=<ID=cIAQ,Number=R,Type=Integer,Description=\"The de-duplicated fragment binomial variant quality by assuming statistical independence. \">",
+    "##FORMAT=<ID=bTINQ,Number=R,Type=Integer,Description=\"The fragment binomial tumor-in-normal quality by assuming statistical independence. \">",
+    "##FORMAT=<ID=cTINQ,Number=R,Type=Integer,Description=\"The single-strand-consensus-sequence binomial tumor-in-normal quality by assuming statistical independence. \">",
+    "##FORMAT=<ID=_eQ1,Number=1,Type=String,Description=\"SUB-HEADER: Power-law variant quality statistics for de-duplicated read fragments. \">",
+    "##FORMAT=<ID=cPCQ1,Number=R,Type=Integer,Description=\"The de-duplicated read fragment power-law variant allele quality cap that is not lowered by using matched normal. \">",
+    "##FORMAT=<ID=cPLQ1,Number=R,Type=Integer,Description=\"The de-duplicated read fragment power-law variant allele quality. \">",
+    "##FORMAT=<ID=cVQ1,Number=R,Type=Integer,Description=\"The final variant quality computed with de-duplicated read fragments. \">",
+    "##FORMAT=<ID=gVQ1,Number=R,Type=Integer,Description=\"The final variant quality computed with de-duplicated read fragments used for germline variant calls. \">",
+    "##FORMAT=<ID=_eQ2,Number=1,Type=String,Description=\"SUB-HEADER: Power-law variant quality statistics for SSCS UMI-barcoded families. \">",
+    "##FORMAT=<ID=cPCQ2,Number=R,Type=Integer,Description=\"The SSCS power-law variant allele quality cap that is not lowered by using matched normal. \">",
+    "##FORMAT=<ID=cPLQ2,Number=R,Type=Integer,Description=\"The single-strand-consensus-sequence (SSCS) UMI-barcoded power-law variant allele quality. \">",
+    "##FORMAT=<ID=cVQ2,Number=R,Type=Integer,Description=\"The final variant allele quality computed with SSCS UMI-barcoded families. \">",
+    "##FORMAT=<ID=cMmQ,Number=R,Type=Integer,Description=\"The empirical base quality estimated with high-quality UMI barcode families. This field is defined to be the Phred-scaled fraction of minor read support to the sum of major and major read support, where major means agreement with UMI consensus, and minor means disagreement with UMI consensus. \">",
+    "##FORMAT=<ID=dVQinc,Number=R,Type=Integer,Description=\"The increase in cVQ2 (excluding systematic error) contributed by double-strand-consensus-sequences (DSCSs) of duplex barcode famillies. Negative value means no increase. \">",
+    "##FORMAT=<ID=_CDP1vx,Number=1,Type=String,Description=\"SUB-HEADER: Effective read support for de-duplicated fragments. \">",
+    "##FORMAT=<ID=cDP1v,Number=R,Type=Integer,Description=\"The effective number of de-duplicated read fragments supporting each allele multiplied by 100 for within-sample comparison. \">",
+    "##FORMAT=<ID=CDP1v,Number=2,Type=Integer,Description=\"The effective number of de-duplicated read fragments supporting all alleles multiplied by 100 for within-sample comparison. \">",
+    "##FORMAT=<ID=cDP1w,Number=R,Type=Integer,Description=\"The effective number of de-duplicated read fragments supporting each allele multiplied by 100 for sample-specific variant-quality cap. \">",
+    "##FORMAT=<ID=CDP1w,Number=1,Type=Integer,Description=\"The effective number of de-duplicated read fragments supporting all alleles multiplied by 100 for sample-specific variant-quality cap. \">",
+    "##FORMAT=<ID=cDP1x,Number=R,Type=Integer,Description=\"The effective number of de-duplicated read fragments supporting each allele multiplied by 100 for between-sample comparison. \">",
+    "##FORMAT=<ID=CDP1x,Number=1,Type=Integer,Description=\"The effective number of de-duplicated read fragments supporting all alleles multiplied by 100 \">",
+    "##FORMAT=<ID=_CDP2vx,Number=1,Type=String,Description=\"SUB-HEADER: Effective read support for single-strand consensus sequence (SSCS) UMI-barcoded families. \">",
+    "##FORMAT=<ID=cDP2v,Number=R,Type=Integer,Description=\"The effective number of SSCS UMI-barcoded families supporting each allele multiplied by 100 for within-sample comparison. \">",
+    "##FORMAT=<ID=CDP2v,Number=2,Type=Integer,Description=\"The effective number of SSCS UMI-barcoded families supporting all alleles multiplied by 100 for within-sample comparison. \">",
+    "##FORMAT=<ID=cDP2w,Number=R,Type=Integer,Description=\"The effective number of SSCS UMI-barcoded families supporting each allele multiplied by 100 for sample-specific variant-quality cap. \">",
+    "##FORMAT=<ID=CDP2w,Number=1,Type=Integer,Description=\"The effective number of SSCS UMI-barcoded families supporting all alleles multiplied by 100 for sample-specific variant-quality cap. \">",
+    "##FORMAT=<ID=cDP2x,Number=R,Type=Integer,Description=\"The effective number of SSCS UMI-barcoded families supporting each allele multiplied by 100 for between-sample comparison. \">",
+    "##FORMAT=<ID=CDP2x,Number=1,Type=Integer,Description=\"The effective number of SSCS UMI-barcoded families supporting all alleles multiplied by 100 for between-sample comparison. \">",
+    "##FORMAT=<ID=_f1,Number=1,Type=String,Description=\"SUB-HEADER: Filter-related information including counter-filters that rescue variants. \">",
+    "##FORMAT=<ID=CONTQ,Number=R,Type=Integer,Description=\"Likelihood of the variant signal if the variant signal is contaminated. This value rescues variants in the matched normal control sample. \">",
+    "##FORMAT=<ID=nPF,Number=.,Type=Integer,Description=\"Phred prior bias probability for base position and BAQ. \">",
     "##FORMAT=<ID=nNFA,Number=.,Type=Integer,Description=\"DeciPhred allele fractions computed using nullified bias (meaning that bias in ALT is countered by bias in REF). \">",
-    "##FORMAT=<ID=nAFA,Number=.,Type=Integer,Description=\"DeciPhred allele fractions computed with sequencing-segment depths, reduced by none, left base position, base right position, left BAQ, right BAQ, left insert positoin, right insert position, strand, and pasing-filter biases (8 biases), respectively. \">",
-    "##FORMAT=<ID=nBCFA,Number=.,Type=Integer,Description=\"DeciPhred allele fractions computed with duped and deduped depths, using duped depth, deduped depth, tier-2 consensus family depth, tier-3 consensus family depth, tier-1 read-orientation depth, and tier-2 read-orientation depth, respectively. \">",
-    "##FORMAT=<ID=_g1,Number=1,Type=String,Description=\"General variant-related information.\">",
-    "##FORMAT=<ID=VTI,Number=R,Type=Integer,Description=\"Variant-type ID of each allele.\">",
+    "##FORMAT=<ID=nAFA,Number=.,Type=Integer,Description=\"DeciPhred allele fractions computed with sequencing-segment depths, reduced by none, left base position, base right position, left BAQ, right BAQ, left insert position, right insert position, strand, and passing-filter biases (8 biases), respectively. \">",
+    "##FORMAT=<ID=nBCFA,Number=.,Type=Integer,Description=\"DeciPhred allele fractions computed with duped and de-duplicated depths, using duped depth, de-duplicated depth, tier-2 consensus family depth, tier-3 consensus family depth, tier-1 read-orientation depth, and tier-2 read-orientation depth, respectively. \">",
+    "##FORMAT=<ID=_g1,Number=1,Type=String,Description=\"SUB-HEADER: General variant-related information. \">",
+    "##FORMAT=<ID=VTI,Number=R,Type=Integer,Description=\"Variant-type ID of each allele. \">",
     "##FORMAT=<ID=VTD,Number=R,Type=String,Description=\"Variant-type description of each allele\">",
-    "##FORMAT=<ID=cVQ1M,Number=2,Type=Integer,Description=\"Consensus allele qualities for deduped fragments and UMI families\">",
-    "##FORMAT=<ID=cVQ2M,Number=2,Type=Integer,Description=\"Consensus allele qualities for deduped fragments and UMI families\">",
-    "##FORMAT=<ID=cVQAM,Number=2,Type=String,Description=\"Consensus allele symbolic descriptions for deduped fragments and UMI families\">",
-    "##FORMAT=<ID=cVQSM,Number=2,Type=String,Description=\"Consensus allele InDel strings for deduped fragments and UMI families\">",
-    "##FORMAT=<ID=_g2,Number=1,Type=String,Description=\"Gap-related information for all observed InDel signals.\">",
-    "##FORMAT=<ID=gapNf,Number=.,Type=Integer,Description=\"Number of InDel sequences on the forward read orientation.\">",
-    "##FORMAT=<ID=gapNr,Number=.,Type=Integer,Description=\"Number of InDel sequences on the reverse read orientation.\">",
+    "##FORMAT=<ID=cVQ1M,Number=2,Type=Integer,Description=\"Consensus allele qualities for de-duplicated fragments and UMI families\">",
+    "##FORMAT=<ID=cVQ2M,Number=2,Type=Integer,Description=\"Consensus allele qualities for de-duplicated fragments and UMI families\">",
+    "##FORMAT=<ID=cVQAM,Number=2,Type=String,Description=\"Consensus allele symbolic descriptions for de-duplicated fragments and UMI families\">",
+    "##FORMAT=<ID=cVQSM,Number=2,Type=String,Description=\"Consensus allele InDel strings for de-duplicated fragments and UMI families\">",
+    "##FORMAT=<ID=_g2,Number=1,Type=String,Description=\"SUB-HEADER: Gap-related information for all observed InDel signals. \">",
+    "##FORMAT=<ID=gapNf,Number=.,Type=Integer,Description=\"Number of InDel sequences on the forward read orientation. \">",
+    "##FORMAT=<ID=gapNr,Number=.,Type=Integer,Description=\"Number of InDel sequences on the reverse read orientation. \">",
     "##FORMAT=<ID=gapSeq,Number=.,Type=String,Description=\"InDel sequences\">",
     "##FORMAT=<ID=gapbAD1,Number=.,Type=Integer,Description=\"Duped read count of each gapSeq\">",
-    "##FORMAT=<ID=gapcAD1,Number=.,Type=Integer,Description=\"Deduped read count of each gapSeq\">",
-    "##FORMAT=<ID=gcAD2,Number=.,Type=Integer,Description=\"Deduped read count of each gapSeq using tier-2 consensus\">",
-    "##FORMAT=<ID=gcAD3,Number=.,Type=Integer,Description=\"Deduped read count of each gapSeq using tier-3 consensus\">",
-    "##FORMAT=<ID=_g3,Number=1,Type=String,Description=\"Gap-related information for each InDel allele.\">",
-    "##FORMAT=<ID=bDPa,Number=R,Type=Integer,Description=\"Number of non-deduplicated fragments supporting each ALT allele which is more precise for InDels.\">",
-    "##FORMAT=<ID=cDP0a,Number=R,Type=Integer,Description=\"Number of deduplicated fragments supporting each ALT allele which is more precise for InDels\">",
+    "##FORMAT=<ID=gapcAD1,Number=.,Type=Integer,Description=\"De-duplicated read count of each gapSeq\">",
+    "##FORMAT=<ID=gcAD2,Number=.,Type=Integer,Description=\"De-duplicated read count of each gapSeq using tier-2 consensus\">",
+    "##FORMAT=<ID=gcAD3,Number=.,Type=Integer,Description=\"De-duplicated read count of each gapSeq using tier-3 consensus\">",
+    "##FORMAT=<ID=_g3,Number=1,Type=String,Description=\"SUB-HEADER: Gap-related information for each InDel allele. \">",
+    "##FORMAT=<ID=bDPa,Number=R,Type=Integer,Description=\"Number of non-de-duplicated fragments supporting each ALT allele which is more precise for InDels. \">",
+    "##FORMAT=<ID=cDP0a,Number=R,Type=Integer,Description=\"Number of de-duplicated fragments supporting each ALT allele which is more precise for InDels\">",
     "##FORMAT=<ID=gapSa,Number=R,Type=String,Description=\"InDel string of each allele\">",
-    "##FORMAT=<ID=_h1,Number=1,Type=String,Description=\"Haplotype-related information.\">",
+    "##FORMAT=<ID=_h1,Number=1,Type=String,Description=\"SUB-HEADER: Haplotype-related information. \">",
     "##FORMAT=<ID=bHap,Number=1,Type=String,Description=\"Duped forward&reverse linkage in the format of ((position&variantType)...forwardHAD&reverseHAD[forwardTotalHAD,reverseTotalHAD])... where HAD is the haplotype allele depth and where ()... means more elements following the format in the preceding parenthesis. \">",
     "##FORMAT=<ID=cHap,Number=1,Type=String,Description=\"Same as bHap except that duplicated reads are counted only once (dedupped). \">",
     "##FORMAT=<ID=c2Hap,Number=1,Type=String,Description=\"Same as cHap except that reads are grouped into UMI barcode families using tier-2 consensus. \">",
-    "##FORMAT=<ID=_i1,Number=1,Type=String,Description=\"Other information.\">",
-    "##FORMAT=<ID=vHGQ,Number=1,Type=Integer,Description=\"Phred-scale odds of observing the allele distribution at this genomic position assuming all alleles were generated by germline events (higher means less likely).\">",
-    "##FORMAT=<ID=vAC,Number=2,Type=Integer,Description=\"Number of SNVs and InDels that passed their variant quality thresholds at this position. This field can be used to filter out multiallelic variants or to merge alleles at the same position.\">",
-    "##FORMAT=<ID=vNLODQ,Number=2,Type=Integer,Description=\"Number of SNVs and InDels that passed their variant quality thresholds at this position. This field can be used to filter out SNV-in-tumor with InDel-in-normal or InDel-in-tumor with SNV-in-normal at the same position.\">",
+    "##FORMAT=<ID=_i1,Number=1,Type=String,Description=\"SUB-HEADER: Other information. \">",
+    "##FORMAT=<ID=vHGQ,Number=1,Type=Integer,Description=\"Phred-scaled odds of observing the allele distribution at this genomic position assuming all alleles were generated by germline events (higher means less likely). \">",
+    "##FORMAT=<ID=vAC,Number=2,Type=Integer,Description=\"Number of SNVs and InDels that passed their variant quality thresholds at this position. This field can be used to filter out multiallelic variants or to merge alleles at the same position. \">",
+    "##FORMAT=<ID=vNLODQ,Number=2,Type=Integer,Description=\"Number of SNVs and InDels that passed their variant quality thresholds at this position. This field can be used to filter out SNV-in-tumor with InDel-in-normal or InDel-in-tumor with SNV-in-normal at the same position. \">",
     "##FORMAT=<ID=note,Number=1,Type=String,Description=\"Additional note as comment for the given variant\">",
 };
 };

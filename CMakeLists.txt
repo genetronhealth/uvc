@@ -18,7 +18,7 @@ find_library(HTS_LIB NAMES hts HINTS ${HTSLIB_DIR} STATIC IMPORTED)
 ### add all source file to the SRC_LIST *variable*
 # omit
 
-add_executable(${PROJECT_NAME} main.cpp CmdLineArgs.cpp common.cpp grouping.cpp logging.cpp version.cpp)
+add_executable(${PROJECT_NAME} main.cpp CmdLineArgs.cpp common.cpp grouping.cpp MolecularID.cpp logging.cpp version.cpp)
 target_link_libraries(${PROJECT_NAME} -fopenmp hts pthread m z bz2 lzma)
 
 add_executable(debarcode debarcode_main.c)
