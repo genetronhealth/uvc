@@ -5904,17 +5904,18 @@ indelstring_gapSeq_gapAD_to_AD(const std::string & indelstring, const auto & gap
 template <bool TIsFmtTumor>
 int 
 fill_conditional_tki(TumorKeyInfo & tki, const bcfrec::BcfFormat & fmt, const AlignmentSymbol symbol, const std::string & indelstring) {
+    const uvc1_readnum_t duplex_coef_weight = 1;
     // extra code for backward compatibility
     if (TIsFmtTumor) {
         tki.tDP = SUMPAIR(fmt.CDP1b); // (fmt.CDP1f[0] + fmt.CDP1r[0]);
         tki.tADR = {{ fmt.cDP1f[0] + fmt.cDP1r[0], LAST(fmt.cDP1f) + LAST(fmt.cDP1r) }};
         // tki.tDPC = SUMPAIR(fmt.CDP2b); // (fmt.CDP2f[0] + fmt.CDP2r[0]);
         // tki.tADCR = {{ fmt.cDP2f[0] + fmt.cDP2r[0], LAST(fmt.cDP2f) + LAST(fmt.cDP2r) }};
-        tki.tDPC = SUMPAIR(fmt.CDPDb) + (SUMPAIR(fmt.DDP2) * 2);
+        tki.tDPC = SUMPAIR(fmt.CDPDb) + (SUMPAIR(fmt.DDP2) * duplex_coef_weight);
         const uvc1_readnum_t cond_altDP = ((isSymbolIns(symbol) || isSymbolDel(symbol)) 
                 ? (indelstring_gapSeq_gapAD_to_AD(indelstring, fmt.gapSeq, fmt.gc2dAD)) 
-                : (LAST(fmt.cDPDf) + LAST(fmt.cDPDr) + (LAST(fmt.dDP2) * 2)));
-        tki.tADCR = {{ fmt.cDPDf[0] + fmt.cDPDr[0] + (fmt.dDP2[0] * 2), cond_altDP }};
+                : (LAST(fmt.cDPDf) + LAST(fmt.cDPDr) + (LAST(fmt.dDP2) * duplex_coef_weight)));
+        tki.tADCR = {{ fmt.cDPDf[0] + fmt.cDPDr[0] + (fmt.dDP2[0] * duplex_coef_weight), cond_altDP }};
         tki.nDP = 0;
         tki.nADR = {{ 0 }};
         //tki.nDPC = 0; // this tag does not seem to be useful in most situations
@@ -5924,11 +5925,11 @@ fill_conditional_tki(TumorKeyInfo & tki, const bcfrec::BcfFormat & fmt, const Al
         tki.nADR = {{ fmt.cDP1f[0] + fmt.cDP1r[0], LAST(fmt.cDP1f) + LAST(fmt.cDP1r) }};
         //tki.nDPC = (fmt.CDP2f[0] + fmt.CDP2r[0]);
         //tki.nADCR = {{ fmt.cDP2f[0] + fmt.cDP2r[0], LAST(fmt.cDP2f) + LAST(fmt.cDP2r) }};
-        // tki.nADCR = {{ fmt.cDPDf[0] + fmt.cDPDr[0] + (fmt.dDP2[0] * 2), LAST(fmt.cDPDf) + LAST(fmt.cDPDr) + (LAST(fmt.dDP2) * 2)}};
+        // tki.nADCR = {{ fmt.cDPDf[0] + fmt.cDPDr[0] + (fmt.dDP2[0] * duplex_coef_weight), LAST(fmt.cDPDf) + LAST(fmt.cDPDr) + (LAST(fmt.dDP2) * duplex_coef_weight)}};
         const uvc1_readnum_t cond_altDP = ((isSymbolIns(symbol) || isSymbolDel(symbol)) 
                 ? (indelstring_gapSeq_gapAD_to_AD(indelstring, fmt.gapSeq, fmt.gc2dAD)) 
-                : (LAST(fmt.cDPDf) + LAST(fmt.cDPDr) + (LAST(fmt.dDP2) * 2)));
-        tki.tADCR = {{ fmt.cDPDf[0] + fmt.cDPDr[0] + (fmt.dDP2[0] * 2), cond_altDP }};
+                : (LAST(fmt.cDPDf) + LAST(fmt.cDPDr) + (LAST(fmt.dDP2) * duplex_coef_weight)));
+        tki.tADCR = {{ fmt.cDPDf[0] + fmt.cDPDr[0] + (fmt.dDP2[0] * duplex_coef_weight), cond_altDP }};
     }
     return TIsFmtTumor;
 }
