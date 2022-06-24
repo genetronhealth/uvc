@@ -2949,7 +2949,17 @@ struct Symbol2CountCoverageSet {
                 uvc1_refgpos_t no_strict_bias_pos_min = read_family_con_ampl.getExcluEndPosition();
                 uvc1_refgpos_t no_strict_bias_pos_max = read_family_con_ampl.getIncluBegPosition();
                 
-                if (UNSIGN2SIGN(alns2.size()) >= paramset.fam_thres_dup1add) {
+                uvc1_refgpos_t qseqlen_sum = 0;
+                uvc1_refgpos_t n_qseqs = 0;
+                for (const auto qseqlen : l2r_qseqlens) {
+                    qseqlen_sum += qseqlen;
+                    n_qseqs += 1;
+                }
+                for (const auto qseqlen : r2l_qseqlens) {
+                    qseqlen_sum += qseqlen;
+                    n_qseqs += 1;
+                }
+                if ((UNSIGN2SIGN(alns2.size()) >= paramset.fam_thres_dup1add) && (qseqlen_sum >= n_qseqs * paramset.fam_thres_qseqlen)) {
                     std::array<uvc1_refgpos_t, 2> no_strict_bias_poss = {{ read_family_con_ampl.getExcluEndPosition(), read_family_con_ampl.getIncluBegPosition() }};
                     for (size_t i = 0; i < 2; i++) {
                         int64_t begpos = (i ? (read_family_con_ampl.getExcluEndPosition() - 1) : read_family_con_ampl.getIncluBegPosition());

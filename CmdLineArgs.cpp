@@ -656,6 +656,8 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
         "Tier-2 threshold of barcode-family size (PMC4271547). ");
     ADD_OPTDEF2(app, fam_thres_dup2perc,
         "Tier-2 threshold of barcode-family percent identity derived from allele consensus (PMC4271547). ");
+    ADD_OPTDEF2(app, fam_thres_qseqlen,
+        "The average length of sequenced segments in an SSCS below which the SSCS support is discarded. ");
     
     ADD_OPTDEF2(app, fam_thres_emperr_all_flat_snv, 
         "Mininum number of read support of all alleles needed to compute the empirical basecall error for SNVs. ");
