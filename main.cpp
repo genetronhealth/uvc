@@ -166,10 +166,18 @@ als_to_string(const char *const* const allele, uint32_t n_allele) {
     return ret;
 }
 
+#define assertAlways(x) assert((x));
+
 #define BCF_GET_FORMAT_INT32_WITH_CHECK(v) \
         ndst_val = 0; \
         valsize = bcf_get_format_int32(bcf_hdr, line, v, &bcfints, &ndst_val); \
-        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for %s and line %ld!\n", ndst_val, valsize, v, line->pos));
+        assertAlways((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for %s and line %ld!\n", ndst_val, valsize, v, line->pos));
+
+#define BCF_GET_FORMAT_INT32B_WITH_CHECK(k,v) \
+        ndst_val = 0; \
+        valsize = bcf_get_format_int32(bcf_hdr, line, v, &bcfints, &ndst_val); \
+        assertAlways((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for %s and line %ld!\n", ndst_val, valsize, v, line->pos)); \
+        (k) = (bcfints[0] + bcfints[1]);
 
 template <class T1, class T2, class T3>
 const std::map<std::tuple<uvc1_refgpos_t, uvc1_refgpos_t, AlignmentSymbol>, std::vector<TumorKeyInfo>>
@@ -256,92 +264,86 @@ if (ADDITIONAL_INDEL_CANDIDATE_SYMBOL == symbol) {
 }
 
 if (MGVCF_SYMBOL != symbol && ADDITIONAL_INDEL_CANDIDATE_SYMBOL != symbol) {
-        
+
+        BCF_GET_FORMAT_INT32B_WITH_CHECK(tki.BDP, "BDPb");
+        /*
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "BDPf", &bcfints, &ndst_val);
-        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for BDPf and line %ld!\n", ndst_val, valsize, line->pos));
+        assertAlways((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for BDPf and line %ld!\n", ndst_val, valsize, line->pos));
         tki.BDP = bcfints[0];
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "BDPr", &bcfints, &ndst_val);
-        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for BDPr and line %ld!\n", ndst_val, valsize, line->pos));
+        assertAlways((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for BDPr and line %ld!\n", ndst_val, valsize, line->pos));
         tki.BDP += bcfints[0];
-
+        */
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "bDPf", &bcfints, &ndst_val);
-        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for bDPf and line %ld!\n", ndst_val, valsize, line->pos));
+        assertAlways((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for bDPf and line %ld!\n", ndst_val, valsize, line->pos));
         tki.bDP = bcfints[1];
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "bDPr", &bcfints, &ndst_val);
-        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for bDPr and line %ld!\n", ndst_val, valsize, line->pos));
+        assertAlways((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for bDPr and line %ld!\n", ndst_val, valsize, line->pos));
         tki.bDP += bcfints[1];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "CDP1x", &bcfints, &ndst_val);
-        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for CDP1x and line %ld!\n", ndst_val, valsize, line->pos));
+        assertAlways((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for CDP1x and line %ld!\n", ndst_val, valsize, line->pos));
         tki.CDP1x = bcfints[0];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "cDP1x", &bcfints, &ndst_val);
-        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cDP1x and line %ld!\n", ndst_val, valsize, line->pos));
+        assertAlways((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cDP1x and line %ld!\n", ndst_val, valsize, line->pos));
         tki.cDP1x = bcfints[1];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "cVQ1", &bcfints, &ndst_val);
-        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cVQ1 and line %ld!\n", ndst_val, valsize, line->pos));
+        assertAlways((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cVQ1 and line %ld!\n", ndst_val, valsize, line->pos));
         tki.cVQ1 = bcfints[1];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "cPCQ1", &bcfints, &ndst_val);
-        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cPCQ1 and line %ld!\n", ndst_val, valsize, line->pos));
+        assertAlways((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cPCQ1 and line %ld!\n", ndst_val, valsize, line->pos));
         tki.cPCQ1 = bcfints[1];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "CDP2x", &bcfints, &ndst_val);
-        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for CDP2x and line %ld!\n", ndst_val, valsize, line->pos));
+        assertAlways((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for CDP2x and line %ld!\n", ndst_val, valsize, line->pos));
         tki.CDP2x = bcfints[0];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "cDP2x", &bcfints, &ndst_val);
-        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cDP2x and line %ld!\n", ndst_val, valsize, line->pos));
+        assertAlways((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cDP2x and line %ld!\n", ndst_val, valsize, line->pos));
         tki.cDP2x = bcfints[1];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "cVQ2", &bcfints, &ndst_val);
-        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cVQ2 and line %ld!\n", ndst_val, valsize, line->pos));
+        assertAlways((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cVQ2 and line %ld!\n", ndst_val, valsize, line->pos));
         tki.cVQ2 = bcfints[1];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "cPCQ2", &bcfints, &ndst_val);
-        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cPCQ2 and line %ld!\n", ndst_val, valsize, line->pos));
+        assertAlways((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cPCQ2 and line %ld!\n", ndst_val, valsize, line->pos));
         tki.cPCQ2 = bcfints[1];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "bNMQ", &bcfints, &ndst_val);
-        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for bNMQ and line %ld!\n", ndst_val, valsize, line->pos));
+        assertAlways((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for bNMQ and line %ld!\n", ndst_val, valsize, line->pos));
         tki.bNMQ = bcfints[1];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "vHGQ", &bcfints, &ndst_val);
-        assertUVC((1 == ndst_val && 1 == valsize) || !fprintf(stderr, "1 == %d && 1 == %d failed for vHGQ and line %ld!\n", ndst_val, valsize, line->pos));
+        assertAlways((1 == ndst_val && 1 == valsize) || !fprintf(stderr, "1 == %d && 1 == %d failed for vHGQ and line %ld!\n", ndst_val, valsize, line->pos));
         tki.vHGQ = bcfints[0];
         
         // extra code for backward compatibility
-
-        BCF_GET_FORMAT_INT32_WITH_CHECK("CDP1f");
-        tki.tDP = bcfints[0];
-        BCF_GET_FORMAT_INT32_WITH_CHECK("CDP1r");
-        tki.tDP += bcfints[0];
         
+        BCF_GET_FORMAT_INT32B_WITH_CHECK(tki.tDP, "CDP1b");
         BCF_GET_FORMAT_INT32_WITH_CHECK("cDP1f");
         tki.tADR = {{ bcfints[0], bcfints[1] }};
         BCF_GET_FORMAT_INT32_WITH_CHECK("cDP1r");
         for (int i = 0; i < 2; i++) { tki.tADR[i] += bcfints[i]; }
         
-        BCF_GET_FORMAT_INT32_WITH_CHECK("CDP2f");
-        tki.tDPC = bcfints[0];
-        BCF_GET_FORMAT_INT32_WITH_CHECK("CDP2r");
-        tki.tDPC += bcfints[0];
-        
+        BCF_GET_FORMAT_INT32B_WITH_CHECK(tki.tDPC, "CDP2b");
         BCF_GET_FORMAT_INT32_WITH_CHECK("cDP2f");
         tki.tADCR = {{ bcfints[0], bcfints[1] }};
         BCF_GET_FORMAT_INT32_WITH_CHECK("cDP2r");
