@@ -188,7 +188,7 @@ rescue_variants_from_vcf(
         const T3 *bcf_hdr,
         const bool is_tumor_format_retrieved) {
     std::map<std::tuple<uvc1_refgpos_t, uvc1_refgpos_t, AlignmentSymbol>, std::vector<TumorKeyInfo>> ret;
-    if (NOT_PROVIDED == vcf_tumor_fname) {
+    if (ISNT_PROVIDED(vcf_tumor_fname)) {
         return ret;
     }
     std::string regionstring;
@@ -711,7 +711,7 @@ if (paramset.inferred_is_vcf_generated) {
                 }}, "\t");
                 
                 std::string tumor_gvcf_format = "";
-                if (paramset.is_tumor_format_retrieved && NOT_PROVIDED != paramset.vcf_tumor_fname) { 
+                if (paramset.is_tumor_format_retrieved && IS_PROVIDED(paramset.vcf_tumor_fname)) { 
                     const auto tkis_it = tid_pos_symb_to_tkis.find(std::make_tuple(tid, refpos, MGVCF_SYMBOL));
                     if (tkis_it != tid_pos_symb_to_tkis.end()) {
                         const auto & tkis = tid_pos_symb_to_tkis.find(std::make_tuple(tid, refpos, MGVCF_SYMBOL))->second;
@@ -756,7 +756,7 @@ if (paramset.inferred_is_vcf_generated) {
                             + ":" + std::to_string(ADP) + "," + std::to_string(aCDP) // format values
                 }}, "\t");
                 std::string tumor_format = "";
-                if (paramset.is_tumor_format_retrieved && NOT_PROVIDED != paramset.vcf_tumor_fname) { 
+                if (paramset.is_tumor_format_retrieved && IS_PROVIDED(paramset.vcf_tumor_fname)) { 
                     const auto tkis_it = tid_pos_symb_to_tkis.find(std::make_tuple(tid, refpos, ADDITIONAL_INDEL_CANDIDATE_SYMBOL));
                     if (tkis_it != tid_pos_symb_to_tkis.end()) {
                         const auto & tkis = tid_pos_symb_to_tkis.find(std::make_tuple(tid, refpos, ADDITIONAL_INDEL_CANDIDATE_SYMBOL))->second;
@@ -778,7 +778,7 @@ if (paramset.inferred_is_vcf_generated) {
             
             for (AlignmentSymbol symbol : SYMBOL_TYPE_TO_SYMBOLS[symboltype])
             {
-                const bool is_pos_rescued = (NOT_PROVIDED != paramset.vcf_tumor_fname && (extended_posidx_to_is_rescued[refpos - extended_inclu_beg_pos]));
+                const bool is_pos_rescued = (IS_PROVIDED(paramset.vcf_tumor_fname) && (extended_posidx_to_is_rescued[refpos - extended_inclu_beg_pos]));
                 const bool is_var_rescued = (is_pos_rescued && (tid_pos_symb_to_tkis.end() != tid_pos_symb_to_tkis.find(std::make_tuple(tid, refpos, symbol)))); 
                 const auto bdepth = 
                         symbolToCountCoverageSet12.symbol_to_frag_format_depth_sets[0].getByPos(refpos)[symbol][FRAG_bDP]
@@ -803,14 +803,14 @@ if (paramset.inferred_is_vcf_generated) {
                         del1_cdepth += cdepth;
                     }
                 }
-                if ((NOT_PROVIDED == paramset.vcf_tumor_fname)
+                if ((ISNT_PROVIDED(paramset.vcf_tumor_fname))
                         &&    (((refsymbol != symbol) && (bdepth < paramset.min_altdp_thres))
                             || ((refsymbol == symbol) && (bDPcDP[0] - ref_bdepth < paramset.min_altdp_thres)))
                         && (!paramset.should_output_all)) {
                     continue;
                 }
                 
-                if ((NOT_PROVIDED != paramset.vcf_tumor_fname) && (!is_pos_rescued)) {
+                if (IS_PROVIDED(paramset.vcf_tumor_fname) && (!is_pos_rescued)) {
                     continue;
                 }
                 const auto simplemut = std::make_pair(refpos, symbol);
@@ -859,7 +859,7 @@ if (paramset.inferred_is_vcf_generated) {
                                 std::get<0>(tname_tseqlen_tuple).c_str(), 
                                 refpos, 
                                 symbol, 
-                                (NOT_PROVIDED != paramset.vcf_tumor_fname),
+                                (IS_PROVIDED(paramset.vcf_tumor_fname)),
                                 0);
                         for (const auto & bcad0a_arr_indelstring_pair : bcad0a_arr_indelstring_pairvec) {
                             bcad0a_indelstring_tki_vec.push_back(std::make_tuple(
@@ -950,13 +950,13 @@ if (paramset.inferred_is_vcf_generated) {
                             repeatunit,
                             repeatnum,
                             
-                            NOT_PROVIDED != paramset.vcf_tumor_fname,
+                            IS_PROVIDED(paramset.vcf_tumor_fname),
                             region_repeatvec.at(MAX(refpos - extended_inclu_beg_pos, 3) - 3),
                             region_repeatvec.at(MIN(refpos - extended_inclu_beg_pos + 3, UNSIGN2SIGN(region_repeatvec.size()) - 1)),
                             tid,
                             refpos,
                             refsymbol,
-                            ((NOT_PROVIDED != paramset.vcf_tumor_fname && (tki.VTI == LAST(fmt.VTI))) ? 
+                            ((IS_PROVIDED(paramset.vcf_tumor_fname) && (tki.VTI == LAST(fmt.VTI))) ? 
                                 ((double)(tki.bDP + 0.5) / (double)(tki.BDP + 1.0)) : -1.0),
                             symbolToCountCoverageSet12,
                             paramset,
@@ -1061,7 +1061,7 @@ if (paramset.inferred_is_vcf_generated) {
                 for (size_t i = 0; i < fmt.vAC.size(); i++) { fmt.vAC[i] = curr_vAC[i]; }
                 const auto & symbol = (AlignmentSymbol)(LAST(fmt.VTI));
                 auto & tki = std::get<1>(fmt_tki_tup);
-                const bool will_generate_out = (NOT_PROVIDED == paramset.vcf_tumor_fname 
+                const bool will_generate_out = (ISNT_PROVIDED(paramset.vcf_tumor_fname)
                         ? (paramset.outvar_flag & OUTVAR_ANY)
                         : (tki.ref_alt.size() > 0 && (paramset.outvar_flag & OUTVAR_SOMATIC)));
                 const bool is_out_blocked = (
@@ -1074,8 +1074,8 @@ if (paramset.inferred_is_vcf_generated) {
                     const auto nlodq_singlesample = nlodq_singlesite - 3 
                             + (isSymbolSubstitution(symbol) ? paramset.germ_phred_hetero_snp : paramset.germ_phred_hetero_indel);
                     
-                    assertUVC ((NOT_PROVIDED == paramset.vcf_tumor_fname) == (0 == tki.ref_alt.size()));
-                    if (NOT_PROVIDED != paramset.vcf_tumor_fname) {
+                    assertUVC ((ISNT_PROVIDED(paramset.vcf_tumor_fname)) == (0 == tki.ref_alt.size()));
+                    if (IS_PROVIDED(paramset.vcf_tumor_fname)) {
                         uvc1_qual_t nlodq_inc = 999;
                         const auto fmtptrs = std::vector<bcfrec::BcfFormat*> {{ std::get<1>(nlodq_fmtptr1_fmtptr2_tup), std::get<2>(nlodq_fmtptr1_fmtptr2_tup) }} ;
                         for (const auto *fmtptr : fmtptrs) {
@@ -1246,7 +1246,7 @@ main(int argc, char **argv) {
     // samFile *sam_infile = sam_open(paramset.bam_input_fname.c_str(), "r");
     
     std::ofstream bed_out;
-    if (NOT_PROVIDED != paramset.bed_out_fname) {
+    if (IS_PROVIDED(paramset.bed_out_fname)) {
         bed_out.open(paramset.bed_out_fname, std::ios::out);
     }
 
@@ -1258,7 +1258,7 @@ main(int argc, char **argv) {
     
     bcf_hdr_t *g_bcf_hdr = NULL;
     const char *g_sample = NULL;
-    if (NOT_PROVIDED != paramset.vcf_tumor_fname) {
+    if (IS_PROVIDED(paramset.vcf_tumor_fname)) {
         htsFile *infile = hts_open(paramset.vcf_tumor_fname.c_str(), "r");
         g_bcf_hdr = bcf_hdr_read(infile);
         g_sample = "";

@@ -18,7 +18,8 @@ static const std::array<std::string, NUM_FQLIKE_CON_OUT_FILES> FASTQ_LIKE_SUFFIX
         };
 
 struct CommandLineArgs {
-
+    
+    const std::string NOT_PROVIDED = ".";
 // *** 00. frequently used parameters
     
     std::string bam_input_fname = NOT_PROVIDED; // not missing

@@ -1254,7 +1254,7 @@ update_seg_format_thres_from_prep_sets(
         rtr.indelphred += BETWEEN(pc_inc1, 0, 6);
         UPDATE_MAX(rtr.indelphred, 0);
         
-        const bool is_normal = (NOT_PROVIDED != paramset.vcf_tumor_fname);
+        const bool is_normal = IS_PROVIDED(paramset.vcf_tumor_fname);
         
 #if COMPILATION_ENABLE_XMGOT
         const auto bias_thres_PFXM1T_perc = (is_normal ? paramset.bias_thres_PFXM1NT_perc : paramset.bias_thres_PFXM1T_perc);
@@ -2029,7 +2029,7 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
                             / (double)(1.0 + non_neg_minus(seg_format_prep_sets.getByPos(rpos).segprep_a_dp, 
                                     seg_format_prep_sets.getByPos(rpos).segprep_a_at_ins_dp + seg_format_prep_sets.getByPos(rpos).segprep_a_at_del_dp))));
                     const auto & p = seg_format_prep_sets.getByPos(rpos);
-                    const uvc1_readnum_t qfromBQ2_ratiothres = (NOT_PROVIDED == paramset.vcf_tumor_fname ? 2 : 4);
+                    const uvc1_readnum_t qfromBQ2_ratiothres = (ISNT_PROVIDED(paramset.vcf_tumor_fname) ? 2 : 4);
                     const bool is_multiallelic_ins = (p.segprep_a_near_ins_pow2len * qfromBQ2_ratiothres > MAX(1, p.segprep_a_near_ins_dp) * UNSIGN2SIGN(cigar_oplen * 3));
                     if (1 == inslen && !is_multiallelic_ins) { phredvalue += BETWEEN(phredinc - 3, 0, 4); }
                     const uvc1_readnum_t thisdp = (seg_format_prep_sets.getByPos(rpos).segprep_a_at_ins_dp); 
@@ -2149,7 +2149,7 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
                         }
                     }
                     uvc1_qual_t qfromBQ1 = MIN3(BAM_PHREDI(aln, qpos), BAM_PHREDI(aln, qpos-1), minq);
-                    const uvc1_readnum_t qfromBQ2_ratiothres = (NOT_PROVIDED == paramset.vcf_tumor_fname ? 2 : 4);
+                    const uvc1_readnum_t qfromBQ2_ratiothres = (ISNT_PROVIDED(paramset.vcf_tumor_fname) ? 2 : 4);
                     uvc1_qual_t qfromBQ2 = ((thisdp * qfromBQ2_ratiothres <= neardp) ? non_neg_minus(qfromBQ1, 1) : (TIsProton ? MIN(qfromBQ1 + proton_cigarlen2phred(cigar_oplen), MAX(3, qfromBQ1) * UNSIGN2SIGN(cigar_oplen)) : 80));
                     double delFA = ((double)(thisdp + 0.5) / (double)(seg_format_prep_sets.getByPos(rpos).segprep_a_dp + 1));
                     uvc1_qual_t delFAQ = MAX(0, paramset.microadjust_delFAQmax + (uvc1_qual_t)round(paramset.powlaw_exponent * numstates2phred(delFA)));
@@ -3493,7 +3493,7 @@ if (paramset.inferred_is_vcf_generated) {
                                 pos_symbol_string_confam.push_back(std::make_pair(epos, con_symbol));
                             }
                         }
-                        uvc1_qual_t max_qual = sscs_mut_table.toPhredErrRate(ref_symbol, con_symbol) + (NOT_PROVIDED == paramset.vcf_tumor_fname ? 0 : 4);
+                        uvc1_qual_t max_qual = sscs_mut_table.toPhredErrRate(ref_symbol, con_symbol) + (ISNT_PROVIDED(paramset.vcf_tumor_fname) ? 0 : 4);
                         uvc1_qual_t confam_qual2 = MIN(confam_qual, max_qual);
                         if (tot_nfrags >= paramset.fam_thres_dup1add) {
                             int pbucket = (max_qual - confam_qual2 + 2) / 4;
@@ -3550,7 +3550,7 @@ if (paramset.inferred_is_vcf_generated) {
                     AlignmentSymbol ref_symbol = region_symbolvec[epos - this->getUnifiedIncluBegPosition()];
                     const uvc1_readnum_t totDP = formatSumBySymbolType(this->symbol_to_fam_format_depth_sets_2strand[strand].getRefByPos(epos), symboltype, FAM_cDP1);
                     for (AlignmentSymbol symbol : SYMBOL_TYPE_TO_SYMBOLS[symboltype]) {
-                        const uvc1_qual_t max_qual = sscs_mut_table.toPhredErrRate(ref_symbol, symbol) + (NOT_PROVIDED == paramset.vcf_tumor_fname ? 0 : 4);
+                        const uvc1_qual_t max_qual = sscs_mut_table.toPhredErrRate(ref_symbol, symbol) + (ISNT_PROVIDED(paramset.vcf_tumor_fname) ? 0 : 4);
                         uvc1_qual_t maxvqual = 0;
                         uvc1_readnum_t argmaxAD = 0;
                         uvc1_qual_t argmaxBQ = 0;
@@ -4276,9 +4276,9 @@ BcfFormat_symbol_calc_DPv(
     
     const auto & seg_format_prep_sets = symbol2CountCoverageSet12.seg_format_prep_sets.getByPos(refpos);
 
-    const double unbias_ratio = ((NOT_PROVIDED == paramset.vcf_tumor_fname) ? 1.0 : sqrt(2.0));
-    const double unbias_qualadd = ((NOT_PROVIDED == paramset.vcf_tumor_fname) ? 0 : 3);
-    const uvc1_qual_t allbias_allprior = ((NOT_PROVIDED == paramset.vcf_tumor_fname) ? 0 : 31);
+    const double unbias_ratio = ((ISNT_PROVIDED(paramset.vcf_tumor_fname)) ? 1.0 : sqrt(2.0));
+    const double unbias_qualadd = ((ISNT_PROVIDED(paramset.vcf_tumor_fname)) ? 0 : 3);
+    const uvc1_qual_t allbias_allprior = ((ISNT_PROVIDED(paramset.vcf_tumor_fname)) ? 0 : 31);
     
     const bool is_strong_amplicon = ((seg_format_prep_sets.segprep_a_pcr_dp) * 100 > seg_format_prep_sets.segprep_a_dp * 50);
     const bool is_weak_amplicon = ((seg_format_prep_sets.segprep_a_pcr_dp) * 100 > seg_format_prep_sets.segprep_a_dp * 30);
@@ -4312,7 +4312,7 @@ BcfFormat_symbol_calc_DPv(
     double _counterbias_P_FA = 1e-9;
     double _counterbias_BQ_FA = 1e-9;
     double _dir_bias_div = 1.0;
-    const bool is_nmore_amplicon = ((NOT_PROVIDED == paramset.vcf_tumor_fname) ? is_strong_amplicon : is_weak_amplicon);
+    const bool is_nmore_amplicon = ((ISNT_PROVIDED(paramset.vcf_tumor_fname)) ? is_strong_amplicon : is_weak_amplicon);
     if ((is_nmore_amplicon && (0x2 == (0x2 & paramset.nobias_flag))) || ((!is_nmore_amplicon) && (0x1 == (0x1 & paramset.nobias_flag)))) {
         // counter bias : position 23-10 bp and base quality 13
         // not-pos-bias < pos-bias
@@ -4451,7 +4451,7 @@ BcfFormat_symbol_calc_DPv(
             MAX(1, f.aRBL[a]) / (double)MAX(1, f.aBQ2[a]), MAX(1, f.ARBL[0]) / (double)MAX(1, f.ABQ2[0]), ((is_in_indel_read) ? paramset.bias_FA_pseudocount_indel_in_read : 0.5));
     double aLBFA = aLBFAx2[0];
     double aRBFA = aRBFAx2[0];
-    const bool is_tmore_amplicon = ((NOT_PROVIDED == paramset.vcf_tumor_fname) ? is_weak_amplicon : is_strong_amplicon);
+    const bool is_tmore_amplicon = ((ISNT_PROVIDED(paramset.vcf_tumor_fname)) ? is_weak_amplicon : is_strong_amplicon);
     
     // tier-2 UMI families
     const uvc1_readnum_t normCDP1 = SUMPAIR(fmt.CDP12b) + 1; // (fmt.CDP12f[0] + fmt.CDP12r[0] + 1);
@@ -4574,7 +4574,7 @@ BcfFormat_symbol_calc_DPv(
         }
     }
     
-    if (NOT_PROVIDED != paramset.vcf_tumor_fname || (SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform)) {
+    if (IS_PROVIDED(paramset.vcf_tumor_fname) || (SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform)) {
         aLIFA = aRIFA = MAX(aLIFA, aRIFA);
     }
     
@@ -4758,14 +4758,14 @@ BcfFormat_symbol_calc_DPv(
     }
     
     // non-WGS clipping penalty for InDels
-    const double aNCFA = ((NOT_PROVIDED == paramset.vcf_tumor_fname 
+    const double aNCFA = ((ISNT_PROVIDED(paramset.vcf_tumor_fname) 
                 && does_fmt_imply_short_frag(fmt, paramset.lib_wgs_min_avg_fraglen) 
                 && (isSymbolIns(symbol) || isSymbolDel(symbol)) 
                 && UNSIGN2SIGN(indelstring.size()) >= paramset.lib_nonwgs_clip_penal_min_indelsize)
             ? MAX((LAST(fmt.aNC) + 0.5) / (ADP + 1.0), BETWEEN((LAST(fmt.cDP1f) + LAST(fmt.cDP1r)) / 300.0, 1.0/3.0, 2.0/3.0) * aDPFA) : 2.0);
     
     // self-rescue of the normal by high allele frac
-    const double counterbias_normalgerm_FA = ((NOT_PROVIDED == paramset.vcf_tumor_fname || !does_fmt_imply_short_frag(fmt, paramset.lib_wgs_min_avg_fraglen))
+    const double counterbias_normalgerm_FA = ((ISNT_PROVIDED(paramset.vcf_tumor_fname) || !does_fmt_imply_short_frag(fmt, paramset.lib_wgs_min_avg_fraglen))
             ? 1e-9 
             : BETWEEN(
             aPFFA * aPFFA * (1.0 / paramset.lib_nonwgs_normal_full_self_rescue_fa), 
@@ -4778,7 +4778,7 @@ BcfFormat_symbol_calc_DPv(
     // double min_aFA = MAX(MIN(MIN(tier1_selfplus_aFA_min, tier1_selfonly_aFA_min), aNCFA), counterbias_FA);
     // double min_bcFA = MAX(MIN3(bFA, cFA0, cROFA1), counterbias_FA);
 
-    double dedup_FA = ((NOT_PROVIDED == paramset.vcf_tumor_fname) ? MIN(bFA, cFA0) : (MAX(bFA, cFA0)));
+    double dedup_FA = ((ISNT_PROVIDED(paramset.vcf_tumor_fname)) ? MIN(bFA, cFA0) : (MAX(bFA, cFA0)));
         
     double frac_umi2seg = MIN3(1.0, 
             c23FA / aDPFA, // assuming sequencing-segment bias is proportionally reduced into UMI-consensus families.
@@ -4803,7 +4803,7 @@ BcfFormat_symbol_calc_DPv(
             aNCFA}}), counterbias_FA);
     clear_push(fmt.cDP1w, (uvc1_readnum100x_t)(calc_normFA_from_rawFA_refbias(min_abcFA_w, refbias) * SUMPAIR(fmt.CDP1b) * 100), a);
     double min_abcFA_x = MINVEC(std::vector<double>{{ aPFFA, dedup_FA }});
-    if (NOT_PROVIDED != paramset.vcf_tumor_fname) {
+    if (IS_PROVIDED(paramset.vcf_tumor_fname)) {
         min_abcFA_x = MAX(min_abcFA_x, counterbias_FA);
     }
     clear_push(fmt.cDP1x, 1+(uvc1_readnum100x_t)                                       (min_abcFA_x * SUMPAIR(fmt.CDP1b) * 100), a);
@@ -4929,7 +4929,7 @@ BcfFormat_symbol_calc_qual(
     
     const double cFA2 = (fmt.cDP2f[a] + fmt.cDP2r[a] + 0.5) / (/*fmt.CDP2f[0] + fmt.CDP2r[0]*/ SUMPAIR(fmt.CDP2b) + 1.0);
     const uvc1_qual_t powlaw_sscs_phrederr = sscs_mut_table.toPhredErrRate(refsymbol, symbol)
-            + (NOT_PROVIDED == paramset.vcf_tumor_fname ? 0 : 4);
+            + (ISNT_PROVIDED(paramset.vcf_tumor_fname) ? 0 : 4);
     const double umi_cFA = (((double)(fmt.cDP2v[a]) + 0.5) / ((double)(/*fmt.CDP2f[0] * 100 + fmt.CDP2r[0] * 100)*/ SUMPAIR(fmt.CDP2b) * 100  + 1.0)));
     const double umi_cFA_w = (((double)(fmt.cDP2w[a]) + 0.5) / ((double)(/*fmt.CDP2f[0] * 100 + fmt.CDP2r[0] * 100)*/ SUMPAIR(fmt.CDP2b) * 100 + 1.0)));
     
@@ -5089,7 +5089,7 @@ BcfFormat_symbol_calc_qual(
     clear_push(fmt.cMmQ, cMmQ);
     
     const double eps = (double)FLT_EPSILON;
-    const bool is_indel_penal_applied = ((SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform) && (NOT_PROVIDED == paramset.vcf_tumor_fname));
+    const bool is_indel_penal_applied = ((SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform) && (ISNT_PROVIDED(paramset.vcf_tumor_fname)));
     const uvc1_qual_t indel_penal_base = (is_indel_penal_applied 
                 ? ((uvc1_qual_t)round(paramset.indel_multiallele_samepos_penal / log(2) 
                 * log((double)MAX3(aDP + eps, fmt.APDP[1], fmt.APDP[2]) / (double)(aDP + eps)))) 
@@ -5156,7 +5156,7 @@ BcfFormat_symbol_calc_qual(
                 (paramset.fam_thres_emperr_all_flat_indel + 1) * paramset.fam_indel_nonUMI_phred_dec_per_fold_overseq);
     }
     
-    if (is_substitution_oxidation && (NOT_PROVIDED != paramset.vcf_tumor_fname)) {
+    if (is_substitution_oxidation && (IS_PROVIDED(paramset.vcf_tumor_fname))) {
         sscs_binom_qual = MAX(sscs_binom_qual, MIN(aDP, 3));
     }
     
@@ -5176,7 +5176,7 @@ BcfFormat_symbol_calc_qual(
           + ((is_MQ_unadjusted || (refsymbol != symbol)) ? 0 : non_neg_minus(MIN(15, diffMQ), aavgMQ));
     
     uvc1_qual_t diffMQ2 = diffMQ;
-    if (fmt.bMQ[a] < 20 && (NOT_PROVIDED == paramset.vcf_tumor_fname)) {
+    if (fmt.bMQ[a] < 20 && (ISNT_PROVIDED(paramset.vcf_tumor_fname))) {
         const auto aDPxf = (fmt.aDPff[a] + fmt.aDPrf[a] + 0.5);
         const auto aDPxr = (fmt.aDPfr[a] + fmt.aDPrr[a] + 0.5);
         const auto ADPxf = (fmt.ADPff[0] + fmt.ADPrf[0] + 1.0);
@@ -5206,14 +5206,14 @@ BcfFormat_symbol_calc_qual(
     // begin ad-hoc
     const bool is_strong_amplicon = ((seg_format_prep_sets.segprep_a_pcr_dp * 100) > fmt.APDP[0] * 50);
     const bool is_weak_amplicon = ((seg_format_prep_sets.segprep_a_pcr_dp * 100) > fmt.APDP[0] * 30);
-    const bool is_tmore_amplicon = ((NOT_PROVIDED == paramset.vcf_tumor_fname) ? is_weak_amplicon : is_strong_amplicon);
+    const bool is_tmore_amplicon = ((ISNT_PROVIDED(paramset.vcf_tumor_fname)) ? is_weak_amplicon : is_strong_amplicon);
     
     if (is_tmore_amplicon && (isSymbolIns(symbol) || isSymbolDel(symbol)) && (systematicMQVQ1 > 70) // (systematicBQVQ > 70)
             && (fmt.APXM[1] / MAX(fmt.APDP[0], 1) > 20)) {
         systematicMQVQ1 = 70 + ((systematicMQVQ1 - 70) * 5 / (fmt.APXM[1] / MAX(fmt.APDP[0], 1) - 15));
     }
     uvc1_qual_t indel_penal_base_add = 0;
-    if (NOT_PROVIDED == paramset.vcf_tumor_fname) {
+    if (ISNT_PROVIDED(paramset.vcf_tumor_fname)) {
         const auto delAPDP = MAX(fmt.APDP[2], fmt.APDP[4]);
         if ((fmt.APDP[0] < 3 * delAPDP) && (fmt.APDP[0] < 3 * seg_format_prep_sets.segprep_a_snv_dp) && (aDP * 3 < delAPDP) && (aDP * 3 < seg_format_prep_sets.segprep_a_snv_dp) 
                 && isSymbolSubstitution(symbol) && (rtr2.tracklen >= 8 * rtr2.unitlen)) {
@@ -5463,7 +5463,7 @@ output_germline(
         const CommandLineArgs & paramset,
         const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
     
-    const bool is_rescued = (NOT_PROVIDED != paramset.vcf_tumor_fname);
+    const bool is_rescued = (IS_PROVIDED(paramset.vcf_tumor_fname));
     assertUVC(symbol_format_vec.size() >= 4 || 
             !fprintf(stderr, " The variant-type %s:%d %d has symbol_format_vec of length %lu", 
             tname, refpos, refsymbol, symbol_format_vec.size()));
@@ -6220,7 +6220,7 @@ append_vcf_record(
     const auto vdp2curr = tki.BDP;
     
     const bool keep_var = (((vcfqual >= paramset.vqual)
-            || ((NOT_PROVIDED == paramset.vcf_tumor_fname) && 
+            || ((ISNT_PROVIDED(paramset.vcf_tumor_fname)) && 
                     ((vad1curr >= paramset.vad1 && vdp1curr >= paramset.vdp1 && (vdp1curr * paramset.vfa1) <= vad1curr)
                   || (vad2curr >= paramset.vad2 && vdp2curr >= paramset.vdp2 && (vdp2curr * paramset.vfa2) <= vad2curr))))
             && (symbol != refsymbol || (should_output_ref_allele)));
