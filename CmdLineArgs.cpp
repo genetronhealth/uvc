@@ -299,7 +299,8 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
     ADD_OPTDEF2(app, kept_aln_min_isize,
         "Minimum insert size below which the alignment is filtered out (not applicable to zero insert size). ");
     ADD_OPTDEF2(app, kept_aln_max_isize,
-        "Maximum insert size above which the alignment is filtered out (not applicable to zero insert size). ");
+        "Maximum insert size above which the alignment is filtered out (not applicable to zero insert size). "
+        "It is recommended to set this param to 167*2-30 for ctDNA assay (https://link.springer.com/article/10.1007/s40291-021-00534-6). ");
     ADD_OPTDEF2(app, kept_aln_is_zero_isize_discarded,
         "The number 0 (false) or 1 (true) indicating if an alignment with zero insert size should be filtered out. ");
     
