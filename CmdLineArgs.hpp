@@ -193,7 +193,7 @@ struct CommandLineArgs {
     
     uvc1_readpos_t     bias_thres_strict_c2LRP0 = 5;
     
-    double             bias_thres_FTS_FA = 0.95+1e-5;
+    double             bias_thres_FTS_FA = 0.6; // 0.95+1e-5;
     bool               bias_is_orientation_artifact_mixed_with_sequencing_error = false;
     double             bias_orientation_min_effective_allelefrac = 0.004;
 
