@@ -23,3 +23,6 @@ target_link_libraries(${PROJECT_NAME} -fopenmp hts pthread m z bz2 lzma)
 
 add_executable(debarcode debarcode_main.c)
 target_link_libraries(debarcode hts pthread m z bz2 lzma)
+
+add_executable(integrate_haplotype integrate_haplotype_variation.cpp)
+target_link_libraries(integrate_haplotype hts pthread m z bz2 lzma)
