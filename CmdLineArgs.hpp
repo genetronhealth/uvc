@@ -402,7 +402,7 @@ struct CommandLineArgs {
     uvc1_readnum_t      microadjust_strand_orientation_absence_DP_fold = 5;
     uvc1_qual_t         microadjust_orientation_absence_snv_penalty = 4;
     uvc1_qual_t         microadjust_strand_absence_snv_penalty = 4;
-    uvc1_qual_t         microadjust_dedup_absence_indel_penalty = 8;
+    uvc1_qual_t         microadjust_dedup_absence_indel_penalty = 1; // 8;
     
     uvc1_readpos_t      lib_wgs_min_avg_fraglen = 300;
     double              lib_nonwgs_ad_pseudocount = 0.1;
