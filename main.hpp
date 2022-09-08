@@ -5109,6 +5109,8 @@ BcfFormat_symbol_calc_qual(
                 UNSIGN2SIGN(repeatunit.size()), repeatnum), 24) + 2 - (double)10;
         const auto eff_tracklen1 = (UNSIGN2SIGN(repeatunit.size()) * UNSIGN2SIGN(MAX(1, repeatnum)) - UNSIGN2SIGN(repeatunit.size()));
         const auto eff_tracklen2 = (MAX(rtr1.tracklen - rtr1.unitlen, rtr2.tracklen - rtr2.unitlen) / 3);
+        //const size_t numstates_min_ins = floor(sqrt((double)MAX(fmt.APLRID[0], fmt.APLRID[1]) / (double)MAX(fmt.APDP[1], 1)) / 2);
+        //const size_t numstates_min_del = floor(sqrt((double)MAX(fmt.APLRID[2], fmt.APLRID[3]) / (double)MAX(fmt.APDP[2], 1)) / 2);
         const double indel_ic = numstates2phred((double)MAX(indelstring.size() + (isSymbolIns(symbol) ? INS_N_ANCHOR_BASES : 0), (size_t)1) / (double)(MAX(UNSIGN2SIGN(eff_tracklen1), eff_tracklen2) + 1)) 
                 + (isSymbolIns(symbol) ? (numstates2phred(paramset.indel_del_to_ins_err_ratio) * MIN(200, fmt.cDP0a[a]) / 200) : 0);
         auto indelcdepth = (isSymbolIns(symbol) ? ins_cdepth : del_cdepth);
@@ -5123,8 +5125,13 @@ BcfFormat_symbol_calc_qual(
         // This assertUVCion may fail if InDels were re-aligned to the begin and/or end of the reads
         // assertUVC (nearInDelDP >= aDP || !fprintf(stderr, "nearInDelDP >= aDP failed (%d >= %d failed) at tid %d pos %d!\n", nearInDelDP, aDP, tid, refpos));
         
-        const auto indel_penal4multialleles1 = (uvc1_qual_t)round(paramset.indel_multiallele_samepos_penal / log(2.0) 
+        auto indel_penal4multialleles1 = (uvc1_qual_t)round(paramset.indel_multiallele_samepos_penal / log(2.0) 
                 * log((double)(indelcdepth + eps) / (double)(fmt.cDP0a[a] + eps)));
+        // Thermo/Life/IonTorrent is more error prone with complex InDels, so be more lenient
+        const auto homopol_n_units = MAX(((1 == rtr1.unitlen) ? rtr1.tracklen : 0), ((1 == rtr2.unitlen) ? rtr2.tracklen : 0));
+        if (SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform) {
+            indel_penal4multialleles1 = non_neg_minus(indel_penal4multialleles1, paramset.indel_multiallele_samepos_penal);
+        }
         const auto indel_penal4multialleles2 = (uvc1_qual_t)round(paramset.indel_multiallele_diffpos_penal / log(2.0) 
                 * log((double)(nearInDelDP + eps) / (double)(MAX(aDP, nearInDelDP) + eps)));
         indel_penal4multialleles_g = (uvc1_qual_t)round(paramset.indel_tetraallele_germline_penal_value /log(2.0) * log((double)(ins_cdepth + del_cdepth + eps) / (double)(fmt.cDP0a[a] + eps))) - paramset.indel_tetraallele_germline_penal_thres;
@@ -5152,8 +5159,10 @@ BcfFormat_symbol_calc_qual(
         sscs_powlaw_qual_v += round(sscs_indel_ic) + extra_reward;
         sscs_powlaw_qual_w += round(sscs_indel_ic) + extra_reward;
         sscs_binom_qual += round(indel_pq) + extra_reward;
-        indel_UMI_penal = non_neg_minus((SUMPAIR(fmt.BDPb) /*fmt.BDPf[0] + fmt.BDPr[0]*/ + 1.0) / (double)(/*fmt.CDP1f[0] + fmt.CDP1r[0]*/ SUMPAIR(fmt.CDP1b) + 1.0) * paramset.fam_indel_nonUMI_phred_dec_per_fold_overseq,
-                (paramset.fam_thres_emperr_all_flat_indel + 1) * paramset.fam_indel_nonUMI_phred_dec_per_fold_overseq);
+        if (fmt.enable_tier2_consensus_format_tags) {
+            indel_UMI_penal = non_neg_minus((SUMPAIR(fmt.BDPb) /*fmt.BDPf[0] + fmt.BDPr[0]*/ + 1.0) / (double)(/*fmt.CDP1f[0] + fmt.CDP1r[0]*/ SUMPAIR(fmt.CDP1b) + 1.0) * paramset.fam_indel_nonUMI_phred_dec_per_fold_overseq,
+                    (paramset.fam_thres_emperr_all_flat_indel + 1) * paramset.fam_indel_nonUMI_phred_dec_per_fold_overseq);
+        }
     }
     
     if (is_substitution_oxidation && (IS_PROVIDED(paramset.vcf_tumor_fname))) {
@@ -5221,9 +5230,9 @@ BcfFormat_symbol_calc_qual(
         }
         if (is_tmore_amplicon && (isSymbolDel(symbol))) {
             if (aDP * 4 < fmt.APDP[2]) {
-                indel_penal_base_add = 5;
+                UPDATE_MAX(indel_penal_base_add, 5);
             } else if (fmt.cDP0a[a] * 3 < 2 * (del_cdepth)) {
-                indel_penal_base_add = 2;
+                UPDATE_MAX(indel_penal_base_add, 2);
             }
         }
     }
@@ -5241,7 +5250,7 @@ BcfFormat_symbol_calc_qual(
     
     const auto dedup_frag_powlaw_qual_v_minus = (isSymbolSubstitution(symbol) 
             ? ((is_fmtADPfrx_imba ? paramset.microadjust_orientation_absence_snv_penalty : 0) 
-             + (is_fmtADPxfr_imba ? 3 : paramset.microadjust_strand_absence_snv_penalty))
+             + (is_fmtADPxfr_imba ? paramset.microadjust_strand_absence_snv_penalty : 0))
             : (is_tmore_amplicon ? paramset.microadjust_dedup_absence_indel_penalty : 0));
     
     const auto tn_syserr_q = systematicMQVQ + paramset.tn_q_inc_max;
@@ -5281,7 +5290,10 @@ BcfFormat_symbol_calc_qual(
                 LAST(fmt.bIAQ) - (is_rescued ? 0 : penal4BQerr), 
                 LAST(fmt.cPLQ1)) - indel_penal4multialleles_soma;
     clear_push(fmt.cVQ1, MAX(0, MIN(bcVQ1, LAST(fmt.bTINQ)) - indel_UMI_penal), a);
-    
+    if (paramset.should_add_note) {
+        fmt.note += std::string("/indel_penal4multialleles_soma/") + std::to_string(indel_penal4multialleles_soma) + "/" 
+                + std::string("/systematicVQsomatic/") + std::to_string(systematicVQsomatic) + "/";
+    }
     // This adjustment makes sure that variant with UMI support is ranked before variant without UMI suppport.
     //const std::array<uvc1_qual_t, 10> cysotine_deanim_to_score = {{0,1,1, 1,1,2, 2,2,2, 3}};
     //const std::array<uvc1_qual_t, 5> other_to_score = {{0,2,3, 3,4}};
