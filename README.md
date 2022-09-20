@@ -93,4 +93,10 @@ bioRxiv 2020.08.23.263749; doi: https://doi.org/10.1101/2020.08.23.263749
 
 [1]赵霄飞, 王思振. 一种基于高通量测序的基因变异检测方法:, CN111243664A[P]. 2020.
 
+# Contact: XiaoFei Zhao
 
+xiaofei DOT zhao AT genetronhealth DOT com
+
+x43zhao AT uwaterloo DOT ca
+
+cndfeifei AT gmail DOT com 
