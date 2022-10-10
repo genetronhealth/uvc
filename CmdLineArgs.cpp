@@ -47,11 +47,12 @@ CommandLineArgs::selfUpdateByPlatform() {
         uvc1_unsigned_int_t countPE = 0;
         uvc1_unsigned_int_t countSE = 0;
         std::vector<uvc1_unsigned_int_t> qlens;
-        qlens.reserve(500+1);
+        qlens.reserve(5000+1);
         qlens.push_back(150);
+        uvc1_unsigned_int_t q20_n_fail_bases = 0;
         uvc1_unsigned_int_t q30_n_fail_bases = 0;
         uvc1_unsigned_int_t q30_n_pass_bases = 0;
-        while (sam_read1(sam_infile, samheader, b) >= 0 && (countPE + countSE) < 500) {
+        while (sam_read1(sam_infile, samheader, b) >= 0 && (countPE + countSE) < 5000) {
             this->inferred_maxMQ = MAX(this->inferred_maxMQ, b->core.qual);
             if (b->core.flag & 0x1) {
                 countPE++;
@@ -80,6 +81,9 @@ CommandLineArgs::selfUpdateByPlatform() {
                 } else {
                     q30_n_pass_bases++;
                 }
+                if (bq < 20) {
+                    q20_n_fail_bases++;
+                }
             }
         }
         std::sort(qlens.begin(), qlens.end());
@@ -88,19 +92,21 @@ CommandLineArgs::selfUpdateByPlatform() {
         bam_hdr_destroy(samheader);
         sam_close(sam_infile);
         const bool isPE = (0 < countPE);
-        const bool isQ30BQ = (q30_n_fail_bases * 3 < q30_n_pass_bases);
-        const bool isQ30BQsoft = (q30_n_fail_bases < q30_n_pass_bases);
+        const bool is_double_Q20toQ30_lessthan_Q30plus = ((q30_n_fail_bases - q20_n_fail_bases) * 2 < q30_n_pass_bases);
+        const bool is_Q20toQ30_lessthan_Q30plus = ((q30_n_fail_bases - q20_n_fail_bases) < q30_n_pass_bases);
+        // const bool isQ30BQ = (q30_n_fail_bases * 3 < q30_n_pass_bases);
+        // const bool isQ30BQsoft = (q30_n_fail_bases < q30_n_pass_bases);
         const bool isfixqlen = (qlens.at(qlens.size()/2) * 100 > qlens.at(qlens.size()-1) * 90);
-        if (isPE || isQ30BQ || (isQ30BQsoft && isfixqlen)) {
+        if (isPE | is_double_Q20toQ30_lessthan_Q30plus || (is_Q20toQ30_lessthan_Q30plus && isfixqlen)) {
             inferred_sequencing_platform = SEQUENCING_PLATFORM_ILLUMINA;
         } else {
             inferred_sequencing_platform = SEQUENCING_PLATFORM_IONTORRENT;
         }
         std::cerr << "Inferred_sequencing_platform=" <<  SEQUENCING_PLATFORM_TO_NAME.at(inferred_sequencing_platform)
                 << " IsPairedEnd=" << isPE 
-                << " isQ30BaseQualityPassed=" << isQ30BQ 
-                << " isQ30BaseQualitySoftPassed=" << isQ30BQsoft 
-                << " isFixedReadQuerySeqLength=" << isfixqlen 
+                << " is 2*BQ30<(BQ30-BQ20) passed = " << is_double_Q20toQ30_lessthan_Q30plus
+                << " is BQ30<(BQ30-BQ20) passed = " << is_Q20toQ30_lessthan_Q30plus
+                << " isFixedReadQuerySeqLength = " << isfixqlen 
                 << std::endl;
 
     }
