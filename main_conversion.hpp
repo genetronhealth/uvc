@@ -155,7 +155,8 @@ const size_t right2left = 1;
 template <class T>
 auto
 SUMPAIR(const T & array) {
-    STATIC_ASSERT_WITH_DEFAULT_MSG(array.size() == 2);
+    // STATIC_ASSERT_WITH_DEFAULT_MSG(array.size() == 2);
+    assertUVC(array.size() == 2);
     return (array[0] + array[1]);
 }
 
