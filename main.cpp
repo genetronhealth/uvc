@@ -166,10 +166,18 @@ als_to_string(const char *const* const allele, uint32_t n_allele) {
     return ret;
 }
 
+#define assertAlways(x) assert((x));
+
 #define BCF_GET_FORMAT_INT32_WITH_CHECK(v) \
         ndst_val = 0; \
         valsize = bcf_get_format_int32(bcf_hdr, line, v, &bcfints, &ndst_val); \
-        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for %s and line %ld!\n", ndst_val, valsize, v, line->pos));
+        assertAlways((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for %s and line %ld!\n", ndst_val, valsize, v, line->pos));
+
+#define BCF_GET_FORMAT_INT32B_WITH_CHECK(k,v) \
+        ndst_val = 0; \
+        valsize = bcf_get_format_int32(bcf_hdr, line, v, &bcfints, &ndst_val); \
+        assertAlways((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for %s and line %ld!\n", ndst_val, valsize, v, line->pos)); \
+        (k) = (bcfints[0] + bcfints[1]);
 
 template <class T1, class T2, class T3>
 const std::map<std::tuple<uvc1_refgpos_t, uvc1_refgpos_t, AlignmentSymbol>, std::vector<TumorKeyInfo>>
@@ -180,7 +188,7 @@ rescue_variants_from_vcf(
         const T3 *bcf_hdr,
         const bool is_tumor_format_retrieved) {
     std::map<std::tuple<uvc1_refgpos_t, uvc1_refgpos_t, AlignmentSymbol>, std::vector<TumorKeyInfo>> ret;
-    if (NOT_PROVIDED == vcf_tumor_fname) {
+    if (ISNT_PROVIDED(vcf_tumor_fname)) {
         return ret;
     }
     std::string regionstring;
@@ -256,92 +264,86 @@ if (ADDITIONAL_INDEL_CANDIDATE_SYMBOL == symbol) {
 }
 
 if (MGVCF_SYMBOL != symbol && ADDITIONAL_INDEL_CANDIDATE_SYMBOL != symbol) {
-        
+
+        BCF_GET_FORMAT_INT32B_WITH_CHECK(tki.BDP, "BDPb");
+        /*
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "BDPf", &bcfints, &ndst_val);
-        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for BDPf and line %ld!\n", ndst_val, valsize, line->pos));
+        assertAlways((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for BDPf and line %ld!\n", ndst_val, valsize, line->pos));
         tki.BDP = bcfints[0];
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "BDPr", &bcfints, &ndst_val);
-        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for BDPr and line %ld!\n", ndst_val, valsize, line->pos));
+        assertAlways((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for BDPr and line %ld!\n", ndst_val, valsize, line->pos));
         tki.BDP += bcfints[0];
-
+        */
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "bDPf", &bcfints, &ndst_val);
-        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for bDPf and line %ld!\n", ndst_val, valsize, line->pos));
+        assertAlways((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for bDPf and line %ld!\n", ndst_val, valsize, line->pos));
         tki.bDP = bcfints[1];
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "bDPr", &bcfints, &ndst_val);
-        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for bDPr and line %ld!\n", ndst_val, valsize, line->pos));
+        assertAlways((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for bDPr and line %ld!\n", ndst_val, valsize, line->pos));
         tki.bDP += bcfints[1];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "CDP1x", &bcfints, &ndst_val);
-        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for CDP1x and line %ld!\n", ndst_val, valsize, line->pos));
+        assertAlways((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for CDP1x and line %ld!\n", ndst_val, valsize, line->pos));
         tki.CDP1x = bcfints[0];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "cDP1x", &bcfints, &ndst_val);
-        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cDP1x and line %ld!\n", ndst_val, valsize, line->pos));
+        assertAlways((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cDP1x and line %ld!\n", ndst_val, valsize, line->pos));
         tki.cDP1x = bcfints[1];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "cVQ1", &bcfints, &ndst_val);
-        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cVQ1 and line %ld!\n", ndst_val, valsize, line->pos));
+        assertAlways((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cVQ1 and line %ld!\n", ndst_val, valsize, line->pos));
         tki.cVQ1 = bcfints[1];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "cPCQ1", &bcfints, &ndst_val);
-        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cPCQ1 and line %ld!\n", ndst_val, valsize, line->pos));
+        assertAlways((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cPCQ1 and line %ld!\n", ndst_val, valsize, line->pos));
         tki.cPCQ1 = bcfints[1];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "CDP2x", &bcfints, &ndst_val);
-        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for CDP2x and line %ld!\n", ndst_val, valsize, line->pos));
+        assertAlways((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for CDP2x and line %ld!\n", ndst_val, valsize, line->pos));
         tki.CDP2x = bcfints[0];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "cDP2x", &bcfints, &ndst_val);
-        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cDP2x and line %ld!\n", ndst_val, valsize, line->pos));
+        assertAlways((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cDP2x and line %ld!\n", ndst_val, valsize, line->pos));
         tki.cDP2x = bcfints[1];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "cVQ2", &bcfints, &ndst_val);
-        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cVQ2 and line %ld!\n", ndst_val, valsize, line->pos));
+        assertAlways((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cVQ2 and line %ld!\n", ndst_val, valsize, line->pos));
         tki.cVQ2 = bcfints[1];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "cPCQ2", &bcfints, &ndst_val);
-        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cPCQ2 and line %ld!\n", ndst_val, valsize, line->pos));
+        assertAlways((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for cPCQ2 and line %ld!\n", ndst_val, valsize, line->pos));
         tki.cPCQ2 = bcfints[1];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "bNMQ", &bcfints, &ndst_val);
-        assertUVC((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for bNMQ and line %ld!\n", ndst_val, valsize, line->pos));
+        assertAlways((2 == ndst_val && 2 == valsize) || !fprintf(stderr, "2 == %d && 2 == %d failed for bNMQ and line %ld!\n", ndst_val, valsize, line->pos));
         tki.bNMQ = bcfints[1];
         
         ndst_val = 0;
         valsize = bcf_get_format_int32(bcf_hdr, line, "vHGQ", &bcfints, &ndst_val);
-        assertUVC((1 == ndst_val && 1 == valsize) || !fprintf(stderr, "1 == %d && 1 == %d failed for vHGQ and line %ld!\n", ndst_val, valsize, line->pos));
+        assertAlways((1 == ndst_val && 1 == valsize) || !fprintf(stderr, "1 == %d && 1 == %d failed for vHGQ and line %ld!\n", ndst_val, valsize, line->pos));
         tki.vHGQ = bcfints[0];
         
         // extra code for backward compatibility
-
-        BCF_GET_FORMAT_INT32_WITH_CHECK("CDP1f");
-        tki.tDP = bcfints[0];
-        BCF_GET_FORMAT_INT32_WITH_CHECK("CDP1r");
-        tki.tDP += bcfints[0];
         
+        BCF_GET_FORMAT_INT32B_WITH_CHECK(tki.tDP, "CDP1b");
         BCF_GET_FORMAT_INT32_WITH_CHECK("cDP1f");
         tki.tADR = {{ bcfints[0], bcfints[1] }};
         BCF_GET_FORMAT_INT32_WITH_CHECK("cDP1r");
         for (int i = 0; i < 2; i++) { tki.tADR[i] += bcfints[i]; }
         
-        BCF_GET_FORMAT_INT32_WITH_CHECK("CDP2f");
-        tki.tDPC = bcfints[0];
-        BCF_GET_FORMAT_INT32_WITH_CHECK("CDP2r");
-        tki.tDPC += bcfints[0];
-        
+        BCF_GET_FORMAT_INT32B_WITH_CHECK(tki.tDPC, "CDP2b");
         BCF_GET_FORMAT_INT32_WITH_CHECK("cDP2f");
         tki.tADCR = {{ bcfints[0], bcfints[1] }};
         BCF_GET_FORMAT_INT32_WITH_CHECK("cDP2r");
@@ -413,6 +415,20 @@ are_depths_diff(uvc1_readnum_t currDP, uvc1_readnum_t prevDP, uvc1_readnum_t mul
     return true;
 }
 
+void
+umi_strand_readset_uvc_destroy(auto & umi_strand_readset) {
+    for (auto strand_readset : umi_strand_readset) {
+        for (int strand = 0; strand < 2; strand++) {
+            auto readset = strand_readset.first[strand]; 
+            for (auto read : readset) {
+                for (bam1_t *b : read) {
+                    bam_destroy1(b);
+                } 
+            }
+        }
+    }
+}
+
 template <class T>
 int 
 process_batch(
@@ -468,7 +484,17 @@ process_batch(
     const bool is_by_capture = ((num_pcrpassed_reads) * 2 <= num_passed_reads);
     const AssayType inferred_assay_type = ((ASSAY_TYPE_AUTO == paramset.assay_type) ? (is_by_capture ? ASSAY_TYPE_CAPTURE : ASSAY_TYPE_AMPLICON) : (paramset.assay_type));
     
-    if ((0 == num_passed_reads) || (-1 == num_passed_reads)) { return -1; };
+    if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts converting umi_to_strand_to_reads with is_by_capture = " << is_by_capture << "  " ;}
+    fill_strand_umi_readset_with_strand_to_umi_to_reads(
+            umi_strand_readset, 
+            umi_to_strand_to_reads, 
+            paramset,
+            0); // bigger region
+    
+    if ((0 == num_passed_reads) || (-1 == num_passed_reads)) { 
+        umi_strand_readset_uvc_destroy(umi_strand_readset);
+        return -1; 
+    };
     const uvc1_qual_t minABQ_snv = ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? paramset.syserr_minABQ_pcr_snv : paramset.syserr_minABQ_cap_snv);
     const uvc1_qual_t minABQ_indel = ((ASSAY_TYPE_AMPLICON == inferred_assay_type) ? paramset.syserr_minABQ_pcr_indel : paramset.syserr_minABQ_cap_indel);
     
@@ -494,13 +520,6 @@ process_batch(
         }
     } // bigger region
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " deals with " << num_rescued << " tumor-sample variants in region " << extended_inclu_beg_pos << " to " << extended_exclu_end_pos + 1 ;}
-    
-    if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts converting umi_to_strand_to_reads with is_by_capture = " << is_by_capture << "  " ;}
-    fill_strand_umi_readset_with_strand_to_umi_to_reads(
-            umi_strand_readset, 
-            umi_to_strand_to_reads, 
-            paramset,
-            0); // bigger region
     
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id << " starts constructing symbolToCountCoverageSet12 with " << extended_inclu_beg_pos << (" , ") << extended_exclu_end_pos; }
     // + 1 accounts for insertion at the end of the region, this should happen rarely for only re-aligned reads at around once per one billion base pairs
@@ -692,7 +711,7 @@ if (paramset.inferred_is_vcf_generated) {
                 }}, "\t");
                 
                 std::string tumor_gvcf_format = "";
-                if (paramset.is_tumor_format_retrieved && NOT_PROVIDED != paramset.vcf_tumor_fname) { 
+                if (paramset.is_tumor_format_retrieved && IS_PROVIDED(paramset.vcf_tumor_fname)) { 
                     const auto tkis_it = tid_pos_symb_to_tkis.find(std::make_tuple(tid, refpos, MGVCF_SYMBOL));
                     if (tkis_it != tid_pos_symb_to_tkis.end()) {
                         const auto & tkis = tid_pos_symb_to_tkis.find(std::make_tuple(tid, refpos, MGVCF_SYMBOL))->second;
@@ -737,7 +756,7 @@ if (paramset.inferred_is_vcf_generated) {
                             + ":" + std::to_string(ADP) + "," + std::to_string(aCDP) // format values
                 }}, "\t");
                 std::string tumor_format = "";
-                if (paramset.is_tumor_format_retrieved && NOT_PROVIDED != paramset.vcf_tumor_fname) { 
+                if (paramset.is_tumor_format_retrieved && IS_PROVIDED(paramset.vcf_tumor_fname)) { 
                     const auto tkis_it = tid_pos_symb_to_tkis.find(std::make_tuple(tid, refpos, ADDITIONAL_INDEL_CANDIDATE_SYMBOL));
                     if (tkis_it != tid_pos_symb_to_tkis.end()) {
                         const auto & tkis = tid_pos_symb_to_tkis.find(std::make_tuple(tid, refpos, ADDITIONAL_INDEL_CANDIDATE_SYMBOL))->second;
@@ -759,7 +778,7 @@ if (paramset.inferred_is_vcf_generated) {
             
             for (AlignmentSymbol symbol : SYMBOL_TYPE_TO_SYMBOLS[symboltype])
             {
-                const bool is_pos_rescued = (NOT_PROVIDED != paramset.vcf_tumor_fname && (extended_posidx_to_is_rescued[refpos - extended_inclu_beg_pos]));
+                const bool is_pos_rescued = (IS_PROVIDED(paramset.vcf_tumor_fname) && (extended_posidx_to_is_rescued[refpos - extended_inclu_beg_pos]));
                 const bool is_var_rescued = (is_pos_rescued && (tid_pos_symb_to_tkis.end() != tid_pos_symb_to_tkis.find(std::make_tuple(tid, refpos, symbol)))); 
                 const auto bdepth = 
                         symbolToCountCoverageSet12.symbol_to_frag_format_depth_sets[0].getByPos(refpos)[symbol][FRAG_bDP]
@@ -784,14 +803,14 @@ if (paramset.inferred_is_vcf_generated) {
                         del1_cdepth += cdepth;
                     }
                 }
-                if ((NOT_PROVIDED == paramset.vcf_tumor_fname)
+                if ((ISNT_PROVIDED(paramset.vcf_tumor_fname))
                         &&    (((refsymbol != symbol) && (bdepth < paramset.min_altdp_thres))
                             || ((refsymbol == symbol) && (bDPcDP[0] - ref_bdepth < paramset.min_altdp_thres)))
                         && (!paramset.should_output_all)) {
                     continue;
                 }
                 
-                if ((NOT_PROVIDED != paramset.vcf_tumor_fname) && (!is_pos_rescued)) {
+                if (IS_PROVIDED(paramset.vcf_tumor_fname) && (!is_pos_rescued)) {
                     continue;
                 }
                 const auto simplemut = std::make_pair(refpos, symbol);
@@ -840,7 +859,7 @@ if (paramset.inferred_is_vcf_generated) {
                                 std::get<0>(tname_tseqlen_tuple).c_str(), 
                                 refpos, 
                                 symbol, 
-                                (NOT_PROVIDED != paramset.vcf_tumor_fname),
+                                (IS_PROVIDED(paramset.vcf_tumor_fname)),
                                 0);
                         for (const auto & bcad0a_arr_indelstring_pair : bcad0a_arr_indelstring_pairvec) {
                             bcad0a_indelstring_tki_vec.push_back(std::make_tuple(
@@ -931,13 +950,13 @@ if (paramset.inferred_is_vcf_generated) {
                             repeatunit,
                             repeatnum,
                             
-                            NOT_PROVIDED != paramset.vcf_tumor_fname,
+                            IS_PROVIDED(paramset.vcf_tumor_fname),
                             region_repeatvec.at(MAX(refpos - extended_inclu_beg_pos, 3) - 3),
                             region_repeatvec.at(MIN(refpos - extended_inclu_beg_pos + 3, UNSIGN2SIGN(region_repeatvec.size()) - 1)),
                             tid,
                             refpos,
                             refsymbol,
-                            ((NOT_PROVIDED != paramset.vcf_tumor_fname && (tki.VTI == LAST(fmt.VTI))) ? 
+                            ((IS_PROVIDED(paramset.vcf_tumor_fname) && (tki.VTI == LAST(fmt.VTI))) ? 
                                 ((double)(tki.bDP + 0.5) / (double)(tki.BDP + 1.0)) : -1.0),
                             symbolToCountCoverageSet12,
                             paramset,
@@ -1042,7 +1061,7 @@ if (paramset.inferred_is_vcf_generated) {
                 for (size_t i = 0; i < fmt.vAC.size(); i++) { fmt.vAC[i] = curr_vAC[i]; }
                 const auto & symbol = (AlignmentSymbol)(LAST(fmt.VTI));
                 auto & tki = std::get<1>(fmt_tki_tup);
-                const bool will_generate_out = (NOT_PROVIDED == paramset.vcf_tumor_fname 
+                const bool will_generate_out = (ISNT_PROVIDED(paramset.vcf_tumor_fname)
                         ? (paramset.outvar_flag & OUTVAR_ANY)
                         : (tki.ref_alt.size() > 0 && (paramset.outvar_flag & OUTVAR_SOMATIC)));
                 const bool is_out_blocked = (
@@ -1055,8 +1074,8 @@ if (paramset.inferred_is_vcf_generated) {
                     const auto nlodq_singlesample = nlodq_singlesite - 3 
                             + (isSymbolSubstitution(symbol) ? paramset.germ_phred_hetero_snp : paramset.germ_phred_hetero_indel);
                     
-                    assertUVC ((NOT_PROVIDED == paramset.vcf_tumor_fname) == (0 == tki.ref_alt.size()));
-                    if (NOT_PROVIDED != paramset.vcf_tumor_fname) {
+                    assertUVC ((ISNT_PROVIDED(paramset.vcf_tumor_fname)) == (0 == tki.ref_alt.size()));
+                    if (IS_PROVIDED(paramset.vcf_tumor_fname)) {
                         uvc1_qual_t nlodq_inc = 999;
                         const auto fmtptrs = std::vector<bcfrec::BcfFormat*> {{ std::get<1>(nlodq_fmtptr1_fmtptr2_tup), std::get<2>(nlodq_fmtptr1_fmtptr2_tup) }} ;
                         for (const auto *fmtptr : fmtptrs) {
@@ -1093,7 +1112,7 @@ if (paramset.inferred_is_vcf_generated) {
                                 }
                             }
                         }
-                        const auto totBDP = (fmt.BDPf[0] + fmt.BDPr[0]);
+                        const auto totBDP = SUMPAIR(fmt.BDPb); // (fmt.BDPf[0] + fmt.BDPr[0]);
                         const auto n_norm_alts = (totBDP - (FIRST(fmt.bDPf) + FIRST(fmt.bDPr))) + (LAST(fmt.bDPf) + LAST(fmt.bDPr));
                         nlodq = MAX(nlodq_singlesite + nlodq_inc, tki.vHGQ + MIN(3, totBDP - n_norm_alts * (int)round(0.5 / paramset.contam_any_mul_frac)));
                     } else {
@@ -1126,16 +1145,7 @@ if (paramset.inferred_is_vcf_generated) {
     } // zerobased_pos
 }
     if (is_loginfo_enabled) { LOG(logINFO) << "Thread " << thread_id  << " starts destroying bam records"; }
-    for (auto strand_readset : umi_strand_readset) {
-        for (int strand = 0; strand < 2; strand++) {
-            auto readset = strand_readset.first[strand]; 
-            for (auto read : readset) {
-                for (bam1_t *b : read) {
-                    bam_destroy1(b);
-                } 
-            }
-        }
-    }
+    umi_strand_readset_uvc_destroy(umi_strand_readset);
     /*
     if (!is_vcf_out_pass_to_stdout) {
         bgzip_string(outstring_pass, buf_out_string_pass);
@@ -1236,7 +1246,7 @@ main(int argc, char **argv) {
     // samFile *sam_infile = sam_open(paramset.bam_input_fname.c_str(), "r");
     
     std::ofstream bed_out;
-    if (NOT_PROVIDED != paramset.bed_out_fname) {
+    if (IS_PROVIDED(paramset.bed_out_fname)) {
         bed_out.open(paramset.bed_out_fname, std::ios::out);
     }
 
@@ -1248,7 +1258,7 @@ main(int argc, char **argv) {
     
     bcf_hdr_t *g_bcf_hdr = NULL;
     const char *g_sample = NULL;
-    if (NOT_PROVIDED != paramset.vcf_tumor_fname) {
+    if (IS_PROVIDED(paramset.vcf_tumor_fname)) {
         htsFile *infile = hts_open(paramset.vcf_tumor_fname.c_str(), "r");
         g_bcf_hdr = bcf_hdr_read(infile);
         g_sample = "";

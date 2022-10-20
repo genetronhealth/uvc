@@ -51,7 +51,9 @@
 #define OUTVAR_BASE_NN 0x20
 #define OUTVAR_LINK_NN 0x40
 
-#define NOT_PROVIDED ("")
+#define IS_PROVIDED(x) (std::string("") != (x) && std::string(".") != (x))
+#define ISNT_PROVIDED(x) (!IS_PROVIDED(x))
+
 #define OPT_ONLY_PRINT_VCF_HEADER "/only-print-vcf-header/"
 #define OPT_ONLY_PRINT_DEBUG_DETAIL "/only-print-debug-detail/"
 #define PLAT_ILLUMINA_LIKE "Illumina/BGI"

@@ -10,14 +10,16 @@
 #define DEBUG_NOTE_FLAG_BITMASK_BAQ_OFFSETARR 0x1
 
 // Three FASTQ files and three cluster files
-#define NUM_FQLIKE_CON_OUT_FILES (2*3)
+#define NUM_FQLIKE_CON_OUT_FILES (3)
 
 static const std::array<std::string, NUM_FQLIKE_CON_OUT_FILES> FASTQ_LIKE_SUFFIXES = {
-        "R1.fastq.gz", "R2.fastq.gz", "SE.fastq.gz",
-        "R1.group.gz", "R2.group.gz", "SE.group.gz"};
+        "R1.fastq.gz", "R2.fastq.gz", "SE.fastq.gz"
+        // ,"R1.group.gz", "R2.group.gz", "SE.group.gz"
+        };
 
 struct CommandLineArgs {
-
+    
+    const std::string NOT_PROVIDED = ".";
 // *** 00. frequently used parameters
     
     std::string bam_input_fname = NOT_PROVIDED; // not missing
@@ -44,7 +46,9 @@ struct CommandLineArgs {
     uvc1_readnum100x_t fam_thres_dup1perc = 80;
     uvc1_readnum_t     fam_thres_dup2add = 3;
     uvc1_readnum100x_t fam_thres_dup2perc = 70; // 85 for more consensus specificity
+    uvc1_readnum100x_t fam_thres_qseqlen = 75;
     std::string        fam_consensus_out_fastq = "";
+    uvc1_readnum_t     fam_consensus_out_fastq_thres_dup1add = 1;
     
 // *** 01. parameters of the names of files, samples, regions, etc.
     
@@ -189,7 +193,7 @@ struct CommandLineArgs {
     
     uvc1_readpos_t     bias_thres_strict_c2LRP0 = 5;
     
-    double             bias_thres_FTS_FA = 0.95+1e-5;
+    double             bias_thres_FTS_FA = 0.6; // 0.95+1e-5;
     bool               bias_is_orientation_artifact_mixed_with_sequencing_error = false;
     double             bias_orientation_min_effective_allelefrac = 0.004;
 
@@ -398,7 +402,7 @@ struct CommandLineArgs {
     uvc1_readnum_t      microadjust_strand_orientation_absence_DP_fold = 5;
     uvc1_qual_t         microadjust_orientation_absence_snv_penalty = 4;
     uvc1_qual_t         microadjust_strand_absence_snv_penalty = 4;
-    uvc1_qual_t         microadjust_dedup_absence_indel_penalty = 8;
+    uvc1_qual_t         microadjust_dedup_absence_indel_penalty = 1; // 8;
     
     uvc1_readpos_t      lib_wgs_min_avg_fraglen = 300;
     double              lib_nonwgs_ad_pseudocount = 0.1;

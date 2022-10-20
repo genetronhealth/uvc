@@ -979,7 +979,7 @@ bamfname_to_strand_to_familyuid_to_reads(
     // sam_close(sam_infile);
     
     const bool is_min_DP_failed_1 = (
-            (NOT_PROVIDED == paramset.vcf_tumor_fname) 
+            ISNT_PROVIDED(paramset.vcf_tumor_fname) 
          && (UNSIGN2SIGN(visited_qnames.size()) < paramset.min_altdp_thres) 
          && (!paramset.should_output_all));
     // IMPORTANT_NOTE: if singleton should be generated too, then the following variable should always be set to true

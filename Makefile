@@ -24,7 +24,7 @@ COMMIT_DIFF_FULL=$(shell echo "R\"ZXF_specQUOTE(\n $$(git diff HEAD | sed 's/ZXF
 VERFLAGS=-DCOMMIT_VERSION="\"$(COMMIT_VERSION)\"" -DCOMMIT_DIFF_SH="\"$(COMMIT_DIFF_SH)\"" -DCOMMIT_DIFF_FULL="\"$(COMMIT_DIFF_FULL)\""
 # UVC_IN_DEBUG_MODE enables locus-specific diagnostic debugging info
 DEBUG_OPTS=-DUVC_IN_DEBUG_MODE -static-libasan 
-UBSAN=--param=max-vartrack-size=640000000 -fsanitize=undefine 
+UBSAN=--param=max-vartrack-size=640000000 -fsanitize=undefined
 
 debarcode  : debarcode_main.c version.h Makefile
 	$(CC) -O3 -o debarcode $(VERFLAGS) debarcode_main.c ${HTSFLAGS}
