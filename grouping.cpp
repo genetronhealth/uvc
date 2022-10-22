@@ -252,7 +252,7 @@ SamIter::iternext(
                         << " total_n_reads=" << total_n_reads
                         << " approx total_n_ref_bases=" << (block_running_end - block_beg);
             }
-            uvc1_flag_t region_flag = (!!is_template_changed) * 16 + (!!is_far_jumped) * 8 + (!!is_sub_mem_over_lim) * 4 + (!!(sam_read_ret < -1)) * 2;
+            uvc1_flag_t region_flag = (!!is_template_changed) * 16 + (!!is_far_jumped) * 8 + (!!is_sub_mem_over_lim) * 4 + (!!(-1 == sam_read_ret)) * 2; // 0x1 bit is reserved for END_TO_END
             if (region_flag) {
                 // flush to output due to ref-genome segmentation
                 const bool is_1st_read = (-1 == block_tid); 
