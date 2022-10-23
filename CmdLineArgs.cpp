@@ -962,6 +962,11 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
     ADD_OPTDEF2(app, microadjust_dedup_absence_indel_penalty,
         "Phred penalty applied to the single-sample power-law quality if no dedupping is performed for all InDel alleles including the REF. "
         "This case usually occurs in amplicon-sequencing data. ");
+    ADD_OPTDEF2(app, microadjust_median_readlen_thres,
+        "Mininum median read length below which microadjust-BAQ-per-base-x1024 is applied as an alternative way to compute base-alignment quality (BAQ). ");
+    ADD_OPTDEF2(app, microadjust_BAQ_per_base_x1024,
+        "Minimum base-alignment quality (BAQ) BAQ per base/1024 between the locus of interest and the end of segment "
+        "to rescue potential false negative calls due to increased bias at short read length. ");
     
     ADD_OPTDEF2(app, lib_wgs_min_avg_fraglen,
         "Minimum average fragment length, below which assay type is inferred to be non-WGS (whole-genome sequencing). ");

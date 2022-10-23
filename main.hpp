@@ -1391,12 +1391,16 @@ dealwith_segbias(
     
     const auto rend = bam_endpos(aln);
     
-    const uvc1_qual_t seg_l_baq = baq_offsetarr.getByPos(rpos) - baq_offsetarr.getByPos(aln->core.pos) + 1;
+    const uvc1_qual_t seg_l_baq1 = baq_offsetarr.getByPos(rpos) - baq_offsetarr.getByPos(aln->core.pos) + 1;
     const uvc1_qual_t _seg_r_baq = baq_offsetarr.getByPos(rend-1) - baq_offsetarr.getByPos(rpos) + 1;
-    const uvc1_qual_t seg_r_baq = (isGap ? MIN(_seg_r_baq, baq_offsetarr2.getByPos(rend-1) - baq_offsetarr2.getByPos(rpos) + 7) : _seg_r_baq);
+    const uvc1_qual_t seg_r_baq1 = (isGap ? MIN(_seg_r_baq, baq_offsetarr2.getByPos(rend-1) - baq_offsetarr2.getByPos(rpos) + 7) : _seg_r_baq);
     
     const uvc1_refgpos_t seg_l_nbases = (rpos - aln->core.pos + 1);
     const uvc1_refgpos_t seg_r_nbases = (bam_endpos(aln) - rpos);
+    const bool is_high_readlen = (paramset.central_readlen >= paramset.microadjust_median_readlen_thres);
+    const uvc1_qual_t seg_l_baq = (is_high_readlen ? seg_l_baq1 : MAX(seg_l_baq1, seg_l_nbases * paramset.microadjust_BAQ_per_base_x1024 / 1024));
+    const uvc1_qual_t seg_r_baq = (is_high_readlen ? seg_r_baq1 : MAX(seg_r_baq1, seg_r_nbases * paramset.microadjust_BAQ_per_base_x1024 / 1024));
+    
     const uvc1_refgpos_t frag_pos_L = MIN(aln->core.pos, aln->core.mpos);
     const uvc1_refgpos_t frag_pos_R = frag_pos_L + abs(aln->core.isize);
     const uvc1_refgpos_t frag_l_nbases2 = ((aln->core.isize != 0) ? MIN(rpos - frag_pos_L + 1, MAX_INSERT_SIZE) : (MAX_INSERT_SIZE));
@@ -5934,7 +5938,7 @@ fill_conditional_tki(TumorKeyInfo & tki, const bcfrec::BcfFormat & fmt, const Al
         if ((isSymbolIns(symbol) || isSymbolDel(symbol))) {
             UPDATE_MIN(tki.tADR[1], fmt.cDP0a[1]);
         }
-	// tki.tDPC = SUMPAIR(fmt.CDP2b); // (fmt.CDP2f[0] + fmt.CDP2r[0]);
+        // tki.tDPC = SUMPAIR(fmt.CDP2b); // (fmt.CDP2f[0] + fmt.CDP2r[0]);
         // tki.tADCR = {{ fmt.cDP2f[0] + fmt.cDP2r[0], LAST(fmt.cDP2f) + LAST(fmt.cDP2r) }};
         tki.tDPC = SUMPAIR(fmt.CDPDb) + (SUMPAIR(fmt.DDP2) * duplex_coef_weight);
         const uvc1_readnum_t cond_altDP = ((isSymbolIns(symbol) || isSymbolDel(symbol)) 
@@ -5951,7 +5955,7 @@ fill_conditional_tki(TumorKeyInfo & tki, const bcfrec::BcfFormat & fmt, const Al
         if ((isSymbolIns(symbol) || isSymbolDel(symbol))) {
             UPDATE_MIN(tki.nADR[1], fmt.cDP0a[1]);
         }
-	//tki.nDPC = (fmt.CDP2f[0] + fmt.CDP2r[0]);
+        //tki.nDPC = (fmt.CDP2f[0] + fmt.CDP2r[0]);
         //tki.nADCR = {{ fmt.cDP2f[0] + fmt.cDP2r[0], LAST(fmt.cDP2f) + LAST(fmt.cDP2r) }};
         // tki.nADCR = {{ fmt.cDPDf[0] + fmt.cDPDr[0] + (fmt.dDP2[0] * duplex_coef_weight), LAST(fmt.cDPDf) + LAST(fmt.cDPDr) + (LAST(fmt.dDP2) * duplex_coef_weight)}};
         const uvc1_readnum_t cond_altDP = ((isSymbolIns(symbol) || isSymbolDel(symbol)) 

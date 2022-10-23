@@ -404,6 +404,9 @@ struct CommandLineArgs {
     uvc1_qual_t         microadjust_strand_absence_snv_penalty = 4;
     uvc1_qual_t         microadjust_dedup_absence_indel_penalty = 1; // 8;
     
+    uvc1_readpos_t      microadjust_median_readlen_thres = 125;
+    uvc1_qual_t         microadjust_BAQ_per_base_x1024 = 1024;
+    
     uvc1_readpos_t      lib_wgs_min_avg_fraglen = 300;
     double              lib_nonwgs_ad_pseudocount = 0.1;
     uvc1_readpos_t      lib_nonwgs_clip_penal_min_indelsize = 8;
