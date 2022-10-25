@@ -92,20 +92,20 @@ CommandLineArgs::selfUpdateByPlatform() {
         bam_hdr_destroy(samheader);
         sam_close(sam_infile);
         const bool isPE = (0 < countPE);
-        const bool is_double_Q20toQ30_lessthan_Q30plus = ((q30_n_fail_bases - q20_n_fail_bases) * 2 < q30_n_pass_bases);
-        const bool is_Q20toQ30_lessthan_Q30plus = ((q30_n_fail_bases - q20_n_fail_bases) < q30_n_pass_bases);
+        const bool is_2x_Q20toQ30_lessthan_Q30plus = (2 * (q30_n_fail_bases - q20_n_fail_bases) < q30_n_pass_bases);
+        const bool is_3x_Q20toQ30_lessthan_Q30plus = (3 * (q30_n_fail_bases - q20_n_fail_bases) < q30_n_pass_bases);
         // const bool isQ30BQ = (q30_n_fail_bases * 3 < q30_n_pass_bases);
         // const bool isQ30BQsoft = (q30_n_fail_bases < q30_n_pass_bases);
-        const bool isfixqlen = (qlens.at(qlens.size()/2) * 100 > qlens.at(qlens.size()-1) * 90);
-        if (isPE | is_double_Q20toQ30_lessthan_Q30plus || (is_Q20toQ30_lessthan_Q30plus && isfixqlen)) {
+        const bool isfixqlen = (qlens.at(qlens.size()/2) * 100 > qlens.at(qlens.size()-1) * 95);
+        if (isPE || is_3x_Q20toQ30_lessthan_Q30plus || (is_2x_Q20toQ30_lessthan_Q30plus && isfixqlen)) {
             inferred_sequencing_platform = SEQUENCING_PLATFORM_ILLUMINA;
         } else {
             inferred_sequencing_platform = SEQUENCING_PLATFORM_IONTORRENT;
         }
         std::cerr << "Inferred_sequencing_platform=" <<  SEQUENCING_PLATFORM_TO_NAME.at(inferred_sequencing_platform)
                 << " IsPairedEnd=" << isPE 
-                << " is 2*BQ30<(BQ30-BQ20) passed = " << is_double_Q20toQ30_lessthan_Q30plus
-                << " is BQ30<(BQ30-BQ20) passed = " << is_Q20toQ30_lessthan_Q30plus
+                << " is 2*BQ30<(BQ30-BQ20) passed = " << is_2x_Q20toQ30_lessthan_Q30plus
+                << " is 3*BQ30<(BQ30-BQ20) passed = " << is_3x_Q20toQ30_lessthan_Q30plus
                 << " isFixedReadQuerySeqLength = " << isfixqlen 
                 << std::endl;
 
