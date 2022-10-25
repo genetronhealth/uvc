@@ -4612,6 +4612,11 @@ BcfFormat_symbol_calc_DPv(
     double cROFA1 = cROFA1x2[0] * dir_bias_div;
     double cROFA2 = cROFA2x2[0] * dir_bias_div;
     
+    if ((isSymbolIns(symbol) || isSymbolDel(symbol))) {
+        UPDATE_MIN(fmt.bAD[a], fmt.bDPa[a]);
+        UPDATE_MIN(fmt.AD[a], fmt.cDP0a[a]); 
+    }
+    
     double bFA = (fmt.bDPa[a] + pfa) / (SUMPAIR(fmt.BDPb) /*fmt.BDPf[0] + fmt.BDPr[0]*/ + 1.0);
     double cFA0 = (fmt.cDP0a[a] + pfa * (does_fmt_imply_short_frag(fmt, paramset.lib_wgs_min_avg_fraglen) ? paramset.lib_nonwgs_ad_pseudocount : 1.0)) 
             / (SUMPAIR(fmt.CDP1b) + 1.0); // (fmt.CDP1f[0] + fmt.CDP1r[0] + 1.0);
@@ -5933,11 +5938,11 @@ fill_conditional_tki(TumorKeyInfo & tki, const bcfrec::BcfFormat & fmt, const Al
     const uvc1_readnum_t duplex_coef_weight = 1;
     // extra code for backward compatibility
     if (TIsFmtTumor) {
-        tki.tDP = SUMPAIR(fmt.CDP1b); // (fmt.CDP1f[0] + fmt.CDP1r[0]);
-        tki.tADR = {{ fmt.cDP1f[0] + fmt.cDP1r[0], LAST(fmt.cDP1f) + LAST(fmt.cDP1r) }};
-        if ((isSymbolIns(symbol) || isSymbolDel(symbol))) {
-            UPDATE_MIN(tki.tADR[1], fmt.cDP0a[1]);
-        }
+        tki.tDP = fmt.DP; // SUMPAIR(fmt.CDP1b); // (fmt.CDP1f[0] + fmt.CDP1r[0]);
+        tki.tADR = {{ fmt.AD[0], fmt.AD[1] }}; // {{ fmt.cDP1f[0] + fmt.cDP1r[0], LAST(fmt.cDP1f) + LAST(fmt.cDP1r) }};
+        // if ((isSymbolIns(symbol) || isSymbolDel(symbol))) {
+        //     UPDATE_MIN(tki.tADR[1], fmt.cDP0a[1]);
+        // }
         // tki.tDPC = SUMPAIR(fmt.CDP2b); // (fmt.CDP2f[0] + fmt.CDP2r[0]);
         // tki.tADCR = {{ fmt.cDP2f[0] + fmt.cDP2r[0], LAST(fmt.cDP2f) + LAST(fmt.cDP2r) }};
         tki.tDPC = SUMPAIR(fmt.CDPDb) + (SUMPAIR(fmt.DDP2) * duplex_coef_weight);
@@ -5950,11 +5955,11 @@ fill_conditional_tki(TumorKeyInfo & tki, const bcfrec::BcfFormat & fmt, const Al
         //tki.nDPC = 0; // this tag does not seem to be useful in most situations
         tki.nADCR = {{ 0 }};
     } else {
-        tki.nDP = SUMPAIR(fmt.CDP1b);  //(fmt.CDP1f[0] + fmt.CDP1r[0]);
-        tki.nADR = {{ fmt.cDP1f[0] + fmt.cDP1r[0], LAST(fmt.cDP1f) + LAST(fmt.cDP1r) }};
-        if ((isSymbolIns(symbol) || isSymbolDel(symbol))) {
-            UPDATE_MIN(tki.nADR[1], fmt.cDP0a[1]);
-        }
+        tki.nDP = fmt.DP; // SUMPAIR(fmt.CDP1b);  //(fmt.CDP1f[0] + fmt.CDP1r[0]);
+        tki.nADR = {{ fmt.AD[0], fmt.AD[1] }}; // {{ fmt.cDP1f[0] + fmt.cDP1r[0], LAST(fmt.cDP1f) + LAST(fmt.cDP1r) }};
+        // if ((isSymbolIns(symbol) || isSymbolDel(symbol))) {
+        //     UPDATE_MIN(tki.nADR[1], fmt.cDP0a[1]);
+        // }
         //tki.nDPC = (fmt.CDP2f[0] + fmt.CDP2r[0]);
         //tki.nADCR = {{ fmt.cDP2f[0] + fmt.cDP2r[0], LAST(fmt.cDP2f) + LAST(fmt.cDP2r) }};
         // tki.nADCR = {{ fmt.cDPDf[0] + fmt.cDPDr[0] + (fmt.dDP2[0] * duplex_coef_weight), LAST(fmt.cDPDf) + LAST(fmt.cDPDr) + (LAST(fmt.dDP2) * duplex_coef_weight)}};
