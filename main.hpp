@@ -1952,9 +1952,9 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
                     if (TIsProton && ((0 == i2) || (cigar_oplen - 1 == i2))) {
                         const auto prev_cigar = (0 < i ? cigar[i - 1] : -1);
                         const auto next_cigar = (i + 1 < n_cigar ? cigar[i + 1] : -1);
-                        if (((cigar_oplen - 1 == i2) && (BAM_CMATCH != next_cigar) && (BAM_CEQUAL != next_cigar) && (BAM_CDIFF != next_cigar))
-                                       || ((0 == i2) && (BAM_CMATCH != prev_cigar) && (BAM_CEQUAL != prev_cigar) && (BAM_CDIFF != prev_cigar))) {
-                            
+                        const bool next_cigar_is_gap = ((cigar_oplen - 1 == i2) && (BAM_CMATCH != next_cigar) && (BAM_CEQUAL != next_cigar) && (BAM_CDIFF != next_cigar));
+                        const bool prev_cigar_is_gap = ((0 == i2) && (BAM_CMATCH != prev_cigar) && (BAM_CEQUAL != prev_cigar) && (BAM_CDIFF != prev_cigar));
+                        if (next_cigar_is_gap || prev_cigar_is_gap) {
                             const bool isrc2 = (0 != i2);
                             uvc1_qual_t prev_base_phred = 1;
                             if ((isrc2) && (qpos + 1 < aln->core.l_qseq)) {
@@ -1963,8 +1963,14 @@ if ((is_normal_used_to_filter_vars_on_primers || !is_assay_amplicon) || (ibeg <=
                             if ((!isrc2) && (qpos > 0)) {
                                 prev_base_phred = BAM_PHREDI(aln, qpos - 1);
                             }
-                            
-                            incvalue = MIN(BAM_PHREDI(aln, qpos), prev_base_phred) + MIN(symboltype2addPhred[BASE_SYMBOL], symboltype2addPhred[LINK_SYMBOL]);
+                            uvc1_readpos_t adj_gap_cigarlen = 100; 
+                            if (next_cigar_is_gap) { UPDATE_MIN(adj_gap_cigarlen, ((i+1 < n_cigar) ? (bam_cigar_oplen(cigar[i + 1])) : 100)); }
+                            if (prev_cigar_is_gap) { UPDATE_MIN(adj_gap_cigarlen, ((0 < i) ? bam_cigar_oplen(cigar[i - 1]) : 100)); }
+                            if (adj_gap_cigarlen < 3) {
+                                incvalue = MIN(BAM_PHREDI(aln, qpos), prev_base_phred) + MIN(symboltype2addPhred[BASE_SYMBOL], symboltype2addPhred[LINK_SYMBOL]);
+                            } else {
+                                incvalue = MIN(BAM_PHREDI(aln, qpos), prev_base_phred) + symboltype2addPhred[BASE_SYMBOL];
+                            }
                         } else {
                             incvalue = BAM_PHREDI(aln, qpos) + symboltype2addPhred[BASE_SYMBOL]; 
                         }
