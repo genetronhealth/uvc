@@ -371,7 +371,7 @@ public:
         }
     };
     
-    template <bool TIsBestKeptAsCons>
+    template <bool TIsRefCountedOnlyOnce>
     int
     _fillConsensusCounts(
             AlignmentSymbol & count_argmax, uvc1_qual_t & count_max, uvc1_qual_t & count_sum,
@@ -382,7 +382,7 @@ public:
         count_max = 0;
         count_sum = 0;
         for (AlignmentSymbol symb = incluBeg; symb <= incluEnd; symb = AlignmentSymbol(((uvc1_unsigned_int_t)symb) + 1)) {
-            if (TIsBestKeptAsCons) {
+            if (TIsRefCountedOnlyOnce) {
                 if (count_max < this->symbol2data[symb] || (LINK_M == count_argmax && (0 < this->symbol2data[symb]))) {
                     count_argmax = symb;
                     count_max = this->symbol2data[symb];
@@ -401,7 +401,7 @@ public:
         return 0;
     };
     
-    template <bool TIsBestKeptAsCons = true, bool TIgnorePaddedDel = false>
+    template <bool TIsRefCountedOnceInLink = false, bool TIgnorePaddedDel = false>
     int
     fillConsensusCounts(
             AlignmentSymbol & count_argmax, uvc1_qual_t & count_max, uvc1_qual_t & count_sum,
@@ -409,21 +409,21 @@ public:
         if (symboltype == BASE_SYMBOL) {
             return this->template _fillConsensusCounts<false        >(count_argmax, count_max, count_sum, BASE_A, (TIgnorePaddedDel ? BASE_T : BASE_NN));
         } else if (symboltype == LINK_SYMBOL) {
-            return this->template _fillConsensusCounts<TIsBestKeptAsCons>(count_argmax, count_max, count_sum, LINK_M, LINK_NN);
+            return this->template _fillConsensusCounts<TIsRefCountedOnceInLink>(count_argmax, count_max, count_sum, LINK_M, LINK_NN);
         } else {
             abort();
             return -1;
         }
     };
     
-    template<bool TIsBestKeptAsCons>
+    template<bool TIsRefCountedOnceInLink>
     AlignmentSymbol
     _updateByConsensus(const GenericSymbol2Count<TInteger> & thatSymbol2Count,
             const SymbolType symboltype, const AlignmentSymbol ambig_pos, const uvc1_qual_t incvalue) {
         AlignmentSymbol argmax_count = END_ALIGNMENT_SYMBOLS; // AlignmentSymbol(0) is not fully correct
         uvc1_qual_t max_count = 0;
         uvc1_qual_t sum_count = 0;
-        thatSymbol2Count.template fillConsensusCounts<TIsBestKeptAsCons>(argmax_count, max_count, sum_count, symboltype);
+        thatSymbol2Count.template fillConsensusCounts<TIsRefCountedOnceInLink>(argmax_count, max_count, sum_count, symboltype);
         
         if (max_count > 0) {
             if ((sum_count - max_count) == 0) {
@@ -438,11 +438,11 @@ public:
         }
     };
 
-    template<bool TIsBestKeptAsCons = true>
+    template<bool TIsRefCountedOnceInLink = true>
     std::array<AlignmentSymbol, 2>
     updateByConsensus(const GenericSymbol2Count<TInteger> & thatSymbol2Count, uvc1_qual_t incvalue = 1) {
         AlignmentSymbol baseSymb = this->template _updateByConsensus<false        >(thatSymbol2Count, BASE_SYMBOL, BASE_NN, incvalue);
-        AlignmentSymbol linkSymb = this->template _updateByConsensus<TIsBestKeptAsCons>(thatSymbol2Count, LINK_SYMBOL, LINK_NN, incvalue);
+        AlignmentSymbol linkSymb = this->template _updateByConsensus<TIsRefCountedOnceInLink>(thatSymbol2Count, LINK_SYMBOL, LINK_NN, incvalue);
         return {baseSymb, linkSymb};
     };
     
@@ -463,7 +463,7 @@ public:
     };
     */
     
-    template <bool TIsBestKeptAsCons = true>
+    template <bool TIsRefCountedOnceInLink>
     int
     updateByFiltering(
             std::array<AlignmentSymbol, NUM_SYMBOL_TYPES> & con_symbols, 
@@ -476,7 +476,7 @@ public:
         uvc1_qual_t countalpha, totalalpha;
         for (SymbolType symboltype : SYMBOL_TYPE_ARR) {
             if (LINK_SYMBOL == symboltype) {
-                other.template fillConsensusCounts<TIsBestKeptAsCons>(consalpha, countalpha, totalalpha, symboltype);
+                other.template fillConsensusCounts<TIsRefCountedOnceInLink>(consalpha, countalpha, totalalpha, symboltype);
             } else {
                 if (is_padded_del_ignored) {
                     other.template fillConsensusCounts<false, true>(consalpha, countalpha, totalalpha, symboltype); 
@@ -1636,12 +1636,12 @@ public:
     }
     */
     // Simplifed version of updateByFiltering
-    template<bool TIsIndelCounted = false, bool TIsConsensusBlock = false, bool TIsBestKeptAsCons = true> 
+    template<bool TIsIndelCounted = false, bool TIsConsensusBlock = false, bool TIsRefCountedOnceInLink = true> 
     void
     updateByConsensus(const GenericSymbol2CountCoverage<TSymbol2Count> &other, uvc1_readnum_t incvalue = 1) {
         this->assertUpdateIsLegal(other); 
         for (uvc1_refgpos_t epos = (other.getIncluBegPosition()); epos < UNSIGN2SIGN(other.getExcluEndPosition()); epos++) {
-            const std::array<AlignmentSymbol, NUM_SYMBOL_TYPES> consymbols = this->getRefByPos(epos).template updateByConsensus<TIsBestKeptAsCons>(other.getByPos(epos), incvalue);
+            const std::array<AlignmentSymbol, NUM_SYMBOL_TYPES> consymbols = this->getRefByPos(epos).template updateByConsensus<TIsRefCountedOnceInLink>(other.getByPos(epos), incvalue);
             if (TIsIndelCounted) {
                 if (isSymbolIns(consymbols[1])) {
                     posToIndelToCount_updateByConsensus(this->getRefPosToIseqToData(consymbols[1]), other.getPosToIseqToData(consymbols[1]), epos, incvalue);
@@ -1656,7 +1656,7 @@ public:
     }
     
     // Add read supports to a bigger family, while excluding read supports that did not pass the threshold.
-    template <bool TIsIndelCounted = false, bool TIsConsensusBlock = false, bool TIsBestKeptAsCons = true>
+    template <bool TIsIndelCounted = true, bool TIsConsensusBlock = false, bool TIsRefCountedOnceInLink = true>
     int
     updateByFiltering(
             const GenericSymbol2CountCoverage<TSymbol2Count> &other, 
@@ -1670,7 +1670,7 @@ public:
         auto excluEndPos = other.getExcluEndPosition();
         std::array<AlignmentSymbol, NUM_SYMBOL_TYPES> consymbols; 
         for (auto epos = incluBegPos; epos < excluEndPos; epos++) {
-            int updateresult = this->getRefByPos(epos).template updateByFiltering<TIsBestKeptAsCons>(
+            int updateresult = this->getRefByPos(epos).template updateByFiltering<TIsRefCountedOnceInLink>(
                     consymbols, 
                     other.getByPos(epos), 
                     is_padded_del_ignored,
@@ -3490,7 +3490,7 @@ if (paramset.inferred_is_vcf_generated) {
                         
                         AlignmentSymbol ref_symbol = region_symbolvec[epos - this->getUnifiedIncluBegPosition()]; 
                         const bool is_var_of_highBQ = ((SEQUENCING_PLATFORM_IONTORRENT == paramset.inferred_sequencing_platform)
-                                ? (BASE_SYMBOL == symboltype || confam_qual + 3 >= paramset.bias_thres_highBQ)
+                                ? (BASE_SYMBOL == symboltype || MAX(confam_qual + 3, avgBQ) >= paramset.bias_thres_highBQ)
                                 : (LINK_SYMBOL == symboltype || confam_qual >= paramset.bias_thres_highBQ));
                         if (areSymbolsMutated(ref_symbol, con_symbol) && is_var_of_highBQ) {
                             pos_symbol_string.push_back(std::make_pair(epos, con_symbol));
