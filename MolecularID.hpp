@@ -35,7 +35,7 @@ struct MolecularBarcode {
         }
 
         if (0x4 & dedup_idflag) {
-            mb.qnamestring = this->umistring;
+            mb.qnamestring = this->qnamestring;
         } else {
             mb.qnamestring = "";
         }

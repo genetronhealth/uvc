@@ -73,3 +73,28 @@ The outputs of these two programs may not be the same in compressed space but ar
 The script bin/uvcnorm.sh can be used for normalizing variants.
 By default, the normalization generates one SNV record per position and one InDel record per position.
 
+The script bin/uvcSurrogateAlign.sh is still under development and should not be used.
+
+For more information, please check the wiki.
+
+# References
+
+## Publication
+
+Xiaofei Zhao, Allison C Hu, Sizhen Wang, Xiaoyue Wang, Calling small variants using universality with Bayes-factor-adjusted odds ratios, Briefings in Bioinformatics, 2021;, bbab458, https://doi.org/10.1093/bib/bbab458
+
+Calling small variants with universality and Bayesian-frequentist hybridism
+Xiaofei Zhao, Allison Hu, Sizhen Wang, Xiaoyue Wang
+bioRxiv 2020.08.23.263749; doi: https://doi.org/10.1101/2020.08.23.263749
+
+## Patent
+
+[1]赵霄飞, 王思振. 一种基于高通量测序的基因变异检测方法:, CN111243664A[P]. 2020.
+
+# Contact: XiaoFei Zhao
+
+xiaofei DOT zhao AT genetronhealth DOT com
+
+x43zhao AT uwaterloo DOT ca
+
+cndfeifei AT gmail DOT com 

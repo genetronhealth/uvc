@@ -63,7 +63,7 @@ struct SamIter {
             fprintf(stderr, "Failed to read the header of the file %s!", input_bam_fname.c_str());
             abort();
         }
-        if (NOT_PROVIDED != this->tier1_target_region) {
+        if (IS_PROVIDED(this->tier1_target_region)) {
             this->sam_idx = sam_index_load(this->sam_infile, input_bam_fname.c_str());
             if (NULL == this->sam_idx) {
                 fprintf(stderr, "Failed to load the index for the file %s!", input_bam_fname.c_str());
@@ -75,7 +75,7 @@ struct SamIter {
                 abort();
             }
             target_region_to_contigs(this->_bedlines, this->tier1_target_region, this->samheader);
-        } else if (NOT_PROVIDED != this->region_bed_fname) {
+        } else if (IS_PROVIDED(this->region_bed_fname)) {
             this->sam_idx = sam_index_load(this->sam_infile, input_bam_fname.c_str());
             if (NULL == this->sam_idx) {
                 fprintf(stderr, "Failed to load the index for the file %s!", input_bam_fname.c_str());

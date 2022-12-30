@@ -20,8 +20,8 @@ fill_by_indel_info2_2
         const AlignmentSymbol symbol,
         const std::map<uvc1_refgpos_t, std::map<INDELTYPE, uvc1_readnum_t>> & bq_tsum_depth,
         const std::map<uvc1_refgpos_t, std::map<INDELTYPE, uvc1_readnum_t>> & fq_tsum_depth,
-        const std::map<uvc1_refgpos_t, std::map<INDELTYPE, uvc1_readnum_t>> & fq_tsum_depth_cDP2,
-        const std::map<uvc1_refgpos_t, std::map<INDELTYPE, uvc1_readnum_t>> & fq_tsum_depth_cDP3,
+        const std::map<uvc1_refgpos_t, std::map<INDELTYPE, uvc1_readnum_t>> & fq_tsum_depth_c2DP,
+        const std::map<uvc1_refgpos_t, std::map<INDELTYPE, uvc1_readnum_t>> & fq_tsum_depth_c2dDP,
 
         const std::string & refchars IGNORE_UNUSED_PARAM,
         const uvc1_flag_t specialflag IGNORE_UNUSED_PARAM) {
@@ -52,10 +52,10 @@ fill_by_indel_info2_2
         
         const uvc1_readnum_t bqdata = posToIndelToData_get(bq_tsum_depth, refpos, indel);
         const uvc1_readnum_t fqdata = posToIndelToData_get(fq_tsum_depth, refpos, indel);
-        const uvc1_readnum_t fqdata_cDP2 = posToIndelToData_get(fq_tsum_depth_cDP2, refpos, indel);
-        const uvc1_readnum_t fqdata_cDP3 = posToIndelToData_get(fq_tsum_depth_cDP3, refpos, indel);
+        const uvc1_readnum_t fqdata_c2DP = posToIndelToData_get(fq_tsum_depth_c2DP, refpos, indel);
+        const uvc1_readnum_t fqdata_c2dDP = posToIndelToData_get(fq_tsum_depth_c2dDP, refpos, indel);
         assertUVC(bqdata > 0);
-        bqfq_depth_mutform_tuples.push_back(std::make_tuple(fqdata, bqdata, fqdata_cDP2, fqdata_cDP3, indelstring));
+        bqfq_depth_mutform_tuples.push_back(std::make_tuple(fqdata, bqdata, fqdata_c2DP, fqdata_c2dDP, indelstring));
     }
     uvc1_readnum_t gapbAD1sum = 0;
     uvc1_readnum_t gapcAD1sum = 0;
@@ -75,8 +75,8 @@ fill_by_indel_info2_2
         fmt.gapSeq.push_back(gap_seq);
         fmt.gapbAD1.push_back(gap_bAD);
         fmt.gapcAD1.push_back(gap_cAD);
-        fmt.gcAD2.push_back(gap_cAD2);
-        fmt.gcAD3.push_back(gap_cAD3);
+        fmt.gc2AD.push_back(gap_cAD2);
+        fmt.gc2dAD.push_back(gap_cAD3);
         if ((UNSIGN2SIGN(gap_seq.size()) != prev_gapseq_len) && (prev_gap_cAD > gap_cAD)) {
             maxdiff = MAX(maxdiff, prev_gap_cAD - gap_cAD);
         }
