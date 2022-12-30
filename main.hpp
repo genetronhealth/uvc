@@ -24,11 +24,11 @@
 #include <tuple>
 #include <vector>
 
-#include <assert.h>
-#include <limits.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cassert>
+#include <climits>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
 
 class HapLink {
 public:
@@ -2415,7 +2415,7 @@ struct Symbol2CountCoverageSet {
        
         size_t n_PE_alns = 0;
         size_t n_SE_alns = 0;
-        for (const auto bams : alns2) {
+        for (const auto &bams : alns2) {
             for (const bam1_t *bam : bams) {
                 if (bam->core.flag & 0x1) {
                     n_PE_alns++;
@@ -2477,7 +2477,7 @@ struct Symbol2CountCoverageSet {
             const size_t ini_fqdata_size = fqdata.size();
             //  here we put all read names of the original BAM that did not go through any consensus.
             std::string fqcomment = std::to_string(alns2.size()) + "x(" + std::to_string(extended_beg_pos) + "-" + std::to_string(extended_end_pos) + ")";
-            for (const auto bams : alns2) {
+            for (const auto &bams : alns2) {
                 assertUVC(bams.size() <= 2);
                 assertUVC(bams.size() >= 1);
                 if (bams.size() == 2) {
