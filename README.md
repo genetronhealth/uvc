@@ -95,8 +95,10 @@ bioRxiv 2020.08.23.263749; doi: https://doi.org/10.1101/2020.08.23.263749
 
 # Contact: XiaoFei Zhao
 
-xiaofei DOT zhao AT genetronhealth DOT com
 
-x43zhao AT uwaterloo DOT ca
+x43zhao AT uwaterloo DOT ca (first email to be reached at)
 
-cndfeifei AT gmail DOT com 
+cndfeifei AT gmail DOT com (if the above email does not work)
+
+xiaofei DOT zhao AT genetronhealth DOT com (if the above email does not work)
+
