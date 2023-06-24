@@ -413,7 +413,9 @@ struct CommandLineArgs {
     double              lib_nonwgs_normal_full_self_rescue_fa = 0.1;
     double              lib_nonwgs_normal_min_self_rescue_fa_ratio = 0.2;
     double              lib_nonwgs_normal_add_mul_ad = 1.0;
-        
+    uvc1_qual_t         lib_nonwgs_normal_max_rescued_MQ = 30;
+    uvc1_qual_t         lib_wgs_normal_max_rescued_MQ = 0;
+
 // *** 14. parameters related to debugging in vcf
     uvc1_flag_t         debug_note_flag = 0x0;
     uvc1_readpos_t      debug_warn_min_read_end_ins_cigar_oplen = 16;

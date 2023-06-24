@@ -5220,6 +5220,8 @@ BcfFormat_symbol_calc_qual(
                 ? fmt.bMQ[a] // small
                 : (_systematicMQ_base - (uvc1_qual_t)(numstates2phred((ADP + 1.0) / (aDP + 0.5)))));
     // We may need to consider that: if an amplicon panel is designed for a target region, then there must be wet-lab protocol to deal with low mapping quality.
+    const bool is_nonWGS = does_fmt_imply_short_frag(fmt, paramset.lib_wgs_min_avg_fraglen);
+    const uvc1_qual_t normal_rescued_MQ = MIN(non_neg_minus(readlenMQcap, 60), (is_nonWGS ? paramset.lib_nonwgs_normal_max_rescued_MQ : paramset.lib_wgs_normal_max_rescued_MQ));
     
     auto systematicMQVQ1 = MIN((MAX(_systematicMQ, paramset.syserr_MQ_min) + _systematicMQVQadd), readlenMQcap);
 
@@ -5268,7 +5270,7 @@ BcfFormat_symbol_calc_qual(
              + (is_fmtADPxfr_imba ? paramset.microadjust_strand_absence_snv_penalty : 0))
             : (is_tmore_amplicon ? paramset.microadjust_dedup_absence_indel_penalty : 0));
     
-    const auto tn_syserr_q = systematicMQVQ + paramset.tn_q_inc_max;
+    const auto tn_syserr_q = systematicMQVQ + paramset.tn_q_inc_max + normal_rescued_MQ;
     
     clear_push(fmt.bMQQ, systematicMQVQ);
     

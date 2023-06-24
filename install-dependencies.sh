@@ -10,7 +10,7 @@ if [ $(echo "${1}" | grep skip-bcftools | wc -l) -eq 0 ]; then
     mkdir -p "${currdir}/ext/"
     cd "${currdir}/ext/"
     if [ $(echo "${1}" | grep skip-downloading-bcftools | wc -l) -eq 0 ]; then
-        wget --inet4-only https://github.com/samtools/bcftools/releases/download/1.11/bcftools-1.11.tar.bz2
+        wget -c https://github.com/samtools/bcftools/releases/download/1.11/bcftools-1.11.tar.bz2
     fi
     tar -xvf bcftools-1.11.tar.bz2
     cd "${currdir}/ext/bcftools-1.11"
@@ -32,7 +32,7 @@ if [ $(echo "${1}" | grep skip-samtools | wc -l) -eq 0 ]; then
     mkdir -p "${currdir}/ext/"
     cd "${currdir}/ext/"
     if [ $(echo "${1}" | grep skip-downloading-samtools | wc -l) -eq 0 ]; then
-        wget --inet4-only https://github.com/samtools/samtools/releases/download/1.11/samtools-1.11.tar.bz2
+        wget -c https://github.com/samtools/samtools/releases/download/1.11/samtools-1.11.tar.bz2
     fi
     tar -xvf samtools-1.11.tar.bz2
     cd "${currdir}/ext/samtools-1.11"
@@ -43,7 +43,7 @@ fi
 
 if [ $(echo "${1}" | grep skip-parallel | wc -l) -eq 0 ]; then
     cd "${currdir}/ext/"
-    wget --inet4-only http://ftp.gnu.org/gnu/parallel/parallel-20201122.tar.bz2
+    wget -c http://ftp.gnu.org/gnu/parallel/parallel-20201122.tar.bz2
     tar -xvf parallel-20201122.tar.bz2
     cd "${currdir}/ext/parallel-20201122"
     ./configure

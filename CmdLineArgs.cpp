@@ -980,6 +980,10 @@ CommandLineArgs::initFromArgCV(int & parsing_result_flag, int argc, const char *
         "For non-WGS: normal effective allele-fraction (FA) cannot be reduced below this times the corresponding raw FA.");
     ADD_OPTDEF2(app, lib_nonwgs_normal_add_mul_ad,
         "For non-WGS: normal cross-sample read count is increased by this multiplicative factor. ");
+    ADD_OPTDEF2(app, lib_nonwgs_normal_max_rescued_MQ,
+        "For non-WGS: additional maximum Phred-scaled increase in the mapping quality part of the variant quality by comparing the tumor with its matched normal. ");
+    ADD_OPTDEF2(app, lib_wgs_normal_max_rescued_MQ,
+        "For WGS: additional maximum Phred-scaled increase in the mapping quality part of the variant quality by comparing the tumor with its matched normal. ");
     
 // *** 14 debugging
     
