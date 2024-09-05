@@ -173,7 +173,9 @@ SamIter::iternext(
             const auto bed_beg = bedline.beg_pos;
             const auto bed_end = bedline.end_pos;
             int64_t region_n_reads = INT64MUL(bed_in_avg_sequencing_DP, (bed_end - bed_beg)); // Please note that left-over reads from the previoous iteration are ignored
-            if (-1 == bed_in_avg_sequencing_DP) {
+            if (bed_in_avg_sequencing_DP_n_from_t) {
+                region_n_reads = bedline.n_reads; // Let normal_use_tumor_num_of_reads
+            } else if (-1 == bed_in_avg_sequencing_DP) {
                 hts_itr_t *hts_itr = sam_itr_queryi(this->sam_idx, bed_tid, bed_beg, bed_end);
                 if (NULL == hts_itr) {
                     LOG(logERROR) << "Error when fetching region tid=" << bed_tid << ":" << bed_beg << "-" <<  bed_end << ", aborting now. ";

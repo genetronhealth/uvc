@@ -29,6 +29,7 @@ struct SamIter {
     const std::string & tier1_target_region; 
     const std::string region_bed_fname;
     const int64_t bed_in_avg_sequencing_DP;
+    const uvc1_flag_t bed_in_avg_sequencing_DP_n_from_t;
     const size_t nthreads; 
     const int64_t mem_per_thread;
     const bool is_fastq_gen;
@@ -50,6 +51,7 @@ struct SamIter {
             tier1_target_region(paramset.tier1_target_region), 
             region_bed_fname(paramset.bed_region_fname),
             bed_in_avg_sequencing_DP(paramset.bed_in_avg_sequencing_DP),
+            bed_in_avg_sequencing_DP_n_from_t(paramset.bed_in_avg_sequencing_DP_n_from_t),
             nthreads(paramset.max_cpu_num),
             mem_per_thread(paramset.mem_per_thread),
             is_fastq_gen(paramset.fam_consensus_out_fastq.size() > 0) {

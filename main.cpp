@@ -13,6 +13,7 @@
 
 #include <chrono>
 #include <ctime>
+#include <future>
 #include <thread>
 #include <tuple>
 
@@ -192,20 +193,43 @@ rescue_variants_from_vcf(
         return ret;
     }
     std::string regionstring;
+    std::string targetstring;
+    int64_t prev_tid = -1;
+    int64_t prev_beg = -1;
+    int64_t prev_end = -1;
     for (const auto & bedline : bedlines) {
+        if (prev_tid != bedline.tid) {
+            if (prev_tid != -1) {
+                if (0 < regionstring.size()) { regionstring += std::string(","); }
+                regionstring += (std::get<0>(tid_to_tname_tlen_tuple_vec[prev_tid]) + ":" + std::to_string(prev_beg+1) + "-" + std::to_string(prev_end+1-1));
+            }
+            prev_tid = bedline.tid;
+            prev_beg = bedline.beg_pos;
+        }
+
         const uvc1_refgpos_t tid = bedline.tid; // std::get<0>(tid_beg_end_e2e);
         const uvc1_refgpos_t rpos_inclu_beg = bedline.beg_pos; // std::get<1>(tid_beg_end_e2e);
         const uvc1_refgpos_t rpos_exclu_end = bedline.end_pos; // std::get<2>(tid_beg_end_e2e);
         
         const auto & tname_tseqlen_tuple = tid_to_tname_tlen_tuple_vec[tid];
+        if (0 < targetstring.size()) { targetstring += std::string(","); }
+        std::string targetspec = (std::get<0>(tname_tseqlen_tuple) + ":" + std::to_string(rpos_inclu_beg+1) + "-" + std::to_string(rpos_exclu_end+1-1));
+        targetstring += targetspec;
+        
+        prev_end = bedline.end_pos;        
+    }
+    
+    if (prev_tid != -1) {
         if (0 < regionstring.size()) { regionstring += std::string(","); }
-        regionstring += (std::get<0>(tname_tseqlen_tuple) + ":" + std::to_string(rpos_inclu_beg+1) + "-" + std::to_string(rpos_exclu_end+1-1)); 
+        regionstring += (std::get<0>(tid_to_tname_tlen_tuple_vec[prev_tid]) + ":" + std::to_string(prev_beg+1) + "-" + std::to_string(prev_end+1-1));
     }
     
     { 
-        LOG(logINFO) << "Region is " << regionstring;
+        LOG(logINFO) << "BCF region is " << regionstring;
+        LOG(logINFO) << "BCF target is " << targetstring;
+
     }
-    if (regionstring.size() == 0) {
+    if (targetstring.size() == 0) {
         return ret;
     }
     bcf_srs_t *const sr = bcf_sr_init();
@@ -215,6 +239,8 @@ rescue_variants_from_vcf(
     }
     
     bcf_sr_set_regions(sr, regionstring.c_str(), false);
+    bcf_sr_set_targets(sr, targetstring.c_str(), false, 0);
+
     int sr_set_opt_retval = bcf_sr_set_opt(sr, BCF_SR_REQUIRE_IDX);
     if (sr_set_opt_retval < 0) {
         LOG(logCRITICAL) << "The validation of the index file for the tumor vcf " << vcf_tumor_fname << " failed with return code " << sr_set_opt_retval;
@@ -1319,7 +1345,7 @@ main(int argc, char **argv) {
     LOG(logINFO) << "Rescued/retrieved " << tid_pos_symb_to_tkis1.size() << " variants in tier-1-region no " << (n_sam_iters);
     while (iter_nreads > 0) {
         n_sam_iters++;
-        std::thread read_bam_thread([&bedlines2, &tid_pos_symb_to_tkis2, &samIter, &iter_nreads, &iter_ret_flag, &n_sam_iters, &paramset, &tid_to_tname_tseqlen_tuple_vec, g_bcf_hdr]() {
+        auto read_bam_thread = std::async([&bedlines2, &tid_pos_symb_to_tkis2, &samIter, &iter_nreads, &iter_ret_flag, &n_sam_iters, &paramset, &tid_to_tname_tseqlen_tuple_vec, g_bcf_hdr]() {
             bedlines2.clear();
             iter_nreads = samIter.iternext(iter_ret_flag, bedlines2, 0);
             LOG(logINFO) << "PreProcessed " << iter_nreads << " reads in tier-1-region no " << (n_sam_iters);
@@ -1327,6 +1353,7 @@ main(int argc, char **argv) {
             tid_pos_symb_to_tkis2 = rescue_variants_from_vcf(bedlines2, tid_to_tname_tseqlen_tuple_vec, paramset.vcf_tumor_fname, g_bcf_hdr, paramset.is_tumor_format_retrieved);
             LOG(logINFO) << "Rescued/retrieved " << tid_pos_symb_to_tkis2.size() << " variants in tier-1-region no " << (n_sam_iters);
         });
+        // read_bam_thread.start();
         const auto & bedlines = bedlines1;
         
         const size_t allridx = 0;
@@ -1520,7 +1547,10 @@ main(int argc, char **argv) {
                 }
             } 
         }
-        read_bam_thread.join(); // end this iteration
+        LOG(logINFO) << "Start-waiting-for read_bam_thread with tier-1-region no " << (n_sam_iters);
+        // read_bam_thread.join(); // end this iteration
+        read_bam_thread.get();
+        LOG(logINFO) << "End-waiting-for read_bam_thread with tier-1-region no " << (n_sam_iters);
         for (auto tid_pos_symb_to_tkis1_pair: tid_pos_symb_to_tkis1) {
             for (auto tki : tid_pos_symb_to_tkis1_pair.second) {
                 if (NULL != tki.bcf1_record) {
