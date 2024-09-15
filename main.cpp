@@ -1095,10 +1095,10 @@ if (paramset.inferred_is_vcf_generated) {
                      || ((LINK_NN == symbol) && !(OUTVAR_LINK_NN & paramset.outvar_flag)));
                 if (will_generate_out && !is_out_blocked) {
                     fmt.GT = "./1";
+                    const auto germ_phred = (isSymbolSubstitution(symbol) ? paramset.germ_phred_hetero_snp : paramset.germ_phred_hetero_indel);
                     const auto nlodq_singlesite = std::get<0>(nlodq_fmtptr1_fmtptr2_tup);
                     // the 3 accounts for mapping error and copy-number variation
-                    const auto nlodq_singlesample = nlodq_singlesite - 3 
-                            + (isSymbolSubstitution(symbol) ? paramset.germ_phred_hetero_snp : paramset.germ_phred_hetero_indel);
+                    const auto nlodq_singlesample = nlodq_singlesite - 3 + germ_phred;
                     
                     assertUVC ((ISNT_PROVIDED(paramset.vcf_tumor_fname)) == (0 == tki.ref_alt.size()));
                     if (IS_PROVIDED(paramset.vcf_tumor_fname)) {
@@ -1107,10 +1107,10 @@ if (paramset.inferred_is_vcf_generated) {
                         for (const auto *fmtptr : fmtptrs) {
                             const AlignmentSymbol normsymbol = AlignmentSymbol(LAST(fmtptr->VTI));
                             auto bgerr_norm_max_ad = collectget(fmtptr->cDP1x, 1, 50); 
-                            double tAD = (tki.cDP1x + 1) / 100.0;
-                            double tDP = (tki.CDP1x + 2) / 100.0;
-                            double nAD = (bgerr_norm_max_ad + 1) / 100.0;
-                            double nDP = (fmtptr->CDP1x[0] + 2) / 100.0;
+                            double tAD = (tki.cDP1x + 1*50) / 100.0;
+                            double tDP = (tki.CDP1x + 2*50) / 100.0;
+                            double nAD = (bgerr_norm_max_ad + 1*50) / 100.0;
+                            double nDP = (fmtptr->CDP1x[0] + 2*50) / 100.0;
                             double bjpfrac = ((tAD) / (tDP)) / ((nAD) / (nDP));
                             uvc1_qual_t binom_b10log10like = calc_binom_10log10_likeratio((tDP - tAD) / (tDP), nDP - nAD, nAD);
                             uvc1_qual_t powlaw_b10log10like = (paramset.powlaw_exponent * 10 / log(10) * log(bjpfrac));
@@ -1140,7 +1140,8 @@ if (paramset.inferred_is_vcf_generated) {
                         }
                         const auto totBDP = SUMPAIR(fmt.BDPb); // (fmt.BDPf[0] + fmt.BDPr[0]);
                         const auto n_norm_alts = (totBDP - (FIRST(fmt.bDPf) + FIRST(fmt.bDPr))) + (LAST(fmt.bDPf) + LAST(fmt.bDPr));
-                        nlodq = MAX(nlodq_singlesite + nlodq_inc, tki.vHGQ + MIN(3, totBDP - n_norm_alts * (int)round(0.5 / paramset.contam_any_mul_frac)));
+                        //nlodq = MAX(nlodq_singlesite + nlodq_inc, tki.vHGQ + MIN(3, totBDP - n_norm_alts * (int)round(0.5 / paramset.contam_any_mul_frac)));
+                        nlodq = MAX(MAX(nlodq_singlesite, germ_phred + nlodq_inc), tki.vHGQ + MIN(3, totBDP - n_norm_alts * (int)round(0.5 / paramset.contam_any_mul_frac)));
                     } else {
                         nlodq = nlodq_singlesample;
                     }
