@@ -15,6 +15,7 @@
 
 #include <float.h>
 #include <limits.h>
+#include <stdint.h>
 
 #ifdef __GNUC__
 #if __GNUC__ > 3
